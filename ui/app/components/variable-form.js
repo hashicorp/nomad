@@ -233,7 +233,7 @@ export default class VariableFormComponent extends Component {
       this.flashMessages.add({
         title: 'Variable saved',
         message: `${this.path} successfully saved`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -245,7 +245,7 @@ export default class VariableFormComponent extends Component {
         this.flashMessages.add({
           title: `Error saving ${this.path}`,
           message: error,
-          type: 'error',
+          color: 'critical',
           destroyOnClick: false,
           sticky: true,
         });

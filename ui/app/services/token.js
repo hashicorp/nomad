@@ -154,7 +154,7 @@ export default class TokenService extends Service {
                 message: `Your token access expires ${moment(
                   this.selfToken.expirationTime
                 ).fromNow()}`,
-                type: 'error',
+                color: 'warning',
                 destroyOnClick: false,
                 sticky: true,
                 customCloseAction: () => {

@@ -43,7 +43,7 @@ export default class PolicyEditorComponent extends Component {
 
       this.flashMessages.add({
         title: 'Policy Saved',
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -55,7 +55,7 @@ export default class PolicyEditorComponent extends Component {
       this.flashMessages.add({
         title: `Error creating Policy ${this.policy.name}`,
         message: error,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });

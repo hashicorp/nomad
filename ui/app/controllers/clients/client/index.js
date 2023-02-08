@@ -319,7 +319,7 @@ export default class ClientController extends Controller.extend(
       this.flashMessages.add({
         title: 'Metadata added',
         message: `${key} successfully saved`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 3000,
       });
@@ -329,7 +329,7 @@ export default class ClientController extends Controller.extend(
       this.flashMessages.add({
         title: `Error saving Metadata`,
         message: error,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });

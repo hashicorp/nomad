@@ -12,10 +12,10 @@
     <Hds::Toast
       @color={{or flash.color "neutral"}}
       @onDismiss={{
-        (queue
+        queue
           (action close)
           (action (optional flash.customCloseAction))
-        )
+        
       }}
     as |T|>
       {{#if flash.title}}

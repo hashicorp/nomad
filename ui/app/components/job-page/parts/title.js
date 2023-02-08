@@ -9,6 +9,7 @@ import classic from 'ember-classic-decorator';
 @tagName('')
 export default class Title extends Component {
   @service router;
+  @service flashMessages;
 
   job = null;
   title = null;
@@ -37,7 +38,7 @@ export default class Title extends Component {
       this.flashMessages.add({
         title: 'Job Purged',
         message: `You have purged ${this.job.name}`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });

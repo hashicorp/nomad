@@ -30,7 +30,7 @@ export default class JobsRunTemplatesManageController extends Controller {
       this.flashMessages.add({
         title: 'Job template deleted',
         message: `${model.path} successfully deleted`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -38,7 +38,7 @@ export default class JobsRunTemplatesManageController extends Controller {
       this.flashMessages.add({
         title: `Job template could not be deleted.`,
         message: err,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });

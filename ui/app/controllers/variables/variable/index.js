@@ -42,7 +42,7 @@ export default class VariablesVariableIndexController extends Controller {
       this.flashMessages.add({
         title: 'Variable deleted',
         message: `${this.model.path} successfully deleted`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -50,7 +50,7 @@ export default class VariablesVariableIndexController extends Controller {
       this.flashMessages.add({
         title: `Error deleting ${this.model.path}`,
         message: err,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });

@@ -63,7 +63,7 @@ export default class JobsRunTemplatesNewController extends Controller {
       this.flashMessages.add({
         title: 'Job template saved',
         message: `${this.templateName} successfully saved`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -73,7 +73,7 @@ export default class JobsRunTemplatesNewController extends Controller {
       this.flashMessages.add({
         title: 'Job template cannot be saved.',
         message: e,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         timeout: 5000,
       });

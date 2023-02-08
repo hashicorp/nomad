@@ -54,7 +54,7 @@ export default class JobsRunIndexRoute extends Route {
       this.flashMessages.add({
         title: `Error loading job template`,
         message: error404.detail,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });

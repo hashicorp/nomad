@@ -54,7 +54,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
         this.flashMessages.add({
           title: `Error:  Not Found`,
           message: `Allocation of id:  ${allocId} was not found.`,
-          type: 'error',
+          color: 'critical',
           destroyOnClick: false,
           sticky: true,
         });

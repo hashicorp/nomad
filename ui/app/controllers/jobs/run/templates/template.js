@@ -37,7 +37,7 @@ export default class JobsRunTemplatesController extends Controller {
       this.flashMessages.add({
         title: 'Job template saved',
         message: `${this.model.path} successfully editted`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -47,7 +47,7 @@ export default class JobsRunTemplatesController extends Controller {
       this.flashMessages.add({
         title: 'Job template cannot be editted.',
         message: e,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -61,7 +61,7 @@ export default class JobsRunTemplatesController extends Controller {
       this.flashMessages.add({
         title: 'Job template deleted',
         message: `${this.model.path} successfully deleted`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -70,7 +70,7 @@ export default class JobsRunTemplatesController extends Controller {
       this.flashMessages.add({
         title: `Job template could not be deleted.`,
         message: err,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });

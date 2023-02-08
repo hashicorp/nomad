@@ -39,7 +39,7 @@ export default class PoliciesPolicyController extends Controller {
       yield this.policy.save();
       this.flashMessages.add({
         title: 'Policy Deleted',
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
@@ -48,7 +48,7 @@ export default class PoliciesPolicyController extends Controller {
       this.flashMessages.add({
         title: `Error deleting Policy ${this.policy.name}`,
         message: err,
-        type: 'error',
+        color: 'critical',
         destroyOnClick: false,
         sticky: true,
       });
@@ -78,7 +78,7 @@ export default class PoliciesPolicyController extends Controller {
       this.flashMessages.add({
         title: 'Example Token Created',
         message: `${newToken.secret}`,
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 30000,
         customAction: {
@@ -106,7 +106,7 @@ export default class PoliciesPolicyController extends Controller {
       yield this.refreshTokens();
       this.flashMessages.add({
         title: 'Token successfully deleted',
-        type: 'success',
+        color: 'success',
         destroyOnClick: false,
         timeout: 5000,
       });
