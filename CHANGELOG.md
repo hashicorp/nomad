@@ -2,7 +2,8 @@
 
 FEATURES:
 
-* **SSO via OIDC***: Allow users to authenticate with Nomad via OIDC providers [[GH-15816](https://github.com/hashicorp/nomad/issues/15816)]
+* **Dynamic Node Metadata**: Allow users and tasks to update Node metadata via an API [[GH-15844](https://github.com/hashicorp/nomad/issues/15844)]
+* **SSO via OIDC**: Allow users to authenticate with Nomad via OIDC providers [[GH-15816](https://github.com/hashicorp/nomad/issues/15816)]
 
 BREAKING CHANGES:
 
@@ -13,16 +14,14 @@ BREAKING CHANGES:
 
 IMPROVEMENTS:
 
-* api: add ability to update node metadata via api [[GH-15844](https://github.com/hashicorp/nomad/issues/15844)]
 * api: improved error returned from AllocFS.Logs when response is not JSON [[GH-15558](https://github.com/hashicorp/nomad/issues/15558)]
 * build: Added hyper-v isolation mode for docker on Windows [[GH-15819](https://github.com/hashicorp/nomad/issues/15819)]
-* build: Update to go1.19.5 [[GH-15769](https://github.com/hashicorp/nomad/issues/15769)]
 * build: Update to go1.20 [[GH-16029](https://github.com/hashicorp/nomad/issues/16029)]
 * cli: Add `-json` and `-t` flag to `nomad acl token create` command [[GH-16055](https://github.com/hashicorp/nomad/issues/16055)]
 * cli: Added `-wait` flag to `deployment status` for use with `-monitor` mode [[GH-15262](https://github.com/hashicorp/nomad/issues/15262)]
 * cli: Added sprig function support for `-t` templates [[GH-9053](https://github.com/hashicorp/nomad/issues/9053)]
 * cli: Added tls command to enable creating Certificate Authority and Self signed TLS certificates.
-  There are two sub commands `tls ca` and `tls cert` that are helpers when creating certificates. [[GH-14296](https://github.com/hashicorp/nomad/issues/14296)]
+There are two sub commands `tls ca` and `tls cert` that are helpers when creating certificates. [[GH-14296](https://github.com/hashicorp/nomad/issues/14296)]
 * cli: `nomad job stop` can be used to stop multiple jobs concurrently. [[GH-12582](https://github.com/hashicorp/nomad/issues/12582)]
 * cli: add a nomad operator client state command [[GH-15469](https://github.com/hashicorp/nomad/issues/15469)]
 * cli: we now recommend .nomad.hcl extension for job files, so `job init` creates example.nomad.hcl [[GH-15997](https://github.com/hashicorp/nomad/issues/15997)]
