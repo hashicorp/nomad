@@ -437,9 +437,10 @@ func SystemJob() *structs.Job {
 		Meta: map[string]string{
 			"owner": "armon",
 		},
-		Status:      structs.JobStatusPending,
-		CreateIndex: 42,
-		ModifyIndex: 99,
+		Status:         structs.JobStatusPending,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
 	}
 	job.Canonicalize()
 	return job
