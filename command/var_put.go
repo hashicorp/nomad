@@ -8,14 +8,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
+	"golang.org/x/exp/slices"
 )
 
 type VarPutCommand struct {
@@ -270,6 +273,8 @@ func (c *VarPutCommand) Run(args []string) int {
 		return 1
 	}
 
+	diags := make([]*parseIdentifierDiag, 0)
+
 	if len(args) > 0 {
 		data, err := parseArgsData(stdin, args)
 		if err != nil {
@@ -287,6 +292,9 @@ func (c *VarPutCommand) Run(args []string) int {
 					verbose(fmt.Sprintf("Item %q does not exist, continuing...", k))
 				}
 				continue
+			}
+			if ok, diag := isValidIdentifier(k); !ok {
+				diags = append(diags, diag)
 			}
 			sv.Items[k] = vs
 		}
@@ -317,6 +325,8 @@ func (c *VarPutCommand) Run(args []string) int {
 
 	successMsg := fmt.Sprintf(
 		"Created variable %q with modify index %v", sv.Path, sv.ModifyIndex)
+
+	c.printWarnings(diags)
 
 	var out string
 	switch c.outFmt {
@@ -524,4 +534,101 @@ func (c *VarPutCommand) validateOutputFlag() error {
 	default:
 		return errors.New(errInvalidOutFormat)
 	}
+}
+
+type parseIdentifierDiag struct {
+	Identifier string
+	Issues     RuneLocs
+}
+
+type RuneLocs []runeLoc
+type runeLoc struct {
+	Rune     rune
+	Location int
+}
+
+func isValidIdentifier(in string) (bool, *parseIdentifierDiag) {
+	pid := parseIdentifierDiag{
+		Identifier: in,
+		Issues:     make([]runeLoc, 0),
+	}
+
+	for i, r := range in {
+		if !isAlphaNumeric(r) {
+			pid.Issues = append(pid.Issues, runeLoc{Rune: r, Location: i})
+		}
+	}
+
+	if len(pid.Issues) > 0 {
+		return false, &pid
+	}
+
+	return true, nil
+}
+
+// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
+func isAlphaNumeric(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+func (p *parseIdentifierDiag) String() string {
+	chars := make([]string, len(p.Issues))
+	for i, r := range p.Issues {
+		chars[i] = fmt.Sprintf("%q", r)
+	}
+	return fmt.Sprintf("%q contains characters %s that require the `index` function for direct access in templates", p.Identifier, p.Issues.String())
+}
+
+func (rl RuneLocs) String() string {
+	// Deduplicate characters
+	chars := make(map[rune]struct{})
+	for _, r := range rl {
+		chars[r.Rune] = struct{}{}
+	}
+
+	// Sort the characters for output
+	charList := make([]string, 0, len(chars))
+	for k := range chars {
+		charList = append(charList, fmt.Sprintf("%q", k))
+	}
+	slices.Sort(charList)
+
+	// Build string
+	return fmt.Sprintf("[%s]", strings.Join(charList, ","))
+}
+
+func (c *VarPutCommand) printWarnings(diags []*parseIdentifierDiag) {
+	if len(diags) == 0 {
+		return
+	}
+
+	lineLen := maxLineLength
+	var out strings.Builder
+
+	out.WriteString("Warning")
+	if len(diags) > 1 {
+		out.WriteString("s")
+	}
+	out.WriteString(":\n")
+
+	slices.SortFunc(diags, func(a, b *parseIdentifierDiag) bool {
+		return a.Identifier < b.Identifier
+	})
+
+	for i, diag := range diags {
+		out.WriteString(hangingIndent(" - "+diag.String(), 3, lineLen) + "\n")
+		if i+1 < len(diags) {
+			out.WriteString("\n")
+		}
+	}
+	c.Ui.Warn(out.String())
+}
+
+func hangingIndent(in string, li uint, ll int) string {
+	hold, msg := in[0:li], in[li:]
+	wrapped := text.Wrap(msg, ll-int(li))
+	indented := text.Indent(wrapped, strings.Repeat(" ", int(li)))
+	lines := strings.Split(indented, "\n")
+	lines[0] = hold + lines[0][li:]
+	return strings.Join(lines, "\n")
 }

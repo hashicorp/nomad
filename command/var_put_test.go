@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,4 +121,84 @@ func TestVarPutCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	require.Equal(t, 1, len(res))
 	require.Equal(t, sv.Path, res[0])
+}
+
+func TestVarPutCommand_KeyWarning(t *testing.T) {
+	tcs := []struct {
+		name     string
+		goodKeys []string
+		badKeys  []string
+	}{
+		{
+			name:     "simple",
+			goodKeys: []string{"simple"},
+		},
+		{
+			name:    "hasDot",
+			badKeys: []string{"has.Dot"},
+		},
+		{
+			name:     "unicode_letters",
+			goodKeys: []string{"世界"},
+		},
+		{
+			name:     "unicode_numbers",
+			goodKeys: []string{"٣٢١"},
+		},
+		{
+			name:     "two_good",
+			goodKeys: []string{"aardvark", "beagle"},
+		},
+		{
+			name:     "one_good_one_bad",
+			goodKeys: []string{"aardvark"},
+			badKeys:  []string{"bad.key"},
+		},
+		{
+			name:     "one_good_two_bad",
+			goodKeys: []string{"aardvark"},
+			badKeys:  []string{"bad.key", "also-bad"},
+		},
+	}
+
+	ci.Parallel(t)
+	_, _, url := testServer(t, false, nil)
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc       // capture test case
+			ci.Parallel(t) // make the subtests parallel
+
+			keys := append(tc.goodKeys, tc.badKeys...) // combine keys into a single slice
+			for i, k := range keys {
+				keys[i] = k + "=value" // Make each key into a k=v pair; value is not part of test
+			}
+
+			ui := cli.NewMockUi()
+			cmd := &VarPutCommand{Meta: Meta{Ui: ui}}
+			args := append([]string{"-address=" + url, "-force", "-out=json", "test/var"}, keys...)
+			code := cmd.Run(args)
+			errOut := ui.ErrorWriter.String()
+
+			must.Eq(t, 0, code) // the command should always succeed
+
+			switch len(tc.badKeys) {
+			case 0:
+				must.Eq(t, "", errOut) // cases with no bad keys shouldn't put anything to stderr
+				return
+			case 1:
+				must.StrContains(t, errOut, "Warning:") // the command should output a warning
+			default:
+				must.StrContains(t, errOut, "Warnings:") // header should be plural
+			}
+
+			for _, k := range tc.badKeys {
+				must.StrContains(t, errOut, k) // every bad key should appear in the warning output
+			}
+
+			for _, k := range tc.goodKeys {
+				must.StrNotContains(t, errOut, k) // good keys should not be emitted
+			}
+		})
+	}
 }
