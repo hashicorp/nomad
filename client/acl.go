@@ -3,8 +3,7 @@ package client
 import (
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -32,54 +31,25 @@ const (
 // of ACLs
 type clientACLResolver struct {
 	// aclCache is used to maintain the parsed ACL objects
-	aclCache *lru.TwoQueueCache
+	aclCache *structs.ACLCache[*acl.ACL]
 
 	// policyCache is used to maintain the fetched policy objects
-	policyCache *lru.TwoQueueCache
+	policyCache *structs.ACLCache[*structs.ACLPolicy]
 
 	// tokenCache is used to maintain the fetched token objects
-	tokenCache *lru.TwoQueueCache
+	tokenCache *structs.ACLCache[*structs.ACLToken]
 
 	// roleCache is used to maintain a cache of the fetched ACL roles. Each
 	// entry is keyed by the role ID.
-	roleCache *lru.TwoQueueCache
+	roleCache *structs.ACLCache[*structs.ACLRole]
 }
 
 // init is used to setup the client resolver state
-func (c *clientACLResolver) init() error {
-	// Create the ACL object cache
-	var err error
-	c.aclCache, err = lru.New2Q(aclCacheSize)
-	if err != nil {
-		return err
-	}
-	c.policyCache, err = lru.New2Q(policyCacheSize)
-	if err != nil {
-		return err
-	}
-	c.tokenCache, err = lru.New2Q(tokenCacheSize)
-	if err != nil {
-		return err
-	}
-	c.roleCache, err = lru.New2Q(roleCacheSize)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// cachedACLValue is used to manage ACL Token, Policy, or Role cache entries
-// and their TTLs.
-type cachedACLValue struct {
-	Token     *structs.ACLToken
-	Policy    *structs.ACLPolicy
-	Role      *structs.ACLRole
-	CacheTime time.Time
-}
-
-// Age is the time since the token was cached
-func (c *cachedACLValue) Age() time.Duration {
-	return time.Since(c.CacheTime)
+func (c *clientACLResolver) init() {
+	c.aclCache = structs.NewACLCache[*acl.ACL](aclCacheSize)
+	c.policyCache = structs.NewACLCache[*structs.ACLPolicy](policyCacheSize)
+	c.tokenCache = structs.NewACLCache[*structs.ACLToken](tokenCacheSize)
+	c.roleCache = structs.NewACLCache[*structs.ACLRole](roleCacheSize)
 }
 
 // ResolveToken is used to translate an ACL Token Secret ID into
@@ -154,12 +124,11 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 		return structs.AnonymousACLToken, nil
 	}
 
-	// Lookup the token in the cache
-	raw, ok := c.tokenCache.Get(secretID)
+	// Lookup the token entry in the cache
+	entry, ok := c.tokenCache.Get(secretID)
 	if ok {
-		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.GetConfig().ACLTokenTTL {
-			return cached.Token, nil
+		if entry.Age() <= c.GetConfig().ACLTokenTTL {
+			return entry.Get(), nil
 		}
 	}
 
@@ -176,17 +145,13 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 		// If we encounter an error but have a cached value, mask the error and extend the cache
 		if ok {
 			c.logger.Warn("failed to resolve token, using expired cached value", "error", err)
-			cached := raw.(*cachedACLValue)
-			return cached.Token, nil
+			return entry.Get(), nil
 		}
 		return nil, err
 	}
 
 	// Cache the response (positive or negative)
-	c.tokenCache.Add(secretID, &cachedACLValue{
-		Token:     resp.Token,
-		CacheTime: time.Now(),
-	})
+	c.tokenCache.Add(secretID, resp.Token)
 	return resp.Token, nil
 }
 
@@ -202,18 +167,17 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 	// Scan the cache for each policy
 	for _, policyName := range policies {
 		// Lookup the policy in the cache
-		raw, ok := c.policyCache.Get(policyName)
+		entry, ok := c.policyCache.Get(policyName)
 		if !ok {
 			missing = append(missing, policyName)
 			continue
 		}
 
 		// Check if the cached value is valid or expired
-		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.GetConfig().ACLPolicyTTL {
-			out = append(out, cached.Policy)
+		if entry.Age() <= c.GetConfig().ACLPolicyTTL {
+			out = append(out, entry.Get())
 		} else {
-			expired = append(expired, cached.Policy)
+			expired = append(expired, entry.Get())
 		}
 	}
 
@@ -248,10 +212,7 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 
 	// Handle each output
 	for _, policy := range resp.Policies {
-		c.policyCache.Add(policy.Name, &cachedACLValue{
-			Policy:    policy,
-			CacheTime: time.Now(),
-		})
+		c.policyCache.Add(policy.Name, policy)
 		out = append(out, policy)
 	}
 
@@ -290,7 +251,7 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 		// Look within the cache to see if the role is already present. If we
 		// do not find it, add the ID to our tracking, so we look this up via
 		// RPC.
-		raw, ok := c.roleCache.Get(roleLink.ID)
+		entry, ok := c.roleCache.Get(roleLink.ID)
 		if !ok {
 			missingRoleIDs = append(missingRoleIDs, roleLink.ID)
 			continue
@@ -299,13 +260,12 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 		// If the cached value is expired, add the ID to our tracking, so we
 		// look this up via RPC. Otherwise, iterate the policy links and add
 		// each policy name to our return object tracking.
-		cached := raw.(*cachedACLValue)
-		if cached.Age() <= c.GetConfig().ACLRoleTTL {
-			for _, policyLink := range cached.Role.Policies {
+		if entry.Age() <= c.GetConfig().ACLRoleTTL {
+			for _, policyLink := range entry.Get().Policies {
 				policyNames = append(policyNames, policyLink.Name)
 			}
 		} else {
-			expiredRoleIDs = append(expiredRoleIDs, cached.Role.ID)
+			expiredRoleIDs = append(expiredRoleIDs, entry.Get().ID)
 		}
 	}
 
@@ -354,13 +314,11 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 	// Generate a timestamp for the cache entry. We do not need to use a
 	// timestamp per ACL role response integration.
 	now := time.Now()
-
 	for _, aclRole := range roleByIDResp.ACLRoles {
-
 		// Add an entry to the cache using the generated timestamp for future
 		// expiry calculations. Any existing, expired entry will be
 		// overwritten.
-		c.roleCache.Add(aclRole.ID, &cachedACLValue{Role: aclRole, CacheTime: now})
+		c.roleCache.AddAtTime(aclRole.ID, aclRole, now)
 
 		// Iterate the role policy links, extracting the name and adding this
 		// to our return response tracking.

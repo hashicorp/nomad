@@ -11,11 +11,14 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/lang"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/slices"
+	"oss.indeed.com/go/libtime"
 )
 
 const (
@@ -187,9 +190,47 @@ var (
 	// ValidACLRoleName is used to validate an ACL role name.
 	ValidACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
-	// validACLAuthMethodName is used to validate an ACL auth method name.
+	// ValidACLAuthMethod is used to validate an ACL auth method name.
 	ValidACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
+
+type ACLCacheEntry[T any] lang.Pair[T, time.Time]
+
+func (e ACLCacheEntry[T]) Age() time.Duration {
+	return time.Since(e.Second)
+}
+
+func (e ACLCacheEntry[T]) Get() T {
+	return e.First
+}
+
+// An ACLCache caches ACL tokens by their policy content.
+type ACLCache[T any] struct {
+	*lru.TwoQueueCache[string, ACLCacheEntry[T]]
+	clock libtime.Clock
+}
+
+func (c *ACLCache[T]) Add(key string, item T) {
+	c.AddAtTime(key, item, c.clock.Now())
+}
+
+func (c *ACLCache[T]) AddAtTime(key string, item T, now time.Time) {
+	c.TwoQueueCache.Add(key, ACLCacheEntry[T]{
+		First:  item,
+		Second: now,
+	})
+}
+
+func NewACLCache[T any](size int) *ACLCache[T] {
+	c, err := lru.New2Q[string, ACLCacheEntry[T]](size)
+	if err != nil {
+		panic(err) // not possible
+	}
+	return &ACLCache[T]{
+		TwoQueueCache: c,
+		clock:         libtime.SystemClock(),
+	}
+}
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
 // can therefore inherit all the ACL policy permissions that the ACL role
