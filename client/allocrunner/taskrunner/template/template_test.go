@@ -2560,9 +2560,6 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	cu, err := users.Current()
 	require.NoError(t, err)
 
-	cg, err := users.LookupGroupId(cu.Gid)
-	require.NoError(t, err)
-
 	file := "my.tmpl"
 	template := &structs.Template{
 		// EmbeddedTmpl set below as it needs the taskDir
@@ -2574,7 +2571,7 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	// Add template now that we know the taskDir
 	harness.templates[0].EmbeddedTmpl = fmt.Sprintf(`Testing writeToFile...
-{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cg.Name+`" "0644" }}
+{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cu.Gid+`" "0644" }}
 ...done
 `, filepath.Join(harness.taskDir, "writetofile.out"))
 

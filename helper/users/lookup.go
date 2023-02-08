@@ -23,13 +23,6 @@ func Lookup(username string) (*user.User, error) {
 	return user.Lookup(username)
 }
 
-// LookupGroupId while holding a global process lock.
-func LookupGroupId(gid string) (*user.Group, error) {
-	lock.Lock()
-	defer lock.Unlock()
-	return user.LookupGroupId(gid)
-}
-
 // Current returns the current user, acquired while holding a global process
 // lock.
 func Current() (*user.User, error) {
