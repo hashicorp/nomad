@@ -183,6 +183,9 @@ const nomadCNIConfigTemplate = `{
 			"type": "portmap",
 			"capabilities": {"portMappings": true},
 			"snat": true
+		},
+		{
+			"type": "cilium-cni"
 		}
 	]
 }
