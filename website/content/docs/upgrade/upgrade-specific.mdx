@@ -65,13 +65,13 @@ setting [`disable_filesystem_isolation`][artifact_fs_isolation].
 #### Datacenter Wildcards
 
 In Nomad 1.5.0, the
-[`datacenters`][/nomad/docs/job-specification/job#datacenters] field for a job
+[`datacenters`](/nomad/docs/job-specification/job#datacenters) field for a job
 accepts wildcards for multi-character matching. For example, `datacenters =
 ["dc*"]` will match all datacenters that start with `"dc"`. The default value
 for `datacenters` is now `["*"]`, so the field can be omitted.
 
 The `*` character is no longer a legal character in the
-[`datacenter`][/nomad/docs/configuration#datacenter] field for an agent
+[`datacenter`](/nomad/docs/configuration#datacenter) field for an agent
 configuration. Before upgrading to Nomad 1.5.0, you should first ensure that
 you've updated any jobs that currently have a `*` in their datacenter name and
 then ensure that no agents have this character in their `datacenter` field name.
