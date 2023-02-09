@@ -171,7 +171,7 @@ OUTER:
 // jobReap contacts the leader and issues a reap on the passed jobs
 func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionJobReap(jobs, leaderACL) {
+	for _, req := range c.partitionJobReap(jobs, leaderACL, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.JobBatchDeregisterResponse
 		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
 			c.logger.Error("batch job reap failed", "error", err)
@@ -185,7 +185,7 @@ func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 // partitionJobReap returns a list of JobBatchDeregisterRequests to make,
 // ensuring a single request does not contain too many jobs. This is necessary
 // to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) []*structs.JobBatchDeregisterRequest {
+func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string, batchSize int) []*structs.JobBatchDeregisterRequest {
 	option := &structs.JobDeregisterOptions{Purge: true}
 	var requests []*structs.JobBatchDeregisterRequest
 	submittedJobs := 0
@@ -198,7 +198,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 			},
 		}
 		requests = append(requests, req)
-		available := structs.MaxUUIDsPerWriteRequest
+		available := batchSize
 
 		if remaining := len(jobs) - submittedJobs; remaining > 0 {
 			if remaining <= available {
@@ -351,7 +351,7 @@ func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, 
 // allocs.
 func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionEvalReap(evals, allocs) {
+	for _, req := range c.partitionEvalReap(evals, allocs, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Eval.Reap", req, &resp); err != nil {
 			c.logger.Error("eval reap failed", "error", err)
@@ -365,7 +365,7 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 // partitionEvalReap returns a list of EvalReapRequest to make, ensuring a single
 // request does not contain too many allocations and evaluations. This is
 // necessary to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.EvalReapRequest {
+func (c *CoreScheduler) partitionEvalReap(evals, allocs []string, batchSize int) []*structs.EvalReapRequest {
 	var requests []*structs.EvalReapRequest
 	submittedEvals, submittedAllocs := 0, 0
 	for submittedEvals != len(evals) || submittedAllocs != len(allocs) {
@@ -375,7 +375,7 @@ func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.Eva
 			},
 		}
 		requests = append(requests, req)
-		available := structs.MaxUUIDsPerWriteRequest
+		available := batchSize
 
 		// Add the allocs first
 		if remaining := len(allocs) - submittedAllocs; remaining > 0 {
@@ -591,7 +591,7 @@ OUTER:
 // deployments.
 func (c *CoreScheduler) deploymentReap(deployments []string) error {
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionDeploymentReap(deployments) {
+	for _, req := range c.partitionDeploymentReap(deployments, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Deployment.Reap", req, &resp); err != nil {
 			c.logger.Error("deployment reap failed", "error", err)
@@ -605,7 +605,7 @@ func (c *CoreScheduler) deploymentReap(deployments []string) error {
 // partitionDeploymentReap returns a list of DeploymentDeleteRequest to make,
 // ensuring a single request does not contain too many deployments. This is
 // necessary to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs.DeploymentDeleteRequest {
+func (c *CoreScheduler) partitionDeploymentReap(deployments []string, batchSize int) []*structs.DeploymentDeleteRequest {
 	var requests []*structs.DeploymentDeleteRequest
 	submittedDeployments := 0
 	for submittedDeployments != len(deployments) {
@@ -615,7 +615,7 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 			},
 		}
 		requests = append(requests, req)
-		available := structs.MaxUUIDsPerWriteRequest
+		available := batchSize
 
 		if remaining := len(deployments) - submittedDeployments; remaining > 0 {
 			if remaining <= available {
