@@ -75,7 +75,7 @@ commands:
           command: |
             set -x
 
-            echo installing golang ${GOLANG_VERSION}
+            echo installing golang 1.20
 
             case "${OSTYPE}" in
               linux*)  os="linux" ;;
@@ -88,13 +88,13 @@ commands:
             then
               sudo rm -rf << parameters.target_directory >>/go
               sudo mkdir -p << parameters.target_directory >>
-              curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+              curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go1.20.${os}-amd64.tar.gz
               sudo tar -C << parameters.target_directory >> -xzf /tmp/golang.tar.gz
               rm -rf /tmp/golang.tar.gz
             else
               rm -rf << parameters.target_directory >>/go
               mkdir -p <<parameters.target_directory >>
-              curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+              curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go1.20.windows-amd64.zip
               unzip -q -o /tmp/go.zip -d << parameters.target_directory >>
               rm -rf /tmp/go.zip
             fi
