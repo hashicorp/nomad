@@ -117,7 +117,7 @@ func TestUtil_getHeaders(t *testing.T) {
 		must.Nil(t, result)
 	})
 
-	t.Run("replacments", func(t *testing.T) {
+	t.Run("replacements", func(t *testing.T) {
 		result := getHeaders(env, &structs.TaskArtifact{
 			GetterHeaders: map[string]string{
 				"color":  "red",
