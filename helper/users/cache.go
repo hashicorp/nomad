@@ -62,8 +62,12 @@ func (c *cache) GetUser(username string) (*user.User, error) {
 	// next check if there was a recent failure already, so we
 	// avoid spamming the OS with dead user lookups
 	failure, exists2 := c.userFailures[username]
-	if exists2 && !failure.expired(now, failureTTL) {
-		return nil, failure.First
+	if exists2 {
+		if !failure.expired(now, failureTTL) {
+			return nil, failure.First
+		}
+		// may as well cleanup expired case
+		delete(c.userFailures, username)
 	}
 
 	// need to perform an OS lookup
