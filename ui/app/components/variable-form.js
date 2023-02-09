@@ -240,7 +240,7 @@ export default class VariableFormComponent extends Component {
     } catch (error) {
       notifyConflict(this)(error);
       if (!this.hasConflict) {
-        this.flashMnotificationsessages.add({
+        this.notifications.add({
           title: `Error saving ${this.path}`,
           message: error,
           color: 'critical',

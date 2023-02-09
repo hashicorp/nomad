@@ -362,9 +362,9 @@ module('Acceptance | variables', function (hooks) {
     assert.equal(currentURL(), '/variables/new');
     await typeIn('.path-input', 'foo/bar');
     await click('button[type="submit"]');
-    assert.dom('.flash-message.alert-error').exists();
-    await click('.flash-message.alert-error .close-button');
-    assert.dom('.flash-message.alert-error').doesNotExist();
+    assert.dom('.flash-message.alert-critical').exists();
+    await click('.flash-message.alert-critical .hds-dismiss-button');
+    assert.dom('.flash-message.alert-critical').doesNotExist();
 
     await typeIn('.key-value label:nth-child(1) input', 'myKey');
     await typeIn('.key-value label:nth-child(2) input', 'superSecret');

@@ -65,7 +65,7 @@ module('Acceptance | policies', function (hooks) {
     await typeIn('[data-test-policy-name-input]', 'My Fun Policy');
     await click('button[type="submit"]');
     assert
-      .dom('.flash-message.alert-error')
+      .dom('.flash-message.alert-critical')
       .exists('Doesnt let you save a bad name');
     assert.equal(currentURL(), '/policies/new');
     document.querySelector('[data-test-policy-name-input]').value = ''; // clear

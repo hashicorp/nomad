@@ -464,11 +464,11 @@ module('Acceptance | allocation detail', function (hooks) {
 
     component.onClick();
 
-    await waitFor('.flash-message.alert-error');
+    await waitFor('.flash-message.alert-critical');
 
     assert.verifySteps(['Transition dispatched.']);
     assert
-      .dom('.flash-message.alert-error')
+      .dom('.flash-message.alert-critical')
       .exists('A toast error message pops up.');
 
     // Clean-up
