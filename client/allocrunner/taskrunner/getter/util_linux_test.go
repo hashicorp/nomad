@@ -3,15 +3,10 @@
 package getter
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/go-getter"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/go-landlock"
 	"github.com/shoenig/test/must"
 )
