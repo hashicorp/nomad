@@ -47,9 +47,5 @@ job "docs" {
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
 
-Note that while both parameters default to `true`, the `identity` block itself
-must be present in the job specification or the workload identity will not be
-exposed.
-
 [taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
 [Workload Identity]: /nomad/docs/concepts/workload-identity "Nomad Workload Identity"
