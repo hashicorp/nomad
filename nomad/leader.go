@@ -1035,6 +1035,8 @@ func (s *Server) reapCancelableEvaluations(stopCh chan struct{}) chan struct{} {
 	return wakeCh
 }
 
+const cancelableEvalsBatchSize = 728 // structs.MaxUUIDsPerWriteRequest / 10
+
 // cancelCancelableEvals pulls a batch of cancelable evaluations from the eval
 // broker and updates their status to canceled.
 func cancelCancelableEvals(srv *Server) error {
@@ -1044,7 +1046,7 @@ func cancelCancelableEvals(srv *Server) error {
 	// We *can* send larger raft logs but rough benchmarks show that a smaller
 	// page size strikes a balance between throughput and time we block the FSM
 	// apply for other operations
-	cancelable := srv.evalBroker.Cancelable(structs.MaxUUIDsPerWriteRequest / 10)
+	cancelable := srv.evalBroker.Cancelable(cancelableEvalsBatchSize)
 	if len(cancelable) > 0 {
 		for i, eval := range cancelable {
 			eval = eval.Copy()
