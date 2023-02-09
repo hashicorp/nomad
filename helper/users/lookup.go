@@ -12,12 +12,21 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+var globalCache = newCache()
+
+// Lookup returns the user.User entry associated with the given username.
+//
+// Values are cached up to 1 hour, or 1 minute for failure cases.
+func Lookup(username string) (*user.User, error) {
+	return globalCache.GetUser(username)
+}
+
 // lock is used to serialize all user lookup at the process level, because
 // some NSS implementations are not concurrency safe
 var lock sync.Mutex
 
-// Lookup username while holding a global process lock.
-func Lookup(username string) (*user.User, error) {
+// internalLookupUser username while holding a global process lock.
+func internalLookupUser(username string) (*user.User, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	return user.Lookup(username)

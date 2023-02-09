@@ -32,7 +32,7 @@ func NobodyIDs() (uint32, uint32) {
 }
 
 func init() {
-	u, err := Lookup("nobody")
+	u, err := internalLookupUser("nobody")
 	if err != nil {
 		panic(fmt.Sprintf("failed to lookup nobody user: %v", err))
 	}
