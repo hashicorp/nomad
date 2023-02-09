@@ -425,14 +425,13 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	args.Region = a.srv.config.AuthoritativeRegion
 	providedTokenID := args.BootstrapSecret
 
-	authErr := a.srv.Authenticate(a.ctx, args)
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.Bootstrap", args, args, reply); done {
 		return err
 	}
 	a.srv.MeasureRPCRate("acl", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "bootstrap"}, time.Now())
 
 	// Always ignore the reset index from the arguments
