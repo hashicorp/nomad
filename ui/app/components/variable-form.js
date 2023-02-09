@@ -21,7 +21,7 @@ const EMPTY_KV = {
 };
 
 export default class VariableFormComponent extends Component {
-  @service flashMessages;
+  @service notifications;
   @service router;
   @service store;
 
@@ -230,23 +230,20 @@ export default class VariableFormComponent extends Component {
       this.args.model.setAndTrimPath();
       await this.args.model.save({ adapterOptions: { overwrite } });
 
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Variable saved',
         message: `${this.path} successfully saved`,
         color: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
       });
       this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       notifyConflict(this)(error);
       if (!this.hasConflict) {
-        this.flashMessages.add({
+        this.flashMnotificationsessages.add({
           title: `Error saving ${this.path}`,
           message: error,
           color: 'critical',
-          destroyOnClick: false,
           sticky: true,
         });
       } else {

@@ -7,7 +7,7 @@
 <SvgPatterns />
 
 <section class="notifications">
-  {{#each this.flashMessages.queue as |flash|}}
+  {{#each this.notifications.queue as |flash|}}
   <FlashMessage @flash={{flash}} as |component flash close|>
     <Hds::Toast
       @color={{or flash.color "neutral"}}

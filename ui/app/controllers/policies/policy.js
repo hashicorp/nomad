@@ -7,7 +7,7 @@ import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
 export default class PoliciesPolicyController extends Controller {
-  @service flashMessages;
+  @service notifications;
   @service router;
   @service store;
 
@@ -37,19 +37,18 @@ export default class PoliciesPolicyController extends Controller {
     try {
       yield this.policy.deleteRecord();
       yield this.policy.save();
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Policy Deleted',
         color: 'success',
+        type: `success`,
         destroyOnClick: false,
-        timeout: 5000,
       });
       this.router.transitionTo('policies');
     } catch (err) {
-      this.flashMessages.add({
+      this.notifications.add({
         title: `Error deleting Policy ${this.policy.name}`,
         message: err,
         color: 'critical',
-        destroyOnClick: false,
         sticky: true,
       });
     }
@@ -75,11 +74,10 @@ export default class PoliciesPolicyController extends Controller {
       });
       yield newToken.save();
       yield this.refreshTokens();
-      this.flashMessages.add({
+      const thing = this.notifications.add({
         title: 'Example Token Created',
         message: `${newToken.secret}`,
         color: 'success',
-        destroyOnClick: false,
         timeout: 30000,
         customAction: {
           label: 'Copy to Clipboard',
@@ -88,6 +86,7 @@ export default class PoliciesPolicyController extends Controller {
           },
         },
       });
+      console.log('thing', thing);
     } catch (err) {
       this.error = {
         title: 'Error creating new token',
@@ -104,11 +103,9 @@ export default class PoliciesPolicyController extends Controller {
       yield token.deleteRecord();
       yield token.save();
       yield this.refreshTokens();
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Token successfully deleted',
         color: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
       });
     } catch (err) {
       this.error = {

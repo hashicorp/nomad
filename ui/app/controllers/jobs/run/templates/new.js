@@ -10,6 +10,7 @@ export default class JobsRunTemplatesNewController extends Controller {
   @service system;
   @tracked templateName = null;
   @tracked templateNamespace = 'default';
+  @service notifications;
 
   get namespaceOptions() {
     const namespaces = this.store
@@ -60,22 +61,18 @@ export default class JobsRunTemplatesNewController extends Controller {
     try {
       await this.model.save({ adapterOptions: { overwrite } });
 
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Job template saved',
         message: `${this.templateName} successfully saved`,
         color: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
       });
 
       this.router.transitionTo('jobs.run.templates');
     } catch (e) {
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Job template cannot be saved.',
         message: e,
         color: 'critical',
-        destroyOnClick: false,
-        timeout: 5000,
       });
     }
   }
