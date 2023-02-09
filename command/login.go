@@ -106,16 +106,16 @@ func (l *LoginCommand) Run(args []string) int {
 
 	// Auth method types are particular with their naming, so ensure we forgive
 	// any case mistakes here from the user.
-	sanitizedMethodType := strings.ToUpper(l.authMethodType)
+	l.authMethodType = strings.ToUpper(l.authMethodType)
 
 	// Ensure we sanitize the method type so we do not pedantically return an
 	// error when the caller uses "oidc" rather than "OIDC". The flag default
 	// means an empty type is only possible is the caller specifies this
 	// explicitly.
-	switch sanitizedMethodType {
+	switch l.authMethodType {
 	case api.ACLAuthMethodTypeOIDC:
 	default:
-		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", sanitizedMethodType))
+		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", l.authMethodType))
 		return 1
 	}
 
@@ -164,11 +164,11 @@ func (l *LoginCommand) Run(args []string) int {
 	// reusable and generic handling of errors and outputs.
 	var authFn func(context.Context, *api.Client) (*api.ACLToken, error)
 
-	switch sanitizedMethodType {
+	switch l.authMethodType {
 	case api.ACLAuthMethodTypeOIDC:
 		authFn = l.loginOIDC
 	default:
-		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", sanitizedMethodType))
+		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", l.authMethodType))
 		return 1
 	}
 
@@ -191,7 +191,7 @@ func (l *LoginCommand) Run(args []string) int {
 		return 0
 	}
 
-	l.Ui.Output(fmt.Sprintf("Successfully logged in via %s and %s\n", sanitizedMethodType, l.authMethodName))
+	l.Ui.Output(fmt.Sprintf("Successfully logged in via %s and %s\n", l.authMethodType, l.authMethodName))
 	outputACLToken(l.Ui, token)
 	return 0
 }
