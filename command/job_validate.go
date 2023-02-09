@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
@@ -196,8 +197,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 
 	// Print any warnings if there are any
 	if jr.Warnings != "" {
-		c.Ui.Output(
-			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", jr.Warnings)))
+		c.Ui.Output(c.FormatWarnings("Job", jr.Warnings))
 	}
 
 	// Done!
@@ -225,30 +225,6 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 		}
 	}
 
-	out.Warnings = mergeMultierrorWarnings(job.Warnings())
+	out.Warnings = helper.MergeMultierrorWarnings(job.Warnings())
 	return &out, nil
-}
-
-func mergeMultierrorWarnings(errs ...error) string {
-	if len(errs) == 0 {
-		return ""
-	}
-
-	var mErr multierror.Error
-	_ = multierror.Append(&mErr, errs...)
-
-	mErr.ErrorFormat = warningsFormatter
-
-	return mErr.Error()
-}
-
-func warningsFormatter(es []error) string {
-	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
-
-	for i := range es {
-		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
-	}
-
-	return sb.String()
 }

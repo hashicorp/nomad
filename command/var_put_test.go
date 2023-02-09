@@ -2,6 +2,7 @@ package command
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -182,14 +183,15 @@ func TestVarPutCommand_KeyWarning(t *testing.T) {
 
 			must.Eq(t, 0, code) // the command should always succeed
 
-			switch len(tc.badKeys) {
+			badKeysLen := len(tc.badKeys)
+			switch badKeysLen {
 			case 0:
 				must.Eq(t, "", errOut) // cases with no bad keys shouldn't put anything to stderr
 				return
 			case 1:
-				must.StrContains(t, errOut, "Warning:") // the command should output a warning
+				must.StrContains(t, errOut, "1 warning:") // header should be singular
 			default:
-				must.StrContains(t, errOut, "Warnings:") // header should be plural
+				must.StrContains(t, errOut, fmt.Sprintf("%d warnings:", badKeysLen)) // header should be plural
 			}
 
 			for _, k := range tc.badKeys {
