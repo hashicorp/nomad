@@ -20,6 +20,9 @@ const EMPTY_KV = {
   warnings: EmberObject.create(),
 };
 
+// Capture characters that are not _, letters, or numbers using Unicode.
+const invalidKeyCharactersRegex = new RegExp(/[^_\p{Letter}\p{Number}]/gu);
+
 export default class VariableFormComponent extends Component {
   @service flashMessages;
   @service router;
@@ -146,9 +149,16 @@ export default class VariableFormComponent extends Component {
   @action
   validateKey(entry, e) {
     const value = e.target.value;
-    // No dots in key names
-    if (value.includes('.')) {
-      entry.warnings.set('dottedKeyError', 'Key should not contain a period.');
+    // Only letters, numbers, and _ are allowed in keys
+    const invalidChars = value.match(invalidKeyCharactersRegex);
+    if (invalidChars) {
+      const invalidCharsOuput = [...new Set(invalidChars)]
+        .sort()
+        .map((c) => `'${c}'`);
+      entry.warnings.set(
+        'dottedKeyError',
+        `${value} contains characters [${invalidCharsOuput}] that require the "index" function for direct access in templates.`
+      );
     } else {
       delete entry.warnings.dottedKeyError;
       entry.warnings.notifyPropertyChange('dottedKeyError');
