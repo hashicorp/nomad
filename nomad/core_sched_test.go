@@ -1852,12 +1852,11 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	}
 	core := NewCoreScheduler(s1, snap)
 
-	// Set the max ids per reap to something lower.
-	maxIdsPerReap = 2
-
 	evals := []string{"a", "b", "c"}
 	allocs := []string{"1", "2", "3"}
-	requests := core.(*CoreScheduler).partitionEvalReap(evals, allocs)
+
+	// Set the max ids per reap to something lower.
+	requests := core.(*CoreScheduler).partitionEvalReap(evals, allocs, 2)
 	if len(requests) != 3 {
 		t.Fatalf("Expected 3 requests got: %v", requests)
 	}
@@ -1895,11 +1894,9 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	}
 	core := NewCoreScheduler(s1, snap)
 
-	// Set the max ids per reap to something lower.
-	maxIdsPerReap = 2
-
 	deployments := []string{"a", "b", "c"}
-	requests := core.(*CoreScheduler).partitionDeploymentReap(deployments)
+	// Set the max ids per reap to something lower.
+	requests := core.(*CoreScheduler).partitionDeploymentReap(deployments, 2)
 	if len(requests) != 2 {
 		t.Fatalf("Expected 2 requests got: %v", requests)
 	}
@@ -1917,7 +1914,6 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 
 func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -1929,18 +1925,16 @@ func TestCoreScheduler_PartitionJobReap(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	core := NewCoreScheduler(s1, snap)
+	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
 
 	// Set the max ids per reap to something lower.
-	maxIdsPerReap = 2
-
-	jobs := []*structs.Job{mock.Job(), mock.Job(), mock.Job()}
-	requests := core.(*CoreScheduler).partitionJobReap(jobs, "")
-	require.Len(requests, 2)
+	requests := core.(*CoreScheduler).partitionJobReap(jobs, "", 2)
+	require.Len(t, requests, 2)
 
 	first := requests[0]
 	second := requests[1]
-	require.Len(first.Jobs, 2)
-	require.Len(second.Jobs, 1)
+	require.Len(t, first.Jobs, 2)
+	require.Len(t, second.Jobs, 1)
 }
 
 // Tests various scenarios when allocations are eligible to be GCed
