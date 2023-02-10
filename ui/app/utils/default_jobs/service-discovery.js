@@ -1,5 +1,7 @@
 export default `job "service-discovery-example" {
-  datacenters = ["dc1"]
+  // Specifies the datacenter where this job should be run
+  // This can be omitted and it will default to ["*"]
+  datacenters = ["*"]
 
   group "client" {
     task "curl" {
@@ -46,8 +48,8 @@ EOF
         name     = "nomad-service-discovery-example-server"
         provider = "nomad"
         port     = "www"
-        # If you're running Nomad in dev mode, uncomment the following address_mode line to allow this service to be discovered
-        # address_mode = "driver"
+        // If you're running Nomad in dev mode, uncomment the following address_mode line to allow this service to be discovered
+        // address_mode = "driver"
 
         check {
           type     = "http"
