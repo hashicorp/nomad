@@ -867,7 +867,7 @@ func (s *HTTPServer) ACLOIDCCompleteAuthRequest(resp http.ResponseWriter, req *h
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	var out structs.ACLOIDCCompleteAuthResponse
+	var out structs.ACLCompleteAuthResponse
 	if err := s.agent.RPC(structs.ACLOIDCCompleteAuthRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
