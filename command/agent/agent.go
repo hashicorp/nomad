@@ -142,10 +142,6 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
 
-	if err := a.setupPlugins(); err != nil {
-		return nil, err
-	}
-
 	if err := a.setupServer(); err != nil {
 		return nil, err
 	}
@@ -568,10 +564,6 @@ func (a *Agent) finalizeServerConfig(c *nomad.Config) {
 	// Setup the logging
 	c.Logger = a.logger
 	c.LogOutput = a.logOutput
-
-	// Setup the plugin loaders
-	c.PluginLoader = a.pluginLoader
-	c.PluginSingletonLoader = a.pluginSingletonLoader
 	c.AgentShutdown = func() error { return a.Shutdown() }
 }
 
@@ -1001,6 +993,14 @@ func (a *Agent) setupClient() error {
 	if !a.config.Client.Enabled {
 		return nil
 	}
+
+	// Plugin setup must happen before the call to clientConfig, because it
+	// copies the pointers to the plugin loaders from the Agent to the
+	// Client config.
+	if err := a.setupPlugins(); err != nil {
+		return err
+	}
+
 	// Setup the configuration
 	conf, err := a.clientConfig()
 	if err != nil {

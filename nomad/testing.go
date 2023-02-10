@@ -10,8 +10,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
-	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -84,10 +82,6 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
-
-	// Set the plugin loaders
-	config.PluginLoader = catalog.TestPluginLoader(t)
-	config.PluginSingletonLoader = singleton.NewSingletonLoader(config.Logger, config.PluginLoader)
 
 	// Disable consul autojoining: tests typically join servers directly
 	config.ConsulConfig.ServerAutoJoin = &f
