@@ -86,18 +86,34 @@ func (u upperReplacer) ClientPath(p string, join bool) (string, bool) {
 }
 
 func TestGetter_getClient(t *testing.T) {
+	const fileCountLimit = 555
+	const fileSizeLimit = int64(666)
 	getter := NewGetter(hclog.NewNullLogger(), &clientconfig.ArtifactConfig{
-		HTTPReadTimeout: time.Minute,
-		HTTPMaxBytes:    100_000,
-		GCSTimeout:      1 * time.Minute,
-		GitTimeout:      2 * time.Minute,
-		HgTimeout:       3 * time.Minute,
-		S3Timeout:       4 * time.Minute,
+		HTTPReadTimeout:             time.Minute,
+		HTTPMaxBytes:                100_000,
+		GCSTimeout:                  1 * time.Minute,
+		GitTimeout:                  2 * time.Minute,
+		HgTimeout:                   3 * time.Minute,
+		S3Timeout:                   4 * time.Minute,
+		DecompressionLimitFileCount: fileCountLimit,
+		DecompressionLimitSize:      fileSizeLimit,
 	})
+
 	client := getter.getClient("src", nil, gg.ClientModeAny, "dst")
 
 	t.Run("check symlink config", func(t *testing.T) {
 		require.True(t, client.DisableSymlinks)
+	})
+
+	t.Run("check file size limits", func(t *testing.T) {
+		require.Equal(t, fileSizeLimit, client.Decompressors["zip"].(*gg.ZipDecompressor).FileSizeLimit)
+		require.Equal(t, fileCountLimit, client.Decompressors["zip"].(*gg.ZipDecompressor).FilesLimit)
+
+		require.Equal(t, fileSizeLimit, client.Decompressors["tar.gz"].(*gg.TarGzipDecompressor).FileSizeLimit)
+		require.Equal(t, fileCountLimit, client.Decompressors["tar.gz"].(*gg.TarGzipDecompressor).FilesLimit)
+
+		require.Equal(t, fileSizeLimit, client.Decompressors["xz"].(*gg.XzDecompressor).FileSizeLimit)
+		// xz does not support files count limit
 	})
 
 	t.Run("check http config", func(t *testing.T) {
@@ -151,7 +167,7 @@ func TestGetArtifact_getHeaders(t *testing.T) {
 }
 
 func TestGetArtifact_Headers(t *testing.T) {
-	file := "output.txt"
+	const file = "output.txt"
 
 	// Create the test server with a handler that will validate headers are set.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
