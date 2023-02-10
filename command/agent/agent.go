@@ -564,10 +564,6 @@ func (a *Agent) finalizeServerConfig(c *nomad.Config) {
 	// Setup the logging
 	c.Logger = a.logger
 	c.LogOutput = a.logOutput
-
-	// Setup the plugin loaders
-	c.PluginLoader = a.pluginLoader
-	c.PluginSingletonLoader = a.pluginSingletonLoader
 	c.AgentShutdown = func() error { return a.Shutdown() }
 }
 

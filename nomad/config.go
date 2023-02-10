@@ -11,7 +11,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -372,13 +371,6 @@ type Config struct {
 	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
 	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
-
-	// PluginLoader is used to load plugins.
-	PluginLoader loader.PluginCatalog
-
-	// PluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	PluginSingletonLoader loader.PluginCatalog
 
 	// RPCHandshakeTimeout is the deadline by which RPC handshakes must
 	// complete. The RPC handshake includes the first byte read as well as
