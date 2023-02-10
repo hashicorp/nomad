@@ -1,0 +1,45 @@
+.job-status-panel {
+  .select-mode {
+    border: 1px solid $grey-blue;
+    background: rgba(0,0,0,0.05);
+    border-radius: 2px;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr 1fr;
+    padding: 0.25rem 0.5rem;
+    margin-left: 1rem;
+
+    button {
+      height: auto;
+      padding: 0 0.5rem;
+      background: transparent;
+      transition: 0.1s;
+
+      &:hover {
+        background: rgba(255,255,255,0.5);
+      }
+
+      &.is-active {
+        background: $white;
+      }
+    }
+  }
+
+  .running-allocs-title {
+    strong {
+      font-weight: 800;
+    }
+  }
+
+  .alloc-representation {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat( auto-fit, minmax(auto, 20px) );
+    .represented-allocation {
+      background: $green;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+    }
+  }
+}

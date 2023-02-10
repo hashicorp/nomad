@@ -1,0 +1,32 @@
+<div class="job-status-panel boxed-section">
+  <div class="boxed-section-head">
+    <h2>Status</h2>
+    <div class="select-mode">
+      <button type="button"
+        class="button is-small is-borderless {{if (eq this.mode "current") "is-active"}}"
+        {{on "click" (action (mut this.mode) "current")}}
+      >
+        Current
+      </button>
+      <button type="button"
+        class="button is-small is-borderless {{if (eq this.mode "historical") "is-active"}}"
+        {{on "click" (action (mut this.mode) "historical")}}>
+        Historical
+      </button>
+    </div>
+  </div>
+  <div class="boxed-section-body">
+    {{#if (eq this.mode "current")}}
+      <h3 class="title is-4 running-allocs-title"><strong>{{@job.latestDeployment.placedAllocs}}/{{@job.latestDeployment.desiredTotal}}</strong> Allocations Running</h3>
+      <div class="alloc-representation">
+        {{#each (range 0 @job.latestDeployment.desiredTotal) as |alloc|}}
+          <span class="represented-allocation"></span>
+        {{/each}}
+      </div>
+    {{/if}}
+    {{#if (eq this.mode "historical")}}
+      But what about before?
+    {{/if}}
+    {{log @job}}
+  </div>
+</div>
