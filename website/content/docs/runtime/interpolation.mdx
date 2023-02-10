@@ -27,7 +27,7 @@ has placed the job, so they are unavailable for use in job constraints.
 ## Syntax
 
 The syntax for interpreting variables in the Nomad job specification is
-`${variable_name}`. The [`template` stanza](/nomad/docs/job-specification/template)
+`${variable_name}`. The [`template` block](/nomad/docs/job-specification/template)
 uses the `env` function to retrieve these variables from the environment, using
 `{{env "variable_name"}}` instead. Examples can be seen below:
 
@@ -158,7 +158,7 @@ a particular node and as such can not be used in constraints.
 
 Environment variables should be enclosed in brackets `${...}` for
 interpolation or accessed using the `env` function inside the template
-stanza—`{{env "..."}}`
+block—`{{env "..."}}`
 
 ### Dots in Variables ((#dots_in_vars))
 
