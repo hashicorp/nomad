@@ -42,7 +42,7 @@ type ArtifactConfig struct {
 	DecompressionSizeLimit *string `hcl:"decompression_size_limit"`
 
 	// DecompressionFileCountLimit is the maximum number of files that will
-	// be decompressed before triggering an error and cancelling the operaation.
+	// be decompressed before triggering an error and cancelling the operation.
 	//
 	// Default is unset, meaning no limit is applied.
 	DecompressionFileCountLimit *int `hcl:"decompression_file_count_limit"`
@@ -150,7 +150,7 @@ func (a *ArtifactConfig) Validate() error {
 	if v, err := humanize.ParseBytes(*a.DecompressionSizeLimit); err != nil {
 		return fmt.Errorf("decompression_size_limit is not a valid size: %w", err)
 	} else if v > math.MaxInt64 {
-		return fmt.Errorf("decompression_size_limit must be < %d but found %d", int64(math.MaxInt64), v)
+		return fmt.Errorf("decompression_size_limit must be < %d bytes but found %d", int64(math.MaxInt64), v)
 	}
 
 	if a.DecompressionFileCountLimit == nil {
