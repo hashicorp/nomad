@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
@@ -585,14 +586,11 @@ type runeLoc struct {
 
 func (rl RuneLocs) String() string {
 	// Deduplicate characters
-	chars := make(map[rune]struct{})
-	for _, r := range rl {
-		chars[r.Rune] = struct{}{}
-	}
+	chars := set.From(rl)
 
 	// Sort the characters for output
-	charList := make([]string, 0, len(chars))
-	for k := range chars {
+	charList := make([]string, 0, chars.Size())
+	for k := range chars.List() {
 		charList = append(charList, fmt.Sprintf("%q", k))
 	}
 	slices.Sort(charList)
