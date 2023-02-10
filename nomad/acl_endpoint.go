@@ -16,11 +16,11 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set"
-	"github.com/hashicorp/nomad/lib/auth"
 
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/auth"
 	"github.com/hashicorp/nomad/lib/auth/jwt"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/state"

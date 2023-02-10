@@ -8,11 +8,14 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/cap/jwt"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/slices"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Validate performs token signature verification and returns a list of claims
+// Validate performs token signature verification and JWT header validation,
+// and returns a list of claims or an error in case any validation or signature
+// verification fails.
 func Validate(ctx context.Context, token string, methodConf *structs.ACLAuthMethodConfig) (map[string]any, error) {
 	var keySet jwt.KeySet
 	var err error
