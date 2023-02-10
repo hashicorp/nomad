@@ -4,14 +4,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
 func TestPlugins_WhenNotClientSkip(t *testing.T) {
-	s, _, _ := testServer(t, false, func(c *Config) {
-		c.Server.NumSchedulers = pointer.Of(1)
-	})
+	s, _, _ := testServer(t, false, nil)
 	must.Nil(t, s.Agent.pluginSingletonLoader)
 }
 
