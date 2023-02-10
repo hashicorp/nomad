@@ -89,6 +89,7 @@ rules:
             - pattern-not: 'structs.ACLListAuthMethodsRPCMethod'
             - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
             - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
+            - pattern-not: 'structs.ACLLoginRPCMethod'
             - pattern-not: '"CSIPlugin.Get"'
             - pattern-not: '"CSIPlugin.List"'
             - pattern-not: '"Status.Leader"'
