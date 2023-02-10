@@ -1,0 +1,13 @@
+rules:
+  - id: "no-overriding-struct-globals"
+    patterns:
+      - pattern: |
+          structs.$A = ...
+    message: "Mutating global structs is never safe"
+    languages:
+      - "go"
+    severity: "ERROR"
+    fix: " "
+    paths:
+      # including tests!
+      include: ["*"]
