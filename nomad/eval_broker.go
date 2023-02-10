@@ -868,8 +868,8 @@ func (b *EvalBroker) Stats() *BrokerStats {
 // stale and ready to mark for canceling. The eval RPC will call this with a
 // batch size set to avoid sending overly large raft messages.
 func (b *EvalBroker) Cancelable(batchSize int) []*structs.Evaluation {
-	b.l.RLock()
-	defer b.l.RUnlock()
+	b.l.Lock()
+	defer b.l.Unlock()
 
 	if batchSize > len(b.cancelable) {
 		batchSize = len(b.cancelable)
