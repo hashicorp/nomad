@@ -1,0 +1,3 @@
+```release-note:bug
+eval broker: Fixed a bug where the cancelable eval reaper used an incorrect lock when getting the set of cancelable evals from the broker
+```

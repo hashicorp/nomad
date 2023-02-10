@@ -9,14 +9,16 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -1475,6 +1477,31 @@ func TestEvalBroker_BlockedEvals_MarkForCancel(t *testing.T) {
 	must.Eq(t, 100, eval.ModifyIndex)
 }
 
+func TestEvalBroker_Cancelable(t *testing.T) {
+	ci.Parallel(t)
+
+	b := testBroker(t, time.Minute)
+
+	evals := []*structs.Evaluation{}
+	for i := 0; i < 20; i++ {
+		eval := mock.Eval()
+		evals = append(evals, eval)
+	}
+	b.cancelable = evals
+	b.stats.TotalCancelable = len(b.cancelable)
+
+	must.Len(t, 20, b.cancelable)
+	cancelable := b.Cancelable(10)
+	must.Len(t, 10, cancelable)
+	must.Len(t, 10, b.cancelable)
+	must.Eq(t, 10, b.stats.TotalCancelable)
+
+	cancelable = b.Cancelable(20)
+	must.Len(t, 10, cancelable)
+	must.Len(t, 0, b.cancelable)
+	must.Eq(t, 0, b.stats.TotalCancelable)
+}
+
 // TestEvalBroker_IntegrationTest exercises the eval broker with realistic
 // workflows
 func TestEvalBroker_IntegrationTest(t *testing.T) {
@@ -1567,16 +1594,26 @@ func TestEvalBroker_IntegrationTest(t *testing.T) {
 
 	config := DefaultConfig()
 	config.NumSchedulers = 4
-	config.EvalReapCancelableInterval = time.Minute * 10
-	require.NoError(t, srv.Reload(config))
+	must.NoError(t, srv.Reload(config))
 
 	// assert that all but 2 evals were canceled and that the eval broker state
 	// has been cleared
 
-	require.Eventually(t, func() bool {
-		got := getEvalStatuses()
-		return got[structs.EvalStatusComplete] == 2 && got[structs.EvalStatusCancelled] == 9
-	}, 2*time.Second, time.Millisecond*100)
+	var got map[string]int
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.Timeout(5*time.Second),
+		wait.Gap(100*time.Millisecond),
+		wait.BoolFunc(func() bool {
+			got = getEvalStatuses()
+			return got[structs.EvalStatusComplete] == 2 &&
+				got[structs.EvalStatusCancelled] == 9
+		}),
+	),
+		must.Func(func() string {
+			return fmt.Sprintf("expected map[complete:2 canceled:9] within timeout, got: %v with broker status=%#v", got, getStats())
+		}),
+	)
 
 	must.Eq(t, BrokerStats{TotalReady: 0, TotalUnacked: 0,
 		TotalBlocked: 0, TotalCancelable: 0}, getStats())
