@@ -67,10 +67,6 @@ The table below shows this endpoint's support for
 $ nomad operator api /v1/client/metadata
 ```
 
-```shell-session
-$ curl http://127.0.0.1:4646/v1/client/metadata
-```
-
 ### Sample Response
 
 Formatted by appending `?pretty` above.
@@ -161,13 +157,6 @@ Assuming the above payload is in a file called `meta.json`.
 $ nomad operator api /v1/client/metadata < meta.json
 ```
 
-```shell-session
-$ curl \
-  -X POST \
-  --data-binary @meta.json \
-  http://127.0.0.1:4646/v1/client/metadata
-```
-
 ### Sample Response
 
 Formatted by appending `?pretty` above.
@@ -223,8 +212,7 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/stats
+$ nomad operator api /v1/client/stats
 ```
 
 ### Sample Response
@@ -399,8 +387,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/stats
+$ nomad operator api \
+    /v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/stats
 ```
 
 ### Sample Response
@@ -485,13 +473,13 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99
+$ nomad operator api \
+    /v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=alloc/file.json
+$ nomad operator api \
+    /v1/client/fs/cat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=alloc/file.json
 ```
 
 ### Sample Response
@@ -535,8 +523,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/readat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/foo&offset=1323&limit=19303
+$ nomad operator api \
+    /v1/client/fs/readat/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/foo&offset=1323&limit=19303
 ```
 
 ### Sample Response
@@ -581,8 +569,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/stream/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/logs/redis.log
+$ nomad operator api \
+    /v1/client/fs/stream/5fc98185-17ff-26bc-a802-0c74fa471c99?path=/alloc/logs/redis.log
 ```
 
 ### Sample Response
@@ -654,8 +642,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/logs/5fc98185-17ff-26bc-a802-0c74fa471c99
+$ nomad operator api \
+    /v1/client/fs/logs/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ### Sample Response
@@ -714,8 +702,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/ls/5fc98185-17ff-26bc-a802-0c74fa471c99
+$ nomad operator api \
+    /v1/client/fs/ls/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ### Sample Response
@@ -767,8 +755,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/fs/stat/5fc98185-17ff-26bc-a802-0c74fa471c99
+$ nomad operator api \
+    /v1/client/fs/stat/5fc98185-17ff-26bc-a802-0c74fa471c99
 ```
 
 ### Sample Response
@@ -810,8 +798,8 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://nomad.rocks/v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/gc
+$ nomad operator api \
+    /v1/client/allocation/5fc98185-17ff-26bc-a802-0c74fa471c99/gc
 ```
 
 ## GC All Allocation
@@ -840,8 +828,7 @@ The table below shows this endpoint's support for
 ### Sample Request
 
 ```shell-session
-$ curl \
-    https://localhost:4646/v1/client/gc
+$ nomad operator api /v1/client/gc
 ```
 
 [api-node-read]: /nomad/api-docs/nodes
