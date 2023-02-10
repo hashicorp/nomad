@@ -26,6 +26,23 @@ includes the following identity claims:
 While Nomad always creates and uses workload identities internally, the JWT is
 not exposed to tasks by default.
 
+To expose Workload Identity to tasks, add an [`identity`][identity-block] block
+to your jobspec:
+
+```hcl
+task "example" {
+
+  identity {
+    # Expose Workload Identity in NOMAD_TOKEN env var
+    env = true
+
+    # Expose Workload Identity in ${SECRETS_DIR}/nomad_token file
+    file = true
+  }
+
+}
+```
+
 # Workload Associated ACL Policies
 
 You can associate additional ACL policies with workload identities by passing
@@ -79,6 +96,7 @@ In Nomad 1.4.0 the workload identity is used only for `template`
 access to [Variables][] and not exposed outside of Nomad.
 
 [allocation]: /nomad/docs/concepts/architecture#allocation
+[identity-block]: /nomad/docs/job-specification/identity
 [plan applier]: /nomad/docs/concepts/scheduling/scheduling
 [Variables]: /nomad/docs/concepts/variables
 [JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
