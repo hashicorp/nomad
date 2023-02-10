@@ -1,7 +1,7 @@
 ```release-note:improvement
-cli: Warn when variable key includes characters what require the use of the `index` function in templates
+cli: Warn when variable key includes characters that require the use of the `index` function in templates
 ```
 
 ```release-note:improvement
-ui: Warn when variable key includes characters what require the use of the `index` function in templates
+ui: Warn when variable key includes characters that require the use of the `index` function in templates
 ```
