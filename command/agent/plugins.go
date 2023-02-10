@@ -10,10 +10,6 @@ import (
 
 // setupPlugins is used to setup the plugin loaders.
 func (a *Agent) setupPlugins() error {
-	if a.GetConfig().Client == nil || !a.GetConfig().Client.Enabled {
-		a.logger.Debug("skipping plugin setup because node is not a client")
-		return nil
-	}
 	// Get our internal plugins
 	internal, err := a.internalPluginConfigs()
 	if err != nil {
