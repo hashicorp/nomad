@@ -21,14 +21,16 @@ import (
 // e.g. https://www.opencve.io/cve/CVE-2022-41716
 type parameters struct {
 	// Config
-	HTTPReadTimeout            time.Duration `json:"http_read_timeout"`
-	HTTPMaxBytes               int64         `json:"http_max_bytes"`
-	GCSTimeout                 time.Duration `json:"gcs_timeout"`
-	GitTimeout                 time.Duration `json:"git_timeout"`
-	HgTimeout                  time.Duration `json:"hg_timeout"`
-	S3Timeout                  time.Duration `json:"s3_timeout"`
-	DisableFilesystemIsolation bool          `json:"disable_filesystem_isolation"`
-	SetEnvironmentVariables    string        `json:"set_environment_variables"`
+	HTTPReadTimeout             time.Duration `json:"http_read_timeout"`
+	HTTPMaxBytes                int64         `json:"http_max_bytes"`
+	GCSTimeout                  time.Duration `json:"gcs_timeout"`
+	GitTimeout                  time.Duration `json:"git_timeout"`
+	HgTimeout                   time.Duration `json:"hg_timeout"`
+	S3Timeout                   time.Duration `json:"s3_timeout"`
+	DecompressionLimitFileCount int           `json:"decompression_limit_file_count"`
+	DecompressionLimitSize      int64         `json:"decompression_limit_size"`
+	DisableFilesystemIsolation  bool          `json:"disable_filesystem_isolation"`
+	SetEnvironmentVariables     string        `json:"set_environment_variables"`
 
 	// Artifact
 	Mode        getter.ClientMode   `json:"artifact_mode"`
@@ -88,6 +90,10 @@ func (p *parameters) Equal(o *parameters) bool {
 		return false
 	case p.S3Timeout != o.S3Timeout:
 		return false
+	case p.DecompressionLimitFileCount != o.DecompressionLimitFileCount:
+		return false
+	case p.DecompressionLimitSize != o.DecompressionLimitSize:
+		return false
 	case p.DisableFilesystemIsolation != o.DisableFilesystemIsolation:
 		return false
 	case p.SetEnvironmentVariables != o.SetEnvironmentVariables:
@@ -136,6 +142,13 @@ func (p *parameters) client(ctx context.Context) *getter.Client {
 		// large downloads.
 		MaxBytes: p.HTTPMaxBytes,
 	}
+
+	// setup custom decompressors with file count and total size limits
+	decompressors := getter.LimitedDecompressors(
+		p.DecompressionLimitFileCount,
+		p.DecompressionLimitSize,
+	)
+
 	return &getter.Client{
 		Ctx:             ctx,
 		Src:             p.Source,
@@ -144,6 +157,7 @@ func (p *parameters) client(ctx context.Context) *getter.Client {
 		Umask:           umask,
 		Insecure:        false,
 		DisableSymlinks: true,
+		Decompressors:   decompressors,
 		Getters: map[string]getter.Getter{
 			"git": &getter.GitGetter{
 				Timeout: p.GitTimeout,

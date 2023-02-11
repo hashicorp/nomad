@@ -62,6 +62,15 @@ from the Nomad client by setting [`set_environment_variables`][artifact_env].
 The use of filesystem isolation can be disabled in Client configuration by
 setting [`disable_filesystem_isolation`][artifact_fs_isolation].
 
+#### Artifact Decompression Limits
+
+Nomad 1.5.0 now sets default limits around artifact decompression. A single artifact
+payload is now limited to 100GB and 4096 files when decompressed. An artifact that
+exceeds these limits during decompression will cause the artifact downloader to
+fail. These limits can be adjusted or disabled in the client artifact configuration
+by setting [`decompression_size_limit`][decompression_size_limit] and
+[`decompression_file_count_limit`][decompression_file_count_limit].
+
 #### Datacenter Wildcards
 
 In Nomad 1.5.0, the
@@ -1657,4 +1666,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [upgrade process]: /nomad/docs/upgrade#upgrade-process
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
 [artifact_fs_isolation]: /nomad/docs/configuration/client#disable_filesystem_isolation
+[decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
+[decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables

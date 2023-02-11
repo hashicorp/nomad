@@ -19,6 +19,8 @@ const paramsAsJSON = `
   "git_timeout": 3000000000,
   "hg_timeout": 4000000000,
   "s3_timeout": 5000000000,
+  "decompression_limit_file_count": 3,
+  "decompression_limit_size": 98765,
   "disable_filesystem_isolation": true,
   "set_environment_variables": "",
   "artifact_mode": 2,
@@ -32,13 +34,15 @@ const paramsAsJSON = `
 }`
 
 var paramsAsStruct = &parameters{
-	HTTPReadTimeout:            1 * time.Second,
-	HTTPMaxBytes:               2000,
-	GCSTimeout:                 2 * time.Second,
-	GitTimeout:                 3 * time.Second,
-	HgTimeout:                  4 * time.Second,
-	S3Timeout:                  5 * time.Second,
-	DisableFilesystemIsolation: true,
+	HTTPReadTimeout:             1 * time.Second,
+	HTTPMaxBytes:                2000,
+	GCSTimeout:                  2 * time.Second,
+	GitTimeout:                  3 * time.Second,
+	HgTimeout:                   4 * time.Second,
+	S3Timeout:                   5 * time.Second,
+	DecompressionLimitFileCount: 3,
+	DecompressionLimitSize:      98765,
+	DisableFilesystemIsolation:  true,
 
 	Mode:        getter.ClientModeFile,
 	Source:      "https://example.com/file.txt",
@@ -98,6 +102,16 @@ func TestParameters_client(t *testing.T) {
 	// artifact options
 	must.Eq(t, "https://example.com/file.txt", c.Src)
 	must.Eq(t, "local/out.txt", c.Dst)
+
+	// decompression limits
+	const fileCountLimit = 3
+	const fileSizeLimit = 98765
+	must.Eq(t, fileSizeLimit, c.Decompressors["zip"].(*getter.ZipDecompressor).FileSizeLimit)
+	must.Eq(t, fileCountLimit, c.Decompressors["zip"].(*getter.ZipDecompressor).FilesLimit)
+	must.Eq(t, fileSizeLimit, c.Decompressors["tar.gz"].(*getter.TarGzipDecompressor).FileSizeLimit)
+	must.Eq(t, fileCountLimit, c.Decompressors["tar.gz"].(*getter.TarGzipDecompressor).FilesLimit)
+	must.Eq(t, fileSizeLimit, c.Decompressors["xz"].(*getter.XzDecompressor).FileSizeLimit)
+	// xz does not support files count limit
 }
 
 func TestParameters_Equal_headers(t *testing.T) {

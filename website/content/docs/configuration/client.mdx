@@ -394,6 +394,14 @@ see the [drivers documentation](/nomad/docs/drivers).
   S3 operation must complete before it is canceled. Set to `0` to not enforce a
   limit.
 
+- `decompression_size_limit` `(string: "100GB")` - Specifies the maximum amount
+  of data that will be decompressed before triggering an error and cancelling the
+  operation. Set to `"0"` to not enforce a limit.
+
+- `decompression_file_count_limit` `(int: 4096)` - Specifies the maximum number
+  of files that will be decompressed before triggering an error and cancelling the
+  operation. Set to `0` to not enforce a limit.
+
 - `disable_filesystem_isolation` `(bool: false)` - Specifies whether filesystem
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
