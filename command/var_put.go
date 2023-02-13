@@ -551,8 +551,9 @@ func warnInvalidIdentifier(in string) error {
 		return nil
 	}
 
+	// Use %s instead of %q to avoid escaping characters.
 	return fmt.Errorf(
-		"%q contains characters %s that require the `index` function for direct access in templates",
+		`"%s" contains characters %s that require the 'index' function for direct access in templates`,
 		in,
 		formatInvalidVarKeyChars(invalid),
 	)
@@ -565,7 +566,8 @@ func formatInvalidVarKeyChars(invalid []string) string {
 	// Sort the characters for output
 	charList := make([]string, 0, chars.Size())
 	for _, k := range chars.List() {
-		charList = append(charList, fmt.Sprintf("%q", k))
+		// Use %s instead of %q to avoid escaping characters.
+		charList = append(charList, fmt.Sprintf(`"%s"`, k))
 	}
 	slices.Sort(charList)
 
