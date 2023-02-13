@@ -183,8 +183,8 @@ func TestVarPutCommand_KeyWarning(t *testing.T) {
 		{
 			name:     "dont_escape",
 			goodKeys: []string{"aardvark"},
-			badKeys:  []string{"bad/key"},
-			badChars: []string{`"/"`},
+			badKeys:  []string{"bad\\key"},
+			badChars: []string{`"\"`},
 		},
 	}
 
