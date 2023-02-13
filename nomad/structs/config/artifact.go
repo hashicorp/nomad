@@ -34,6 +34,18 @@ type ArtifactConfig struct {
 	// S3Timeout is the duration in which an S3 operation must complete or
 	// it will be canceled. Defaults to 30m.
 	S3Timeout *string `hcl:"s3_timeout"`
+
+	// DecompressionSizeLimit is the maximum amount of data that will be
+	// decompressed before triggering an error and cancelling the operation.
+	//
+	// Default is unset, meaning no limit is applied.
+	DecompressionSizeLimit *string `hcl:"decompression_size_limit"`
+
+	// DecompressionFileCountLimit is the maximum number of files that will
+	// be decompressed before triggering an error and cancelling the operation.
+	//
+	// Default is unset, meaning no limit is applied.
+	DecompressionFileCountLimit *int `hcl:"decompression_file_count_limit"`
 }
 
 func (a *ArtifactConfig) Copy() *ArtifactConfig {
@@ -41,27 +53,16 @@ func (a *ArtifactConfig) Copy() *ArtifactConfig {
 		return nil
 	}
 
-	newCopy := &ArtifactConfig{}
-	if a.HTTPReadTimeout != nil {
-		newCopy.HTTPReadTimeout = pointer.Of(*a.HTTPReadTimeout)
+	return &ArtifactConfig{
+		HTTPReadTimeout:             pointer.Copy(a.HTTPReadTimeout),
+		HTTPMaxSize:                 pointer.Copy(a.HTTPMaxSize),
+		GCSTimeout:                  pointer.Copy(a.GCSTimeout),
+		GitTimeout:                  pointer.Copy(a.GitTimeout),
+		HgTimeout:                   pointer.Copy(a.HgTimeout),
+		S3Timeout:                   pointer.Copy(a.S3Timeout),
+		DecompressionSizeLimit:      pointer.Copy(a.DecompressionSizeLimit),
+		DecompressionFileCountLimit: pointer.Copy(a.DecompressionFileCountLimit),
 	}
-	if a.HTTPMaxSize != nil {
-		newCopy.HTTPMaxSize = pointer.Of(*a.HTTPMaxSize)
-	}
-	if a.GCSTimeout != nil {
-		newCopy.GCSTimeout = pointer.Of(*a.GCSTimeout)
-	}
-	if a.GitTimeout != nil {
-		newCopy.GitTimeout = pointer.Of(*a.GitTimeout)
-	}
-	if a.HgTimeout != nil {
-		newCopy.HgTimeout = pointer.Of(*a.HgTimeout)
-	}
-	if a.S3Timeout != nil {
-		newCopy.S3Timeout = pointer.Of(*a.S3Timeout)
-	}
-
-	return newCopy
 }
 
 func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
@@ -72,27 +73,16 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 		return a.Copy()
 	}
 
-	newCopy := a.Copy()
-	if o.HTTPReadTimeout != nil {
-		newCopy.HTTPReadTimeout = pointer.Of(*o.HTTPReadTimeout)
+	return &ArtifactConfig{
+		HTTPReadTimeout:             pointer.Merge(a.HTTPReadTimeout, o.HTTPReadTimeout),
+		HTTPMaxSize:                 pointer.Merge(a.HTTPMaxSize, o.HTTPMaxSize),
+		GCSTimeout:                  pointer.Merge(a.GCSTimeout, o.GCSTimeout),
+		GitTimeout:                  pointer.Merge(a.GitTimeout, o.GitTimeout),
+		HgTimeout:                   pointer.Merge(a.HgTimeout, o.HgTimeout),
+		S3Timeout:                   pointer.Merge(a.S3Timeout, o.S3Timeout),
+		DecompressionSizeLimit:      pointer.Merge(a.DecompressionSizeLimit, o.DecompressionSizeLimit),
+		DecompressionFileCountLimit: pointer.Merge(a.DecompressionFileCountLimit, o.DecompressionFileCountLimit),
 	}
-	if o.HTTPMaxSize != nil {
-		newCopy.HTTPMaxSize = pointer.Of(*o.HTTPMaxSize)
-	}
-	if o.GCSTimeout != nil {
-		newCopy.GCSTimeout = pointer.Of(*o.GCSTimeout)
-	}
-	if o.GitTimeout != nil {
-		newCopy.GitTimeout = pointer.Of(*o.GitTimeout)
-	}
-	if o.HgTimeout != nil {
-		newCopy.HgTimeout = pointer.Of(*o.HgTimeout)
-	}
-	if o.S3Timeout != nil {
-		newCopy.S3Timeout = pointer.Of(*o.S3Timeout)
-	}
-
-	return newCopy
 }
 
 func (a *ArtifactConfig) Validate() error {
@@ -154,6 +144,22 @@ func (a *ArtifactConfig) Validate() error {
 		return fmt.Errorf("s3_timeout must be > 0")
 	}
 
+	if a.DecompressionSizeLimit == nil {
+		a.DecompressionSizeLimit = pointer.Of("0")
+	}
+	if v, err := humanize.ParseBytes(*a.DecompressionSizeLimit); err != nil {
+		return fmt.Errorf("decompression_size_limit is not a valid size: %w", err)
+	} else if v > math.MaxInt64 {
+		return fmt.Errorf("decompression_size_limit must be < %d bytes but found %d", int64(math.MaxInt64), v)
+	}
+
+	if a.DecompressionFileCountLimit == nil {
+		a.DecompressionFileCountLimit = pointer.Of(0)
+	}
+	if v := *a.DecompressionFileCountLimit; v < 0 {
+		return fmt.Errorf("decompression_file_count_limit must be >= 0 but found %d", v)
+	}
+
 	return nil
 }
 
@@ -182,5 +188,11 @@ func DefaultArtifactConfig() *ArtifactConfig {
 		// Timeout for S3 operations. Must be long enough to
 		// accommodate large/slow downloads.
 		S3Timeout: pointer.Of("30m"),
+
+		// DecompressionSizeLimit is unset (no limit) by default.
+		DecompressionSizeLimit: pointer.Of("0"),
+
+		// DecompressionFileCountLimit is unset (no limit) by default.
+		DecompressionFileCountLimit: pointer.Of(0),
 	}
 }

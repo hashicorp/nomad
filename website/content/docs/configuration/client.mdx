@@ -378,6 +378,14 @@ see the [drivers documentation](/docs/drivers).
   S3 operation must complete before it is canceled. Set to `0` to not enforce a
   limit.
 
+- `decompression_size_limit` `(string: nil)` - Specifies the maximum amount of
+  data that will be decompressed before triggering an error and cancelling the
+  operation. E.g. "10GB". By default this value is not set and no limit is enforced.
+
+- `decompression_file_count_limit` `(int: nil)` - Specifies the maximum number
+  of files that will be decompressed before triggering an error and cancelling
+  the operation. By default this value is not set and no limit is enforced.
+
 ### `template` Parameters
 
 - `function_denylist` `([]string: ["plugin", "writeToFile"])` - Specifies a
