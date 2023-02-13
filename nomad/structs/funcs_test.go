@@ -2,7 +2,6 @@ package structs
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -1060,27 +1059,6 @@ func TestGenerateMigrateToken(t *testing.T) {
 	assert.Nil(err)
 	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
 	assert.True(CompareMigrateToken("x", nodeSecret, token2))
-}
-
-func TestMergeMultierrorWarnings(t *testing.T) {
-	ci.Parallel(t)
-
-	var errs []error
-
-	// empty
-	str := MergeMultierrorWarnings(errs...)
-	require.Equal(t, "", str)
-
-	// non-empty
-	errs = []error{
-		errors.New("foo"),
-		nil,
-		errors.New("bar"),
-	}
-
-	str = MergeMultierrorWarnings(errs...)
-
-	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }
 
 func TestVaultPoliciesSet(t *testing.T) {

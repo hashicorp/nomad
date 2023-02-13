@@ -10,37 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
-
-// MergeMultierrorWarnings takes job warnings and canonicalize warnings and
-// merges them into a returnable string. Both the errors may be nil.
-func MergeMultierrorWarnings(errs ...error) string {
-	if len(errs) == 0 {
-		return ""
-	}
-
-	var mErr multierror.Error
-	_ = multierror.Append(&mErr, errs...)
-	mErr.ErrorFormat = warningsFormatter
-
-	return mErr.Error()
-}
-
-// warningsFormatter is used to format job warnings
-func warningsFormatter(es []error) string {
-	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
-
-	for i := range es {
-		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
-	}
-
-	return sb.String()
-}
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations

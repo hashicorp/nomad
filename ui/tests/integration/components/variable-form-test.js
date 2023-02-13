@@ -280,15 +280,52 @@ module('Integration | Component | variable-form', function (hooks) {
         })
       );
 
-      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-
-      await typeIn('.key-value label:nth-child(1) input', 'superSecret');
-      assert.dom('.key-value-error').doesNotExist();
-
-      find('.key-value label:nth-child(1) input').value = '';
-
-      await typeIn('.key-value label:nth-child(1) input', 'super.secret');
-      assert.dom('.key-value-error').exists();
+      const testCases = [
+        {
+          name: 'valid key',
+          key: 'superSecret2',
+          warn: false,
+        },
+        {
+          name: 'invalid key with dot',
+          key: 'super.secret',
+          warn: true,
+        },
+        {
+          name: 'invalid key with slash',
+          key: 'super/secret',
+          warn: true,
+        },
+        {
+          name: 'invalid key with emoji',
+          key: 'supersecretspy🕵️',
+          warn: true,
+        },
+        {
+          name: 'unicode letters',
+          key: '世界',
+          warn: false,
+        },
+        {
+          name: 'unicode numbers',
+          key: '٣٢١',
+          warn: false,
+        },
+        {
+          name: 'unicode letters and numbers',
+          key: '世٢界١',
+          warn: false,
+        },
+      ];
+      for (const tc of testCases) {
+        await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+        await typeIn('[data-test-var-key]', tc.key);
+        if (tc.warn) {
+          assert.dom('.key-value-error').exists(tc.name);
+        } else {
+          assert.dom('.key-value-error').doesNotExist(tc.name);
+        }
+      }
     });
 
     test('warns you when you create a duplicate key', async function (assert) {

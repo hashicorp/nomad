@@ -7,8 +7,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
@@ -16,7 +19,12 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
+	"golang.org/x/exp/slices"
 )
+
+// Detect characters that are not valid identifiers to emit a warning when they
+// are used in as a variable key.
+var invalidIdentifier = regexp.MustCompile(`[^_\pN\pL]`)
 
 type VarPutCommand struct {
 	Meta
@@ -270,6 +278,7 @@ func (c *VarPutCommand) Run(args []string) int {
 		return 1
 	}
 
+	var warnings *multierror.Error
 	if len(args) > 0 {
 		data, err := parseArgsData(stdin, args)
 		if err != nil {
@@ -287,6 +296,9 @@ func (c *VarPutCommand) Run(args []string) int {
 					verbose(fmt.Sprintf("Item %q does not exist, continuing...", k))
 				}
 				continue
+			}
+			if err := warnInvalidIdentifier(k); err != nil {
+				warnings = multierror.Append(warnings, err)
 			}
 			sv.Items[k] = vs
 		}
@@ -317,6 +329,13 @@ func (c *VarPutCommand) Run(args []string) int {
 
 	successMsg := fmt.Sprintf(
 		"Created variable %q with modify index %v", sv.Path, sv.ModifyIndex)
+
+	if warnings != nil {
+		c.Ui.Warn(c.FormatWarnings(
+			"Variable",
+			helper.MergeMultierrorWarnings(warnings),
+		))
+	}
 
 	var out string
 	switch c.outFmt {
@@ -524,4 +543,34 @@ func (c *VarPutCommand) validateOutputFlag() error {
 	default:
 		return errors.New(errInvalidOutFormat)
 	}
+}
+
+func warnInvalidIdentifier(in string) error {
+	invalid := invalidIdentifier.FindAllString(in, -1)
+	if len(invalid) == 0 {
+		return nil
+	}
+
+	// Use %s instead of %q to avoid escaping characters.
+	return fmt.Errorf(
+		`"%s" contains characters %s that require the 'index' function for direct access in templates`,
+		in,
+		formatInvalidVarKeyChars(invalid),
+	)
+}
+
+func formatInvalidVarKeyChars(invalid []string) string {
+	// Deduplicate characters
+	chars := set.From(invalid)
+
+	// Sort the characters for output
+	charList := make([]string, 0, chars.Size())
+	for _, k := range chars.List() {
+		// Use %s instead of %q to avoid escaping characters.
+		charList = append(charList, fmt.Sprintf(`"%s"`, k))
+	}
+	slices.Sort(charList)
+
+	// Build string
+	return fmt.Sprintf("[%s]", strings.Join(charList, ","))
 }

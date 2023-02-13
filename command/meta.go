@@ -2,6 +2,7 @@ package command
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 
@@ -214,6 +215,15 @@ func (m *Meta) SetupUi(args []string) {
 			Ui:         m.Ui,
 		}
 	}
+}
+
+// FormatWarnings returns a string with the warnings formatted for CLI output.
+func (m *Meta) FormatWarnings(header string, warnings string) string {
+	return m.Colorize().Color(
+		fmt.Sprintf("[bold][yellow]%s Warnings:\n%s[reset]\n",
+			header,
+			warnings,
+		))
 }
 
 type usageOptsFlags uint8
