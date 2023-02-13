@@ -58,6 +58,7 @@ func (tr *TaskRunner) initHooks() {
 	// Create the task directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := tr.Alloc()
+
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
