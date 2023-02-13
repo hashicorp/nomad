@@ -3,6 +3,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -125,18 +126,23 @@ func TestVarPutCommand_AutocompleteArgs(t *testing.T) {
 }
 
 func TestVarPutCommand_KeyWarning(t *testing.T) {
+	// Extract invalid characters from warning message.
+	r := regexp.MustCompile(`contains characters \[(.*)\]`)
+
 	tcs := []struct {
 		name     string
 		goodKeys []string
 		badKeys  []string
+		badChars []string
 	}{
 		{
 			name:     "simple",
 			goodKeys: []string{"simple"},
 		},
 		{
-			name:    "hasDot",
-			badKeys: []string{"has.Dot"},
+			name:     "hasDot",
+			badKeys:  []string{"has.Dot"},
+			badChars: []string{"."},
 		},
 		{
 			name:     "unicode_letters",
@@ -154,11 +160,25 @@ func TestVarPutCommand_KeyWarning(t *testing.T) {
 			name:     "one_good_one_bad",
 			goodKeys: []string{"aardvark"},
 			badKeys:  []string{"bad.key"},
+			badChars: []string{"."},
 		},
 		{
 			name:     "one_good_two_bad",
 			goodKeys: []string{"aardvark"},
 			badKeys:  []string{"bad.key", "also-bad"},
+			badChars: []string{".", "-"},
+		},
+		{
+			name:     "repeated_bad_char",
+			goodKeys: []string{"aardvark"},
+			badKeys:  []string{"bad.key", "also.bad"},
+			badChars: []string{".", "."},
+		},
+		{
+			name:     "repeated_bad_char_same_key",
+			goodKeys: []string{"aardvark"},
+			badKeys:  []string{"bad.key."},
+			badChars: []string{"."},
 		},
 	}
 
@@ -196,6 +216,13 @@ func TestVarPutCommand_KeyWarning(t *testing.T) {
 
 			for _, k := range tc.badKeys {
 				must.StrContains(t, errOut, k) // every bad key should appear in the warning output
+			}
+
+			if len(tc.badChars) > 0 {
+				invalid := r.FindAllStringSubmatch(errOut, -1)
+				for i, k := range tc.badChars {
+					must.StrContains(t, invalid[i][1], k) // every bad char should appear in the warning output
+				}
 			}
 
 			for _, k := range tc.goodKeys {
