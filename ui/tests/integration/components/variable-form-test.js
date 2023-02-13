@@ -319,7 +319,7 @@ module('Integration | Component | variable-form', function (hooks) {
       ];
       for (const tc of testCases) {
         await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-        await typeIn('.key-value label:nth-child(1) input', tc.key);
+        await typeIn('[data-test-var-key]', tc.key);
         if (tc.warn) {
           assert.dom('.key-value-error').exists(tc.name);
         } else {
