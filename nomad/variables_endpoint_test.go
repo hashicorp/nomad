@@ -9,7 +9,6 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/acl"
@@ -707,7 +706,7 @@ namespace "*" {}
 			for _, sv := range resp.Data {
 				found += fmt.Sprintf(" ns=%s path=%s\n", sv.Namespace, sv.Path)
 			}
-			must.Len(t, expectedCount, resp.Data, test.Sprintf("%s", found))
+			must.Len(t, expectedCount, resp.Data, must.Sprintf("%s", found))
 		})
 	}
 
