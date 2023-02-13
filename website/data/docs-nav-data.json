@@ -1679,6 +1679,10 @@
         "path": "other-specifications/acl-policy"
       },
       {
+        "title": "Variables",
+        "path": "other-specifications/variables"
+      },
+      {
         "title": "Volume",
         "routes": [
           {
