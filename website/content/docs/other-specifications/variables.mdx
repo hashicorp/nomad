@@ -59,6 +59,10 @@ $ nomad var put -in hcl some/path @spec.nv.hcl
 - `items` `(object: <required>)` - Object of keys and values to set. Must be
   strings.
 
+See [Variable Restrictions][var-restrict] for details on `path` and `items`
+name restrictions.
+
 [nv]: /nomad/docs/concepts/variables
 [var-init]: /nomad/docs/commands/var/init
 [var-put]: /nomad/docs/commands/var/put
+[var-restrict]: /nomad/docs/commands/var/put#restrictions
