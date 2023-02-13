@@ -1,3 +1,3 @@
 ```release-note:bug
-cli: Fix unbolded header `Device Group Attributes` and remove unused var in function `nodeCSIVolumeNames`
+cli: Fix unbolded header `Device Group Attributes`
 ```
