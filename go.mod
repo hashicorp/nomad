@@ -54,7 +54,7 @@ require (
 	// versions.
 	github.com/hashicorp/go-discover v0.0.0-20220621183603-a413e131e836
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
-	github.com/hashicorp/go-getter v1.6.3-0.20230210143508-0edab8534827
+	github.com/hashicorp/go-getter v1.7.0
 	github.com/hashicorp/go-hclog v1.3.1
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.5
