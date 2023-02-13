@@ -18,6 +18,9 @@ type ArtifactConfig struct {
 	GitTimeout time.Duration
 	HgTimeout  time.Duration
 	S3Timeout  time.Duration
+
+	DecompressionLimitSize      int64
+	DecompressionLimitFileCount int
 }
 
 // ArtifactConfigFromAgent creates a new internal readonly copy of the client
@@ -60,6 +63,15 @@ func ArtifactConfigFromAgent(c *config.ArtifactConfig) (*ArtifactConfig, error) 
 		return nil, fmt.Errorf("error parsing S3Timeout: %w", err)
 	}
 	newConfig.S3Timeout = t
+
+	s, err = humanize.ParseBytes(*c.DecompressionSizeLimit)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing DecompressionLimitSize: %w", err)
+	}
+	newConfig.DecompressionLimitSize = int64(s)
+
+	// no parsing its just an int
+	newConfig.DecompressionLimitFileCount = *c.DecompressionFileCountLimit
 
 	return newConfig, nil
 }
