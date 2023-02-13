@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"unicode"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
@@ -21,6 +21,10 @@ import (
 	"github.com/posener/complete"
 	"golang.org/x/exp/slices"
 )
+
+// Detect characters that are not valid identifiers to emit a warning when they
+// are used in as a variable key.
+var invalidIdentifier = regexp.MustCompile(`[^_\pN\pL]`)
 
 type VarPutCommand struct {
 	Meta
@@ -293,7 +297,7 @@ func (c *VarPutCommand) Run(args []string) int {
 				}
 				continue
 			}
-			if ok, err := isValidIdentifier(k); !ok {
+			if err := warnInvalidIdentifier(k); err != nil {
 				warnings = multierror.Append(warnings, err)
 			}
 			sv.Items[k] = vs
@@ -541,56 +545,26 @@ func (c *VarPutCommand) validateOutputFlag() error {
 	}
 }
 
-func isValidIdentifier(in string) (bool, error) {
-	pid := parseIdentifierDiag{
-		Identifier: in,
-		Issues:     make([]runeLoc, 0),
+func warnInvalidIdentifier(in string) error {
+	invalid := invalidIdentifier.FindAllString(in, -1)
+	if len(invalid) == 0 {
+		return nil
 	}
 
-	for i, r := range in {
-		if !isAlphaNumeric(r) {
-			pid.Issues = append(pid.Issues, runeLoc{Rune: r, Location: i})
-		}
-	}
-
-	if len(pid.Issues) > 0 {
-		return false, errors.New(pid.String())
-	}
-
-	return true, nil
+	return fmt.Errorf(
+		"%q contains characters %s that require the `index` function for direct access in templates",
+		in,
+		formatInvalidVarKeyChars(invalid),
+	)
 }
 
-// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
-func isAlphaNumeric(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
-}
-
-type parseIdentifierDiag struct {
-	Identifier string
-	Issues     RuneLocs
-}
-
-func (p *parseIdentifierDiag) String() string {
-	chars := make([]string, len(p.Issues))
-	for i, r := range p.Issues {
-		chars[i] = fmt.Sprintf("%q", r)
-	}
-	return fmt.Sprintf("%q contains characters %s that require the `index` function for direct access in templates", p.Identifier, p.Issues.String())
-}
-
-type RuneLocs []runeLoc
-type runeLoc struct {
-	Rune     rune
-	Location int
-}
-
-func (rl RuneLocs) String() string {
+func formatInvalidVarKeyChars(invalid []string) string {
 	// Deduplicate characters
-	chars := set.From(rl)
+	chars := set.From(invalid)
 
 	// Sort the characters for output
 	charList := make([]string, 0, chars.Size())
-	for k := range chars.List() {
+	for _, k := range chars.List() {
 		charList = append(charList, fmt.Sprintf("%q", k))
 	}
 	slices.Sort(charList)
