@@ -83,6 +83,7 @@ func (g *Getter) GetArtifact(taskEnv interfaces.EnvReplacer, artifact *structs.T
 	}
 
 	headers := getHeaders(taskEnv, artifact.GetterHeaders)
+
 	if err := g.getClient(ggURL, headers, mode, dest).Get(); err != nil {
 		return newGetError(ggURL, err, true)
 	}
@@ -99,8 +100,11 @@ func (g *Getter) getClient(src string, headers http.Header, mode gg.ClientMode, 
 		Umask:   060000000,
 		Getters: g.createGetters(headers),
 
-		// This will prevent copying or writing files through symlinks
+		// This will prevent copying or writing files through symlinks.
 		DisableSymlinks: true,
+
+		// This will protect against decompression bombs.
+		Decompressors: gg.LimitedDecompressors(g.config.DecompressionLimitFileCount, g.config.DecompressionLimitSize),
 	}
 }
 

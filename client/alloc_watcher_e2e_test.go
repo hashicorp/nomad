@@ -55,6 +55,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			CertFile:             clientCertFn,
 			KeyFile:              clientKeyFn,
 		}
+
 		c.Client.Enabled = true
 		c.Client.Servers = []string{server.GetConfig().RPCAddr.String()}
 	}
