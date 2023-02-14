@@ -14,7 +14,7 @@ module.exports = function (defaults) {
           rules: [
             {
               test: /\.ttf$/,
-              type: 'asset/resource',
+              use: ['file-loader'],
             },
           ],
         },
