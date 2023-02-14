@@ -21,14 +21,15 @@ Nomad 1.4.0 initializes a keyring on the leader if one has not been previously
 created, which writes a new raft entry. Users have reported that the keyring
 initialization can cause a panic on older servers during upgrades. Following the
 documented [upgrade process][] closely will reduce the risk of this panic. But
-if a server with version 1.4.0 or higher becomes leader while servers with
-versions before 1.4.0 are still in the cluster, the older servers will panic.
+if a server with version 1.4.0 becomes leader while servers with versions before
+1.4.0 are still in the cluster, the older servers will panic.
 
 The most likely scenario for this is if the leader is still on a version before
 1.4.0 and is netsplit from the rest of the cluster or the server is restarted
 without upgrading, and one of the 1.4.0 servers becomes the leader.
 
-You can recover from the panic by immediately upgrading the old servers.
+You can recover from the panic by immediately upgrading the old servers. This
+bug was fixed in Nomad 1.4.1.
 
 #### Raft Protocol Version 2 Unsupported
 
