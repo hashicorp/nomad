@@ -1,0 +1,47 @@
+{{#if (eq this.stage "editor")}}
+    <div class="boxed-section">
+        <div class="boxed-section-head">
+        Job Definition
+        {{#if @cancelable}}
+            <button
+            class="button is-light is-compact pull-right"
+            onclick={{action @onCancel}}
+            data-test-cancel-editing
+            type="button"
+            >Cancel</button>
+        {{/if}}
+        </div>
+        <div class="boxed-section-body is-full-bleed">
+        <div
+            data-test-editor
+            {{code-mirror
+            screenReaderLabel="Job definition"
+            content=@job._newDefinition
+            theme="hashi"
+            onUpdate=this.updateCode
+            mode="javascript"
+            }}
+        />
+        </div>
+    </div>
+    <div class="is-associative buttonset">
+        <Hds::Button
+        {{on "click" (perform this.plan)}}
+        disabled={{or this.plan.isRunning (not @job._newDefinition)}}
+        data-test-plan
+        @text="Plan"
+        />
+        {{#if @job.isNew}}
+        <Hds::ButtonSet>
+            <label class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium">
+            <div class="hds-button__text">Upload file</div>
+            <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
+            </label>
+            {{#if (can "write variable" path="*" namespace="*")}}
+            <Hds::Button @icon="file-plus" @text="Save as template" @color="tertiary" @route="jobs.run.templates.new"  {{on "click" @handleSaveAsTemplate}} data-test-save-as-template />
+            <Hds::Button @icon="file-text" @text="Choose from a template" @color="tertiary" @route="jobs.run.templates" data-test-choose-template />
+            {{/if}}
+        </Hds::ButtonSet>
+        {{/if}}
+    </div>
+{{/if}}

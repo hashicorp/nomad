@@ -12,6 +12,21 @@ export default class JobEditor extends Component {
 
   @tracked error = null;
   @tracked planOutput = null;
+  @tracked view = 'job-spec';
+  @tracked isEditing = false;
+
+  @action
+  edit() {
+    this.args.job.set(
+      '_newDefinition',
+      JSON.stringify(this.args.definition, null, 2)
+    );
+    this.isEditing = true;
+  }
+
+  onCancel() {
+    this.isEditing = false;
+  }
 
   get stage() {
     return this.planOutput ? 'plan' : 'editor';
@@ -94,5 +109,34 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
+  }
+
+  @action
+  toggleView() {
+    const opposite = this.view === 'job-spec' ? 'full-definition' : 'job-spec';
+    this.view = opposite;
+  }
+
+  get definition() {
+    if (this.view === 'full-definition') {
+      return this.args.definition;
+    } else {
+      return this.args.specification;
+    }
+  }
+
+  get data() {
+    return {
+      view: this.view,
+      definition: this.definition,
+      job: this.args.job,
+    };
+  }
+
+  get fns() {
+    return {
+      onEdit: this.edit,
+      onToggle: this.toggleView,
+    };
   }
 }

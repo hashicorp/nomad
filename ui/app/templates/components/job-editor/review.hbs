@@ -1,0 +1,82 @@
+{{#if (eq this.stage "plan")}}
+{{#if this.showPlanMessage}}
+    <div class="notification is-info">
+    <div class="columns">
+        <div class="column">
+        <h3 class="title is-4" data-test-plan-help-title>Job Plan</h3>
+        <p data-test-plan-help-message>This is the impact running this job
+            will have on your cluster.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+        <Hds::Button @text="Okay" {{on "click" (toggle-action "showPlanMessage" this)}} data-test-plan-help-dismiss />
+        </div>
+    </div>
+    </div>
+{{/if}}
+<div class="boxed-section">
+    <div class="boxed-section-head">Job Plan</div>
+    <div class="boxed-section-body is-dark">
+    <JobDiff
+        data-test-plan-output
+        @diff={{this.planOutput.diff}}
+        @verbose={{false}}
+    />
+    </div>
+</div>
+<div
+    class="boxed-section
+    {{if this.planOutput.failedTGAllocs 'is-warning' 'is-primary'}}"
+    data-test-dry-run-message
+>
+    <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
+    <div class="boxed-section-body" data-test-dry-run-body>
+    {{#if this.planOutput.failedTGAllocs}}
+        {{#each this.planOutput.failedTGAllocs as |placementFailure|}}
+        <PlacementFailure @failedTGAlloc={{placementFailure}} />
+        {{/each}}
+    {{else}}
+        All tasks successfully allocated.
+    {{/if}}
+    </div>
+</div>
+{{#if
+    (and
+    this.planOutput.preemptions.isFulfilled this.planOutput.preemptions.length
+    )
+}}
+    <div class="boxed-section is-warning" data-test-preemptions>
+    <div class="boxed-section-head" data-test-preemptions-title>
+        Preemptions (if you choose to run this job, these allocations will be
+        stopped)
+    </div>
+    <div class="boxed-section-body" data-test-preemptions-body>
+        <ListTable
+        @source={{this.planOutput.preemptions}}
+        @class="allocations is-isolated"
+        as |t|
+        >
+        <t.head>
+            <th class="is-narrow"></th>
+            <th>ID</th>
+            <th>Task Group</th>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Status</th>
+            <th>Version</th>
+            <th>Node</th>
+            <th>Volume</th>
+            <th>CPU</th>
+            <th>Memory</th>
+        </t.head>
+        <t.body as |row|>
+            <AllocationRow @allocation={{row.model}} @context="job" />
+        </t.body>
+        </ListTable>
+    </div>
+    </div>
+{{/if}}
+<Hds::ButtonSet class="is-associative">
+    <Hds::Button @text="Run" {{on "click" (perform this.submit)}} disabled={{this.submit.isRunning}} data-test-run />
+    <Hds::Button @color="secondary" @text="Cancel" {{on "click" this.reset}} disabled={{this.submit.isRunning}} data-test-cancel />
+</Hds::ButtonSet>
+{{/if}}
