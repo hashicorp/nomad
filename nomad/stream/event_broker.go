@@ -275,8 +275,13 @@ func aclObjFromSnapshotForTokenSecretID(aclSnapshot ACLTokenProvider, aclCache *
 	aclPolicies := make([]*structs.ACLPolicy, 0, len(aclToken.Policies))
 	for _, policyName := range aclToken.Policies {
 		policy, err := aclSnapshot.ACLPolicyByName(nil, policyName)
-		if err != nil || policy == nil {
+		if err != nil {
 			return nil, errors.New("error finding acl policy")
+		}
+		if policy == nil {
+			// Ignore policies that don't exist, since they don't grant any
+			// more privilege.
+			continue
 		}
 		aclPolicies = append(aclPolicies, policy)
 	}
