@@ -37,7 +37,8 @@ type FormatCommand struct {
 	check        bool
 	checkSuccess bool
 	recursive    bool
-	write        bool
+	writeFile    bool
+	writeStdout  bool
 	paths        []string
 
 	stdin io.Reader
@@ -47,27 +48,31 @@ func (*FormatCommand) Help() string {
 	helpText := `
 Usage: nomad fmt [flags] paths ...
 
-	Formats Nomad agent configuration and job file to a canonical format.
-	If a path is a directory, it will recursively format all files
-	with .nomad and .hcl extensions in the directory.
-	
-	If you provide a single dash (-) as argument, fmt will read from standard
-	input (STDIN) and output the processed output to standard output (STDOUT).
+  Formats Nomad agent configuration and job file to a canonical format.
+  If a path is a directory, it will recursively format all files
+  with .nomad and .hcl extensions in the directory.
+
+  If you provide a single dash (-) as argument, fmt will read from standard
+  input (STDIN) and output the processed output to standard output (STDOUT).
 
 Format Options:
 
-	-list=false
-		Don't list the files, which contain formatting inconsistencies.
+  -check
+	Check if the files are valid HCL files. If not, exit status of the
+	command will be 1 and the incorrect files will not be formatted. This
+    flag overrides any -write flag value.
 
-	-check
-		Check if the files are valid HCL files. If not, exit status of the command
-		will be 1 and the incorrect files will not be formatted.
+  -list
+	List the files which contain formatting inconsistencies. Defaults
+	to -list=true.
 
-	-write=false
-		Don't overwrite the input files.
+  -recursive
+	Process files in subdirectories. By default only the given (or current)
+	directory is processed.
 
-	-recursive
-		Process also files in subdirectories. By default only the given (or current) directory is processed.
+  -write
+	Overwrite the input files. Defaults to -write=true. Ignored if the input
+    comes from STDIN.
 `
 
 	return strings.TrimSpace(helpText)
@@ -100,7 +105,7 @@ func (f *FormatCommand) Run(args []string) int {
 	flags := f.Meta.FlagSet(f.Name(), FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&f.check, "check", false, "")
-	flags.BoolVar(&f.write, "write", true, "")
+	flags.BoolVar(&f.writeFile, "write", true, "")
 	flags.BoolVar(&f.list, "list", true, "")
 	flags.BoolVar(&f.recursive, "recursive", false, "")
 
@@ -121,10 +126,17 @@ func (f *FormatCommand) Run(args []string) int {
 	if len(flags.Args()) == 0 {
 		f.paths = []string{"."}
 	} else if flags.Args()[0] == stdinArg {
-		f.write = false
+		f.writeStdout = true
+		f.writeFile = false
 		f.list = false
 	} else {
 		f.paths = flags.Args()
+	}
+	if f.check {
+		f.writeFile = false
+	}
+	if !f.list && !f.writeFile {
+		f.writeStdout = true
 	}
 
 	f.fmt()
@@ -251,19 +263,20 @@ func (f *FormatCommand) processFile(path string, r io.Reader) {
 			f.Ui.Output(path)
 		}
 
-		if f.write {
+		if f.check {
+			f.checkSuccess = false
+		}
+
+		if f.writeFile {
 			if err := os.WriteFile(path, out, 0644); err != nil {
 				f.appendError(fmt.Errorf("Failed to write file %s: %w", path, err))
 				return
 			}
 		}
 
-		if f.check {
-			f.checkSuccess = false
-		}
 	}
 
-	if !f.list && !f.write {
+	if f.writeStdout {
 		f.Ui.Output(string(out))
 	}
 }
