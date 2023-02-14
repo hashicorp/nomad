@@ -1,0 +1,3 @@
+```release-note:bug
+cgutil: handle panic coming from runc helper method
+```
