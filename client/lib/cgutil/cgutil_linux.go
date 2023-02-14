@@ -18,7 +18,19 @@ import (
 // cgroups.v1
 //
 // This is a read-only value.
-var UseV2 = cgroups.IsCgroup2UnifiedMode()
+var UseV2 = safelyDetectUnifiedMode()
+
+// Currently it is possible for the runc utility function to panic
+// https://github.com/opencontainers/runc/pull/3745
+func safelyDetectUnifiedMode() (result bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			result = false
+		}
+	}()
+	result = cgroups.IsCgroup2UnifiedMode()
+	return
+}
 
 // GetCgroupParent returns the mount point under the root cgroup in which Nomad
 // will create cgroups. If parent is not set, an appropriate name for the version
