@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/useragent"
 	tomb "gopkg.in/tomb.v2"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"

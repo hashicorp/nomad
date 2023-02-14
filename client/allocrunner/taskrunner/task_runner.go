@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"golang.org/x/exp/slices"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	uuidparse "github.com/hashicorp/go-uuid"

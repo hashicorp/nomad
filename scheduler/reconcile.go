@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/helper"

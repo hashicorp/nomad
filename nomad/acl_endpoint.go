@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-metrics"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"

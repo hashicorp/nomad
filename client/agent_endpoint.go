@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"

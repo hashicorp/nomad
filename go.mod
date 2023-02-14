@@ -16,7 +16,7 @@ require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Microsoft/go-winio v0.6.0
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
-	github.com/armon/go-metrics v0.4.1
+	github.com/hashicorp/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.184
 	github.com/container-storage-interface/spec v1.7.0
 	github.com/containerd/go-cni v1.1.7

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
