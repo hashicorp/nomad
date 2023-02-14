@@ -1138,6 +1138,11 @@ many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`.
 Please keep the implications of CPU shares in mind when you load test workloads
 on Nomad.
 
+If resources [cores][cores] is set, the task is given an isolated reserved set of
+CPU cores to make use of. The total set of cores the task may run on is the private
+set combined with the variable set of unreserved cores. The private set of CPU cores
+is available to your process by reading `NOMAD_CPU_CORES`.
+
 ### Memory
 
 Nomad limits containers' memory usage based on total virtual memory. This means
@@ -1213,3 +1218,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [network block]: /nomad/docs/job-specification/network#bridge-mode
 [`pids_limit`]: /nomad/docs/drivers/docker#pids_limit
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
+[cores]: /nomad/docs/job-specification/resources#cores
