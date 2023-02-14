@@ -187,14 +187,14 @@ func (a *ArtifactConfig) Validate() error {
 	}
 
 	if a.DecompressionFileCountLimit == nil {
-		a.DecompressionFileCountLimit = pointer.Of(0)
+		return fmt.Errorf("decompression_file_count_limit must not be nil")
 	}
 	if v := *a.DecompressionFileCountLimit; v < 0 {
 		return fmt.Errorf("decompression_file_count_limit must be >= 0 but found %d", v)
 	}
 
 	if a.DecompressionSizeLimit == nil {
-		a.DecompressionSizeLimit = pointer.Of("0")
+		return fmt.Errorf("decompression_size_limit must not be nil")
 	}
 	if v, err := humanize.ParseBytes(*a.DecompressionSizeLimit); err != nil {
 		return fmt.Errorf("decompression_size_limit is not a valid size: %w", err)

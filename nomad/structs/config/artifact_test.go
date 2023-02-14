@@ -363,11 +363,25 @@ func TestArtifactConfig_Validate(t *testing.T) {
 			expErr: "s3_timeout not a valid duration",
 		},
 		{
+			name: "decompression file count limit is nil",
+			config: func(a *ArtifactConfig) {
+				a.DecompressionFileCountLimit = nil
+			},
+			expErr: "decompression_file_count_limit must not be nil",
+		},
+		{
 			name: "decompression file count limit is negative",
 			config: func(a *ArtifactConfig) {
 				a.DecompressionFileCountLimit = pointer.Of(-1)
 			},
 			expErr: "decompression_file_count_limit must be >= 0 but found -1",
+		},
+		{
+			name: "decompression size limit is nil",
+			config: func(a *ArtifactConfig) {
+				a.DecompressionSizeLimit = nil
+			},
+			expErr: "decompression_size_limit must not be nil",
 		},
 		{
 			name: "decompression size limit is negative",
