@@ -1,14 +1,24 @@
 import Route from '@ember/routing/route';
 
 export default class DefinitionRoute extends Route {
-  model() {
+  async model() {
     const job = this.modelFor('jobs.job');
     if (!job) return;
 
-    return job.fetchRawDefinition().then((definition) => ({
+    const definition = await job.fetchRawDefinition();
+
+    const definitionWithoutSpecification = { ...definition };
+    delete definitionWithoutSpecification.Specification;
+
+    const specification = await new Blob([
+      definition?.Specification?.Definition,
+    ]).text();
+
+    return {
       job,
-      definition,
-    }));
+      definition: definitionWithoutSpecification,
+      specification,
+    };
   }
 
   resetController(controller, isExiting) {
