@@ -40,14 +40,16 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 
 	params := &parameters{
 		// downloader configuration
-		HTTPReadTimeout:            s.ac.HTTPReadTimeout,
-		HTTPMaxBytes:               s.ac.HTTPMaxBytes,
-		GCSTimeout:                 s.ac.GCSTimeout,
-		GitTimeout:                 s.ac.GitTimeout,
-		HgTimeout:                  s.ac.HgTimeout,
-		S3Timeout:                  s.ac.S3Timeout,
-		DisableFilesystemIsolation: s.ac.DisableFilesystemIsolation,
-		SetEnvironmentVariables:    s.ac.SetEnvironmentVariables,
+		HTTPReadTimeout:             s.ac.HTTPReadTimeout,
+		HTTPMaxBytes:                s.ac.HTTPMaxBytes,
+		GCSTimeout:                  s.ac.GCSTimeout,
+		GitTimeout:                  s.ac.GitTimeout,
+		HgTimeout:                   s.ac.HgTimeout,
+		S3Timeout:                   s.ac.S3Timeout,
+		DecompressionLimitFileCount: s.ac.DecompressionLimitFileCount,
+		DecompressionLimitSize:      s.ac.DecompressionLimitSize,
+		DisableFilesystemIsolation:  s.ac.DisableFilesystemIsolation,
+		SetEnvironmentVariables:     s.ac.SetEnvironmentVariables,
 
 		// artifact configuration
 		Mode:        mode,

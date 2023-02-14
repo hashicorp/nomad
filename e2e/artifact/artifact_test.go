@@ -17,6 +17,7 @@ func TestArtifact(t *testing.T) {
 
 	t.Run("testLinux", testLinux)
 	t.Run("testWindows", testWindows)
+	t.Run("testLimits", testLimits)
 }
 
 // artifactCheckLogContents verifies expected logs for artifact downloader tests.
@@ -43,8 +44,7 @@ func artifactCheckLogContents(t *testing.T, nomad *api.Client, group, task strin
 
 func testWindows(t *testing.T) {
 	nomad := e2eutil.NomadClient(t)
-
-	jobID := "artifact-linux-" + uuid.Short()
+	jobID := "artifact-windows-" + uuid.Short()
 	jobIDs := []string{jobID}
 	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
 
@@ -73,7 +73,6 @@ func testWindows(t *testing.T) {
 
 func testLinux(t *testing.T) {
 	nomad := e2eutil.NomadClient(t)
-
 	jobID := "artifact-linux-" + uuid.Short()
 	jobIDs := []string{jobID}
 	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
@@ -112,4 +111,36 @@ func testLinux(t *testing.T) {
 	check("docker", "docker_zip_default")
 	check("docker", "docker_zip_custom")
 	check("docker", "docker_git_custom")
+}
+
+func testLimits(t *testing.T) {
+	// defaults are 100GB, 4096 files; we run into the files count here
+
+	jobID := "artifact-limits-" + uuid.Short()
+	jobIDs := []string{jobID}
+	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+
+	err := e2eutil.Register(jobID, "./input/artifact_limits.nomad")
+	must.NoError(t, err)
+
+	err = e2eutil.WaitForAllocStatusExpected(jobID, "", []string{"failed"})
+	must.NoError(t, err)
+
+	m, err := e2eutil.AllocTaskEventsForJob(jobID, "")
+	must.NoError(t, err)
+
+	found := false
+SCAN:
+	for _, events := range m {
+		for _, event := range events {
+			for label, description := range event {
+				if label == "Type" && description == "Failed Artifact Download" {
+					found = true
+					break SCAN
+				}
+
+			}
+		}
+	}
+	must.True(t, found)
 }
