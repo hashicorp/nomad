@@ -34,12 +34,15 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `cores` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Specifies the number of CPU cores to reserve
-  for the task. This may not be used with `cpu`.
+- `cores` <code>(`int`: &lt;optional&gt;)</code> - Specifies the number of CPU cores
+  to reserve specifically for the task. This may not be used with `cpu`. The behavior
+  of setting `cores` is specific to each task driver (e.g. [docker][docker_cpu], [exec][exec_cpu]).
 
 - `memory` `(int: 300)` - Specifies the memory required in MB.
 
-- `memory_max` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See [Memory Oversubscription](#memory-oversubscription) for more details.
+- `memory_max` <code>(`int`: &lt;optional&gt;)</code> - Optionally, specifies the
+  maximum memory the task may use, if the client has excess memory capacity, in MB.
+  See [Memory Oversubscription](#memory-oversubscription) for more details.
 
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
@@ -134,3 +137,5 @@ resource utilization and considering the following suggestions:
   killed.
 
 [device]: /nomad/docs/job-specification/device 'Nomad device Job Specification'
+[docker_cpu]: /nomad/docs/drivers/docker#cpu
+[exec_cpu]: /nomad/docs/drivers/exec#cpu
