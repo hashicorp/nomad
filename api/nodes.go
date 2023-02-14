@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	NodeStatusInit  = "initializing"
-	NodeStatusReady = "ready"
-	NodeStatusDown  = "down"
+	NodeStatusInit         = "initializing"
+	NodeStatusReady        = "ready"
+	NodeStatusDown         = "down"
+	NodeStatusDisconnected = "disconnected"
 
 	// NodeSchedulingEligible and Ineligible marks the node as eligible or not,
 	// respectively, for receiving allocations. This is orthogonal to the node
