@@ -976,6 +976,12 @@ func (t *Task) SetLogConfig(l *LogConfig) *Task {
 	return t
 }
 
+// SetLifecycle is used to set lifecycle config to a task.
+func (t *Task) SetLifecycle(l *TaskLifecycle) *Task {
+	t.Lifecycle = l
+	return t
+}
+
 // TaskState tracks the current state of a task and events that caused state
 // transitions.
 type TaskState struct {

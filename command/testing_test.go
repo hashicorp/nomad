@@ -149,19 +149,38 @@ func waitForNodes(t *testing.T, client *api.Client) {
 	})
 }
 
-func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
+func waitForNodeEligibility(t *testing.T, client *api.Client, nodeID string, eligibility string) {
+	testutil.WaitForResult(func() (bool, error) {
+		node, _, err := client.Nodes().Info(nodeID, nil)
+		if err != nil {
+			return false, err
+		}
+		if node.SchedulingEligibility != eligibility {
+			return false, fmt.Errorf("node is %s, not %s", node.SchedulingEligibility, eligibility)
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+}
+
+func waitForAllocStatus(t *testing.T, client *api.Client, allocID string, status string) {
 	testutil.WaitForResult(func() (bool, error) {
 		alloc, _, err := client.Allocations().Info(allocID, nil)
 		if err != nil {
 			return false, err
 		}
-		if alloc.ClientStatus == api.AllocClientStatusRunning {
+		if alloc.ClientStatus == status {
 			return true, nil
 		}
 		return false, fmt.Errorf("alloc status: %s", alloc.ClientStatus)
 	}, func(err error) {
 		t.Fatalf("timed out waiting for alloc to be running: %v", err)
 	})
+}
+
+func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
+	waitForAllocStatus(t, client, allocID, api.AllocClientStatusRunning)
 }
 
 func waitForCheckStatus(t *testing.T, client *api.Client, allocID, status string) {
