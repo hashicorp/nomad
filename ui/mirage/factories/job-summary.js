@@ -14,11 +14,11 @@ export default Factory.extend({
         summary[group] = {
           Queued: faker.random.number(10),
           Complete: faker.random.number(10),
-          Failed: faker.random.number(10),
-          Running: faker.random.number(10),
+          Failed: 10,
+          Running: 10,
           Starting: faker.random.number(10),
           Lost: faker.random.number(10),
-          Unknown: faker.random.number(10),
+          Unknown: 7,
         };
         return summary;
       }, {});

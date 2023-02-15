@@ -1,0 +1,20 @@
+{{#if this.showSummaries}}
+  <div class="alloc-status-summaries">
+    {{#each-in @allocBlocks as |status count|}}
+      {{#if (gt count 0)}}
+        <JobStatus::AllocationStatusBlock @status={{status}} @count={{count}} @percentage={{compute (action this.calcPerc) count}} />
+      {{/if}}
+    {{/each-in}}
+  </div>
+{{else}}
+  <div class="alloc-representation">
+    {{#each-in @allocBlocks as |status count|}}
+      {{!-- {{log "eachin" status count}} --}}
+      {{#if (gt count 0)}}
+        {{#each (range 0 count) as |alloc|}}
+          <span class="represented-allocation {{status}}"></span>
+        {{/each}}
+      {{/if}}
+    {{/each-in}}
+  </div>
+{{/if}}

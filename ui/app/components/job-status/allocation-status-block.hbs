@@ -1,0 +1,7 @@
+<div class="allocation-status-block" style="width: {{@percentage}}%">
+  {{#each (range 0 this.countToShow) as |alloc|}}
+    <span class="represented-allocation {{@status}}">
+      +{{this.remaining}}
+    </span>
+  {{/each}}
+</div>

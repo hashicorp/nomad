@@ -34,12 +34,80 @@
   .alloc-representation {
     display: grid;
     gap: 0.5rem;
-    grid-template-columns: repeat( auto-fit, minmax(auto, 20px) );
-    .represented-allocation {
-      background: $green;
-      width: 20px;
+    // grid-template-columns: repeat( auto-fit, minmax(auto, 20px) );
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(10px, 1fr);
+    grid-auto-rows: 20px;
+  }
+
+  .alloc-status-summaries {
+    display: block;
+    height: 20px;
+    // gap: 0.5rem;
+    // grid-auto-flow: column;
+    // grid-auto-rows: 20px;
+
+    .allocation-status-block {
+      // margin-right: 0.5rem;
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-columns: repeat(10, 10px);
+      gap: 0.5rem;
       height: 20px;
-      border-radius: 4px;
+      float: left;
+
+      .represented-allocation {
+        color: white;
+        text-align: center;
+        font-size: 0;
+      }
+
+      .represented-allocation:last-child {
+        margin-right: 0;
+        // background-color: blue;
+        grid-column: span 3; // TODO: probably not right
+        font-size: 0.8rem;
+        margin-right: 0.5rem;
+        display: grid;
+        align-content: center;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+      }
     }
+  }
+
+  .represented-allocation {
+    background: $green;
+    border-radius: 4px;
+
+    &.running {
+      background: $green;
+    }
+    &.failed {
+      background: $red;
+    }
+    &.unknown {
+      background: $yellow;
+    }
+  }
+
+}
+
+.fake-box-for-manipulating-allocs {
+  position: fixed;
+  top: 45vh;
+  right: 0;
+  background: black;
+  color: white;
+  padding: 1rem;
+  z-index: 1000;
+  label, strong {
+    color: white;
+  }
+  strong, input {
+    display: block;
+  }
+  input {
+    margin-bottom: 0.5rem;
   }
 }
