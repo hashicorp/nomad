@@ -1,7 +1,18 @@
-<div class="allocation-status-block" style="width: {{@percentage}}%">
-  {{#each (range 0 this.countToShow) as |alloc|}}
-    <span class="represented-allocation {{@status}}">
-      +{{this.remaining}}
+<div
+  {{did-insert this.captureElement}}
+  class="allocation-status-block {{unless this.countToShow "rest-only"}}"
+  style="width: {{@percentage}}%"
+>
+  {{#if this.countToShow}}
+    <div class="allocs">
+      {{#each (range 0 this.countToShow) as |alloc|}}
+        <span class="represented-allocation {{@status}}"></span>
+      {{/each}}
+    </div>
+  {{/if}}
+  {{#if this.remaining}}
+    <span class="represented-allocation rest {{@status}}">
+      {{#if this.countToShow}}+{{/if}}{{this.remaining}}
     </span>
-  {{/each}}
+  {{/if}}
 </div>
