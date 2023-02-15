@@ -541,6 +541,7 @@ func (e envoyBootstrapArgs) args() []string {
 		"-admin-bind", e.envoyAdminBind,
 		"-address", e.envoyReadyBind,
 		"-proxy-id", e.proxyID,
+		"-admin-access-log-path", os.DevNull,
 		"-bootstrap",
 	}
 
