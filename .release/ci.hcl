@@ -18,6 +18,14 @@ project "nomad" {
   }
 }
 
+event "build" {
+  action "build" {
+    organization = "hashicorp"
+    repository   = "nomad"
+    workflow     = "build"
+  }
+}
+
 event "prepare" {
   depends = ["build"]
 
