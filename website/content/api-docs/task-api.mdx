@@ -31,10 +31,11 @@ to Nomad.
 
 Unlike the agent's HTTP API, the Task API *always requires authentication* even
 if [ACLs][acl] are disabled.  This allows Nomad to always make the Task API
-available even if the workload is untrusted.
+available even if the workload is untrusted. If ACLs are enabled, the [anonymous
+policy][anon] is not available via the Task API.
 
 Both [ACL Tokens][acl-tokens] and [Workload Identities][workload-id] are
-accepted. Once the Task API has authneticated the credentials, the normal
+accepted. Once the Task API has authenticated the credentials, the normal
 endpoint-specific authorization is applied when ACLs are enabled.
 
 The Workload Identity should be used by tasks accessing the Task API.
@@ -94,6 +95,7 @@ $ nomad node status -filter 'Meta.example == "Hello World!"'
 [acl]: /nomad/docs/concepts/acl
 [acl-tokens]: /nomad/docs/concepts/acl#token
 [alloc-exec]: /nomad/docs/commands/alloc/exec
+[anon]: /nomad/tutorials/access-control/access-control#acl-policies
 [bind_addr]: /nomad/docs/configuration
 [mTLS]: /nomad/tutorials/transport-security/security-enable-tls
 [task-user]: /nomad/docs/job-specification/task#user
