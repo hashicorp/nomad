@@ -20,8 +20,6 @@ func TestFmtCommand(t *testing.T) {
 	const inSuffix = ".in.hcl"
 	const expectedSuffix = ".out.hcl"
 
-	tmpDir := t.TempDir()
-
 	tests := []struct {
 		name        string
 		testFile    string
@@ -59,6 +57,10 @@ func TestFmtCommand(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			ci.Parallel(t)
+
+			tmpDir := t.TempDir()
 			inFile := filepath.Join("testdata", "fmt", tc.testFile+inSuffix)
 			expectedFile := filepath.Join("testdata", "fmt", tc.testFile+expectedSuffix)
 			fmtFile := filepath.Join(tmpDir, tc.testFile+".hcl")
