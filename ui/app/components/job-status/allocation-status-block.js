@@ -16,8 +16,8 @@ export default class JobStatusAllocationStatusBlockComponent extends Component {
     // console.log('CTS', this.args.status, Math.floor((this.width - 60) / 30));
     // Show all if there's room
     // console.log('about to compare for', this.args.status, this.args.count, this.width / 30);
-    let cts = Math.floor((this.width-60) / 20);
-    return cts > 0 ? cts : 0;
+    let cts = Math.floor((this.width-60) / 30);
+    return cts > 3 ? cts : 0;
   }
 
   get remaining() {
