@@ -496,7 +496,7 @@ func (sv *Variables) decrypt(v *structs.VariableEncrypted) (*structs.VariableDec
 
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
 // either be called by external clients or by workload identity
-func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pathOrPrefix string) (*acl.ACL, *structs.IdentityClaims, error) {
+func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, pathOrPrefix string) (*acl.ACL, *structs.IdentityClaims, error) {
 
 	var aclObj *acl.ACL
 	var err error
@@ -509,7 +509,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pat
 	}
 	claims := args.GetIdentity().GetClaims()
 
-	err = sv.authorize(aclObj, claims, args.RequestNamespace(), cap, pathOrPrefix)
+	err = sv.authorize(aclObj, claims, args.RequestNamespace(), policy, pathOrPrefix)
 	if err != nil {
 		return aclObj, claims, err
 	}
@@ -517,7 +517,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, cap, pat
 	return aclObj, claims, nil
 }
 
-func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, ns, cap, pathOrPrefix string) error {
+func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, ns, policy, pathOrPrefix string) error {
 
 	if aclObj == nil && claims == nil {
 		return nil // ACLs aren't enabled
@@ -526,7 +526,7 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 	// Perform normal ACL validation. If the ACL object is nil, that means we're
 	// working with an identity claim.
 	if aclObj != nil {
-		if !aclObj.AllowVariableOperation(ns, pathOrPrefix, cap) {
+		if !aclObj.AllowVariableOperation(ns, pathOrPrefix, policy) {
 			return structs.ErrPermissionDenied
 		}
 		return nil
@@ -547,7 +547,7 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 			return err // this only returns an error when the state store has gone wrong
 		}
 		if aclObj != nil && aclObj.AllowVariableOperation(
-			ns, pathOrPrefix, cap) {
+			ns, pathOrPrefix, policy) {
 			return nil
 		}
 	}
