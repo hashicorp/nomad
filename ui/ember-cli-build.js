@@ -13,8 +13,17 @@ module.exports = function (defaults) {
         module: {
           rules: [
             {
-              test: /\.ttf$/,
-              use: ['file-loader'],
+              test: /\.(woff|woff2|eot|ttf|otf)$/,
+              use: [
+                {
+                  loader: 'url-loader',
+                  options: {
+                    limit: 8192,
+                    fallback: 'file-loader',
+                    outputPath: 'fonts/',
+                  },
+                },
+              ],
             },
           ],
         },
