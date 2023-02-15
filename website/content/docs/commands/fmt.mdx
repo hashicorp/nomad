@@ -47,10 +47,14 @@ server {
 client {
   enabled = true
 }
+```
 
+```shell-session
 $ nomad fmt
 agent.hcl
+```
 
+```shell-session
 $ cat agent.hcl
 server {
   enabled          = true
