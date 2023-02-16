@@ -455,6 +455,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
 
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
+	s.mux.HandleFunc("/v1/metrics/stream", s.wrap(s.MetricsStreamRequest))
 
 	s.mux.HandleFunc("/v1/validate/job", s.wrap(s.ValidateJobRequest))
 
