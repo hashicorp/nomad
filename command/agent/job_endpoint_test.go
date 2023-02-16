@@ -3585,16 +3585,17 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/validate/job", buf)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.ValidateJobRequest(respW, req)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		// Check the response
 		resp := obj.(structs.JobValidateResponse)
-		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
+		must.StrContains(t, resp.Error, `Job type "system" does not allow migrate block`)
+		must.Len(t, 1, resp.ValidationErrors)
 	})
 }
 

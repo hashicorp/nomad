@@ -196,6 +196,11 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 
 	job := ApiJobToStructJob(validateRequest.Job)
 
+	// If the job priority is not set, we fallback on the defaults specified in the server config
+	if job.Priority == 0 {
+		job.Priority = s.agent.Server().GetConfig().JobDefaultPriority
+	}
+
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
