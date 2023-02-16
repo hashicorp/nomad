@@ -326,14 +326,14 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
-	jobMaxPriority := int(structs.JobDefaultMaxPriority)
+	jobMaxPriority := structs.JobDefaultMaxPriority
 	if agentConfig.Server.JobMaxPriority != nil && *agentConfig.Server.JobMaxPriority != 0 {
 		jobMaxPriority = *agentConfig.Server.JobMaxPriority
 		if jobMaxPriority < structs.JobDefaultMaxPriority || jobMaxPriority > structs.JobMaxPriority {
 			return nil, fmt.Errorf("job_max_priority cannot be %d. Must be between %d and %d", *agentConfig.Server.JobMaxPriority, structs.JobDefaultMaxPriority, structs.JobMaxPriority)
 		}
 	}
-	jobDefaultPriority := int(structs.JobDefaultPriority)
+	jobDefaultPriority := structs.JobDefaultPriority
 	if agentConfig.Server.JobDefaultPriority != nil && *agentConfig.Server.JobDefaultPriority != 0 {
 		jobDefaultPriority = *agentConfig.Server.JobDefaultPriority
 		if jobDefaultPriority < structs.JobDefaultPriority || jobDefaultPriority >= jobMaxPriority {
