@@ -1,8 +1,8 @@
 {{#if this.showSummaries}}
-  <div class="alloc-status-summaries">
+  <div class="alloc-status-summaries" {{did-insert this.captureElement}}>
     {{#each-in @allocBlocks as |status count|}}
       {{#if (gt count 0)}}
-        <JobStatus::AllocationStatusBlock @status={{status}} @count={{count}} @percentage={{compute (action this.calcPerc) count}} />
+        <JobStatus::AllocationStatusBlock @status={{status}} @count={{count}} @width={{compute (action this.calcPerc) count}} />
       {{/if}}
     {{/each-in}}
   </div>

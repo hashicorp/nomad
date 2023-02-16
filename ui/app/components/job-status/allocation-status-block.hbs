@@ -1,7 +1,6 @@
 <div
-  {{did-insert this.captureElement}}
   class="allocation-status-block {{unless this.countToShow "rest-only"}}"
-  style="width: {{@percentage}}%"
+  style="width: {{@width}}%"
 >
   {{#if this.countToShow}}
     <div class="allocs">
