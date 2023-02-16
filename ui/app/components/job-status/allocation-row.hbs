@@ -7,11 +7,10 @@
     {{/each-in}}
   </div>
 {{else}}
-  <div class="alloc-representation">
+  <div class="ungrouped-allocs">
     {{#each-in @allocBlocks as |status count|}}
-      {{!-- {{log "eachin" status count}} --}}
       {{#if (gt count 0)}}
-        {{#each (range 0 count) as |alloc|}}
+        {{#each (range 0 count)}}
           <span class="represented-allocation {{status}}"></span>
         {{/each}}
       {{/if}}

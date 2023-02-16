@@ -31,7 +31,7 @@
     }
   }
 
-  .alloc-representation {
+  .ungrouped-allocs {
     display: grid;
     gap: 10px;
     grid-auto-flow: column;
@@ -55,19 +55,19 @@
         grid-template-columns: auto;
       }
 
-      & > .allocs {
+      & > .ungrouped-allocs {
         display: grid;
         grid-auto-flow: column;
         gap: 10px;
-      }
-
-      .represented-allocation {
-        text-align: center;
-        font-size: 0;
+        grid-auto-columns: unset;
+        & > .represented-allocation {
+          width: 32px;
+        }
       }
 
       .represented-allocation.rest {
         font-size: 0.8rem;
+        text-align: center;
         display: grid;
         align-content: center;
         font-weight: bold;

@@ -7,14 +7,27 @@ import { action } from '@ember/object';
 export default class JobStatusPanelComponent extends Component {
 
   allocTypes = [
-    "runningAllocs",
-    "failedAllocs",
-    "unknownAllocs",
-    "queuedAllocs",
-    "completeAllocs",
-    "startingAllocs",
-    "lostAllocs"
-  ]
+    "running",
+    "failed",
+    "unknown",
+    // "queued",
+    "complete",
+    // "starting",
+    "lost"
+  ].map((type) => {
+    return {
+      label: type,
+      property: `${type}Allocs`
+    }
+  })
+
+  get allocBlocks() {
+    return this.allocTypes.reduce((blocks, type) => {
+      blocks[type.label] = this.args.job[type.property];
+      return blocks;
+    }, {});
+  }
+
   /**
    * @type {('current'|'historical')}
    */
@@ -27,11 +40,11 @@ export default class JobStatusPanelComponent extends Component {
 
   // TODO: eventually we will want this from a new property on a job.
   get totalAllocs() {
-    return this.allocTypes.reduce((sum, type) => sum + this.args.job[type], 0);
+    return this.allocTypes.reduce((sum, type) => sum + this.args.job[type.property], 0);
   }
 
   @action
-  modifyMockAllocs(type, { target: { value } }) {
-    this.args.job[type] = +value;
+  modifyMockAllocs(propName, { target: { value } }) {
+    this.args.job[propName] = +value;
   }
 }

@@ -3,9 +3,9 @@
   style={{html-safe (concat "width: " @width "%")}}
 >
   {{#if this.countToShow}}
-    <div class="allocs">
+    <div class="ungrouped-allocs">
       {{#each (range 0 this.countToShow)}}
-        <span class="represented-allocation {{@status}}"></span>
+        <span class="represented-allocation {{@status}}" />
       {{/each}}
     </div>
   {{/if}}
