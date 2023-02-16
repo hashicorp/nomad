@@ -8,12 +8,12 @@ export default class JobStatusPanelComponent extends Component {
 
   allocTypes = [
     "running",
-    "failed",
+    // "failed",
     "unknown",
     // "queued",
     "complete",
     // "starting",
-    "lost"
+    // "lost"
   ].map((type) => {
     return {
       label: type,

@@ -44,7 +44,7 @@
   .alloc-status-summaries {
     display: flex;
     height: 32px;
-    gap: 0.5rem;
+    gap: 1.5rem;
 
     .allocation-status-block {
       display: grid;
@@ -115,6 +115,21 @@
     }
 
 
+  }
+
+  legend {
+    padding: 2rem 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    .legend-item {
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: auto 1fr;
+      .represented-allocation {
+        width: 20px;
+        height: 20px;
+      }
+    }
   }
 
 }
