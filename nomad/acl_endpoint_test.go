@@ -3744,9 +3744,17 @@ func TestACL_Login(t *testing.T) {
 	testutil.WaitForLeader(t, testServer.RPC)
 
 	// create a sample JWT and a pub key for verification
+	iat := time.Now().Unix()
+	nbf := time.Now().Unix()
+	exp := time.Now().Add(time.Hour).Unix()
 	testToken, testPubKey, err := mock.SampleJWTokenWithKeys(jwt.MapClaims{
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
+		"iat":                            iat,
+		"nbf":                            nbf,
+		"exp":                            exp,
+		"iss":                            "nomad test suite",
+		"aud":                            []string{"sales", "engineering"},
 	}, nil)
 	must.Nil(t, err)
 
@@ -3782,12 +3790,11 @@ func TestACL_Login(t *testing.T) {
 	// Generate and upsert an ACL auth method for use.
 	mockedAuthMethod := mock.ACLAuthMethod()
 	mockedAuthMethod.Type = "JWT"
-	mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
+	mockedAuthMethod.Config.BoundAudiences = []string{"engineering"}
 	mockedAuthMethod.Config.JWTValidationPubKeys = []string{testPubKey}
-	mockedAuthMethod.Config.BoundIssuer = []string{"test suite"}
+	mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}
 	mockedAuthMethod.Config.ExpirationLeeway = time.Duration(3600)
 	mockedAuthMethod.Config.ClockSkewLeeway = time.Duration(3600)
-	mockedAuthMethod.Config.OIDCScopes = []string{"groups"}
 	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
 	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
 		"http://nomad.internal/roles":    "roles",
