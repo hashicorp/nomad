@@ -107,6 +107,9 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
+- `csi_volume_claim_gc_interval` `(string: "5m")` - Specifies the interval
+  between CSI volume claim garbage collections.
+
 - `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
   a CSI volume before it is eligible to have its claims garbage collected.
   This is specified using a label suffix like "30s" or "1h".
