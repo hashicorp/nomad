@@ -2,13 +2,17 @@ package taskrunner
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
+	"net"
+	"os"
 	"path/filepath"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/users"
 )
 
@@ -73,14 +77,50 @@ func (h *tlsHook) setTlsFiles() error {
 	// 	return nil
 	// }
 
-	tlsCert := "THIS IS THE TLS CERT"
-	caKey := "THIS IS THE CA KEY"
+	privateKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca-key.pem"
+	caPrivateKey, err := os.ReadFile(privateKeyFile)
+	if err != nil {
+		return fmt.Errorf("Error reading CA priv key: %w", err)
+	}
 
-	h.tr.setTlsValues(tlsCert, caKey)
+	pubKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca.pem"
+	caPubKey, err := os.ReadFile(pubKeyFile)
+	if err != nil {
+		return fmt.Errorf("Error reading CA pub key: %w", err)
+	}
+
+	signer, err := tlsutil.ParseSigner(string(caPrivateKey))
+	if err != nil {
+		return fmt.Errorf("failed to Parse signer: %w", err)
+	}
+
+	name := "name"
+	var DNSNames []string
+	DNSNames = append(DNSNames, "localhost")
+
+	var IPAddresses []net.IP
+	IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
+
+	// TODO: what does this do?
+	var extKeyUsage []x509.ExtKeyUsage
+
+	// pub, priv, err
+	pub, _, err := tlsutil.GenerateCert(tlsutil.CertOpts{
+		Signer: signer, CA: string(caPubKey), Name: name, Days: 365,
+		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to Generate cert: %w", err)
+	}
+
+	// ...how do I make me a cert?
+	tlsCert := pub
+
+	h.tr.setTlsValues(tlsCert, string(caPubKey))
 
 	// TODO: Make this optional like in the identity hook
-	if err := h.writeTlsValues(tlsCert, caKey); err != nil {
-		return err
+	if err := h.writeTlsValues(tlsCert, string(caPubKey)); err != nil {
+		return fmt.Errorf("failed to write Tls values: %w", err)
 	}
 
 	return nil
