@@ -32,6 +32,11 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
+#GOTEST_GROUP is set in CI pipelines. We have to set it for local run.
+ifndef GOTEST_GROUP
+GOTEST_GROUP := nomad client command drivers quick
+endif
+
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
@@ -408,3 +413,15 @@ ec2info: ## Generate AWS EC2 CPU specification table
 .PHONY: cl
 cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
+
+.PHONY: test
+test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
+test: ## Use this target as a smoke test
+	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
+	@echo "==> with packages: $(GOTEST_PKGS)"
+	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
+		-cover \
+		-timeout=20m \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		$(GOTEST_PKGS)
