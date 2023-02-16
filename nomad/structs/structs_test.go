@@ -30,7 +30,6 @@ func TestJob_Validate(t *testing.T) {
 		"job region",
 		"job type",
 		"namespace",
-		"priority",
 		"task groups",
 	)
 
@@ -57,7 +56,7 @@ func TestJob_Validate(t *testing.T) {
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
-		Priority:    50,
+		Priority:    JobDefaultPriority,
 		Datacenters: []string{"*"},
 		TaskGroups: []*TaskGroup{
 			{
@@ -370,7 +369,7 @@ func testJob() *Job {
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
-		Priority:    50,
+		Priority:    JobDefaultPriority,
 		AllAtOnce:   false,
 		Datacenters: []string{"*"},
 		Constraints: []*Constraint{
