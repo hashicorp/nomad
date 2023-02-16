@@ -76,7 +76,7 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			jobExposeCheckHook{},
 			jobVaultHook{srv: s},
 			jobNamespaceConstraintCheckHook{srv: s},
-			jobValidate{},
+			&jobValidate{srv: s},
 			&memoryOversubscriptionValidate{srv: s},
 		},
 	}
@@ -990,7 +990,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 			continue
 		}
 
-		priority := structs.JobDefaultPriority
+		priority := j.srv.config.JobDefaultPriority
 		jtype := structs.JobTypeService
 		if job != nil {
 			priority = job.Priority
