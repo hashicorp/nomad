@@ -1151,7 +1151,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 	defer tlsHelper.cleanup()
 
 	standardRPCs := map[string]interface{}{
-		"Status.Ping": struct{}{},
+		"Status.Ping": &structs.GenericRequest{},
 	}
 
 	localServersOnlyRPCs := map[string]interface{}{
