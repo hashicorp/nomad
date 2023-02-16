@@ -1119,7 +1119,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 	defer tlsHelper.cleanup()
 
 	standardRPCs := map[string]interface{}{
-		"Status.Ping": struct{}{},
+		"Status.Ping": &structs.GenericRequest{},
 	}
 
 	localServersOnlyRPCs := map[string]interface{}{
@@ -1377,6 +1377,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 			KeyFile:              h.serverCert + ".key",
 		}
 	})
+	testutil.WaitForLeader(t, h.nonVerifyServer.RPC)
 
 	return h
 }
