@@ -6692,8 +6692,8 @@ func TestJobEndpoint_ValidateJob_PriorityNotOk(t *testing.T) {
 		j.Priority = 0
 
 		err := validateJob(j)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "job priority must be between")
+		must.Error(t, err)
+		must.ErrorContains(t, err, "job priority must be between")
 	})
 
 	t.Run("job with invalid max priority", func(t *testing.T) {
@@ -6701,8 +6701,8 @@ func TestJobEndpoint_ValidateJob_PriorityNotOk(t *testing.T) {
 		j.Priority = 101
 
 		err := validateJob(j)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "job priority must be between")
+		must.Error(t, err)
+		must.ErrorContains(t, err, "job priority must be between")
 	})
 }
 

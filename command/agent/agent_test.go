@@ -1608,14 +1608,13 @@ func TestAgent_ServerConfig_JobMaxPriority_Ok(t *testing.T) {
 		}
 		t.Run(v, func(t *testing.T) {
 			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
+			must.NoError(t, conf.normalizeAddrs())
 
 			conf.Server.JobMaxPriority = tc.maxPriority
 
 			serverConf, err := convertServerConfig(conf)
-			require.NoError(t, err)
-
-			assert.Equal(t, tc.jobMaxPriority, serverConf.JobMaxPriority, "job max priority")
+			must.NoError(t, err)
+			must.Eq(t, tc.jobMaxPriority, serverConf.JobMaxPriority)
 		})
 	}
 }
@@ -1631,16 +1630,17 @@ func TestAgent_ServerConfig_JobMaxPriority_Bad(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
 			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
+			must.NoError(t, conf.normalizeAddrs())
 
 			conf.Server.JobMaxPriority = &tc
 
 			_, err := convertServerConfig(conf)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "job_max_priority cannot be")
+			must.Error(t, err)
+			must.ErrorContains(t, err, "job_max_priority cannot be")
 		})
 	}
 }
+
 func TestAgent_ServerConfig_JobDefaultPriority_Ok(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1678,14 +1678,14 @@ func TestAgent_ServerConfig_JobDefaultPriority_Ok(t *testing.T) {
 		}
 		t.Run(v, func(t *testing.T) {
 			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
+			must.NoError(t, conf.normalizeAddrs())
 
 			conf.Server.JobDefaultPriority = tc.defaultPriority
 
 			serverConf, err := convertServerConfig(conf)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			assert.Equal(t, tc.jobDefaultPriority, serverConf.JobDefaultPriority, "job default priority")
+			must.Eq(t, tc.jobDefaultPriority, serverConf.JobDefaultPriority)
 		})
 	}
 }
@@ -1701,13 +1701,13 @@ func TestAgent_ServerConfig_JobDefaultPriority_Bad(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
 			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
+			must.NoError(t, conf.normalizeAddrs())
 
 			conf.Server.JobDefaultPriority = &tc
 
 			_, err := convertServerConfig(conf)
-			require.Error(t, err)
-			require.Contains(t, err.Error(), "job_default_priority cannot be")
+			must.Error(t, err)
+			must.ErrorContains(t, err, "job_default_priority cannot be")
 		})
 	}
 }
