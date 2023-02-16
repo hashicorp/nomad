@@ -1409,6 +1409,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 			KeyFile:              h.serverCert + ".key",
 		}
 	})
+	testutil.WaitForLeader(t, h.nonVerifyServer.RPC)
 
 	return h
 }
