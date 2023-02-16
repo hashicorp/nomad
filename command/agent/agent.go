@@ -404,6 +404,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.DeploymentGCThreshold = dur
 	}
+	if gcInterval := agentConfig.Server.CSIVolumeClaimGCInterval; gcInterval != "" {
+		dur, err := time.ParseDuration(gcInterval)
+		if err != nil {
+			return nil, err
+		}
+		conf.CSIVolumeClaimGCInterval = dur
+	}
 	if gcThreshold := agentConfig.Server.CSIVolumeClaimGCThreshold; gcThreshold != "" {
 		dur, err := time.ParseDuration(gcThreshold)
 		if err != nil {
