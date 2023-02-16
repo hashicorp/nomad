@@ -220,16 +220,11 @@ func (c *VarPutCommand) Run(args []string) int {
 		// ArgFileRefs start with "@" so we need to peel that off
 		// detect format based on file extension
 		specPath := arg[1:]
-		switch filepath.Ext(specPath) {
-		case ".json":
-			c.inFmt = "json"
-		case ".hcl":
-			c.inFmt = "hcl"
-		default:
-			c.Ui.Error(fmt.Sprintf("Unable to determine format of %s; Use the -in flag to specify it.", specPath))
+		err = c.setParserForFileArg(specPath)
+		if err != nil {
+			c.Ui.Error(err.Error())
 			return 1
 		}
-
 		verbose(fmt.Sprintf("Reading whole %s variable specification from %q", strings.ToUpper(c.inFmt), specPath))
 		c.contents, err = os.ReadFile(specPath)
 		if err != nil {
@@ -260,6 +255,11 @@ func (c *VarPutCommand) Run(args []string) int {
 
 	case isArgFileRef(args[0]):
 		arg := args[0]
+		err = c.setParserForFileArg(arg)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
 		verbose(fmt.Sprintf("Creating variable %q from specification file %q", path, arg))
 		fPath := arg[1:]
 		c.contents, err = os.ReadFile(fPath)
@@ -517,6 +517,18 @@ func parseArgsData(stdin io.Reader, args []string) (map[string]interface{}, erro
 
 func (c *VarPutCommand) GetConcurrentUI() cli.ConcurrentUi {
 	return cli.ConcurrentUi{Ui: c.Ui}
+}
+
+func (c *VarPutCommand) setParserForFileArg(arg string) error {
+	switch filepath.Ext(arg) {
+	case ".json":
+		c.inFmt = "json"
+	case ".hcl":
+		c.inFmt = "hcl"
+	default:
+		return fmt.Errorf("Unable to determine format of %s; Use the -in flag to specify it.", arg)
+	}
+	return nil
 }
 
 func (c *VarPutCommand) validateInputFlag() error {
