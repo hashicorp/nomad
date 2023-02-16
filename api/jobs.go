@@ -31,9 +31,6 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
 
-	// DefaultPriority is the default priority
-	DefaultPriority = 50
-
 	// For Job configuration, GlobalRegion is a sentinel region value
 	// that users may specify to indicate the job should be run on
 	// the region of the node that the job was submitted to.
@@ -941,7 +938,7 @@ func (j *Job) Canonicalize() {
 		j.Namespace = pointerOf(DefaultNamespace)
 	}
 	if j.Priority == nil {
-		j.Priority = pointerOf(DefaultPriority)
+		j.Priority = pointerOf(0)
 	}
 	if j.Stop == nil {
 		j.Stop = pointerOf(false)

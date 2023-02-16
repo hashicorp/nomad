@@ -826,6 +826,11 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	sJob.Region = jobRegion
 	writeReq.Region = requestRegion
 
+	// If the job priority is not set, we fallback on the defaults specified in the server config
+	if sJob.Priority == 0 {
+		sJob.Priority = s.agent.Server().GetConfig().JobDefaultPriority
+	}
+
 	queryNamespace := req.URL.Query().Get("namespace")
 	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
 	sJob.Namespace = namespace

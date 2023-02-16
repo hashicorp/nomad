@@ -14,8 +14,10 @@ import (
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1941,69 +1943,81 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 	agentRegion := "agentRegion"
 
 	cases := []struct {
-		name                  string
-		jobRegion             string
-		multiregion           *api.Multiregion
-		queryRegion           string
-		queryNamespace        string
-		queryToken            string
-		apiRegion             string
-		apiNamespace          string
-		apiToken              string
-		expectedRequestRegion string
-		expectedJobRegion     string
-		expectedToken         string
-		expectedNamespace     string
+		name                       string
+		jobRegion                  string
+		multiregion                *api.Multiregion
+		queryRegion                string
+		queryNamespace             string
+		queryToken                 string
+		apiRegion                  string
+		apiNamespace               string
+		apiToken                   string
+		jobDefaultPriority         int
+		expectedRequestRegion      string
+		expectedJobRegion          string
+		expectedToken              string
+		expectedNamespace          string
+		expectedJobDefaultPriority int
 	}{
 		{
-			name:                  "no region provided at all",
-			jobRegion:             "",
-			multiregion:           nil,
-			queryRegion:           "",
-			expectedRequestRegion: agentRegion,
-			expectedJobRegion:     agentRegion,
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			name:                       "no region provided at all",
+			jobRegion:                  "",
+			multiregion:                nil,
+			queryRegion:                "",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      agentRegion,
+			expectedJobRegion:          agentRegion,
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
 		},
 		{
-			name:                  "no region provided but multiregion safe",
-			jobRegion:             "",
-			multiregion:           &api.Multiregion{},
-			queryRegion:           "",
-			expectedRequestRegion: agentRegion,
-			expectedJobRegion:     api.GlobalRegion,
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			name:                       "no region provided but multiregion safe",
+			jobRegion:                  "",
+			multiregion:                &api.Multiregion{},
+			queryRegion:                "",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      agentRegion,
+			expectedJobRegion:          api.GlobalRegion,
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
 		},
 		{
-			name:                  "region flag provided",
-			jobRegion:             "",
-			multiregion:           nil,
-			queryRegion:           "west",
-			expectedRequestRegion: "west",
-			expectedJobRegion:     "west",
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			name:                       "region flag provided",
+			jobRegion:                  "",
+			multiregion:                nil,
+			queryRegion:                "west",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      "west",
+			expectedJobRegion:          "west",
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
 		},
 		{
-			name:                  "job region provided",
-			jobRegion:             "west",
-			multiregion:           nil,
-			queryRegion:           "",
-			expectedRequestRegion: "west",
-			expectedJobRegion:     "west",
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			name:                       "job region provided",
+			jobRegion:                  "west",
+			multiregion:                nil,
+			queryRegion:                "",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      "west",
+			expectedJobRegion:          "west",
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
 		},
 		{
-			name:                  "job region overridden by region flag",
-			jobRegion:             "west",
-			multiregion:           nil,
-			queryRegion:           "east",
-			expectedRequestRegion: "east",
-			expectedJobRegion:     "east",
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			name:                       "job region overridden by region flag",
+			jobRegion:                  "west",
+			multiregion:                nil,
+			queryRegion:                "east",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      "east",
+			expectedJobRegion:          "east",
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
 		},
 		{
 			name:      "multiregion to valid region",
@@ -2012,11 +2026,13 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 				{Name: "west"},
 				{Name: "east"},
 			}},
-			queryRegion:           "east",
-			expectedRequestRegion: "east",
-			expectedJobRegion:     api.GlobalRegion,
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			queryRegion:                "east",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      "east",
+			expectedJobRegion:          api.GlobalRegion,
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
 		},
 		{
 			name:      "multiregion sent to wrong region",
@@ -2025,25 +2041,47 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 				{Name: "west"},
 				{Name: "east"},
 			}},
-			queryRegion:           "north",
-			expectedRequestRegion: "west",
-			expectedJobRegion:     api.GlobalRegion,
-			expectedToken:         "",
-			expectedNamespace:     "default",
+			queryRegion:                "north",
+			jobDefaultPriority:         0,
+			expectedRequestRegion:      "west",
+			expectedJobRegion:          api.GlobalRegion,
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: structs.JobDefaultPriority,
+		},
+		{
+			name:                       "default job priority ",
+			jobRegion:                  "",
+			multiregion:                nil,
+			queryRegion:                "",
+			jobDefaultPriority:         100,
+			expectedRequestRegion:      agentRegion,
+			expectedJobRegion:          agentRegion,
+			expectedToken:              "",
+			expectedNamespace:          "default",
+			expectedJobDefaultPriority: 100,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			nomadServer, cleanup := nomad.TestServer(t, func(c *nomad.Config) {
+				c.JobDefaultPriority = structs.JobDefaultPriority
+			})
+			defer cleanup()
 
 			// we need a valid agent config but we don't want to start up
 			// a real server for this
 			srv := &HTTPServer{}
-			srv.agent = &Agent{config: &Config{Region: agentRegion}}
+			srv.agent = &Agent{
+				server: nomadServer,
+				config: &Config{Region: agentRegion},
+			}
 
 			job := &api.Job{
 				Region:      pointer.Of(tc.jobRegion),
 				Multiregion: tc.multiregion,
+				Priority:    pointer.Of(tc.jobDefaultPriority),
 			}
 
 			req, _ := http.NewRequest("POST", "/", nil)
@@ -2066,11 +2104,12 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 			}
 
 			sJob, sWriteReq := srv.apiJobAndRequestToStructs(job, req, apiReq)
-			require.Equal(t, tc.expectedJobRegion, sJob.Region)
-			require.Equal(t, tc.expectedNamespace, sJob.Namespace)
-			require.Equal(t, tc.expectedNamespace, sWriteReq.Namespace)
-			require.Equal(t, tc.expectedRequestRegion, sWriteReq.Region)
-			require.Equal(t, tc.expectedToken, sWriteReq.AuthToken)
+			must.Eq(t, tc.expectedJobRegion, sJob.Region)
+			must.Eq(t, tc.expectedNamespace, sJob.Namespace)
+			must.Eq(t, tc.expectedNamespace, sWriteReq.Namespace)
+			must.Eq(t, tc.expectedRequestRegion, sWriteReq.Region)
+			must.Eq(t, tc.expectedToken, sWriteReq.AuthToken)
+			must.Eq(t, tc.expectedJobDefaultPriority, sJob.Priority)
 		})
 	}
 }
