@@ -2816,8 +2816,6 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLCompleteAut
 				err,
 			)
 		}
-
-		// reply.ACLToken = token
 	default:
 		return structs.NewErrRPCCodedf(
 			http.StatusBadRequest,
@@ -2832,8 +2830,7 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLCompleteAut
 
 	// Generate the data used by the go-bexpr selector that is an internal
 	// representation of the claims that can be understood by Nomad.
-	// TODO make sure i understand the relationship between user and id claims in jwt
-	jwtClaims, err := auth.SelectorData(authMethod, claims, map[string]interface{}{})
+	jwtClaims, err := auth.SelectorData(authMethod, claims, nil)
 	if err != nil {
 		return err
 	}
