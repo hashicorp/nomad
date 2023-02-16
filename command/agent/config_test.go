@@ -358,6 +358,8 @@ func TestConfig_Merge(t *testing.T) {
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
+			JobMaxPriority:     pointer.Of(200),
+			JobDefaultPriority: pointer.Of(100),
 		},
 		ACL: &ACLConfig{
 			Enabled:               true,
