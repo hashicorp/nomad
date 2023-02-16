@@ -30,8 +30,7 @@ func TestHTTP_Variables(t *testing.T) {
 
 	httpTest(t, cb, func(s *TestAgent) {
 		// These tests are run against the same running server in order to reduce
-		// the costs of server startup and allow as much parallelization as possible
-		// given the port reuse issue that we have seen with the current freeport
+		// the costs of server startup and allow as much parallelization as possible.
 		t.Run("error_badverb_list", func(t *testing.T) {
 			req, err := http.NewRequest("LOLWUT", "/v1/vars", nil)
 			require.NoError(t, err)

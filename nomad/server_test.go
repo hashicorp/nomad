@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,7 @@ func TestServer_RPC(t *testing.T) {
 	defer cleanupS1()
 
 	var out struct{}
-	if err := s1.RPC("Status.Ping", struct{}{}, &out); err != nil {
+	if err := s1.RPC("Status.Ping", &structs.GenericRequest{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -514,6 +515,29 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	assert.Nil(err)
 
 	testutil.WaitForLeader(t, s2.RPC)
+}
+
+func TestServer_ReloadRaftConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.RaftConfig.TrailingLogs = 10
+	})
+	defer cleanupS1()
+
+	testutil.WaitForLeader(t, s1.RPC)
+	rc := s1.raft.ReloadableConfig()
+	must.Eq(t, rc.TrailingLogs, uint64(10))
+	cfg := s1.GetConfig()
+	cfg.RaftConfig.TrailingLogs = 100
+
+	// Hot-reload the configuration
+	s1.Reload(cfg)
+
+	// Check it from the raft library
+	rc = s1.raft.ReloadableConfig()
+	must.Eq(t, rc.TrailingLogs, uint64(100))
 }
 
 func TestServer_InvalidSchedulers(t *testing.T) {

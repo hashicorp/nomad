@@ -48,13 +48,6 @@ func TestACLBindingRuleCreateCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "-auth-method=auth0"}))
-	must.StrContains(t, ui.ErrorWriter.String(),
-		"ACL binding rule bind name must be specified using the -bind-name flag")
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
 	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "-auth-method=auth0", "-bind-name=engineering"}))
 	must.StrContains(t, ui.ErrorWriter.String(),
 		"ACL binding rule bind type must be specified using the -bind-type flag")

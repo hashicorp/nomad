@@ -69,7 +69,7 @@ func (tc *OnUpdateChecksTest) TestOnUpdateCheck_IgnoreWarning_IgnoreErrors(f *fr
 }
 
 // TestOnUpdate_CheckRestart ensures that a service check set to ignore
-// warnings still follows the check_restart stanza if the task becomes
+// warnings still follows the check_restart block if the task becomes
 // unhealthy after a deployment is successful.  on_update_check_restart has a
 // script check that should report as a warning status for the deployment to
 // become healthy. The script check then reports unhealthy and the

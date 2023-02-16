@@ -548,12 +548,18 @@ func (*Search) silenceError(err error) bool {
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
 func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
+
+	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward("Search.PrefixSearch", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("search", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "search", "prefix_search"}, time.Now())
 
-	aclObj, err := s.srv.ResolveToken(args.AuthToken)
+	aclObj, err := s.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -676,12 +682,18 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 //
 // The results are in descending order starting with strongest match, per Context type.
 func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.FuzzySearchResponse) error {
+
+	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward("Search.FuzzySearch", args, args, reply); done {
 		return err
 	}
+	s.srv.MeasureRPCRate("search", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "search", "fuzzy_search"}, time.Now())
 
-	aclObj, err := s.srv.ResolveToken(args.AuthToken)
+	aclObj, err := s.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}

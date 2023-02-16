@@ -3,13 +3,13 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,36 +19,80 @@ func TestFmtCommand(t *testing.T) {
 
 	const inSuffix = ".in.hcl"
 	const expectedSuffix = ".out.hcl"
-	tests := []string{"nomad", "job"}
 
-	tmpDir := t.TempDir()
+	tests := []struct {
+		name        string
+		testFile    string
+		flags       []string
+		expectWrite bool
+		expectCode  int
+	}{
+		{
+			name:       "config with check",
+			testFile:   "nomad",
+			flags:      []string{"-check"},
+			expectCode: 1,
+		},
+		{
+			name:        "config without check",
+			testFile:    "nomad",
+			flags:       []string{},
+			expectWrite: true,
+			expectCode:  0,
+		},
+		{
+			name:       "job with check",
+			testFile:   "job",
+			flags:      []string{"-check"},
+			expectCode: 1,
+		},
+		{
+			name:        "job without check",
+			testFile:    "job",
+			flags:       []string{},
+			expectWrite: true,
+			expectCode:  0,
+		},
+	}
 
-	for _, testName := range tests {
-		t.Run(testName, func(t *testing.T) {
-			inFile := filepath.Join("testdata", "fmt", testName+inSuffix)
-			expectedFile := filepath.Join("testdata", "fmt", testName+expectedSuffix)
-			fmtFile := filepath.Join(tmpDir, testName+".hcl")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			ci.Parallel(t)
 
-			input, err := os.ReadFile(inFile)
-			require.NoError(t, err)
+			tmpDir := t.TempDir()
+			inFile := filepath.Join("testdata", "fmt", tc.testFile+inSuffix)
+			expectedFile := filepath.Join("testdata", "fmt", tc.testFile+expectedSuffix)
+			fmtFile := filepath.Join(tmpDir, tc.testFile+".hcl")
 
 			expected, err := os.ReadFile(expectedFile)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.NoError(t, os.WriteFile(fmtFile, input, 0644))
+			// copy the input file to the test tempdir so that we don't
+			// overwrite the test input in source control
+			input, err := os.ReadFile(inFile)
+			must.NoError(t, err)
+			must.NoError(t, os.WriteFile(fmtFile, input, 0644))
 
 			ui := cli.NewMockUi()
 			cmd := &FormatCommand{
 				Meta: Meta{Ui: ui},
 			}
 
-			code := cmd.Run([]string{fmtFile})
-			assert.Equal(t, 0, code)
+			flags := append(tc.flags, fmtFile)
 
+			code := cmd.Run(flags)
+			must.Eq(t, tc.expectCode, code)
+
+			// compare the maybe-overwritten file contents
 			actual, err := os.ReadFile(fmtFile)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			assert.Equal(t, string(expected), string(actual))
+			if tc.expectWrite {
+				must.Eq(t, string(expected), string(actual))
+			} else {
+				must.Eq(t, string(input), string(actual))
+			}
 		})
 	}
 }
@@ -56,19 +100,38 @@ func TestFmtCommand(t *testing.T) {
 func TestFmtCommand_FromStdin(t *testing.T) {
 	ci.Parallel(t)
 
-	stdinFake := bytes.NewBuffer(fmtFixture.input)
-
-	ui := cli.NewMockUi()
-	cmd := &FormatCommand{
-		Meta:  Meta{Ui: ui},
-		stdin: stdinFake,
+	tests := []struct {
+		name       string
+		flags      []string
+		expectCode int
+	}{
+		{
+			name:       "with check",
+			flags:      []string{"-check", "-"},
+			expectCode: 1,
+		},
+		{
+			name:       "without check",
+			flags:      []string{"-"},
+			expectCode: 0,
+		},
 	}
 
-	if code := cmd.Run([]string{"-"}); code != 0 {
-		t.Fatalf("expected code 0, got %d", code)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 
-	assert.Contains(t, ui.OutputWriter.String(), string(fmtFixture.golden))
+			stdinFake := bytes.NewBuffer(fmtFixture.input)
+			ui := cli.NewMockUi()
+			cmd := &FormatCommand{
+				Meta:  Meta{Ui: ui},
+				stdin: stdinFake,
+			}
+
+			code := cmd.Run(tc.flags)
+			must.Eq(t, tc.expectCode, code)
+			must.StrContains(t, string(fmtFixture.golden), ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FromWorkingDirectory(t *testing.T) {
@@ -81,45 +144,99 @@ func TestFmtCommand_FromWorkingDirectory(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Chdir(cwd)
 
-	ui := cli.NewMockUi()
-	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
+	tests := []struct {
+		name       string
+		flags      []string
+		expectCode int
+	}{
+		{
+			name:       "with check",
+			flags:      []string{"-check"},
+			expectCode: 1,
+		},
+		{
+			name:       "without check",
+			flags:      []string{},
+			expectCode: 0,
+		},
 	}
 
-	code := cmd.Run([]string{})
-
-	assert.Equal(t, 0, code)
-	assert.Equal(t, fmt.Sprintf("%s\n", fmtFixture.filename), ui.OutputWriter.String())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &FormatCommand{Meta: Meta{Ui: ui}}
+			code := cmd.Run(tc.flags)
+			must.Eq(t, tc.expectCode, code)
+			must.Eq(t, fmt.Sprintf("%s\n", fmtFixture.filename), ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FromDirectoryArgument(t *testing.T) {
 	tmpDir := fmtFixtureWriteDir(t)
 
-	ui := cli.NewMockUi()
-	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
+	tests := []struct {
+		name       string
+		flags      []string
+		expectCode int
+	}{
+		{
+			name:       "with check",
+			flags:      []string{"-check", tmpDir},
+			expectCode: 1,
+		},
+		{
+			name:       "without check",
+			flags:      []string{tmpDir},
+			expectCode: 0,
+		},
 	}
 
-	code := cmd.Run([]string{tmpDir})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &FormatCommand{Meta: Meta{Ui: ui}}
 
-	assert.Equal(t, 0, code)
-	assert.Equal(t, fmt.Sprintf("%s\n", filepath.Join(tmpDir, fmtFixture.filename)), ui.OutputWriter.String())
+			code := cmd.Run(tc.flags)
+			must.Eq(t, tc.expectCode, code)
+			must.Eq(t,
+				fmt.Sprintf("%s\n", filepath.Join(tmpDir, fmtFixture.filename)),
+				ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FromFileArgument(t *testing.T) {
 	tmpDir := fmtFixtureWriteDir(t)
-
-	ui := cli.NewMockUi()
-	cmd := &FormatCommand{
-		Meta: Meta{Ui: ui},
-	}
-
 	path := filepath.Join(tmpDir, fmtFixture.filename)
 
-	code := cmd.Run([]string{path})
+	tests := []struct {
+		name       string
+		flags      []string
+		expectCode int
+	}{
+		{
+			name:       "with check",
+			flags:      []string{"-check", path},
+			expectCode: 1,
+		},
+		{
+			name:       "without check",
+			flags:      []string{path},
+			expectCode: 0,
+		},
+	}
 
-	assert.Equal(t, 0, code)
-	assert.Equal(t, fmt.Sprintf("%s\n", path), ui.OutputWriter.String())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &FormatCommand{Meta: Meta{Ui: ui}}
+
+			code := cmd.Run(tc.flags)
+			must.Eq(t, tc.expectCode, code)
+			must.Eq(t, fmt.Sprintf("%s\n", path), ui.OutputWriter.String())
+		})
+	}
 }
 
 func TestFmtCommand_FileDoesNotExist(t *testing.T) {
@@ -152,7 +269,7 @@ func TestFmtCommand_InvalidSyntax(t *testing.T) {
 func fmtFixtureWriteDir(t *testing.T) string {
 	dir := t.TempDir()
 
-	err := ioutil.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
+	err := os.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
 	require.NoError(t, err)
 
 	return dir
@@ -164,6 +281,6 @@ var fmtFixture = struct {
 	golden   []byte
 }{
 	filename: "nomad.hcl",
-	input:    []byte(`client   {enabled = true}`),
-	golden:   []byte(`client { enabled = true }`),
+	input:    []byte("client   {enabled = true}"),
+	golden:   []byte("client { enabled = true }\n\n"),
 }

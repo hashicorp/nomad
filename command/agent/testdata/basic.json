@@ -273,6 +273,7 @@
       ],
       "encrypt": "abc",
       "eval_gc_threshold": "12h",
+      "csi_volume_claim_gc_interval": "3m",
       "heartbeat_grace": "30s",
       "job_gc_interval": "3m",
       "job_gc_threshold": "12h",

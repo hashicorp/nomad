@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -768,11 +768,8 @@ func TestLeader_ClusterID_upgradePath(t *testing.T) {
 	// A check that ClusterID is not available yet
 	noIDYet := func() {
 		for _, s := range servers {
-			retry.Run(t, func(r *retry.R) {
-				if _, err := s.s.ClusterID(); err == nil {
-					r.Error("expected error")
-				}
-			})
+			_, err := s.s.ClusterID()
+			must.Error(t, err)
 		}
 	}
 
@@ -863,23 +860,32 @@ func TestLeader_ClusterID_noUpgrade(t *testing.T) {
 }
 
 func agreeClusterID(t *testing.T, servers []*Server) {
-	retries := &retry.Timer{Timeout: 60 * time.Second, Wait: 1 * time.Second}
-	ids := make([]string, 3)
-	for i, s := range servers {
-		retry.RunWith(retries, t, func(r *retry.R) {
-			id, err := s.ClusterID()
-			if err != nil {
-				r.Error(err.Error())
-				return
-			}
-			if !helper.IsUUID(id) {
-				r.Error("not a UUID")
-				return
-			}
-			ids[i] = id
-		})
+	must.Len(t, 3, servers)
+
+	f := func() error {
+		id1, err1 := servers[0].ClusterID()
+		if err1 != nil {
+			return err1
+		}
+		id2, err2 := servers[1].ClusterID()
+		if err2 != nil {
+			return err2
+		}
+		id3, err3 := servers[2].ClusterID()
+		if err3 != nil {
+			return err3
+		}
+		if id1 != id2 || id2 != id3 {
+			return fmt.Errorf("ids do not match, id1: %s, id2: %s, id3: %s", id1, id2, id3)
+		}
+		return nil
 	}
-	require.True(t, ids[0] == ids[1] && ids[1] == ids[2], "ids[0] %s, ids[1] %s, ids[2] %s", ids[0], ids[1], ids[2])
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(60*time.Second),
+		wait.Gap(1*time.Second),
+	))
 }
 
 func TestLeader_ReplicateACLPolicies(t *testing.T) {

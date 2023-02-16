@@ -75,7 +75,7 @@ commands:
           command: |
             set -x
 
-            echo installing golang ${GOLANG_VERSION}
+            echo installing golang ${GO_VERSION}
 
             case "${OSTYPE}" in
               linux*)  os="linux" ;;
@@ -339,17 +339,6 @@ jobs:
           path: /tmp/test-reports
       - store_artifacts:
           path: /tmp/test-reports
-  lint-go:
-    executor: go
-    steps:
-      - checkout
-      - run: apt-get update; apt-get install -y shellcheck sudo unzip
-      - install-buf
-      - install-circleci-local-cli
-      - run: make deps lint-deps
-      - run: make check
-      - run: make checkscripts
-      - run: mkdir -p ui/dist && make generate-all static-assets
   build-darwin-binaries:
     executor: go-macos
     steps:
@@ -383,7 +372,7 @@ jobs:
             ./scripts/vagrant-linux-unpriv-ui.sh
 
             export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
-            
+
             source ${BASH_ENV}
             . ~/.nvm/nvm.sh
             cd ui && yarn install --frozen-lockfile && cd ..
@@ -461,7 +450,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.19.3
+      - image: docker.mirror.hashicorp.services/golang:1.20.1
     resource_class: medium
     environment:
       <<: *common_envs
@@ -474,7 +463,7 @@ executors:
       resource_class: large
     environment: &machine_env
       <<: *common_envs
-      GOLANG_VERSION: 1.19.3
+      GOLANG_VERSION: 1.20.1
 
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
@@ -483,7 +472,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.19.3
+      GOLANG_VERSION: 1.20.1
 
   go-windows:
     machine:
@@ -495,7 +484,7 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.19.3
+      GOLANG_VERSION: 1.20.1
       GOTESTSUM_VERSION: 1.7.0
       VAULT_VERSION: 1.4.1
 
@@ -510,18 +499,14 @@ workflows:
               ignore:
                 - stable-website
 
-      - lint-go:
-          # check branches are almost all the backend branches
-          filters: &backend_check_branches_filter
+      - test-e2e:
+          filters:
             branches:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
                 - /^backport/docs-.*/
                 - stable-website
-
-      - test-e2e:
-          filters: *backend_check_branches_filter
 
       - test-ui:
           filters:

@@ -27,13 +27,18 @@ func NewKeyringEndpoint(srv *Server, ctx *RPCContext, enc *Encrypter) *Keyring {
 }
 
 func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *structs.KeyringRotateRootKeyResponse) error {
+
+	authErr := k.srv.Authenticate(k.ctx, args)
 	if done, err := k.srv.forward("Keyring.Rotate", args, args, reply); done {
 		return err
 	}
-
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "rotate"}, time.Now())
 
-	if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -95,8 +100,14 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 }
 
 func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *structs.KeyringListRootKeyMetaResponse) error {
+
+	authErr := k.srv.Authenticate(k.ctx, args)
 	if done, err := k.srv.forward("Keyring.List", args, args, reply); done {
 		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "list"}, time.Now())
@@ -106,7 +117,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 	// replication
 	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
 	if err != nil {
-		if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
+		if aclObj, err := k.srv.ResolveACL(args); err != nil {
 			return err
 		} else if aclObj != nil && !aclObj.IsManagement() {
 			return structs.ErrPermissionDenied
@@ -148,13 +159,19 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 // Update updates an existing key in the keyring, including both the
 // key material and metadata.
 func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *structs.KeyringUpdateRootKeyResponse) error {
+
+	authErr := k.srv.Authenticate(k.ctx, args)
 	if done, err := k.srv.forward("Keyring.Update", args, args, reply); done {
 		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "update"}, time.Now())
 
-	if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -224,16 +241,21 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // Get retrieves an existing key from the keyring, including both the
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
+
+	authErr := k.srv.Authenticate(k.ctx, args)
+
 	// ensure that only another server can make this request
 	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
-
 	if done, err := k.srv.forward("Keyring.Get", args, args, reply); done {
 		return err
 	}
-
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "get"}, time.Now())
 
 	if args.KeyID == "" {
@@ -290,13 +312,19 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 }
 
 func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *structs.KeyringDeleteRootKeyResponse) error {
+
+	authErr := k.srv.Authenticate(k.ctx, args)
 	if done, err := k.srv.forward("Keyring.Delete", args, args, reply); done {
 		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "delete"}, time.Now())
 
-	if aclObj, err := k.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied

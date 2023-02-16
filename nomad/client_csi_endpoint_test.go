@@ -428,7 +428,7 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 	plugin, err := state.CSIPluginByID(ws, "minnie")
 	require.NoError(t, err)
 
-	clientCSI := NewClientCSIEndpoint(srv)
+	clientCSI := NewClientCSIEndpoint(srv, nil)
 	nodeIDs, err := clientCSI.clientIDsForController(plugin.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(nodeIDs))

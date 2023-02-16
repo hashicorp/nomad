@@ -52,13 +52,13 @@ which Remote Task Drivers do not support by default.
 ~> See [*Remote Task Drivers and Resources* #10549][gh-10549] on Github for
 details.  Comments, ideas, and use cases welcome!
 
-The [`resources`][resources] stanza has not been altered for remote task
+The [`resources`][resources] block has not been altered for remote task
 drivers. Since remote tasks do not consume local resources, remote task drivers
-should not use the existing `resources` stanza and instead implement their own
+should not use the existing `resources` block and instead implement their own
 resource parameters in their [`task.config`][task-config] block.
 
 Jobs using remote task drivers should use the minimum allowed resources in
-their [`task.resources`][resources] stanza:
+their [`task.resources`][resources] block:
 
 ```hcl
 resources {
@@ -96,18 +96,18 @@ behavior of the following features is completely driver dependent:
 - [`connect`][connect] - since group networks and sidecars are local to the
   Nomad node, Consul Connect sidecars will not work as expected.
 
-[artifact]:  /docs/job-specification/artifact
-[connect]: /docs/job-specification/connect
-[dispatch-payload]: /docs/job-specification/dispatch_payload
-[drain]: /docs/commands/node/drain
-[ephemeral-disk]: /docs/job-specification/ephemeral_disk
+[artifact]: /nomad/docs/job-specification/artifact
+[connect]: /nomad/docs/job-specification/connect
+[dispatch-payload]: /nomad/docs/job-specification/dispatch_payload
+[drain]: /nomad/docs/commands/node/drain
+[ephemeral-disk]: /nomad/docs/job-specification/ephemeral_disk
 [gh-10549]: https://github.com/hashicorp/nomad/issues/10549
 [gh-10592]: https://github.com/hashicorp/nomad/issues/10592
-[network]: /docs/job-specification/network
-[remote-cap]: /docs/concepts/plugins/task-drivers#capabilities-capabilities-error
-[resources]: /docs/job-specification/resources
-[task-config]: /docs/job-specification/task#config
-[template]: /docs/job-specification/template
-[upgrade]: /docs/upgrade/upgrade-specific
-[vault]: /docs/job-specification/vault
-[volume]: /docs/job-specification/volume
+[network]: /nomad/docs/job-specification/network
+[remote-cap]: /nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error
+[resources]: /nomad/docs/job-specification/resources
+[task-config]: /nomad/docs/job-specification/task#config
+[template]: /nomad/docs/job-specification/template
+[upgrade]: /nomad/docs/upgrade/upgrade-specific
+[vault]: /nomad/docs/job-specification/vault
+[volume]: /nomad/docs/job-specification/volume

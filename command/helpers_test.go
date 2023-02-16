@@ -209,7 +209,7 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 }
 
 const (
-	job = `job "job1" {
+	job1 = `job "job1" {
   type        = "service"
   datacenters = ["dc1"]
   group "group1" {
@@ -263,7 +263,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	defer os.Remove(fh.Name())
-	_, err = fh.WriteString(job)
+	_, err = fh.WriteString(job1)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -427,7 +427,7 @@ unsedVar2 = "from-varfile"
 func TestJobGetter_HTTPServer(t *testing.T) {
 	ci.Parallel(t)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, job)
+		fmt.Fprintf(w, job1)
 	})
 	go http.ListenAndServe("127.0.0.1:12345", nil)
 

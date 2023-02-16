@@ -29,7 +29,7 @@ example, scheduling information is not yet available, including information abou
 the client. Similarly, HCL features that depend on external context will take that
 context from the local environment of the CLI (e.g., files, environment variables).
 
-[jobs-api]: /api-docs/jobs
+[jobs-api]: /nomad/api-docs/jobs
 
 ## JSON Jobs
 
@@ -44,15 +44,15 @@ $ # Generate an HCL formatted job
 $ nomad init
 
 $ # Convert HCL to API JSON format
-$ nomad job run -output example.nomad > example.json
+$ nomad job run -output example.nomad.hcl > example.json
 
 $ # Submit with the -json flag
 $ nomad job run -json example.json
 ```
 
 
-[json-jobs-api]: /api-docs/json-jobs
-[run-json]: /docs/commands/job/run#json
+[json-jobs-api]: /nomad/api-docs/json-jobs
+[run-json]: /nomad/docs/commands/job/run#json
 
 ## Arguments, Blocks, and Expressions
 
@@ -80,8 +80,8 @@ task "example" {
 
 For full details about Nomad's syntax, see:
 
-- [Configuration Syntax](/docs/job-specification/hcl2/syntax)
-- [Expressions](/docs/job-specification/hcl2/expressions)
+- [Configuration Syntax](/nomad/docs/job-specification/hcl2/syntax)
+- [Expressions](/nomad/docs/job-specification/hcl2/expressions)
 
 ## Backward Compatibilities
 
@@ -119,12 +119,12 @@ meta {
 Additionally, block attributes must be [HCL2 valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
 Generally, identifiers may only contain letters, numbers, underscore `_`,
 or a dash `-`, and start with a letter. Notable,
-[`meta`](/docs/job-specification/meta), and
-[`env`](/docs/job-specification/env) keys may not
+[`meta`](/nomad/docs/job-specification/meta), and
+[`env`](/nomad/docs/job-specification/env) keys may not
 contain other symbols (e.g. `.`, `#`).
 
 Task driver config fields may require extra attention if they contain invalid
-identifiers. For example, docker [`sysctl`](/docs/drivers/docker#sysctl) must
+identifiers. For example, docker [`sysctl`](/nomad/docs/drivers/docker#sysctl) must
 use the map assignment syntax if the keys aren't valid:
 
 ```hcl
@@ -134,7 +134,7 @@ sysctl = {
 ```
 
 Additionally, task driver config fields may not nest block syntax within an
-assignment syntax. The following [`mounts`](/docs/drivers/docker#mounts) syntax is no longer valid:
+assignment syntax. The following [`mounts`](/nomad/docs/drivers/docker#mounts) syntax is no longer valid:
 
 ```hcl
 # INVALID in Nomad 1.0
@@ -162,7 +162,7 @@ mounts = [
 ]
 ```
 
-Or better yet, the new [`mount`](/docs/drivers/docker#mount) syntax, introduced in Nomad 1.0.1, is more appropriate here:
+Or better yet, the new [`mount`](/nomad/docs/drivers/docker#mount) syntax, introduced in Nomad 1.0.1, is more appropriate here:
 
 ```hcl
 mount {

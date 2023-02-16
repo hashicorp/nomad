@@ -35,8 +35,14 @@ func (a *Agent) register() {
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
+	authErr := a.srv.Authenticate(nil, args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	// Check ACL for agent write
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
@@ -128,9 +134,15 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
 	}
+	authErr := a.srv.Authenticate(nil, &args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, &args)
+	if authErr != nil {
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
+		return
+	}
 
 	// Check agent read permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := a.srv.ResolveACL(&args); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowAgentRead() {
@@ -398,8 +410,12 @@ func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *str
 
 // Host returns data about the agent's host system for the `debug` command.
 func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataResponse) error {
-
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	authErr := a.srv.Authenticate(nil, args)
+	a.srv.MeasureRPCRate("agent", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}

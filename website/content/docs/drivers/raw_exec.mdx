@@ -29,12 +29,12 @@ The `raw_exec` driver supports the following configuration in the job spec:
 
 - `command` - The command to execute. Must be provided. If executing a binary
   that exists on the host, the path must be absolute. If executing a binary that
-  is downloaded from an [`artifact`](/docs/job-specification/artifact), the
+  is downloaded from an [`artifact`](/nomad/docs/job-specification/artifact), the
   path can be relative from the allocation's root directory.
 
 - `args` - (Optional) A list of arguments to the `command`. References
   to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
 ## Examples
@@ -53,7 +53,7 @@ task "example" {
 }
 ```
 
-To execute a binary downloaded from an [`artifact`](/docs/job-specification/artifact):
+To execute a binary downloaded from an [`artifact`](/nomad/docs/job-specification/artifact):
 
 ```
 task "example" {
@@ -74,7 +74,7 @@ task "example" {
 
 ## Capabilities
 
-The `raw_exec` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `raw_exec` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation |
 | -------------------- | -------------- |
@@ -99,7 +99,7 @@ plugin "raw_exec" {
 ```
 
 Nomad versions before v0.9 use the following client configuration. This configuration is
-also supported in Nomad v0.9.0, but is deprecated in favor of the plugin stanza:
+also supported in Nomad v0.9.0, but is deprecated in favor of the plugin block:
 
 ```
 client {
@@ -125,7 +125,7 @@ client {
 ## Client Options
 
 ~> Note: client configuration options will soon be deprecated. Please use
-[plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza] documentation for more information.
+[plugin options][plugin-options] instead. See the [plugin block][plugin-block] documentation for more information.
 
 - `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
   disabled. Defaults to `false`.
@@ -154,4 +154,4 @@ appropriate privileges, the cgroup system is mounted and the operator hasn't
 disabled cgroups for the driver.
 
 [plugin-options]: #plugin-options
-[plugin-stanza]: /docs/configuration/plugin
+[plugin-block]: /nomad/docs/configuration/plugin

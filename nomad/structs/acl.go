@@ -11,11 +11,14 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/lang"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/slices"
+	"oss.indeed.com/go/libtime"
 )
 
 const (
@@ -149,6 +152,22 @@ const (
 	// Args: ACLBindingRuleRequest
 	// Reply: ACLBindingRuleResponse
 	ACLGetBindingRuleRPCMethod = "ACL.GetBindingRule"
+
+	// ACLOIDCAuthURLRPCMethod is the RPC method for starting the OIDC login
+	// workflow. It generates the OIDC provider URL which will be used for user
+	// authentication.
+	//
+	// Args: ACLOIDCAuthURLRequest
+	// Reply: ACLOIDCAuthURLResponse
+	ACLOIDCAuthURLRPCMethod = "ACL.OIDCAuthURL"
+
+	// ACLOIDCCompleteAuthRPCMethod is the RPC method for completing the OIDC
+	// login workflow. It exchanges the OIDC provider token for a Nomad ACL
+	// token with roles as defined within the remote provider.
+	//
+	// Args: ACLOIDCCompleteAuthRequest
+	// Reply: ACLOIDCCompleteAuthResponse
+	ACLOIDCCompleteAuthRPCMethod = "ACL.OIDCCompleteAuth"
 )
 
 const (
@@ -168,12 +187,50 @@ const (
 )
 
 var (
-	// validACLRoleName is used to validate an ACL role name.
-	validACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	// ValidACLRoleName is used to validate an ACL role name.
+	ValidACLRoleName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
-	// validACLAuthMethodName is used to validate an ACL auth method name.
-	validACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	// ValidACLAuthMethod is used to validate an ACL auth method name.
+	ValidACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
+
+type ACLCacheEntry[T any] lang.Pair[T, time.Time]
+
+func (e ACLCacheEntry[T]) Age() time.Duration {
+	return time.Since(e.Second)
+}
+
+func (e ACLCacheEntry[T]) Get() T {
+	return e.First
+}
+
+// An ACLCache caches ACL tokens by their policy content.
+type ACLCache[T any] struct {
+	*lru.TwoQueueCache[string, ACLCacheEntry[T]]
+	clock libtime.Clock
+}
+
+func (c *ACLCache[T]) Add(key string, item T) {
+	c.AddAtTime(key, item, c.clock.Now())
+}
+
+func (c *ACLCache[T]) AddAtTime(key string, item T, now time.Time) {
+	c.TwoQueueCache.Add(key, ACLCacheEntry[T]{
+		First:  item,
+		Second: now,
+	})
+}
+
+func NewACLCache[T any](size int) *ACLCache[T] {
+	c, err := lru.New2Q[string, ACLCacheEntry[T]](size)
+	if err != nil {
+		panic(err) // not possible
+	}
+	return &ACLCache[T]{
+		TwoQueueCache: c,
+		clock:         libtime.SystemClock(),
+	}
+}
 
 // ACLTokenRoleLink is used to link an ACL token to an ACL role. The ACL token
 // can therefore inherit all the ACL policy permissions that the ACL role
@@ -329,6 +386,57 @@ func (a *ACLToken) HasRoles(roleIDs []string) bool {
 	return true
 }
 
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLToken.ExpirationTTL to be marshaled correctly.
+func (a *ACLToken) MarshalJSON() ([]byte, error) {
+	type Alias ACLToken
+	exported := &struct {
+		ExpirationTTL string
+		*Alias
+	}{
+		ExpirationTTL: a.ExpirationTTL.String(),
+		Alias:         (*Alias)(a),
+	}
+	if a.ExpirationTTL == 0 {
+		exported.ExpirationTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLToken.ExpirationTTL to be unmarshalled correctly.
+func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLToken
+	aux := &struct {
+		ExpirationTTL interface{}
+		Hash          string
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.ExpirationTTL != nil {
+		switch v := aux.ExpirationTTL.(type) {
+		case string:
+			if v != "" {
+				if a.ExpirationTTL, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.ExpirationTTL = time.Duration(v)
+		}
+
+	}
+	if aux.Hash != "" {
+		a.Hash = []byte(aux.Hash)
+	}
+	return nil
+}
+
 // ACLRole is an abstraction for the ACL system which allows the grouping of
 // ACL policies into a single object. ACL tokens can be created and linked to
 // a role; the token then inherits all the permissions granted by the policies.
@@ -406,7 +514,7 @@ func (a *ACLRole) Validate() error {
 
 	var mErr multierror.Error
 
-	if !validACLRoleName.MatchString(a.Name) {
+	if !ValidACLRoleName.MatchString(a.Name) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
@@ -777,7 +885,7 @@ func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
 func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	var mErr multierror.Error
 
-	if !validACLAuthMethod.MatchString(a.Name) {
+	if !ValidACLAuthMethod.MatchString(a.Name) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
@@ -800,11 +908,16 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	return mErr.ErrorOrNil()
 }
 
+// TokenLocalityIsGlobal returns whether the auth method creates global ACL
+// tokens or not.
+func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool { return a.TokenLocality == "global" }
+
 // ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
 	OIDCDiscoveryURL    string
 	OIDCClientID        string
 	OIDCClientSecret    string
+	OIDCScopes          []string
 	BoundAudiences      []string
 	AllowedRedirectURIs []string
 	DiscoveryCaPem      []string
@@ -821,12 +934,21 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	c := new(ACLAuthMethodConfig)
 	*c = *a
 
+	c.OIDCScopes = slices.Clone(a.OIDCScopes)
 	c.BoundAudiences = slices.Clone(a.BoundAudiences)
 	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
 	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
 	c.SigningAlgs = slices.Clone(a.SigningAlgs)
 
 	return c
+}
+
+// ACLAuthClaims is the claim mapping of the OIDC auth method in a format that
+// can be used with go-bexpr. This structure is used during rule binding
+// evaluation.
+type ACLAuthClaims struct {
+	Value map[string]string   `bexpr:"value"`
+	List  map[string][]string `bexpr:"list"`
 }
 
 // ACLAuthMethodStub is used for listing ACL auth methods
@@ -916,7 +1038,7 @@ type ACLWhoAmIResponse struct {
 // ACL Roles and Policies.
 type ACLBindingRule struct {
 
-	// ID is an internally generated UUID for this role and is controlled by
+	// ID is an internally generated UUID for this rule and is controlled by
 	// Nomad.
 	ID string
 
@@ -936,8 +1058,8 @@ type ACLBindingRule struct {
 	Selector string
 
 	// BindType adjusts how this binding rule is applied at login time. The
-	// valid values are ACLBindingRuleBindTypeRole and
-	// ACLBindingRuleBindTypePolicy.
+	// valid values are ACLBindingRuleBindTypeRole,
+	// ACLBindingRuleBindTypePolicy, and ACLBindingRuleBindTypeManagement.
 	BindType string
 
 	// BindName is the target of the binding. Can be lightly templated using
@@ -968,6 +1090,10 @@ const (
 	// within the ACLBindingRule.BindName parameter, and will be the policy
 	// name.
 	ACLBindingRuleBindTypePolicy = "policy"
+
+	// ACLBindingRuleBindTypeManagement is the ACL binding rule bind type that
+	// will generate management ACL tokens when matched.
+	ACLBindingRuleBindTypeManagement = "management"
 )
 
 // Canonicalize performs basic canonicalization on the ACL token object. It is
@@ -998,21 +1124,26 @@ func (a *ACLBindingRule) Validate() error {
 	if a.AuthMethod == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("auth method is missing"))
 	}
-	if a.BindName == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("bind name is missing"))
-	}
 	if len(a.Description) > maxACLBindingRuleDescriptionLength {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("description longer than %d", maxACLRoleDescriptionLength))
 	}
 
-	if a.BindType == "" {
+	// Depending on the bind type, we have some specific validation. Catching
+	// the empty string also provides easier to understand feedback to the
+	// user.
+	switch a.BindType {
+	case "":
 		mErr.Errors = append(mErr.Errors, errors.New("bind type is missing"))
-	} else {
-		switch a.BindType {
-		case ACLBindingRuleBindTypeRole, ACLBindingRuleBindTypePolicy: // fall-through.
-		default:
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported bind type: %q", a.BindType))
+	case ACLBindingRuleBindTypeRole, ACLBindingRuleBindTypePolicy:
+		if a.BindName == "" {
+			mErr.Errors = append(mErr.Errors, errors.New("bind name is missing"))
 		}
+	case ACLBindingRuleBindTypeManagement:
+		if a.BindName != "" {
+			mErr.Errors = append(mErr.Errors, errors.New("bind name should be empty"))
+		}
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported bind type: %q", a.BindType))
 	}
 
 	return mErr.ErrorOrNil()
@@ -1193,4 +1324,108 @@ type ACLBindingRuleRequest struct {
 type ACLBindingRuleResponse struct {
 	ACLBindingRule *ACLBindingRule
 	QueryMeta
+}
+
+// ACLOIDCAuthURLRequest is the request to make when starting the OIDC
+// authentication login flow.
+type ACLOIDCAuthURLRequest struct {
+
+	// AuthMethodName is the OIDC auth-method to use. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	// ClientNonce is a randomly generated string to prevent replay attacks. It
+	// is up to the client to generate this and Go integrations should use the
+	// oidc.NewID function within the hashicorp/cap library. This must then be
+	// passed back to ACLOIDCCompleteAuthRequest. This is a required parameter.
+	ClientNonce string
+
+	// WriteRequest is used due to the requirement by the RPC forwarding
+	// mechanism. This request doesn't write anything to Nomad's internal
+	// state.
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to start the OIDC authentication flow.
+func (a *ACLOIDCAuthURLRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.ClientNonce == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing client nonce"))
+	}
+	if a.RedirectURI == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing redirect URI"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLOIDCAuthURLResponse is the response when starting the OIDC authentication
+// login flow.
+type ACLOIDCAuthURLResponse struct {
+
+	// AuthURL is URL to begin authorization and is where the user logging in
+	// should go.
+	AuthURL string
+}
+
+// ACLOIDCCompleteAuthRequest is the request object to begin completing the
+// OIDC auth cycle after receiving the callback from the OIDC provider.
+type ACLOIDCCompleteAuthRequest struct {
+
+	// AuthMethodName is the name of the auth method being used to login via
+	// OIDC. This will match ACLOIDCAuthURLRequest.AuthMethodName. This is a
+	// required parameter.
+	AuthMethodName string
+
+	// ClientNonce, State, and Code are provided from the parameters given to
+	// the redirect URL. These are all required parameters.
+	ClientNonce string
+	State       string
+	Code        string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to complete the OIDC authentication flow.
+func (a *ACLOIDCCompleteAuthRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.ClientNonce == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing client nonce"))
+	}
+	if a.State == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing state"))
+	}
+	if a.Code == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing code"))
+	}
+	if a.RedirectURI == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing redirect URI"))
+	}
+	return mErr.ErrorOrNil()
+}
+
+// ACLOIDCCompleteAuthResponse is the response when the OIDC auth flow has been
+// completed successfully.
+type ACLOIDCCompleteAuthResponse struct {
+	ACLToken *ACLToken
+	WriteMeta
 }

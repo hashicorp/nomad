@@ -105,13 +105,14 @@ var (
 	}
 
 	consulTLSConfig = consulTransportConfig{
-		HTTPAddr:  "2.2.2.2",            // arg
-		Auth:      "user:password",      // env
-		SSL:       "true",               // env
-		VerifySSL: "true",               // env
-		CAFile:    "/etc/tls/ca-file",   // arg
-		CertFile:  "/etc/tls/cert-file", // arg
-		KeyFile:   "/etc/tls/key-file",  // arg
+		HTTPAddr:   "2.2.2.2",               // arg
+		Auth:       "user:password",         // env
+		SSL:        "true",                  // env
+		VerifySSL:  "true",                  // env
+		GRPCCAFile: "/etc/tls/grpc-ca-file", // arg
+		CAFile:     "/etc/tls/ca-file",      // arg
+		CertFile:   "/etc/tls/cert-file",    // arg
+		KeyFile:    "/etc/tls/key-file",     // arg
 	}
 )
 
@@ -175,6 +176,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-address", "127.0.0.1:19100",
 			"-proxy-id", "s1-sidecar-proxy",
 			"-bootstrap",
+			"-grpc-ca-file", "/etc/tls/grpc-ca-file",
 			"-ca-file", "/etc/tls/ca-file",
 			"-client-cert", "/etc/tls/cert-file",
 			"-client-key", "/etc/tls/key-file",
@@ -670,7 +672,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	// Run the hook
 	err := h.Prestart(context.Background(), req, resp)
-	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
+	require.ErrorIs(t, err, errEnvoyBootstrapError)
 	require.True(t, structs.IsRecoverable(err))
 
 	// Assert it is not Done
@@ -758,7 +760,7 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 
 	// Run the hook and get the error
 	err := h.Prestart(context.Background(), req, &resp)
-	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
+	require.ErrorIs(t, err, errEnvoyBootstrapError)
 
 	// Current time should be at least start time + total wait time
 	minimum := begin.Add(h.envoyBootstrapWaitTime)

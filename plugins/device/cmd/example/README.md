@@ -7,7 +7,7 @@ The example device plugin models files within a specified directory as devices. 
 
 # Config
 
-The configuration should be passed via an HCL file that begins with a top level `config` stanza:
+The configuration should be passed via an HCL file that begins with a top level `config` block:
 
 ```
 config {

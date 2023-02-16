@@ -492,7 +492,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 		}
 	}
 
-	// check if the non-promoted version is a job without update stanza. This version should be the latest "stable" version,
+	// check if the non-promoted version is a job without update block. This version should be the latest "stable" version,
 	// as all subsequent versions must be canaried deployments.  Otherwise, we would have found a deployment above,
 	// or the alloc would have been replaced already by a newer non-deployment job.
 	if job, err := s.state.JobByIDAndVersion(nil, ns, jobID, p.MinJobVersion()); err == nil && job != nil && job.Update.IsEmpty() {

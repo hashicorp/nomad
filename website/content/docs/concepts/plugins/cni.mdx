@@ -1,0 +1,64 @@
+---
+layout: docs
+page_title: Network Plugins
+description: Learn how Nomad manages custom user-specified network configurations.
+---
+
+# Network plugins
+
+Nomad has built-in support for scheduling compute resources such as
+CPU, memory, and networking. Nomad's network plugin support extends
+this to allow scheduling tasks with purpose-created or specialty network
+configurations. Network plugins are third-party plugins that conform to the
+[Container Network Interface (CNI)][cni_spec] specification.
+
+Network plugins need to be installed and configured on each client. The [Nomad
+installation instructions][nomad_install] recommend installing the [CNI
+reference plugins][cni_ref] because certain Nomad networking features, like
+`bridge` network mode and Consul service mesh, leverage them to provide an
+operating-system agnostic interface to configure workload networking.
+
+Custom networking in Nomad is accomplished with a combination of CNI plugin
+binaries and CNI configuration files.
+
+## CNI plugins
+
+Spec-compliant plugins should work with Nomad, however, it's possible a plugin
+vendor has implemented their plugin to make non-standard API calls, or it is
+otherwise non-compliant with the CNI specification. In those situations the
+plugin may not function correctly in a Nomad environment. You should verify
+plugin compatibility with Nomad before deploying in production.
+
+CNI plugins are installed and configured on a per-client basis. Nomad consults
+the path given in the client's [`cni_path`][] to find CNI plugin executables.
+
+## CNI configuration files
+
+CNI defines a network configuration format for administrators. It contains
+directives for both the orchestrator and the plugins to consume.
+At plugin execution time, this configuration format is interpreted by the
+runtime and transformed in to a form to be passed to the plugins.
+
+Nomad reads the following extensions from the [`cni_config_dir`][]—
+`/opt/cni/config` by default:
+
+* `.conflist` files are loaded as [network
+  configurations][cni_spec_net_config] that contain a list of plugin
+  configurations.
+
+* `.conf` and `.json` files are loaded as individual [plugin
+  configurations][cni_spec_plugin_config] for a specific network.
+
+## Further reading
+
+You can read more about how Nomad uses CNI plugins in the [CNI section of the
+Nomad Networking documentation](/nomad/docs/networking/cni).
+
+[3rd_party_cni]: https://www.cni.dev/docs/#3rd-party-plugins
+[`cni_config_dir`]: /nomad/docs/configuration/client#cni_config_dir
+[`cni_path`]: /nomad/docs/configuration/client#cni_path
+[cni_ref]: https://github.com/containernetworking/plugins
+[cni_spec]: https://www.cni.dev/docs/spec/
+[cni_spec_net_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format
+[cni_spec_plugin_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#plugin-configuration-objects
+[nomad_install]: /nomad/tutorials/get-started/get-started-install#post-installation-steps

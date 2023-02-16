@@ -120,7 +120,7 @@ func cleanupJob(t *testing.T, nomadClient *api.Client, jobID string, allocs []*a
 	}, 10*time.Second, 200*time.Millisecond)
 }
 
-func report(metrics map[string]*api.AllocationMetric) must.PostScript {
+func report(metrics map[string]*api.AllocationMetric) must.Setting {
 	var s strings.Builder
 	for allocID, m := range metrics {
 		s.WriteString("Alloc ID: " + allocID + "\n")

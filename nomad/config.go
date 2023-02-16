@@ -11,7 +11,6 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -153,7 +152,14 @@ type Config struct {
 
 	// EvalGCThreshold is how "old" an evaluation must be to be eligible
 	// for GC. This gives users some time to debug a failed evaluation.
+	//
+	// Please note that the rules for GC of evaluations which belong to a batch
+	// job are separate and controlled by `BatchEvalGCThreshold`
 	EvalGCThreshold time.Duration
+
+	// BatchEvalGCThreshold is how "old" an evaluation must be to be eligible
+	// for GC if the eval belongs to a batch job.
+	BatchEvalGCThreshold time.Duration
 
 	// JobGCInterval is how often we dispatch a job to GC jobs that are
 	// available for garbage collection.
@@ -342,6 +348,12 @@ type Config struct {
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
 
+	// DisableRPCRateMetricsLabels drops the label for the identity of the
+	// requester when publishing metrics on RPC rate on the server. This may be
+	// useful to control metrics collection costs in environments where request
+	// rate is well-controlled but cardinality of requesters is high.
+	DisableRPCRateMetricsLabels bool
+
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
 	AutopilotConfig *structs.AutopilotConfig
@@ -359,13 +371,6 @@ type Config struct {
 	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
 	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
-
-	// PluginLoader is used to load plugins.
-	PluginLoader loader.PluginCatalog
-
-	// PluginSingletonLoader is a plugin loader that will returns singleton
-	// instances of the plugins.
-	PluginSingletonLoader loader.PluginCatalog
 
 	// RPCHandshakeTimeout is the deadline by which RPC handshakes must
 	// complete. The RPC handshake includes the first byte read as well as
@@ -454,6 +459,7 @@ func DefaultConfig() *Config {
 		ReconcileInterval:                60 * time.Second,
 		EvalGCInterval:                   5 * time.Minute,
 		EvalGCThreshold:                  1 * time.Hour,
+		BatchEvalGCThreshold:             24 * time.Hour,
 		JobGCInterval:                    5 * time.Minute,
 		JobGCThreshold:                   4 * time.Hour,
 		NodeGCInterval:                   5 * time.Minute,

@@ -1,0 +1,3 @@
+```release-note:improvement
+ui, cli: Adds Job Templates to the "Run Job" Web UI and makes them accessible via new flags on nomad job init
+```

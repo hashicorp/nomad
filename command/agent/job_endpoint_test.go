@@ -661,7 +661,7 @@ func TestHTTP_jobUpdate_systemScaling(t *testing.T) {
 		// Make the request
 		obj, err := s.Server.JobSpecificRequest(respW, req)
 		assert.Nil(t, obj)
-		assert.Equal(t, CodedError(400, "Task groups with job type system do not support scaling stanzas"), err)
+		assert.Equal(t, CodedError(400, "Task groups with job type system do not support scaling blocks"), err)
 	})
 }
 
@@ -3517,7 +3517,7 @@ func TestJobs_Matching_Resources(t *testing.T) {
 }
 
 // TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
-// stanza fails to validate but does not panic (see #5477).
+// block fails to validate but does not panic (see #5477).
 func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
@@ -3534,7 +3534,7 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 			// System job...
 			Type: pointer.Of("system"),
 
-			// ...with an empty migrate stanza
+			// ...with an empty migrate block
 			Migrate: &api.MigrateStrategy{},
 		}
 
@@ -3694,7 +3694,7 @@ func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
 	require.Equal(t, &structs.ConsulExposeConfig{
 		Paths: []structs.ConsulExposePath{{Path: "/health"}},
 	}, apiConsulExposeConfigToStructs(&api.ConsulExposeConfig{
-		Path: []*api.ConsulExposePath{{Path: "/health"}},
+		Paths: []*api.ConsulExposePath{{Path: "/health"}},
 	}))
 }
 
@@ -3747,8 +3747,8 @@ func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 		Upstreams: []*api.ConsulUpstream{{
 			DestinationName: "upstream",
 		}},
-		ExposeConfig: &api.ConsulExposeConfig{
-			Path: []*api.ConsulExposePath{{
+		Expose: &api.ConsulExposeConfig{
+			Paths: []*api.ConsulExposePath{{
 				Path: "/health",
 			}},
 		},

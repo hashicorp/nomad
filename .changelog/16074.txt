@@ -1,0 +1,3 @@
+```release-note:improvement
+core: Eliminate deprecated practice of seeding rand package
+```

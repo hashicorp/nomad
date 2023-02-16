@@ -6,10 +6,11 @@ description: Learn about Nomad's workload identity feature
 
 # Workload Identity
 
-When an [allocation][] is accepted by the [plan applier][], the leader generates
-a Workload Identity for each task in the allocation. This workload identity is a
-[JSON Web Token (JWT)][] that has been signed by the leader's keyring. The
-workload identity includes the following identity claims:
+Every workload running in Nomad is given an identity. When an [allocation][] is
+accepted by the [plan applier][], the leader generates a Workload Identity for
+each task in the allocation. This workload identity is a [JSON Web Token
+(JWT)][] that has been signed by the leader's keyring. The workload identity
+includes the following identity claims:
 
 ```json
 {
@@ -17,6 +18,28 @@ workload identity includes the following identity claims:
   "nomad_job_id": "example",
   "nomad_allocation_id": "5c6328f7-48c5-4d03-bada-91ef2e904d0d",
   "nomad_task": "web"
+}
+```
+
+# Using Workload Identity
+
+While Nomad always creates and uses workload identities internally, the JWT is
+not exposed to tasks by default.
+
+To expose Workload Identity to tasks, add an [`identity`][identity-block] block
+to your jobspec:
+
+```hcl
+task "example" {
+
+  identity {
+    # Expose Workload Identity in NOMAD_TOKEN env var
+    env = true
+
+    # Expose Workload Identity in ${SECRETS_DIR}/nomad_token file
+    file = true
+  }
+
 }
 ```
 
@@ -67,12 +90,7 @@ nomad acl policy apply \
    redis-policy ./policy.hcl
 ```
 
-## Using Workload Identity
-
-In Nomad 1.4.0 the workload identity is used only for `template`
-access to [Variables][] and not exposed outside of Nomad.
-
-[allocation]: /docs/concepts/architecture#allocation
-[plan applier]: /docs/concepts/scheduling/scheduling
-[Variables]: /docs/concepts/variables
+[allocation]: /nomad/docs/concepts/architecture#allocation
+[identity-block]: /nomad/docs/job-specification/identity
+[plan applier]: /nomad/docs/concepts/scheduling/scheduling
 [JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519

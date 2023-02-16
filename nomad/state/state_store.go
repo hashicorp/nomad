@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -242,7 +243,7 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 		// Get the states current index
 		snapshotIndex, err := s.LatestIndex()
 		if err != nil {
-			return nil, fmt.Errorf("failed to determine state store's index: %v", err)
+			return nil, fmt.Errorf("failed to determine state store's index: %w", err)
 		}
 
 		// We only need the FSM state to be as recent as the given index
@@ -909,6 +910,11 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 		node.CreateIndex = exist.CreateIndex
 		node.ModifyIndex = index
 
+		// Update last missed heartbeat if the node became unresponsive.
+		if !exist.UnresponsiveStatus() && node.UnresponsiveStatus() {
+			node.LastMissedHeartbeatIndex = index
+		}
+
 		// Retain node events that have already been set on the node
 		node.Events = exist.Events
 
@@ -923,6 +929,16 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
 		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 		node.LastDrain = exist.LastDrain                         // Retain the drain metadata
+
+		// Retain the last index the node missed a heartbeat.
+		if node.LastMissedHeartbeatIndex < exist.LastMissedHeartbeatIndex {
+			node.LastMissedHeartbeatIndex = exist.LastMissedHeartbeatIndex
+		}
+
+		// Retain the last index the node updated its allocs.
+		if node.LastAllocUpdateIndex < exist.LastAllocUpdateIndex {
+			node.LastAllocUpdateIndex = exist.LastAllocUpdateIndex
+		}
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
@@ -1028,6 +1044,15 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	// Update the status in the copy
 	copyNode.Status = status
 	copyNode.ModifyIndex = txn.Index
+
+	// Update last missed heartbeat if the node became unresponsive or reset it
+	// zero if the node became ready.
+	if !existingNode.UnresponsiveStatus() && copyNode.UnresponsiveStatus() {
+		copyNode.LastMissedHeartbeatIndex = txn.Index
+	} else if existingNode.Status != structs.NodeStatusReady &&
+		copyNode.Status == structs.NodeStatusReady {
+		copyNode.LastMissedHeartbeatIndex = 0
+	}
 
 	// Insert the node
 	if err := txn.Insert("nodes", copyNode); err != nil {
@@ -3582,8 +3607,13 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
+	// Capture all nodes being affected. Alloc updates from clients are batched
+	// so this request may include allocs from several nodes.
+	nodeIDs := set.New[string](1)
+
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
+		nodeIDs.Insert(alloc.NodeID)
 		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
 			return err
 		}
@@ -3592,6 +3622,13 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// Update the indexes
 	if err := txn.Insert("index", &IndexEntry{"allocs", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
+	}
+
+	// Update the index of when nodes last updated their allocs.
+	for _, nodeID := range nodeIDs.List() {
+		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
+			return fmt.Errorf("node update failed: %v", err)
+		}
 	}
 
 	return txn.Commit()
@@ -3681,6 +3718,28 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 
 	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
+	}
+	return nil
+}
+
+func (s *StateStore) updateClientAllocUpdateIndex(txn *txn, index uint64, nodeID string) error {
+	existing, err := txn.First("nodes", "id", nodeID)
+	if err != nil {
+		return fmt.Errorf("node lookup failed: %v", err)
+	}
+	if existing == nil {
+		return nil
+	}
+
+	node := existing.(*structs.Node)
+	copyNode := node.Copy()
+	copyNode.LastAllocUpdateIndex = index
+
+	if err := txn.Insert("nodes", copyNode); err != nil {
+		return fmt.Errorf("node update failed: %v", err)
+	}
+	if err := txn.Insert("index", &IndexEntry{"nodes", txn.Index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
 	}
 	return nil
 }

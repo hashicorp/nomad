@@ -43,7 +43,7 @@ func NewStatsFetcher(logger log.Logger, pool *pool.ConnPool, region string) *Sta
 // RPC to each server, so we let it finish and then clean up the in-flight
 // tracking.
 func (f *StatsFetcher) fetch(server *autopilot.Server, replyCh chan *autopilot.ServerStats) {
-	var args struct{}
+	var args structs.GenericRequest
 	var reply structs.RaftStats
 
 	// defer some cleanup to notify everything else that the fetching is no longer occurring

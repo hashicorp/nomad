@@ -835,6 +835,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
+	// Only windows supports alternative isolations modes
+	isolationMode := driverConfig.Isolation
+	if runtime.GOOS != "windows" && isolationMode != "" {
+		return c, fmt.Errorf("Failed to create container configuration, cannot use isolation mode \"%s\" on %s", isolationMode, runtime.GOOS)
+	}
+
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	var pidsLimit int64
@@ -865,6 +871,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
 
+		Isolation:    driverConfig.Isolation,
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
@@ -1121,7 +1128,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			if mapping, ok := task.Resources.Ports.Get(port); ok {
 				ports.add(mapping.Label, mapping.HostIP, mapping.Value, mapping.To)
 			} else {
-				return c, fmt.Errorf("Port %q not found, check network stanza", port)
+				return c, fmt.Errorf("Port %q not found, check network block", port)
 			}
 		}
 	case len(task.Resources.NomadResources.Networks) > 0:

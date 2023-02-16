@@ -31,6 +31,12 @@ module.exports = function (defaults) {
     },
     hinting: isTest,
     tests: isTest,
+    sassOptions: {
+      precision: 4,
+      includePaths: [
+        './node_modules/@hashicorp/design-system-tokens/dist/products/css',
+      ],
+    },
   });
 
   // Use `app.import` to add additional libraries to the generated

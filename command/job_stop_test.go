@@ -1,85 +1,95 @@
 package command
 
 import (
-	"strings"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
-func TestStopCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
-	var _ cli.Command = &JobStopCommand{}
-}
+var _ cli.Command = (*JobStopCommand)(nil)
 
-func TestStopCommand_JSON(t *testing.T) {
+func TestStopCommand_multi(t *testing.T) {
 	ci.Parallel(t)
-	ui := cli.NewMockUi()
-	stop := func(args ...string) (stdout string, stderr string, code int) {
-		cmd := &JobStopCommand{
-			Meta: Meta{Ui: ui},
-		}
-		t.Logf("run: nomad job stop %s", strings.Join(args, " "))
-		code = cmd.Run(args)
-		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
-	}
 
-	// Agent startup is slow, do some work while we wait
-	agentReady := make(chan string)
-	var srv *agent.TestAgent
-	var client *api.Client
-	go func() {
-		var addr string
-		srv, client, addr = testServer(t, false, nil)
-		agentReady <- addr
-	}()
+	srv, _, addr := testServer(t, true, func(c *agent.Config) {
+		c.DevMode = true
+	})
 	defer srv.Shutdown()
 
-	// Wait for agent to start and get its address
-	select {
-	case <-agentReady:
-	case <-time.After(20 * time.Second):
-		t.Fatalf("timed out waiting for agent to start")
-	}
+	// the number of jobs we want to run
+	numJobs := 10
 
-	// create and run 10 jobs
-	jobIDs := make([]string, 10)
-	for i := 0; i < 10; i++ {
+	// create and run a handful of jobs
+	jobIDs := make([]string, 0, numJobs)
+	for i := 0; i < numJobs; i++ {
 		jobID := uuid.Generate()
 		jobIDs = append(jobIDs, jobID)
+	}
 
+	jobFilePath := func(jobID string) string {
+		return filepath.Join(os.TempDir(), jobID+".nomad")
+	}
+
+	// cleanup job files we will create
+	t.Cleanup(func() {
+		for _, jobID := range jobIDs {
+			_ = os.Remove(jobFilePath(jobID))
+		}
+	})
+
+	// record cli output
+	ui := cli.NewMockUi()
+
+	for _, jobID := range jobIDs {
 		job := testJob(jobID)
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
+		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
+		job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
 		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 			"run_for": "30s",
 		}
 
-		resp, _, err := client.Jobs().Register(job, nil)
-		if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-			t.Fatalf("[DEBUG] waiting for job to register; status code non zero saw %d", code)
-		}
+		jobJSON, err := json.MarshalIndent(job, "", " ")
+		must.NoError(t, err)
 
-		require.NoError(t, err)
+		jobFile := jobFilePath(jobID)
+		err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
+		must.NoError(t, err)
+
+		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
+		code := cmd.Run([]string{"-address", addr, "-json", jobFile})
+		must.Zero(t, code,
+			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
+			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
+		)
 	}
 
-	// stop all jobs
-	var args []string
-	args = append(args, "-detach")
+	// helper for stopping a list of jobs
+	stop := func(args ...string) (stdout string, stderr string, code int) {
+		cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
+		code = cmd.Run(args)
+		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
+	}
+
+	// stop all jobs in one command
+	args := []string{"-address", addr, "-detach"}
 	args = append(args, jobIDs...)
 	stdout, stderr, code := stop(args...)
-	t.Logf("[DEBUG] run: nomad job stop stdout/stderr: %s/%s", stdout, stderr)
-	require.Zero(t, code)
-	require.Empty(t, stderr)
-
+	must.Zero(t, code,
+		must.Sprintf("job stop stdout: %s", stdout),
+		must.Sprintf("job stop stderr: %s", stderr),
+	)
 }
 
 func TestStopCommand_Fails(t *testing.T) {
@@ -91,35 +101,33 @@ func TestStopCommand_Fails(t *testing.T) {
 	cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"-some", "-bad", "-args"})
+	must.One(t, code)
+
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, "flag provided but not defined: -some")
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on nonexistent job ID
-	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
-		t.Fatalf("expect exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No job(s) with prefix or id") {
-		t.Fatalf("expect not found error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "nope"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No job(s) with prefix or id")
+
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope", "nope"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error deregistering job") {
-		t.Fatalf("expected failed query error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "nope"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Error finding jobs with prefix: nope")
 }
 
 func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -130,13 +138,13 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(j.ID, res[0])
+	must.Len(t, 1, res)
+	must.Eq(t, j.ID, res[0])
 }

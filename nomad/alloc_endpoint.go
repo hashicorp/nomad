@@ -8,7 +8,6 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -31,15 +30,20 @@ func NewAllocEndpoint(srv *Server, ctx *RPCContext) *Alloc {
 
 // List is used to list the allocations in the system
 func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("Alloc.List", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
 	namespace := args.RequestNamespace()
 
 	// Check namespace read-job permissions
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -136,34 +140,21 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 // GetAlloc is used to lookup a particular allocation
 func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	reply *structs.SingleAllocResponse) error {
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("Alloc.GetAlloc", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
 	// Check namespace read-job permissions before performing blocking query.
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	aclObj, err := a.srv.ResolveClientOrACL(args)
 	if err != nil {
-		// If ResolveToken had an unexpected error return that
-		if err != structs.ErrTokenNotFound {
-			return err
-		}
-
-		// Attempt to lookup AuthToken as a Node.SecretID since nodes
-		// call this endpoint and don't have an ACL token.
-		node, stateErr := a.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
-		if stateErr != nil {
-			// Return the original ResolveToken error with this err
-			var merr multierror.Error
-			merr.Errors = append(merr.Errors, err, stateErr)
-			return merr.ErrorOrNil()
-		}
-
-		// Not a node or a valid ACL token
-		if node == nil {
-			return structs.ErrTokenNotFound
-		}
+		return err
 	}
 
 	// Setup the blocking query
@@ -206,14 +197,19 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
+	authErr := a.srv.Authenticate(a.ctx, args)
+
 	// Ensure the connection was initiated by a client if TLS is used.
 	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
 	if err != nil {
 		return err
 	}
-
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
+	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
@@ -276,9 +272,16 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 
 // Stop is used to stop an allocation and migrate it to another node.
 func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopResponse) error {
+
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("Alloc.Stop", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "stop"}, time.Now())
 
 	alloc, err := getAlloc(a.srv.State(), args.AllocID)
@@ -288,7 +291,7 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 
 	// Check for namespace alloc-lifecycle permissions.
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityAllocLifecycle)
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if !allowNsOp(aclObj, alloc.Namespace) {
@@ -335,13 +338,19 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 // UpdateDesiredTransition is used to update the desired transitions of an
 // allocation.
 func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransitionRequest, reply *structs.GenericResponse) error {
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("Alloc.UpdateDesiredTransition", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "update_desired_transition"}, time.Now())
 
 	// Check that it is a management token.
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -370,14 +379,20 @@ func (a *Alloc) GetServiceRegistrations(
 	args *structs.AllocServiceRegistrationsRequest,
 	reply *structs.AllocServiceRegistrationsResponse) error {
 
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward(structs.AllocServiceRegistrationsRPCMethod, args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
 
 	// If ACLs are enabled, ensure the caller has the read-job namespace
 	// capability.
-	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	} else if aclObj != nil {

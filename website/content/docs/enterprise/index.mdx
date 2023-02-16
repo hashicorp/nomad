@@ -40,7 +40,7 @@ the numbers match, Nomad will begin to promote new servers and demote old
 ones.
 
 See the [Autopilot - Upgrade
-Migrations](https://learn.hashicorp.com/tutorials/nomad/autopilot#upgrade-migrations)
+Migrations](/nomad/tutorials/manage-clusters/autopilot#upgrade-migrations)
 documentation for a thorough overview.
 
 ### Automated Backups
@@ -54,7 +54,7 @@ This capability provides an enterprise solution for backup and restoring the
 state of Nomad servers within an environment in an automated manner. These
 snapshots are atomic and point-in-time.
 
-See the [Operator Snapshot agent](/docs/commands/operator/snapshot/agent)
+See the [Operator Snapshot agent](/nomad/docs/commands/operator/snapshot/agent)
 documentation for a thorough overview.
 
 ### Enhanced Read Scalability
@@ -66,7 +66,7 @@ committed). Adding explicit non-voters will scale reads and scheduling without
 impacting write latency.
 
 See the [Autopilot - Read
-Scalability](https://learn.hashicorp.com/tutorials/nomad/autopilot#server-read-and-scheduling-scaling)
+Scalability](/nomad/tutorials/manage-clusters/autopilot#server-read-and-scheduling-scaling)
 documentation for a thorough overview.
 
 ### Redundancy Zones
@@ -81,7 +81,7 @@ will promote the non-voter to a voter automatically, putting the hot standby
 server into service quickly.
 
 See the [Autopilot - Redundancy
-Zones](https://learn.hashicorp.com/tutorials/nomad/autopilot#redundancy-zones)
+Zones](/nomad/tutorials/manage-clusters/autopilot#redundancy-zones)
 documentation for a thorough overview.
 
 ### Multiple Vault Namespaces
@@ -92,7 +92,7 @@ consolidation when running Nomad and Vault together. Nomad will automatically
 retrieve a Vault token based on a job's defined Vault Namespace and make it
 available for the specified Nomad task at hand.
 
-See the [Vault Integration documentation](/docs/integrations/vault-integration#enterprise-configuration) for more information.
+See the [Vault Integration documentation](/nomad/docs/integrations/vault-integration#enterprise-configuration) for more information.
 
 ## Governance & Policy
 
@@ -114,7 +114,7 @@ logging system, each audit event is captured with relevant request and
 response information in a JSON format that is easily digestible and familiar
 to operators.
 
-See the [Audit Logging Documentation](/docs/configuration/audit) for a
+See the [Audit Logging Documentation](/nomad/docs/configuration/audit) for a
 thorough overview.
 
 ### Resource Quotas
@@ -129,7 +129,7 @@ This allows operators to partition a shared cluster and ensure that no single
 actor can consume the whole resources of the cluster.
 
 See the [Resource Quotas
-Guide](https://learn.hashicorp.com/tutorials/nomad/quotas) for a thorough
+Guide](/nomad/tutorials/governance-and-policy/quotas) for a thorough
 overview.
 
 ### Sentinel Policies
@@ -142,7 +142,7 @@ pre-authorized Docker images. Sentinel policies are defined as code, giving
 operators considerable flexibility to meet compliance requirements.
 
 See the [Sentinel Policies
-Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel) for a thorough
+Guide](/nomad/tutorials/governance-and-policy/sentinel) for a thorough
 overview.
 
 ## Multi-Cluster & Efficiency
@@ -172,7 +172,7 @@ statistical measures.
 Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or
 request a trial of Nomad Enterprise.
 
-[multiregion deployments]: /docs/job-specification/multiregion
-[autoscaling capabilities]: /tools/autoscaling
-[scaling policies]: /tools/autoscaling/policy
+[multiregion deployments]: /nomad/docs/job-specification/multiregion
+[autoscaling capabilities]: /nomad/tools/autoscaling
+[scaling policies]: /nomad/tools/autoscaling/policy
 [gh-9958]: https://github.com/hashicorp/nomad/issues/9958

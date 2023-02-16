@@ -329,6 +329,7 @@ func (ar *allocRunner) destroy() error {
 func (ar *allocRunner) preKillHooks() {
 	for _, hook := range ar.runnerHooks {
 		pre, ok := hook.(interfaces.RunnerPreKillHook)
+
 		if !ok {
 			continue
 		}

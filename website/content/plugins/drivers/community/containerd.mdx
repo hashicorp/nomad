@@ -39,7 +39,7 @@ directory.
 
 ## Capabilities
 
-The `containerd-driver` implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `containerd-driver` implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation          |
 | -------------------- | ----------------------- |
@@ -269,7 +269,7 @@ them should be used at a time.
    config of the job spec (see [host_network][host-network] under Task
    Configuration).
 
-2. **Bridge** network can be enabled by setting the `network` stanza in the task
+2. **Bridge** network can be enabled by setting the `network` block in the task
    group section of the job spec.
 
 ```hcl
@@ -315,7 +315,7 @@ Nomad supports both `static` and `dynamic` port mapping.
 
 1. **Static ports**
 
-Static port mapping can be added in the `network` stanza.
+Static port mapping can be added in the `network` block.
 
 ```hcl
 network {
@@ -333,7 +333,7 @@ Here, `host` port `8889` is mapped to `container` port `8889`.<br/>
 
 2. **Dynamic ports**
 
-Dynamic port mapping is also enabled in the `network` stanza.
+Dynamic port mapping is also enabled in the `network` block.
 
 ```hcl
 network {
@@ -347,7 +347,7 @@ network {
 Here, nomad will allocate a dynamic port on the `host` and that port
 will be mapped to `8080` in the container.
 
-You can read more about configuring networking under the [`network`] stanza documentation.
+You can read more about configuring networking under the [`network`] block documentation.
 
 ## Service discovery
 
@@ -358,18 +358,18 @@ Nomad integrates with Consul to provide service discovery and monitoring.
 
 A [`service`] block can be added to your job spec, to enable service discovery.
 
-The service stanza instructs Nomad to register a service with Consul.
+The service block instructs Nomad to register a service with Consul.
 
 ## Authentication ((#authentication))
 
-`auth` stanza allow you to set credentials for your private registry e.g. if you want
+`auth` block allow you to set credentials for your private registry e.g. if you want
 to pull an image from a private repository in docker hub.
-`auth` stanza can be set either in `Driver Config` or `Task Config` or both.
+`auth` block can be set either in `Driver Config` or `Task Config` or both.
 If set at both places, `Task Config` auth will take precedence over `Driver Config` auth.
 
 **NOTE**: In the below example, `user` and `pass` are just placeholder values which need to be
 replaced by actual `username` and `password`, when specifying the credentials. Below `auth`
-stanza can be used for both `Driver Config` and `Task Config`.
+block can be used for both `Driver Config` and `Task Config`.
 
 ```hcl
 auth {
@@ -409,9 +409,9 @@ Please note the plugin name should match whatever name you have specified for
 the external driver in the [plugin_dir][plugin_dir] directory.
 
 [nomad-driver-containerd]: https://github.com/Roblox/nomad-driver-containerd
-[nomad-init]: /docs/commands/job/init
-[plugin]: /docs/configuration/plugin
-[plugin_dir]: /docs/configuration#plugin_dir
+[nomad-init]: /nomad/docs/commands/job/init
+[plugin]: /nomad/docs/configuration/plugin
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
 [plugin-options]: #plugin_options
 [authentication]: #authentication
 [host-network]: #host_network
@@ -419,6 +419,6 @@ the external driver in the [plugin_dir][plugin_dir] directory.
 [moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
 [docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
 [allowed syscalls]: https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390
-[`network`]: /docs/job-specification/network
-[`service`]: /docs/job-specification/service
+[`network`]: /nomad/docs/job-specification/network
+[`service`]: /nomad/docs/job-specification/service
 [releases]: https://github.com/Roblox/nomad-driver-containerd/releases/

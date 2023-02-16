@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: job Stanza - Job Specification
+page_title: job Block - Job Specification
 description: |-
-  The "job" stanza is the top-most configuration option in the job
+  The "job" block is the top-most configuration option in the job
   specification. A job is a declarative specification of tasks that Nomad
   should run.
 ---
 
-# `job` Stanza
+# `job` Block
 
 <Placement groups={['job']} />
 
-The `job` stanza is the top-most configuration option in the job specification.
+The `job` block is the top-most configuration option in the job specification.
 A job is a declarative specification of tasks that Nomad should run. Jobs have
 one or more task groups, which are themselves collections of one or more tasks.
 Job names are unique per [region][region] or [namespace][namespace].
@@ -76,8 +76,10 @@ job "docs" {
   to define criteria for spreading allocations across a node attribute or metadata.
   See the [Nomad spread reference][spread] for more details.
 
-- `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
-  for task placement. This must be provided, and does not have a default.
+- `datacenters` `(array<string>: ["*"])` - A list of datacenters in the region
+  which are eligible for task placement. This field allows wildcard globbing
+  through the use of `*` for multi-character matching. The default value is
+  `["*"]`, which allows the job to be placed in any available datacenter.
 
 - `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
@@ -91,7 +93,7 @@ job "docs" {
 
 - `migrate` <code>([Migrate][]: nil)</code> - Specifies the groups strategy for
   migrating off of draining nodes. If omitted, a default migration strategy is
-  applied. Only service jobs with a count greater than 1 support migrate stanzas.
+  applied. Only service jobs with a count greater than 1 support migrate blocks.
 
 - `namespace` `(string: "default")` - The namespace in which to execute the job.
   Prior to Nomad 1.0 namespaces were Enterprise-only.
@@ -126,7 +128,7 @@ job "docs" {
 
 - `vault_token` `(string: "")` - Specifies the Vault token that proves the
   submitter of the job has access to the specified policies in the
-  [`vault`][vault] stanza. This field is only used to transfer the token and is
+  [`vault`][vault] block. This field is only used to transfer the token and is
   not stored after job submission.
 
   !> It is **strongly discouraged** to place the token as a configuration
@@ -146,8 +148,8 @@ job "docs" {
 
 ## `job` Examples
 
-The following examples only show the `job` stanzas. Remember that the
-`job` stanza is only valid in the placements listed above.
+The following examples only show the `job` blocks. Remember that the
+`job` block is only valid in the placements listed above.
 
 ### Docker Container
 
@@ -237,21 +239,21 @@ job "docs" {
 When submitting this job, you would run:
 
 ```shell-session
-$ VAULT_TOKEN="..." nomad job run example.nomad
+$ VAULT_TOKEN="..." nomad job run example.nomad.hcl
 ```
 
-[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
-[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
-[group]: /docs/job-specification/group 'Nomad group Job Specification'
-[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
-[migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
-[namespace]: https://learn.hashicorp.com/tutorials/nomad/namespaces
-[parameterized]: /docs/job-specification/parameterized 'Nomad parameterized Job Specification'
-[periodic]: /docs/job-specification/periodic 'Nomad periodic Job Specification'
-[region]: https://learn.hashicorp.com/tutorials/nomad/federation
-[reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
-[scheduler]: /docs/schedulers 'Nomad Scheduler Types'
-[spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[update]: /docs/job-specification/update 'Nomad update Job Specification'
-[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
+[affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
+[constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
+[group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
+[meta]: /nomad/docs/job-specification/meta 'Nomad meta Job Specification'
+[migrate]: /nomad/docs/job-specification/migrate 'Nomad migrate Job Specification'
+[namespace]: /nomad/tutorials/manage-clusters/namespaces
+[parameterized]: /nomad/docs/job-specification/parameterized 'Nomad parameterized Job Specification'
+[periodic]: /nomad/docs/job-specification/periodic 'Nomad periodic Job Specification'
+[region]: /nomad/tutorials/manage-clusters/federation
+[reschedule]: /nomad/docs/job-specification/reschedule 'Nomad reschedule Job Specification'
+[scheduler]: /nomad/docs/schedulers 'Nomad Scheduler Types'
+[spread]: /nomad/docs/job-specification/spread 'Nomad spread Job Specification'
+[task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
+[update]: /nomad/docs/job-specification/update 'Nomad update Job Specification'
+[vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'

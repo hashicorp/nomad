@@ -95,7 +95,7 @@ func TestClient_RPC(t *testing.T) {
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
 		var out struct{}
-		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		err := c1.RPC("Status.Ping", &structs.GenericRequest{}, &out)
 		return err == nil, err
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -118,7 +118,7 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
 		var out struct{}
-		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		err := c1.RPC("Status.Ping", &structs.GenericRequest{}, &out)
 		return err == nil, err
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -145,7 +145,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
 		var out struct{}
-		err := c1.RPC("Status.Ping", struct{}{}, &out)
+		err := c1.RPC("Status.Ping", &structs.GenericRequest{}, &out)
 		return err == nil, err
 	}, func(err error) {
 		t.Fatalf("err: %v", err)

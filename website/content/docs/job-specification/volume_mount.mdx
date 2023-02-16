@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: volume_mount Stanza - Job Specification
+page_title: volume_mount Block - Job Specification
 description: |-
-  The "volume_mount" stanza allows the task to specify where a group "volume"
+  The "volume_mount" block allows the task to specify where a group "volume"
   should be mounted.
 ---
 
-# `volume_mount` Stanza
+# `volume_mount` Block
 
 <Placement groups={['job', 'group', 'task', 'volume_mount']} />
 
-The `volume_mount` stanza allows the task to specify how a group
+The `volume_mount` block allows the task to specify how a group
 [`volume`][volume] should be mounted into the task.
 
 ```hcl
@@ -26,6 +26,7 @@ job "docs" {
       volume_mount {
         volume      = "certs"
         destination = "/etc/ssl/certs"
+        propagation_mode = "private"
       }
     }
   }
@@ -48,9 +49,24 @@ updates to remove a volume that it depends on.
   specify that it is `read_only` on a per mount level using the `read_only`
   option here.
 
+- `propagation_mode` `(string: "private")` - Specifies the mount propagation
+  mode for nested volumes. Possible values are:
+
+    - `private` - the task is not allowed to access nested mounts.
+
+    - `host-to-task` - allows new mounts that have been created outside of the
+    task to be visible inside the task.
+
+    - `bidirectional` - allows the task to both access new mounts from the host
+    and also create new mounts. This mode requires `ReadWrite` permission.
+
+    ~> **Warning:** `bidirectional` propagation mode can be dangerous to use
+    and cause problems in the host operating system if a task creates a mount
+    but does not clean it up properly before exiting.
+
 For examples of how to use [HCL2] interpolation for fine-grained control of
 volumes, see [Volume Interpolation].
 
-[volume]: /docs/job-specification/volume 'Nomad volume Job Specification'
-[volume interpolation]: /docs/job-specification/volume#volume-interpolation
-[hcl2]: /docs/job-specification/hcl2
+[volume]: /nomad/docs/job-specification/volume 'Nomad volume Job Specification'
+[volume interpolation]: /nomad/docs/job-specification/volume#volume-interpolation
+[hcl2]: /nomad/docs/job-specification/hcl2

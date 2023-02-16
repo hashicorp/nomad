@@ -46,7 +46,7 @@ module('Acceptance | task logs', function (hooks) {
       'No redirect'
     );
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
-    assert.equal(document.title, `Task ${task.name} logs - Nomad`);
+    assert.equal(document.title, `Task ${task.name} logs - Mirage - Nomad`);
   });
 
   test('the stdout log immediately starts streaming', async function (assert) {
@@ -85,7 +85,10 @@ module('Acceptance | task logs', function (hooks) {
       .dom('.task-context-sidebar h1.title')
       .includesText(task.state, 'Task state is correctly displayed');
     await percySnapshot(assert, {
-      percyCSS: '.allocation-row td { display: none; }',
+      percyCSS: `
+        .allocation-row td { display: none; }
+        .task-events table td:nth-child(1) { color: transparent; }
+      `,
     });
 
     await click('.sidebar button.close');

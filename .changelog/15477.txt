@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where allocation cleanup hooks would not run
+```

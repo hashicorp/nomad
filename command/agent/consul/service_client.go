@@ -87,7 +87,7 @@ const (
 
 // Additional Consul ACLs required
 // - Consul Template: key:read
-//   Used in tasks with template stanza that use Consul keys.
+//   Used in tasks with template block that use Consul keys.
 
 // CatalogAPI is the consul/api.Catalog API used by Nomad.
 //
@@ -1120,8 +1120,8 @@ func (c *ServiceClient) serviceRegs(
 		Port:              port,
 		Meta:              meta,
 		TaggedAddresses:   taggedAddresses,
-		Connect:           connect, // will be nil if no Connect stanza
-		Proxy:             gateway, // will be nil if no Connect Gateway stanza
+		Connect:           connect, // will be nil if no Connect block
+		Proxy:             gateway, // will be nil if no Connect Gateway block
 		Checks:            make([]*api.AgentServiceCheck, 0, len(service.Checks)),
 	}
 	ops.regServices = append(ops.regServices, serviceReg)

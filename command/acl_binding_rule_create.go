@@ -53,11 +53,12 @@ Create Options:
 
   -bind-type
     Specifies adjusts how this binding rule is applied at login time to internal
-    Nomad objects. Valid options are "role" and "policy".
+    Nomad objects. Valid options are "role", "policy", or "management".
 
   -bind-name
     Specifies is the target of the binding used on selector match. This can be
-    lightly templated using HIL ${foo} syntax.
+    lightly templated using HIL ${foo} syntax. If the bind type is set to
+    "management", this should not be set.
 
   -json
     Output the ACL binding rule in a JSON format.
@@ -74,10 +75,14 @@ func (a *ACLBindingRuleCreateCommand) AutocompleteFlags() complete.Flags {
 			"-description": complete.PredictAnything,
 			"-auth-method": complete.PredictAnything,
 			"-selector":    complete.PredictAnything,
-			"-bind-type":   complete.PredictSet("role", "policy"),
-			"-bind-name":   complete.PredictAnything,
-			"-json":        complete.PredictNothing,
-			"-t":           complete.PredictAnything,
+			"-bind-type": complete.PredictSet(
+				api.ACLBindingRuleBindTypeRole,
+				api.ACLBindingRuleBindTypePolicy,
+				api.ACLBindingRuleBindTypeManagement,
+			),
+			"-bind-name": complete.PredictAnything,
+			"-json":      complete.PredictNothing,
+			"-t":         complete.PredictAnything,
 		})
 }
 
@@ -118,10 +123,6 @@ func (a *ACLBindingRuleCreateCommand) Run(args []string) int {
 	// to avoid sending API and RPC requests which will fail basic validation.
 	if a.authMethod == "" {
 		a.Ui.Error("ACL binding rule auth method must be specified using the -auth-method flag")
-		return 1
-	}
-	if a.bindName == "" {
-		a.Ui.Error("ACL binding rule bind name must be specified using the -bind-name flag")
 		return 1
 	}
 	if a.bindType == "" {

@@ -1,0 +1,162 @@
+---
+layout: docs
+page_title: Service Mesh
+description: |-
+  Learn about how service mesh works in Nomad to securely connect and isolate
+  your workloads.
+---
+
+# Service mesh
+
+Service mesh is a networking pattern that deploys and configures
+infrastructure to directly connect workloads. One of the most common pieces of
+infrastructure deployed are sidecar proxies. These proxies usually run
+alongside the main workload in an isolated network namespace such that all
+network traffic flows through the proxy.
+
+The proxies are often referred to as the **data plane** since they are
+responsible for _moving data_ while the components that configure them are part
+of the **control plane** because they are responsible for controlling the _flow
+of data_.
+
+By funneling traffic through a common layer of infrastructure the control plane
+is able to centralize and automatically apply configuration to all proxies to
+enable features such as automated traffic encryption, fine-grained routing, and
+service-based access control permissions throughout the entire mesh.
+
+## Consul Service Mesh
+
+Nomad has native integration with Consul to provide service mesh capabilities.
+The [`connect`][] block is the entrypoint for all service mesh configuration.
+Nomad automatically deploys a sidecar proxy task to all allocations that have a
+[`sidecar_service`][] block.
+
+This proxy task is responsible for exposing the service to the mesh and can
+also be used to access other services from within the allocation. These
+external services are called upstreams and are declared using the
+[`upstreams`][] block.
+
+The allocation `network_mode` must be set to `bridge` for network isolation and
+all external traffic is provided by the sidecar.
+
+~> **Warning:** To fully isolate your workloads make sure to bind them only to
+   the `loopback` interface.
+
+The job below exposes a service called `api` to the mesh:
+
+```hcl
+job "..."  {
+  # ...
+  group "..." {
+    network {
+      mode = "bridge"
+
+      port "http" {}
+    }
+
+    service {
+      name = "api"
+      port = "http"
+
+      connect {
+        sidecar_service {}
+      }
+    }
+    # ...
+  }
+}
+```
+
+To access this service, a job can be configured as follows:
+
+```hcl
+job "..." {
+  # ...
+  group "..." {
+    network {
+      mode = "bridge"
+      # ...
+    }
+
+    service {
+      # ...
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "api"
+              local_bind_port  = 8080
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+A request starting from a task within an allocation of this job follows the
+path:
+
+1. The task makes a request to `localhost:8080` which is the port where the
+   proxy binds the `api` service as an upstream.
+
+2. The proxy, configured by Consul, forwards the request to a proxy running
+   within an allocation that is part of the `api` service.
+
+3. The proxy for the `api` service forwards the request to the local port in
+   the allocation.
+
+4. The response is sent back to the first task following the same path in
+   reverse.
+
+The IP and port to use to connect to an upstream can also be read from the
+[`NOMAD_UPSTREAM_ADDR_<upstream>`][runtime_network] environment variable.
+
+### Envoy proxy
+
+Consul Service Mesh uses [Envoy][] as proxy. Nomad calls Consul's [`consul
+connect envoy -bootstrap`][consul_cli_envoy] CLI command to generate the
+initial proxy configuration.
+
+Nomad injects a prestart sidecar Docker task to run the Envoy proxy. This task
+can be customized using the [`sidecar_task`][] block.
+
+### Gateways
+
+Since the mesh defines a closed boundary that only selected services can
+participate in, there are specialized proxies called gateways that can be used
+for mesh-wide connectivity. Nomad can deploy these gateways using the
+[`gateway`][] block. Nomad injects an Envoy proxy task to any `group` with a
+`gateway` service.
+
+The types of gateways provided by Consul Service Mesh are:
+
+- **Mesh gateways** allow communication between different service meshes and
+  are deployed using the [`mesh`][] parameter.
+
+- **Ingress gateways** allow services outside the mesh to connect to services
+  inside the mesh and are deployed using the [`ingress`][] parameter.
+
+- **Egress gateways** allow services inside the mesh to communication with
+  services outside the mesh and are deployed using the [`terminating`][]
+  parameter.
+
+
+## Additional Resources
+
+- [Consul Service Mesh documentation](/consul/docs/connect)
+- [Nomad Consul Service Mesh integration](/nomad/docs/integrations/consul-connect)
+
+[Envoy]: https://www.envoyproxy.io/
+[`connect`]: /nomad/docs/job-specification/connect
+[`gateway`]: /nomad/docs/job-specification/gateway
+[`ingress`]: /nomad/docs/job-specification/gateway#ingress
+[`mesh`]: /nomad/docs/job-specification/gateway#mesh
+[`proxy`]: /nomad/docs/job-specification/proxy
+[`sidecar_service`]: /nomad/docs/job-specification/sidecar_service
+[`sidecar_task`]: /nomad/docs/job-specification/sidecar_task
+[`terminating`]: /nomad/docs/job-specification/gateway#terminating
+[`upstreams`]: /nomad/docs/job-specification/upstreams
+[consul_cli_envoy]: /consul/commands/connect/envoy
+[runtime_network]: /nomad/docs/runtime/environment#network-related-variables

@@ -11,7 +11,7 @@ description: |-
 This section details the Nomad Autoscaler, a horizontal application and cluster
 autoscaler for Nomad. The Nomad Autoscaler is built and released separately to
 Nomad. It runs as a daemon process, often referred to as the [Autoscaler Agent][autoscaler_agent].
-An Autoscaler Agent is a separate and distinct process from a Nomad Agent. The 
+An Autoscaler Agent is a separate and distinct process from a Nomad Agent. The
 source code can be viewed on [GitHub][autoscaler_github] and releases are available
 on the [HashiCorp releases page][autoscaler_releases] or via [Docker Hub][autoscaler_dockerhub].
 
@@ -39,7 +39,7 @@ from a cluster to ensure there is an appropriate amount of cluster resource for
 the scheduled applications. This is achieved by interacting with remote providers
 to start or terminate new Nomad clients based on metrics such as the remaining
 free schedulable CPU or memory. Cluster scaling is enabled by configuring the
-[autoscaler agent](/tools/autoscaling/agent#dir) with policies targeting the Nomad
+[autoscaler agent](/nomad/tools/autoscaling/agent#dir) with policies targeting the Nomad
 cluster.
 
 ## Dynamic Application Sizing
@@ -57,14 +57,14 @@ using a number of different algorithms to ensure the recommendation best fits
 the application profile.
 
 Dynamic Application Sizing can be enabled on an individual task by configuring
-[autoscaling policies][autoscaling_policy] within the task stanza using the job
+[autoscaling policies][autoscaling_policy] within the task block using the job
 specification [`scaling` block][scaling_block].
 
-[scaling_block]: /docs/job-specification/scaling#scaling-stanza
-[autoscaling_policy]: /tools/autoscaling/policy
+[scaling_block]: /nomad/docs/job-specification/scaling#scaling-block
+[autoscaling_policy]: /nomad/tools/autoscaling/policy
 [autoscaler_github]: https://github.com/hashicorp/nomad-autoscaler
 [autoscaler_releases]: https://releases.hashicorp.com/nomad-autoscaler/
 [autoscaler_dockerhub]: https://hub.docker.com/r/hashicorp/nomad-autoscaler
 [autoscaler_demo]: https://github.com/hashicorp/nomad-autoscaler-demos
 [autoscaler_config]: https://github.com/hashicorp/nomad-autoscaler-demos/blob/1ecd9f32c749f1faaf4154b8a7e57fa68642fd33/cloud/demos/on-demand-batch/aws/jobs/autoscaler.nomad.tpl#L20
-[autoscaler_agent]: /tools/autoscaling/agent
+[autoscaler_agent]: /nomad/tools/autoscaling/agent

@@ -10,45 +10,63 @@ Nomad is available as a pre-compiled binary or as a package for several
 operating systems. You can also [build Nomad from source](#from-source).
 
 -> If you are interested in trialing Nomad without installing it locally, see the
-[Quickstart](/docs/install/quickstart) for options to get started with Nomad.
+[Quickstart](/nomad/docs/install/quickstart) for options to get started with Nomad.
 
 <Tabs>
-<Tab heading="Manual installation">
+<Tab heading="Manual installation" group="manual">
 
-You can download a [precompiled binary](/downloads) and
+You can download a [precompiled binary](/nomad/downloads) and
 run it on your machine locally. You can also verify the binary using the
 available SHA-256 sums. After downloading Nomad, unzip the package. Make sure
 that the `nomad` binary is available on your `PATH` before continuing with the
 other guides.
 
-You can check the locations available on your path by running this command.
+</Tab>
+<Tab heading="Homebrew on macOS" group="homebrew">
+
+[Homebrew](https://brew.sh) is a free and open source package management system
+for Mac OS X. Install the official [Nomad
+formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
+
+First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
+packages.
 
 ```shell-session
-$ echo $PATH
-
-/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+$ brew tap hashicorp/tap
 ```
 
-The output is a list of locations separated by colons. You can make Nomad
-available by moving the binary to one of the listed locations, or by adding
-Nomad's location to your `PATH`.
+Now, install Nomad with `hashicorp/tap/nomad`.
 
--> **Tip (Linux-based or Mac):** Permanently add a new location to your path by
-editing your shell's settings file (usually called something like `~/.bashrc`,
-where the part of the file name after the `.` and before `rc` is the name of
-your shell). In that file you will see a line that starts with `export PATH=`,
-followed by a colon-separated list of locations. Add the location of the Nomad
-binary to that list and save the file. Then reload your shell's configuration
-with the command `source ~/.bashrc`, replacing `bash` with the name of your
-shell.
+```shell-session
+$ brew install hashicorp/tap/nomad
+```
 
--> **Tip (Windows):** Add a location to your path via the GUI by navigating to
-`Environment Variables` in your system settings, and looking for the variable
-called `PATH`. You will see a semicolon-separated list of locations. Add the
-Nomad binary's location to that list and then launch a new console window.
+~> **NOTE:** This installs a signed binary and is automatically updated with
+every new official release.
+
+To update to the latest, run
+
+```shell-session
+$ brew upgrade hashicorp/tap/nomad
+```
 
 </Tab>
-<Tab heading="Linux Packages">
+<Tab heading="Chocolatey on Windows" group="chocolatey">
+
+[Chocolatey](https://chocolatey.org/) is a free and open-source package
+management system for Windows. Install the [Nomad
+package](https://chocolatey.org/packages/nomad) from the command-line.
+
+```shell-session
+$ choco install nomad
+```
+
+~> **NOTE:** Chocolatey and the Nomad package are **NOT** directly maintained
+by HashiCorp. The latest version of Nomad is always available by manual
+installation.
+
+</Tab>
+<Tab heading="Linux Packages" group="linux">
 
 HashiCorp officially maintains and signs packages for the following Linux
 distributions.
@@ -141,57 +159,148 @@ $ sudo yum -y install nomad
 </Tabs>
 
 -> **TIP:** Now that you have added the HashiCorp repository, you can install
-[Consul](https://learn.hashicorp.com/consul) and
-[Vault](https://learn.hashicorp.com/vault) with the same command.
-
-</Tab>
-<Tab heading="Homebrew (macOS)">
-
-[Homebrew](https://brew.sh) is a free and open source package management system
-for Mac OS X. Install the official [Nomad
-formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
-
-First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
-packages.
-
-```shell-session
-$ brew tap hashicorp/tap
-```
-
-Now, install Nomad with `hashicorp/tap/nomad`.
-
-```shell-session
-$ brew install hashicorp/tap/nomad
-```
-
-~> **NOTE:** This installs a signed binary and is automatically updated with
-every new official release.
-
-To update to the latest, run
-
-```shell-session
-$ brew upgrade hashicorp/tap/nomad
-```
-
-</Tab>
-<Tab heading="Chocolatey (Windows)">
-
-[Chocolatey](https://chocolatey.org/) is a free and open-source package
-management system for Windows. Install the [Nomad
-package](https://chocolatey.org/packages/nomad) from the command-line.
-
-```shell-session
-$ choco install nomad
-```
-
-~> **NOTE:** Chocolatey and the Nomad package are **NOT** directly maintained
-by HashiCorp. The latest version of Nomad is always available by manual
-installation.
+[Consul](/consul/tutorials) and
+[Vault](/vault/tutorials) with the same command.
 
 </Tab>
 </Tabs>
 
----
+## Post-installation steps
+
+These steps are considered optional but can be helpful for running Nomad and to
+take advantage of additional Nomad functionalities.
+
+<Tabs>
+<Tab heading="Manual installation" group="manual">
+
+<Tabs>
+<Tab heading="Linux Packages">
+<h3>Add the Nomad binary to your system path</h3>
+
+Permanently add a new location to your path by editing your shell's settings
+file (usually called something like `~/.bashrc`, where the part of the filename
+after the `.` and before `rc` is the name of your shell). In that file you
+should see a line that starts with `export PATH=`, followed by a
+colon-separated list of locations. Add the location of the Nomad binary to that
+list and save the file. Then reload your shell's configuration with the command
+`source ~/.bashrc`, replacing `bash` with the name of your shell.
+
+<h3>Install CNI plugins</h3>
+
+Nomad uses CNI plugins to configure network namespaces when using the `bridge`
+network mode. All Linux Nomad client nodes using network namespaces must have
+CNI plugins installed.
+
+The following commands install the CNI reference plugins.
+
+```shell-session
+$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz && \
+  sudo mkdir -p /opt/cni/bin && \
+  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
+
+Ensure your Linux operating system distribution has been configured to allow
+container traffic through the bridge network to be routed via iptables. These
+tunables can be set as follows.
+
+```shell-session
+$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file including the
+following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
+that directory.
+
+<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
+
+```ini
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
+
+</CodeBlockConfig>
+</Tab>
+
+<Tab heading="macOS">
+<h3>Add the Nomad binary to your system path</h3>
+
+Permanently add a new location to your path by editing your shell's settings
+file (usually called something like `~/.bashrc`, where the part of the filename
+after the `.` and before `rc` is the name of your shell). In that file you
+should see a line that starts with `export PATH=`, followed by a
+colon-separated list of locations. Add the location of the Nomad binary to that
+list and save the file. Then reload your shell's configuration with the command
+`source ~/.bashrc`, replacing `bash` with the name of your shell.
+</Tab>
+
+<Tab heading="Windows">
+
+<h3>Add the Nomad binary to your system path</h3>
+
+Add a location to your path via the GUI by navigating to `Environment
+Variables` in your system settings, and looking for the variable called `PATH`.
+You should see a semicolon-separated list of locations. Add the Nomad binary's
+location to that list and then launch a new console window.
+</Tab>
+</Tabs>
+</Tab>
+
+<Tab heading="Homebrew on macOS" group="homebrew">
+No additional steps necessary after installing Nomad using Homebrew.
+</Tab>
+
+<Tab heading="Chocolatey on Windows" group="chocolatey">
+No additional steps necessary after installing Nomad using Chocolatey.
+</Tab>
+
+<Tab heading="Linux" group="linux">
+
+Note that if you are running Nomad on Linux, you'll need to run client agents as
+root (or with `sudo`) so that cpuset accounting and network namespaces work
+correctly.
+
+<h3>Install CNI plugins</h3>
+
+Nomad uses CNI plugins to configure network namespaces when using the `bridge`
+network mode. All Linux Nomad client nodes using network namespaces must have
+CNI plugins installed.
+
+The following commands install the CNI reference plugins.
+
+```shell-session
+$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz && \
+  sudo mkdir -p /opt/cni/bin && \
+  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
+
+Ensure your Linux operating system distribution has been configured to allow
+container traffic through the bridge network to be routed via iptables. These
+tunables can be set as follows.
+
+```shell-session
+$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a client node, add a file including the
+following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
+that directory.
+
+<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
+
+```ini
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+```
+
+</CodeBlockConfig>
+</Tab>
+</Tabs>
 
 ## Verify the Installation
 
@@ -216,29 +325,42 @@ Common commands:
     agent       Runs a Nomad agent
 
 Other commands:
-    acl             Interact with ACL policies and tokens
-    agent-info      Display status information about the local agent
-    deployment      Interact with deployments
-    eval            Interact with evaluations
-    exec            Execute commands in task
-    monitor         Stream logs from a Nomad agent
-    namespace       Interact with namespaces
-    operator        Provides cluster-level tools for Nomad operators
-    quota           Interact with quotas
-    sentinel        Interact with Sentinel policies
-    server          Interact with servers
-    system          Interact with the system API
-    ui              Open the Nomad Web UI
-    version         Prints the Nomad version
+    acl                 Interact with ACL policies and tokens
+    agent-info          Display status information about the local agent
+    config              Interact with configurations
+    deployment          Interact with deployments
+    eval                Interact with evaluations
+    exec                Execute commands in task
+    fmt                 Rewrites Nomad config and job files to canonical format
+    license             Interact with Nomad Enterprise License
+    login               Login to Nomad using an auth method
+    monitor             Stream logs from a Nomad agent
+    namespace           Interact with namespaces
+    operator            Provides cluster-level tools for Nomad operators
+    plugin              Inspect plugins
+    quota               Interact with quotas
+    recommendation      Interact with the Nomad recommendation endpoint
+    scaling             Interact with the Nomad scaling endpoint
+    sentinel            Interact with Sentinel policies
+    server              Interact with servers
+    service             Interact with registered services
+    system              Interact with the system API
+    tls                 Generate Self Signed TLS Certificates for Nomad
+    ui                  Open the Nomad Web UI
+    var                 Interact with variables
+    version             Prints the Nomad version
+    volume              Interact with volumes
 ```
 
 ---
 
 ## Compiling from Source ((#from-source))
 
-To compile from source, you will need [Go](https://golang.org) installed and
-configured properly (including a `GOPATH` environment variable set), as well
-as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
+To compile from source, you will need [Go](https://golang.org) installed at the
+version described by the [.go-version][go-version] file. You should properly
+configure your Go environment, including setting a `GOPATH` environment variable
+and ensuring `GOPATH/bin` is within your `PATH`. A copy of
+[`git`](https://www.git-scm.com/) is also needed in your `PATH`.
 
 1. Clone the Nomad repository from GitHub into your `GOPATH`:
 
@@ -264,12 +386,13 @@ as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
    $ make dev
    ```
 
-[consul-dev]: https://learn.hashicorp.com/consul/getting-started/agent#starting-the-agent
+[consul-dev]: /consul/tutorials/certification-associate-tutorials/get-started-agent#start-the-agent
 
-[consul-download]: https://developer.hashicorp.com/consul/downloads
+[consul-download]: /consul/downloads
 
-[destroy]: https://www.vagrantup.com/docs/cli/destroy
+[destroy]: /vagrant/docs/cli/destroy
 
 [gh-7865]: https://github.com/hashicorp/nomad/issues/7865
 
 [gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
+[go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version

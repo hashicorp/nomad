@@ -5,7 +5,7 @@ description: |-
   The "check" block declares service check definition for a service registered into the Nomad or Consul service provider.
 ---
 
-# `check` Stanza
+# `check` Block
 
 <Placement
   groups={[
@@ -63,7 +63,7 @@ job "example" {
 - `args` `(array<string>: [])` - Specifies additional arguments to the
   `command`. This only applies to script-based health checks.
 
-- `check_restart` - See [`check_restart` stanza][check_restart_stanza].
+- `check_restart` - See [`check_restart` block][check_restart_block].
 
 - `command` `(string: <varies>)` - Specifies the command to run for performing
   the health check. The script must exit: 0 for passing, 1 for warning, or any
@@ -112,18 +112,18 @@ job "example" {
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   will be queried to observe the health of a service. Nomad will automatically
   add the IP of the service and the port, so this is just the relative URL to
-  the health check endpoint. This is required for http-based health checks.
+  the health check endpoint. This is required for HTTP-based health checks.
 
-- `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
+- `expose` `(bool: false)` - Specifies whether an [Expose Path](/nomad/docs/job-specification/expose#path-parameters)
   should be automatically generated for this check. Only compatible with
   Connect-enabled task-group services using the default Connect proxy. If set, check
-  [`type`][type] must be `http` or `grpc`, and check `name` must be set.
+  [`type`](#type) must be `http` or `grpc`, and check `name` must be set.
   Only supported in the Consul service provider.
 
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
   number unless `address_mode = driver`. The port label must match one defined
-  in the [`network`][network] stanza. If a port value was declared on the
+  in the [`network`][network] block. If a port value was declared on the
   `service`, this will inherit from that value if not supplied. If supplied,
   this value takes precedence over the `service.port` value. This is useful for
   services which operate on multiple ports. `grpc`, `http`, and `tcp` checks
@@ -131,14 +131,14 @@ job "example" {
   ports by default. In Nomad 0.7.1 or later numeric ports may be used if
   `address_mode="driver"` is set on the check.
 
-- `protocol` `(string: "http")` - Specifies the protocol for the http-based
+- `protocol` `(string: "http")` - Specifies the protocol for the HTTP-based
   health checks. Valid options are `http` and `https`.
 
 - `task` `(string: "")` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
-  `check_restart` stanzas will apply to the specified task. Inherits
+  `check_restart` blocks will apply to the specified task. Inherits
   the [`service.task`][service_task] value if not set. Must be unset
-  or equivelent to `service.task` in task-level services.
+  or equivalent to `service.task` in task-level services.
 
 - `timeout` `(string: <required>)` - Specifies how long to wait for a health check
   query to succeed. This is specified using a label suffix like "30s" or "1h". This
@@ -177,14 +177,14 @@ job "example" {
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  [`check_restart`][check_restart_block] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
   `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
   be omitted entirely.
 
-#### `header` Stanza
+#### `header` Block
 
-HTTP checks may include a `header` stanza to set HTTP headers. The `header`
-stanza parameters have lists of strings as values. Multiple values will cause
+HTTP checks may include a `header` block to set HTTP headers. The `header`
+block parameters have lists of strings as values. Multiple values will cause
 the header to be set multiple times, once for each value.
 
 ```hcl
@@ -285,7 +285,7 @@ service {
 ```
 
 In this example Consul would health check the `example.Service` service on the
-`rpc` port defined in the task's [network resources][network] stanza. See
+`rpc` port defined in the task's [network resources][network] block. See
 [Using Driver Address Mode](#using-driver-address-mode) for details on address
 selection.
 
@@ -328,7 +328,7 @@ check {
 }
 ```
 
-### Healthiness vs. Readiness Checks
+### Healthiness versus Readiness Checks
 
 Multiple checks for a service can be composed to create healthiness and readiness
 checks by configuring [`on_update`][on_update] for the check.
@@ -369,11 +369,13 @@ For checks registered into the Nomad service provider, the status information of
 checks can be viewed per-allocation. The `alloc status` command now includes
 summary information for Nomad service checks.
 
-```
-➜ nomad alloc status <allocation-id>
+```shell-session
+$ nomad alloc status <allocation-id>
 ```
 
-```
+<CodeBlockConfig hideClipboard>
+
+```plaintext
 Nomad Service Checks:
 Service   Task     Name          Mode         Status
 database  task     db_tcp_probe  readiness    success
@@ -381,14 +383,18 @@ web       (group)  healthz       healthiness  failure
 web       (group)  index-page    healthiness  success
 ```
 
+</CodeBlockConfig>
+
 The `alloc checks` command can be used for viewing complete check status information
 for all checks in an allocation.
 
-```
-➜ noamd alloc checks <allocation-id>
+```shell-session
+$ nomad alloc checks <allocation-id>
 ```
 
-```
+<CodeBlockConfig hideClipboard>
+
+```plaintext
 Status of 3 Nomad Service Checks
 
 ID         =  d8651d93a50b9e28375a7beb9418c418
@@ -423,6 +429,8 @@ Timestamp  =  2022-08-22T10:41:23-05:00
 Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection refused
 ```
 
+</CodeBlockConfig>
+
 ---
 
 <sup>
@@ -434,9 +442,9 @@ Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection re
   does not have access to the file system of a task for that driver.
 </small>
 
-[check_restart_stanza]: /docs/job-specification/check_restart
-[consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[service]: /docs/job-specification/service
-[service_task]: /docs/job-specification/service#task-1
-[on_update]: /docs/job-specification/service#on_update
+[check_restart_block]: /nomad/docs/job-specification/check_restart
+[consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
+[network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
+[service]: /nomad/docs/job-specification/service
+[service_task]: /nomad/docs/job-specification/service#task-1
+[on_update]: /nomad/docs/job-specification/service#on_update

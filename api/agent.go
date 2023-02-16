@@ -125,7 +125,7 @@ func (a *Agent) Join(addrs ...string) (int, error) {
 
 	// Send the join request
 	var resp joinResponse
-	_, err := a.client.write("/v1/agent/join?"+v.Encode(), nil, &resp, nil)
+	_, err := a.client.put("/v1/agent/join?"+v.Encode(), nil, &resp, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed joining: %s", err)
 	}
@@ -160,7 +160,7 @@ func (a *Agent) MembersOpts(opts *QueryOptions) (*ServerMembers, error) {
 
 // ForceLeave is used to eject an existing node from the cluster.
 func (a *Agent) ForceLeave(node string) error {
-	_, err := a.client.write("/v1/agent/force-leave?node="+node, nil, nil, nil)
+	_, err := a.client.put("/v1/agent/force-leave?node="+node, nil, nil, nil)
 	return err
 }
 
@@ -182,7 +182,7 @@ func (a *Agent) SetServers(addrs []string) error {
 		v.Add("address", addr)
 	}
 
-	_, err := a.client.write("/v1/agent/servers?"+v.Encode(), nil, nil, nil)
+	_, err := a.client.put("/v1/agent/servers?"+v.Encode(), nil, nil, nil)
 	return err
 }
 
@@ -202,7 +202,7 @@ func (a *Agent) InstallKey(key string) (*KeyringResponse, error) {
 		Key: key,
 	}
 	var resp KeyringResponse
-	_, err := a.client.write("/v1/agent/keyring/install", &args, &resp, nil)
+	_, err := a.client.put("/v1/agent/keyring/install", &args, &resp, nil)
 	return &resp, err
 }
 
@@ -212,7 +212,7 @@ func (a *Agent) UseKey(key string) (*KeyringResponse, error) {
 		Key: key,
 	}
 	var resp KeyringResponse
-	_, err := a.client.write("/v1/agent/keyring/use", &args, &resp, nil)
+	_, err := a.client.put("/v1/agent/keyring/use", &args, &resp, nil)
 	return &resp, err
 }
 
@@ -222,7 +222,7 @@ func (a *Agent) RemoveKey(key string) (*KeyringResponse, error) {
 		Key: key,
 	}
 	var resp KeyringResponse
-	_, err := a.client.write("/v1/agent/keyring/remove", &args, &resp, nil)
+	_, err := a.client.put("/v1/agent/keyring/remove", &args, &resp, nil)
 	return &resp, err
 }
 
@@ -511,7 +511,7 @@ func (a *Agent) SetSchedulerWorkerConfig(args SchedulerWorkerPoolArgs, q *WriteO
 	req := AgentSchedulerWorkerConfigRequest(args)
 	var resp AgentSchedulerWorkerConfigResponse
 
-	_, err := a.client.write("/v1/agent/schedulers/config", &req, &resp, q)
+	_, err := a.client.put("/v1/agent/schedulers/config", &req, &resp, q)
 	if err != nil {
 		return nil, err
 	}

@@ -65,10 +65,7 @@ export default class JobVersion extends Component {
         });
       } else {
         const job = this.get('version.job');
-
-        this.router.transitionTo('jobs.job', job.get('plainId'), {
-          queryParams: { namespace: job.get('namespace.name') },
-        });
+        this.router.transitionTo('jobs.job.index', job.get('idWithNamespace'));
       }
     } catch (e) {
       this.handleError({

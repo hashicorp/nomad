@@ -65,7 +65,7 @@ Ensure that Nomad can find the plugin, refer to [`plugin_dir`][plugin_dir].
 
 ## Capabilities
 
-The `podman` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `podman` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation          |
 | -------------------- | ----------------------- |
@@ -293,7 +293,7 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
 
 - `network_mode` - (Optional) Set the [network mode][network-mode] for the
   container. By default the task uses the network stack defined in the task
-  group [`network`][nomad_group_network] stanza. If the groups network behavior
+  group [`network`][nomad_group_network] block. If the groups network behavior
   is also undefined, it will fallback to `bridge` in rootful mode or
   `slirp4netns` for rootless containers.
 
@@ -358,15 +358,6 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
 - `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
   container.
 
-- `user` - (Optional) Run the command as a specific user/uid within the
-  container. Refer to [task configuration][task].
-
-  ```hcl
-  config {
-    user = "nobody"
-  }
-  ```
-
 - `volumes` - (Optional) A list of `host_path:container_path:options` strings
   to bind host paths to container paths. Named volumes are not supported.
 
@@ -398,6 +389,9 @@ The `podman` driver implements the following [capabilities](/docs/concepts/plugi
     }
   }
   ```
+
+Additionally, the Podman driver supports customization of the container's user
+through the task's [`user` option](/nomad/docs/job-specification/task#user).
 
 ## Network Configuration
 
@@ -447,7 +441,7 @@ closesly the idea of a `pod` by starting a `pause` task, named `pod` via a
 [`prestart`] sidecar hook.
 
 Next, the main workload, `server` is started and joins the network namespace by
-using the `network_mode = "task:pod"` stanza. Finally, Nomad starts the
+using the `network_mode = "task:pod"` block. Finally, Nomad starts the
 `poststart` sidecar `exporter` which also joins the network.
 
 Note that all ports must be defined on the `pod` level.
@@ -458,7 +452,7 @@ Reference [`examples/jobs/nats_group.nomad`].
 
 This example is very different. Both `server` and `exporter` join a network
 namespace which is created and managed by Nomad itself. Refer to Nomad's
-[`network`] stanza to get started with this generic approach.
+[`network`] block to get started with this generic approach.
 
 ## Plugin Options
 
@@ -479,7 +473,7 @@ configuration file.
   }
   ```
 
-- `gc` stanza:
+- `gc` block:
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits.
@@ -536,7 +530,7 @@ configuration file.
   }
   ```
 
-- `volumes` stanza:
+- `volumes` block:
 
   - `enabled` - Defaults to `true`. Allows tasks to bind host paths (volumes)
     inside their container.
@@ -556,27 +550,27 @@ configuration file.
   }
   ```
 
-[`count`]: /docs/job-specification/group#count
+[`count`]: /nomad/docs/job-specification/group#count
 [`disable_log_collection`]: #disable_log_collection
-[docker-ports]: /docs/drivers/docker#forwarding-and-exposing-ports
+[docker-ports]: /nomad/docs/drivers/docker#forwarding-and-exposing-ports
 [`examples/jobs/nats_group.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_group.nomad
 [`examples/jobs/nats_simple_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_simple_pod.nomad
 [`examples/jobs/nats_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_pod.nomad
 [homepage]: https://github.com/hashicorp/nomad-driver-podman
-[memory-value]: /docs/job-specification/resources#memory
-[`network`]: /docs/job-specification/network
-[nomad-init]: /docs/commands/job/init
-[nomad_download]: /downloads
-[nomad_driver_ports]: /docs/drivers/docker#forwarding-and-exposing-ports
-[nomad_group_network]: /docs/job-specification/group#network
-[nomad_lifecycle_hooks]: /docs/job-specification/lifecycle
-[plugin_dir]: /docs/configuration#plugin_dir
+[memory-value]: /nomad/docs/job-specification/resources#memory
+[`network`]: /nomad/docs/job-specification/network
+[nomad-init]: /nomad/docs/commands/job/init
+[nomad_download]: /nomad/downloads
+[nomad_driver_ports]: /nomad/docs/drivers/docker#forwarding-and-exposing-ports
+[nomad_group_network]: /nomad/docs/job-specification/group#network
+[nomad_lifecycle_hooks]: /nomad/docs/job-specification/lifecycle
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
 [podman]: https://podman.io/
 [podman-cli]: https://podman.io/whatis.html
-[`prestart`]: /docs/job-specification/lifecycle#prestart
+[`prestart`]: /nomad/docs/job-specification/lifecycle#prestart
 [releases]: https://releases.hashicorp.com/nomad-driver-podman
 [rootless_tutorial]: https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md
-[task]: /docs/job-specification/task#user
+[task]: /nomad/docs/job-specification/task#user
 [`network_mode`]: #network_mode
 [network-mode]: http://docs.podman.io/en/latest/markdown/podman-run.1.html#options
 [slirp-issue]: https://github.com/containers/libpod/issues/6097

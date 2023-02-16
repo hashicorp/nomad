@@ -5,31 +5,33 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestConsul_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
+
 	t.Run("missing ns", func(t *testing.T) {
 		c := new(Consul)
 		c.Canonicalize()
-		require.Empty(t, c.Namespace)
+		must.Eq(t, "", c.Namespace)
 	})
 
 	t.Run("complete", func(t *testing.T) {
 		c := &Consul{Namespace: "foo"}
 		c.Canonicalize()
-		require.Equal(t, "foo", c.Namespace)
+		must.Eq(t, "foo", c.Namespace)
 	})
 }
 
 func TestConsul_Copy(t *testing.T) {
 	testutil.Parallel(t)
+
 	t.Run("complete", func(t *testing.T) {
 		result := (&Consul{
 			Namespace: "foo",
 		}).Copy()
-		require.Equal(t, &Consul{
+		must.Eq(t, &Consul{
 			Namespace: "foo",
 		}, result)
 	})
@@ -37,28 +39,29 @@ func TestConsul_Copy(t *testing.T) {
 
 func TestConsul_MergeNamespace(t *testing.T) {
 	testutil.Parallel(t)
+
 	t.Run("already set", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
 		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
-		require.Equal(t, "foo", a.Namespace)
-		require.Equal(t, "bar", *ns)
+		must.Eq(t, "foo", a.Namespace)
+		must.Eq(t, "bar", *ns)
 	})
 
 	t.Run("inherit", func(t *testing.T) {
 		a := &Consul{Namespace: ""}
 		ns := pointerOf("bar")
 		a.MergeNamespace(ns)
-		require.Equal(t, "bar", a.Namespace)
-		require.Equal(t, "bar", *ns)
+		must.Eq(t, "bar", a.Namespace)
+		must.Eq(t, "bar", *ns)
 	})
 
 	t.Run("parent is nil", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
 		ns := (*string)(nil)
 		a.MergeNamespace(ns)
-		require.Equal(t, "foo", a.Namespace)
-		require.Nil(t, ns)
+		must.Eq(t, "foo", a.Namespace)
+		must.Nil(t, ns)
 	})
 }
 
@@ -68,15 +71,15 @@ func TestConsulConnect_Canonicalize(t *testing.T) {
 	t.Run("nil connect", func(t *testing.T) {
 		cc := (*ConsulConnect)(nil)
 		cc.Canonicalize()
-		require.Nil(t, cc)
+		must.Nil(t, cc)
 	})
 
 	t.Run("empty connect", func(t *testing.T) {
 		cc := new(ConsulConnect)
 		cc.Canonicalize()
-		require.Empty(t, cc.Native)
-		require.Nil(t, cc.SidecarService)
-		require.Nil(t, cc.SidecarTask)
+		must.False(t, cc.Native)
+		must.Nil(t, cc.SidecarService)
+		must.Nil(t, cc.SidecarTask)
 	})
 }
 
@@ -86,14 +89,14 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 	t.Run("nil sidecar_service", func(t *testing.T) {
 		css := (*ConsulSidecarService)(nil)
 		css.Canonicalize()
-		require.Nil(t, css)
+		must.Nil(t, css)
 	})
 
 	t.Run("empty sidecar_service", func(t *testing.T) {
 		css := new(ConsulSidecarService)
 		css.Canonicalize()
-		require.Empty(t, css.Tags)
-		require.Nil(t, css.Proxy)
+		must.SliceEmpty(t, css.Tags)
+		must.Nil(t, css.Proxy)
 	})
 
 	t.Run("non-empty sidecar_service", func(t *testing.T) {
@@ -106,7 +109,7 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 			},
 		}
 		css.Canonicalize()
-		require.Equal(t, &ConsulSidecarService{
+		must.Eq(t, &ConsulSidecarService{
 			Tags: nil,
 			Port: "port",
 			Proxy: &ConsulProxy{
@@ -122,33 +125,33 @@ func TestConsulProxy_Canonicalize(t *testing.T) {
 	t.Run("nil proxy", func(t *testing.T) {
 		cp := (*ConsulProxy)(nil)
 		cp.Canonicalize()
-		require.Nil(t, cp)
+		must.Nil(t, cp)
 	})
 
 	t.Run("empty proxy", func(t *testing.T) {
 		cp := new(ConsulProxy)
 		cp.Canonicalize()
-		require.Empty(t, cp.LocalServiceAddress)
-		require.Zero(t, cp.LocalServicePort)
-		require.Nil(t, cp.ExposeConfig)
-		require.Nil(t, cp.Upstreams)
-		require.Empty(t, cp.Config)
+		must.Eq(t, "", cp.LocalServiceAddress)
+		must.Zero(t, cp.LocalServicePort)
+		must.Nil(t, cp.Expose)
+		must.Nil(t, cp.Upstreams)
+		must.MapEmpty(t, cp.Config)
 	})
 
 	t.Run("non empty proxy", func(t *testing.T) {
 		cp := &ConsulProxy{
 			LocalServiceAddress: "127.0.0.1",
 			LocalServicePort:    80,
-			ExposeConfig:        new(ConsulExposeConfig),
+			Expose:              new(ConsulExposeConfig),
 			Upstreams:           make([]*ConsulUpstream, 0),
 			Config:              make(map[string]interface{}),
 		}
 		cp.Canonicalize()
-		require.Equal(t, "127.0.0.1", cp.LocalServiceAddress)
-		require.Equal(t, 80, cp.LocalServicePort)
-		require.Equal(t, &ConsulExposeConfig{}, cp.ExposeConfig)
-		require.Nil(t, cp.Upstreams)
-		require.Nil(t, cp.Config)
+		must.Eq(t, "127.0.0.1", cp.LocalServiceAddress)
+		must.Eq(t, 80, cp.LocalServicePort)
+		must.Eq(t, &ConsulExposeConfig{}, cp.Expose)
+		must.Nil(t, cp.Upstreams)
+		must.Nil(t, cp.Config)
 	})
 }
 
@@ -158,7 +161,7 @@ func TestConsulUpstream_Copy(t *testing.T) {
 	t.Run("nil upstream", func(t *testing.T) {
 		cu := (*ConsulUpstream)(nil)
 		result := cu.Copy()
-		require.Nil(t, result)
+		must.Nil(t, result)
 	})
 
 	t.Run("complete upstream", func(t *testing.T) {
@@ -169,9 +172,10 @@ func TestConsulUpstream_Copy(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: "remote"},
+			Config:               map[string]any{"connect_timeout_ms": 5000},
 		}
 		result := cu.Copy()
-		require.Equal(t, cu, result)
+		must.Eq(t, cu, result)
 	})
 }
 
@@ -181,7 +185,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 	t.Run("nil upstream", func(t *testing.T) {
 		cu := (*ConsulUpstream)(nil)
 		cu.Canonicalize()
-		require.Nil(t, cu)
+		must.Nil(t, cu)
 	})
 
 	t.Run("complete", func(t *testing.T) {
@@ -192,15 +196,17 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
+			Config:               make(map[string]any),
 		}
 		cu.Canonicalize()
-		require.Equal(t, &ConsulUpstream{
+		must.Eq(t, &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
+			Config:               nil,
 		}, cu)
 	})
 }
@@ -211,19 +217,19 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 	t.Run("nil sidecar_task", func(t *testing.T) {
 		st := (*SidecarTask)(nil)
 		st.Canonicalize()
-		require.Nil(t, st)
+		must.Nil(t, st)
 	})
 
 	t.Run("empty sidecar_task", func(t *testing.T) {
 		st := new(SidecarTask)
 		st.Canonicalize()
-		require.Nil(t, st.Config)
-		require.Nil(t, st.Env)
-		require.Equal(t, DefaultResources(), st.Resources)
-		require.Equal(t, DefaultLogConfig(), st.LogConfig)
-		require.Nil(t, st.Meta)
-		require.Equal(t, 5*time.Second, *st.KillTimeout)
-		require.Equal(t, 0*time.Second, *st.ShutdownDelay)
+		must.Nil(t, st.Config)
+		must.Nil(t, st.Env)
+		must.Eq(t, DefaultResources(), st.Resources)
+		must.Eq(t, DefaultLogConfig(), st.LogConfig)
+		must.Nil(t, st.Meta)
+		must.Eq(t, 5*time.Second, *st.KillTimeout)
+		must.Eq(t, 0*time.Second, *st.ShutdownDelay)
 	})
 
 	t.Run("non empty sidecar_task resources", func(t *testing.T) {
@@ -233,7 +239,7 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 			Resources: &Resources{MemoryMB: pointerOf(333)},
 		}
 		st.Canonicalize()
-		require.Equal(t, exp, st.Resources)
+		must.Eq(t, exp, st.Resources)
 	})
 }
 
@@ -243,7 +249,7 @@ func TestConsulGateway_Canonicalize(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		cg := (*ConsulGateway)(nil)
 		cg.Canonicalize()
-		require.Nil(t, cg)
+		must.Nil(t, cg)
 	})
 
 	t.Run("set defaults", func(t *testing.T) {
@@ -263,13 +269,13 @@ func TestConsulGateway_Canonicalize(t *testing.T) {
 			},
 		}
 		cg.Canonicalize()
-		require.Equal(t, pointerOf(5*time.Second), cg.Proxy.ConnectTimeout)
-		require.True(t, cg.Proxy.EnvoyGatewayBindTaggedAddresses)
-		require.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
-		require.True(t, cg.Proxy.EnvoyGatewayNoDefaultBind)
-		require.Empty(t, cg.Proxy.EnvoyDNSDiscoveryType)
-		require.Nil(t, cg.Proxy.Config)
-		require.Nil(t, cg.Ingress.Listeners)
+		must.Eq(t, pointerOf(5*time.Second), cg.Proxy.ConnectTimeout)
+		must.True(t, cg.Proxy.EnvoyGatewayBindTaggedAddresses)
+		must.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
+		must.True(t, cg.Proxy.EnvoyGatewayNoDefaultBind)
+		must.Eq(t, "", cg.Proxy.EnvoyDNSDiscoveryType)
+		must.Nil(t, cg.Proxy.Config)
+		must.Nil(t, cg.Ingress.Listeners)
 	})
 }
 
@@ -278,7 +284,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 
 	t.Run("nil", func(t *testing.T) {
 		result := (*ConsulGateway)(nil).Copy()
-		require.Nil(t, result)
+		must.Nil(t, result)
 	})
 
 	gateway := &ConsulGateway{
@@ -320,7 +326,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 
 	t.Run("complete", func(t *testing.T) {
 		result := gateway.Copy()
-		require.Equal(t, gateway, result)
+		must.Eq(t, gateway, result)
 	})
 }
 
@@ -330,7 +336,7 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulIngressConfigEntry)(nil)
 		c.Canonicalize()
-		require.Nil(t, c)
+		must.Nil(t, c)
 	})
 
 	t.Run("empty fields", func(t *testing.T) {
@@ -339,8 +345,8 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 			Listeners: []*ConsulIngressListener{},
 		}
 		c.Canonicalize()
-		require.Nil(t, c.TLS)
-		require.Nil(t, c.Listeners)
+		must.Nil(t, c.TLS)
+		must.Nil(t, c.Listeners)
 	})
 
 	t.Run("complete", func(t *testing.T) {
@@ -356,7 +362,7 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 			}},
 		}
 		c.Canonicalize()
-		require.Equal(t, &ConsulIngressConfigEntry{
+		must.Eq(t, &ConsulIngressConfigEntry{
 			TLS: &ConsulGatewayTLSConfig{Enabled: true},
 			Listeners: []*ConsulIngressListener{{
 				Port:     9090,
@@ -375,7 +381,7 @@ func TestConsulIngressConfigEntry_Copy(t *testing.T) {
 
 	t.Run("nil", func(t *testing.T) {
 		result := (*ConsulIngressConfigEntry)(nil).Copy()
-		require.Nil(t, result)
+		must.Nil(t, result)
 	})
 
 	entry := &ConsulIngressConfigEntry{
@@ -397,7 +403,7 @@ func TestConsulIngressConfigEntry_Copy(t *testing.T) {
 
 	t.Run("complete", func(t *testing.T) {
 		result := entry.Copy()
-		require.Equal(t, entry, result)
+		must.Eq(t, entry, result)
 	})
 }
 
@@ -407,7 +413,7 @@ func TestConsulTerminatingConfigEntry_Canonicalize(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulTerminatingConfigEntry)(nil)
 		c.Canonicalize()
-		require.Nil(t, c)
+		must.Nil(t, c)
 	})
 
 	t.Run("empty services", func(t *testing.T) {
@@ -415,7 +421,7 @@ func TestConsulTerminatingConfigEntry_Canonicalize(t *testing.T) {
 			Services: []*ConsulLinkedService{},
 		}
 		c.Canonicalize()
-		require.Nil(t, c.Services)
+		must.Nil(t, c.Services)
 	})
 }
 
@@ -424,7 +430,7 @@ func TestConsulTerminatingConfigEntry_Copy(t *testing.T) {
 
 	t.Run("nil", func(t *testing.T) {
 		result := (*ConsulIngressConfigEntry)(nil).Copy()
-		require.Nil(t, result)
+		must.Nil(t, result)
 	})
 
 	entry := &ConsulTerminatingConfigEntry{
@@ -441,7 +447,7 @@ func TestConsulTerminatingConfigEntry_Copy(t *testing.T) {
 
 	t.Run("complete", func(t *testing.T) {
 		result := entry.Copy()
-		require.Equal(t, entry, result)
+		must.Eq(t, entry, result)
 	})
 }
 
@@ -451,13 +457,13 @@ func TestConsulMeshConfigEntry_Canonicalize(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		ce := (*ConsulMeshConfigEntry)(nil)
 		ce.Canonicalize()
-		require.Nil(t, ce)
+		must.Nil(t, ce)
 	})
 
 	t.Run("instantiated", func(t *testing.T) {
 		ce := new(ConsulMeshConfigEntry)
 		ce.Canonicalize()
-		require.NotNil(t, ce)
+		must.NotNil(t, ce)
 	})
 }
 
@@ -467,13 +473,13 @@ func TestConsulMeshConfigEntry_Copy(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		ce := (*ConsulMeshConfigEntry)(nil)
 		ce2 := ce.Copy()
-		require.Nil(t, ce2)
+		must.Nil(t, ce2)
 	})
 
 	t.Run("instantiated", func(t *testing.T) {
 		ce := new(ConsulMeshConfigEntry)
 		ce2 := ce.Copy()
-		require.NotNil(t, ce2)
+		must.NotNil(t, ce2)
 	})
 }
 
@@ -483,19 +489,19 @@ func TestConsulMeshGateway_Canonicalize(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulMeshGateway)(nil)
 		c.Canonicalize()
-		require.Nil(t, c)
+		must.Nil(t, c)
 	})
 
 	t.Run("unset mode", func(t *testing.T) {
 		c := &ConsulMeshGateway{Mode: ""}
 		c.Canonicalize()
-		require.Equal(t, "", c.Mode)
+		must.Eq(t, "", c.Mode)
 	})
 
 	t.Run("set mode", func(t *testing.T) {
 		c := &ConsulMeshGateway{Mode: "remote"}
 		c.Canonicalize()
-		require.Equal(t, "remote", c.Mode)
+		must.Eq(t, "remote", c.Mode)
 	})
 }
 
@@ -505,7 +511,7 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulMeshGateway)(nil)
 		result := c.Copy()
-		require.Nil(t, result)
+		must.Nil(t, result)
 	})
 
 	t.Run("instantiated", func(t *testing.T) {
@@ -513,7 +519,7 @@ func TestConsulMeshGateway_Copy(t *testing.T) {
 			Mode: "local",
 		}
 		result := c.Copy()
-		require.Equal(t, c, result)
+		must.Eq(t, c, result)
 	})
 }
 
@@ -523,7 +529,7 @@ func TestConsulGatewayTLSConfig_Copy(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		c := (*ConsulGatewayTLSConfig)(nil)
 		result := c.Copy()
-		require.Nil(t, result)
+		must.Nil(t, result)
 	})
 
 	t.Run("enabled", func(t *testing.T) {
@@ -531,7 +537,7 @@ func TestConsulGatewayTLSConfig_Copy(t *testing.T) {
 			Enabled: true,
 		}
 		result := c.Copy()
-		require.Equal(t, c, result)
+		must.Eq(t, c, result)
 	})
 
 	t.Run("customized", func(t *testing.T) {
@@ -542,6 +548,6 @@ func TestConsulGatewayTLSConfig_Copy(t *testing.T) {
 			CipherSuites:  []string{"foo", "bar"},
 		}
 		result := c.Copy()
-		require.Equal(t, c, result)
+		must.Eq(t, c, result)
 	})
 }

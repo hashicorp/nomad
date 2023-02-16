@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -28,7 +29,7 @@ func TestAgent_RPC_Ping(t *testing.T) {
 	defer agent.Shutdown()
 
 	var out struct{}
-	if err := agent.RPC("Status.Ping", struct{}{}, &out); err != nil {
+	if err := agent.RPC("Status.Ping", &structs.GenericRequest{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -547,6 +548,104 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 			_, err := convertServerConfig(conf)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "raft_multiplier cannot be")
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftTrailingLogs(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name   string
+		value  *int
+		expect interface{}
+		isErr  bool
+	}{
+		{
+			name:   "bad",
+			value:  pointer.Of(int(-1)),
+			isErr:  true,
+			expect: "raft_trailing_logs must be non-negative",
+		},
+		{
+			name:   "good",
+			value:  pointer.Of(int(10)),
+			expect: uint64(10),
+		},
+		{
+			name:   "empty",
+			value:  nil,
+			expect: raft.DefaultConfig().TrailingLogs,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
+			tc := tc
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftTrailingLogs = tc.value
+			nc, err := convertServerConfig(conf)
+
+			if !tc.isErr {
+				must.NoError(t, err)
+				val := tc.expect.(uint64)
+				must.Eq(t, val, nc.RaftConfig.TrailingLogs)
+				return
+			}
+			must.Error(t, err)
+			must.StrContains(t, err.Error(), tc.expect.(string))
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftSnapshotThreshold(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name   string
+		value  *int
+		expect interface{}
+		isErr  bool
+	}{
+		{
+			name:   "bad",
+			value:  pointer.Of(int(-1)),
+			isErr:  true,
+			expect: "raft_snapshot_threshold must be non-negative",
+		},
+		{
+			name:   "good",
+			value:  pointer.Of(int(10)),
+			expect: uint64(10),
+		},
+		{
+			name:   "empty",
+			value:  nil,
+			expect: raft.DefaultConfig().SnapshotThreshold,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
+			tc := tc
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftSnapshotThreshold = tc.value
+			nc, err := convertServerConfig(conf)
+
+			if !tc.isErr {
+				must.NoError(t, err)
+				val := tc.expect.(uint64)
+				must.Eq(t, val, nc.RaftConfig.SnapshotThreshold)
+				return
+			}
+			must.Error(t, err)
+			must.StrContains(t, err.Error(), tc.expect.(string))
 		})
 	}
 }

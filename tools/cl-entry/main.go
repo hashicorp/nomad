@@ -29,7 +29,7 @@ const (
   Enter Note => `
 )
 
-var noteRe = regexp.MustCompile(`[a-z0-9/\s]+: .+`)
+var noteRe = regexp.MustCompile(`^[a-z0-9/\s]+: .+`)
 
 func main() {
 	pr, err := ask(pr)

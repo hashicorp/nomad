@@ -7,7 +7,6 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -15,32 +14,35 @@ import (
 )
 
 // Authenticate extracts an AuthenticatedIdentity from the request context or
-// provided token. The caller can extract an acl.ACL, WorkloadIdentity, or other
-// identifying token to use for authorization.
+// provided token and sets the identity on the request. The caller can extract
+// an acl.ACL, WorkloadIdentity, or other identifying tokens to use for
+// authorization. Keeping these fields independent rather than merging them into
+// an ephemeral ACLToken makes the original of the credential clear to RPC
+// handlers, who may have different behavior for internal vs external origins.
 //
 // Note: when called on the follower we'll be making stale queries, so it's
 // possible if the follower is behind that the leader will get a different value
 // if an ACL token or allocation's WI has just been created.
-func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.AuthenticatedIdentity, error) {
-
-	// Previously-connected clients will have a NodeID set and will be a large
-	// number of the RPCs sent, so we can fast path this case
-	if ctx != nil && ctx.NodeID != "" {
-		return &structs.AuthenticatedIdentity{ClientID: ctx.NodeID}, nil
-	}
+//
+// This method returns errors that are used for testing diagnostics. RPC callers
+// should always return ErrPermissionDenied after checking forwarding when one
+// of these errors is received.
+func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity) error {
 
 	// get the user ACLToken or anonymous token
+	secretID := args.GetAuthToken()
 	aclToken, err := s.ResolveSecretToken(secretID)
 
 	switch {
 	case err == nil:
 		// If ACLs are disabled or we have a non-anonymous token, return that.
 		if aclToken == nil || aclToken != structs.AnonymousACLToken {
-			return &structs.AuthenticatedIdentity{ACLToken: aclToken}, nil
+			args.SetIdentity(&structs.AuthenticatedIdentity{ACLToken: aclToken})
+			return nil
 		}
 
 	case errors.Is(err, structs.ErrTokenExpired):
-		return nil, err
+		return err
 
 	case errors.Is(err, structs.ErrTokenInvalid):
 		// if it's not a UUID it might be an identity claim
@@ -49,10 +51,11 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 			// we already know the token wasn't valid for an ACL in the state
 			// store, so if we get an error at this point we have an invalid
 			// token and there are no other options but to bail out
-			return nil, err
+			return err
 		}
 
-		return &structs.AuthenticatedIdentity{Claims: claims}, nil
+		args.SetIdentity(&structs.AuthenticatedIdentity{Claims: claims})
+		return nil
 
 	case errors.Is(err, structs.ErrTokenNotFound):
 		// Check if the secret ID is the leader's secret ID, in which case treat
@@ -60,21 +63,32 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 		leaderAcl := s.getLeaderAcl()
 		if leaderAcl != "" && secretID == leaderAcl {
 			aclToken = structs.LeaderACLToken
+			break
 		} else {
 			// Otherwise, see if the secret ID belongs to a node. We should
 			// reach this point only on first connection.
 			node, err := s.State().NodeBySecretID(nil, secretID)
 			if err != nil {
 				// this is a go-memdb error; shouldn't happen
-				return nil, fmt.Errorf("could not resolve node secret: %w", err)
+				return fmt.Errorf("could not resolve node secret: %w", err)
 			}
 			if node != nil {
-				return &structs.AuthenticatedIdentity{ClientID: node.ID}, nil
+				args.SetIdentity(&structs.AuthenticatedIdentity{ClientID: node.ID})
+				return nil
 			}
 		}
 
+		// we were passed a bogus token so we'll return an error, but we'll also
+		// want to capture the IP for metrics
+		remoteIP, err := s.remoteIPFromRPCContext(ctx)
+		if err != nil {
+			s.logger.Error("could not determine remote address", "error", err)
+		}
+		args.SetIdentity(&structs.AuthenticatedIdentity{RemoteIP: remoteIP})
+		return structs.ErrPermissionDenied
+
 	default: // any other error
-		return nil, fmt.Errorf("could not resolve user: %w", err)
+		return fmt.Errorf("could not resolve user: %w", err)
 
 	}
 
@@ -82,10 +96,22 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 	// cases where the leader is making RPCs internally (volumewatcher and
 	// deploymentwatcher)
 	if ctx == nil {
-		return &structs.AuthenticatedIdentity{ACLToken: aclToken}, nil
+		args.SetIdentity(&structs.AuthenticatedIdentity{ACLToken: aclToken})
+		return nil
 	}
 
 	// At this point we either have an anonymous token or an invalid one.
+
+	// Previously-connected clients will have a NodeID set on the context, which
+	// is available for all yamux streams over the same yamux session (and TCP
+	// connection). This will be a large portion of the RPCs sent, but we can't
+	// fast-path this at the top of the method, because authenticated HTTP
+	// requests to the clients will come in over to the same session.
+	if ctx.NodeID != "" {
+		args.SetIdentity(&structs.AuthenticatedIdentity{ClientID: ctx.NodeID})
+		return nil
+	}
+
 	// Unlike clients that provide their Node ID on first connection, server
 	// RPCs don't include an ID for the server so we identify servers by cert
 	// and IP address.
@@ -94,8 +120,23 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 		identity.TLSName = ctx.Certificate().Subject.CommonName
 	}
 
+	remoteIP, err := s.remoteIPFromRPCContext(ctx)
+	if err != nil {
+		s.logger.Error(
+			"could not authenticate RPC request or determine remote address", "error", err)
+		return err
+	}
+	identity.RemoteIP = remoteIP
+	args.SetIdentity(identity)
+	return nil
+}
+
+func (s *Server) remoteIPFromRPCContext(ctx *RPCContext) (net.IP, error) {
 	var remoteAddr *net.TCPAddr
 	var ok bool
+	if ctx == nil {
+		return nil, nil
+	}
 	if ctx.Session != nil {
 		remoteAddr, ok = ctx.Session.RemoteAddr().(*net.TCPAddr)
 		if !ok {
@@ -109,15 +150,38 @@ func (s *Server) Authenticate(ctx *RPCContext, secretID string) (*structs.Authen
 		}
 	}
 	if remoteAddr != nil {
-		identity.RemoteIP = remoteAddr.IP
-		return identity, nil
+		return remoteAddr.IP, nil
 	}
-
-	s.logger.Error("could not authenticate RPC request or determine remote address")
 	return nil, structs.ErrPermissionDenied
 }
 
-func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {
+// ResolveACL is an authentication wrapper which handles resolving both ACL
+// tokens and Workload Identities. If both are provided the ACL token is
+// preferred, but it is best for the RPC caller to only include the credentials
+// for the identity they intend the operation to be performed with.
+func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
+	identity := args.GetIdentity()
+	if !s.config.ACLEnabled || identity == nil {
+		return nil, nil
+	}
+	aclToken := identity.GetACLToken()
+	if aclToken != nil {
+		return s.ResolveACLForToken(aclToken)
+	}
+	claims := identity.GetClaims()
+	if claims != nil {
+		return s.ResolveClaims(claims)
+	}
+	return nil, nil
+}
+
+// ResolveACLForToken resolves an ACL from a token only. It should be used only
+// by Variables endpoints, which have additional implicit policies for their
+// claims so we can't wrap them up in ResolveACL.
+//
+// TODO: figure out a way to the Variables endpoint implicit policies baked into
+// their acl.ACL object so that we can avoid using this method.
+func (s *Server) ResolveACLForToken(aclToken *structs.ACLToken) (*acl.ACL, error) {
 	if !s.config.ACLEnabled {
 		return nil, nil
 	}
@@ -126,6 +190,22 @@ func (s *Server) ResolveACL(aclToken *structs.ACLToken) (*acl.ACL, error) {
 		return nil, err
 	}
 	return resolveACLFromToken(snap, s.aclCache, aclToken)
+}
+
+// ResolveClientOrACL resolves an ACL if the identity has a token or claim, and
+// falls back to verifying the client ID if one has been set
+func (s *Server) ResolveClientOrACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
+	identity := args.GetIdentity()
+	if !s.config.ACLEnabled || identity == nil || identity.ClientID != "" {
+		return nil, nil
+	}
+	aclObj, err := s.ResolveACL(args)
+	if err != nil {
+		return nil, err
+	}
+
+	// Returns either the users aclObj, or nil if ACLs are disabled.
+	return aclObj, nil
 }
 
 // ResolveToken is used to translate an ACL Token Secret ID into
@@ -202,7 +282,7 @@ func (s *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error)
 // resolveTokenFromSnapshotCache is used to resolve an ACL object from a
 // snapshot of state, using a cache to avoid parsing and ACL construction when
 // possible. It is split from resolveToken to simplify testing.
-func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueueCache, secretID string) (*acl.ACL, error) {
+func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *structs.ACLCache[*acl.ACL], secretID string) (*acl.ACL, error) {
 	// Lookup the ACL Token
 	var token *structs.ACLToken
 	var err error
@@ -227,7 +307,7 @@ func resolveTokenFromSnapshotCache(snap *state.StateSnapshot, cache *lru.TwoQueu
 
 }
 
-func resolveACLFromToken(snap *state.StateSnapshot, cache *lru.TwoQueueCache, token *structs.ACLToken) (*acl.ACL, error) {
+func resolveACLFromToken(snap *state.StateSnapshot, cache *structs.ACLCache[*acl.ACL], token *structs.ACLToken) (*acl.ACL, error) {
 
 	// Check if this is a management token
 	if token.Type == structs.ACLManagementToken {

@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: resources Stanza - Job Specification
+page_title: resources Block - Job Specification
 description: |-
-  The "resources" stanza describes the requirements a task needs to execute.
+  The "resources" block describes the requirements a task needs to execute.
   Resource requirements include memory, cpu, and more.
 ---
 
-# `resources` Stanza
+# `resources` Block
 
 <Placement groups={['job', 'group', 'task', 'resources']} />
 
-The `resources` stanza describes the requirements a task needs to execute.
+The `resources` block describes the requirements a task needs to execute.
 Resource requirements include memory, CPU, and more.
 
 ```hcl
@@ -34,24 +34,27 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `cores` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Specifies the number of CPU cores to reserve
-  for the task. This may not be used with `cpu`.
+- `cores` <code>(`int`: &lt;optional&gt;)</code> - Specifies the number of CPU cores
+  to reserve specifically for the task. This may not be used with `cpu`. The behavior
+  of setting `cores` is specific to each task driver (e.g. [docker][docker_cpu], [exec][exec_cpu]).
 
 - `memory` `(int: 300)` - Specifies the memory required in MB.
 
-- `memory_max` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See [Memory Oversubscription](#memory-oversubscription) for more details.
+- `memory_max` <code>(`int`: &lt;optional&gt;)</code> - Optionally, specifies the
+  maximum memory the task may use, if the client has excess memory capacity, in MB.
+  See [Memory Oversubscription](#memory-oversubscription) for more details.
 
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
 
 ## `resources` Examples
 
-The following examples only show the `resources` stanzas. Remember that the
-`resources` stanza is only valid in the placements listed above.
+The following examples only show the `resources` blocks. Remember that the
+`resources` block is only valid in the placements listed above.
 
 ### Cores
 
-This example specifies that the task requires 2 reserved cores. With this stanza, Nomad will find
+This example specifies that the task requires 2 reserved cores. With this block, Nomad will find
 a client with enough spare capacity to reserve 2 cores exclusively for the task. Unlike the `cpu` field, the
 task will not share cpu time with any other tasks managed by Nomad on the client.
 
@@ -61,7 +64,7 @@ resources {
 }
 ```
 
-If `cores` and `cpu` are both defined in the same resource stanza, validation of the job will fail.
+If `cores` and `cpu` are both defined in the same resource block, validation of the job will fail.
 
 ### Memory
 
@@ -76,7 +79,7 @@ resources {
 
 ### Devices
 
-This example shows a device constraints as specified in the [device][] stanza
+This example shows a device constraints as specified in the [device][] block
 which require two nvidia GPUs to be made available:
 
 ```hcl
@@ -114,8 +117,8 @@ The new max limit attribute is currently supported by the official `docker`,
 community-supported task drivers for their memory oversubscription support.
 
 Memory oversubscription is opt-in. Nomad operators can enable [Memory Oversubscription in the scheduler
-configuration](/api-docs/operator/scheduler#update-scheduler-configuration). Enterprise customers can use [Resource
-Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas) to limit the memory
+configuration](/nomad/api-docs/operator/scheduler#update-scheduler-configuration). Enterprise customers can use [Resource
+Quotas](/nomad/tutorials/governance-and-policy/quotas) to limit the memory
 oversubscription.
 
 To avoid degrading the cluster experience, we recommend examining and monitoring
@@ -126,11 +129,13 @@ resource utilization and considering the following suggestions:
 
 * Monitor hosts for memory utilization and set alerts on Out-Of-Memory errors
 
-* Set the [client `reserved`](/docs/configuration/client#reserved) with enough
+* Set the [client `reserved`](/nomad/docs/configuration/client#reserved) with enough
   memory for host services that aren't managed by Nomad as well as a buffer
   for the memory excess. For example, if the client reserved memory is 1GB,
   the allocations on the host may exceed their soft memory limit by almost
   1GB in aggregate before the memory becomes contended and allocations get
   killed.
 
-[device]: /docs/job-specification/device 'Nomad device Job Specification'
+[device]: /nomad/docs/job-specification/device 'Nomad device Job Specification'
+[docker_cpu]: /nomad/docs/drivers/docker#cpu
+[exec_cpu]: /nomad/docs/drivers/exec#cpu

@@ -1,0 +1,3 @@
+```release-note:feature
+**Dynamic Node Metadata**: Allow users and tasks to update Node metadata via an API
+```

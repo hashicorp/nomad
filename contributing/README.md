@@ -30,7 +30,7 @@ A development environment is supplied via Vagrant to make getting started easier
 
 Developing without Vagrant
 ---
-1. Install [Go 1.19.3+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Install [Go 1.20.1+](https://golang.org/) *(Note: `gcc-go` is not supported)*
 1. Clone this repo
    ```sh
    $ git clone https://github.com/hashicorp/nomad.git
@@ -44,10 +44,14 @@ Developing without Vagrant
    ```sh
    $ [ "$(ulimit -n)" -lt 1024 ] && ulimit -n 1024
    ```
-1. Verify you can run tests
+1. Verify you can run smoke tests
    ```sh
    $ make test
    ```
+   **Note:** You can think of this as a `smoke` test which runs a subset of
+   tests and some may fail because of `operation not permitted` error which
+   requires `root` access. You can use `go test` to test the specific subsystem
+   which you are working on and let the CI run rest of the tests for you.
 
 Running a development build
 ---

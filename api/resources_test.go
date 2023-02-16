@@ -1,11 +1,10 @@
 package api
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 )
 
 func TestResources_Canonicalize(t *testing.T) {
@@ -49,9 +48,7 @@ func TestResources_Canonicalize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.Canonicalize()
-			if !reflect.DeepEqual(tc.input, tc.expected) {
-				t.Fatalf("Name: %v, Diffs:\n%v", tc.name, pretty.Diff(tc.expected, tc.input))
-			}
+			must.Eq(t, tc.expected, tc.input)
 		})
 	}
 }

@@ -58,6 +58,7 @@ var fArch = flag.String("env.arch", "",
 var fTags = flag.String("env.tags", "",
 	"comma delimited list of tags associated with the environment")
 
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type Framework struct {
 	suites      []*TestSuite
 	provisioner Provisioner
@@ -71,6 +72,8 @@ type Framework struct {
 
 // Environment contains information about the test target environment, used
 // to constrain the set of tests run. See the environment flags above.
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type Environment struct {
 	Name     string
 	Provider string
@@ -80,6 +83,8 @@ type Environment struct {
 }
 
 // New creates a Framework
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 func New() *Framework {
 	flag.Parse()
 	if *fHelp {
@@ -106,6 +111,8 @@ func New() *Framework {
 }
 
 // AddSuites adds a set of test suites to a Framework
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 func (f *Framework) AddSuites(s ...*TestSuite) *Framework {
 	f.suites = append(f.suites, s...)
 	return f
@@ -114,6 +121,8 @@ func (f *Framework) AddSuites(s ...*TestSuite) *Framework {
 var pkgSuites []*TestSuite
 
 // AddSuites adds a set of test suites to the package scoped Framework
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 func AddSuites(s ...*TestSuite) {
 	pkgSuites = append(pkgSuites, s...)
 }
@@ -141,6 +150,8 @@ func (f *Framework) Run(t *testing.T) {
 }
 
 // Run starts the package scoped Framework, running each TestSuite
+//
+// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 func Run(t *testing.T) {
 	f := New()
 	f.AddSuites(pkgSuites...)

@@ -160,6 +160,14 @@ func (c *consulACLsAPI) canWriteService(namespace, service string, token *api.AC
 	// treat that like an exact match to preserve backwards compatibility
 	matches := (namespace == token.Namespace) || (namespace == "" && token.Namespace == "default")
 
+	// check each service identity attached to the token -
+	// the virtual policy for service identities enables service:write
+	for _, si := range token.ServiceIdentities {
+		if si.ServiceName == service {
+			return true, nil
+		}
+	}
+
 	// check each policy directly attached to the token
 	for _, policyRef := range token.Policies {
 		if allowable, err := c.policyAllowsServiceWrite(matches, namespace, service, policyRef.ID); err != nil {

@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug in token creation which failed to parse expiration TTLs correctly
+```

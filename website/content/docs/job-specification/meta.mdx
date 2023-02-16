@@ -1,10 +1,10 @@
 ---
 layout: docs
-page_title: meta Stanza - Job Specification
-description: The "meta" stanza allows for user-defined arbitrary key-value pairs.
+page_title: meta Block - Job Specification
+description: The "meta" block allows for user-defined arbitrary key-value pairs.
 ---
 
-# `meta` Stanza
+# `meta` Block
 
 <Placement
   groups={[
@@ -14,8 +14,8 @@ description: The "meta" stanza allows for user-defined arbitrary key-value pairs
   ]}
 />
 
-The `meta` stanza allows for user-defined arbitrary key-value pairs. It is
-possible to use the `meta` stanza at the [job][], [group][], or [task][] level.
+The `meta` block allows for user-defined arbitrary key-value pairs. It is
+possible to use the `meta` block at the [job][], [group][], or [task][] level.
 
 ```hcl
 job "docs" {
@@ -45,14 +45,15 @@ Meta values are made available inside tasks as [runtime environment variables][e
 
 ## `meta` Parameters
 
-The "parameters" for the `meta` stanza can be any key-value. The keys and values
+The "parameters" for the `meta` block can be any key-value. The keys and values
 are both of type `string`, but they can be specified as other types. They will
-automatically be converted to strings.
+automatically be converted to strings. Any `-` character existing in the key
+will also be converted to `_`.
 
 ## `meta` Examples
 
-The following examples only show the `meta` stanzas. Remember that the
-`meta` stanza is only valid in the placements listed above.
+The following examples only show the `meta` blocks. Remember that the
+`meta` block is only valid in the placements listed above.
 
 ### Coercion
 
@@ -107,8 +108,8 @@ EOH
 }
 ```
 
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
-[group]: /docs/job-specification/group 'Nomad group Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
-[env_meta]: /docs/runtime/environment#meta
+[job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
+[group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
+[task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
+[interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
+[env_meta]: /nomad/docs/runtime/environment#meta

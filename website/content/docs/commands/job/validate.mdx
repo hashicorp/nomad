@@ -55,14 +55,14 @@ capability for the job's namespace.
 
 - `-vault-token`: Used to validate if the user submitting the job has
   permission to run the job according to its Vault policies. A Vault token must
-  be supplied if the [`vault` stanza `allow_unauthenticated`] is disabled in
+  be supplied if the [`vault` block `allow_unauthenticated`] is disabled in
   the Nomad server configuration. If the `-vault-token` flag is set, the passed
   Vault token is added to the jobspec before sending to the Nomad servers. This
   allows passing the Vault token without storing it in the job file. This
   overrides the token found in the `$VAULT_TOKEN` environment variable and the
   [`vault_token`] field in the job file. This token is cleared from the job
   after validating and cannot be used within the job executing environment. Use
-  the `vault` stanza when templating in a job with a Vault token.
+  the `vault` block when templating in a job with a Vault token.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.
@@ -85,7 +85,7 @@ Job validation errors:
 Validate a job that has a configuration that causes warnings:
 
 ```shell-session
-$ nomad job validate example.nomad
+$ nomad job validate example.nomad.hcl
 Job Warnings:
 1 warning(s):
 
@@ -97,6 +97,6 @@ Job validation successful
 ```
 
 [`go-getter`]: https://github.com/hashicorp/go-getter
-[job specification]: /docs/job-specification
-[`vault` stanza `allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
-[`vault_token`]: /docs/job-specification/job#vault_token
+[job specification]: /nomad/docs/job-specification
+[`vault` block `allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
+[`vault_token`]: /nomad/docs/job-specification/job#vault_token

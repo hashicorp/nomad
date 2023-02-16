@@ -17,8 +17,8 @@ import (
 )
 
 func Test_clientACLResolver_init(t *testing.T) {
-	resolver := &clientACLResolver{}
-	must.NoError(t, resolver.init())
+	resolver := new(clientACLResolver)
+	resolver.init()
 	must.NotNil(t, resolver.aclCache)
 	must.NotNil(t, resolver.policyCache)
 	must.NotNil(t, resolver.tokenCache)

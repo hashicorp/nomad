@@ -6,10 +6,10 @@ import (
 
 // Auditor describes the interface that must be implemented by an eventer.
 type Auditor interface {
-	// Emit an event to the auditor
+	// Event emits an event to the auditor.
 	Event(ctx context.Context, eventType string, payload interface{}) error
 
-	// Specifies if the auditor is enabled or not
+	// Enabled details if the auditor is enabled or not.
 	Enabled() bool
 
 	// Reopen signals to auditor to reopen any files they have open.

@@ -12,7 +12,7 @@ second interval and are retained for one minute.
 
 This data can be accessed via an HTTP endpoint or via sending a signal to the
 Nomad process. This data is available via HTTP at `/metrics`. See
-[Metrics](/api-docs/metrics) for more information.
+[Metrics](/nomad/api-docs/metrics) for more information.
 
 To view this data via sending a signal to the Nomad process: on Unix,
 this is `USR1` while on Windows it is `BREAK`. Once Nomad receives the signal,
@@ -25,12 +25,12 @@ Telemetry information can be streamed to both [statsite](https://github.com/armo
 as well as statsd based on providing the appropriate configuration options.
 
 To configure the telemetry output please see the [agent
-configuration](/docs/configuration/telemetry).
+configuration](/nomad/docs/configuration/telemetry).
 
 Below is sample output of a telemetry dump:
 
 ```text
-[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_blocked': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_pending': 0.000
 [2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.plan.queue_depth': 0.000
 [2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.malloc_count': 7568.000
 [2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.total_gc_runs': 8.000
@@ -97,7 +97,7 @@ signals.
 | `nomad.runtime.alloc_bytes`                  | Memory utilization                                                                                                                                                                                                | # of bytes                     | Gauge   |
 | `nomad.runtime.heap_objects`                 | Number of objects on the heap. General memory pressure indicator                                                                                                                                                  | # of heap objects              | Gauge   |
 | `nomad.runtime.num_goroutines`               | Number of goroutines and general load pressure indicator                                                                                                                                                          | # of goroutines                | Gauge   |
-| `nomad.nomad.broker.total_blocked`           | Evaluations that are blocked until an existing evaluation for the same job completes                                                                                                                              | # of evaluations               | Gauge   |
+| `nomad.nomad.broker.total_pending`           | Evaluations that are pending until an existing evaluation for the same job completes                                                                                                                              | # of evaluations               | Gauge   |
 | `nomad.nomad.broker.total_ready`             | Number of evaluations ready to be processed                                                                                                                                                                       | # of evaluations               | Gauge   |
 | `nomad.nomad.broker.total_unacked`           | Evaluations dispatched for processing but incomplete                                                                                                                                                              | # of evaluations               | Gauge   |
 | `nomad.nomad.heartbeat.active`               | Number of active heartbeat timers. Each timer represents a Nomad Client connection                                                                                                                                | # of heartbeat timers          | Gauge   |
@@ -130,11 +130,11 @@ By default the collection interval is 1 second but it can be changed by the
 changing the value of the `collection_interval` key in the `telemetry`
 configuration block.
 
-Please see the [agent configuration](/docs/configuration/telemetry)
+Please see the [agent configuration](/nomad/docs/configuration/telemetry)
 page for more details.
 
-Additional labels are emitted for [parameterized](/docs/job-specification/parameterized) and
-[periodic](/docs/job-specification/parameterized) jobs. Nomad
+Additional labels are emitted for [parameterized](/nomad/docs/job-specification/parameterized) and
+[periodic](/nomad/docs/job-specification/parameterized) jobs. Nomad
 emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
 and `periodic_id` are emitted, containing the ID of the specific invocation of the
 parameterized or periodic job respectively. For example, a dispatch job with the id
@@ -258,9 +258,9 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.blocked_evals.memory`                   | Amount of memory requested by blocked evals                                    | Integer              | Gauge   | datacenter, host, node_class                            |
 | `nomad.nomad.blocked_evals.job.cpu`                  | Amount of CPU shares requested by blocked evals of a job                       | Integer              | Gauge   | host, job, namespace                                    |
 | `nomad.nomad.blocked_evals.job.memory`               | Amount of memory requested by blocked evals of a job                           | Integer              | Gauge   | host, job, namespace                                    |
-| `nomad.nomad.blocked_evals.total_blocked`            | Count of evals in the blocked state for any reason (cluster resource exhaustion or quota limtis) | Integer | Gauge | host |
+| `nomad.nomad.blocked_evals.total_blocked`            | Count of evals in the blocked state for any reason (cluster resource exhaustion or quota limits) | Integer | Gauge | host |
 | `nomad.nomad.blocked_evals.total_escaped`            | Count of evals that have escaped computed node classes. This indicates a scheduler optimization was skipped and is not usually a source of concern. | Integer | Gauge | host |
-| `nomad.nomad.blocked_evals.total_quota_limit`        | Count of blocked evals due to quota limits (the resources for these jobs are *not* counted in other blocked_evals metrics) | Integer | Gauge | host |
+| `nomad.nomad.blocked_evals.total_quota_limit`        | Count of blocked evals due to quota limits (the resources for these jobs are *not* counted in other blocked_evals metrics, except for `total_blocked`) | Integer | Gauge | host |
 | `nomad.nomad.broker.batch_ready`                     | Count of batch evals ready to be scheduled                                     | Integer              | Gauge   | host                                                    |
 | `nomad.nomad.broker.batch_unacked`                   | Count of unacknowledged batch evals                                            | Integer              | Gauge   | host                                                    |
 | `nomad.nomad.broker.eval_waiting`                    | Time elapsed with evaluation waiting to be enqueued                            | Nanoseconds          | Gauge   | eval_id, job, namespace                                 |
@@ -487,6 +487,6 @@ Agent metrics are emitted by all Nomad agents running in either client or server
 | ----------------------------------------- | ----------------------------------------------------- | ----------- | ------- |
 | `nomad.agent.http.exceeded`               | Count of HTTP connections exceeding concurrency limit | Integer     | Counter |
 
-[tagged-metrics]: /docs/operations/metrics-reference#tagged-metrics
-[sticky]: /docs/job-specification/ephemeral_disk#sticky
-[s_port_plan_failure]: /s/port-plan-failure
+[tagged-metrics]: /nomad/docs/operations/metrics-reference#tagged-metrics
+[sticky]: /nomad/docs/job-specification/ephemeral_disk#sticky
+[s_port_plan_failure]: https://nomadproject.io/s/port-plan-failure

@@ -21,7 +21,7 @@ Refer to the official plugin
 
 * `--endpoint=${CSI_ENDPOINT}`: if you don't use the `CSI_ENDPOINT`
     environment variable, this option must match the `mount_dir`
-    specified in the `csi_plugin` stanza for the task.
+    specified in the `csi_plugin` block for the task.
 
 * `--nodeid=${node.unique.id}`: a unique ID for the node the task is running
   on.

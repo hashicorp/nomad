@@ -229,7 +229,7 @@ job "gpu-test" {
 ```
 
 ```shell-session
-$ nomad run example.nomad
+$ nomad run example.nomad.hcl
 ==> Monitoring evaluation "21bd7584"
     Evaluation triggered by job "gpu-test"
     Allocation "d250baed" created: node "4d46e59f", group "smi"
@@ -282,12 +282,12 @@ Wed Jan 23 18:25:32 2019
 ```
 
 
-[docker-driver]: /docs/drivers/docker 'Nomad docker Driver'
-[exec-driver]: /docs/drivers/exec 'Nomad exec Driver'
-[java-driver]: /docs/drivers/java 'Nomad java Driver'
-[lxc-driver]: /plugins/drivers/community/lxc 'Nomad lxc Driver'
-[`plugin`]: /docs/configuration/plugin
-[`plugin_dir`]: /docs/configuration#plugin_dir
+[docker-driver]: /nomad/docs/drivers/docker 'Nomad docker Driver'
+[exec-driver]: /nomad/docs/drivers/exec 'Nomad exec Driver'
+[java-driver]: /nomad/docs/drivers/java 'Nomad java Driver'
+[lxc-driver]: /nomad/plugins/drivers/community/lxc 'Nomad lxc Driver'
+[`plugin`]: /nomad/docs/configuration/plugin
+[`plugin_dir`]: /nomad/docs/configuration#plugin_dir
 [nvidia_hook]: https://github.com/lxc/lxc/blob/master/hooks/nvidia
 [nvidia_plugin_download]: https://releases.hashicorp.com/nomad-device-nvidia/
 [nvidia_container_toolkit]: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html

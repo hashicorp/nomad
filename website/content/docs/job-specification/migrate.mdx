@@ -1,13 +1,13 @@
 ---
 layout: docs
-page_title: migrate Stanza - Job Specification
+page_title: migrate Block - Job Specification
 description: |-
-  The "migrate" stanza specifies the group's migrate strategy. The migrate
+  The "migrate" block specifies the group's migrate strategy. The migrate
   strategy is used to control the job's behavior when it is being migrated off
   of a draining node.
 ---
 
-# `migrate` Stanza
+# `migrate` Block
 
 <Placement
   groups={[
@@ -16,11 +16,11 @@ description: |-
   ]}
 />
 
-The `migrate` stanza specifies the group's strategy for migrating allocations from
+The `migrate` block specifies the group's strategy for migrating allocations from
 [draining][drain] nodes. If omitted, a default migration strategy is applied.
 If specified at the job level, the configuration will apply to all groups
 within the job. Only service jobs with a count greater than 1 support migrate
-stanzas.
+blocks.
 
 ```hcl
 job "docs" {
@@ -39,11 +39,11 @@ allocations have been healthy for their `min_healthy_time` or
 `healthy_deadline` is reached.
 
 Note that a node's drain [deadline][deadline] will override the `migrate`
-stanza for allocations on that node. The `migrate` stanza is for job authors to
+block for allocations on that node. The `migrate` block is for job authors to
 define how their services should be migrated, while the node drain deadline is
 for system operators to put hard limits on how long a drain may take.
 
-See the [Workload Migration Guide](https://learn.hashicorp.com/tutorials/nomad/node-drain) for details
+See the [Workload Migration Guide](/nomad/tutorials/manage-clusters/node-drain) for details
 on node draining.
 
 ## `migrate` Parameters
@@ -74,7 +74,7 @@ on node draining.
   automatically transitioned to unhealthy. This is specified using a label
   suffix like "2m" or "1h".
 
-[checks]: /docs/job-specification/service#check-parameters
-[count]: /docs/job-specification/group#count
-[drain]: /docs/commands/node/drain
-[deadline]: /docs/commands/node/drain#deadline
+[checks]: /nomad/docs/job-specification/service#check-parameters
+[count]: /nomad/docs/job-specification/group#count
+[drain]: /nomad/docs/commands/node/drain
+[deadline]: /nomad/docs/commands/node/drain#deadline

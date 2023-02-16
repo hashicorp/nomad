@@ -1,20 +1,20 @@
 ---
 layout: docs
-page_title: volume Stanza - Job Specification
+page_title: volume Block - Job Specification
 description: >-
-  The "volume" stanza allows the group to specify that it requires a given
+  The "volume" block allows the group to specify that it requires a given
   volume from the cluster. Nomad will automatically handle ensuring that the
   volume is available and mounted into the task.
 ---
 
-# `volume` Stanza
+# `volume` Block
 
 <Placement groups={['job', 'group', 'volume']} />
 
-The `volume` stanza allows the group to specify that it requires a
+The `volume` block allows the group to specify that it requires a
 given volume from the cluster.
 
-The key of the stanza is the name of the volume as it will be exposed
+The key of the block is the name of the volume as it will be exposed
 to task configuration.
 
 ```hcl
@@ -52,12 +52,12 @@ job "docs" {
 
 The Nomad server will ensure that the allocations are only scheduled
 on hosts that have a set of volumes that meet the criteria specified
-in the `volume` stanzas. These may be [host volumes][host_volume]
+in the `volume` blocks. These may be [host volumes][host_volume]
 configured on the client, or [CSI volumes][csi_volume] dynamically
 mounted by [CSI plugins][csi_plugin].
 
 The Nomad client will make the volumes available to tasks according to
-the [volume_mount][volume_mount] stanza in the `task` configuration.
+the [volume_mount][volume_mount] block in the `task` configuration.
 
 ## `volume` Parameters
 
@@ -75,6 +75,16 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
+- `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
+  should have the suffix `[n]`, where `n` is the allocation index. This allows
+  mounting a unique volume per allocation, so long as the volume's source is
+  named appropriately. For example, with the source `myvolume` and `per_alloc
+  = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
+  volume ID `myvolume[0]`.
+
+  The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
+  that use canaries.
+
 The following fields are only valid for volumes with `type = "csi"`:
 
 - `access_mode` `(string: <required>)` - Defines whether a volume should be
@@ -91,13 +101,6 @@ The following fields are only valid for volumes with `type = "csi"`:
   support `"file-system"`, to mount volumes using the CSI filesystem API. Some
   storage providers will support `"block-device"`, which will mount the volume
   with the CSI block device API within the container.
-
-- `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
-  should have the suffix `[n]`, where `n` is the allocation index. This allows
-  mounting a unique volume per allocation, so long as the volume's source is
-  named appropriately. For example, with the source `myvolume` and `per_alloc
-  = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
-  volume ID `myvolume[0]`.
 
 - `mount_options` - Options for mounting CSI volumes that have the
   `file-system` [attachment mode]. These options override the `mount_options`
@@ -197,10 +200,10 @@ ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
 81d32909  352c6926  cache-0     0        run      running  29s ago  18s ago
 ```
 
-[volume_mount]: /docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
-[host_volume]: /docs/configuration/client#host_volume-stanza
-[csi_volume]: /docs/commands/volume/register
-[csi_plugin]: /docs/job-specification/csi_plugin
-[csi_volume]: /docs/commands/volume/register
-[attachment mode]: /docs/commands/volume/register#attachment_mode
-[volume registration]: /docs/commands/volume/register#mount_options
+[volume_mount]: /nomad/docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
+[host_volume]: /nomad/docs/configuration/client#host_volume-block
+[csi_volume]: /nomad/docs/commands/volume/register
+[csi_plugin]: /nomad/docs/job-specification/csi_plugin
+[csi_volume]: /nomad/docs/commands/volume/register
+[attachment mode]: /nomad/docs/commands/volume/register#attachment_mode
+[volume registration]: /nomad/docs/commands/volume/register#mount_options

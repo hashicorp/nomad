@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/time/rate"
 )
@@ -36,7 +36,7 @@ func (n *NoopBadNodeTracker) Add(string) bool {
 // frequency and recency.
 type CachedBadNodeTracker struct {
 	logger    hclog.Logger
-	cache     *lru.TwoQueueCache
+	cache     *lru.TwoQueueCache[string, *badNodeStats]
 	limiter   *rate.Limiter
 	window    time.Duration
 	threshold int
@@ -72,7 +72,7 @@ func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerCon
 		With("window", config.Window).
 		With("threshold", config.Threshold)
 
-	cache, err := lru.New2Q(config.CacheSize)
+	cache, err := lru.New2Q[string, *badNodeStats](config.CacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new bad node tracker: %v", err)
 	}
@@ -93,12 +93,11 @@ func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerCon
 // cache. If the cache is full the least recently updated or accessed node is
 // evicted.
 func (c *CachedBadNodeTracker) Add(nodeID string) bool {
-	value, ok := c.cache.Get(nodeID)
+	stats, ok := c.cache.Get(nodeID)
 	if !ok {
-		value = newBadNodeStats(nodeID, c.window)
-		c.cache.Add(nodeID, value)
+		stats = newBadNodeStats(nodeID, c.window)
+		c.cache.Add(nodeID, stats)
 	}
-	stats := value.(*badNodeStats)
 
 	now := time.Now()
 	stats.record(now)
@@ -147,13 +146,12 @@ func (c *CachedBadNodeTracker) isBad(t time.Time, stats *badNodeStats) bool {
 
 func (c *CachedBadNodeTracker) emitStats() {
 	now := time.Now()
-	for _, k := range c.cache.Keys() {
-		value, _ := c.cache.Get(k)
-		stats := value.(*badNodeStats)
+	for _, nodeID := range c.cache.Keys() {
+		stats, _ := c.cache.Get(nodeID)
 		score := stats.score(now)
 
 		labels := []metrics.Label{
-			{Name: "node_id", Value: k.(string)},
+			{Name: "node_id", Value: nodeID},
 		}
 		metrics.SetGaugeWithLabels([]string{"nomad", "plan", "rejection_tracker", "node_score"}, float32(score), labels)
 	}

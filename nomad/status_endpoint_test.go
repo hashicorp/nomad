@@ -21,7 +21,7 @@ func TestStatusPing(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 
-	arg := struct{}{}
+	arg := &structs.GenericRequest{}
 	var out struct{}
 	if err := msgpackrpc.CallWithCodec(codec, "Status.Ping", arg, &out); err != nil {
 		t.Fatalf("err: %v", err)

@@ -15,11 +15,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -215,27 +216,36 @@ func TestOperator_ServerHealth(t *testing.T) {
 	}, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
 		req, _ := http.NewRequest("GET", "/v1/operator/autopilot/health", body)
-		retry.Run(t, func(r *retry.R) {
+		f := func() error {
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorServerHealth(resp, req)
 			if err != nil {
-				r.Fatalf("err: %v", err)
+				return fmt.Errorf("failed to get operator server health: %w", err)
 			}
-			if resp.Code != 200 {
-				r.Fatalf("bad code: %d", resp.Code)
+			if code := resp.Code; code != 200 {
+				return fmt.Errorf("response code not 200, got: %d", code)
 			}
-			out, ok := obj.(*api.OperatorHealthReply)
-			if !ok {
-				r.Fatalf("unexpected: %T", obj)
+			out := obj.(*api.OperatorHealthReply)
+			if n := len(out.Servers); n != 1 {
+				return fmt.Errorf("expected 1 server, got: %d", n)
 			}
-			if len(out.Servers) != 1 ||
-				!out.Servers[0].Healthy ||
-				out.Servers[0].Name != s.server.LocalMember().Name ||
-				out.Servers[0].SerfStatus != "alive" ||
-				out.FailureTolerance != 0 {
-				r.Fatalf("bad: %v, %q", out, s.server.LocalMember().Name)
+			s1, s2 := out.Servers[0].Name, s.server.LocalMember().Name
+			if s1 != s2 {
+				return fmt.Errorf("expected server names to match, got %s and %s", s1, s2)
 			}
-		})
+			if out.Servers[0].SerfStatus != "alive" {
+				return fmt.Errorf("expected serf status to be alive, got: %s", out.Servers[0].SerfStatus)
+			}
+			if out.FailureTolerance != 0 {
+				return fmt.Errorf("expected failure tolerance of 0, got: %d", out.FailureTolerance)
+			}
+			return nil
+		}
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(f),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		))
 	})
 }
 
@@ -247,25 +257,33 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 	}, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
 		req, _ := http.NewRequest("GET", "/v1/operator/autopilot/health", body)
-		retry.Run(t, func(r *retry.R) {
+		f := func() error {
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorServerHealth(resp, req)
 			if err != nil {
-				r.Fatalf("err: %v", err)
+				return fmt.Errorf("failed to get operator server health: %w", err)
 			}
-			if resp.Code != 429 {
-				r.Fatalf("bad code: %d, %v", resp.Code, obj.(*api.OperatorHealthReply))
+			if code := resp.Code; code != 429 {
+				return fmt.Errorf("expected code 429, got: %d", code)
 			}
-			out, ok := obj.(*api.OperatorHealthReply)
-			if !ok {
-				r.Fatalf("unexpected: %T", obj)
+			out := obj.(*api.OperatorHealthReply)
+			if n := len(out.Servers); n != 1 {
+				return fmt.Errorf("expected 1 server, got: %d", n)
 			}
-			if len(out.Servers) != 1 ||
-				out.Healthy ||
-				out.Servers[0].Name != s.server.LocalMember().Name {
-				r.Fatalf("bad: %#v", out.Servers)
+			if out.Healthy {
+				return fmt.Errorf("expected server to be unhealthy")
 			}
-		})
+			s1, s2 := out.Servers[0].Name, s.server.LocalMember().Name
+			if s1 != s2 {
+				return fmt.Errorf("expected server names to match, got %s and %s", s1, s2)
+			}
+			return nil
+		}
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(f),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		))
 	})
 }
 

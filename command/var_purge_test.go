@@ -64,9 +64,7 @@ func TestVarPurgeCommand_Online(t *testing.T) {
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
-	t.Cleanup(func() {
-		srv.Shutdown()
-	})
+	defer srv.Shutdown()
 
 	t.Run("unchecked", func(t *testing.T) {
 		ui := cli.NewMockUi()

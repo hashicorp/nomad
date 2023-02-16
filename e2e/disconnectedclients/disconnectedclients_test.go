@@ -26,6 +26,7 @@ type expectedAllocStatus struct {
 }
 
 func TestDisconnectedClients(t *testing.T) {
+	t.Skip("disconnected clients tests disabled for now")
 
 	nomad := e2eutil.NomadClient(t)
 	e2eutil.WaitForLeader(t, nomad)

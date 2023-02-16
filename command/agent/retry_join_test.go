@@ -222,7 +222,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 				},
 			},
 			isValid: false,
-			reason:  "server_join cannot be defined if retry_join is defined on the server stanza",
+			reason:  "server_join cannot be defined if retry_join is defined on the server block",
 		},
 		{
 			config: &Config{
@@ -240,7 +240,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 				},
 			},
 			isValid: false,
-			reason:  "server_join cannot be defined if start_join is defined on the server stanza",
+			reason:  "server_join cannot be defined if start_join is defined on the server block",
 		},
 		{
 			config: &Config{
@@ -258,7 +258,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 				},
 			},
 			isValid: false,
-			reason:  "server_join cannot be defined if retry_max_attempts is defined on the server stanza",
+			reason:  "server_join cannot be defined if retry_max_attempts is defined on the server block",
 		},
 		{
 			config: &Config{
@@ -276,7 +276,7 @@ func TestRetryJoin_Validate(t *testing.T) {
 				},
 			},
 			isValid: false,
-			reason:  "server_join cannot be defined if retry_interval is defined on the server stanza",
+			reason:  "server_join cannot be defined if retry_interval is defined on the server block",
 		},
 		{
 			config: &Config{

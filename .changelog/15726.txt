@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Update github.com/containerd/containerd from 1.6.6 to 1.6.12
+```

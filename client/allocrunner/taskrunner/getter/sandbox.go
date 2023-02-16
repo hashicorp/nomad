@@ -36,18 +36,20 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 
 	mode := getMode(artifact)
 	headers := getHeaders(env, artifact)
-	dir := getTaskDir(env)
+	allocDir, taskDir := getWritableDirs(env)
 
 	params := &parameters{
 		// downloader configuration
-		HTTPReadTimeout:            s.ac.HTTPReadTimeout,
-		HTTPMaxBytes:               s.ac.HTTPMaxBytes,
-		GCSTimeout:                 s.ac.GCSTimeout,
-		GitTimeout:                 s.ac.GitTimeout,
-		HgTimeout:                  s.ac.HgTimeout,
-		S3Timeout:                  s.ac.S3Timeout,
-		DisableFilesystemIsolation: s.ac.DisableFilesystemIsolation,
-		SetEnvironmentVariables:    s.ac.SetEnvironmentVariables,
+		HTTPReadTimeout:             s.ac.HTTPReadTimeout,
+		HTTPMaxBytes:                s.ac.HTTPMaxBytes,
+		GCSTimeout:                  s.ac.GCSTimeout,
+		GitTimeout:                  s.ac.GitTimeout,
+		HgTimeout:                   s.ac.HgTimeout,
+		S3Timeout:                   s.ac.S3Timeout,
+		DecompressionLimitFileCount: s.ac.DecompressionLimitFileCount,
+		DecompressionLimitSize:      s.ac.DecompressionLimitSize,
+		DisableFilesystemIsolation:  s.ac.DisableFilesystemIsolation,
+		SetEnvironmentVariables:     s.ac.SetEnvironmentVariables,
 
 		// artifact configuration
 		Mode:        mode,
@@ -55,8 +57,9 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 		Destination: destination,
 		Headers:     headers,
 
-		// task environment
-		TaskDir: dir,
+		// task filesystem
+		AllocDir: allocDir,
+		TaskDir:  taskDir,
 	}
 
 	if err = s.runCmd(params); err != nil {

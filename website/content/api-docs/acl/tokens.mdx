@@ -7,7 +7,7 @@ description: The /acl/token/ endpoints are used to configure and manage ACL toke
 # ACL Tokens HTTP API
 
 The `/acl/bootstrap`, `/acl/tokens`, and `/acl/token/` endpoints are used to manage ACL tokens.
-For more details about ACLs, please see the [ACL Guide](https://learn.hashicorp.com/collections/nomad/access-control).
+For more details about ACLs, please see the [ACL Guide](/nomad/tutorials/access-control).
 
 ## Bootstrap Token
 
@@ -16,15 +16,15 @@ An operator created token can be provided in the body of the request to bootstra
 if required. If no header is provided the cluster will return a generated management token.
 The provided token should be presented in a UUID format.
 This request is always forwarded to the authoritative region. It can only be invoked once
-until a [bootstrap reset](https://learn.hashicorp.com/tutorials/nomad/access-control-bootstrap#re-bootstrap-acl-system) is performed.
+until a [bootstrap reset](/nomad/tutorials/access-control/access-control-bootstrap#re-bootstrap-acl-system) is performed.
 
 | Method | Path             | Produces           |
 | ------ | ---------------- | ------------------ |
 | `POST` | `/acl/bootstrap` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -97,8 +97,8 @@ tokens which have been replicated to the region, and may lag behind the authorit
 | `GET`  | `/acl/tokens` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required |
 | ---------------- | ----------------- | ------------ |
@@ -124,7 +124,7 @@ The table below shows this endpoint's support for
   `X-Nomad-NextToken` header of the last response can be used as the
   `next_token` of the next request to fetch additional pages.
 
-- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering)
   used to filter the results. Consider using pagination or a query parameter to
   reduce resource used to serve the request.
 
@@ -173,8 +173,8 @@ is forwarded to the authoritative region.
 | `POST` | `/acl/token` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -201,7 +201,8 @@ The table below shows this endpoint's support for
 
 - `ExpirationTTL` `(duration: 0s)` - This is a convenience field and if set will
   initialize the `ExpirationTime` field to a value of `CreateTime` +
-  `ExpirationTTL`.
+  `ExpirationTTL`. This value must be between the [`token_min_expiration_ttl`][]
+  and [`token_max_expiration_ttl`][] ACL configuration parameters.
 
 ### Sample Payload
 
@@ -250,8 +251,8 @@ to local or visa versa.
 | `POST` | `/acl/token/:accessor_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -313,8 +314,8 @@ which has been replicated to the region it may lag behind the authoritative regi
 | `GET`  | `/acl/token/:accessor_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required                                       |
 | ---------------- | ----------------- | -------------------------------------------------- |
@@ -353,8 +354,8 @@ which has been replicated to the region it may lag behind the authoritative regi
 | `GET`  | `/acl/token/self` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required        |
 | ---------------- | ----------------- | ------------------- |
@@ -394,8 +395,8 @@ authoritative region for global tokens.
 | `DELETE` | `/acl/token/:accessor_id` | `(empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -423,8 +424,8 @@ This endpoint creates a one-time token for the ACL token provided in the
 | `POST` | `/acl/token/onetime` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -464,8 +465,8 @@ create it.
 | `POST` | `/acl/token/onetime/exchange` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -499,3 +500,6 @@ $ curl \
   }
 }
 ```
+
+[`token_min_expiration_ttl`]: /nomad/docs/configuration/acl#token_min_expiration_ttl
+[`token_max_expiration_ttl`]: /nomad/docs/configuration/acl#token_max_expiration_ttl

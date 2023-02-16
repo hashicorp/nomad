@@ -23,7 +23,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -253,7 +254,12 @@ type Server struct {
 	workersEventCh   chan interface{}
 
 	// aclCache is used to maintain the parsed ACL objects
-	aclCache *lru.TwoQueueCache
+	aclCache *structs.ACLCache[*acl.ACL]
+
+	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
+	// the provider performs background HTTP requests. When the Nomad server is
+	// shutting down, the oidcProviderCache.Shutdown() function must be called.
+	oidcProviderCache *oidc.ProviderCache
 
 	// leaderAcl is the management ACL token that is valid when resolved by the
 	// current leader.
@@ -335,10 +341,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 
 	// Create the ACL object cache
-	aclCache, err := lru.New2Q(aclCacheSize)
-	if err != nil {
-		return nil, err
-	}
+	aclCache := structs.NewACLCache[*acl.ACL](aclCacheSize)
 
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")
@@ -413,6 +416,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, err
 	}
 	s.encrypter = encrypter
+
+	// Set up the OIDC provider cache. This is needed by the setupRPC, but must
+	// be done separately so that the server can stop all background processes
+	// when it shuts down itself.
+	s.oidcProviderCache = oidc.NewProviderCache()
 
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {
@@ -720,6 +728,12 @@ func (s *Server) Shutdown() error {
 	// Stop being able to set Configuration Entries
 	s.consulConfigEntries.Stop()
 
+	// Shutdown the OIDC provider cache which contains background resources and
+	// processes.
+	if s.oidcProviderCache != nil {
+		s.oidcProviderCache.Shutdown()
+	}
+
 	return nil
 }
 
@@ -866,6 +880,18 @@ func (s *Server) Reload(newConfig *Config) error {
 			reloadSchedulers(s, newVals)
 		}
 		reloadSchedulers(s, newVals)
+	}
+
+	raftRC := raft.ReloadableConfig{
+		TrailingLogs:      newConfig.RaftConfig.TrailingLogs,
+		SnapshotInterval:  newConfig.RaftConfig.SnapshotInterval,
+		SnapshotThreshold: newConfig.RaftConfig.SnapshotThreshold,
+		HeartbeatTimeout:  newConfig.RaftConfig.HeartbeatTimeout,
+		ElectionTimeout:   newConfig.RaftConfig.ElectionTimeout,
+	}
+
+	if err := s.raft.ReloadConfig(raftRC); err != nil {
+		multierror.Append(&mErr, err)
 	}
 
 	return mErr.ErrorOrNil()
@@ -1225,8 +1251,8 @@ func (s *Server) setupStreamingEndpoints(server *rpc.Server) {
 // handlers can have per-connection context.
 func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	// These endpoints are client RPCs and don't include a connection context
-	_ = server.Register(NewClientCSIEndpoint(s))
 	_ = server.Register(NewClientStatsEndpoint(s))
+	_ = server.Register(newNodeMetaEndpoint(s))
 
 	// These endpoints have their streaming component registered in
 	// setupStreamingEndpoints, but their non-streaming RPCs are registered
@@ -1241,6 +1267,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 
 	_ = server.Register(NewACLEndpoint(s, ctx))
 	_ = server.Register(NewAllocEndpoint(s, ctx))
+	_ = server.Register(NewClientCSIEndpoint(s, ctx))
 	_ = server.Register(NewCSIVolumeEndpoint(s, ctx))
 	_ = server.Register(NewCSIPluginEndpoint(s, ctx))
 	_ = server.Register(NewDeploymentEndpoint(s, ctx))
@@ -1531,7 +1558,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 			return nil, err
 		}
 	}
-	conf.RejoinAfterLeave = true
 	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
 	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
 	// allow for convergence in 99.9% of nodes in a 10 node cluster

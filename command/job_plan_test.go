@@ -125,7 +125,7 @@ func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
 		got := cmd.Run([]string{
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
-			"assets/example-short.nomad",
+			"asset/example-short.nomad.hcl",
 		})
 		// Exit code 1 here means that an alloc will be created, which is
 		// expected.
@@ -134,6 +134,8 @@ func TestPlanCommand_hcl1_hcl2_strict(t *testing.T) {
 }
 
 func TestPlanCommand_From_STDIN(t *testing.T) {
+	_, _, addr := testServer(t, false, nil)
+
 	ci.Parallel(t)
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
@@ -142,38 +144,36 @@ func TestPlanCommand_From_STDIN(t *testing.T) {
 
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
-		Meta:      Meta{Ui: ui},
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: addr,
+		},
 		JobGetter: JobGetter{testStdin: stdinR},
 	}
 
 	go func() {
 		stdinW.WriteString(`
 job "job1" {
+	datacenters = ["dc1"]
   type = "service"
-  datacenters = [ "dc1" ]
-  group "group1" {
-                count = 1
-                task "task1" {
-                        driver = "exec"
-                        resources {
-                                cpu = 1000
-                                memory = 512
-                        }
-                }
-        }
+	group "group1" {
+    count = 1
+		task "task1" {
+      driver = "exec"
+			resources {
+        cpu    = 100
+        memory = 100
+      }
+    }
+  }
 }`)
 		stdinW.Close()
 	}()
 
-	args := []string{"-"}
-	if code := cmd.Run(args); code != 255 {
-		t.Fatalf("expected exit code 255, got %d: %q", code, ui.ErrorWriter.String())
-	}
-
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "connection refused") {
-		t.Fatalf("expected connection refused error, got: %s", out)
-	}
-	ui.ErrorWriter.Reset()
+	args := []string{"-address", addr, "-"}
+	code := cmd.Run(args)
+	must.Eq(t, 1, code, must.Sprintf("expected exit code 1, got %d: %q", code, ui.ErrorWriter.String()))
+	must.Eq(t, "", ui.ErrorWriter.String(), must.Sprintf("expected no stderr output, got:\n%s", ui.ErrorWriter.String()))
 }
 
 func TestPlanCommand_From_Files(t *testing.T) {
@@ -246,7 +246,7 @@ func TestPlanCommand_From_URL(t *testing.T) {
 	}
 }
 
-func TestPlanCommad_Preemptions(t *testing.T) {
+func TestPlanCommand_Preemptions(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
@@ -329,7 +329,7 @@ func TestPlanCommad_Preemptions(t *testing.T) {
 	require.Contains(out, "service")
 }
 
-func TestPlanCommad_JSON(t *testing.T) {
+func TestPlanCommand_JSON(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &JobPlanCommand{
 		Meta: Meta{Ui: ui},

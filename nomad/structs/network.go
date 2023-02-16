@@ -497,9 +497,9 @@ func incIP(ip net.IP) {
 }
 
 // AssignPorts based on an ask from the scheduler processing a group.network
-// stanza. Supports multi-interfaces through node configured host_networks.
+// block. Supports multi-interfaces through node configured host_networks.
 //
-// AssignTaskNetwork supports the deprecated task.resources.network stanza.
+// AssignTaskNetwork supports the deprecated task.resources.network block.
 func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, error) {
 	var offer AllocatedPorts
 

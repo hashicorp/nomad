@@ -8,7 +8,7 @@ description: >
 
 # Nomad Autoscaler Scaling Policies
 
-Nomad Autoscaler scaling policies can be configured via the [`scaling` stanza][jobspec_scaling_stanza]
+Nomad Autoscaler scaling policies can be configured via the [`scaling` block][jobspec_scaling_block]
 or by configuration files stored on disk. The options available differ whether
 you are performing horizontal application/cluster scaling or Dynamic Application
 Sizing.
@@ -87,7 +87,7 @@ horizontal application scaling or horizontal cluster scaling.
 ### Example in a Job
 
 A full example of a policy document that can be written into the Nomad task group
-`scaling` stanza can be seen below.
+`scaling` block can be seen below.
 
 ```hcl
 job "example" {
@@ -184,8 +184,8 @@ scaling "azure_cluster_policy" {
 
 The following options are available when using the Nomad Autoscaler Enterprise
 to perform Dynamic Application Sizing recommendations for task resources. When
-using the [`scaling` stanza][jobspec_scaling_stanza] for Dynamic Application
-Sizing, the stanza requires a label to identify which resource it relates to. It
+using the [`scaling` block][jobspec_scaling_block] for Dynamic Application
+Sizing, the block requires a label to identify which resource it relates to. It
 currently supports `cpu` and `mem` labels, examples of which can be seen below.
 
 - `cooldown` - A time interval after a scaling action during which no additional
@@ -240,11 +240,11 @@ scaling "mem" {
 }
 ```
 
-[concepts_grouping]: /tools/autoscaling/concepts/policy-eval/checks#check-grouping
-[das]: /tools/autoscaling#dynamic-application-sizing
-[policy_default_cooldown_agent]: /tools/autoscaling/agent#default_cooldown
-[eval_interval_agent]: /tools/autoscaling/agent#default_evaluation_interval
-[target_plugin_docs]: /tools/autoscaling/plugins/target
-[strategy_plugin_docs]: /tools/autoscaling/plugins/strategy
-[apm_plugin_docs]: /tools/autoscaling/plugins/apm
-[jobspec_scaling_stanza]: /docs/job-specification/scaling
+[concepts_grouping]: /nomad/tools/autoscaling/concepts/policy-eval/checks#check-grouping
+[das]: /nomad/tools/autoscaling#dynamic-application-sizing
+[policy_default_cooldown_agent]: /nomad/tools/autoscaling/agent#default_cooldown
+[eval_interval_agent]: /nomad/tools/autoscaling/agent#default_evaluation_interval
+[target_plugin_docs]: /nomad/tools/autoscaling/plugins/target
+[strategy_plugin_docs]: /nomad/tools/autoscaling/plugins/strategy
+[apm_plugin_docs]: /nomad/tools/autoscaling/plugins/apm
+[jobspec_scaling_block]: /nomad/docs/job-specification/scaling

@@ -24,6 +24,7 @@ type rpcEndpoints struct {
 	FileSystem  *FileSystem
 	Allocations *Allocations
 	Agent       *Agent
+	NodeMeta    *NodeMeta
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -268,6 +269,7 @@ func (c *Client) setupClientRpc(rpcs map[string]interface{}) {
 		c.endpoints.FileSystem = NewFileSystemEndpoint(c)
 		c.endpoints.Allocations = NewAllocationsEndpoint(c)
 		c.endpoints.Agent = NewAgentEndpoint(c)
+		c.endpoints.NodeMeta = newNodeMetaEndpoint(c)
 		c.setupClientRpcServer(c.rpcServer)
 	}
 
@@ -282,6 +284,7 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	server.Register(c.endpoints.FileSystem)
 	server.Register(c.endpoints.Allocations)
 	server.Register(c.endpoints.Agent)
+	server.Register(c.endpoints.NodeMeta)
 }
 
 // rpcConnListener is a long lived function that listens for new connections
@@ -431,11 +434,15 @@ func resolveServer(s string) (net.Addr, error) {
 	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }
 
+// Ping never mutates the request, so reuse a singleton to avoid the extra
+// malloc
+var pingRequest = &structs.GenericRequest{}
+
 // Ping is used to ping a particular server and returns whether it is healthy or
 // a potential error.
 func (c *Client) Ping(srv net.Addr) error {
 	var reply struct{}
-	err := c.connPool.RPC(c.Region(), srv, "Status.Ping", struct{}{}, &reply)
+	err := c.connPool.RPC(c.Region(), srv, "Status.Ping", pingRequest, &reply)
 	return err
 }
 

@@ -1,0 +1,11 @@
+```release-note:bug
+api: Fixed a bug where exposeConfig field was not provided correctly when getting the jobs via the API
+```
+
+```release-note:deprecation
+api: The connect `ConsulProxy.ExposeConfig` field is deprecated in favor of `ConsulProxy.Expose`
+```
+
+```release-note:deprecation
+api: The connect `ConsulExposeConfig.Path` field is deprecated in favor of `ConsulExposeConfig.Paths`
+```

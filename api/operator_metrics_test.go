@@ -4,12 +4,15 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestOperator_MetricsSummary(t *testing.T) {
 	testutil.Parallel(t)
-	c, s := makeClient(t, nil, nil)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 
 	operator := c.Operator()
@@ -20,19 +23,21 @@ func TestOperator_MetricsSummary(t *testing.T) {
 	}
 
 	metrics, qm, err := operator.MetricsSummary(qo)
-	require.NoError(t, err)
-	require.NotNil(t, metrics)
-	require.NotNil(t, qm)
-	require.NotNil(t, metrics.Timestamp)                // should always get a TimeStamp
-	require.GreaterOrEqual(t, len(metrics.Points), 0)   // may not have points yet
-	require.GreaterOrEqual(t, len(metrics.Gauges), 1)   // should have at least 1 gauge
-	require.GreaterOrEqual(t, len(metrics.Counters), 1) // should have at least 1 counter
-	require.GreaterOrEqual(t, len(metrics.Samples), 1)  // should have at least 1 sample
+	must.NoError(t, err)
+	must.NotNil(t, metrics)
+	must.NotNil(t, qm)
+	must.NotNil(t, metrics.Timestamp)       // should always get a TimeStamp
+	must.SliceEmpty(t, metrics.Points)      // may not have points yet
+	must.SliceNotEmpty(t, metrics.Gauges)   // should have at least 1 gauge
+	must.SliceNotEmpty(t, metrics.Counters) // should have at least 1 counter
+	must.SliceNotEmpty(t, metrics.Samples)  // should have at least 1 sample
 }
 
 func TestOperator_Metrics_Prometheus(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
 		c.Telemetry = &testutil.Telemetry{PrometheusMetrics: true}
 	})
 	defer s.Stop()
@@ -45,8 +50,8 @@ func TestOperator_Metrics_Prometheus(t *testing.T) {
 	}
 
 	metrics, err := operator.Metrics(qo)
-	require.NoError(t, err)
-	require.NotNil(t, metrics)
+	must.NoError(t, err)
+	must.NotNil(t, metrics)
 	metricString := string(metrics[:])
-	require.Containsf(t, metricString, "# HELP", "expected Prometheus format containing \"# HELP\", got: \n%s", metricString)
+	must.StrContains(t, metricString, "# HELP")
 }

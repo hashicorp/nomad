@@ -4,7 +4,7 @@
 
 The containers that run the Node/Controller applications require a cloud-config file be mounted in the containers and the path specified in the containers `args`.
 
-The example plugin job creates a file at `local/cloud.conf` using a [`template`](https://www.nomadproject.io/docs/job-specification/template) stanza which pulls the necessary credentials from a [Vault kv-v2](https://www.vaultproject.io/docs/secrets/kv/kv-v2) secrets store. However, other methods, such as using the [`artifact`](https://www.nomadproject.io/docs/job-specification/artifact) stanza, will work as well for delivering the `cloud.conf` file to the CSI drivers.
+The example plugin job creates a file at `local/cloud.conf` using a [`template`](https://www.nomadproject.io/docs/job-specification/template) block which pulls the necessary credentials from a [Vault kv-v2](https://www.vaultproject.io/docs/secrets/kv/kv-v2) secrets store. However, other methods, such as using the [`artifact`](https://www.nomadproject.io/docs/job-specification/artifact) block, will work as well for delivering the `cloud.conf` file to the CSI drivers.
 
 ### Example cloud.conf
 
@@ -26,7 +26,7 @@ The Cinder CSI Node task requires that [`privileged = true`](https://www.nomadpr
 
 * `--endpoint=${CSI_ENDPOINT}`: If you don't use the `CSI_ENDPOINT`
     environment variable, this option must match the `mount_dir`
-    specified in the `csi_plugin` stanza for the task.
+    specified in the `csi_plugin` block for the task.
 
 * `--cloud-config=/etc/config/cloud.conf`: The location that the
   cloud.conf file was mounted inside the container

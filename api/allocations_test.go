@@ -4,41 +4,39 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestAllocations_List(t *testing.T) {
+	testutil.RequireRoot(t)
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
 	defer s.Stop()
 	a := c.Allocations()
 
+	// wait for node
+	_ = oneNodeFromNodeList(t, c.Nodes())
+
 	// Querying when no allocs exist returns nothing
 	allocs, qm, err := a.List(nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(allocs); n != 0 {
-		t.Fatalf("expected 0 allocs, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.Zero(t, qm.LastIndex)
+	must.Len(t, 0, allocs)
 
 	// Create a job and attempt to register it
 	job := testJob()
 	resp, wm, err := c.Jobs().Register(job, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.NotEmpty(t, resp.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp)
+	must.UUIDv4(t, resp.EvalID)
 	assertWriteMeta(t, wm)
 
 	// List the allocations again
@@ -46,34 +44,29 @@ func TestAllocations_List(t *testing.T) {
 		WaitIndex: wm.LastIndex,
 	}
 	allocs, qm, err = a.List(qo)
-	require.NoError(t, err)
-	require.NotZero(t, qm.LastIndex)
+	must.NoError(t, err)
+	must.NonZero(t, qm.LastIndex)
 
 	// Check that we got the allocation back
-	require.Len(t, allocs, 1)
-	require.Equal(t, resp.EvalID, allocs[0].EvalID)
+	must.Len(t, 1, allocs)
+	must.Eq(t, resp.EvalID, allocs[0].EvalID)
 
 	// Resources should be unset by default
-	require.Nil(t, allocs[0].AllocatedResources)
+	must.Nil(t, allocs[0].AllocatedResources)
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
 
 	// Querying when no allocs exist returns nothing
 	allocs, qm, err := a.PrefixList("")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if qm.LastIndex != 0 {
-		t.Fatalf("bad index: %d", qm.LastIndex)
-	}
-	if n := len(allocs); n != 0 {
-		t.Fatalf("expected 0 allocs, got: %d", n)
-	}
+	must.NoError(t, err)
+	must.Zero(t, qm.LastIndex)
+	must.Len(t, 0, allocs)
 
 	// TODO: do something that causes an allocation to actually happen
 	// so we can query for them.
@@ -106,38 +99,49 @@ func TestAllocations_PrefixList(t *testing.T) {
 }
 
 func TestAllocations_List_Resources(t *testing.T) {
+	testutil.RequireRoot(t)
 	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
 		c.DevMode = true
 	})
 	defer s.Stop()
 	a := c.Allocations()
 
+	// wait for node
+	_ = oneNodeFromNodeList(t, c.Nodes())
+
 	// Create a job and register it
 	job := testJob()
 	resp, wm, err := c.Jobs().Register(job, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.NotEmpty(t, resp.EvalID)
+	must.NoError(t, err)
+	must.NotNil(t, resp)
+	must.UUIDv4(t, resp.EvalID)
 	assertWriteMeta(t, wm)
 
-	// List the allocations
 	qo := &QueryOptions{
 		Params:    map[string]string{"resources": "true"},
 		WaitIndex: wm.LastIndex,
 	}
-	allocs, qm, err := a.List(qo)
-	require.NoError(t, err)
-	require.NotZero(t, qm.LastIndex)
+	var allocationStubs []*AllocationListStub
+	var qm *QueryMeta
+	allocationStubs, qm, err = a.List(qo)
+	must.NoError(t, err)
 
 	// Check that we got the allocation back with resources
-	require.Len(t, allocs, 1)
-	require.Equal(t, resp.EvalID, allocs[0].EvalID)
-	require.NotNil(t, allocs[0].AllocatedResources)
+	must.Positive(t, qm.LastIndex)
+	must.Len(t, 1, allocationStubs)
+	alloc := allocationStubs[0]
+	must.Eq(t, resp.EvalID, alloc.EvalID,
+		must.Sprintf("registration: %#v", resp),
+		must.Sprintf("allocation:   %#v", alloc),
+	)
+	must.NotNil(t, alloc.AllocatedResources)
 }
 
 func TestAllocations_CreateIndexSort(t *testing.T) {
 	testutil.Parallel(t)
+
 	allocs := []*AllocationListStub{
 		{CreateIndex: 2},
 		{CreateIndex: 1},
@@ -150,13 +154,12 @@ func TestAllocations_CreateIndexSort(t *testing.T) {
 		{CreateIndex: 2},
 		{CreateIndex: 1},
 	}
-	if !reflect.DeepEqual(allocs, expect) {
-		t.Fatalf("\n\n%#v\n\n%#v", allocs, expect)
-	}
+	must.Eq(t, allocs, expect)
 }
 
 func TestAllocations_RescheduleInfo(t *testing.T) {
 	testutil.Parallel(t)
+
 	// Create a job, task group and alloc
 	job := &Job{
 		Name:      pointerOf("foo"),
@@ -258,12 +261,11 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			require := require.New(t)
 			alloc.RescheduleTracker = tc.rescheduleTracker
 			job.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
 			attempted, total := alloc.RescheduleInfo(tc.time)
-			require.Equal(tc.expAttempted, attempted)
-			require.Equal(tc.expTotal, total)
+			must.Eq(t, tc.expAttempted, attempted)
+			must.Eq(t, tc.expTotal, total)
 		})
 	}
 
@@ -271,6 +273,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 
 // TestAllocations_ExecErrors ensures errors are properly formatted
 func TestAllocations_ExecErrors(t *testing.T) {
+	testutil.Parallel(t)
+
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	a := c.Allocations()
@@ -312,8 +316,8 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	// ensure the error is what we expect
 	exitCode, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
 
-	require.Equal(t, exitCode, -2)
-	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))
+	must.Eq(t, -2, exitCode)
+	must.EqError(t, err, fmt.Sprintf("Unknown allocation \"%s\"", allocID))
 }
 
 func TestAllocation_ServerTerminalStatus(t *testing.T) {
@@ -343,7 +347,7 @@ func TestAllocation_ServerTerminalStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.expectedOutput, tc.inputAllocation.ServerTerminalStatus(), tc.name)
+			must.Eq(t, tc.expectedOutput, tc.inputAllocation.ServerTerminalStatus())
 		})
 	}
 }
@@ -385,18 +389,20 @@ func TestAllocation_ClientTerminalStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.expectedOutput, tc.inputAllocation.ClientTerminalStatus(), tc.name)
+			must.Eq(t, tc.expectedOutput, tc.inputAllocation.ClientTerminalStatus())
 		})
 	}
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {
 	testutil.Parallel(t)
-	require.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
-	require.False(t, DesiredTransition{}.ShouldMigrate())
-	require.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())
+
+	must.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
+	must.False(t, DesiredTransition{}.ShouldMigrate())
+	must.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())
 }
 
 func TestAllocations_Services(t *testing.T) {
+	t.Skip("needs to be implemented")
 	// TODO(jrasell) add tests once registration process is in place.
 }

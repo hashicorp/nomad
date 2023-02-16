@@ -1,6 +1,6 @@
 name: Core CI Tests
 on:
-  push:
+  pull_request:
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
@@ -17,11 +17,32 @@ on:
       - 'terraform/**'
       - 'ui/**'
       - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+
 env:
   VERBOSE: 1
   GOTESTARCH: amd64
-  CONSUL_VERSION: 1.12.6
-  VAULT_VERSION: 1.12.0
+  CONSUL_VERSION: 1.14.4
+  VAULT_VERSION: 1.12.2
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
 jobs:
@@ -67,7 +88,7 @@ jobs:
   tests-api:
     needs: [mods]
     runs-on: [custom, xl, 22.04]
-    timeout-minutes: 30
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - uses: hashicorp/setup-golang@v1

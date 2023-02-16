@@ -18,7 +18,7 @@ The `qemu` driver can execute any regular `qemu` image (e.g. `qcow`, `img`,
 `iso`), and is currently invoked with `qemu-system-x86_64`.
 
 The driver requires the image to be accessible from the Nomad client via the
-[`artifact` downloader](/docs/job-specification/artifact).
+[`artifact` downloader](/nomad/docs/job-specification/artifact).
 
 ## Task Configuration
 
@@ -107,7 +107,7 @@ task "virtual" {
 
 ## Capabilities
 
-The `qemu` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `qemu` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation |
 | -------------------- | -------------- |
@@ -180,5 +180,5 @@ to the workload once the VM is started. Operators should use the
 `args_allowlist` option to prevent job submitters from accessing
 devices and resources they are not allowed to access.
 
-[`args`]: /docs/drivers/qemu#args
+[`args`]: /nomad/docs/drivers/qemu#args
 [QEMU documentation]: https://www.qemu.org/docs/master/system/invocation.html

@@ -114,6 +114,7 @@ server {
   job_gc_threshold              = "12h"
   eval_gc_threshold             = "12h"
   deployment_gc_threshold       = "12h"
+  csi_volume_claim_gc_interval  = "3m"
   csi_volume_claim_gc_threshold = "12h"
   csi_plugin_gc_threshold       = "12h"
   acl_token_gc_threshold        = "12h"

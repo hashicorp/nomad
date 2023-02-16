@@ -51,7 +51,7 @@ The IIS task driver supports the following parameters:
 - `bindings` - (Optional) Bindings set here will be set for IIS.
   - `hostname` (string) - (Optional) IIS hostname for a binding.
   - `ipaddress` (string) - (Optional). `*` (default). IIS allows a binding to specify the IP Address being sent out.
-  - `resource_port` (string) - (Optional) Use a label from an established network stanza port. It is recommended to use this approach over using `port`.
+  - `resource_port` (string) - (Optional) Use a label from an established network block port. It is recommended to use this approach over using `port`.
   - `port` (number) - (Optional) Specify a static port to use for the website. A port must be specified between `resource_port` or `port`. Ports set this way will not be recognized by nomad.
   - `type` (string) - (Optional) Specifies which binding type IIS should use such as `http` or `https`.
   - `cert_hash` (string) - (Optional) For SSL support, supply the cert hash here of a cert installed on the system.
@@ -100,6 +100,6 @@ The `IIS` driver will set the following client attributes:
 - `driver.win_iis.iis_version` - Sets to IIS version of IIS which is running on nomad client.
 
 [nomad-driver-iis]: https://github.com/Roblox/nomad-driver-iis
-[plugin]: /docs/configuration/plugin
-[plugin_dir]: /docs/configuration#plugin_dir
+[plugin]: /nomad/docs/configuration/plugin
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
 [plugin-options]: #plugin_options

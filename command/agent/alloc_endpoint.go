@@ -222,7 +222,7 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 	case "exec":
 		return s.allocExec(allocID, resp, req)
 	case "snapshot":
-		if s.agent.client == nil {
+		if s.agent.Client() == nil {
 			return nil, clientNotRunning
 		}
 		return s.allocSnapshot(allocID, resp, req)
@@ -238,17 +238,14 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	// Get the requested Node ID
-	requestedNode := req.URL.Query().Get("node_id")
 
-	// Build the request and parse the ACL token
-	args := structs.NodeSpecificRequest{
-		NodeID: requestedNode,
-	}
+	// Build the request and get the requested Node ID
+	args := structs.NodeSpecificRequest{}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+	parseNode(req, &args.NodeID)
 
 	// Determine the handler to use
-	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(requestedNode)
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(args.NodeID)
 
 	// Make the RPC
 	var reply structs.GenericResponse

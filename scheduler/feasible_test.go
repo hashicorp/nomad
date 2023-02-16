@@ -103,8 +103,9 @@ func TestHostVolumeChecker(t *testing.T) {
 	}
 	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
 	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
-		"foo": {},
-		"bar": {},
+		"foo":              {},
+		"bar":              {},
+		"unique-volume[0]": {},
 	}
 	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"foo": {},
@@ -129,6 +130,11 @@ func TestHostVolumeChecker(t *testing.T) {
 		"baz": {
 			Type:   "nothost",
 			Source: "baz",
+		},
+		"unique": {
+			Type:     "host",
+			Source:   "unique-volume[0]",
+			PerAlloc: true,
 		},
 	}
 
@@ -165,8 +171,11 @@ func TestHostVolumeChecker(t *testing.T) {
 		},
 	}
 
+	alloc := mock.Alloc()
+	alloc.NodeID = nodes[2].ID
+
 	for i, c := range cases {
-		checker.SetVolumes(c.RequestedVolumes)
+		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -235,8 +244,12 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
+
+	alloc := mock.Alloc()
+	alloc.NodeID = nodes[1].ID
+
 	for i, c := range cases {
-		checker.SetVolumes(c.RequestedVolumes)
+		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -2682,6 +2695,11 @@ func TestDeviceChecker(t *testing.T) {
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
+						{
+							Operand: "set_contains",
+							LTarget: "${device.ids}",
+							RTarget: nvidia.Instances[0].ID,
+						},
 					},
 				},
 			},
@@ -2714,6 +2732,11 @@ func TestDeviceChecker(t *testing.T) {
 							Operand: "=",
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
+						},
+						{
+							Operand: "set_contains",
+							LTarget: "${device.ids}",
+							RTarget: fmt.Sprintf("%s,%s", nvidia.Instances[1].ID, nvidia.Instances[0].ID),
 						},
 					},
 				},
@@ -2813,6 +2836,24 @@ func TestDeviceChecker(t *testing.T) {
 							Operand: "=",
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "does not meet ID constraint",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name:  "nvidia/gpu",
+					Count: 1,
+					Constraints: []*structs.Constraint{
+						{
+							Operand: "set_contains",
+							LTarget: "${device.ids}",
+							RTarget: "not_valid",
 						},
 					},
 				},

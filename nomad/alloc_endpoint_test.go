@@ -1279,7 +1279,7 @@ func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
 			Namespace: "*",
 			Token:     uuid.Generate(),
 			Error:     true,
-			Message:   structs.ErrTokenNotFound.Error(),
+			Message:   structs.ErrPermissionDenied.Error(),
 		},
 		{
 			Label:     "all namespaces with insufficient token",
@@ -1311,7 +1311,7 @@ func TestAllocEndpoint_List_AllNamespaces_ACL_OSS(t *testing.T) {
 			Namespace: ns1.Name,
 			Token:     uuid.Generate(),
 			Error:     true,
-			Message:   structs.ErrTokenNotFound.Error(),
+			Message:   structs.ErrPermissionDenied.Error(),
 		},
 		{
 			Label:     "bad namespace with root token",

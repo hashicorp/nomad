@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: autopilot Stanza - Agent Configuration
+page_title: autopilot Block - Agent Configuration
 description: >-
-  The "autopilot" stanza configures the Nomad agent to configure Autopilot
+  The "autopilot" block configures the Nomad agent to configure Autopilot
   behavior.
 ---
 
-# `autopilot` Stanza
+# `autopilot` Block
 
 <Placement groups={['autopilot']} />
 
-The `autopilot` stanza configures the Nomad agent to configure Autopilot behavior.
-For more information about Autopilot, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+The `autopilot` block configures the Nomad agent to configure Autopilot behavior.
+For more information about Autopilot, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 ```hcl
 autopilot {
@@ -44,7 +44,7 @@ autopilot {
 
 - `enable_redundancy_zones` `(bool: false)` - (Enterprise-only) Controls whether
   Autopilot separates servers into zones for redundancy, in conjunction with the
-  [redundancy_zone](/docs/configuration/server#redundancy_zone) parameter.
+  [redundancy_zone](/nomad/docs/configuration/server#redundancy_zone) parameter.
   Only one server in each zone can be a voting member at one time.
 
 - `disable_upgrade_migration` `(bool: false)` - (Enterprise-only) Disables Autopilot's
@@ -54,4 +54,4 @@ autopilot {
 
 - `enable_custom_upgrades` `(bool: false)` - (Enterprise-only) Specifies whether to
   enable using custom upgrade versions when performing migrations, in conjunction with
-  the [upgrade_version](/docs/configuration/server#upgrade_version) parameter.
+  the [upgrade_version](/nomad/docs/configuration/server#upgrade_version) parameter.

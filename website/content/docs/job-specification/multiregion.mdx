@@ -1,18 +1,18 @@
 ---
 layout: docs
-page_title: multiregion Stanza - Job Specification
+page_title: multiregion Block - Job Specification
 description: |-
-  The "multiregion" stanza specifies that a job will be deployed to multiple federated
+  The "multiregion" block specifies that a job will be deployed to multiple federated
   regions.
 ---
 
-# `multiregion` Stanza
+# `multiregion` Block
 
 <Placement groups={[['job', 'multiregion']]} />
 
 <EnterpriseAlert />
 
-The `multiregion` stanza specifies that a job will be deployed to multiple
+The `multiregion` block specifies that a job will be deployed to multiple
 [federated regions]. If omitted, the job will be deployed to a single region—the
 one specified by the `region` field or the `-region` command line flag to
 `nomad job run`.
@@ -20,8 +20,8 @@ one specified by the `region` field or the `-region` command line flag to
 Federated Nomad clusters are members of the same gossip cluster but not the
 same raft cluster; they don't share their data stores. Each region in a
 multiregion deployment gets an independent copy of the job, parameterized with
-the values of the `region` stanza. Nomad regions coordinate to rollout each
-region's deployment using rules determined by the `strategy` stanza.
+the values of the `region` block. Nomad regions coordinate to rollout each
+region's deployment using rules determined by the `strategy` block.
 
 ```hcl
 job "docs" {
@@ -58,7 +58,7 @@ begins in the `running` state, and ends in the `successful` state, the
 `canceled` state (if another deployment supersedes it before it it's
 complete), or the `failed` state. A failed single region deployment may
 automatically revert to the previous version of the job if its `update`
-stanza has the [`auto_revert`][update-auto-revert] setting.
+block has the [`auto_revert`][update-auto-revert] setting.
 
 In a multiregion deployment, regions begin in the `pending` state. This allows
 Nomad to determine that all regions have accepted the job before
@@ -69,10 +69,10 @@ final region will unblock the regions to mark them as `successful`.
 
 ## Parameterized Dispatch
 
-Job dispatching is region specific. While a [parameterized job] can be 
+Job dispatching is region specific. While a [parameterized job] can be
 registered in multiple [federated regions] like any other job, a parameterized
 job operates much like a function definition that takes variable input.
-Operators are expected to invoke the job by invoking [`job dispatch`] 
+Operators are expected to invoke the job by invoking [`job dispatch`]
 from the CLI or the [HTTP API] and provide the appropriate dispatch options
 for that region.
 
@@ -108,10 +108,10 @@ multiregion deployments are considered GA.
 - `on_failure` `(string: <optional>)` - Specifies the behavior when a region
   deployment fails. Available options are `"fail_all"`, `"fail_local"`, or
   the default (empty `""`). This field and its interactions with the job's
-  [`update` stanza] is described in the [examples] below.
+  [`update` block] is described in the [examples] below.
 
   Each region within a multiregion deployment follows the `auto_revert`
-  strategy of its own `update` stanza (if any). The multiregion `on_failure`
+  strategy of its own `update` block (if any). The multiregion `on_failure`
   field tells Nomad how many other regions should be marked as failed when one
   region's deployment fails:
 
@@ -131,7 +131,7 @@ multiregion deployments are considered GA.
 
 ~> For `system` jobs, only [`max_parallel`](#max_parallel) is enforced. The
 `system` scheduler will be updated to support `on_failure` when the
-[`update` stanza] is fully supported for system jobs in a future release.
+[`update` block] is fully supported for system jobs in a future release.
 
 ### `region` Parameters
 
@@ -147,17 +147,17 @@ The name of a region must match the name of one of the [federated regions].
   datacenters in the region which are eligible for task placement. If not
   provided, the `datacenters` field of the job will be used.
 
-- `meta` - `Meta: nil` - The meta stanza allows for user-defined arbitrary
+- `meta` - `Meta: nil` - The meta block allows for user-defined arbitrary
   key-value pairs. The meta specified for each region will be merged with the
-  meta stanza at the job level.
+  meta block at the job level.
 
 As described above, the parameters for each region replace the default values
 for the field with the same name for each region.
 
 ## `multiregion` Examples
 
-The following examples only show the `multiregion` stanza and the other
-stanzas it might be interacting with.
+The following examples only show the `multiregion` block and the other
+blocks it might be interacting with.
 
 ### Max Parallel
 
@@ -185,7 +185,7 @@ multiregion {
 This example shows the default value of `on_failure`. Because `max_parallel = 1`,
 the "north" region will deploy first, followed by "south", and so on. But
 supposing the "east" region failed, both the "east" region and the "west"
-region would be marked `failed`. Because the job has an `update` stanza with
+region would be marked `failed`. Because the job has an `update` block with
 `auto_revert=true`, both regions would then rollback to the previous job
 version. The "north" and "south" regions would remain `blocked` until an
 operator intervenes.
@@ -275,13 +275,13 @@ group "worker" {
 }
 ```
 
-[federated regions]: https://learn.hashicorp.com/tutorials/nomad/federation
-[`update` stanza]: /docs/job-specification/update
-[update-auto-revert]: /docs/job-specification/update#auto_revert
+[federated regions]: /nomad/tutorials/manage-clusters/federation
+[`update` block]: /nomad/docs/job-specification/update
+[update-auto-revert]: /nomad/docs/job-specification/update#auto_revert
 [examples]: #multiregion-examples
-[upgrade strategies]: https://learn.hashicorp.com/collections/nomad/job-updates
-[`nomad deployment unblock`]: /docs/commands/deployment/unblock
-[parameterized job]: /docs/job-specification/parameterized
-[`job dispatch`]: /docs/commands/job/dispatch
-[HTTP API]: /api-docs/jobs#dispatch-job
-[time zone]: /docs/job-specification/periodic#time_zone
+[upgrade strategies]: /nomad/tutorials/job-updates
+[`nomad deployment unblock`]: /nomad/docs/commands/deployment/unblock
+[parameterized job]: /nomad/docs/job-specification/parameterized
+[`job dispatch`]: /nomad/docs/commands/job/dispatch
+[HTTP API]: /nomad/api-docs/jobs#dispatch-job
+[time zone]: /nomad/docs/job-specification/periodic#time_zone

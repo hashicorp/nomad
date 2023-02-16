@@ -17,8 +17,8 @@ This endpoint lists all allocations.
 | `GET`  | `/v1/allocations` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -41,7 +41,7 @@ The table below shows this endpoint's support for
   `X-Nomad-NextToken` header of the last response can be used as the
   `next_token` of the next request to fetch additional pages.
 
-- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering)
   used to filter the results. Consider using pagination or a query parameter to
   reduce resource used to serve the request.
 
@@ -223,8 +223,8 @@ This endpoint reads information about a specific allocation.
 | `GET`  | `/v1/allocation/:alloc_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -549,7 +549,7 @@ $ curl \
   updated. This is primarily intended for use by the Nomad client when running
   the allocation, and it may include stale information on some job fields.
   Up-to-date information about the job status is available from the
-  [jobs API](/api-docs/jobs); take care to fetch the version of the job
+  [jobs API](/nomad/api-docs/jobs); take care to fetch the version of the job
   associated with this allocation.
 
 - `TaskStates` - A map of tasks to their current state and the latest events
@@ -634,8 +634,8 @@ This endpoint stops and reschedules a specific allocation.
 | `POST` / `PUT` | `/v1/allocation/:alloc_id/stop` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                |
 | ---------------- | --------------------------- |
@@ -672,8 +672,8 @@ This endpoint sends a signal to an allocation or task.
 | `POST` / `PUT` | `/v1/client/allocation/:alloc_id/signal` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                |
 | ---------------- | --------------------------- |
@@ -718,8 +718,8 @@ This endpoint restarts an allocation or task in-place.
 | `POST` / `PUT` | `/v1/client/allocation/:alloc_id/restart` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                |
 | ---------------- | --------------------------- |
@@ -769,8 +769,8 @@ It opens a WebSocket to transmit input to and output from the command.
 | `WebSocket` | `/v1/client/allocation/:alloc_id/exec` | WebSocket JSON streams |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------- |
@@ -861,8 +861,8 @@ allocation ID.
 | `GET`  | `/allocation/:alloc_id/services` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required         |
 | ---------------- | ----------------- | -------------------- |

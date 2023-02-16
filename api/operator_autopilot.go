@@ -190,7 +190,7 @@ func (op *Operator) AutopilotGetConfiguration(q *QueryOptions) (*AutopilotConfig
 // AutopilotSetConfiguration is used to set the current Autopilot configuration.
 func (op *Operator) AutopilotSetConfiguration(conf *AutopilotConfiguration, q *WriteOptions) (*WriteMeta, error) {
 	var out bool
-	wm, err := op.c.write("/v1/operator/autopilot/configuration", conf, &out, q)
+	wm, err := op.c.put("/v1/operator/autopilot/configuration", conf, &out, q)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (op *Operator) AutopilotSetConfiguration(conf *AutopilotConfiguration, q *W
 // true on success or false on failures.
 func (op *Operator) AutopilotCASConfiguration(conf *AutopilotConfiguration, q *WriteOptions) (bool, *WriteMeta, error) {
 	var out bool
-	wm, err := op.c.write("/v1/operator/autopilot/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
+	wm, err := op.c.put("/v1/operator/autopilot/configuration?cas="+strconv.FormatUint(conf.ModifyIndex, 10), conf, &out, q)
 	if err != nil {
 		return false, nil, err
 	}

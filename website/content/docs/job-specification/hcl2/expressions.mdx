@@ -117,14 +117,14 @@ types described above:
 
   Key/value pairs can be separated by either a comma or a line break. Values
   can be arbitrary expressions. Keys are strings; they can be left unquoted if
-  they are a valid [identifier](/docs/job-specification/hcl2/syntax#identifiers), but must be quoted
+  they are a valid [identifier](/nomad/docs/job-specification/hcl2/syntax#identifiers), but must be quoted
   otherwise. You can use a non-literal expression as a key by wrapping it in
   parentheses, like `(var.business_unit_tag_name) = "SRE"`.
 
 ### Available Functions
 
 For a full list of available functions, see [the function
-reference](/docs/job-specification/hcl2/functions).
+reference](/nomad/docs/job-specification/hcl2/functions).
 
 ## `for` Expressions
 
@@ -260,7 +260,7 @@ network {
 ```
 
 You can dynamically construct repeatable nested blocks like `port` using a
-special `dynamic` block type, which is supported anywhere, example:
+special `dynamic` block type, which is supported in most places, example:
 
 ```hcl
 locals {
@@ -296,6 +296,12 @@ job "example" {
     ...
 ```
 
+~> **Caveat:** Dynamic blocks are not supported inside blocks that are opaque
+to Nomad, such as the `config` attributes in [`task`][task_config],
+[`sidecar_task`][sidecar_task_config], [`proxy`][proxy_config], and
+[`gateway`][gateway_config], and the group scaling
+[`policy`][group_scaling_policy].
+
 A `dynamic` block acts much like a `for` expression, but produces nested blocks
 instead of a complex typed value. It iterates over a given complex value, and
 generates a nested block for each element of that complex value.
@@ -330,8 +336,8 @@ block. If you need to declare resource instances based on a nested data
 structure or combinations of elements from multiple data structures you can use
 expressions and functions to derive a suitable value. For some common examples
 of such situations, see the
-[`flatten`](/docs/job-specification/hcl2/functions/collection/flatten) and
-[`setproduct`](/docs/job-specification/hcl2/functions/collection/setproduct)
+[`flatten`](/nomad/docs/job-specification/hcl2/functions/collection/flatten) and
+[`setproduct`](/nomad/docs/job-specification/hcl2/functions/collection/setproduct)
 functions.
 
 ### Best Practices for `dynamic` Blocks
@@ -424,3 +430,9 @@ beginning a template sequence, double the leading character: `$${` or `%%{`.
 Within quoted and heredoc string expressions, the sequences `${` and `%{` begin
 _template sequences_. Templates let you directly embed expressions into a string
 literal, to dynamically construct strings from other values.
+
+[gateway_config]: /nomad/docs/job-specification/gateway#config
+[group_scaling_policy]: /nomad/docs/job-specification/scaling#policy
+[proxy_config]: /nomad/docs/job-specification/proxy#config
+[sidecar_task_config]: /nomad/docs/job-specification/sidecar_task#config
+[task_config]: /nomad/docs/job-specification/task#config

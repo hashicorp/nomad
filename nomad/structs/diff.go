@@ -544,6 +544,12 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, tmplDiffs...)
 	}
 
+	// Identity diff
+	idDiffs := idDiff(t.Identity, other.Identity, contextual)
+	if idDiffs != nil {
+		diff.Objects = append(diff.Objects, idDiffs)
+	}
+
 	return diff, nil
 }
 
@@ -2367,6 +2373,32 @@ func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
 	oldPrimitiveFlat := flatmap.Flatten(old, nil, false)
 	newPrimitiveFlat := flatmap.Flatten(new, nil, false)
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+	return diff
+}
+
+// idDiff returns the diff of two identity objects. If contextual diff is
+// enabled, all fields will be returned, even if no diff occurred.
+func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Identity"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(oldWI, newWI) {
+		return nil
+	} else if oldWI == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
+	} else if newWI == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
 	return diff
 }
 

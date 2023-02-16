@@ -122,7 +122,7 @@ elements all have a consistent type:
 The
 [resource `for_each`](https://www.terraform.io/docs/configuration/resources.html#for_each-multiple-resource-instances-defined-by-a-map-or-set-of-strings)
 and
-[`dynamic` block](/docs/job-specification/hcl2/expressions/#dynamic-blocks)
+[`dynamic` block](/nomad/docs/job-specification/hcl2/expressions/#dynamic-blocks)
 language features both require a collection value that has one element for
 each repetition.
 
@@ -218,12 +218,12 @@ elements in the input variables.
 
 ## Related Functions
 
-- [`contains`](/docs/job-specification/hcl2/functions/collection/contains) tests whether a given list or set contains
+- [`contains`](/nomad/docs/job-specification/hcl2/functions/collection/contains) tests whether a given list or set contains
   a given element value.
-- [`flatten`](/docs/job-specification/hcl2/functions/collection/flatten) is useful for flattening hierarchical data
+- [`flatten`](/nomad/docs/job-specification/hcl2/functions/collection/flatten) is useful for flattening hierarchical data
   into a single list, for situations where the relationships between two
   object types are defined explicitly.
-- [`setintersection`](/docs/job-specification/hcl2/functions/collection/setintersection) computes the _intersection_ of
+- [`setintersection`](/nomad/docs/job-specification/hcl2/functions/collection/setintersection) computes the _intersection_ of
   multiple sets.
-- [`setunion`](/docs/job-specification/hcl2/functions/collection/setunion) computes the _union_ of multiple
+- [`setunion`](/nomad/docs/job-specification/hcl2/functions/collection/setunion) computes the _union_ of multiple
   sets.

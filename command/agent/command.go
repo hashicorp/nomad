@@ -315,8 +315,8 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	// Check that the datacenter name does not contain invalid characters
-	if strings.ContainsAny(config.Datacenter, "\000") {
-		c.Ui.Error("Datacenter contains invalid characters")
+	if strings.ContainsAny(config.Datacenter, "\000*") {
+		c.Ui.Error("Datacenter contains invalid characters (null or '*')")
 		return false
 	}
 
@@ -408,7 +408,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	}
 
 	if err := config.Client.Artifact.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("client.artifact stanza invalid: %v", err))
+		c.Ui.Error(fmt.Sprintf("client.artifact block invalid: %v", err))
 		return false
 	}
 
@@ -472,10 +472,21 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 
 	// Create a log writer, and wrap a logOutput around it
 	writers := []io.Writer{logFilter}
-
+	logLevel := strings.ToUpper(config.LogLevel)
+	logLevelMap := map[string]gsyslog.Priority{
+		"ERROR": gsyslog.LOG_ERR,
+		"WARN":  gsyslog.LOG_WARNING,
+		"INFO":  gsyslog.LOG_INFO,
+		"DEBUG": gsyslog.LOG_DEBUG,
+		"TRACE": gsyslog.LOG_DEBUG,
+	}
+	if logLevel == "OFF" {
+		config.EnableSyslog = false
+	}
 	// Check if syslog is enabled
 	if config.EnableSyslog {
-		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
+		ui.Output(fmt.Sprintf("Config enable_syslog is `true` with log_level=%v", config.LogLevel))
+		l, err := gsyslog.NewLogger(logLevelMap[logLevel], config.SyslogFacility, "nomad")
 		if err != nil {
 			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
 			return nil, nil, nil
@@ -1180,7 +1191,7 @@ func (c *Command) startupJoin(config *Config) error {
 		new = len(config.Server.ServerJoin.StartJoin)
 	}
 	if old != 0 && new != 0 {
-		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join stanza")
+		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join block")
 	}
 
 	// Nothing to do

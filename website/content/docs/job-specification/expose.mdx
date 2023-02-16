@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: expose Stanza - Job Specification
+page_title: expose Block - Job Specification
 description: |-
-  The "expose" stanza allows specifying options for configuring Envoy expose
+  The "expose" block allows specifying options for configuring Envoy expose
   paths used in Consul Connect integration
 ---
 
-# `expose` Stanza
+# `expose` Block
 
 <Placement
   groups={[
@@ -20,13 +20,13 @@ description: |-
   ]}
 />
 
-The `expose` stanza allows configuration of additional listeners for the default
+The `expose` block allows configuration of additional listeners for the default
 Envoy sidecar proxy managed by Nomad for [Consul Connect][learn-consul-connect].
 These listeners create a bypass of the Connect TLS and network namespace
 isolation, enabling non-Connect enabled services to make requests to specific
 HTTP paths through the sidecar proxy.
 
-The `expose` configuration is valid within the context of a `proxy` stanza.
+The `expose` configuration is valid within the context of a `proxy` block.
 Additional information about Expose Path configurations for Envoy can be found
 in Consul's [Expose Paths Configuration Reference][consul-expose-path-config].
 
@@ -72,7 +72,7 @@ job "expose-check-example" {
 ```
 
 For uses other than Consul service checks, use the `expose` configuration in the
-`proxy` stanza. The example below effectively demonstrates exposing the
+`proxy` block. The example below effectively demonstrates exposing the
 `/health` endpoint similar to the example above, but using the fully flexible
 `expose` configuration.
 
@@ -213,7 +213,7 @@ proxy {
 
 A common use case for `expose` is for exposing endpoints used in Consul service
 check definitions. For these cases the [expose][] parameter in the service check
-stanza can be used to automatically generate the expose path configuration.
+block can be used to automatically generate the expose path configuration.
 Configuring a port for use by the check is optional, as a dynamic port will be
 automatically generated if not provided.
 
@@ -228,12 +228,12 @@ check {
 }
 ```
 
-[network-to]: /docs/job-specification/network#to
-[consul-expose-path-config]: https://developer.hashicorp.com/consul/docs/connect/registration/service-registration#expose-paths-configuration-reference
-[expose-path]: /docs/job-specification/expose#path-1
-[expose]: /docs/job-specification/service#expose
-[path]: /docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
-[port]: /docs/job-specification/network#port-parameters 'Nomad Port Parameters'
-[network_interface]: /docs/configuration/client#network_interface
-[learn-consul-connect]: https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh
-[check]: /docs/job-specification/service#check-parameters
+[network-to]: /nomad/docs/job-specification/network#to
+[consul-expose-path-config]: /consul/docs/connect/registration/service-registration#expose-paths-configuration-reference
+[expose-path]: /nomad/docs/job-specification/expose#path-1
+[expose]: /nomad/docs/job-specification/service#expose
+[path]: /nomad/docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
+[port]: /nomad/docs/job-specification/network#port-parameters 'Nomad Port Parameters'
+[network_interface]: /nomad/docs/configuration/client#network_interface
+[learn-consul-connect]: /nomad/tutorials/integrate-consul/consul-service-mesh
+[check]: /nomad/docs/job-specification/service#check-parameters

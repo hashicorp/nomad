@@ -9,7 +9,6 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/acl"
@@ -108,9 +107,19 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 
 	variablesRPC := NewVariablesEndpoint(srv, nil, srv.encrypter)
 
+	testFn := func(args *structs.QueryOptions, cap, path string) error {
+		err := srv.Authenticate(nil, args)
+		if err != nil {
+			return structs.ErrPermissionDenied
+		}
+		_, _, err = variablesRPC.handleMixedAuthEndpoint(
+			*args, cap, path)
+		return err
+	}
+
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
-		_, _, err := variablesRPC.handleMixedAuthEndpoint(
-			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
+		err := testFn(
+			&structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -121,8 +130,8 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
-		_, _, err := variablesRPC.handleMixedAuthEndpoint(
-			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, acl.PolicyList,
+		err := testFn(&structs.QueryOptions{
+			AuthToken: idToken, Namespace: structs.DefaultNamespace}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -351,8 +360,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := variablesRPC.handleMixedAuthEndpoint(
-				structs.QueryOptions{AuthToken: tc.token, Namespace: ns}, tc.cap, tc.path)
+			err := testFn(
+				&structs.QueryOptions{AuthToken: tc.token, Namespace: ns},
+				tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
 			} else {
@@ -709,7 +719,7 @@ namespace "*" {}
 			for _, sv := range resp.Data {
 				found += fmt.Sprintf(" ns=%s path=%s\n", sv.Namespace, sv.Path)
 			}
-			must.Len(t, expectedCount, resp.Data, test.Sprintf("%s", found))
+			must.Len(t, expectedCount, resp.Data, must.Sprintf("%s", found))
 		})
 	}
 

@@ -1,10 +1,10 @@
 ---
 layout: docs
-page_title: restart Stanza - Job Specification
-description: The "restart" stanza configures a group's behavior on task failure.
+page_title: restart Block - Job Specification
+description: The "restart" block configures a group's behavior on task failure.
 ---
 
-# `restart` Stanza
+# `restart` Block
 
 <Placement
   groups={[
@@ -13,7 +13,7 @@ description: The "restart" stanza configures a group's behavior on task failure.
   ]}
 />
 
-The `restart` stanza configures a task's behavior on task failure. Restarts
+The `restart` block configures a task's behavior on task failure. Restarts
 happen on the client that is running the task.
 
 ```hcl
@@ -133,7 +133,7 @@ restart {
   unlikely to succeed after a few failures. The allocation will be
   marked as failed and the scheduler will attempt to reschedule the
   allocation according to the
-  [`reschedule`] stanza.
+  [`reschedule`] block.
 
 ### `restart` Examples
 
@@ -166,5 +166,5 @@ restart {
 }
 ```
 
-[sidecar_task]: /docs/job-specification/sidecar_task
-[`reschedule`]: /docs/job-specification/reschedule
+[sidecar_task]: /nomad/docs/job-specification/sidecar_task
+[`reschedule`]: /nomad/docs/job-specification/reschedule

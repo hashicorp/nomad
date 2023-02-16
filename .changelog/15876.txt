@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: Added metrics for rate of RPC requests
+```

@@ -27,9 +27,9 @@ into the plan queue.
 
 # Details
 
-Preemption is enabled by default in Nomad 0.9 for system jobs. Operators can use the [scheduler config](/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
+Preemption is enabled by default in Nomad 0.9 for system jobs. Operators can use the [scheduler config](/nomad/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
 
-Nomad uses the [job priority](/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
+Nomad uses the [job priority](/nomad/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority
 delta of more than 10 from the job needing placement are eligible for preemption.
 
@@ -51,7 +51,7 @@ allocations `a1`, `a2` and `a4` to satisfy those requirements.
 
 # Preemption Visibility
 
-Operators can use the [allocation API](/api-docs/allocations#read-allocation) or the `alloc status` command to get visibility into
+Operators can use the [allocation API](/nomad/api-docs/allocations#read-allocation) or the `alloc status` command to get visibility into
 whether an allocation has been preempted. Preempted allocations will have their DesiredStatus set to “evict”. The `Allocation` object
 in the API also has two additional fields related to preemption.
 
@@ -68,7 +68,7 @@ preemption is necessary to place the job, it shows additional information in the
 `nomad plan` as seen below.
 
 ```shell-session
-$ nomad plan example.nomad
+$ nomad plan example.nomad.hcl
 
 + Job: "test"
 + Task Group: "test" (1 create)

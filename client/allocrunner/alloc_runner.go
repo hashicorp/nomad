@@ -125,7 +125,7 @@ type allocRunner struct {
 	allocDir *allocdir.AllocDir
 
 	// runnerHooks are alloc runner lifecycle hooks that should be run on state
-	// transistions.
+	// transitions.
 	runnerHooks []interfaces.RunnerHook
 
 	// hookState is the output of allocrunner hooks
@@ -546,7 +546,9 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
+		// kill remaining live tasks
 		if len(liveRunners) > 0 {
+
 			// if all live runners are sidecars - kill alloc
 			onlySidecarsRemaining := hasSidecars && !hasNonSidecarTasks(liveRunners)
 			if killEvent == nil && onlySidecarsRemaining {
@@ -586,6 +588,14 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			}
 		} else {
+			// there are no live runners left
+
+			// run AR pre-kill hooks if this alloc is done, but not if it's because
+			// the agent is shutting down.
+			if !ar.isShuttingDown() && done {
+				ar.preKillHooks()
+			}
+
 			// If there are no live runners left kill all non-poststop task
 			// runners to unblock them from the alloc restart loop.
 			for _, tr := range ar.tasks {

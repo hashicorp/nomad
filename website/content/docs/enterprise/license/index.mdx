@@ -77,7 +77,7 @@ See the server [license configuration] reference documentation on all the
 options to set an enterprise license. Nomad will load the license file from
 disk or environment when it starts.
 
-~> **Note:** An Enterprise license [tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license?in=nomad/enterprise) is available to help you install the license on the server.
+~> **Note:** An Enterprise license [tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license) is available to help you install the license on the server.
 
 In order to immediately alert operators of a bad configuration setting, if a
 license configuration option is an invalid or expired license, the Nomad server
@@ -90,10 +90,10 @@ NOMAD_LICENSE=misconfigured nomad agent -dev
 ==> Error starting agent: server setup failed: failed to initialize enterprise licensing: a file license was configured but the license is invalid: error decoding version: expected integer
 ```
 
-See the [License commands](/docs/commands/license) for more information on
+See the [License commands](/nomad/docs/commands/license) for more information on
 interacting with the Enterprise License.
 
 [gh-9958]: https://github.com/hashicorp/nomad/issues/9958
 [releases site]: https://releases.hashicorp.com/nomad
-[license configuration]: /docs/configuration/server#license_path
-[license endpoint]: /api-docs/operator/license#updating-the-nomad-enterprise-license
+[license configuration]: /nomad/docs/configuration/server#license_path
+[license endpoint]: /nomad/api-docs/operator/license#updating-the-nomad-enterprise-license

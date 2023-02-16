@@ -37,6 +37,6 @@ func defaultEnvironment(taskDir string) map[string]string {
 }
 
 // lockdown applies only to Linux
-func lockdown(string) error {
+func lockdown(string, string) error {
 	return nil
 }

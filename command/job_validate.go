@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
@@ -58,13 +59,13 @@ Validate Options:
   -vault-token
     Used to validate if the user submitting the job has permission to run the job
     according to its Vault policies. A Vault token must be supplied if the vault
-    stanza allow_unauthenticated is disabled in the Nomad server configuration.
+    block allow_unauthenticated is disabled in the Nomad server configuration.
     If the -vault-token flag is set, the passed Vault token is added to the jobspec
     before sending to the Nomad servers. This allows passing the Vault token
     without storing it in the job file. This overrides the token found in the
     $VAULT_TOKEN environment variable and the vault_token field in the job file.
     This token is cleared from the job after validating and cannot be used within
-    the job executing environment. Use the vault stanza when templating in a job
+    the job executing environment. Use the vault block when templating in a job
     with a Vault token.
 
   -vault-namespace
@@ -196,8 +197,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 
 	// Print any warnings if there are any
 	if jr.Warnings != "" {
-		c.Ui.Output(
-			c.Colorize().Color(fmt.Sprintf("[bold][yellow]Job Warnings:\n%s[reset]\n", jr.Warnings)))
+		c.Ui.Output(c.FormatWarnings("Job", jr.Warnings))
 	}
 
 	// Done!
@@ -225,30 +225,6 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 		}
 	}
 
-	out.Warnings = mergeMultierrorWarnings(job.Warnings())
+	out.Warnings = helper.MergeMultierrorWarnings(job.Warnings())
 	return &out, nil
-}
-
-func mergeMultierrorWarnings(errs ...error) string {
-	if len(errs) == 0 {
-		return ""
-	}
-
-	var mErr multierror.Error
-	_ = multierror.Append(&mErr, errs...)
-
-	mErr.ErrorFormat = warningsFormatter
-
-	return mErr.Error()
-}
-
-func warningsFormatter(es []error) string {
-	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
-
-	for i := range es {
-		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
-	}
-
-	return sb.String()
 }

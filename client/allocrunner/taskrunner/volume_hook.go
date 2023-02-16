@@ -32,7 +32,7 @@ func (*volumeHook) Name() string {
 	return "volumes"
 }
 
-func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) error {
+func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig, allocName string) error {
 	var result error
 
 	for _, req := range requestedByAlias {
@@ -42,9 +42,14 @@ func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, cli
 			continue
 		}
 
-		_, ok := clientVolumesByName[req.Source]
+		source := req.Source
+		if req.PerAlloc {
+			source = source + structs.AllocSuffix(allocName)
+		}
+
+		_, ok := clientVolumesByName[source]
 		if !ok {
-			result = multierror.Append(result, fmt.Errorf("missing %s", req.Source))
+			result = multierror.Append(result, fmt.Errorf("missing %s", source))
 		}
 	}
 
@@ -54,7 +59,7 @@ func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, cli
 // hostVolumeMountConfigurations takes the users requested volume mounts,
 // volumes, and the client host volume configuration and converts them into a
 // format that can be used by drivers.
-func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeMount, taskVolumesByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) ([]*drivers.MountConfig, error) {
+func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeMount, taskVolumesByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig, allocName string) ([]*drivers.MountConfig, error) {
 	var mounts []*drivers.MountConfig
 	for _, m := range taskMounts {
 		req, ok := taskVolumesByAlias[m.Volume]
@@ -71,17 +76,22 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			continue
 		}
 
-		hostVolume, ok := clientVolumesByName[req.Source]
+		source := req.Source
+		if req.PerAlloc {
+			source = source + structs.AllocSuffix(allocName)
+		}
+		hostVolume, ok := clientVolumesByName[source]
 		if !ok {
 			// Should never happen, but unless the client volumes were mutated during
 			// the execution of this hook.
-			return nil, fmt.Errorf("No host volume named: %s", req.Source)
+			return nil, fmt.Errorf("no host volume named: %s", source)
 		}
 
 		mcfg := &drivers.MountConfig{
-			HostPath: hostVolume.Path,
-			TaskPath: m.Destination,
-			Readonly: hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
+			HostPath:        hostVolume.Path,
+			TaskPath:        m.Destination,
+			Readonly:        hostVolume.ReadOnly || req.ReadOnly || m.ReadOnly,
+			PropagationMode: m.PropagationMode,
 		}
 		mounts = append(mounts, mcfg)
 	}
@@ -110,12 +120,12 @@ func (h *volumeHook) prepareHostVolumes(req *interfaces.TaskPrestartRequest, vol
 
 	// Always validate volumes to ensure that we do not allow volumes to be used
 	// if a host is restarted and loses the host volume configuration.
-	if err := validateHostVolumes(volumes, hostVolumes); err != nil {
+	if err := validateHostVolumes(volumes, hostVolumes, req.Alloc.Name); err != nil {
 		h.logger.Error("Requested Host Volume does not exist", "existing", hostVolumes, "requested", volumes)
 		return nil, fmt.Errorf("host volume validation error: %v", err)
 	}
 
-	hostVolumeMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
+	hostVolumeMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes, req.Alloc.Name)
 	if err != nil {
 		h.logger.Error("Failed to generate host volume mounts", "error", err)
 		return nil, err
@@ -171,9 +181,10 @@ func (h *volumeHook) prepareCSIVolumes(req *interfaces.TaskPrestartRequest, volu
 
 		for _, m := range mountsForAlias {
 			mcfg := &drivers.MountConfig{
-				HostPath: csiMountPoint.Source,
-				TaskPath: m.Destination,
-				Readonly: request.ReadOnly || m.ReadOnly,
+				HostPath:        csiMountPoint.Source,
+				TaskPath:        m.Destination,
+				Readonly:        request.ReadOnly || m.ReadOnly,
+				PropagationMode: m.PropagationMode,
 			}
 			mounts = append(mounts, mcfg)
 		}

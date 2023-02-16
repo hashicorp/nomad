@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: network Stanza - Job Specification
+page_title: network Block - Job Specification
 description: |-
-  The "network" stanza specifies the networking requirements for the task group,
+  The "network" block specifies the networking requirements for the task group,
   including networking mode and port allocations.
 ---
 
-# `network` Stanza
+# `network` Block
 
 <Placement groups={[['job', 'group', 'network']]} />
 
-The `network` stanza specifies the networking requirements for the task group,
+The `network` block specifies the networking requirements for the task group,
 including the network mode and port allocations. When scheduling jobs in
 Nomad they are provisioned across your fleet of machines along with other jobs
 and services. Because you don't know in advance what host your job will be
@@ -38,9 +38,9 @@ job "docs" {
 
 ### Network modes
 
-When the `network` stanza is defined with `bridge` as the networking mode,
+When the `network` block is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/docs/integrations/consul-connect). Tasks running within a
+[Consul Connect](/nomad/docs/integrations/consul-connect). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
 This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
@@ -54,9 +54,14 @@ configure the appropriate iptables rules.
 Network modes are only supported in allocations running on Linux clients.
 All other operating systems use the `host` networking mode.
 
+~> **Warning:** To prevent any type of external access when using `bridge`
+   network mode make sure to bind your workloads to the loopback interface
+   only. Refer to the [Bridge networking][docs_networking_bridge] documentation
+   for more information.
+
 ## `network` Parameters
 
-- `mbits` <code>([_deprecated_](/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
+- `mbits` <code>([_deprecated_](/nomad/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
 
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a TCP/UDP port
   allocation and can be used to specify both dynamic ports and reserved ports.
@@ -77,7 +82,7 @@ All other operating systems use the `host` networking mode.
 - `hostname` `(string: "")` - The hostname assigned to the network namespace. This
   is currently only supported using the [Docker driver][docker-driver] and when the
   [mode](#mode) is set to [`bridge`](#bridge). This parameter supports
-  [interpolation](/docs/runtime/interpolation).
+  [interpolation](/nomad/docs/runtime/interpolation).
 
 - `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
   for the allocations. By default all DNS configuration is inherited from the client host.
@@ -119,12 +124,12 @@ The label of the port is just text - it has no special meaning to Nomad.
 - `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
 - `options` `(array<string>: nil)` - Sets internal resolver variables.
 
-These parameters support [interpolation](/docs/runtime/interpolation).
+These parameters support [interpolation](/nomad/docs/runtime/interpolation).
 
 ## `network` Examples
 
-The following examples only show the `network` stanzas. Remember that the
-`network` stanza is only valid in the placements listed above.
+The following examples only show the `network` blocks. Remember that the
+`network` block is only valid in the placements listed above.
 
 ### Dynamic Ports
 
@@ -204,7 +209,7 @@ Bridge mode allows compatible tasks to share a networking stack and interfaces. 
 can then do port mapping without relying on individual task drivers to implement port
 mapping configuration.
 
-The following example is a group level network stanza that uses bridge mode
+The following example is a group level network block that uses bridge mode
 and port mapping.
 
 ```hcl
@@ -248,7 +253,7 @@ Nomad supports CNI by fingerprinting each node for [CNI network configurations](
 These are associated to the node by the `name` field of the CNI configuration.
 The `name` can then be used when setting the network `mode` field in the form of `cni/<name>`.
 
-As an example if the following CNI configuration was on a node the proceeding network stanza could be used.
+As an example if the following CNI configuration was on a node the proceeding network block could be used.
 
 ```json
 {
@@ -285,7 +290,7 @@ network {
 }
 ```
 
-The Nomad client will build the correct [capabilities arguments](https://github.com/containernetworking/cni/blob/v0.8.0/CONVENTIONS.md#well-known-capabilities) for the portmap plugin based on the defined port stanzas.
+The Nomad client will build the correct [capabilities arguments](https://github.com/containernetworking/cni/blob/v0.8.0/CONVENTIONS.md#well-known-capabilities) for the portmap plugin based on the defined port blocks.
 
 ### Host Networks
 
@@ -316,11 +321,12 @@ network {
 
 ### Limitations
 
-- Only one `network` stanza can be specified, when it is defined at the task group level.
+- Only one `network` block can be specified, when it is defined at the task group level.
 - Only the `NOMAD_PORT_<label>` and `NOMAD_HOST_PORT_<label>` environment
   variables are set for group network ports.
 
-[docker-driver]: /docs/drivers/docker 'Nomad Docker Driver'
-[qemu-driver]: /docs/drivers/qemu 'Nomad QEMU Driver'
-[connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
-[`cni_path`]: /docs/configuration/client#cni_path
+[docs_networking_bridge]: /nomad/docs/networking#bridge-networking
+[docker-driver]: /nomad/docs/drivers/docker 'Nomad Docker Driver'
+[qemu-driver]: /nomad/docs/drivers/qemu 'Nomad QEMU Driver'
+[connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[`cni_path`]: /nomad/docs/configuration/client#cni_path

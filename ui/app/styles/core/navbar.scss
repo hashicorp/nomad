@@ -174,4 +174,13 @@
       border-top-color: white;
     }
   }
+
+  .custom-label {
+    border-radius: 1rem;
+    padding: 0.25rem 1rem;
+    background: black;
+    color: white;
+    display: grid;
+    align-self: center;
+  }
 }

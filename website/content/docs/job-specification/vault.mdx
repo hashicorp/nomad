@@ -1,13 +1,13 @@
 ---
 layout: docs
-page_title: vault Stanza - Job Specification
+page_title: vault Block - Job Specification
 description: |-
-  The "vault" stanza allows the task to specify that it requires a token from a
+  The "vault" block allows the task to specify that it requires a token from a
   HashiCorp Vault server. Nomad will automatically retrieve a Vault token for
   the task and handle token renewal for the task.
 ---
 
-# `vault` Stanza
+# `vault` Block
 
 <Placement
   groups={[
@@ -17,12 +17,12 @@ description: |-
   ]}
 />
 
-The `vault` stanza allows a task to specify that it requires a token from a
+The `vault` block allows a task to specify that it requires a token from a
 [HashiCorp Vault][vault] server. Nomad will automatically retrieve a Vault token
 for the task and handle token renewal for the task. If specified at the `group`
 level, the configuration will apply to all tasks within the group. If specified
 at the `job` level, the configuration will apply to all tasks within the job. If
-multiple `vault` stanzas are specified, they are merged with the `task` stanza
+multiple `vault` blocks are specified, they are merged with the `task` block
 taking the highest precedence, then the `group`, then the `job`.
 
 ```hcl
@@ -42,8 +42,8 @@ job "docs" {
 
 The Nomad client will make the Vault token available to the task by writing it
 to the secret directory at `secrets/vault_token` and by injecting a `VAULT_TOKEN`
-environment variable. If the Nomad cluster is [configured](/docs/configuration/vault#namespace)
-to use [Vault Namespaces](https://www.vaultproject.io/docs/enterprise/namespaces),
+environment variable. If the Nomad cluster is [configured](/nomad/docs/configuration/vault#namespace)
+to use [Vault Namespaces](/vault/docs/enterprise/namespaces),
 a `VAULT_NAMESPACE` environment variable will be injected whenever `VAULT_TOKEN` is set.
 
 If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
@@ -51,7 +51,7 @@ network error), the client will attempt to retrieve a new Vault token. If succes
 contents of the secrets file are updated on disk, and action will be taken
 according to the value set in the `change_mode` parameter.
 
-If a `vault` stanza is specified, the [`template`][template] stanza can interact
+If a `vault` block is specified, the [`template`][template] block can interact
 with Vault as well.
 
 ## `vault` Parameters
@@ -80,8 +80,8 @@ with Vault as well.
 
 ## `vault` Examples
 
-The following examples only show the `vault` stanzas. Remember that the
-`vault` stanza is only valid in the placements listed above.
+The following examples only show the `vault` blocks. Remember that the
+`vault` block is only valid in the placements listed above.
 
 ### Retrieve Token
 
@@ -125,8 +125,8 @@ vault {
 }
 ```
 
-[restart]: /docs/job-specification/restart "Nomad restart Job Specification"
+[restart]: /nomad/docs/job-specification/restart "Nomad restart Job Specification"
 
-[template]: /docs/job-specification/template "Nomad template Job Specification"
+[template]: /nomad/docs/job-specification/template "Nomad template Job Specification"
 
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"

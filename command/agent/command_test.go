@@ -148,7 +148,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 	}
 }
 
-func TestCommand_NullCharInDatacenter(t *testing.T) {
+func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 	ci.Parallel(t)
 
 	tmpDir := t.TempDir()
@@ -157,6 +157,9 @@ func TestCommand_NullCharInDatacenter(t *testing.T) {
 		"char-\\000-in-the-middle",
 		"ends-with-\\000",
 		"\\000-at-the-beginning",
+		"char-*-in-the-middle",
+		"ends-with-*",
+		"*-at-the-beginning",
 	}
 	for _, tc := range tcases {
 		configFile := filepath.Join(tmpDir, "conf1.hcl")
@@ -188,7 +191,7 @@ func TestCommand_NullCharInDatacenter(t *testing.T) {
 		}
 
 		out := ui.ErrorWriter.String()
-		exp := "Datacenter contains invalid characters"
+		exp := "Datacenter contains invalid characters (null or '*')"
 		if !strings.Contains(out, exp) {
 			t.Fatalf("expect to find %q\n\n%s", exp, out)
 		}
@@ -398,7 +401,7 @@ func TestIsValidConfig(t *testing.T) {
 					},
 				},
 			},
-			err: "client.artifact stanza invalid: http_read_timeout must be > 0",
+			err: "client.artifact block invalid: http_read_timeout must be > 0",
 		},
 	}
 

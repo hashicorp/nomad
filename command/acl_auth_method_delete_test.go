@@ -19,7 +19,7 @@ func TestACLAuthMethodDeleteCommand(t *testing.T) {
 	}
 
 	srv, _, url := testServer(t, true, config)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	state := srv.Agent.Server().State()
 

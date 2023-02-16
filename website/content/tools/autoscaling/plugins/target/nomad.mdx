@@ -22,7 +22,7 @@ target "nomad" {
 
 ## Policy Configuration Options
 
-If using the [Nomad job specification scaling stanza][nomad_scaling_stanza] to
+If using the [Nomad job specification scaling block][nomad_scaling_block] to
 configure the scaling policy, the following section can be omitted as Nomad will
 populate them on job submission.
 
@@ -42,12 +42,12 @@ check "example-check" {
   specification.
 
 - `Job` `(string: "")` - The job identifier which contains the task group to
-  scale as defined within the job specification [`job` stanza][nomad_job_stanza].
+  scale as defined within the job specification [`job` block][nomad_job_block].
 
 - `Group` `(string: "")` - The name of the task group to scale as defined in the
-  job specification [`group` stanza][nomad_group_stanza].
+  job specification [`group` block][nomad_group_block].
 
-[nomad_job_stanza]: /docs/job-specification/job#job-stanza
-[nomad_group_stanza]: /docs/job-specification/group#group-stanza
-[nomad_namespace_parameter]: /docs/job-specification/job#namespace
-[nomad_scaling_stanza]: /docs/job-specification/scaling
+[nomad_job_block]: /nomad/docs/job-specification/job#job-block
+[nomad_group_block]: /nomad/docs/job-specification/group#group-block
+[nomad_namespace_parameter]: /nomad/docs/job-specification/job#namespace
+[nomad_scaling_block]: /nomad/docs/job-specification/scaling

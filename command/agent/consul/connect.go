@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -18,7 +19,7 @@ import (
 func newConnect(serviceID string, info structs.AllocInfo, serviceName string, nc *structs.ConsulConnect, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceConnect, error) {
 	switch {
 	case nc == nil:
-		// no connect stanza means there is no connect service to register
+		// no connect block means there is no connect service to register
 		return nil, nil
 
 	case nc.IsGateway():
@@ -56,7 +57,7 @@ func newConnectGateway(connect *structs.ConsulConnect) *api.AgentServiceConnectP
 
 	var envoyConfig map[string]interface{}
 
-	// Populate the envoy configuration from the gateway.proxy stanza, if
+	// Populate the envoy configuration from the gateway.proxy block, if
 	// such configuration is provided.
 	if proxy := connect.Gateway.Proxy; proxy != nil {
 		envoyConfig = make(map[string]interface{})
@@ -93,7 +94,7 @@ func newConnectGateway(connect *structs.ConsulConnect) *api.AgentServiceConnectP
 
 func connectSidecarRegistration(serviceID string, info structs.AllocInfo, css *structs.ConsulSidecarService, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceRegistration, error) {
 	if css == nil {
-		// no sidecar stanza means there is no sidecar service to register
+		// no sidecar block means there is no sidecar service to register
 		return nil, nil
 	}
 
@@ -202,6 +203,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          connectMeshGateway(upstream.MeshGateway),
+			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams

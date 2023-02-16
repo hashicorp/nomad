@@ -53,7 +53,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 - `args` - (Optional) A list of arguments to the optional `command`. If no
   `command` is specified, the arguments are passed directly to the container.
   References to environment variables or any [interpretable Nomad
-  variables](/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task. For example:
 
   ```hcl
@@ -71,7 +71,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
   Attempt to continue without auth. If the Nomad client configuration has an
-  [`auth.helper`](#plugin_auth_helper) stanza, the helper will be tried for
+  [`auth.helper`](#plugin_auth_helper) block, the helper will be tried for
   all images, including public images. If you mix private and public images,
   you will need to include `auth_soft_fail=true` in every job using a public
   image.
@@ -156,6 +156,9 @@ config {
 
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
+
+- `isolation` - (Optional) One of `"hyper-v"`, `"process"`, or `"default"`
+  (which is the same as `process`). Enables [Windows isolation][] modes.
 
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
@@ -247,7 +250,7 @@ config {
   "02:68:b3:29:da:98").
 
 - `memory_hard_limit` - (Optional) The maximum allowable amount of memory used
-  (megabytes) by the container. If set, the [`memory`](/docs/job-specification/resources#memory)
+  (megabytes) by the container. If set, the [`memory`](/nomad/docs/job-specification/resources#memory)
   parameter of the task resource configuration becomes a soft limit passed to the
   docker driver as [`--memory_reservation`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory),
   and `memory_hard_limit` is passed as the [`--memory`](https://docs.docker.com/config/containers/resource_constraints/#limit-a-containers-access-to-memory)
@@ -289,7 +292,7 @@ config {
   group-wide bridge networking, you may encounter issues preventing your
   containers from reaching networks outside of the bridge interface on systems with
   firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
-  network as trusted and can be resolved as described in the [network stanza] documentation.
+  network as trusted and can be resolved as described in the [network block] documentation.
 
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
@@ -537,7 +540,7 @@ config {
 
 - `advertise_ipv6_address` - (Optional) `true` or `false` (default). Use the container's
   IPv6 address (GlobalIPv6Address in Docker) when registering services and checks.
-  See [IPv6 Docker containers](/docs/job-specification/service#ipv6-docker-containers) for details.
+  See [IPv6 Docker containers](/nomad/docs/job-specification/service#ipv6-docker-containers) for details.
 
 - `readonly_rootfs` - (Optional) `true` or `false` (default). Mount
   the container's filesystem as read only.
@@ -556,7 +559,7 @@ config {
 - `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 
-Additionally, the docker driver supports customization of the container's user through the task's [`user` option](/docs/job-specification/task#user).
+Additionally, the docker driver supports customization of the container's user through the task's [`user` option](/nomad/docs/job-specification/task#user).
 
 ### Container Name
 
@@ -661,7 +664,7 @@ scope of Nomad.
 ### Allocating Ports
 
 You can allocate ports to your task using the port syntax described on the
-[networking page](/docs/job-specification/network). Here is a recap:
+[networking page](/nomad/docs/job-specification/network). Here is a recap:
 
 ```hcl
 group {
@@ -741,12 +744,12 @@ expose and port forwarding.
 
 #### Deprecated `port_map` Syntax
 
-Up until Nomad 0.12, ports could be specified in a task's resource stanza and set using the docker
+Up until Nomad 0.12, ports could be specified in a task's resource block and set using the docker
 `port_map` field. As more features have been added to the group network resource allocation, task based
 network resources are deprecated. With it the `port_map` field is also deprecated and can only be used
 with task network resources.
 
-Users should migrate their jobs to define ports in the group network stanza and specified which ports
+Users should migrate their jobs to define ports in the group network block and specified which ports
 a task maps with the `ports` field.
 
 ### Advertising Container IPs
@@ -757,7 +760,7 @@ When using network plugins like `weave` that assign containers a routable IP
 address, that address will automatically be used in any `service`
 advertisements for the task. You may override what address is advertised by
 using the `address_mode` parameter on a `service`. See
-[service](/docs/job-specification/service) for details.
+[service](/nomad/docs/job-specification/service) for details.
 
 ### Networking Protocols
 
@@ -773,7 +776,7 @@ through Nomad plugins or dynamic job configuration.
 
 ## Capabilities
 
-The `docker` driver implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `docker` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation    |
 | -------------------- | ----------------- |
@@ -804,7 +807,7 @@ For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
 
 If you would like to change any of the options related to the `docker` driver
-on a Nomad client, you can modify them with the [plugin stanza][plugin-stanza]
+on a Nomad client, you can modify them with the [plugin block][plugin-block]
 syntax. Below is an example of a configuration (many of the values are the
 default). See the next section for more information on the options.
 
@@ -894,7 +897,7 @@ host system.
 - `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
   docker runtimes a task may use.
 
-- `auth` stanza:
+- `auth` block:
 
   - `config`<a id="plugin_auth_file"></a> - Allows an operator to specify a
     JSON file which is in the dockercfg format containing authentication
@@ -911,7 +914,7 @@ host system.
     public images. If you mix private and public images, you will need to
     include [`auth_soft_fail=true`] in every job using a public image.
 
-- `tls` stanza:
+- `tls` block:
 
   - `cert` - Path to the server's certificate file (`.pem`). Specify this
     along with `key` and `ca` to use a TLS client to connect to the docker
@@ -934,7 +937,7 @@ host system.
   Available options are `job_name`, `job_id`, `task_group_name`, `task_name`,
   `namespace`, `node_name`, `node_id`. Globs are supported (e.g. `task*`)
 
-- `logging` stanza:
+- `logging` block:
 
   - `type` - Defaults to `"json-file"`. Specifies the logging driver docker
     should use for all containers Nomad starts. Note that for older versions
@@ -947,7 +950,7 @@ host system.
     [configuration](https://docs.docker.com/config/containers/logging/configure/)
     to the logging driver.
 
-- `gc` stanza:
+- `gc` block:
 
   - `image` - Defaults to `true`. Changing this to `false` will prevent Nomad
     from removing images from stopped tasks.
@@ -956,13 +959,14 @@ host system.
     here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`.
     The delay controls how long Nomad will wait between an image being unused
     and deleting it. If a task is received that uses the same image within
-    the delay, the image will be reused.
+    the delay, the image will be reused. If an image is referenced by more than
+    one tag, `image_delay` may not work correctly.
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits. Under a name conflict,
     Nomad may still remove the dead container.
 
-  - `dangling_containers` stanza for controlling dangling container detection
+  - `dangling_containers` block for controlling dangling container detection
     and cleanup:
 
     - `enabled` - Defaults to `true`. Enables dangling container handling.
@@ -979,7 +983,7 @@ host system.
       GC. Should not need adjusting higher but may be adjusted lower to GC
       more aggressively.
 
-- `volumes` stanza:
+- `volumes` block:
 
   - `enabled` - Defaults to `false`. Allows tasks to bind host paths
     (`volumes`) inside their container and use volume drivers
@@ -1003,11 +1007,11 @@ host system.
 ## Client Configuration
 
 ~> Note: client configuration options will soon be deprecated. Please use
-[plugin options][plugin-options] instead. See the [plugin stanza][plugin-stanza]
+[plugin options][plugin-options] instead. See the [plugin block][plugin-block]
 documentation for more information.
 
 The `docker` driver has the following [client configuration
-options](/docs/configuration/client#options):
+options](/nomad/docs/configuration/client#options):
 
 - `docker.endpoint` - If using a non-standard socket, HTTP or another location,
   or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
@@ -1128,11 +1132,16 @@ Nomad limits containers' CPU based on CPU shares. CPU shares allow containers
 to burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
 throttled to stabilize QoS depending on how many shares it has. You can see how
-many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`.
+many CPU shares are available to your process by reading [`NOMAD_CPU_LIMIT`][runtime_env].
 1000 shares are approximately equal to 1 GHz.
 
 Please keep the implications of CPU shares in mind when you load test workloads
 on Nomad.
+
+If resources [`cores`][cores] is set, the task is given an isolated reserved set of
+CPU cores to make use of. The total set of cores the task may run on is the private
+set combined with the variable set of unreserved cores. The private set of CPU cores
+is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 
 ### Memory
 
@@ -1144,7 +1153,7 @@ host.
 Since memory is not an elastic resource, you will need to make sure your
 container does not exceed the amount of memory allocated to it, or it will be
 terminated or crash when it tries to malloc. A process can inspect its memory
-limit by reading `NOMAD_MEMORY_LIMIT`, but will need to track its own memory
+limit by reading [`NOMAD_MEMORY_LIMIT`][runtime_env], but will need to track its own memory
 usage. Memory limit is expressed in megabytes so 1024 = 1 GB.
 
 ### IO
@@ -1159,7 +1168,7 @@ Docker provides resource isolation by way of
 Containers essentially have a virtual file system all to themselves. If you
 need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
-[QEMU](/docs/drivers/qemu).
+[QEMU](/nomad/docs/drivers/qemu).
 
 ## Caveats
 
@@ -1183,7 +1192,7 @@ Containers that don't match Nomad container patterns are left untouched.
 
 Operators can run the reaper in a dry-run mode, where it only logs dangling
 container ids without killing them, or disable it by setting the
-`gc.dangling_containers` config stanza.
+`gc.dangling_containers` config block.
 
 ### Docker for Windows
 
@@ -1191,20 +1200,23 @@ Docker for Windows only supports running Windows containers. Because Docker for
 Windows is relatively new and rapidly evolving you may want to consult the
 [list of relevant issues on GitHub][winissues].
 
-[faq-win-mac]: /docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
+[faq-win-mac]: /nomad/docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
 [plugin-options]: #plugin-options
-[plugin-stanza]: /docs/configuration/plugin
-[allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[plugin-block]: /nomad/docs/configuration/plugin
+[allocation working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
 [`auth_soft_fail=true`]: #auth_soft_fail
-[cap_add]: /docs/drivers/docker#cap_add
-[cap_drop]: /docs/drivers/docker#cap_drop
-[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[upgrade_guide_extra_hosts]: /docs/upgrade/upgrade-specific#docker-driver
+[cap_add]: /nomad/docs/drivers/docker#cap_add
+[cap_drop]: /nomad/docs/drivers/docker#cap_drop
+[no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[upgrade_guide_extra_hosts]: /nomad/docs/upgrade/upgrade-specific#docker-driver
 [tini]: https://github.com/krallin/tini
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[allow_caps]: /docs/drivers/docker#allow_caps
-[Connect]: /docs/job-specification/connect
-[`bridge`]: /docs/job-specification/network#bridge
-[network stanza]: /docs/job-specification/network#bridge-mode
-[`pids_limit`]: /docs/drivers/docker#pids_limit
+[allow_caps]: /nomad/docs/drivers/docker#allow_caps
+[Connect]: /nomad/docs/job-specification/connect
+[`bridge`]: /nomad/docs/job-specification/network#bridge
+[network block]: /nomad/docs/job-specification/network#bridge-mode
+[`pids_limit`]: /nomad/docs/drivers/docker#pids_limit
+[Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
+[cores]: /nomad/docs/job-specification/resources#cores
+[runtime_env]: /nomad/docs/runtime/environment#job-related-variables

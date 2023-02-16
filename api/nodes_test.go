@@ -24,6 +24,9 @@ func queryNodeList(t *testing.T, nodes *Nodes) ([]*NodeListStub, *QueryMeta) {
 		if err != nil {
 			return fmt.Errorf("failed to list nodes: %w", err)
 		}
+		if len(nodeListStub) == 0 {
+			return fmt.Errorf("no nodes yet")
+		}
 		return nil
 	}
 

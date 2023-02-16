@@ -3,6 +3,7 @@
 package getter
 
 import (
+	"os"
 	"path/filepath"
 	"syscall"
 
@@ -62,7 +63,7 @@ func defaultEnvironment(taskDir string) map[string]string {
 // dir - the task directory
 //
 // Only applies to Linux, when available.
-func lockdown(dir string) error {
+func lockdown(allocDir, taskDir string) error {
 	// landlock not present in the kernel, do not sandbox
 	if !landlock.Available() {
 		return nil
@@ -74,8 +75,37 @@ func lockdown(dir string) error {
 		landlock.Dir("/bin", "rx"),
 		landlock.Dir("/usr/bin", "rx"),
 		landlock.Dir("/usr/local/bin", "rx"),
-		landlock.Dir(dir, "rwc"),
+		landlock.Dir(allocDir, "rwc"),
+		landlock.Dir(taskDir, "rwc"),
 	}
+	paths = append(paths, systemVersionControlGlobalConfigs()...)
 	locker := landlock.New(paths...)
 	return locker.Lock(landlock.Mandatory)
+}
+
+func systemVersionControlGlobalConfigs() []*landlock.Path {
+	const (
+		gitGlobalFile = "/etc/gitconfig"        // https://git-scm.com/docs/git-config#SCOPES
+		hgGlobalFile  = "/etc/mercurial/hgrc"   // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		hgGlobalDir   = "/etc/mercurial/hgrc.d" // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+	)
+	return loadVersionControlGlobalConfigs(gitGlobalFile, hgGlobalFile, hgGlobalDir)
+}
+
+func loadVersionControlGlobalConfigs(gitGlobalFile, hgGlobalFile, hgGlobalDir string) []*landlock.Path {
+	exists := func(p string) bool {
+		_, err := os.Stat(p)
+		return err == nil
+	}
+	result := make([]*landlock.Path, 0, 3)
+	if exists(gitGlobalFile) {
+		result = append(result, landlock.File(gitGlobalFile, "r"))
+	}
+	if exists(hgGlobalFile) {
+		result = append(result, landlock.File(hgGlobalFile, "r"))
+	}
+	if exists(hgGlobalDir) {
+		result = append(result, landlock.Dir(hgGlobalDir, "r"))
+	}
+	return result
 }

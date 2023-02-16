@@ -1,6 +1,6 @@
 <Portal @target="log-sidebar-portal">
 	<div
-		class="sidebar task-context-sidebar has-subnav {{if this.isSideBarOpen "open"}}"
+		class="sidebar task-context-sidebar has-subnav {{if this.wide "wide"}} {{if @task.events.length "has-events"}} {{if this.isSideBarOpen "open"}}"
 		{{on-click-outside
 			@fns.closeSidebar
 			capture=true
@@ -31,6 +31,50 @@
 				{{x-icon "cancel"}}
 			</button>
 		</header>
+		{{#if @task.events.length}}
+			<div class="boxed-section task-events">
+				<div class="boxed-section-head">
+					Recent Events
+				</div>
+				<div class="boxed-section-body is-full-bleed">
+					<ListTable
+						@source={{reverse @task.events}}
+						@class="is-striped" as |t|
+					>
+						<t.head>
+							<th class="is-3">
+								Time
+							</th>
+							<th class="is-1">
+								Type
+							</th>
+							<th>
+								Description
+							</th>
+						</t.head>
+						<t.body as |row|>
+							<tr data-test-task-event>
+								<td data-test-task-event-time>
+									{{format-ts row.model.time}}
+								</td>
+								<td data-test-task-event-type>
+									{{row.model.type}}
+								</td>
+								<td data-test-task-event-message>
+									{{#if row.model.message}}
+										{{row.model.message}}
+									{{else}}
+										<em>
+											No message
+										</em>
+									{{/if}}
+								</td>
+							</tr>
+						</t.body>
+					</ListTable>
+				</div>
+			</div>
+		{{/if}}
 
 		<TaskLog
 			@allocation={{@task.allocation}}
@@ -40,5 +84,17 @@
 
 
 	{{/if}}
+		<button
+			class="button is-borderless widener"
+			type="button"
+			{{on "click" this.toggleWide}}
+		>
+			{{#if this.wide}}
+				{{keyboard-commands (array this.narrowCommand)}}
+			{{else}}
+				{{keyboard-commands (array this.widenCommand)}}
+			{{/if}}
+			{{x-icon (if this.wide "arrow-right" "arrow-left")}}
+		</button>
 	</div>
 </Portal>

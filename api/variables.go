@@ -31,7 +31,7 @@ func (sv *Variables) Create(v *Variable, qo *WriteOptions) (*Variable, *WriteMet
 
 	v.Path = cleanPathString(v.Path)
 	var out Variable
-	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
+	wm, err := sv.client.put("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
 		return nil, wm, err
 	}
@@ -88,7 +88,7 @@ func (sv *Variables) Update(v *Variable, qo *WriteOptions) (*Variable, *WriteMet
 	v.Path = cleanPathString(v.Path)
 	var out Variable
 
-	wm, err := sv.client.write("/v1/var/"+v.Path, v, &out, qo)
+	wm, err := sv.client.put("/v1/var/"+v.Path, v, &out, qo)
 	if err != nil {
 		return nil, wm, err
 	}

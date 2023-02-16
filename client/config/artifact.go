@@ -19,6 +19,9 @@ type ArtifactConfig struct {
 	HgTimeout  time.Duration
 	S3Timeout  time.Duration
 
+	DecompressionLimitFileCount int
+	DecompressionLimitSize      int64
+
 	DisableFilesystemIsolation bool
 	SetEnvironmentVariables    string
 }
@@ -56,15 +59,22 @@ func ArtifactConfigFromAgent(c *config.ArtifactConfig) (*ArtifactConfig, error) 
 		return nil, fmt.Errorf("error parsing S3Timeout: %w", err)
 	}
 
+	decompressionSizeLimit, err := humanize.ParseBytes(*c.DecompressionSizeLimit)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing DecompressionLimitSize: %w", err)
+	}
+
 	return &ArtifactConfig{
-		HTTPReadTimeout:            httpReadTimeout,
-		HTTPMaxBytes:               int64(httpMaxSize),
-		GCSTimeout:                 gcsTimeout,
-		GitTimeout:                 gitTimeout,
-		HgTimeout:                  hgTimeout,
-		S3Timeout:                  s3Timeout,
-		DisableFilesystemIsolation: *c.DisableFilesystemIsolation,
-		SetEnvironmentVariables:    *c.SetEnvironmentVariables,
+		HTTPReadTimeout:             httpReadTimeout,
+		HTTPMaxBytes:                int64(httpMaxSize),
+		GCSTimeout:                  gcsTimeout,
+		GitTimeout:                  gitTimeout,
+		HgTimeout:                   hgTimeout,
+		S3Timeout:                   s3Timeout,
+		DecompressionLimitFileCount: *c.DecompressionFileCountLimit,
+		DecompressionLimitSize:      int64(decompressionSizeLimit),
+		DisableFilesystemIsolation:  *c.DisableFilesystemIsolation,
+		SetEnvironmentVariables:     *c.SetEnvironmentVariables,
 	}, nil
 }
 

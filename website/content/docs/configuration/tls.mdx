@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: tls Stanza - Agent Configuration
+page_title: tls Block - Agent Configuration
 description: |-
-  The "tls" stanza configures Nomad's TLS communication via HTTP and RPC to
+  The "tls" block configures Nomad's TLS communication via HTTP and RPC to
   enforce secure cluster communication between servers and clients.
 ---
 
-# `tls` Stanza
+# `tls` Block
 
 <Placement groups={['tls']} />
 
-The `tls` stanza configures Nomad's TLS communication via HTTP and RPC to
+The `tls` block configures Nomad's TLS communication via HTTP and RPC to
 enforce secure cluster communication between servers, clients, and between.
 
 ```hcl
@@ -24,8 +24,8 @@ tls {
 start the Nomad agent.
 
 This section of the documentation only covers the configuration options for
-`tls` stanza. To understand how to setup the certificates themselves, please see
-the [Enable TLS Encryption for Nomad Tutorial](https://learn.hashicorp.com/tutorials/nomad/security-enable-tls).
+`tls` block. To understand how to setup the certificates themselves, please see
+the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-security/security-enable-tls).
 
 ## `tls` Parameters
 
@@ -79,8 +79,8 @@ the [Enable TLS Encryption for Nomad Tutorial](https://learn.hashicorp.com/tutor
 
 ## `tls` Examples
 
-The following examples only show the `tls` stanzas. Remember that the
-`tls` stanza is only valid in the placements listed above.
+The following examples only show the `tls` blocks. Remember that the
+`tls` block is only valid in the placements listed above.
 
 ### Enabling TLS
 

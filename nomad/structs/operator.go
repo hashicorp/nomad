@@ -135,7 +135,7 @@ func (a *AutopilotConfig) Copy() *AutopilotConfig {
 }
 
 // SchedulerAlgorithm is an enum string that encapsulates the valid options for a
-// SchedulerConfiguration stanza's SchedulerAlgorithm. These modes will allow the
+// SchedulerConfiguration block's SchedulerAlgorithm. These modes will allow the
 // scheduler to be user-selectable.
 type SchedulerAlgorithm string
 

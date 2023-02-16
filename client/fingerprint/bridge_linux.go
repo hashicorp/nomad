@@ -1,3 +1,5 @@
+//go:build linux
+
 package fingerprint
 
 import (
@@ -5,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,6 +37,9 @@ func (f *BridgeFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 			Device: req.Config.BridgeNetworkName,
 		}},
 	}
+
+	resp.AddAttribute("nomad.bridge.hairpin_mode",
+		strconv.FormatBool(req.Config.BridgeNetworkHairpinMode))
 
 	resp.Detected = true
 	return nil

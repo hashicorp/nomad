@@ -405,7 +405,7 @@ type LinuxResources struct {
 	// and thus the calculation for CPUQuota cannot be done on the client.
 	// This is a capatability and should only be used by docker until the docker
 	// specific options are deprecated in favor of exposes CPUPeriod and
-	// CPUQuota at the task resource stanza.
+	// CPUQuota at the task resource block.
 	PercentTicks float64
 }
 

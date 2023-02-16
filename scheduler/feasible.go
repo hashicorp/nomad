@@ -149,7 +149,7 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
 	lookupMap := make(map[string][]*structs.VolumeRequest)
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
@@ -158,7 +158,14 @@ func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest
 			continue
 		}
 
-		lookupMap[req.Source] = append(lookupMap[req.Source], req)
+		if req.PerAlloc {
+			// provide a unique volume source per allocation
+			copied := req.Copy()
+			copied.Source = copied.Source + structs.AllocSuffix(allocName)
+			lookupMap[copied.Source] = append(lookupMap[copied.Source], copied)
+		} else {
+			lookupMap[req.Source] = append(lookupMap[req.Source], req)
+		}
 	}
 	h.volumes = lookupMap
 }
@@ -1373,6 +1380,13 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 
 	// Handle the interpolations
 	switch {
+	case "${device.ids}" == target:
+		ids := make([]string, len(d.Instances))
+		for i, device := range d.Instances {
+			ids[i] = device.ID
+		}
+		return psstructs.NewStringAttribute(strings.Join(ids, ",")), true
+
 	case "${device.model}" == target:
 		return psstructs.NewStringAttribute(d.Name), true
 

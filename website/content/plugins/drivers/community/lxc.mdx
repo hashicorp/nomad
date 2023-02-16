@@ -138,7 +138,7 @@ The `lxc` driver requires the following:
 
 - `lxc_path` - The location in which all containers are stored (commonly defaults to `/var/lib/lxc`). See [`lxc-create`][lxc-create] for more details.
 
-- `gc` stanza:
+- `gc` block:
   - `container` - Defaults to `true`. This option can be used to disable Nomad
     from removing a container when the task exits. Under a name conflict,
     Nomad may still remove the dead container.
@@ -185,10 +185,10 @@ isolation is not supported as of now.
 
 [lxc-create]: https://linuxcontainers.org/lxc/manpages/man1/lxc-create.1.html
 [lxc-driver]: https://releases.hashicorp.com/nomad-driver-lxc
-[lxc-guide]: https://learn.hashicorp.com/tutorials/nomad/plugin-lxc
+[lxc-guide]: /nomad/tutorials/plugins/plugin-lxc
 [lxc_man]: https://linuxcontainers.org/lxc/manpages/man5/lxc.container.conf.5.html#lbAM
-[plugin]: /docs/configuration/plugin
-[plugin_dir]: /docs/configuration#plugin_dir
+[plugin]: /nomad/docs/configuration/plugin
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
 [plugin-options]: #plugin-options
-[client_options]: /docs/configuration/client#options
-[allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[client_options]: /nomad/docs/configuration/client#options
+[allocation working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'

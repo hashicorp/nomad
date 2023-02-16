@@ -1,22 +1,22 @@
 ---
 layout: docs
-page_title: parameterized Stanza - Job Specification
+page_title: parameterized Block - Job Specification
 description: |-
   A parameterized job is used to encapsulate a set of work that can be carried
   out on various inputs much like a function definition. When the
-  `parameterized` stanza is added to a job, the job acts as a function to the
+  `parameterized` block is added to a job, the job acts as a function to the
   cluster as a whole.
 ---
 
-# `parameterized` Stanza
+# `parameterized` Block
 
 <Placement groups={['job', 'parameterized']} />
 
 A parameterized job is used to encapsulate a set of work that can be carried out
 on various inputs much like a function definition. When the `parameterized`
-stanza is added to a job, the job acts as a function to the cluster as a whole.
+block is added to a job, the job acts as a function to the cluster as a whole.
 
-The `parameterized` stanza allows job operators to configure a job that carries
+The `parameterized` block allows job operators to configure a job that carries
 out a particular action, define its resource requirements and configure how
 inputs and configuration are retrieved by the tasks within the job.
 
@@ -27,7 +27,7 @@ like arguments to a function. The job consumes them to change its behavior,
 without exposing the implementation details to the caller.
 
 To that end, tasks within the job can add a
-[`dispatch_payload`][dispatch_payload] stanza that
+[`dispatch_payload`][dispatch_payload] block that
 defines where on the filesystem this payload gets written to. An example payload
 would be a task's JSON configuration.
 
@@ -152,9 +152,9 @@ job "email-blast" {
 }
 ```
 
-[batch-type]: /docs/job-specification/job#type 'Batch scheduler type'
-[dispatch command]: /docs/commands/job/dispatch 'Nomad Job Dispatch Command'
-[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
-[interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
-[dispatch_payload]: /docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
-[multiregion]: /docs/job-specification/multiregion#parameterized-dispatch
+[batch-type]: /nomad/docs/job-specification/job#type 'Batch scheduler type'
+[dispatch command]: /nomad/docs/commands/job/dispatch 'Nomad Job Dispatch Command'
+[resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
+[interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
+[dispatch_payload]: /nomad/docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
+[multiregion]: /nomad/docs/job-specification/multiregion#parameterized-dispatch

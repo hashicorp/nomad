@@ -2,6 +2,7 @@ package useragent
 
 import (
 	"fmt"
+	"net/http"
 	"runtime"
 
 	"github.com/hashicorp/nomad/version"
@@ -26,4 +27,16 @@ var (
 func String() string {
 	return fmt.Sprintf("Nomad/%s (+%s; %s)",
 		versionFunc(), projectURL, rt)
+}
+
+// HeaderSetter is anything that implements SetHeaders(http.Header).
+type HeaderSetter interface {
+	SetHeaders(http.Header)
+}
+
+// SetHeaders configures the User-Agent http.Header for the client.
+func SetHeaders(client HeaderSetter) {
+	client.SetHeaders(http.Header{
+		"User-Agent": []string{String()},
+	})
 }

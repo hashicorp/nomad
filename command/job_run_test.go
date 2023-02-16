@@ -66,7 +66,7 @@ func TestRunCommand_hcl1_hcl2_strict(t *testing.T) {
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
 			"-detach",
-			"assets/example-short.nomad",
+			"asset/example-short.nomad.hcl",
 		})
 		require.Equal(t, 0, got, ui.ErrorWriter.String())
 	})
@@ -258,7 +258,7 @@ func TestRunCommand_JSON(t *testing.T) {
 	}()
 
 	// First convert HCL -> JSON with -output
-	stdout, stderr, code := run("-output", "assets/example-short.nomad")
+	stdout, stderr, code := run("-output", "asset/example-short.nomad.hcl")
 	require.Zero(t, code, stderr)
 	require.Empty(t, stderr)
 	require.NotEmpty(t, stdout)

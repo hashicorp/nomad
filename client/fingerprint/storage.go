@@ -41,6 +41,17 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 		return fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
 	}
 
+	if cfg.DiskTotalMB > 0 {
+		total = uint64(cfg.DiskTotalMB) * bytesPerMegabyte
+	}
+	if cfg.DiskFreeMB > 0 {
+		free = uint64(cfg.DiskFreeMB) * bytesPerMegabyte
+	}
+
+	if total < free {
+		return fmt.Errorf("detected more free disk space (%d) than total disk space (%d), use disk_total_mb and disk_free_mb to correct", free, total)
+	}
+
 	resp.AddAttribute("unique.storage.volume", volume)
 	resp.AddAttribute("unique.storage.bytestotal", strconv.FormatUint(total, 10))
 	resp.AddAttribute("unique.storage.bytesfree", strconv.FormatUint(free, 10))

@@ -13,6 +13,7 @@ const MAXIMUM_RESULTS = 10;
 export default class GlobalSearchControl extends Component {
   @service router;
   @service token;
+  @service store;
 
   searchString = null;
 
@@ -180,14 +181,20 @@ export default class GlobalSearchControl extends Component {
   @action
   selectOption(model) {
     if (model.type === 'job') {
-      this.router.transitionTo('jobs.job', model.id, {
-        queryParams: { namespace: model.namespace },
+      const fullId = JSON.stringify([model.id, model.namespace]);
+      this.store.findRecord('job', fullId).then((job) => {
+        this.router.transitionTo('jobs.job', job.idWithNamespace);
       });
     } else if (model.type === 'node') {
       this.router.transitionTo('clients.client', model.id);
     } else if (model.type === 'task-group') {
-      this.router.transitionTo('jobs.job.task-group', model.jobId, model.id, {
-        queryParams: { namespace: model.namespace },
+      const fullJobId = JSON.stringify([model.jobId, model.namespace]);
+      this.store.findRecord('job', fullJobId).then((job) => {
+        this.router.transitionTo(
+          'jobs.job.task-group',
+          job.idWithNamespace,
+          model.id
+        );
       });
     } else if (model.type === 'plugin') {
       this.router.transitionTo('csi.plugins.plugin', model.id);

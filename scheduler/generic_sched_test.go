@@ -9,11 +9,13 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
@@ -90,6 +92,15 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	if len(out) != 10 {
 		t.Fatalf("bad: %#v", out)
 	}
+
+	// Ensure allocations have unique names derived from Job.ID
+	allocNames := helper.ConvertSlice(out,
+		func(alloc *structs.Allocation) string { return alloc.Name })
+	expectAllocNames := []string{}
+	for i := 0; i < 10; i++ {
+		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[%d]", job.ID, i))
+	}
+	must.SliceContainsAll(t, expectAllocNames, allocNames)
 
 	// Ensure different ports were used.
 	used := make(map[int]map[string]struct{})
@@ -756,7 +767,7 @@ func TestServiceSched_Spread(t *testing.T) {
 			remaining := uint8(100 - start)
 			// Create a job that uses spread over data center
 			job := mock.Job()
-			job.Datacenters = []string{"dc1", "dc2"}
+			job.Datacenters = []string{"dc*"}
 			job.TaskGroups[0].Count = 10
 			job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
 				&structs.Spread{
@@ -1107,10 +1118,9 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
-	// Check the available nodes
-	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 0 {
-		t.Fatalf("bad: %#v", metrics)
-	}
+	_, ok = metrics.NodesAvailable["dc1"]
+	must.False(t, ok, must.Sprintf(
+		"expected NodesAvailable metric to be unpopulated when there are no nodes"))
 
 	// Check queued allocations
 	queued := outEval.QueuedAllocations["web"]

@@ -19,7 +19,7 @@ func credentials() (uint32, uint32) {
 }
 
 // lockdown has no effect on windows
-func lockdown(string) error {
+func lockdown(string, string) error {
 	return nil
 }
 

@@ -41,6 +41,9 @@ type MemDB struct {
 	// dynamicmanager -> registry-state
 	dynamicManagerPs *dynamicplugins.RegistryState
 
+	// key -> value or nil
+	nodeMeta map[string]*string
+
 	logger hclog.Logger
 
 	mu sync.RWMutex
@@ -265,6 +268,19 @@ func (m *MemDB) PurgeCheckResults(allocID string) error {
 	defer m.mu.Unlock()
 	delete(m.checks, allocID)
 	return nil
+}
+
+func (m *MemDB) PutNodeMeta(nm map[string]*string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.nodeMeta = nm
+	return nil
+}
+
+func (m *MemDB) GetNodeMeta() (map[string]*string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.nodeMeta, nil
 }
 
 func (m *MemDB) Close() error {

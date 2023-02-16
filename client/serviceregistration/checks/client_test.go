@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -410,8 +409,7 @@ func TestChecker_Do_TCP(t *testing.T) {
 		}
 	}
 
-	ports := freeport.MustTake(3)
-	defer freeport.Return(ports)
+	ports := ci.PortAllocator.Grab(3)
 
 	cases := []struct {
 		name      string

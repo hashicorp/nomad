@@ -16,7 +16,7 @@ func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Re
 
 	args := structs.VariablesListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
+		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
 	}
 
 	var out structs.VariablesListResponse
@@ -55,7 +55,7 @@ func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
 		Path: path,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
+		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
 	}
 	var out structs.VariablesReadResponse
 	if err := s.agent.RPC(structs.VariablesReadRPCMethod, &args, &out); err != nil {

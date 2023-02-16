@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix navigation to pages for jobs that are not in the default namespace
+```

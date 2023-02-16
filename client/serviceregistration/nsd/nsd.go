@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -17,7 +18,7 @@ type ServiceRegistrationHandler struct {
 	cfg *ServiceRegistrationHandlerCfg
 
 	// checkWatcher watches checks of services in the Nomad service provider,
-	// and restarts associated tasks in accordance with their check_restart stanza.
+	// and restarts associated tasks in accordance with their check_restart block.
 	checkWatcher serviceregistration.CheckWatcher
 
 	// registrationEnabled tracks whether this handler is enabled for
@@ -56,7 +57,7 @@ type ServiceRegistrationHandlerCfg struct {
 	RPCFn func(method string, args, resp interface{}) error
 
 	// CheckWatcher watches checks of services in the Nomad service provider,
-	// and restarts associated tasks in accordance with their check_restart stanza.
+	// and restarts associated tasks in accordance with their check_restart block.
 	CheckWatcher serviceregistration.CheckWatcher
 }
 
@@ -136,13 +137,24 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 // enabled. This covers situations where the feature is disabled, yet still has
 // allocations which, when stopped need their registrations removed.
 func (s *ServiceRegistrationHandler) RemoveWorkload(workload *serviceregistration.WorkloadServices) {
+	wg := new(sync.WaitGroup)
+	wg.Add(len(workload.Services))
+
 	for _, serviceSpec := range workload.Services {
-		go s.removeWorkload(workload, serviceSpec)
+		go s.removeWorkload(wg, workload, serviceSpec)
 	}
+
+	// wait for all workload removals to complete
+	wg.Wait()
 }
 
 func (s *ServiceRegistrationHandler) removeWorkload(
-	workload *serviceregistration.WorkloadServices, serviceSpec *structs.Service) {
+	wg *sync.WaitGroup,
+	workload *serviceregistration.WorkloadServices,
+	serviceSpec *structs.Service,
+) {
+	// unblock wait group when we are done
+	defer wg.Done()
 
 	// Stop check watcher
 	for _, service := range workload.Services {

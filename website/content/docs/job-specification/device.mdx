@@ -1,22 +1,22 @@
 ---
 layout: docs
-page_title: device Stanza - Job Specification
+page_title: device Block - Job Specification
 description: |-
-  The "device" stanza is used to require a certain device be made available
+  The "device" block is used to require a certain device be made available
   to the task.
 ---
 
-# `device` Stanza
+# `device` Block
 
 <Placement groups={['job', 'group', 'task', 'resources', 'device']} />
 
-The `device` stanza is used to create both a scheduling and runtime requirement
+The `device` block is used to create both a scheduling and runtime requirement
 that the given task has access to the specified devices. A device is a hardware
 device that is attached to the node and may be made available to the task.
 Examples are GPUs, FPGAs, and TPUs.
 
-When a `device` stanza is added, Nomad will schedule the task onto a node that
-contains the set of device(s) that meet the specified requirements. The `device` stanza
+When a `device` block is added, Nomad will schedule the task onto a node that
+contains the set of device(s) that meet the specified requirements. The `device` block
 allows the operator to specify as little as just the type of device required,
 such as `gpu`, all the way to specifying arbitrary constraints and affinities.
 Once the scheduler has placed the allocation on a suitable node, the Nomad
@@ -57,7 +57,7 @@ In the above example, the task is requesting two GPUs, from the Nvidia vendor,
 but is not specifying the specific model required. Instead it is placing a hard
 constraint that the device has at least 2 GiB of memory and that it would prefer
 to use GPUs that have at least 4 GiB. This examples shows how expressive the
-`device` stanza can be.
+`device` block can be.
 
 ~> Device support is currently limited to Linux, and container based drivers
 due to the ability to isolate devices to specific tasks.
@@ -103,6 +103,15 @@ follows:
     </tr>
   </thead>
   <tbody>
+    <tr>
+      <td>
+        <code>{'${device.ids}'}</code>
+      </td>
+      <td>Comma separated list of device IDs in the group</td>
+      <td>
+        <code>9afa5da1-8f39-25a2-48dc-ba31fd7c0023,c248b547-fed7-4d67-ade5-73a27d280ac4</code>
+      </td>
+    </tr>
     <tr>
       <td>
         <code>{'${device.type}'}</code>
@@ -218,8 +227,8 @@ Conversion is only possible within the same base unit.
 
 ## `device` Examples
 
-The following examples only show the `device` stanzas. Remember that the
-`device` stanza is only valid in the placements listed above.
+The following examples only show the `device` blocks. Remember that the
+`device` block is only valid in the placements listed above.
 
 ### Single Nvidia GPU
 
@@ -298,6 +307,23 @@ device "nvidia/gpu" {
 }
 ```
 
-[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
-[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
-[devices]: /docs/devices 'Nomad Device Plugins'
+### Affinity Towards Specific GPU Devices
+
+This example uses affinity to indicate scheduling preference towards specific
+GPU devices, using their UUID as selection criteria. Since devices are
+fingerprinted as a group, you may specify multiple IDs as a comma separated
+list.
+
+```hcl
+device "nvidia/gpu" {
+  affinity {
+    attribute = "${device.ids}"
+    operator  = "set_contains"
+    value     = "9afa5da1-8f39-25a2-48dc-ba31fd7c0023,c248b547-fed7-4d67-ade5-73a27d280ac4"
+  }
+}
+```
+
+[affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
+[constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
+[devices]: /nomad/docs/devices 'Nomad Device Plugins'

@@ -59,7 +59,7 @@ func (p *pullFuture) set(imageID string, err error) {
 type DockerImageClient interface {
 	PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration) error
 	InspectImage(id string) (*docker.Image, error)
-	RemoveImage(id string) error
+	RemoveImageExtended(id string, opts docker.RemoveImageOptions) error
 }
 
 // LogEventFn is a callback which allows Drivers to emit task events.
@@ -320,7 +320,9 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	d.imageLock.Unlock()
 
 	for i := 0; i < 3; i++ {
-		err := d.client.RemoveImage(id)
+		err := d.client.RemoveImageExtended(id, docker.RemoveImageOptions{
+			Force: true, // necessary to GC images referenced by multiple tags
+		})
 		if err == nil {
 			break
 		}

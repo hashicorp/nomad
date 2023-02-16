@@ -180,7 +180,7 @@ OUTER:
 // jobReap contacts the leader and issues a reap on the passed jobs
 func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionJobReap(jobs, leaderACL) {
+	for _, req := range c.partitionJobReap(jobs, leaderACL, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.JobBatchDeregisterResponse
 		if err := c.srv.RPC("Job.BatchDeregister", req, &resp); err != nil {
 			c.logger.Error("batch job reap failed", "error", err)
@@ -194,7 +194,7 @@ func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 // partitionJobReap returns a list of JobBatchDeregisterRequests to make,
 // ensuring a single request does not contain too many jobs. This is necessary
 // to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) []*structs.JobBatchDeregisterRequest {
+func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string, batchSize int) []*structs.JobBatchDeregisterRequest {
 	option := &structs.JobDeregisterOptions{Purge: true}
 	var requests []*structs.JobBatchDeregisterRequest
 	submittedJobs := 0
@@ -207,7 +207,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string) 
 			},
 		}
 		requests = append(requests, req)
-		available := structs.MaxUUIDsPerWriteRequest
+		available := batchSize
 
 		if remaining := len(jobs) - submittedJobs; remaining > 0 {
 			if remaining <= available {
@@ -240,15 +240,20 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 
 	oldThreshold := c.getThreshold(eval, "eval",
 		"eval_gc_threshold", c.srv.config.EvalGCThreshold)
+	batchOldThreshold := c.getThreshold(eval, "eval",
+		"batch_eval_gc_threshold", c.srv.config.BatchEvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		eval := raw.(*structs.Evaluation)
 
-		// The Evaluation GC should not handle batch jobs since those need to be
-		// garbage collected in one shot
-		gc, allocs, err := c.gcEval(eval, oldThreshold, false)
+		gcThreshold := oldThreshold
+		if eval.Type == structs.JobTypeBatch {
+			gcThreshold = batchOldThreshold
+		}
+
+		gc, allocs, err := c.gcEval(eval, gcThreshold, false)
 		if err != nil {
 			return err
 		}
@@ -299,33 +304,26 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	}
 
 	// If the eval is from a running "batch" job we don't want to garbage
-	// collect its allocations. If there is a long running batch job and its
-	// terminal allocations get GC'd the scheduler would re-run the
-	// allocations.
+	// collect its most current allocations. If there is a long running batch job and its
+	// terminal allocations get GC'd the scheduler would re-run the allocations. However,
+	// we do want to GC old Evals and Allocs if there are newer ones due to update.
+	//
+	// The age of the evaluation must also reach the threshold configured to be GCed so that
+	// one may debug old evaluations and referenced allocations.
 	if eval.Type == structs.JobTypeBatch {
 		// Check if the job is running
 
-		// Can collect if:
-		// Job doesn't exist
-		// Job is Stopped and dead
-		// allowBatch and the job is dead
-		collect := false
-		if job == nil {
-			collect = true
-		} else if job.Status != structs.JobStatusDead {
-			collect = false
-		} else if job.Stop {
-			collect = true
-		} else if allowBatch {
-			collect = true
-		}
-
-		// We don't want to gc anything related to a job which is not dead
-		// If the batch job doesn't exist we can GC it regardless of allowBatch
+		// Can collect if either holds:
+		//   - Job doesn't exist
+		//   - Job is Stopped and dead
+		//   - allowBatch and the job is dead
+		//
+		// If we cannot collect outright, check if a partial GC may occur
+		collect := job == nil || job.Status == structs.JobStatusDead && (job.Stop || allowBatch)
 		if !collect {
-			// Find allocs associated with older (based on createindex) and GC them if terminal
-			oldAllocs := olderVersionTerminalAllocs(allocs, job)
-			return false, oldAllocs, nil
+			oldAllocs := olderVersionTerminalAllocs(allocs, job, thresholdIndex)
+			gcEval := (len(oldAllocs) == len(allocs))
+			return gcEval, oldAllocs, nil
 		}
 	}
 
@@ -346,12 +344,12 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	return gcEval, gcAllocIDs, nil
 }
 
-// olderVersionTerminalAllocs returns terminal allocations whose job create index
-// is older than the job's create index
-func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) []string {
+// olderVersionTerminalAllocs returns a list of terminal allocations that belong to the evaluation and may be
+// GCed.
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, thresholdIndex uint64) []string {
 	var ret []string
 	for _, alloc := range allocs {
-		if alloc.Job != nil && alloc.Job.CreateIndex < job.CreateIndex && alloc.TerminalStatus() {
+		if alloc.CreateIndex < job.JobModifyIndex && alloc.ModifyIndex < thresholdIndex && alloc.TerminalStatus() {
 			ret = append(ret, alloc.ID)
 		}
 	}
@@ -362,7 +360,7 @@ func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job) 
 // allocs.
 func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionEvalReap(evals, allocs) {
+	for _, req := range c.partitionEvalReap(evals, allocs, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Eval.Reap", req, &resp); err != nil {
 			c.logger.Error("eval reap failed", "error", err)
@@ -376,7 +374,7 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 // partitionEvalReap returns a list of EvalReapRequest to make, ensuring a single
 // request does not contain too many allocations and evaluations. This is
 // necessary to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.EvalReapRequest {
+func (c *CoreScheduler) partitionEvalReap(evals, allocs []string, batchSize int) []*structs.EvalReapRequest {
 	var requests []*structs.EvalReapRequest
 	submittedEvals, submittedAllocs := 0, 0
 	for submittedEvals != len(evals) || submittedAllocs != len(allocs) {
@@ -386,7 +384,7 @@ func (c *CoreScheduler) partitionEvalReap(evals, allocs []string) []*structs.Eva
 			},
 		}
 		requests = append(requests, req)
-		available := structs.MaxUUIDsPerWriteRequest
+		available := batchSize
 
 		// Add the allocs first
 		if remaining := len(allocs) - submittedAllocs; remaining > 0 {
@@ -574,7 +572,7 @@ OUTER:
 // deployments.
 func (c *CoreScheduler) deploymentReap(deployments []string) error {
 	// Call to the leader to issue the reap
-	for _, req := range c.partitionDeploymentReap(deployments) {
+	for _, req := range c.partitionDeploymentReap(deployments, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.GenericResponse
 		if err := c.srv.RPC("Deployment.Reap", req, &resp); err != nil {
 			c.logger.Error("deployment reap failed", "error", err)
@@ -588,7 +586,7 @@ func (c *CoreScheduler) deploymentReap(deployments []string) error {
 // partitionDeploymentReap returns a list of DeploymentDeleteRequest to make,
 // ensuring a single request does not contain too many deployments. This is
 // necessary to ensure that the Raft transaction does not become too large.
-func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs.DeploymentDeleteRequest {
+func (c *CoreScheduler) partitionDeploymentReap(deployments []string, batchSize int) []*structs.DeploymentDeleteRequest {
 	var requests []*structs.DeploymentDeleteRequest
 	submittedDeployments := 0
 	for submittedDeployments != len(deployments) {
@@ -598,7 +596,7 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string) []*structs
 			},
 		}
 		requests = append(requests, req)
-		available := structs.MaxUUIDsPerWriteRequest
+		available := batchSize
 
 		if remaining := len(deployments) - submittedDeployments; remaining > 0 {
 			if remaining <= available {

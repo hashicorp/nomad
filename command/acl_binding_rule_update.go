@@ -53,11 +53,12 @@ Update Options:
 
   -bind-type
     Specifies adjusts how this binding rule is applied at login time to internal
-    Nomad objects. Valid options are "role" and "policy".
+    Nomad objects. Valid options are "role", "policy", or "management".
 
   -bind-name
     Specifies is the target of the binding used on selector match. This can be
-    lightly templated using HIL ${foo} syntax.
+    lightly templated using HIL ${foo} syntax. If the bind type is set to
+    management, this should not be set.
 
   -json
     Output the ACL binding rule in a JSON format.
@@ -74,10 +75,14 @@ func (a *ACLBindingRuleUpdateCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-description": complete.PredictAnything,
 			"-selector":    complete.PredictAnything,
-			"-bind-type":   complete.PredictSet("role", "policy"),
-			"-bind-name":   complete.PredictAnything,
-			"-json":        complete.PredictNothing,
-			"-t":           complete.PredictAnything,
+			"-bind-type": complete.PredictSet(
+				api.ACLBindingRuleBindTypeRole,
+				api.ACLBindingRuleBindTypePolicy,
+				api.ACLBindingRuleBindTypeManagement,
+			),
+			"-bind-name": complete.PredictAnything,
+			"-json":      complete.PredictNothing,
+			"-t":         complete.PredictAnything,
 		})
 }
 
@@ -138,10 +143,6 @@ func (a *ACLBindingRuleUpdateCommand) Run(args []string) int {
 	switch a.noMerge {
 	case true:
 
-		if a.bindName == "" {
-			a.Ui.Error("ACL binding rule bind name must be specified using the -bind-name flag")
-			return 1
-		}
 		if a.bindType == "" {
 			a.Ui.Error("ACL binding rule bind type must be specified using the -bind-type flag")
 			return 1
@@ -159,7 +160,7 @@ func (a *ACLBindingRuleUpdateCommand) Run(args []string) int {
 		// Check that the operator specified at least one flag to update the ACL
 		// binding rule with.
 		if a.description == "" && a.selector == "" && a.bindType == "" && a.bindName == "" {
-			a.Ui.Error("Please provide all required flags to update the ACL binding rule")
+			a.Ui.Error("Please provide at least one update for the ACL binding rule")
 			a.Ui.Error(commandErrorText(a))
 			return 1
 		}

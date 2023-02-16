@@ -84,7 +84,7 @@ func (sc *ServiceCheck) IsReadiness() bool {
 	return sc != nil && sc.OnUpdate == OnUpdateIgnore
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (sc *ServiceCheck) Copy() *ServiceCheck {
 	if sc == nil {
 		return nil
@@ -595,7 +595,7 @@ type Service struct {
 	Provider string
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (s *Service) Copy() *Service {
 	if s == nil {
 		return nil
@@ -854,6 +854,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
+				hashConfig(h, upstream.Config)
 			}
 		}
 	}
@@ -952,7 +953,7 @@ func (s *Service) Equal(o *Service) bool {
 	return true
 }
 
-// ConsulConnect represents a Consul Connect jobspec stanza.
+// ConsulConnect represents a Consul Connect jobspec block.
 type ConsulConnect struct {
 	// Native indicates whether the service is Consul Connect Native enabled.
 	Native bool
@@ -967,7 +968,7 @@ type ConsulConnect struct {
 	Gateway *ConsulGateway
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (c *ConsulConnect) Copy() *ConsulConnect {
 	if c == nil {
 		return nil
@@ -1084,7 +1085,7 @@ func (c *ConsulConnect) Validate() error {
 }
 
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
-// stanza.
+// block.
 type ConsulSidecarService struct {
 	// Tags are optional service tags that get registered with the sidecar service
 	// in Consul. If unset, the sidecar service inherits the parent service tags.
@@ -1094,7 +1095,7 @@ type ConsulSidecarService struct {
 	// a port label or a literal port number.
 	Port string
 
-	// Proxy stanza defining the sidecar proxy configuration.
+	// Proxy block defining the sidecar proxy configuration.
 	Proxy *ConsulProxy
 
 	// DisableDefaultTCPCheck, if true, instructs Nomad to avoid setting a
@@ -1107,7 +1108,7 @@ func (s *ConsulSidecarService) HasUpstreams() bool {
 	return s != nil && s.Proxy != nil && len(s.Proxy.Upstreams) > 0
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 	if s == nil {
 		return nil
@@ -1142,7 +1143,7 @@ func (s *ConsulSidecarService) Equal(o *ConsulSidecarService) bool {
 }
 
 // SidecarTask represents a subset of Task fields that are able to be overridden
-// from the sidecar_task stanza
+// from the sidecar_task block
 type SidecarTask struct {
 	// Name of the task
 	Name string
@@ -1336,7 +1337,7 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 	}
 }
 
-// ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
+// ConsulProxy represents a Consul Connect sidecar proxy jobspec block.
 type ConsulProxy struct {
 
 	// LocalServiceAddress is the address the local service binds to.
@@ -1353,18 +1354,16 @@ type ConsulProxy struct {
 	// connect to.
 	Upstreams []ConsulUpstream
 
-	// Expose configures the consul proxy.expose stanza to "open up" endpoints
+	// Expose configures the consul proxy.expose block to "open up" endpoints
 	// used by task-group level service checks using HTTP or gRPC protocols.
-	//
-	// Use json tag to match with field name in api/
-	Expose *ConsulExposeConfig `json:"ExposeConfig"`
+	Expose *ConsulExposeConfig
 
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
 	Config map[string]interface{}
 }
 
-// Copy the stanza recursively. Returns nil if nil.
+// Copy the block recursively. Returns nil if nil.
 func (p *ConsulProxy) Copy() *ConsulProxy {
 	if p == nil {
 		return nil
@@ -1459,7 +1458,7 @@ func (c *ConsulMeshGateway) Validate() error {
 	}
 }
 
-// ConsulUpstream represents a Consul Connect upstream jobspec stanza.
+// ConsulUpstream represents a Consul Connect upstream jobspec block.
 type ConsulUpstream struct {
 	// DestinationName is the name of the upstream service.
 	DestinationName string
@@ -1481,6 +1480,10 @@ type ConsulUpstream struct {
 	// MeshGateway is the optional configuration of the mesh gateway for this
 	// upstream to use.
 	MeshGateway ConsulMeshGateway
+
+	// Config is an upstream configuration. It is opaque to Nomad and passed
+	// directly to Consul.
+	Config map[string]any
 }
 
 // Equal returns true if the structs are recursively equal.
@@ -1488,17 +1491,40 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 	if u == nil || o == nil {
 		return u == o
 	}
-	return *u == *o
+	switch {
+	case u.DestinationName != o.DestinationName:
+		return false
+	case u.DestinationNamespace != o.DestinationNamespace:
+		return false
+	case u.LocalBindPort != o.LocalBindPort:
+		return false
+	case u.Datacenter != o.Datacenter:
+		return false
+	case u.LocalBindAddress != o.LocalBindAddress:
+		return false
+	case !u.MeshGateway.Equal(o.MeshGateway):
+		return false
+	case !opaqueMapsEqual(u.Config, o.Config):
+		return false
+	}
+	return true
+}
+
+// Hash implements a GoString based "hash" function for ConsulUpstream; because
+// this struct now contains an opaque map we cannot do much better than this.
+func (u ConsulUpstream) Hash() string {
+	return fmt.Sprintf("%#v", u)
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
-	return set.From(a).Equal(set.From(b))
+	setA := set.HashSetFrom[ConsulUpstream, string](a)
+	setB := set.HashSetFrom[ConsulUpstream, string](b)
+	return setA.Equal(setB)
 }
 
-// ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
+// ConsulExposeConfig represents a Consul Connect expose jobspec block.
 type ConsulExposeConfig struct {
-	// Use json tag to match with field name in api/
-	Paths []ConsulExposePath `json:"Path"`
+	Paths []ConsulExposePath
 }
 
 type ConsulExposePath struct {
@@ -1512,7 +1538,7 @@ func exposePathsEqual(a, b []ConsulExposePath) bool {
 	return helper.SliceSetEq(a, b)
 }
 
-// Copy the stanza. Returns nil if e is nil.
+// Copy the block. Returns nil if e is nil.
 func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 	if e == nil {
 		return nil
@@ -1874,13 +1900,13 @@ func (s *ConsulIngressService) Validate(protocol string) error {
 		return nil
 	}
 
+	// pre-validate service Name and Hosts before passing along to consul:
+	// https://developer.hashicorp.com/consul/docs/connect/config-entries/ingress-gateway#services
+
 	if s.Name == "" {
 		return errors.New("Consul Ingress Service requires a name")
 	}
 
-	// Validation of wildcard service name and hosts varies depending on the
-	// protocol for the gateway.
-	// https://www.consul.io/docs/connect/config-entries/ingress-gateway#hosts
 	switch protocol {
 	case "tcp":
 		if s.Name == "*" {
@@ -1891,12 +1917,8 @@ func (s *ConsulIngressService) Validate(protocol string) error {
 			return errors.New(`Consul Ingress Service doesn't support associating hosts to a service for the "tcp" protocol`)
 		}
 	default:
-		if s.Name == "*" {
-			return nil
-		}
-
-		if len(s.Hosts) == 0 {
-			return fmt.Errorf("Consul Ingress Service requires one or more hosts when using %q protocol", protocol)
+		if s.Name == "*" && len(s.Hosts) != 0 {
+			return errors.New(`Consul Ingress Service with a wildcard "*" service name can not also specify hosts`)
 		}
 	}
 

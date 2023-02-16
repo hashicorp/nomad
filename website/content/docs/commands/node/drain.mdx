@@ -10,7 +10,7 @@ description: |
 The `node drain` command is used to toggle drain mode on a given node. Drain
 mode prevents any new tasks from being allocated to the node, and begins
 migrating all existing allocations away. Allocations will be migrated according
-to their [`migrate`][migrate] stanza until the drain's deadline is reached.
+to their [`migrate`][migrate] block until the drain's deadline is reached.
 
 By default the `node drain` command blocks until a node is done draining and
 all allocations have terminated. Canceling the `node drain` command _will not_
@@ -142,8 +142,8 @@ $ nomad node drain -self -monitor
 ...
 ```
 
-[eligibility]: /docs/commands/node/eligibility
-[migrate]: /docs/job-specification/migrate
-[node status]: /docs/commands/node/status
-[workload migration guide]: https://learn.hashicorp.com/tutorials/nomad/node-drain
-[internals-csi]: /docs/concepts/plugins/csi
+[eligibility]: /nomad/docs/commands/node/eligibility
+[migrate]: /nomad/docs/job-specification/migrate
+[node status]: /nomad/docs/commands/node/status
+[workload migration guide]: /nomad/tutorials/manage-clusters/node-drain
+[internals-csi]: /nomad/docs/concepts/plugins/csi

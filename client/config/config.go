@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -112,6 +114,14 @@ type Config struct {
 	// MemoryMB is the default node total memory in megabytes if it cannot be
 	// determined dynamically.
 	MemoryMB int
+
+	// DiskTotalMB is the default node total disk space in megabytes if it cannot be
+	// determined dynamically.
+	DiskTotalMB int
+
+	// DiskFreeMB is the default node free disk space in megabytes if it cannot be
+	// determined dynamically.
+	DiskFreeMB int
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
@@ -253,6 +263,10 @@ type Config struct {
 	// networking mode. This defaults to 'nomad' if not set
 	BridgeNetworkName string
 
+	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
+	// internal bridge network
+	BridgeNetworkHairpinMode bool
+
 	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
 	// for allocations in bridge networking mode. Subnet must be in CIDR
 	// notation
@@ -289,8 +303,25 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
+	// APIListenerRegistrar allows the client to register listeners created at
+	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
+	// creates the HTTP *after* the client starts, we have to use this shim to
+	// pass listeners back to the agent.
+	// This is the same design as the bufconndialer but for the
+	// http.Serve(listener) API instead of the net.Dial API.
+	APIListenerRegistrar APIListenerRegistrar
+
 	// Artifact configuration from the agent's config file.
 	Artifact *ArtifactConfig
+}
+
+type APIListenerRegistrar interface {
+	// Serve the HTTP API on the provided listener.
+	//
+	// The context is because Serve may be called before the HTTP server has been
+	// initialized. If the context is canceled before the HTTP server is
+	// initialized, the context's error will be returned.
+	Serve(context.Context, net.Listener) error
 }
 
 // ClientTemplateConfig is configuration on the client specific to template

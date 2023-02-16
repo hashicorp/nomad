@@ -82,7 +82,7 @@ testing.
 - `acl` `(`[`ACL`]`: nil)` - Specifies configuration which is specific to ACLs.
 
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
-  individual network services. Any values configured in this stanza take
+  individual network services. Any values configured in this block take
   precedence over the default [bind_addr](#bind_addr). These values should be
   specified in IP format without a port (ex. `"0.0.0.0"`). To set the port,
   see the [`ports`](#ports) field. The values support [go-sockaddr/template
@@ -104,7 +104,7 @@ testing.
   to the peers of a server or a client node to support more complex network
   configurations such as NAT. This configuration is optional, and defaults to
   the bind address of the specific network service if it is not provided. Any
-  values configured in this stanza take precedence over the default
+  values configured in this block take precedence over the default
   [bind_addr](#bind_addr).
 
   If the bind address is `0.0.0.0` then the IP address of the default private
@@ -165,7 +165,8 @@ testing.
   diagnostic information about Nomad's internals.
 
 - `enable_syslog` `(bool: false)` - Specifies if the agent should log to syslog.
-  This option only works on Unix based systems.
+  This option only works on Unix based systems. The log level inherits from
+  the Nomad agent log set in `log_level`
 
 - `http_api_response_headers` `(map<string|string>: nil)` - Specifies
   user-defined headers to add to the HTTP API responses.
@@ -268,8 +269,8 @@ testing.
   This must be an absolute path.
 
 - `plugin` `(`[`Plugin`]`: nil)` - Specifies configuration for a
-  specific plugin. The plugin stanza may be repeated, once for each plugin being
-  configured. The key of the stanza is the plugin's executable name relative to
+  specific plugin. The plugin block may be repeated, once for each plugin being
+  configured. The key of the block is the plugin's executable name relative to
   the [plugin_dir](#plugin_dir).
 
 - `ports` `(Port: see below)` - Specifies the network ports used for different
@@ -368,18 +369,18 @@ http_api_response_headers {
 }
 ```
 
-[`acl`]: /docs/configuration/acl 'Nomad Agent ACL Configuration'
-[`audit`]: /docs/configuration/audit 'Nomad Agent Audit Logging Configuration'
-[`client`]: /docs/configuration/client 'Nomad Agent client Configuration'
-[`consul`]: /docs/configuration/consul 'Nomad Agent consul Configuration'
-[`plugin`]: /docs/configuration/plugin 'Nomad Agent Plugin Configuration'
-[`sentinel`]: /docs/configuration/sentinel 'Nomad Agent sentinel Configuration'
-[`server`]: /docs/configuration/server 'Nomad Agent server Configuration'
-[tls]: /docs/configuration/tls 'Nomad Agent tls Configuration'
-[`vault`]: /docs/configuration/vault 'Nomad Agent vault Configuration'
+[`acl`]: /nomad/docs/configuration/acl 'Nomad Agent ACL Configuration'
+[`audit`]: /nomad/docs/configuration/audit 'Nomad Agent Audit Logging Configuration'
+[`client`]: /nomad/docs/configuration/client 'Nomad Agent client Configuration'
+[`consul`]: /nomad/docs/configuration/consul 'Nomad Agent consul Configuration'
+[`plugin`]: /nomad/docs/configuration/plugin 'Nomad Agent Plugin Configuration'
+[`sentinel`]: /nomad/docs/configuration/sentinel 'Nomad Agent sentinel Configuration'
+[`server`]: /nomad/docs/configuration/server 'Nomad Agent server Configuration'
+[tls]: /nomad/docs/configuration/tls 'Nomad Agent tls Configuration'
+[`vault`]: /nomad/docs/configuration/vault 'Nomad Agent vault Configuration'
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
-[log-api]: /api-docs/client#stream-logs
+[log-api]: /nomad/api-docs/client#stream-logs
 [hcl]: https://github.com/hashicorp/hcl 'HashiCorp Configuration Language'
-[tls-reload]: /docs/configuration/tls#tls-configuration-reloads
-[vault-reload]: /docs/configuration/vault#vault-configuration-reloads
+[tls-reload]: /nomad/docs/configuration/tls#tls-configuration-reloads
+[vault-reload]: /nomad/docs/configuration/vault#vault-configuration-reloads
 [gh-3885]: https://github.com/hashicorp/nomad/issues/3885

@@ -11,15 +11,12 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestLogsCommand_Implements(t *testing.T) {
-	ci.Parallel(t)
-	var _ cli.Command = &AllocLogsCommand{}
-}
+var _ cli.Command = (*AllocLogsCommand)(nil)
 
 func TestLogsCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui}}
@@ -72,7 +69,7 @@ func TestLogsCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer stopTestAgent(srv)
+	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
 	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui, flagAddress: url}}

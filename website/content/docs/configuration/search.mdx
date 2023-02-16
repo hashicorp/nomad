@@ -1,13 +1,13 @@
 ---
 layout: docs
-page_title: search Stanza - Agent Configuration
+page_title: search Block - Agent Configuration
 sidebar_title: search
 description: >-
-  The "search" stanza specifies configuration for the search API provided
+  The "search" block specifies configuration for the search API provided
   by the Nomad servers.
 ---
 
-# `search` Stanza
+# `search` Block
 
 <Placement
   groups={[
@@ -15,7 +15,7 @@ description: >-
   ]}
 />
 
-The `search` stanza specifies configuration for the search API provided by the
+The `search` block specifies configuration for the search API provided by the
 Nomad servers.
 
 ```hcl
@@ -47,4 +47,4 @@ server {
   allowed for matching with the fuzzy search API. Setting this value higher can
   prevent unnecessary load on the Nomad server from broad queries.
 
-[fuzzy]: /api-docs/search#fuzzy-searching
+[fuzzy]: /nomad/api-docs/search#fuzzy-searching

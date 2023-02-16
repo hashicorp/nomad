@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
-	"github.com/sean-/seed"
 )
 
 var (
@@ -37,8 +36,6 @@ var (
 		"debug",
 		"eval-status",
 		"executor",
-		"keygen",
-		"keyring",
 		"logmon",
 		"node-drain",
 		"node-status",
@@ -76,19 +73,11 @@ var (
 	}
 )
 
-func init() {
-	seed.Init()
-}
-
 func main() {
 	os.Exit(Run(os.Args[1:]))
 }
 
 func Run(args []string) int {
-	return RunCustom(args)
-}
-
-func RunCustom(args []string) int {
 	// Create the meta object
 	metaPtr := new(command.Meta)
 	metaPtr.SetupUi(args)

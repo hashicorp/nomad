@@ -1,5 +1,10 @@
 package scheduler
 
+// The reconciler is the first stage in the scheduler for service and batch
+// jobs. It compares the existing state to the desired state to determine the
+// set of changes needed. System jobs and sysbatch jobs do not use the
+// reconciler.
+
 import (
 	"fmt"
 	"sort"

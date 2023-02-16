@@ -1,7 +1,14 @@
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
+import AdapterError from '@ember-data/adapter/error';
 import { run } from '@ember/runloop';
-import { currentURL, click, visit, triggerEvent } from '@ember/test-helpers';
+import {
+  currentURL,
+  click,
+  visit,
+  triggerEvent,
+  waitFor,
+} from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -71,7 +78,10 @@ module('Acceptance | allocation detail', function (hooks) {
     );
     assert.ok(Allocation.execButton.isPresent);
 
-    assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
+    assert.equal(
+      document.title,
+      `Allocation ${allocation.name} - Mirage - Nomad`
+    );
 
     await Allocation.details.visitJob();
     assert.equal(
@@ -425,6 +435,44 @@ module('Acceptance | allocation detail', function (hooks) {
       Allocation.inlineError.isShown,
       'Inline error is no longer shown'
     );
+  });
+
+  test('when navigating to an allocation, if the allocation no longer exists it does a redirect to previous page', async function (assert) {
+    await click('[data-test-breadcrumb="jobs.job.index"]');
+    await click('[data-test-tab="allocations"] > a');
+
+    const component = this.owner.lookup('component:allocation-row');
+    const router = this.owner.lookup('service:router');
+    const allocRoute = this.owner.lookup('route:allocations.allocation');
+    const originalMethod = allocRoute.goBackToReferrer;
+    allocRoute.goBackToReferrer = () => {
+      assert.step('Transition dispatched.');
+      router.transitionTo('jobs.job.allocations');
+    };
+
+    component.onClick = () =>
+      router.transitionTo('allocations.allocation', 'aaa');
+
+    server.get('/allocation/:id', function () {
+      return new AdapterError([
+        {
+          detail: `alloc not found`,
+          status: 404,
+        },
+      ]);
+    });
+
+    component.onClick();
+
+    await waitFor('.flash-message.alert-error');
+
+    assert.verifySteps(['Transition dispatched.']);
+    assert
+      .dom('.flash-message.alert-error')
+      .exists('A toast error message pops up.');
+
+    // Clean-up
+    allocRoute.goBackToReferrer = originalMethod;
   });
 });
 

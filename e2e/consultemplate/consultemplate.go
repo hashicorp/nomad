@@ -107,7 +107,7 @@ job: {{ env "NOMAD_JOB_NAME" }}
 	_, err := tc.Consul().KV().Delete(key, nil)
 	f.NoError(err)
 
-	// Parse job so we can replace the template stanza with isolated keys
+	// Parse job so we can replace the template block with isolated keys
 	job, err := jobspec.ParseFile("consultemplate/input/templating.nomad")
 	f.NoError(err)
 	job.ID = &jobID

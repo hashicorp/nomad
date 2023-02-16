@@ -540,7 +540,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 *   un-intended destructive updates in scheduler since we use
 	 *   reflect.DeepEqual. Starting Nomad 0.4.1, job submission sanitizes
 	 *   the incoming job.
-	 * - Migrate from old style upgrade stanza that used only a stagger.
+	 * - Migrate from old style upgrade block that used only a stagger.
 	 */
 	req.Job.Canonicalize()
 
@@ -1523,7 +1523,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				 * - Empty maps and slices should be treated as nil to avoid
 				 *   un-intended destructive updates in scheduler since we use
 				 *   reflect.DeepEqual. Job submission sanitizes the incoming job.
-				 * - Migrate from old style upgrade stanza that used only a stagger.
+				 * - Migrate from old style upgrade block that used only a stagger.
 				 */
 				job.Canonicalize()
 				if err := restore.JobRestore(job); err != nil {

@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: service Stanza - Job Specification
+page_title: service Block - Job Specification
 description: |-
-  The "service" stanza instructs Nomad to register the task as a service using
+  The "service" block instructs Nomad to register the task as a service using
   the Nomad or Consul service discovery integration.
 ---
 
-# `service` Stanza
+# `service` Block
 
 <Placement
   groups={[
@@ -15,7 +15,7 @@ description: |-
   ]}
 />
 
-The `service` stanza instructs Nomad to register a service with the specified
+The `service` block instructs Nomad to register a service with the specified
 provider; Nomad or Consul. This section of the documentation will discuss the
 configuration, but please also read the
 [Nomad service discovery documentation][service-discovery] for more detailed
@@ -62,11 +62,11 @@ job "docs" {
 }
 ```
 
-This section of the documentation only cover the job file fields and stanzas
+This section of the documentation only cover the job file fields and blocks
 for service discovery. For more details on using Nomad with Consul please see
 the [Consul integration documentation][service-discovery].
 
-Nomad 0.10 also allows specifying the `service` stanza at the task group level.
+Nomad 0.10 also allows specifying the `service` block at the task group level.
 This enables services in the same task group to opt into [Consul
 Connect][connect] integration.
 
@@ -86,9 +86,9 @@ Connect][connect] integration.
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
 
-- `name` `(string: "<job>-<group>-<task>")` - Specifies the name this service
+- `name` `(string: "<job>-<taskgroup>-<task>")` - Specifies the name this service
   will be advertised as in Consul. If not supplied, this will default to the
-  name of the job, group, and task concatenated together with a dash, like
+  name of the job, task group, and task concatenated together with a dash, like
   `"docs-example-server"`. Each service must have a unique name within the
   cluster. Names must adhere to [RFC-1123
   §2.1](https://tools.ietf.org/html/rfc1123#section-2) and are limited to
@@ -99,9 +99,9 @@ Connect][connect] integration.
   following keys are also available:
 
   - `${JOB}` - the name of the job
-  - `${GROUP}` - the name of the group
+  - `${TASKGROUP}` - the name of the task group
   - `${TASK}` - the name of the task
-  - `${BASE}` - shorthand for `${JOB}-${GROUP}-${TASK}`
+  - `${BASE}` - shorthand for `${JOB}-${TASKGROUP}-${TASK}`
 
   Validation of the name occurs in two parts. When the job is registered, an initial validation pass checks that
   the service name adheres to RFC-1123 §2.1 and the length limit, excluding any variables requiring interpolation.
@@ -115,14 +115,14 @@ Connect][connect] integration.
 
   - `alloc` - Advertise the mapped `to` value of the labeled port and the allocation address.
     If a `to` value is not set, the port falls back to using the allocated host port. The `port`
-    field may be a numeric port or a port label specified in the same group's network stanza.
+    field may be a numeric port or a port label specified in the same group's network block.
 
   - `driver` - Advertise the port determined by the driver (e.g. Docker).
     The `port` may be a numeric port or a port label specified in the driver's
     `ports` field.
 
   - `host` - Advertise the host port for this service. `port` must match a port
-    _label_ specified in the [`network`][network] stanza.
+    _label_ specified in the [`network`][network] block.
 
 - `tags` `(array<string>: [])` - Specifies the list of tags to associate with
   this service. If this is not supplied, no tags will be assigned to the service
@@ -137,7 +137,7 @@ Connect][connect] integration.
 - `enable_tag_override` `(bool: false)` - Enables users of Consul's Catalog API
   to make changes to the tags of a service without having those changes be
   overwritten by Consul's anti-entropy mechanism. See Consul
-  [documentation](https://developer.hashicorp.com/consul/docs/concepts/anti-entropy#enable-tag-override)
+  [documentation](/consul/docs/concepts/anti-entropy#enable-tag-override)
   for more information. Only available where `provider = "consul"`.
 
 - `address` `(string: <optional>)` - Specifies a custom address to advertise in
@@ -205,7 +205,7 @@ Connect][connect] integration.
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  [`check_restart`][check_restart_block] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
   `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
   be omitted entirely.
 
@@ -224,7 +224,7 @@ _after_ the task has started.
 the service in the provider as well. This update happens without restarting a
 task.
 
-**Deregistering**: If a running task with a service stanza exits, the services
+**Deregistering**: If a running task with a service block exits, the services
 and checks are immediately deregistered from the provider without delay. If,
 however, Nomad needs to kill a running task, the task is killed in the
 following order:
@@ -247,8 +247,8 @@ following order:
 
 ## `service` Examples
 
-The following examples only show the `service` stanzas. Remember that the
-`service` stanza is only valid in the placements listed above.
+The following examples only show the `service` blocks. Remember that the
+`service` block is only valid in the placements listed above.
 
 ### Basic Service
 
@@ -273,7 +273,7 @@ service {
 }
 ```
 
-These examples must be accompanied by a [`network`][network] stanza which
+These examples must be accompanied by a [`network`][network] block which
 defines a static or dynamic port labeled "lb". For example:
 
 ```hcl
@@ -285,8 +285,8 @@ network {
 
 ### Using Driver Address Mode
 
-The [Docker](/docs/drivers/docker#network_mode) driver supports the `driver`
-setting for the `address_mode` parameter in both `service` and `check` stanzas.
+The [Docker](/nomad/docs/drivers/docker#network_mode) driver supports the `driver`
+setting for the `address_mode` parameter in both `service` and `check` blocks.
 The driver address mode allows advertising and health checking the IP and port
 assigned to a task by the driver. This way, if you're using a network plugin like
 Weave with Docker, you can advertise the Weave address in Consul instead of the
@@ -344,10 +344,10 @@ driver's address (in this case Weave's). The service will advertise the
 container's port: 6379.
 
 However since Consul is often run on the host without access to the Weave
-network, `check` stanzas default to `host` address mode. The TCP check will run
+network, `check` blocks default to `host` address mode. The TCP check will run
 against the host's IP and the dynamic host port assigned by Nomad.
 
-Note that the `check` still inherits the `service` stanza's `db` port label,
+Note that the `check` still inherits the `service` block's `db` port label,
 but each will resolve the port label according to their address mode.
 
 If Consul has access to the Weave network the job could be configured like
@@ -392,12 +392,12 @@ job "example" {
 ```
 
 In this case Nomad doesn't need to assign Redis any host ports. The `service`
-and `check` stanzas can both specify the port number to advertise and check
+and `check` blocks can both specify the port number to advertise and check
 directly since Nomad isn't managing any port assignments.
 
 ### IPv6 Docker containers
 
-The [Docker](/docs/drivers/docker#advertise_ipv6_address) driver supports the
+The [Docker](/nomad/docs/drivers/docker#advertise_ipv6_address) driver supports the
 `advertise_ipv6_address` parameter in its configuration.
 
 Services will automatically advertise the IPv6 address when `advertise_ipv6_address`
@@ -407,7 +407,7 @@ Unlike services, checks do not have an `auto` address mode as there's no way
 for Nomad to know which is the best address to use for checks. Consul needs
 access to the address for any HTTP or TCP checks.
 
-So you have to set `address_mode` parameter in the `check` stanza to `driver`.
+So you have to set `address_mode` parameter in the `check` block to `driver`.
 
 For example using `auto` address mode:
 
@@ -494,26 +494,26 @@ job "example" {
 }
 ```
 
-The `service` and `check` stanzas can both specify the port number to
+The `service` and `check` blocks can both specify the port number to
 advertise and check directly since Nomad isn't managing any port assignments.
 
 ---
 
-[check]: /docs/job-specification/check
-[check_restart_stanza]: /docs/job-specification/check_restart
-[consul_grpc]: https://developer.hashicorp.com/consul/api-docs/agent/check#grpc
-[consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
-[service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[qemu]: /docs/drivers/qemu 'Nomad QEMU Driver'
-[restart_stanza]: /docs/job-specification/restart 'restart stanza'
-[connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
-[type]: /docs/job-specification/service#type
-[shutdowndelay]: /docs/job-specification/task#shutdown_delay
-[killsignal]: /docs/job-specification/task#kill_signal
-[killtimeout]: /docs/job-specification/task#kill_timeout
-[service_task]: /docs/job-specification/service#task-1
-[network_mode]: /docs/job-specification/network#mode
-[on_update]: /docs/job-specification/service#on_update
-[tagged_addresses]: https://developer.hashicorp.com/consul/docs/discovery/services#tagged-addresses
+[check]: /nomad/docs/job-specification/check
+[check_restart_block]: /nomad/docs/job-specification/check_restart
+[consul_grpc]: /consul/api-docs/agent/check#grpc
+[consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
+[service-discovery]: /nomad/docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
+[network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
+[qemu]: /nomad/docs/drivers/qemu 'Nomad QEMU Driver'
+[restart_block]: /nomad/docs/job-specification/restart 'restart block'
+[connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[type]: /nomad/docs/job-specification/service#type
+[shutdowndelay]: /nomad/docs/job-specification/task#shutdown_delay
+[killsignal]: /nomad/docs/job-specification/task#kill_signal
+[killtimeout]: /nomad/docs/job-specification/task#kill_timeout
+[service_task]: /nomad/docs/job-specification/service#task-1
+[network_mode]: /nomad/docs/job-specification/network#mode
+[on_update]: /nomad/docs/job-specification/service#on_update
+[tagged_addresses]: /consul/docs/discovery/services#tagged-addresses

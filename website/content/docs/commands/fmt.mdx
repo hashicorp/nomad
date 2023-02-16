@@ -26,16 +26,19 @@ If you provide a single dash (-) as argument, fmt will read from standard input
 
 ## Format Options:
 
-- `-list=false` :	Don't list the files, which contain formatting inconsistencies.
-- `-check` : Check if the files are valid HCL files. If not, exit status of the command
-    will be 1 and the incorrect files will not be formatted.
-- `-write=false` : Don't overwrite the input files.
-- `-recursive` : Process also files in subdirectories. By default only the given (or current) directory is processed.
+- `-check`: Check if the files are valid HCL files. If not, exit status of the
+  command will be 1 and the incorrect files will not be formatted. This flag
+  overrides any `-write` flag value.
+- `-list`: List the files which contain formatting inconsistencies. Defaults to
+  `-list=true`.
+- `-recursive`: Process files in subdirectories. By default only the given (or
+	current) directory is processed.
+- `-write`: Overwrite the input files. Defaults to `-write=true`.
 
 ## Examples
 
 ```shell-session
-$ cat agent.hcl 
+$ cat agent.hcl
 server {
     enabled = true
   bootstrap_expect = 1
@@ -44,11 +47,15 @@ server {
 client {
   enabled = true
 }
+```
 
+```shell-session
 $ nomad fmt
-
 agent.hcl
-$ cat agent.hcl 
+```
+
+```shell-session
+$ cat agent.hcl
 server {
   enabled          = true
   bootstrap_expect = 1

@@ -1,10 +1,12 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1085,6 +1087,7 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 		OIDCDiscoveryURL:    "http://example.com",
 		OIDCClientID:        "mock",
 		OIDCClientSecret:    "very secret secret",
+		OIDCScopes:          []string{"groups"},
 		BoundAudiences:      []string{"audience1", "audience2"},
 		AllowedRedirectURIs: []string{"foo", "bar"},
 		DiscoveryCaPem:      []string{"foo"},
@@ -1136,6 +1139,16 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 	}
 }
 
+func TestACLAuthMethod_TokenLocalityIsGlobal(t *testing.T) {
+	ci.Parallel(t)
+
+	globalAuthMethod := &ACLAuthMethod{TokenLocality: "global"}
+	must.True(t, globalAuthMethod.TokenLocalityIsGlobal())
+
+	localAuthMethod := &ACLAuthMethod{TokenLocality: "local"}
+	must.False(t, localAuthMethod.TokenLocalityIsGlobal())
+}
+
 func TestACLBindingRule_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1181,25 +1194,115 @@ func TestACLBindingRule_Canonicalize(t *testing.T) {
 func TestACLBindingRule_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	// Quite possibly the most invalid binding rule to have ever existed.
-	totallyInvalidACLBindingRule := ACLBindingRule{
-		Description: uuid.Generate() + uuid.Generate() + uuid.Generate() + uuid.Generate() +
-			uuid.Generate() + uuid.Generate() + uuid.Generate() + uuid.Generate(),
-		AuthMethod: "",
-		BindType:   "",
-		BindName:   "",
+	testCases := []struct {
+		name                string
+		inputACLBindingRule *ACLBindingRule
+		expectedError       error
+	}{
+		{
+			name: "valid policy type rule",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypePolicy,
+				BindName:    "some-policy-name",
+			},
+			expectedError: nil,
+		},
+		{
+			name: "invalid policy type rule",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypePolicy,
+				BindName:    "",
+			},
+			expectedError: &multierror.Error{
+				Errors: []error{
+					errors.New("bind name is missing"),
+				},
+			},
+		},
+		{
+			name: "valid role type rule",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypeRole,
+				BindName:    "some-role-name",
+			},
+			expectedError: nil,
+		},
+		{
+			name: "invalid role type rule",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypeRole,
+				BindName:    "",
+			},
+			expectedError: &multierror.Error{
+				Errors: []error{
+					errors.New("bind name is missing"),
+				},
+			},
+		},
+		{
+			name: "valid management type rule",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypeManagement,
+				BindName:    "",
+			},
+			expectedError: nil,
+		},
+		{
+			name: "invalid management type rule",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypeManagement,
+				BindName:    "some-name",
+			},
+			expectedError: &multierror.Error{
+				Errors: []error{
+					errors.New("bind name should be empty"),
+				},
+			},
+		},
+		{
+			name: "invalid all",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: uuid.Generate() + uuid.Generate() + uuid.Generate() +
+					uuid.Generate() + uuid.Generate() + uuid.Generate() +
+					uuid.Generate() + uuid.Generate(),
+				AuthMethod: "",
+				Selector:   "group-name in list.groups",
+				BindType:   "",
+				BindName:   "",
+			},
+			expectedError: &multierror.Error{
+				Errors: []error{
+					errors.New("auth method is missing"),
+					errors.New("description longer than 256"),
+					errors.New("bind type is missing"),
+				},
+			},
+		},
 	}
-	err := totallyInvalidACLBindingRule.Validate()
-	must.StrContains(t, err.Error(), "auth method is missing")
-	must.StrContains(t, err.Error(), "bind name is missing")
-	must.StrContains(t, err.Error(), "description longer than 256")
-	must.StrContains(t, err.Error(), "bind type is missing")
 
-	// Update the bind type, so we get the alternative error when this is not
-	// empty, but incorrectly set.
-	totallyInvalidACLBindingRule.BindType = "service"
-	err = totallyInvalidACLBindingRule.Validate()
-	must.StrContains(t, err.Error(), `unsupported bind type: "service"`)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expectedError, tc.inputACLBindingRule.Validate())
+		})
+	}
 }
 
 func TestACLBindingRule_Merge(t *testing.T) {
@@ -1374,4 +1477,42 @@ func Test_ACLBindingRuleRequest(t *testing.T) {
 
 	req := ACLBindingRuleRequest{}
 	require.True(t, req.IsRead())
+}
+
+func TestACLOIDCAuthURLRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	req := &ACLOIDCAuthURLRequest{}
+	must.False(t, req.IsRead())
+}
+
+func TestACLOIDCAuthURLRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testRequest := &ACLOIDCAuthURLRequest{}
+	err := testRequest.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "missing auth method name")
+	must.StrContains(t, err.Error(), "missing client nonce")
+	must.StrContains(t, err.Error(), "missing redirect URI")
+}
+
+func TestACLOIDCCompleteAuthRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	req := &ACLOIDCCompleteAuthRequest{}
+	must.False(t, req.IsRead())
+}
+
+func TestACLOIDCCompleteAuthRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testRequest := &ACLOIDCCompleteAuthRequest{}
+	err := testRequest.Validate()
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "missing auth method name")
+	must.StrContains(t, err.Error(), "missing client nonce")
+	must.StrContains(t, err.Error(), "missing state")
+	must.StrContains(t, err.Error(), "missing code")
+	must.StrContains(t, err.Error(), "missing redirect URI")
 }

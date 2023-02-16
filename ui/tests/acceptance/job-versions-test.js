@@ -93,7 +93,7 @@ module('Acceptance | job versions', function (hooks) {
         JobVersion: versionNumberRevertingTo,
       });
 
-      assert.equal(currentURL(), `/jobs/${job.id}?namespace=${namespace.id}`);
+      assert.equal(currentURL(), `/jobs/${job.id}@${namespace.id}`);
     }
   });
 

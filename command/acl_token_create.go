@@ -53,6 +53,12 @@ Create Options:
     Specifies the time-to-live of the created ACL token. This takes the form of
     a time duration such as "5m" and "1h". By default, tokens will be created
     without a TTL and therefore never expire.
+
+  -json
+    Output the ACL token information in JSON format.
+
+  -t
+    Format and display the ACL token information using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -67,6 +73,8 @@ func (c *ACLTokenCreateCommand) AutocompleteFlags() complete.Flags {
 			"role-id":   complete.PredictAnything,
 			"role-name": complete.PredictAnything,
 			"ttl":       complete.PredictAnything,
+			"-json":     complete.PredictNothing,
+			"-t":        complete.PredictAnything,
 		})
 }
 
@@ -81,8 +89,8 @@ func (c *ACLTokenCreateCommand) Synopsis() string {
 func (c *ACLTokenCreateCommand) Name() string { return "acl token create" }
 
 func (c *ACLTokenCreateCommand) Run(args []string) int {
-	var name, tokenType, ttl string
-	var global bool
+	var name, tokenType, ttl, tmpl string
+	var global, json bool
 	var policies []string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -90,6 +98,8 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	flags.StringVar(&tokenType, "type", "client", "")
 	flags.BoolVar(&global, "global", false, "")
 	flags.StringVar(&ttl, "ttl", "", "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 	flags.Var((funcVar)(func(s string) error {
 		policies = append(policies, s)
 		return nil
@@ -148,6 +158,16 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		return 1
 	}
 
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, token)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
+	}
 	// Format the output
 	outputACLToken(c.Ui, token)
 	return 0

@@ -20,11 +20,11 @@ const CSISocketName = "csi.sock"
 // where Nomad will expect plugins to create intermediary mounts for volumes.
 const CSIIntermediaryDirname = "volumes"
 
-// VolumeTypeCSI is the type in the volume stanza of a TaskGroup
+// VolumeTypeCSI is the type in the volume block of a TaskGroup
 const VolumeTypeCSI = "csi"
 
 // CSIPluginType is an enum string that encapsulates the valid options for a
-// CSIPlugin stanza's Type. These modes will allow the plugin to be used in
+// CSIPlugin block's Type. These modes will allow the plugin to be used in
 // different ways by the client.
 type CSIPluginType string
 

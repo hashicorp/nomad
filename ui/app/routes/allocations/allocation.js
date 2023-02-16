@@ -8,6 +8,8 @@ import {
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
 export default class AllocationRoute extends Route.extend(WithWatchers) {
+  @service flashMessages;
+  @service router;
   @service store;
 
   startWatchers(controller, model) {
@@ -36,18 +38,35 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     }
   }
 
-  model() {
+  async model() {
     // Preload the job for the allocation since it's required for the breadcrumb trail
-    return super
-      .model(...arguments)
-      .then((allocation) => {
-        const jobId = allocation.belongsTo('job').id();
-        return this.store
-          .findRecord('job', jobId)
-          .then(() => this.store.findAll('namespace')) // namespaces belong to a job and are an asynchronous relationship so we can peak them later on
-          .then(() => allocation);
-      })
-      .catch(notifyError(this));
+    try {
+      const [allocation] = await Promise.all([
+        super.model(...arguments),
+        this.store.findAll('namespace'),
+      ]);
+      const jobId = allocation.belongsTo('job').id();
+      await this.store.findRecord('job', jobId);
+      return allocation;
+    } catch (e) {
+      const [allocId, transition] = arguments;
+      if (e?.errors[0]?.detail === 'alloc not found' && !!transition.from) {
+        this.flashMessages.add({
+          title: `Error:  Not Found`,
+          message: `Allocation of id:  ${allocId} was not found.`,
+          type: 'error',
+          destroyOnClick: false,
+          sticky: true,
+        });
+        this.goBackToReferrer(transition.from.name);
+      } else {
+        notifyError(this)(e);
+      }
+    }
+  }
+
+  goBackToReferrer(referringRoute) {
+    this.router.transitionTo(referringRoute);
   }
 
   @watchRecord('allocation') watch;

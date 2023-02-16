@@ -93,9 +93,13 @@ func getHeaders(env interfaces.EnvReplacer, artifact *structs.TaskArtifact) map[
 	return headers
 }
 
-func getTaskDir(env interfaces.EnvReplacer) string {
-	p, _ := env.ClientPath("stub", false)
-	return filepath.Dir(p)
+// getWritableDirs returns host paths to the task's allocation and task specific
+// directories - the locations into which a Task is allowed to download an artifact.
+func getWritableDirs(env interfaces.EnvReplacer) (string, string) {
+	stub, _ := env.ClientPath("stub", false)
+	taskDir := filepath.Dir(stub)
+	allocDir := filepath.Dir(taskDir)
+	return allocDir, taskDir
 }
 
 // environment merges the default minimal environment per-OS with the set of

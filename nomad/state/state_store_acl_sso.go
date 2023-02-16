@@ -65,11 +65,10 @@ func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *stru
 	// setting. We therefore need to check we are not trying to create a method
 	// with an existing name or a duplicate default for the same type.
 	if method.Default {
-		existingMethodsDefaultmethod, _ := s.GetDefaultACLAuthMethodByType(nil, method.Type)
-		if existingMethodsDefaultmethod != nil && existingMethodsDefaultmethod.Name != method.Name {
+		existingMethodsDefaultMethod, _ := s.GetDefaultACLAuthMethod(nil)
+		if existingMethodsDefaultMethod != nil && existingMethodsDefaultMethod.Name != method.Name {
 			return false, fmt.Errorf(
-				"default ACL auth method for type %s already exists: %v",
-				method.Type, existingMethodsDefaultmethod.Name,
+				"default ACL auth method already exists: %v", existingMethodsDefaultMethod.Name,
 			)
 		}
 	}
@@ -186,10 +185,9 @@ func (s *StateStore) GetACLAuthMethodByName(ws memdb.WatchSet, authMethod string
 	return nil, nil
 }
 
-// GetDefaultACLAuthMethodByType returns a default ACL Auth Methods for a given
-// auth type. Since we only want 1 default auth method per type, this function
-// is used during upserts to facilitate that check.
-func (s *StateStore) GetDefaultACLAuthMethodByType(ws memdb.WatchSet, methodType string) (*structs.ACLAuthMethod, error) {
+// GetDefaultACLAuthMethod returns a default ACL Auth Method. This function is
+// used during upserts to facilitate a check that there's only 1 default Auth Method.
+func (s *StateStore) GetDefaultACLAuthMethod(ws memdb.WatchSet) (*structs.ACLAuthMethod, error) {
 	txn := s.db.ReadTxn()
 
 	// Walk the entire table to get all ACL auth methods.
@@ -205,8 +203,8 @@ func (s *StateStore) GetDefaultACLAuthMethodByType(ws memdb.WatchSet, methodType
 		if !ok {
 			return true
 		}
-		// any non-default method or method of different type than desired gets filtered-out
-		return !method.Default || method.Type != methodType
+		// any non-default method gets filtered-out
+		return !method.Default
 	})
 
 	for raw := filter.Next(); raw != nil; raw = filter.Next() {

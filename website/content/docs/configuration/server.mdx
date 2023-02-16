@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: server Stanza - Agent Configuration
+page_title: server Block - Agent Configuration
 description: |-
-  The "server" stanza configures the Nomad agent to operate in server mode to
+  The "server" block configures the Nomad agent to operate in server mode to
   participate in scheduling decisions, register with service discovery, handle
   join failures, and more.
 ---
 
-# `server` Stanza
+# `server` Block
 
 <Placement groups={['server']} />
 
-The `server` stanza configures the Nomad agent to operate in server mode to
+The `server` block configures the Nomad agent to operate in server mode to
 participate in scheduling decisions, register with service discovery, handle
 join failures, and more.
 
@@ -42,7 +42,7 @@ server {
 
 - `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
   for server-specific data, including the replicated log. By default, this is
-  the top-level [data_dir](/docs/configuration#data_dir) suffixed with "server",
+  the top-level [data_dir](/nomad/docs/configuration#data_dir) suffixed with "server",
   like `"/opt/nomad/server"`. The top-level option must be set, even when
   setting this value. This must be an absolute path.
 
@@ -59,13 +59,13 @@ server {
 - `encrypt` `(string: "")` - Specifies the secret key to use for encryption of
   Nomad server's gossip network traffic. This key must be 32 bytes that are
   [RFC4648] "URL and filename safe" base64-encoded. You can generate an
-  appropriately-formatted key with the [`nomad operator keygen`] command. The
-  provided key is automatically persisted to the data directory and loaded
-  automatically whenever the agent is restarted. This means that to encrypt
-  Nomad server's gossip protocol, this option only needs to be provided once
-  on each agent's initial startup sequence. If it is provided after Nomad has
-  been initialized with an encryption key, then the provided key is ignored
-  and a warning will be displayed. See the [encryption
+  appropriately-formatted key with the [`nomad operator gossip keyring
+  generate`] command. The provided key is automatically persisted to the data
+  directory and loaded automatically whenever the agent is restarted. This means
+  that to encrypt Nomad server's gossip protocol, this option only needs to be
+  provided once on each agent's initial startup sequence. If it is provided
+  after Nomad has been initialized with an encryption key, then the provided key
+  is ignored and a warning will be displayed. See the [encryption
   documentation][encryption] for more details on this option and its impact on
   the cluster.
 
@@ -93,11 +93,22 @@ server {
 
 - `eval_gc_threshold` `(string: "1h")` - Specifies the minimum time an
   evaluation must be in the terminal state before it is eligible for garbage
-  collection. This is specified using a label suffix like "30s" or "1h".
+  collection. This is specified using a label suffix like "30s" or "1h". Note
+  that batch job evaluations are controlled via `batch_eval_gc_threshold`.
+
+- `batch_eval_gc_threshold` `(string: "24h")` - Specifies the minimum time an
+  evaluation stemming from a batch job must be in the terminal state before it is
+  eligible for garbage collection. This is specified using a label suffix like
+  "30s" or "1h". Note that the threshold is a necessary but insufficient condition
+  for collection, and the most recent evaluation won't be garbage collected even if
+  it breaches the threshold.
 
 - `deployment_gc_threshold` `(string: "1h")` - Specifies the minimum time a
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
+
+- `csi_volume_claim_gc_interval` `(string: "5m")` - Specifies the interval
+  between CSI volume claim garbage collections.
 
 - `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
   a CSI volume before it is eligible to have its claims garbage collected.
@@ -135,8 +146,8 @@ server {
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
-  increased to meet the target rate. See [Client
-  Heartbeats](#client-heartbeats) below for details.
+  increased to meet the target rate. See [Client Heartbeats](#client-heartbeats)
+  below for details.
 
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
@@ -148,10 +159,11 @@ server {
   the number of CPU cores.
 
 - `license_path` `(string: "")` - Specifies the path to load a Nomad Enterprise
-  license from. This must be an absolute path (`/opt/nomad/license.hclic`). The
-  license can also be set by setting `NOMAD_LICENSE_PATH` or by setting
-  `NOMAD_LICENSE` as the entire license value. `license_path` has the highest
-  precedence, followed by `NOMAD_LICENSE` and then `NOMAD_LICENSE_PATH`.
+  license from. This must be an absolute path
+  (ex. `/etc/nomad.d/license.hclic`). The license can also be set by setting
+  `NOMAD_LICENSE_PATH` or by setting `NOMAD_LICENSE` as the entire license
+  value. `license_path` has the highest precedence, followed by `NOMAD_LICENSE`
+  and then `NOMAD_LICENSE_PATH`.
 
 - `plan_rejection_tracker` <code>([PlanRejectionTracker](#plan_rejection_tracker-parameters))</code> -
   Configuration for the plan rejection tracker that the Nomad leader uses to
@@ -182,16 +194,35 @@ server {
   to setting this to a value of 1. Increasing the timings makes leader election
   less likely during periods of networking issues or resource starvation. Since
   leader elections pause Nomad's normal work, it may be beneficial for slow or
-  unreliable networks to wait longer before electing a new leader. The tradeoff
+  unreliable networks to wait longer before electing a new leader. The trade-off
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
   a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
-  `nomad.raft.leader.lastContact` metrics](/docs/operations/metrics-reference) are a good
-  indicator of how often leader elections occur and raft latency.
+  `nomad.raft.leader.lastContact` metrics](/nomad/docs/operations/metrics-reference) are a good
+  indicator of how often leader elections occur and Raft latency.
+
+- `raft_snapshot_threshold` `(int: "8192")` - Specifies the minimum number of
+  Raft logs to be written to disk before the node is allowed to take a snapshot.
+  This reduces the frequency and impact of creating snapshots. During node
+  startup, Raft restores the latest snapshot and then applies the individual
+  logs to catch the node up to the last known state. This can be tuned during
+  operation by a hot configuration reload.
+
+- `raft_snapshot_interval` `(string: "120s")` - Specifies the minimum time between
+  checks if Raft should perform a snapshot. The Raft library randomly staggers
+  between this value and twice this value to avoid the entire cluster performing
+  a snapshot at once. Nodes are eligible to snapshot once they have exceeded the
+  `raft_snapshot_threshold`. This value can be tuned during operation by a hot
+  configuration reload.
+
+- `raft_trailing_logs` `(int: "10240")` - Specifies how many logs are retained
+  after a snapshot. These logs are used so that Raft can quickly replay logs on
+  a follower instead of being forced to send an entire snapshot. This value can
+  be tuned during operation by a hot configuration reload.
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+  information, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -217,7 +248,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+  For more information, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 - `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
   for the Nomad search API.
@@ -233,23 +264,23 @@ server {
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
   both options**. See the [server_join][server-join]
   section for more information on the format of the string. This field is
-  deprecated in favor of the [server_join stanza][server-join].
+  deprecated in favor of the [server_join block][server-join].
 
 - `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
   join attempts. This field is deprecated in favor of the [server_join
-  stanza][server-join].
+  block][server-join].
 
 - `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
   made before exiting with a return code of 1. By default, this is set to 0
   which is interpreted as infinite retries. This field is deprecated in favor of
-  the [server_join stanza][server-join].
+  the [server_join block][server-join].
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
   addresses, agent startup will fail. See the [server address
-  format](/docs/configuration/server_join#server-address-format)
+  format](/nomad/docs/configuration/server_join#server-address-format)
   section for more information on the format of the string. This field is
-  deprecated in favor of the [server_join stanza][server-join].
+  deprecated in favor of the [server_join block][server-join].
 
 ### `plan_rejection_tracker` Parameters
 
@@ -279,7 +310,7 @@ account.
 
 ### Common Setup
 
-This example shows a common Nomad agent `server` configuration stanza. The two
+This example shows a common Nomad agent `server` configuration block. The two
 IP addresses could also be DNS, and should point to the other Nomad servers in
 the cluster
 
@@ -310,7 +341,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, please see the
-[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/tutorials/nomad/clustering).
+[automatic Nomad bootstrapping documentation](/nomad/tutorials/manage-clusters/clustering).
 
 ### Restricting Schedulers
 
@@ -327,7 +358,7 @@ server {
 
 ### Bootstrapping with a Custom Scheduler Config ((#configuring-scheduler-config))
 
-While [bootstrapping a cluster], you can use the `default_scheduler_config` stanza
+While [bootstrapping a cluster], you can use the `default_scheduler_config` block
 to prime the cluster with a [`SchedulerConfig`][update-scheduler-config]. The
 scheduler configuration determines which scheduling algorithm is configured—
 spread scheduling or binpacking—and which job types are eligible for preemption.
@@ -441,19 +472,19 @@ told to heartbeat after the maximum interval.
 The actual value used should take into consideration how much tolerance your
 system has for a delay in noticing crashed Clients. For example a
 `failover_heartbeat_ttl` of 30 minutes may give even the slowest clients in the
-largest clusters ample time to heartbeat after an election.  However if the
+largest clusters ample time to heartbeat after an election. However if the
 election was due to a datacenter-wide failure affecting Clients, it will be 30
 minutes before Nomad recognizes that they are `down` and reschedules their
 work.
 
-[encryption]: https://learn.hashicorp.com/tutorials/nomad/security-gossip-encryption 'Nomad Encryption Overview'
-[server-join]: /docs/configuration/server_join 'Server Join'
-[update-scheduler-config]: /api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
-[bootstrapping a cluster]: /docs/faq#bootstrapping
+[encryption]: /nomad/tutorials/transport-security/security-gossip-encryption 'Nomad Encryption Overview'
+[server-join]: /nomad/docs/configuration/server_join 'Server Join'
+[update-scheduler-config]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
+[bootstrapping a cluster]: /nomad/docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
-[monitoring_nomad_progress]: /docs/operations/monitoring-nomad#progress
-[`nomad operator keygen`]: /docs/commands/operator/keygen
-[search]: /docs/configuration/search
-[encryption key]: /docs/operations/key-management
-[max_client_disconnect]: /docs/job-specification/group#max-client-disconnect
+[monitoring_nomad_progress]: /nomad/docs/operations/monitoring-nomad#progress
+[`nomad operator gossip keyring generate`]: /nomad/docs/commands/operator/gossip/keyring-generate
+[search]: /nomad/docs/configuration/search
+[encryption key]: /nomad/docs/operations/key-management
+[max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem

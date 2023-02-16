@@ -44,7 +44,7 @@ The table below shows this endpoint's support for [blocking queries] and
   `X-Nomad-NextToken` header of the last response can be used as the
   `next_token` of the next request to fetch additional pages.
 
-- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering) used
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering) used
   to filter the results. Consider using pagination or a query parameter to
   reduce resources used to serve the request.
 
@@ -158,7 +158,7 @@ includes alphanumeric characters and the special characters `-`, `_`, `~`, and
 `/`. Paths may be up to 128 bytes long. The following regex matches the allowed
 paths: `^[a-zA-Z0-9-_~/]{1,128}$`
 
-Variable items are restricted to 16KiB in size. This limit is calculated by
+Variable items are restricted to 64KiB in size. This limit is calculated by
 taking the sum of the length in bytes of all of the unencrypted keys and values
 in the `Items` field.
 
@@ -295,8 +295,8 @@ the response will include only metadata and not the `Items` field:
 ```
 
 
-[Variables]: /docs/concepts/variables
-[`nomad var`]: /docs/commands/var
-[blocking queries]: /api-docs#blocking-queries
-[required ACLs]: /api-docs#acls
+[Variables]: /nomad/docs/concepts/variables
+[`nomad var`]: /nomad/docs/commands/var
+[blocking queries]: /nomad/api-docs#blocking-queries
+[required ACLs]: /nomad/api-docs#acls
 [RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2

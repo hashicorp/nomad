@@ -31,7 +31,7 @@ Usage: nomad var <subcommand> [options] [args]
 
   This command groups subcommands for interacting with variables. Variables
   allow operators to provide credentials and otherwise sensitive material to
-  Nomad jobs at runtime via the template stanza or directly through
+  Nomad jobs at runtime via the template block or directly through
   the Nomad API and CLI.
 
   Users can create new variables; list, inspect, and delete existing

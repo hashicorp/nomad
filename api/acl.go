@@ -31,7 +31,7 @@ func (a *ACLPolicies) Upsert(policy *ACLPolicy, q *WriteOptions) (*WriteMeta, er
 	if policy == nil || policy.Name == "" {
 		return nil, errors.New("missing policy name")
 	}
-	wm, err := a.client.write("/v1/acl/policy/"+policy.Name, policy, nil, q)
+	wm, err := a.client.put("/v1/acl/policy/"+policy.Name, policy, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (c *Client) ACLTokens() *ACLTokens {
 // Bootstrap is used to get the initial bootstrap token
 func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/bootstrap", nil, &resp, q)
+	wm, err := a.client.put("/v1/acl/bootstrap", nil, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,7 +94,7 @@ func (a *ACLTokens) BootstrapOpts(btoken string, q *WriteOptions) (*ACLToken, *W
 	}
 
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/bootstrap", req, &resp, q)
+	wm, err := a.client.put("/v1/acl/bootstrap", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -117,7 +117,7 @@ func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteM
 		return nil, nil, errors.New("cannot specify Accessor ID")
 	}
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/token", token, &resp, q)
+	wm, err := a.client.put("/v1/acl/token", token, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,7 +130,7 @@ func (a *ACLTokens) Update(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteM
 		return nil, nil, errors.New("missing accessor ID")
 	}
 	var resp ACLToken
-	wm, err := a.client.write("/v1/acl/token/"+token.AccessorID,
+	wm, err := a.client.put("/v1/acl/token/"+token.AccessorID,
 		token, &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -176,7 +176,7 @@ func (a *ACLTokens) Self(q *QueryOptions) (*ACLToken, *QueryMeta, error) {
 // UpsertOneTimeToken is used to create a one-time token
 func (a *ACLTokens) UpsertOneTimeToken(q *WriteOptions) (*OneTimeToken, *WriteMeta, error) {
 	var resp *OneTimeTokenUpsertResponse
-	wm, err := a.client.write("/v1/acl/token/onetime", nil, &resp, q)
+	wm, err := a.client.put("/v1/acl/token/onetime", nil, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -193,7 +193,7 @@ func (a *ACLTokens) ExchangeOneTimeToken(secret string, q *WriteOptions) (*ACLTo
 	}
 	req := &OneTimeTokenExchangeRequest{OneTimeSecretID: secret}
 	var resp *OneTimeTokenExchangeResponse
-	wm, err := a.client.write("/v1/acl/token/onetime/exchange", req, &resp, q)
+	wm, err := a.client.put("/v1/acl/token/onetime/exchange", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -243,7 +243,7 @@ func (a *ACLRoles) Create(role *ACLRole, w *WriteOptions) (*ACLRole, *WriteMeta,
 		return nil, nil, errors.New("cannot specify ACL role ID")
 	}
 	var resp ACLRole
-	wm, err := a.client.write("/v1/acl/role", role, &resp, w)
+	wm, err := a.client.put("/v1/acl/role", role, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -256,7 +256,7 @@ func (a *ACLRoles) Update(role *ACLRole, w *WriteOptions) (*ACLRole, *WriteMeta,
 		return nil, nil, errMissingACLRoleID
 	}
 	var resp ACLRole
-	wm, err := a.client.write("/v1/acl/role/"+role.ID, role, &resp, w)
+	wm, err := a.client.put("/v1/acl/role/"+role.ID, role, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -328,7 +328,7 @@ func (a *ACLAuthMethods) Create(authMethod *ACLAuthMethod, w *WriteOptions) (*AC
 		return nil, nil, errMissingACLAuthMethodName
 	}
 	var resp ACLAuthMethod
-	wm, err := a.client.write("/v1/acl/auth-method", authMethod, &resp, w)
+	wm, err := a.client.put("/v1/acl/auth-method", authMethod, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -341,7 +341,7 @@ func (a *ACLAuthMethods) Update(authMethod *ACLAuthMethod, w *WriteOptions) (*AC
 		return nil, nil, errMissingACLAuthMethodName
 	}
 	var resp ACLAuthMethod
-	wm, err := a.client.write("/v1/acl/auth-method/"+authMethod.Name, authMethod, &resp, w)
+	wm, err := a.client.put("/v1/acl/auth-method/"+authMethod.Name, authMethod, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -397,7 +397,7 @@ func (a *ACLBindingRules) List(q *QueryOptions) ([]*ACLBindingRuleListStub, *Que
 // Create is used to create an ACL binding rule.
 func (a *ACLBindingRules) Create(bindingRule *ACLBindingRule, w *WriteOptions) (*ACLBindingRule, *WriteMeta, error) {
 	var resp ACLBindingRule
-	wm, err := a.client.write("/v1/acl/binding-rule", bindingRule, &resp, w)
+	wm, err := a.client.put("/v1/acl/binding-rule", bindingRule, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -410,7 +410,7 @@ func (a *ACLBindingRules) Update(bindingRule *ACLBindingRule, w *WriteOptions) (
 		return nil, nil, errMissingACLBindingRuleID
 	}
 	var resp ACLBindingRule
-	wm, err := a.client.write("/v1/acl/binding-rule/"+bindingRule.ID, bindingRule, &resp, w)
+	wm, err := a.client.put("/v1/acl/binding-rule/"+bindingRule.ID, bindingRule, &resp, w)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -440,6 +440,38 @@ func (a *ACLBindingRules) Get(bindingRuleID string, q *QueryOptions) (*ACLBindin
 		return nil, nil, err
 	}
 	return &resp, qm, nil
+}
+
+// ACLOIDC is used to query the ACL OIDC endpoints.
+type ACLOIDC struct {
+	client *Client
+}
+
+// ACLOIDC returns a new handle on the ACL auth-methods API client.
+func (c *Client) ACLOIDC() *ACLOIDC {
+	return &ACLOIDC{client: c}
+}
+
+// GetAuthURL generates the OIDC provider authentication URL. This URL should
+// be visited in order to sign in to the provider.
+func (a *ACLOIDC) GetAuthURL(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLOIDCAuthURLResponse, *WriteMeta, error) {
+	var resp ACLOIDCAuthURLResponse
+	wm, err := a.client.put("/v1/acl/oidc/auth-url", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// CompleteAuth exchanges the OIDC provider token for a Nomad token with the
+// appropriate claims attached.
+func (a *ACLOIDC) CompleteAuth(req *ACLOIDCCompleteAuthRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	var resp ACLToken
+	wm, err := a.client.put("/v1/acl/oidc/complete-auth", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
 }
 
 // ACLPolicyListStub is used to for listing ACL policies
@@ -511,6 +543,53 @@ type ACLTokenRoleLink struct {
 	// Name is the human friendly identifier for the ACL role and is a
 	// convenience field for operators.
 	Name string
+}
+
+// MarshalJSON implements the json.Marshaler interface and allows
+// ACLToken.ExpirationTTL to be marshaled correctly.
+func (a *ACLToken) MarshalJSON() ([]byte, error) {
+	type Alias ACLToken
+	exported := &struct {
+		ExpirationTTL string
+		*Alias
+	}{
+		ExpirationTTL: a.ExpirationTTL.String(),
+		Alias:         (*Alias)(a),
+	}
+	if a.ExpirationTTL == 0 {
+		exported.ExpirationTTL = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// ACLToken.ExpirationTTL to be unmarshalled correctly.
+func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLToken
+	aux := &struct {
+		ExpirationTTL any
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.ExpirationTTL != nil {
+		switch v := aux.ExpirationTTL.(type) {
+		case string:
+			if v != "" {
+				if a.ExpirationTTL, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.ExpirationTTL = time.Duration(v)
+		}
+
+	}
+	return nil
 }
 
 type ACLTokenListStub struct {
@@ -666,6 +745,7 @@ type ACLAuthMethodConfig struct {
 	OIDCDiscoveryURL    string
 	OIDCClientID        string
 	OIDCClientSecret    string
+	OIDCScopes          []string
 	BoundAudiences      []string
 	AllowedRedirectURIs []string
 	DiscoveryCaPem      []string
@@ -766,8 +846,8 @@ type ACLBindingRule struct {
 	Selector string
 
 	// BindType adjusts how this binding rule is applied at login time. The
-	// valid values are ACLBindingRuleBindTypeRole and
-	// ACLBindingRuleBindTypePolicy.
+	// valid values are ACLBindingRuleBindTypeRole,
+	// ACLBindingRuleBindTypePolicy, and ACLBindingRuleBindTypeManagement.
 	BindType string
 
 	// BindName is the target of the binding. Can be lightly templated using
@@ -793,6 +873,10 @@ const (
 	// within the ACLBindingRule.BindName parameter, and will be the policy
 	// name.
 	ACLBindingRuleBindTypePolicy = "policy"
+
+	// ACLBindingRuleBindTypeManagement is the ACL binding rule bind type that
+	// will generate management ACL tokens when matched.
+	ACLBindingRuleBindTypeManagement = "management"
 )
 
 // ACLBindingRuleListStub is the stub object returned when performing a listing
@@ -815,4 +899,51 @@ type ACLBindingRuleListStub struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+// ACLOIDCAuthURLRequest is the request to make when starting the OIDC
+// authentication login flow.
+type ACLOIDCAuthURLRequest struct {
+
+	// AuthMethodName is the OIDC auth-method to use. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
+
+	// ClientNonce is a randomly generated string to prevent replay attacks. It
+	// is up to the client to generate this and Go integrations should use the
+	// oidc.NewID function within the hashicorp/cap library.
+	ClientNonce string
+}
+
+// ACLOIDCAuthURLResponse is the response when starting the OIDC authentication
+// login flow.
+type ACLOIDCAuthURLResponse struct {
+
+	// AuthURL is URL to begin authorization and is where the user logging in
+	// should go.
+	AuthURL string
+}
+
+// ACLOIDCCompleteAuthRequest is the request object to begin completing the
+// OIDC auth cycle after receiving the callback from the OIDC provider.
+type ACLOIDCCompleteAuthRequest struct {
+
+	// AuthMethodName is the name of the auth method being used to login via
+	// OIDC. This will match AuthUrlArgs.AuthMethodName. This is a required
+	// parameter.
+	AuthMethodName string
+
+	// ClientNonce, State, and Code are provided from the parameters given to
+	// the redirect URL. These are all required parameters.
+	ClientNonce string
+	State       string
+	Code        string
+
+	// RedirectURI is the URL that authorization should redirect to. This is a
+	// required parameter.
+	RedirectURI string
 }

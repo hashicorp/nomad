@@ -1,11 +1,15 @@
 ---
 layout: docs
 page_title: 'Commands: operator metrics'
+description: |-
+  The `operator metrics` command queries the metrics API
+  endpoint for metrics data related to the current Nomad
+  process.
 ---
 
 # Command: operator metrics
 
-The `operator metrics` command queries the [metrics API endpoint](/api-docs/metrics).
+The `operator metrics` command queries the [metrics API endpoint](/nomad/api-docs/metrics).
 
 ## Usage
 
@@ -27,7 +31,7 @@ nomad operator metrics [options]
 ## Output
 
 The output of `nomad operator metrics` is a JSON representation of the
-[metrics API endpoint](/api-docs/metrics).
+[metrics API endpoint](/nomad/api-docs/metrics).
 
 ```shell-session
 $ nomad operator metrics -pretty

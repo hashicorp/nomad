@@ -34,7 +34,7 @@ const (
 	// maxVariableSize is the maximum size of the unencrypted contents of a
 	// variable. This size is deliberately set low and is not configurable, to
 	// discourage DoS'ing the cluster
-	maxVariableSize = 16384
+	maxVariableSize = 65536
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -157,31 +157,57 @@ var (
 
 func (v VariableDecrypted) Validate() error {
 
-	if len(v.Path) == 0 {
-		return fmt.Errorf("variable requires path")
-	}
-	if !validVariablePath.MatchString(v.Path) {
-		return fmt.Errorf("invalid path %q", v.Path)
-	}
-
-	parts := strings.Split(v.Path, "/")
-	switch {
-	case len(parts) == 1 && parts[0] == "nomad":
-		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\" or below")
-	case len(parts) >= 2 && parts[0] == "nomad" && parts[1] != "jobs":
-		return fmt.Errorf("only paths at \"nomad/jobs\" or below are valid paths under the top-level \"nomad\" directory")
+	if v.Namespace == AllNamespacesSentinel {
+		return errors.New("can not target wildcard (\"*\")namespace")
 	}
 
 	if len(v.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
 	if v.Items.Size() > maxVariableSize {
-		return errors.New("variables are limited to 16KiB in total size")
+		return errors.New("variables are limited to 64KiB in total size")
 	}
-	if v.Namespace == AllNamespacesSentinel {
-		return errors.New("can not target wildcard (\"*\")namespace")
+
+	if err := validatePath(v.Path); err != nil {
+		return err
 	}
+
 	return nil
+}
+
+func validatePath(path string) error {
+	if len(path) == 0 {
+		return fmt.Errorf("variable requires path")
+	}
+	if !validVariablePath.MatchString(path) {
+		return fmt.Errorf("invalid path %q", path)
+	}
+
+	parts := strings.Split(path, "/")
+
+	if parts[0] != "nomad" {
+		return nil
+	}
+
+	// Don't allow a variable with path "nomad"
+	if len(parts) == 1 {
+		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\", \"nomad/job-templates\", or below")
+	}
+
+	switch {
+	case parts[1] == "jobs":
+		// Any path including "nomad/jobs" is valid
+		return nil
+	case parts[1] == "job-templates" && len(parts) == 3:
+		// Paths including "nomad/job-templates" is valid, provided they have single further path part
+		return nil
+	case parts[1] == "job-templates":
+		// Disallow exactly nomad/job-templates with no further paths
+		return fmt.Errorf("\"nomad/job-templates\" is a reserved directory path, but you may write variables at the level below it, for example, \"nomad/job-templates/template-name\"")
+	default:
+		// Disallow arbitrary sub-paths beneath nomad/
+		return fmt.Errorf("only paths at \"nomad/jobs\" or \"nomad/job-templates\" and below are valid paths under the top-level \"nomad\" directory")
+	}
 }
 
 func (sv *VariableDecrypted) Canonicalize() {

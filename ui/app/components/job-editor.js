@@ -1,123 +1,92 @@
-import Component from '@ember/component';
-import { assert } from '@ember/debug';
+import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
-import { computed, action } from '@ember/object';
+import { action } from '@ember/object';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
-import { attributeBindings } from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
+import { tracked } from '@glimmer/tracking';
 
-@classic
-@attributeBindings('data-test-job-editor')
 export default class JobEditor extends Component {
   @service store;
   @service config;
 
-  'data-test-job-editor' = true;
+  @tracked error = null;
+  @tracked planOutput = null;
 
-  job = null;
-  onSubmit() {}
-
-  @computed('_context')
-  get context() {
-    return this._context;
-  }
-
-  set context(value) {
-    const allowedValues = ['new', 'edit'];
-
-    assert(
-      `context must be one of: ${allowedValues.join(', ')}`,
-      allowedValues.includes(value)
-    );
-
-    this.set('_context', value);
-  }
-
-  @action updateCode(value) {
-    if (!this.job.isDestroying && !this.job.isDestroyed) {
-      this.job.set('_newDefinition', value);
-    }
-  }
-
-  _context = null;
-  parseError = null;
-  planError = null;
-  runError = null;
-
-  planOutput = null;
-
-  @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
-
-  @computed('planOutput')
   get stage() {
     return this.planOutput ? 'plan' : 'editor';
   }
+
+  @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
 
   @(task(function* () {
     this.reset();
 
     try {
-      yield this.job.parse();
+      yield this.args.job.parse();
     } catch (err) {
-      const error =
-        messageFromAdapterError(err, 'parse jobs') || 'Could not parse input';
-      this.set('parseError', error);
-      this.scrollToError();
+      this.onError(err, 'parse', 'parse jobs');
       return;
     }
 
     try {
-      const plan = yield this.job.plan();
-      this.set('planOutput', plan);
+      const plan = yield this.args.job.plan();
+      this.planOutput = plan;
     } catch (err) {
-      const error =
-        messageFromAdapterError(err, 'plan jobs') || 'Could not plan job';
-      this.set('planError', error);
-      this.scrollToError();
+      this.onError(err, 'plan', 'plan jobs');
     }
   }).drop())
   plan;
 
   @task(function* () {
     try {
-      if (this.context === 'new') {
-        yield this.job.run();
+      if (this.args.context === 'new') {
+        yield this.args.job.run();
       } else {
-        yield this.job.update();
+        yield this.args.job.update();
       }
 
-      const id = this.get('job.plainId');
-      const namespace = this.get('job.namespace.name') || 'default';
+      const id = this.args.job.plainId;
+      const namespace = this.args.job.belongsTo('namespace').id() || 'default';
 
       this.reset();
 
       // Treat the job as ephemeral and only provide ID parts.
-      this.onSubmit(id, namespace);
+      this.args.onSubmit(id, namespace);
     } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not submit job';
-      this.set('runError', error);
-      this.set('planOutput', null);
-      this.scrollToError();
+      this.onError(err, 'run', 'submit jobs');
+      this.planOutput = null;
     }
   })
   submit;
 
+  onError(err, type, actionMsg) {
+    const error = messageFromAdapterError(err, actionMsg);
+    this.error = { message: error, type };
+    this.scrollToError();
+  }
+
+  @action
   reset() {
-    this.set('planOutput', null);
-    this.set('planError', null);
-    this.set('parseError', null);
-    this.set('runError', null);
+    this.planOutput = null;
+    this.error = null;
   }
 
   scrollToError() {
-    if (!this.get('config.isTest')) {
+    if (!this.config.get('isTest')) {
       window.scrollTo(0, 0);
     }
   }
 
-  @action uploadJobSpec(event) {
+  @action
+  updateCode(value) {
+    if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
+      this.args.job.set('_newDefinition', value);
+    }
+  }
+
+  @action
+  uploadJobSpec(event) {
     const reader = new FileReader();
     reader.onload = () => {
       this.updateCode(reader.result);

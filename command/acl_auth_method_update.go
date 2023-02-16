@@ -214,7 +214,7 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 		return 0
 	}
 
-	a.Ui.Output(fmt.Sprintf("Updated ACL auth method:\n%s", formatAuthMethod(method)))
+	outputAuthMethod(a.Meta, method)
 	return 0
 }
 

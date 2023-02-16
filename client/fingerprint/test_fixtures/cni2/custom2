@@ -1,0 +1,3 @@
+#!/bin/sh
+
+echo "Custom v9.9.9 Plugin"

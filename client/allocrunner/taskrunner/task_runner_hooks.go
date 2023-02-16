@@ -68,9 +68,10 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, tr.getter, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
+		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
 	}
 
-	// If the task has a CSI stanza, add the hook.
+	// If the task has a CSI block, add the hook.
 	if task.CSIPluginConfig != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(
 			&csiPluginSupervisorHookConfig{
@@ -86,14 +87,14 @@ func (tr *TaskRunner) initHooks() {
 	// If Vault is enabled, add the hook
 	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
-			vaultStanza: task.Vault,
-			client:      tr.vaultClient,
-			events:      tr,
-			lifecycle:   tr,
-			updater:     tr,
-			logger:      hookLogger,
-			alloc:       tr.Alloc(),
-			task:        tr.taskName,
+			vaultBlock: task.Vault,
+			client:     tr.vaultClient,
+			events:     tr,
+			lifecycle:  tr,
+			updater:    tr,
+			logger:     hookLogger,
+			alloc:      tr.Alloc(),
+			task:       tr.taskName,
 		}))
 	}
 
@@ -208,6 +209,8 @@ func (tr *TaskRunner) prestart() error {
 	joinedCtx, joinedCancel := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 	defer joinedCancel()
 
+	alloc := tr.Alloc()
+
 	for _, hook := range tr.runnerHooks {
 		pre, ok := hook.(interfaces.TaskPrestartHook)
 		if !ok {
@@ -218,6 +221,7 @@ func (tr *TaskRunner) prestart() error {
 
 		// Build the request
 		req := interfaces.TaskPrestartRequest{
+			Alloc:         alloc,
 			Task:          tr.Task(),
 			TaskDir:       tr.taskDir,
 			TaskEnv:       tr.envBuilder.Build(),
@@ -428,7 +432,9 @@ func (tr *TaskRunner) stop() error {
 			tr.logger.Trace("running stop hook", "name", name, "start", start)
 		}
 
-		req := interfaces.TaskStopRequest{}
+		req := interfaces.TaskStopRequest{
+			TaskDir: tr.taskDir,
+		}
 
 		origHookState := tr.hookState(name)
 		if origHookState != nil {

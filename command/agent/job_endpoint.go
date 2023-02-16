@@ -404,7 +404,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if args.Job.Type != nil && *args.Job.Type == api.JobTypeSystem {
 		for _, tg := range args.Job.TaskGroups {
 			if tg.Scaling != nil {
-				return nil, CodedError(400, "Task groups with job type system do not support scaling stanzas")
+				return nil, CodedError(400, "Task groups with job type system do not support scaling blocks")
 			}
 		}
 	}
@@ -819,7 +819,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 
 	queryRegion := req.URL.Query().Get("region")
 	requestRegion, jobRegion := regionForJob(
-		job, queryRegion, writeReq.Region, s.agent.config.Region,
+		job, queryRegion, writeReq.Region, s.agent.GetConfig().Region,
 	)
 
 	sJob := ApiJobToStructJob(job)
@@ -1150,6 +1150,13 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
+
+	if apiTask.Identity != nil {
+		structsTask.Identity = &structs.WorkloadIdentity{
+			Env:  apiTask.Identity.Env,
+			File: apiTask.Identity.File,
+		}
+	}
 
 	if apiTask.RestartPolicy != nil {
 		structsTask.RestartPolicy = &structs.RestartPolicy{
@@ -1646,11 +1653,18 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 	if in == nil {
 		return nil
 	}
+
+	// TODO: to maintain backwards compatibility
+	expose := in.Expose
+	if in.ExposeConfig != nil {
+		expose = in.ExposeConfig
+	}
+
 	return &structs.ConsulProxy{
 		LocalServiceAddress: in.LocalServiceAddress,
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
-		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
+		Expose:              apiConsulExposeConfigToStructs(expose),
 		Config:              maps.Clone(in.Config),
 	}
 }
@@ -1668,6 +1682,7 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          apiMeshGatewayToStructs(upstream.MeshGateway),
+			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams
@@ -1685,8 +1700,15 @@ func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulE
 	if in == nil {
 		return nil
 	}
+
+	// TODO: to maintain backwards compatibility
+	paths := in.Paths
+	if in.Path != nil {
+		paths = in.Path
+	}
+
 	return &structs.ConsulExposeConfig{
-		Paths: apiConsulExposePathsToStructs(in.Path),
+		Paths: apiConsulExposePathsToStructs(paths),
 	}
 }
 

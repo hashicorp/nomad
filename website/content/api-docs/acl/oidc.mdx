@@ -1,0 +1,145 @@
+---
+layout: api
+page_title: ACL OIDC - HTTP API
+description: The /acl/oidc endpoints are used to login via an OIDC provider.
+---
+
+# ACL OIDC HTTP API
+
+The `/acl/oidc` endpoints are used to log in to Nomad via an OIDC provider.
+
+## Get an OIDC authentication URL
+
+This endpoint creates a URL which will allow the caller to navigate to their
+OIDC provider and log in. The returned string is URL encoded.
+
+| Method | Path                    | Produces           |
+| ------ | ----------------------- | ------------------ |
+| `POST` | `/v1/acl/oidc/auth-url` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Parameters
+
+- `AuthMethodName` `(string: <required>)` - The name of the ACL authentication
+  method to use.
+
+- `RedirectURI` `(string: <required>)` - The URI that the response will be sent
+  to when authorization is finished. The value must be included within the auth
+  method's allowed redirect URIs listing.
+
+- `ClientNonce` `(string: <required>)` - A randomly generated string to prevent
+  replay attacks.
+
+### Sample Payload
+
+```json
+{
+  "AuthMethodName": "auth0",
+  "RedirectURI": "http://localhost:4649/oidc/callback",
+  "ClientNonce": "fpSPuaodKevKfDU3IeXb"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/acl/oidc/auth-url
+```
+
+### Sample Response
+
+```json
+{
+  "AuthURL": "https://some-domain.uk.auth0.com/authorize?client_id=4fOYtJiC5fo98EQj2TScs2someclient&nonce=fpSPuaodKevKfDU3IeXb&redirect_uri=http%3A%2F%2Flocalhost%3A4649%2Foidc%2Fcallback&response_type=code&scope=openid&state=st_4i68Nt7FcxDsomestate"
+}
+```
+
+## Complete OIDC Authentication
+
+This endpoint creates an ACL Role. The request is always forwarded to the
+authoritative region.
+
+| Method | Path                         | Produces           |
+| ------ | ---------------------------- | ------------------ |
+| `POST` | `/v1/acl/oidc/complete-auth` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Parameters
+
+- `AuthMethodName` `(string: <required>)` - The name of the ACL authentication
+  method to use and will match that used within the call to generate the URL.
+
+- `RedirectURI` `(string: <required>)` - The URI that the response will be sent
+  to when authorization is finished. The value must be included within the auth
+  method's allowed redirect URIs listing.
+
+- `ClientNonce` `(string: <required>)` - A randomly generated string to prevent
+  replay attacks that will match that used within the call to generate the URL.
+
+- `State` `(string: <required>)` - An opaque value used to maintain state between
+  the request and the callback.
+
+- `Code` `(string: <required>)` - The authorization code returned from the OIDC
+  providers authorization endpoint.
+
+### Sample Payload
+
+```json
+{
+  "AuthMethodName": "auth0",
+  "RedirectURI": "http://localhost:4649/oidc/callback",
+  "ClientNonce": "fpSPuaodKevKfDU3IeXb",
+  "State": "st_4i68Nt7FcxDsomestate",
+  "Code": "SplxlOBeZQQYbYS6WxSbIA"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/acl/oidc/complete-auth
+```
+
+### Sample Response
+
+```json
+{
+  "AccessorID": "cbbc7059-3acf-2ef5-378b-495f5f81f733",
+  "CreateIndex": 18,
+  "CreateTime": "2023-01-18T10:53:29.460987Z",
+  "ExpirationTTL": 600000000000,
+  "ExpirationTime": "2023-01-18T11:03:29.460987Z",
+  "Global": true,
+  "ModifyIndex": 18,
+  "Name": "OIDC-auth0",
+  "Policies": [],
+  "Roles": [
+    {
+      "ID": "10b1a678-f71d-d266-2888-8b3e47e317b8",
+      "Name": "engineering-read"
+    }
+  ],
+  "SecretID": "1fce464c-06d1-4020-8564-631c25201ea7",
+  "Type": "client"
+}
+```

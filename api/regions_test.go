@@ -3,8 +3,11 @@ package api
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestRegionsList(t *testing.T) {
@@ -20,24 +23,28 @@ func TestRegionsList(t *testing.T) {
 	defer s2.Stop()
 
 	// Join the servers
-	if _, err := c2.Agent().Join(s1.SerfAddr); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	_, err := c2.Agent().Join(s1.SerfAddr)
+	must.NoError(t, err)
 
-	// Regions returned and sorted
-	testutil.WaitForResult(func() (bool, error) {
+	f := func() error {
 		regions, err := c1.Regions().List()
 		if err != nil {
-			return false, err
+			return fmt.Errorf("failed to get regions: %w", err)
 		}
 		if n := len(regions); n != 2 {
-			return false, fmt.Errorf("expected 2 regions, got: %d", n)
+			return fmt.Errorf("expected 2 regions, got %d", n)
 		}
-		if regions[0] != "regionA" || regions[1] != "regionB" {
-			return false, fmt.Errorf("bad: %#v", regions)
+		if regions[0] != "regionA" {
+			return fmt.Errorf("unexpected first region, got: %s", regions[0])
 		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+		if regions[1] != "regionB" {
+			return fmt.Errorf("unexpected second region, got: %s", regions[1])
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(10*time.Second),
+		wait.Gap(1*time.Second),
+	))
 }

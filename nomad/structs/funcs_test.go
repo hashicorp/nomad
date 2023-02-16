@@ -2,11 +2,10 @@ package structs
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"testing"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1007,8 +1006,7 @@ func TestCompileACLObject(t *testing.T) {
 	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	// Create a small cache
-	cache, err := lru.New2Q(16)
-	assert.Nil(t, err)
+	cache := NewACLCache[*acl.ACL](10)
 
 	// Test compilation
 	aclObj, err := CompileACLObject(cache, []*ACLPolicy{p1})
@@ -1061,27 +1059,6 @@ func TestGenerateMigrateToken(t *testing.T) {
 	assert.Nil(err)
 	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
 	assert.True(CompareMigrateToken("x", nodeSecret, token2))
-}
-
-func TestMergeMultierrorWarnings(t *testing.T) {
-	ci.Parallel(t)
-
-	var errs []error
-
-	// empty
-	str := MergeMultierrorWarnings(errs...)
-	require.Equal(t, "", str)
-
-	// non-empty
-	errs = []error{
-		errors.New("foo"),
-		nil,
-		errors.New("bar"),
-	}
-
-	str = MergeMultierrorWarnings(errs...)
-
-	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }
 
 func TestVaultPoliciesSet(t *testing.T) {

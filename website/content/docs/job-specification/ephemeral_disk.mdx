@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: ephemeral_disk Stanza - Job Specification
+page_title: ephemeral_disk Block - Job Specification
 description: |-
-  The "ephemeral_disk" stanza describes the ephemeral disk requirements of the
+  The "ephemeral_disk" block describes the ephemeral disk requirements of the
   group. Ephemeral disks can be marked as sticky and support live data
   migrations.
 ---
 
-# `ephemeral_disk` Stanza
+# `ephemeral_disk` Block
 
 <Placement groups={['job', 'group', 'ephemeral_disk']} />
 
-The `ephemeral_disk` stanza describes the ephemeral disk requirements of the
+The `ephemeral_disk` block describes the ephemeral disk requirements of the
 group. Ephemeral disks can be marked as sticky and support live data migrations.
 All tasks in this group will share the same ephemeral disk.
 
@@ -47,8 +47,8 @@ The ephemeral disk can be referenced under `alloc/data/`. More information can b
 
 ## `ephemeral_disk` Examples
 
-The following examples only show the `ephemeral_disk` stanzas. Remember that the
-`ephemeral_disk` stanza is only valid in the placements listed above.
+The following examples only show the `ephemeral_disk` blocks. Remember that the
+`ephemeral_disk` block is only valid in the placements listed above.
 
 ### Sticky Volumes
 
@@ -60,5 +60,5 @@ ephemeral_disk {
 }
 ```
 
-[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
-[filesystem internals]: /docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads 'Filesystem internals documentation'
+[resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
+[filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads 'Filesystem internals documentation'

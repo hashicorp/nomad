@@ -1,0 +1,144 @@
+---
+layout: docs
+page_title: Service Discovery
+description: |-
+  Learn about how service discovery works in Nomad to connect workloads.
+---
+
+# Service discovery
+
+Service discovery is the process of retrieving the low-level information
+necessary to access a service, such as its IP and port, via a high-level
+identifier, such as a human-friendly service name.
+
+The service information is stored in a service catalog which provide interfaces
+that can be used to query data. In Nomad there are two service catalogs:
+
+- The **native service discovery** catalog is embedded in Nomad and requires no
+  additional infrastructure.
+
+- The [**Consul service discovery catalog**][consul_sd] requires access to a
+  Consul cluster, but it provides additional features, including a [DNS
+  interface][consul_dns] and [service mesh][] capabilities.
+
+Services are registered using the [`service`][] block, with the [`provider`][]
+parameter defining which catalog to use. Nomad stores the IP and port of all
+allocations associated with the service in the catalog and keeps these entries
+updated as you schedule new workloads or deploy new versions of your
+applications.
+
+```hcl
+job "..." {
+  # ...
+  group "..." {
+    service {
+      name     = "database"
+      port     = "db"
+      provider = "nomad"
+      # ...
+    }
+    # ...
+  }
+}
+```
+
+To access services, other allocations can query the catalog using
+[`template`][] blocks with the [`service`][ct_service_fn] function to query the
+Consul catalog or the [`nomadService`][ct_nomad_service_fn] function when using
+Nomad native service discovery. The `template` can then be used as a
+configuration file or have its content loaded as environment variables to
+configure connection information in applications.
+
+```hcl
+job "..." {
+  # ...
+  group "..." {
+    task "..." {
+      template {
+        data = <<EOF
+{{ range nomadService "database" }}
+DB_CONNECTION="host={{ .Address }} port={{ .Port }} user=user password=password dbname=db_name"
+{{ end }}
+EOF
+        destination = "local/env.txt"
+        env         = true
+      }
+    }
+    # ...
+  }
+}
+```
+
+## Health checks
+
+Both Nomad and Consul services can define health checks to make sure that only
+healthy instances are returned by the service catalog. Health checks are
+specified using the [`check`][] block.
+
+## Service tags
+
+`service` blocks may be specified multiple times with the same name but for
+different ports. All instances are returned when the service name is queried.
+To restrict results you can assign [`tags`][] to services to group them. When
+querying the service you can provide tag values as part of the service name.
+
+The example below exposes an application on two ports for different protocols.
+
+```hcl
+job "..." {
+  # ...
+  group "..." {
+    network {
+      port "http" {}
+      port "grpc" {}
+    }
+
+    service {
+      name = "my-app"
+      port = "http"
+      tags = ["http"]
+      # ...
+    }
+
+    service {
+      name = "my-app"
+      port = "grpc"
+      tags = ["grpc"]
+      # ...
+    }
+  }
+}
+```
+
+By assigning different `tags` the port for each protocol can be reached using
+the `http.my-app` and `grpc.my-app` service queries.
+
+### Canary deployments
+
+When using [canary][jobspec_update_canary] or
+[blue/green][jobspec_update_blue_green] upgrades you can specify a different
+set of tags for the canary allocations using the [`canary_tags`][]
+configuration.
+
+During a deployment, the new allocations are registered with the tags set in
+`canary_tags` while non-canaries have the values in `tags`. Having different
+sets of tags allow you to create separate [load balancing][learn_lb] routing
+rules to preview canaries.
+
+-> **Note**: Services are registered with either `tags` or `canary_tags`. In
+  order to share values they must be set in both fields.
+
+[`canary_tags`]: /nomad/docs/job-specification/service#canary_tags
+[`check`]: /nomad/docs/job-specification/check
+[`provider`]: /nomad/docs/job-specification/service#provider
+[`service`]: /nomad/docs/job-specification/service
+[`tags`]: /nomad/docs/job-specification/service#tags
+[`template`]: /nomad/docs/job-specification/template#template-examples
+[consul_dns]: /consul/docs/discovery/dns
+[consul_sd]: /consul/docs/concepts/service-discovery
+[ct_nomad_service_fn]: https://github.com/hashicorp/consul-template/blob/main/docs/templating-language.md#nomadservice
+[ct_service_fn]: https://github.com/hashicorp/consul-template/blob/main/docs/templating-language.md#service
+[jobspec_update_blue_green]: /nomad/docs/job-specification/update#blue-green-upgrades
+[jobspec_update_canary]: /nomad/docs/job-specification/update#canary-upgrades
+[learn_lb]: /nomad/tutorials/load-balancing
+[service mesh]: /nomad/docs/networking/service-mesh

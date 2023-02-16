@@ -16,12 +16,16 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
+import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class ClientController extends Controller.extend(
   Sortable,
   Searchable
 ) {
+  @service flashMessages;
+
   queryParams = [
     {
       currentPage: 'page',
@@ -277,4 +281,59 @@ export default class ClientController extends Controller.extend(
       this.set('activeTask', null);
     }
   }
+
+  // #region metadata
+
+  @tracked editingMetadata = false;
+
+  get hasMeta() {
+    return (
+      this.model.meta?.structured && Object.keys(this.model.meta?.structured)
+    );
+  }
+
+  @tracked newMetaData = {
+    key: '',
+    value: '',
+  };
+
+  @action resetNewMetaData() {
+    this.newMetaData = {
+      key: '',
+      value: '',
+    };
+  }
+
+  @action validateMetadata(event) {
+    if (event.key === 'Escape') {
+      this.resetNewMetaData();
+      this.editingMetadata = false;
+    }
+  }
+
+  @action async addDynamicMetaData({ key, value }, e) {
+    try {
+      e.preventDefault();
+      await this.model.addMeta({ [key]: value });
+
+      this.flashMessages.add({
+        title: 'Metadata added',
+        message: `${key} successfully saved`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 3000,
+      });
+    } catch (err) {
+      const error =
+        messageFromAdapterError(err) || 'Could not save new dynamic metadata';
+      this.flashMessages.add({
+        title: `Error saving Metadata`,
+        message: error,
+        type: 'error',
+        destroyOnClick: false,
+        sticky: true,
+      });
+    }
+  }
+  // #endregion metadata
 }

@@ -67,7 +67,7 @@ module('Acceptance | exec', function (hooks) {
       region: 'region-2',
     });
 
-    assert.equal(document.title, 'Exec - region-2 - Nomad');
+    assert.equal(document.title, 'Exec - region-2 - Mirage - Nomad');
 
     assert.equal(Exec.header.region.text, this.job.region);
     assert.equal(Exec.header.namespace.text, this.job.namespace);

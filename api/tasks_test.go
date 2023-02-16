@@ -2,41 +2,35 @@ package api
 
 import (
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestTaskGroup_NewTaskGroup(t *testing.T) {
 	testutil.Parallel(t)
+
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
 		Name:  pointerOf("grp1"),
 		Count: pointerOf(2),
 	}
-	if !reflect.DeepEqual(grp, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, grp)
-	}
+	must.Eq(t, expect, grp)
 }
 
 func TestTaskGroup_Constrain(t *testing.T) {
 	testutil.Parallel(t)
+
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add a constraint to the group
 	out := grp.Constrain(NewConstraint("kernel.name", "=", "darwin"))
-	if n := len(grp.Constraints); n != 1 {
-		t.Fatalf("expected 1 constraint, got: %d", n)
-	}
+	must.Len(t, 1, grp.Constraints)
 
 	// Check that the group was returned
-	if out != grp {
-		t.Fatalf("expected: %#v, got: %#v", grp, out)
-	}
+	must.Eq(t, grp, out)
 
 	// Add a second constraint
 	grp.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
@@ -52,25 +46,20 @@ func TestTaskGroup_Constrain(t *testing.T) {
 			Operand: ">=",
 		},
 	}
-	if !reflect.DeepEqual(grp.Constraints, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, grp.Constraints)
-	}
+	must.Eq(t, expect, grp.Constraints)
 }
 
 func TestTaskGroup_AddAffinity(t *testing.T) {
 	testutil.Parallel(t)
+
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add an affinity to the group
 	out := grp.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
-	if n := len(grp.Affinities); n != 1 {
-		t.Fatalf("expected 1 affinity, got: %d", n)
-	}
+	must.Len(t, 1, grp.Affinities)
 
 	// Check that the group was returned
-	if out != grp {
-		t.Fatalf("expected: %#v, got: %#v", grp, out)
-	}
+	must.Eq(t, grp, out)
 
 	// Add a second affinity
 	grp.AddAffinity(NewAffinity("${node.affinity}", "=", "dc2", 50))
@@ -88,36 +77,30 @@ func TestTaskGroup_AddAffinity(t *testing.T) {
 			Weight:  pointerOf(int8(50)),
 		},
 	}
-	if !reflect.DeepEqual(grp.Affinities, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, grp.Constraints)
-	}
+	must.Eq(t, expect, grp.Affinities)
 }
 
 func TestTaskGroup_SetMeta(t *testing.T) {
 	testutil.Parallel(t)
+
 	grp := NewTaskGroup("grp1", 1)
 
 	// Initializes an empty map
 	out := grp.SetMeta("foo", "bar")
-	if grp.Meta == nil {
-		t.Fatalf("should be initialized")
-	}
+	must.NotNil(t, grp.Meta)
 
 	// Check that we returned the group
-	if out != grp {
-		t.Fatalf("expect: %#v, got: %#v", grp, out)
-	}
+	must.Eq(t, grp, out)
 
 	// Add a second meta k/v
 	grp.SetMeta("baz", "zip")
 	expect := map[string]string{"foo": "bar", "baz": "zip"}
-	if !reflect.DeepEqual(grp.Meta, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, grp.Meta)
-	}
+	must.Eq(t, expect, grp.Meta)
 }
 
 func TestTaskGroup_AddSpread(t *testing.T) {
 	testutil.Parallel(t)
+
 	grp := NewTaskGroup("grp1", 1)
 
 	// Create and add spread
@@ -125,14 +108,10 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 	spread := NewSpread("${meta.rack}", 100, []*SpreadTarget{spreadTarget})
 
 	out := grp.AddSpread(spread)
-	if n := len(grp.Spreads); n != 1 {
-		t.Fatalf("expected 1 spread, got: %d", n)
-	}
+	must.Len(t, 1, grp.Spreads)
 
 	// Check that the group was returned
-	if out != grp {
-		t.Fatalf("expected: %#v, got: %#v", grp, out)
-	}
+	must.Eq(t, grp, out)
 
 	// Add a second spread
 	spreadTarget2 := NewSpreadTarget("dc1", 100)
@@ -162,25 +141,20 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 			},
 		},
 	}
-	if !reflect.DeepEqual(grp.Spreads, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, grp.Spreads)
-	}
+	must.Eq(t, expect, grp.Spreads)
 }
 
 func TestTaskGroup_AddTask(t *testing.T) {
 	testutil.Parallel(t)
+
 	grp := NewTaskGroup("grp1", 1)
 
 	// Add the task to the task group
 	out := grp.AddTask(NewTask("task1", "java"))
-	if n := len(grp.Tasks); n != 1 {
-		t.Fatalf("expected 1 task, got: %d", n)
-	}
+	must.Len(t, 1, out.Tasks)
 
 	// Check that we returned the group
-	if out != grp {
-		t.Fatalf("expect: %#v, got: %#v", grp, out)
-	}
+	must.Eq(t, grp, out)
 
 	// Add a second task
 	grp.AddTask(NewTask("task2", "exec"))
@@ -194,71 +168,59 @@ func TestTaskGroup_AddTask(t *testing.T) {
 			Driver: "exec",
 		},
 	}
-	if !reflect.DeepEqual(grp.Tasks, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, grp.Tasks)
-	}
+	must.Eq(t, expect, grp.Tasks)
 }
 
 func TestTask_NewTask(t *testing.T) {
 	testutil.Parallel(t)
+
 	task := NewTask("task1", "exec")
 	expect := &Task{
 		Name:   "task1",
 		Driver: "exec",
 	}
-	if !reflect.DeepEqual(task, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, task)
-	}
+	must.Eq(t, expect, task)
 }
 
 func TestTask_SetConfig(t *testing.T) {
 	testutil.Parallel(t)
+
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
 	out := task.SetConfig("foo", "bar")
-	if task.Config == nil {
-		t.Fatalf("should be initialized")
-	}
+	must.NotNil(t, task.Config)
 
 	// Check that we returned the task
-	if out != task {
-		t.Fatalf("expect: %#v, got: %#v", task, out)
-	}
+	must.Eq(t, task, out)
 
 	// Set another config value
 	task.SetConfig("baz", "zip")
 	expect := map[string]interface{}{"foo": "bar", "baz": "zip"}
-	if !reflect.DeepEqual(task.Config, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, task.Config)
-	}
+	must.Eq(t, expect, task.Config)
 }
 
 func TestTask_SetMeta(t *testing.T) {
 	testutil.Parallel(t)
+
 	task := NewTask("task1", "exec")
 
 	// Initializes an empty map
 	out := task.SetMeta("foo", "bar")
-	if task.Meta == nil {
-		t.Fatalf("should be initialized")
-	}
+	must.NotNil(t, out)
 
 	// Check that we returned the task
-	if out != task {
-		t.Fatalf("expect: %#v, got: %#v", task, out)
-	}
+	must.Eq(t, task, out)
 
 	// Set another meta k/v
 	task.SetMeta("baz", "zip")
 	expect := map[string]string{"foo": "bar", "baz": "zip"}
-	if !reflect.DeepEqual(task.Meta, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, task.Meta)
-	}
+	must.Eq(t, expect, task.Meta)
 }
 
 func TestTask_Require(t *testing.T) {
 	testutil.Parallel(t)
+
 	task := NewTask("task1", "exec")
 
 	// Create some require resources
@@ -275,30 +237,23 @@ func TestTask_Require(t *testing.T) {
 		},
 	}
 	out := task.Require(resources)
-	if !reflect.DeepEqual(task.Resources, resources) {
-		t.Fatalf("expect: %#v, got: %#v", resources, task.Resources)
-	}
+	must.Eq(t, resources, task.Resources)
 
 	// Check that we returned the task
-	if out != task {
-		t.Fatalf("expect: %#v, got: %#v", task, out)
-	}
+	must.Eq(t, task, out)
 }
 
 func TestTask_Constrain(t *testing.T) {
 	testutil.Parallel(t)
+
 	task := NewTask("task1", "exec")
 
 	// Add a constraint to the task
 	out := task.Constrain(NewConstraint("kernel.name", "=", "darwin"))
-	if n := len(task.Constraints); n != 1 {
-		t.Fatalf("expected 1 constraint, got: %d", n)
-	}
+	must.Len(t, 1, task.Constraints)
 
 	// Check that the task was returned
-	if out != task {
-		t.Fatalf("expected: %#v, got: %#v", task, out)
-	}
+	must.Eq(t, task, out)
 
 	// Add a second constraint
 	task.Constrain(NewConstraint("memory.totalbytes", ">=", "128000000"))
@@ -314,24 +269,20 @@ func TestTask_Constrain(t *testing.T) {
 			Operand: ">=",
 		},
 	}
-	if !reflect.DeepEqual(task.Constraints, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, task.Constraints)
-	}
+	must.Eq(t, expect, task.Constraints)
 }
 
 func TestTask_AddAffinity(t *testing.T) {
 	testutil.Parallel(t)
+
 	task := NewTask("task1", "exec")
 
 	// Add an affinity to the task
 	out := task.AddAffinity(NewAffinity("kernel.version", "=", "4.6", 100))
-	require := require.New(t)
-	require.Len(out.Affinities, 1)
+	must.Len(t, 1, out.Affinities)
 
 	// Check that the task was returned
-	if out != task {
-		t.Fatalf("expected: %#v, got: %#v", task, out)
-	}
+	must.Eq(t, task, out)
 
 	// Add a second affinity
 	task.AddAffinity(NewAffinity("${node.datacenter}", "=", "dc2", 50))
@@ -349,13 +300,12 @@ func TestTask_AddAffinity(t *testing.T) {
 			Weight:  pointerOf(int8(50)),
 		},
 	}
-	if !reflect.DeepEqual(task.Affinities, expect) {
-		t.Fatalf("expect: %#v, got: %#v", expect, task.Affinities)
-	}
+	must.Eq(t, expect, task.Affinities)
 }
 
 func TestTask_Artifact(t *testing.T) {
 	testutil.Parallel(t)
+
 	a := TaskArtifact{
 		GetterSource:  pointerOf("http://localhost/foo.txt"),
 		GetterMode:    pointerOf("file"),
@@ -363,22 +313,24 @@ func TestTask_Artifact(t *testing.T) {
 		GetterOptions: make(map[string]string),
 	}
 	a.Canonicalize()
-	require.Equal(t, "file", *a.GetterMode)
-	require.Equal(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
-	require.Nil(t, a.GetterOptions)
-	require.Nil(t, a.GetterHeaders)
+	must.Eq(t, "file", *a.GetterMode)
+	must.Eq(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
+	must.Nil(t, a.GetterOptions)
+	must.Nil(t, a.GetterHeaders)
 }
 
 func TestTask_VolumeMount(t *testing.T) {
 	testutil.Parallel(t)
-	vm := &VolumeMount{}
+
+	vm := new(VolumeMount)
 	vm.Canonicalize()
-	require.NotNil(t, vm.PropagationMode)
-	require.Equal(t, *vm.PropagationMode, "private")
+	must.NotNil(t, vm.PropagationMode)
+	must.Eq(t, "private", *vm.PropagationMode)
 }
 
 func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 	testutil.Parallel(t)
+
 	testCases := []struct {
 		name     string
 		expected *TaskLifecycle
@@ -402,14 +354,14 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 				ID: pointerOf("test"),
 			}
 			tc.task.Canonicalize(tg, j)
-			require.Equal(t, tc.expected, tc.task.Lifecycle)
-
+			must.Eq(t, tc.expected, tc.task.Lifecycle)
 		})
 	}
 }
 
 func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 	testutil.Parallel(t)
+
 	taskWithWait := func(wc *WaitConfig) *Task {
 		return &Task{
 			Templates: []*Template{
@@ -487,9 +439,9 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 			j := &Job{
 				ID: pointerOf("test"),
 			}
-			require.Equal(t, tc.copied, tc.task.Templates[0].Wait.Copy())
+			must.Eq(t, tc.copied, tc.task.Templates[0].Wait.Copy())
 			tc.task.Canonicalize(tg, j)
-			require.Equal(t, tc.canonicalized, tc.task.Templates[0].Wait)
+			must.Eq(t, tc.canonicalized, tc.task.Templates[0].Wait)
 		})
 	}
 }
@@ -515,7 +467,7 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.input.Canonicalize()
-			require.Equal(t, tc.expected, tc.input)
+			must.Eq(t, tc.expected, tc.input)
 		})
 	}
 }
@@ -523,6 +475,7 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	testutil.Parallel(t)
+
 	// Job with an Empty() Update
 	job := &Job{
 		ID: pointerOf("test"),
@@ -543,13 +496,12 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 		Name: pointerOf("foo"),
 	}
 	tg.Canonicalize(job)
-	assert.NotNil(t, job.Update)
-	assert.Nil(t, tg.Update)
+	must.NotNil(t, job.Update)
+	must.Nil(t, tg.Update)
 }
 
 func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 	testutil.Parallel(t)
-	require := require.New(t)
 
 	job := &Job{
 		ID: pointerOf("test"),
@@ -571,48 +523,49 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 
 	// both nil => both == 1
 	tg.Canonicalize(job)
-	require.NotNil(tg.Count)
-	require.NotNil(tg.Scaling.Min)
-	require.EqualValues(1, *tg.Count)
-	require.EqualValues(*tg.Count, *tg.Scaling.Min)
+	must.Positive(t, *tg.Count)
+	must.NotNil(t, tg.Scaling.Min)
+	must.Eq(t, 1, *tg.Count)
+	must.Eq(t, int64(*tg.Count), *tg.Scaling.Min)
 
 	// count == nil => count = Scaling.Min
 	tg.Count = nil
 	tg.Scaling.Min = pointerOf(int64(5))
 	tg.Canonicalize(job)
-	require.NotNil(tg.Count)
-	require.NotNil(tg.Scaling.Min)
-	require.EqualValues(5, *tg.Count)
-	require.EqualValues(*tg.Count, *tg.Scaling.Min)
+	must.Positive(t, *tg.Count)
+	must.NotNil(t, tg.Scaling.Min)
+	must.Eq(t, 5, *tg.Count)
+	must.Eq(t, int64(*tg.Count), *tg.Scaling.Min)
 
 	// Scaling.Min == nil => Scaling.Min == count
 	tg.Count = pointerOf(5)
 	tg.Scaling.Min = nil
 	tg.Canonicalize(job)
-	require.NotNil(tg.Count)
-	require.NotNil(tg.Scaling.Min)
-	require.EqualValues(5, *tg.Scaling.Min)
-	require.EqualValues(*tg.Scaling.Min, *tg.Count)
+	must.Positive(t, *tg.Count)
+	must.NotNil(t, tg.Scaling.Min)
+	must.Eq(t, 5, *tg.Scaling.Min)
+	must.Eq(t, int64(*tg.Count), *tg.Scaling.Min)
 
 	// both present, both persisted
 	tg.Count = pointerOf(5)
 	tg.Scaling.Min = pointerOf(int64(1))
 	tg.Canonicalize(job)
-	require.NotNil(tg.Count)
-	require.NotNil(tg.Scaling.Min)
-	require.EqualValues(1, *tg.Scaling.Min)
-	require.EqualValues(5, *tg.Count)
+	must.Positive(t, *tg.Count)
+	must.NotNil(t, tg.Scaling.Min)
+	must.Eq(t, 1, *tg.Scaling.Min)
+	must.Eq(t, 5, *tg.Count)
 }
 
 func TestTaskGroup_Merge_Update(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := &Job{
 		ID:     pointerOf("test"),
 		Update: &UpdateStrategy{},
 	}
 	job.Canonicalize()
 
-	// Merge and canonicalize part of an update stanza
+	// Merge and canonicalize part of an update block
 	tg := &TaskGroup{
 		Name: pointerOf("foo"),
 		Update: &UpdateStrategy{
@@ -623,7 +576,7 @@ func TestTaskGroup_Merge_Update(t *testing.T) {
 	}
 
 	tg.Canonicalize(job)
-	require.Equal(t, &UpdateStrategy{
+	must.Eq(t, &UpdateStrategy{
 		AutoRevert:       pointerOf(true),
 		AutoPromote:      pointerOf(false),
 		Canary:           pointerOf(5),
@@ -639,6 +592,7 @@ func TestTaskGroup_Merge_Update(t *testing.T) {
 // Verifies that migrate strategy is merged correctly
 func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 	testutil.Parallel(t)
+
 	type testCase struct {
 		desc        string
 		jobType     string
@@ -784,14 +738,15 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 				Migrate: tc.taskMigrate,
 			}
 			tg.Canonicalize(job)
-			assert.Equal(t, tc.expected, tg.Migrate)
+			must.Eq(t, tc.expected, tg.Migrate)
 		})
 	}
 }
 
-// TestSpread_Canonicalize asserts that the spread stanza is canonicalized correctly
+// TestSpread_Canonicalize asserts that the spread block is canonicalized correctly
 func TestSpread_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
+
 	job := &Job{
 		ID:   pointerOf("test"),
 		Type: pointerOf("batch"),
@@ -837,7 +792,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 			tg.Spreads = []*Spread{tc.spread}
 			tg.Canonicalize(job)
 			for _, spr := range tg.Spreads {
-				require.Equal(t, tc.expectedWeight, *spr.Weight)
+				must.Eq(t, tc.expectedWeight, *spr.Weight)
 			}
 		})
 	}
@@ -845,6 +800,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 
 func Test_NewDefaultReschedulePolicy(t *testing.T) {
 	testutil.Parallel(t)
+
 	testCases := []struct {
 		desc         string
 		inputJobType string
@@ -903,13 +859,14 @@ func Test_NewDefaultReschedulePolicy(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			actual := NewDefaultReschedulePolicy(tc.inputJobType)
-			assert.Equal(t, tc.expected, actual)
+			must.Eq(t, tc.expected, actual)
 		})
 	}
 }
 
 func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 	testutil.Parallel(t)
+
 	t.Run("override job consul in group", func(t *testing.T) {
 		job := &Job{
 			ID:              pointerOf("job"),
@@ -923,8 +880,8 @@ func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 		}
 		tg.Canonicalize(job)
 
-		require.Equal(t, "ns1", *job.ConsulNamespace)
-		require.Equal(t, "ns2", tg.Consul.Namespace)
+		must.Eq(t, "ns1", *job.ConsulNamespace)
+		must.Eq(t, "ns2", tg.Consul.Namespace)
 	})
 
 	t.Run("inherit job consul in group", func(t *testing.T) {
@@ -940,8 +897,8 @@ func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 		}
 		tg.Canonicalize(job)
 
-		require.Equal(t, "ns1", *job.ConsulNamespace)
-		require.Equal(t, "ns1", tg.Consul.Namespace)
+		must.Eq(t, "ns1", *job.ConsulNamespace)
+		must.Eq(t, "ns1", tg.Consul.Namespace)
 	})
 
 	t.Run("set in group only", func(t *testing.T) {
@@ -957,7 +914,7 @@ func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 		}
 		tg.Canonicalize(job)
 
-		require.Empty(t, job.ConsulNamespace)
-		require.Equal(t, "ns2", tg.Consul.Namespace)
+		must.Eq(t, "", *job.ConsulNamespace)
+		must.Eq(t, "ns2", tg.Consul.Namespace)
 	})
 }

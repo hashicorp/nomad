@@ -3,10 +3,12 @@
 <form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
 
   {{#if @model.isNew}}
-    <div class="related-entities related-entities-hint">
-      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
-      Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
-    </div>
+    {{#unless this.isJobTemplateVariable}}
+      <div class="related-entities related-entities-hint">
+        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+        Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+      </div>
+    {{/unless}}
   {{/if}}
 
   {{#if this.hasConflict}}
@@ -61,6 +63,16 @@
           .
         </p>
       {{/if}}
+      {{#if this.isJobTemplateVariable}}
+        <p class="help job-template-hint">
+          Use this variable to generate job templates with
+          <code>nomad job init -template={{this.jobTemplateName}}
+            <CopyButton
+              @clipboardText="nomad job init -template={{this.jobTemplateName}}"
+            />
+          </code>
+        </p>
+      {{/if}}
     </label>
     <VariableForm::NamespaceFilter 
       @data={{hash 
@@ -74,42 +86,48 @@
       }}
     />
   </div>
-  {{#if (eq this.view "json")}}
-    <div
-      class="editor-wrapper boxed-section-body is-full-bleed
-        {{if this.JSONError 'error'}}"
-    >
-      <div
-        data-test-json-editor
-        {{code-mirror
-          content=this.JSONItems
-          onUpdate=this.updateCode
-          extraKeys=(hash Cmd-Enter=(action "save"))
-        }}
-      ></div>
-      {{#if this.JSONError}}
-        <p class="help is-danger">
-          {{this.JSONError}}
-        </p>
-      {{/if}}
-    </div>
+  {{#if this.isJobTemplateVariable}}
+    <VariableForm::JobTemplateEditor
+      @keyValues={{this.keyValues}}
+      @updateKeyValue={{this.updateKeyValue}}
+    />
   {{else}}
-    {{#each this.keyValues as |entry iter|}}
-      <div class="key-value">
-        <label>
-          <span>
-            Key
-          </span>
-          <Input
-            data-test-var-key
-            @type="text"
-            @value={{entry.key}}
-            class="input"
-            {{autofocus ignore=(eq iter 0)}}
-            {{on "input" (fn this.validateKey entry)}}
-          />
-        </label>
-        <VariableForm::InputGroup @entry={{entry}} />
+    {{#if (eq this.view "json")}}
+      <div
+        class="editor-wrapper boxed-section-body is-full-bleed
+          {{if this.JSONError 'error'}}"
+      >
+        <div
+          data-test-json-editor
+          {{code-mirror
+            content=this.JSONItems
+            onUpdate=this.updateCode
+            extraKeys=(hash Cmd-Enter=(action "save"))
+          }}
+        ></div>
+        {{#if this.JSONError}}
+          <p class="help is-danger">
+            {{this.JSONError}}
+          </p>
+        {{/if}}
+      </div>
+    {{else}}
+      {{#each this.keyValues as |entry iter|}}
+        <div class="key-value">
+          <label>
+            <span>
+              Key
+            </span>
+            <Input
+              data-test-var-key
+              @type="text"
+              @value={{entry.key}}
+              class="input"
+              {{autofocus ignore=(eq iter 0)}}
+              {{on "input" (fn this.validateKey entry)}}
+            />
+          </label>
+          <VariableForm::InputGroup @entry={{entry}} />
           <button
             class="delete-row button is-danger is-inverted"
             type="button"
@@ -117,13 +135,14 @@
           >
             Delete
           </button>
-        {{#each-in entry.warnings as |k v|}}
-          <span class="key-value-error help is-danger">
-            {{v}}
-          </span>
-        {{/each-in}}
-      </div>
-    {{/each}}
+          {{#each-in entry.warnings as |k v|}}
+            <span class="key-value-error help is-danger">
+              {{v}}
+            </span>
+          {{/each-in}}
+        </div>
+      {{/each}}
+    {{/if}}
   {{/if}}
 
   {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
@@ -138,15 +157,17 @@
 
   <footer>
     {{#unless this.isJSONView}}
-    <button
-      class="add-more button is-info is-inverted"
-      type="button"
-      disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}}
-      {{on "click" this.appendRow}}
-      data-test-add-kv
-    >
-      Add More
-    </button>
+      {{#unless this.isJobTemplateVariable}}
+        <button
+          class="add-more button is-info is-inverted"
+          type="button"
+          disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}}
+          {{on "click" this.appendRow}}
+          data-test-add-kv
+        >
+          Add More
+        </button>
+      {{/unless}}
     {{/unless}}
     <button
       disabled={{this.shouldDisableSave}}

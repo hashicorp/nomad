@@ -1,16 +1,16 @@
 ---
 layout: docs
-page_title: csi_plugin Stanza - Job Specification
+page_title: csi_plugin Block - Job Specification
 description: >-
-  The "csi_plugin" stanza allows the task to specify it provides a
+  The "csi_plugin" block allows the task to specify it provides a
   Container Storage Interface plugin to the cluster.
 ---
 
-# `csi_plugin` Stanza
+# `csi_plugin` Block
 
 <Placement groups={['job', 'group', 'task', 'csi_plugin']} />
 
-The "csi_plugin" stanza allows the task to specify it provides a
+The "csi_plugin" block allows the task to specify it provides a
 Container Storage Interface plugin to the cluster. Nomad will
 automatically register the plugin so that it can be used by other jobs
 to claim [volumes][csi_volumes].
@@ -46,15 +46,15 @@ csi_plugin {
   bidirectional communication with Nomad. This field is typically not
   required. Refer to your CSI plugin's documentation for details.
 
-- `stage_publish_base_dir` `(string: <optional>)` - The base directory 
+- `stage_publish_base_dir` `(string: <optional>)` - The base directory
   path inside the container where the plugin will be instructed to
-  stage and publish volumes. This field is typically not required. 
+  stage and publish volumes. This field is typically not required.
   Refer to your CSI plugin's documentation for details.
 
-- `health_timeout` `(duration: <optional>)` - The duration that 
+- `health_timeout` `(duration: <optional>)` - The duration that
   the plugin supervisor will wait before restarting an unhealthy
   CSI plugin. Must be a duration value such as `30s` or `2m`.
-  Defaults to `30s` if not set. 
+  Defaults to `30s` if not set.
 
 ~> **Note:** Plugins running as `node` or `monolith` require root
 privileges (or `CAP_SYS_ADMIN` on Linux) to mount volumes on the
@@ -136,6 +136,6 @@ job "plugin-efs" {
 ```
 
 [csi]: https://github.com/container-storage-interface/spec
-[csi_volumes]: /docs/job-specification/volume
-[system]: /docs/schedulers#system
-[`topology_request`]: /docs/commands/volume/create#topology_request
+[csi_volumes]: /nomad/docs/job-specification/volume
+[system]: /nomad/docs/schedulers#system
+[`topology_request`]: /nomad/docs/commands/volume/create#topology_request

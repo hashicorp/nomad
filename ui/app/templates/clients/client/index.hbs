@@ -815,11 +815,14 @@
     <div class="boxed-section-head">
       Meta
     </div>
-    {{#if this.model.meta.structured}}
+    {{#if this.hasMeta}}
       <div class="boxed-section-body is-full-bleed">
         <AttributesTable
           data-test-meta
           @attributePairs={{this.model.meta.structured}}
+          @editable={{can "write client"}}
+          @onKVSave={{this.addDynamicMetaData}}
+          @onKVEdit={{this.validateMetadata}}
           @class="attributes-table"
         />
       </div>
@@ -834,6 +837,53 @@
           </p>
         </div>
       </div>
+    {{/if}}
+    {{#if (can "write client")}}
+      {{#if this.editingMetadata}}
+        <div class="add-dynamic-metadata">
+          <h3 class="title is-6">Add Dynamic Metadata</h3>
+          <MetadataEditor
+            @kv={{this.newMetaData}}
+            @onEdit={{this.validateMetadata}}
+          >
+            <button
+              data-test-new-metadata-button
+              disabled={{or (not this.newMetaData.key) (not this.newMetaData.value)}}
+              type="submit"
+              class="button is-primary"
+              {{on "click" (queue
+                (action this.addDynamicMetaData this.newMetaData)
+                this.resetNewMetaData
+                (action (mut this.editingMetadata) false)
+              )}}
+            >
+              Add {{this.newMetaData.key}} to node metadata
+            </button>
+
+            <button
+              type="button"
+              class="button is-secondary"
+              {{on "click" (queue
+                this.resetNewMetaData
+                (action (mut this.editingMetadata) false)
+              )}}
+            >
+              Cancel
+            </button>
+
+          </MetadataEditor>
+        </div>
+      {{else}}
+        <div class="add-dynamic-metadata">
+          <button
+            type="button"
+            class="button is-primary"
+            {{on "click" (action (mut this.editingMetadata) true)}}
+          >
+            Add new Dynamic Metadata
+          </button>
+        </div>
+      {{/if}}
     {{/if}}
   </div>
 </section>

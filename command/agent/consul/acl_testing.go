@@ -128,6 +128,7 @@ const (
 	ExampleOperatorTokenID3 = "6177d1b9-c0f6-4118-b891-d818a3cb80b1"
 	ExampleOperatorTokenID4 = "754ae26c-f3cc-e088-d486-9c0d20f5eaea"
 	ExampleOperatorTokenID5 = "097cbb45-506b-c79c-ec38-82eb0dc0794a"
+	ExampleOperatorTokenID6 = "6268bd42-6f72-4c90-9c83-90ed6336dcf9"
 )
 
 // Example Consul ACL tokens for use in tests that match the policies as the
@@ -211,6 +212,16 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID4,
 		}},
+		Namespace: "",
+	}
+
+	ExampleOperatorToken6 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID6,
+		AccessorID:  "93786935-8856-6e17-0488-c5370a1f044e",
+		Description: "Operator Token 6",
+		ServiceIdentities: []*api.ACLServiceIdentity{
+			{ServiceName: "service1"},
+		},
 		Namespace: "",
 	}
 

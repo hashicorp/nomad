@@ -27,7 +27,7 @@ type SpreadIterator struct {
 	tgSpreadInfo map[string]spreadAttributeMap
 
 	// sumSpreadWeights tracks the total weight across all spread
-	// stanzas
+	// blocks
 	sumSpreadWeights int32
 
 	// hasSpread is used to early return when the job/task group
@@ -248,7 +248,7 @@ func (iter *SpreadIterator) computeSpreadInfo(tg *structs.TaskGroup) {
 	spreadInfos := make(spreadAttributeMap, len(tg.Spreads))
 	totalCount := tg.Count
 
-	// Always combine any spread stanzas defined at the job level here
+	// Always combine any spread blocks defined at the job level here
 	combinedSpreads := make([]*structs.Spread, 0, len(tg.Spreads)+len(iter.jobSpreads))
 	combinedSpreads = append(combinedSpreads, tg.Spreads...)
 	combinedSpreads = append(combinedSpreads, iter.jobSpreads...)

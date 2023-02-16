@@ -63,13 +63,17 @@ Update an existing ACL auth method:
 
 ```shell-session
 $ nomad acl auth-method update -token-locality "global" -config @config.json example-acl-auth-method
-Updated ACL auth method:
-Name                   = example-acl-auth-method
-Type                   = OIDC
-Locality               = global
-MaxTokenTTL            = 1h0m0s
-Default                = false
-OIDC Discovery URL     = https://my-new-corp-app-name.auth0.com/
+Name         = example-acl-auth-method
+Type         = OIDC
+Locality     = global
+MaxTokenTTL  = 1h0m0s
+Default      = false
+Create Index = 14
+Modify Index = 33
+
+Auth Method Config
+
+OIDC Discovery URL     = https://my-corp-app-name.auth0.com/
 OIDC Client ID         = V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt
 OIDC Client Secret     = example-client-secret
 Bound audiences        = V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt
@@ -78,6 +82,4 @@ Discovery CA pem       = <none>
 Signing algorithms     = <none>
 Claim mappings         = {http://example.com/first_name: first_name}; {http://example.com/last_name: last_name}
 List claim mappings    = {http://nomad.com/groups: groups}
-Create Index           = 14
-Modify Index           = 33
 ```
