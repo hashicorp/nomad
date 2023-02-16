@@ -1,10 +1,10 @@
 <div
   class="allocation-status-block {{unless this.countToShow "rest-only"}}"
-  style="width: {{@width}}%"
+  style={{html-safe (concat "width: " @width "%")}}
 >
   {{#if this.countToShow}}
     <div class="allocs">
-      {{#each (range 0 this.countToShow) as |alloc|}}
+      {{#each (range 0 this.countToShow)}}
         <span class="represented-allocation {{@status}}"></span>
       {{/each}}
     </div>

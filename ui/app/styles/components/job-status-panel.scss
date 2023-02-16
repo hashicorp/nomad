@@ -34,29 +34,21 @@
   .alloc-representation {
     display: grid;
     gap: 10px;
-    // grid-template-columns: repeat( auto-fit, minmax(auto, 20px) );
     grid-auto-flow: column;
-    grid-auto-columns: minmax(1px, 20px);
-    // grid-auto-rows: 20px;
+    grid-auto-columns: minmax(1px, 32px);
     & > .represented-allocation {
       width: auto;
-      // min-width: 1px;
-      // max-width: 20px;
     }
   }
 
   .alloc-status-summaries {
     display: flex;
-    height: 20px;
+    height: 32px;
     gap: 0.5rem;
 
     .allocation-status-block {
-      // margin-right: 0.5rem;
       display: grid;
-      // grid-auto-flow: column;
-      // grid-template-columns: repeat(9, minmax(1fr, 20px));
       grid-template-columns: auto 50px;
-      // grid-auto-rows: 20px;
       gap: 10px;
 
       &.rest-only {
@@ -66,20 +58,15 @@
       & > .allocs {
         display: grid;
         grid-auto-flow: column;
-        // grid-auto-columns: minmax(10px, 20px);
         gap: 10px;
       }
 
       .represented-allocation {
-        color: white;
         text-align: center;
         font-size: 0;
       }
 
       .represented-allocation.rest {
-        // background-color: blue;
-        // grid-column: span 3; // TODO: probably not right
-        // width: 50px;
         font-size: 0.8rem;
         display: grid;
         align-content: center;
@@ -93,18 +80,41 @@
   .represented-allocation {
     background: $green;
     border-radius: 4px;
-    height: 20px;
-    width: 20px;
+    height: 32px;
+    width: 32px;
+    color: white;
+
+    $queued: $grey;
+    $starting: $grey-lighter;
+    $running: $primary;
+    $complete: $nomad-green-dark;
+    $failed: $danger;
+    $lost: $dark;
 
     &.running {
-      background: $green;
+      background: $running;
     }
     &.failed {
-      background: $red;
+      background: $failed;
     }
     &.unknown {
-      background: $yellow;
+      background: $unknown;
     }
+    &.queued {
+      background: $queued;
+    }
+    &.complete {
+      background: $complete;
+    }
+    &.starting {
+      background: $starting;
+      color: black;
+    }
+    &.lost {
+      background: $lost;
+    }
+
+
   }
 
 }
