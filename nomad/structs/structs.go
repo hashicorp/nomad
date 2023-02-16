@@ -4162,7 +4162,7 @@ const (
 	// JobDefaultMaxPriority is the default maximum allowed priority
 	JobDefaultMaxPriority = 100
 
-	// JobMaxPriority is the maximum allowed priority
+	// JobMaxPriority is the maximum allowed configuration value for maximum job priority
 	JobMaxPriority = math.MaxInt16 - 1
 
 	// CoreJobPriority should be higher than any user
