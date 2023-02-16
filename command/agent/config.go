@@ -490,6 +490,10 @@ type ServerConfig struct {
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
 
+	// CSIVolumeClaimGCInterval is how often we dispatch a job to GC
+	// volume claims.
+	CSIVolumeClaimGCInterval string `hcl:"csi_volume_claim_gc_interval"`
+
 	// CSIVolumeClaimGCThreshold controls how "old" a CSI volume must be to
 	// have its claims collected by GC.	Age is not the only requirement for
 	// a volume to be GCed but the threshold can be used to filter by age.
@@ -1875,6 +1879,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
+	}
+	if b.CSIVolumeClaimGCInterval != "" {
+		result.CSIVolumeClaimGCInterval = b.CSIVolumeClaimGCInterval
 	}
 	if b.CSIVolumeClaimGCThreshold != "" {
 		result.CSIVolumeClaimGCThreshold = b.CSIVolumeClaimGCThreshold

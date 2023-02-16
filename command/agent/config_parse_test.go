@@ -105,6 +105,7 @@ var basicConfig = &Config{
 		JobGCInterval:             "3m",
 		JobGCThreshold:            "12h",
 		DeploymentGCThreshold:     "12h",
+		CSIVolumeClaimGCInterval:  "3m",
 		CSIVolumeClaimGCThreshold: "12h",
 		CSIPluginGCThreshold:      "12h",
 		ACLTokenGCThreshold:       "12h",
