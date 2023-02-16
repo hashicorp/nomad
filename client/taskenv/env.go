@@ -409,23 +409,27 @@ type Builder struct {
 	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
 	clientTaskSecretsDir string
 
-	cpuCores            string
-	cpuLimit            int64
-	memLimit            int64
-	memMaxLimit         int64
-	taskName            string
-	allocIndex          int
-	datacenter          string
-	cgroupParent        string
-	namespace           string
-	region              string
-	allocId             string
-	allocName           string
-	groupName           string
-	vaultToken          string
-	vaultNamespace      string
-	injectVaultToken    bool
-	workloadToken       string
+	cpuCores         string
+	cpuLimit         int64
+	memLimit         int64
+	memMaxLimit      int64
+	taskName         string
+	allocIndex       int
+	datacenter       string
+	cgroupParent     string
+	namespace        string
+	region           string
+	allocId          string
+	allocName        string
+	groupName        string
+	vaultToken       string
+	vaultNamespace   string
+	injectVaultToken bool
+	workloadToken    string
+
+	tlsCert  string
+	tlsCAKey string
+
 	injectWorkloadToken bool
 	jobID               string
 	jobName             string
@@ -1032,6 +1036,14 @@ func (b *Builder) SetWorkloadToken(token string, inject bool) *Builder {
 	b.mu.Lock()
 	b.workloadToken = token
 	b.injectWorkloadToken = inject
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetTlsValues(tlsCert, caPubKey string) *Builder {
+	b.mu.Lock()
+	b.tlsCert = tlsCert
+	b.tlsCAKey = caPubKey
 	b.mu.Unlock()
 	return b
 }
