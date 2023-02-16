@@ -66,7 +66,7 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 		ctx:    ctx,
 		logger: s.logger.Named("job"),
 		mutators: []jobMutator{
-			jobCanonicalizer{},
+			&jobCanonicalizer{srv: s},
 			jobConnectHook{},
 			jobExposeCheckHook{},
 			jobImpliedConstraints{},

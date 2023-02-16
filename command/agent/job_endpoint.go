@@ -195,12 +195,6 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	job := ApiJobToStructJob(validateRequest.Job)
-
-	// If the job priority is not set, we fallback on the defaults specified in the server config
-	if job.Priority == 0 {
-		job.Priority = s.agent.Server().GetConfig().JobDefaultPriority
-	}
-
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -830,11 +824,6 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	sJob := ApiJobToStructJob(job)
 	sJob.Region = jobRegion
 	writeReq.Region = requestRegion
-
-	// If the job priority is not set, we fallback on the defaults specified in the server config
-	if sJob.Priority == 0 {
-		sJob.Priority = s.agent.Server().GetConfig().JobDefaultPriority
-	}
 
 	queryNamespace := req.URL.Query().Get("namespace")
 	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)

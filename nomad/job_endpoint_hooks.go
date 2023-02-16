@@ -126,14 +126,22 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
 // fields) and returns any errors as warnings.
-type jobCanonicalizer struct{}
+type jobCanonicalizer struct {
+	srv *Server
+}
 
-func (jobCanonicalizer) Name() string {
+func (c *jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (c *jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	job.Canonicalize()
+
+	// If the job priority is not set, we fallback on the defaults specified in the server config
+	if job.Priority == 0 {
+		job.Priority = c.srv.GetConfig().JobDefaultPriority
+	}
+
 	return job, nil, nil
 }
 

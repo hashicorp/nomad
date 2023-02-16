@@ -6689,7 +6689,7 @@ func TestJobEndpoint_ValidateJob_PriorityNotOk(t *testing.T) {
 
 	t.Run("job with invalid min priority", func(t *testing.T) {
 		j := mock.Job()
-		j.Priority = 0
+		j.Priority = -1
 
 		err := validateJob(j)
 		must.Error(t, err)
