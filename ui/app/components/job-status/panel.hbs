@@ -15,22 +15,6 @@
       </button>
     </div>
   </div>
-  {{#if this.showDataFaker}}
-    <form class="fake-box-for-manipulating-allocs">
-      <header>Manipulate mock data:</header>
-      {{#each this.allocTypes as |type|}}
-        <label>
-          <strong>{{capitalize type.label}}: {{get @job.summary type.property}}</strong>
-          <input type="range" 
-              {{on "input" (fn this.modifyMockAllocs type.property)}}
-              min="0"
-              max="100"
-              value={{get @job.summary type.property}}
-              steps="1">
-        </label>
-      {{/each}}
-    </form>
-  {{/if}}
   <div class="boxed-section-body">
     {{#if (eq this.mode "current")}}
       <h3 class="title is-4 running-allocs-title"><strong>{{@job.runningAllocs}}/{{this.totalAllocs}}</strong> Allocations Running</h3>

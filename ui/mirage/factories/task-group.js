@@ -111,28 +111,80 @@ export default Factory.extend({
     });
 
     if (group.createAllocations) {
-      Array(group.count)
-        .fill(null)
-        .forEach((_, i) => {
-          const props = {
-            jobId: group.job.id,
-            namespace: group.job.namespace,
-            taskGroup: group.name,
-            name: `${group.name}.[${i}]`,
-            rescheduleSuccess: group.withRescheduling
-              ? faker.random.boolean()
-              : null,
-            rescheduleAttempts: group.withRescheduling
-              ? faker.random.number({ min: 1, max: 5 })
-              : 0,
-          };
+      if (group.withLotsOfAllocs) {
+        // Random assignment for the following clientStatus prop:
+        // running: 75%
+        // failed: 5%
+        // unknown: 10%
+        // lost: 10%
 
-          if (group.withRescheduling) {
-            server.create('allocation', 'rescheduled', props);
-          } else {
-            server.create('allocation', props);
-          }
-        });
+        const statusProbabilities = {
+          running: 0.6,
+          failed: 0.05,
+          unknown: 0.25,
+          lost: 0.1,
+        };
+
+        Array(group.count)
+          .fill(null)
+          .forEach((_, i) => {
+            let rand = Math.random();
+
+            let clientStatus;
+
+            Object.entries(statusProbabilities).some(([status, prob]) => {
+              if (rand < prob) {
+                clientStatus = status;
+                return true;
+              }
+              rand -= prob;
+              return false;
+            });
+
+            const props = {
+              jobId: group.job.id,
+              namespace: group.job.namespace,
+              taskGroup: group.name,
+              name: `${group.name}.[${i}]`,
+              rescheduleSuccess: group.withRescheduling
+                ? faker.random.boolean()
+                : null,
+              rescheduleAttempts: group.withRescheduling
+                ? faker.random.number({ min: 1, max: 5 })
+                : 0,
+              clientStatus,
+            };
+
+            if (group.withRescheduling) {
+              server.create('allocation', 'rescheduled', props);
+            } else {
+              server.create('allocation', props);
+            }
+          });
+      } else {
+        Array(group.count)
+          .fill(null)
+          .forEach((_, i) => {
+            const props = {
+              jobId: group.job.id,
+              namespace: group.job.namespace,
+              taskGroup: group.name,
+              name: `${group.name}.[${i}]`,
+              rescheduleSuccess: group.withRescheduling
+                ? faker.random.boolean()
+                : null,
+              rescheduleAttempts: group.withRescheduling
+                ? faker.random.number({ min: 1, max: 5 })
+                : 0,
+            };
+
+            if (group.withRescheduling) {
+              server.create('allocation', 'rescheduled', props);
+            } else {
+              server.create('allocation', props);
+            }
+          });
+      }
     }
 
     if (group.withServices) {

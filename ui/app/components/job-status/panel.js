@@ -1,8 +1,6 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import config from 'nomad-ui/config/environment';
-import { action } from '@ember/object';
 
 export default class JobStatusPanelComponent extends Component {
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
@@ -23,25 +21,24 @@ export default class JobStatusPanelComponent extends Component {
 
   get allocBlocks() {
     let availableSlotsToFill = this.totalAllocs;
-
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     return this.allocTypes.reduce((blocks, type) => {
+      const jobAllocsOfType = this.args.job.allocations.filterBy(
+        'clientStatus',
+        type.label
+      );
       if (availableSlotsToFill > 0) {
         blocks[type.label] = Array(
-          Math.min(availableSlotsToFill, this.args.job[type.property])
+          Math.min(availableSlotsToFill, jobAllocsOfType.length)
         )
           .fill()
           .map((_, i) => {
-            return this.args.job.allocations.filterBy(
-              'clientStatus',
-              type.label
-            )[i];
+            return jobAllocsOfType[i];
           });
         availableSlotsToFill -= blocks[type.label].length;
       } else {
         blocks[type.label] = [];
       }
-      // blocks[type.label] = this.args.job[type.property];
       return blocks;
     }, {});
   }
@@ -50,11 +47,6 @@ export default class JobStatusPanelComponent extends Component {
    * @type {('current'|'historical')}
    */
   @tracked mode = 'current'; // can be either "current" or "historical"
-
-  // Convenience UI for manipulating number of allocations. Temporary and mirage only.
-  get showDataFaker() {
-    return config['ember-cli-mirage'];
-  }
 
   // TODO: eventually we will want this from a new property on a job.
   get totalAllocs() {
@@ -76,10 +68,5 @@ export default class JobStatusPanelComponent extends Component {
         }),
         []
       );
-  }
-
-  @action
-  modifyMockAllocs(propName, { target: { value } }) {
-    this.args.job[propName] = +value;
   }
 }

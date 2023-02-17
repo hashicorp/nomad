@@ -119,7 +119,7 @@
     display: grid;
     gap: 0.5rem;
     padding-top: 2rem;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 50% 50%;
 
     legend {
       display: grid;
@@ -149,30 +149,12 @@
 
       & > ul {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, 100px);
         gap: 0.5rem;
+        & > li {
+          white-space: nowrap;
+        }
       }
     }
-  }
-}
-
-.fake-box-for-manipulating-allocs {
-  position: fixed;
-  top: 45vh;
-  right: 0;
-  background: black;
-  color: white;
-  padding: 1rem;
-  z-index: 1000;
-  label,
-  strong {
-    color: white;
-  }
-  strong,
-  input {
-    display: block;
-  }
-  input {
-    margin-bottom: 0.5rem;
   }
 }
