@@ -1,7 +1,7 @@
 .job-status-panel {
   .select-mode {
     border: 1px solid $grey-blue;
-    background: rgba(0,0,0,0.05);
+    background: rgba(0, 0, 0, 0.05);
     border-radius: 2px;
     display: grid;
     gap: 0.5rem;
@@ -16,7 +16,7 @@
       transition: 0.1s;
 
       &:hover {
-        background: rgba(255,255,255,0.5);
+        background: rgba(255, 255, 255, 0.5);
       }
 
       &.is-active {
@@ -71,7 +71,7 @@
         display: grid;
         align-content: center;
         font-weight: bold;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
         width: 100%;
       }
     }
@@ -113,14 +113,13 @@
     &.lost {
       background: $lost;
     }
-
-
   }
 
   legend {
     padding: 2rem 0;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
     .legend-item {
       display: grid;
       gap: 0.5rem;
@@ -131,7 +130,6 @@
       }
     }
   }
-
 }
 
 .fake-box-for-manipulating-allocs {
@@ -142,10 +140,12 @@
   color: white;
   padding: 1rem;
   z-index: 1000;
-  label, strong {
+  label,
+  strong {
     color: white;
   }
-  strong, input {
+  strong,
+  input {
     display: block;
   }
   input {
