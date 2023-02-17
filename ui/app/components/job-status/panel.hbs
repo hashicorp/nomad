@@ -39,14 +39,29 @@
         @allocBlocks={{this.allocBlocks}}
       />
 
-      <legend>
-        {{#each this.allocTypes as |type|}}
-          <span class="legend-item">
-            <span class="represented-allocation {{type.label}}"></span>
-            {{get this.allocBlocks type.label}} {{capitalize type.label}}
-          </span>
-        {{/each}}
-      </legend>
+      <footer>
+        <legend>
+          {{#each this.allocTypes as |type|}}
+            <span class="legend-item {{if (eq (get this.allocBlocks type.label) 0) "faded"}}">
+              <span class="represented-allocation {{type.label}}"></span>
+              {{get (get this.allocBlocks type.label) "length"}} {{capitalize type.label}}
+            </span>
+          {{/each}}
+        </legend>
+
+        <section class="versions">
+          <h4>Versions</h4>
+          {{!-- {{log "what can i know about versions" @job.runningAllocs this.allocBlocks}} --}}
+          <ul>
+            {{#each-in this.versions as |version allocs|}}
+              <li>
+                <strong>{{version}}</strong>
+                <span>{{allocs.length}}</span>
+              </li>
+            {{/each-in}}
+          </ul>
+        </section>
+      </footer>
     {{/if}}
     {{#if (eq this.mode "historical")}}
       But what about before?

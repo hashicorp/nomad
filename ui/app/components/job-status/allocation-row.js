@@ -11,7 +11,10 @@ export default class JobStatusAllocationRowComponent extends Component {
   @alias('element.clientWidth') width;
 
   get allocBlockSlots() {
-    return Object.values(this.args.allocBlocks).reduce((m, n) => m + n, 0);
+    return Object.values(this.args.allocBlocks).reduce(
+      (m, n) => m + n.length,
+      0
+    );
   }
 
   get showSummaries() {

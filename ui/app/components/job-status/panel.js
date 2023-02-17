@@ -22,18 +22,24 @@ export default class JobStatusPanelComponent extends Component {
   });
 
   get allocBlocks() {
-    let totalAllocs = this.totalAllocs;
+    let availableSlotsToFill = this.totalAllocs;
 
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     return this.allocTypes.reduce((blocks, type) => {
-      if (totalAllocs > 0) {
-        blocks[type.label] = Math.min(
-          totalAllocs,
-          this.args.job[type.property]
-        );
-        totalAllocs -= blocks[type.label];
+      if (availableSlotsToFill > 0) {
+        blocks[type.label] = Array(
+          Math.min(availableSlotsToFill, this.args.job[type.property])
+        )
+          .fill()
+          .map((_, i) => {
+            return this.args.job.allocations.filterBy(
+              'clientStatus',
+              type.label
+            )[i];
+          });
+        availableSlotsToFill -= blocks[type.label].length;
       } else {
-        blocks[type.label] = 0;
+        blocks[type.label] = [];
       }
       // blocks[type.label] = this.args.job[type.property];
       return blocks;
@@ -57,6 +63,22 @@ export default class JobStatusPanelComponent extends Component {
 
     // v----- Realistic method: Tally a job's task groups' "count" property
     return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
+  }
+
+  get versions() {
+    return Object.values(this.allocBlocks)
+      .flat()
+      .map((a) => {
+        console.log('ay', a);
+        return a?.jobVersion || 'pending';
+      })
+      .reduce(
+        (result, item) => ({
+          ...result,
+          [item]: [...(result[item] || []), item],
+        }),
+        []
+      );
   }
 
   @action

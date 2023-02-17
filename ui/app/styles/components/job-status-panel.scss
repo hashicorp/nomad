@@ -115,18 +115,30 @@
     }
   }
 
-  legend {
-    padding: 2rem 0;
+  & > .boxed-section-body > footer {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
-    .legend-item {
+    padding-top: 2rem;
+    grid-template-columns: 1fr 1fr;
+
+    legend {
       display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 0.5rem;
-      grid-template-columns: auto 1fr;
-      .represented-allocation {
-        width: 20px;
-        height: 20px;
+
+      .legend-item {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: auto 1fr;
+
+        &.faded {
+          opacity: 0.5;
+        }
+
+        .represented-allocation {
+          width: 20px;
+          height: 20px;
+        }
       }
     }
   }
