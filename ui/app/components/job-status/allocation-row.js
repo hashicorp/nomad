@@ -22,7 +22,6 @@ export default class JobStatusAllocationRowComponent extends Component {
   @action
   captureElement(element) {
     this.element = element;
-    console.log('elly', element.clientWidth);
   }
 
 }

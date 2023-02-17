@@ -43,7 +43,7 @@
         {{#each this.allocTypes as |type|}}
           <span class="legend-item">
             <span class="represented-allocation {{type.label}}"></span>
-            {{capitalize type.label}}
+            {{get this.allocBlocks type.label}} {{capitalize type.label}}
           </span>
         {{/each}}
       </legend>

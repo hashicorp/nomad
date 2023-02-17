@@ -6,14 +6,15 @@ import { action } from '@ember/object';
 
 export default class JobStatusPanelComponent extends Component {
 
+  // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
   allocTypes = [
     "running",
-    // "failed",
+    "failed",
     "unknown",
-    // "queued",
+    "starting",
+    "lost",
+    "queued",
     "complete",
-    // "starting",
-    // "lost"
   ].map((type) => {
     return {
       label: type,
@@ -22,8 +23,17 @@ export default class JobStatusPanelComponent extends Component {
   })
 
   get allocBlocks() {
+    let totalAllocs = this.totalAllocs;
+
+    // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     return this.allocTypes.reduce((blocks, type) => {
-      blocks[type.label] = this.args.job[type.property];
+      if (totalAllocs > 0) {
+        blocks[type.label] = Math.min(totalAllocs, this.args.job[type.property]);
+        totalAllocs -= blocks[type.label];
+      } else {
+        blocks[type.label] = 0;
+      }
+      // blocks[type.label] = this.args.job[type.property];
       return blocks;
     }, {});
   }
@@ -40,7 +50,12 @@ export default class JobStatusPanelComponent extends Component {
 
   // TODO: eventually we will want this from a new property on a job.
   get totalAllocs() {
-    return this.allocTypes.reduce((sum, type) => sum + this.args.job[type.property], 0);
+    // v----- Experimental method: Count all allocs. Good for testing but not a realistic representation of "Desired"
+    // return this.allocTypes.reduce((sum, type) => sum + this.args.job[type.property], 0);
+
+    // v----- Realistic method: Tally a job's task groups' "count" property
+    return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
+
   }
 
   @action
