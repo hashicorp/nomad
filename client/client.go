@@ -2944,23 +2944,29 @@ DISCOLOOP:
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
-			var peers []string
-			if err := c.connPool.RPC(region, addr, "Status.Peers", rpcargs, &peers); err != nil {
+
+			// Query the members from the region that Consul gave us, and
+			// extract the client-advertise RPC address from each member
+			var membersResp structs.ServerMembersResponse
+			if err := c.connPool.RPC(region, addr, "Status.Members", rpcargs, &membersResp); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
-
-			// Successfully received the Server peers list of the correct
-			// region
-			for _, p := range peers {
-				addr, err := net.ResolveTCPAddr("tcp", p)
-				if err != nil {
-					mErr.Errors = append(mErr.Errors, err)
-					continue
+			for _, member := range membersResp.Members {
+				if addrTag, ok := member.Tags["rpc_addr"]; ok {
+					if portTag, ok := member.Tags["port"]; ok {
+						addr, err := net.ResolveTCPAddr("tcp",
+							fmt.Sprintf("%s:%s", addrTag, portTag))
+						if err != nil {
+							mErr.Errors = append(mErr.Errors, err)
+							continue
+						}
+						srv := &servers.Server{Addr: addr}
+						nomadServers = append(nomadServers, srv)
+					}
 				}
-				srv := &servers.Server{Addr: addr}
-				nomadServers = append(nomadServers, srv)
 			}
+
 			if len(nomadServers) > 0 {
 				break DISCOLOOP
 			}
