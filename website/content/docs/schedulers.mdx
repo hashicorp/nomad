@@ -80,8 +80,8 @@ Sysbatch jobs are intended to run until successful completion, explicitly stoppe
 by an operator, or evicted through [preemption]. Sysbatch tasks that exit with an
 error are handled according to the job's [restart] block.
 
- Like the `batch` scheduler, system batch jobs may have a [`count`] greater
- than 1 to control how many instances are run. Instances that cannot be
+ Like the `batch` scheduler, task groups in system batch jobs may have a `count` 
+ greater than 1 to control how many instances are run. Instances that cannot be
  immediately placed will be scheduled when resources become available,
  potentially on a node that has already run another instance of the same job.
 
