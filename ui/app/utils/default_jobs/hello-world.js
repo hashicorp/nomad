@@ -14,6 +14,11 @@ export default `job "hello-world" {
   // placed on the same host.
   group "servers" {
 
+    // Specifies the number of instances of this group that should be running.
+    // Use this to scale or parallelize your job.
+    // This can be omitted and it will default to 1.
+    count = 1
+
     network {
       port "www" {
         to = 8001
