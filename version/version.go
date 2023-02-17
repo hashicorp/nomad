@@ -94,8 +94,12 @@ func (c *VersionInfo) FullVersionNumber(rev bool) string {
 		fmt.Fprintf(&versionString, "+%s", c.VersionMetadata)
 	}
 
+	if !c.BuildDate.IsZero() {
+		fmt.Fprintf(&versionString, "\nBuildDate %s", c.BuildDate.Format(time.RFC3339))
+	}
+
 	if rev && c.Revision != "" {
-		fmt.Fprintf(&versionString, " (%s)", c.Revision)
+		fmt.Fprintf(&versionString, "\nRevision %s", c.Revision)
 	}
 
 	return versionString.String()
