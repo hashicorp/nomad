@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -1144,6 +1145,15 @@ func (a *ACLBindingRule) Validate() error {
 		}
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("unsupported bind type: %q", a.BindType))
+	}
+
+	// If there is a selector configured, ensure that go-bexpr can parse this.
+	// Otherwise, the user will get an ambiguous failure when attempting to
+	// login.
+	if a.Selector != "" {
+		if _, err := bexpr.CreateEvaluator(a.Selector, nil); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("selector is invalid: %v", err))
+		}
 	}
 
 	return mErr.ErrorOrNil()

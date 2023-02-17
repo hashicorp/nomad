@@ -655,7 +655,6 @@ func TestACLBindingRules(t *testing.T) {
 	testClient, testServer, _ := makeACLClient(t, nil, nil)
 	defer testServer.Stop()
 
-	//
 	aclAuthMethod := ACLAuthMethod{
 		Name:          "auth0",
 		Type:          ACLAuthMethodTypeOIDC,
@@ -676,7 +675,7 @@ func TestACLBindingRules(t *testing.T) {
 	bindingRule := ACLBindingRule{
 		Description: "my-binding-rule",
 		AuthMethod:  "auth0",
-		Selector:    "nomad-engineering-team in list.groups",
+		Selector:    "nomad_engineering_team in list.groups",
 		BindType:    "role",
 		BindName:    "cluster-admin",
 	}

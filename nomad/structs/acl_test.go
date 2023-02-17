@@ -1204,7 +1204,7 @@ func TestACLBindingRule_Validate(t *testing.T) {
 			inputACLBindingRule: &ACLBindingRule{
 				Description: "some short description",
 				AuthMethod:  "auth0",
-				Selector:    "group-name in list.groups",
+				Selector:    "group_name in list.groups",
 				BindType:    ACLBindingRuleBindTypePolicy,
 				BindName:    "some-policy-name",
 			},
@@ -1215,7 +1215,7 @@ func TestACLBindingRule_Validate(t *testing.T) {
 			inputACLBindingRule: &ACLBindingRule{
 				Description: "some short description",
 				AuthMethod:  "auth0",
-				Selector:    "group-name in list.groups",
+				Selector:    "group_name in list.groups",
 				BindType:    ACLBindingRuleBindTypePolicy,
 				BindName:    "",
 			},
@@ -1230,7 +1230,7 @@ func TestACLBindingRule_Validate(t *testing.T) {
 			inputACLBindingRule: &ACLBindingRule{
 				Description: "some short description",
 				AuthMethod:  "auth0",
-				Selector:    "group-name in list.groups",
+				Selector:    "group_name in list.groups",
 				BindType:    ACLBindingRuleBindTypeRole,
 				BindName:    "some-role-name",
 			},
@@ -1241,7 +1241,7 @@ func TestACLBindingRule_Validate(t *testing.T) {
 			inputACLBindingRule: &ACLBindingRule{
 				Description: "some short description",
 				AuthMethod:  "auth0",
-				Selector:    "group-name in list.groups",
+				Selector:    "group_name in list.groups",
 				BindType:    ACLBindingRuleBindTypeRole,
 				BindName:    "",
 			},
@@ -1256,7 +1256,7 @@ func TestACLBindingRule_Validate(t *testing.T) {
 			inputACLBindingRule: &ACLBindingRule{
 				Description: "some short description",
 				AuthMethod:  "auth0",
-				Selector:    "group-name in list.groups",
+				Selector:    "group_name in list.groups",
 				BindType:    ACLBindingRuleBindTypeManagement,
 				BindName:    "",
 			},
@@ -1267,13 +1267,28 @@ func TestACLBindingRule_Validate(t *testing.T) {
 			inputACLBindingRule: &ACLBindingRule{
 				Description: "some short description",
 				AuthMethod:  "auth0",
-				Selector:    "group-name in list.groups",
+				Selector:    "group_name in list.groups",
 				BindType:    ACLBindingRuleBindTypeManagement,
 				BindName:    "some-name",
 			},
 			expectedError: &multierror.Error{
 				Errors: []error{
 					errors.New("bind name should be empty"),
+				},
+			},
+		},
+		{
+			name: "invalid selector",
+			inputACLBindingRule: &ACLBindingRule{
+				Description: "some short description",
+				AuthMethod:  "auth0",
+				Selector:    "group-name in list.groups",
+				BindType:    ACLBindingRuleBindTypePolicy,
+				BindName:    "some-policy-name",
+			},
+			expectedError: &multierror.Error{
+				Errors: []error{
+					errors.New("selector is invalid: 1:6 (5): no match found, expected: \"!=\", \".\", \"==\", \"[\", [ \\t\\r\\n] or [a-zA-Z0-9_/]"),
 				},
 			},
 		},
@@ -1293,6 +1308,7 @@ func TestACLBindingRule_Validate(t *testing.T) {
 					errors.New("auth method is missing"),
 					errors.New("description longer than 256"),
 					errors.New("bind type is missing"),
+					errors.New("selector is invalid: 1:6 (5): no match found, expected: \"!=\", \".\", \"==\", \"[\", [ \\t\\r\\n] or [a-zA-Z0-9_/]"),
 				},
 			},
 		},
