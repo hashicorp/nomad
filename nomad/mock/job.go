@@ -15,7 +15,7 @@ func Job() *structs.Job {
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
-		Priority:    50,
+		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
@@ -294,7 +294,7 @@ func BatchJob() *structs.Job {
 		Name:        "batch-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeBatch,
-		Priority:    50,
+		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*structs.TaskGroup{
@@ -360,7 +360,7 @@ func SystemJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-system-%s", uuid.Generate()),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
-		Priority:    100,
+		Priority:    structs.JobDefaultMaxPriority,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{
@@ -437,7 +437,7 @@ func MaxParallelJob() *structs.Job {
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
 		Type:        structs.JobTypeService,
-		Priority:    50,
+		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
 		Datacenters: []string{"dc1"},
 		Constraints: []*structs.Constraint{

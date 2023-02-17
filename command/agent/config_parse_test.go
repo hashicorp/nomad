@@ -148,7 +148,9 @@ var basicConfig = &Config{
 				ServiceSchedulerEnabled: true,
 			},
 		},
-		LicensePath: "/tmp/nomad.hclic",
+		LicensePath:        "/tmp/nomad.hclic",
+		JobDefaultPriority: pointer.Of(100),
+		JobMaxPriority:     pointer.Of(200),
 	},
 	ACL: &ACLConfig{
 		Enabled:                  true,

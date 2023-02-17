@@ -404,6 +404,12 @@ type Config struct {
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64
+
+	// JobDefaultPriority is the default Job priority if not specified.
+	JobDefaultPriority int
+
+	// JobMaxPriority is an upper bound on the Job priority.
+	JobMaxPriority int
 }
 
 func (c *Config) Copy() *Config {
@@ -521,6 +527,8 @@ func DefaultConfig() *Config {
 			},
 		},
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
+		JobDefaultPriority:       structs.JobDefaultPriority,
+		JobMaxPriority:           structs.JobDefaultMaxPriority,
 	}
 
 	// Enable all known schedulers by default

@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: Allow configurable range of Job priorities
+```

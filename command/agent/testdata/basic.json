@@ -321,7 +321,9 @@
         }]
       }],
       "upgrade_version": "0.8.0",
-      "license_path": "/tmp/nomad.hclic"
+      "license_path": "/tmp/nomad.hclic",
+      "job_default_priority": 100,
+      "job_max_priority": 200
     }
   ],
   "syslog_facility": "LOCAL1",

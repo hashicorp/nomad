@@ -105,8 +105,10 @@ job "docs" {
   at fixed times, dates or intervals.
 
 - `priority` `(int: 50)` - Specifies the job priority which is used to
-  prioritize scheduling and access to resources. Must be between 1 and 100
-  inclusively, with a larger value corresponding to a higher priority.
+  prioritize scheduling and access to resources.
+  Must be between 1 and [`job_max_priority`] inclusively,
+  with a larger value corresponding to a higher priority.
+  If value 0 is provided this will fallback to [`job_default_priority`].
   Priority only has an effect when job preemption is enabled.
   It does not have an effect on which of multiple pending jobs is run first.
 
@@ -257,3 +259,5 @@ $ VAULT_TOKEN="..." nomad job run example.nomad.hcl
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [update]: /nomad/docs/job-specification/update 'Nomad update Job Specification'
 [vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
+[`job_max_priority`]: /nomad/docs/configuration/server#job_max_priority
+[`job_default_priority`]: /nomad/docs/configuration/server#job_default_priority

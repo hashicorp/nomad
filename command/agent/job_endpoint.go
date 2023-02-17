@@ -195,7 +195,6 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	job := ApiJobToStructJob(validateRequest.Job)
-
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{

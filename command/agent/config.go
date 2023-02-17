@@ -648,6 +648,12 @@ type ServerConfig struct {
 	// forced to send an entire snapshot. The value passed here is the initial
 	// setting used. This can be tuned during operation using a hot reload.
 	RaftTrailingLogs *int `hcl:"raft_trailing_logs"`
+
+	// JobDefaultPriority is the default Job priority if not specified.
+	JobDefaultPriority *int `hcl:"job_default_priority"`
+
+	// JobMaxPriority is an upper bound on the Job priority.
+	JobMaxPriority *int `hcl:"job_max_priority"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -673,6 +679,8 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.RaftSnapshotInterval = pointer.Copy(s.RaftSnapshotInterval)
 	ns.RaftSnapshotThreshold = pointer.Copy(s.RaftSnapshotThreshold)
 	ns.RaftTrailingLogs = pointer.Copy(s.RaftTrailingLogs)
+	ns.JobDefaultPriority = pointer.Copy(s.JobDefaultPriority)
+	ns.JobMaxPriority = pointer.Copy(s.JobMaxPriority)
 	return &ns
 }
 
@@ -1870,6 +1878,12 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold
+	}
+	if b.JobDefaultPriority != nil {
+		result.JobDefaultPriority = pointer.Of(*b.JobDefaultPriority)
+	}
+	if b.JobMaxPriority != nil {
+		result.JobMaxPriority = pointer.Of(*b.JobMaxPriority)
 	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold

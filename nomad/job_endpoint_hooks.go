@@ -126,14 +126,22 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
 // fields) and returns any errors as warnings.
-type jobCanonicalizer struct{}
+type jobCanonicalizer struct {
+	srv *Server
+}
 
-func (jobCanonicalizer) Name() string {
+func (c *jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (c *jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	job.Canonicalize()
+
+	// If the job priority is not set, we fallback on the defaults specified in the server config
+	if job.Priority == 0 {
+		job.Priority = c.srv.GetConfig().JobDefaultPriority
+	}
+
 	return job, nil, nil
 }
 
@@ -253,13 +261,15 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 // jobValidate validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-type jobValidate struct{}
+type jobValidate struct {
+	srv *Server
+}
 
-func (jobValidate) Name() string {
+func (*jobValidate) Name() string {
 	return "validate"
 }
 
-func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
@@ -285,6 +295,10 @@ func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	if len(job.Payload) != 0 {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
+	}
+
+	if job.Priority < structs.JobMinPriority || job.Priority > v.srv.config.JobMaxPriority {
+		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
 	return warnings, validationErrors.ErrorOrNil()

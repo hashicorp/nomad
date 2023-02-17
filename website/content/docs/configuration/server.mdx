@@ -253,6 +253,12 @@ server {
 - `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
   for the Nomad search API.
 
+- `job_max_priority` `(int: 100)` - Specifies the maximum priority that can be assigned to a job.
+   A valid value must be between `100` and `32766`.
+
+- `job_default_priority` `(int: 50)` - Specifies the default priority assigned to a job.
+   A valid value must be between `50` and `job_max_priority`.
+
 ### Deprecated Parameters
 
 - `retry_join` `(array<string>: [])` - Specifies a list of server addresses to

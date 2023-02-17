@@ -4156,17 +4156,19 @@ const (
 	// JobMinPriority is the minimum allowed priority
 	JobMinPriority = 1
 
-	// JobDefaultPriority is the default priority if not
-	// not specified.
+	// JobDefaultPriority is the default priority if not specified.
 	JobDefaultPriority = 50
 
-	// JobMaxPriority is the maximum allowed priority
-	JobMaxPriority = 100
+	// JobDefaultMaxPriority is the default maximum allowed priority
+	JobDefaultMaxPriority = 100
+
+	// JobMaxPriority is the maximum allowed configuration value for maximum job priority
+	JobMaxPriority = math.MaxInt16 - 1
 
 	// CoreJobPriority should be higher than any user
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
-	CoreJobPriority = JobMaxPriority * 2
+	CoreJobPriority = math.MaxInt16
 
 	// JobTrackedVersions is the number of historic job versions that are
 	// kept.
@@ -4445,9 +4447,6 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job type"))
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Invalid job type: %q", j.Type))
-	}
-	if j.Priority < JobMinPriority || j.Priority > JobMaxPriority {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
 	}
 	if len(j.Datacenters) == 0 && !j.IsMultiregion() {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))

@@ -134,6 +134,8 @@ server {
   raft_multiplier               = 4
   enable_event_broker           = false
   event_buffer_size             = 200
+  job_default_priority          = 100
+  job_max_priority              = 200
 
   plan_rejection_tracker {
     enabled        = true
