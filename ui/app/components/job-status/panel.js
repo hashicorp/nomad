@@ -68,10 +68,7 @@ export default class JobStatusPanelComponent extends Component {
   get versions() {
     return Object.values(this.allocBlocks)
       .flat()
-      .map((a) => {
-        console.log('ay', a);
-        return a?.jobVersion || 'pending';
-      })
+      .map((a) => (!isNaN(a?.jobVersion) ? `v${a.jobVersion}` : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
       .reduce(
         (result, item) => ({
           ...result,
