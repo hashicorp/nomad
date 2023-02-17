@@ -5,22 +5,21 @@ import config from 'nomad-ui/config/environment';
 import { action } from '@ember/object';
 
 export default class JobStatusPanelComponent extends Component {
-
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
   allocTypes = [
-    "running",
-    "failed",
-    "unknown",
-    "starting",
-    "lost",
-    "queued",
-    "complete",
+    'running',
+    'failed',
+    'unknown',
+    'starting',
+    'lost',
+    'queued',
+    'complete',
   ].map((type) => {
     return {
       label: type,
-      property: `${type}Allocs`
-    }
-  })
+      property: `${type}Allocs`,
+    };
+  });
 
   get allocBlocks() {
     let totalAllocs = this.totalAllocs;
@@ -28,7 +27,10 @@ export default class JobStatusPanelComponent extends Component {
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     return this.allocTypes.reduce((blocks, type) => {
       if (totalAllocs > 0) {
-        blocks[type.label] = Math.min(totalAllocs, this.args.job[type.property]);
+        blocks[type.label] = Math.min(
+          totalAllocs,
+          this.args.job[type.property]
+        );
         totalAllocs -= blocks[type.label];
       } else {
         blocks[type.label] = 0;
@@ -55,7 +57,6 @@ export default class JobStatusPanelComponent extends Component {
 
     // v----- Realistic method: Tally a job's task groups' "count" property
     return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
-
   }
 
   @action

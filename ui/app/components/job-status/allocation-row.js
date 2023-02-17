@@ -6,7 +6,6 @@ import { tracked } from '@glimmer/tracking';
 const UNGROUPED_ALLOCS_THRESHOLD = 50;
 
 export default class JobStatusAllocationRowComponent extends Component {
-
   @tracked element = null;
 
   @alias('element.clientWidth') width;
@@ -16,12 +15,11 @@ export default class JobStatusAllocationRowComponent extends Component {
   }
 
   calcPerc(count) {
-    return count / this.args.totalAllocs * this.width;
+    return (count / this.args.totalAllocs) * this.width;
   }
 
   @action
   captureElement(element) {
     this.element = element;
   }
-
 }
