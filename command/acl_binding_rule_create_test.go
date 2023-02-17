@@ -72,14 +72,14 @@ func TestACLBindingRuleCreateCommand_Run(t *testing.T) {
 	// Create the ACL binding rule.
 	args := []string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-auth-method=acl-binding-rule-cli-test",
-		"-bind-name=engineering", "-bind-type=role", `-selector="nomad-engineering in list.groups"`,
+		"-bind-name=engineering", "-bind-type=role", "-selector=engineering in list.groups",
 	}
 	must.Eq(t, 0, cmd.Run(args))
 	s := ui.OutputWriter.String()
 	must.StrContains(t, s, "acl-binding-rule-cli-test")
 	must.StrContains(t, s, "role")
 	must.StrContains(t, s, "engineering")
-	must.StrContains(t, s, "nomad-engineering in list.groups")
+	must.StrContains(t, s, "engineering in list.groups")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
