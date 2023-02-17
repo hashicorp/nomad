@@ -3767,7 +3767,6 @@ func TestACL_Login(t *testing.T) {
 
 	var completeAuthResp1 structs.ACLCompleteAuthResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq1, &completeAuthResp1)
-	must.Error(t, err)
 	must.ErrorContains(t, err, "missing auth method name")
 	must.ErrorContains(t, err, "missing bearer token")
 

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/cap/jwt"
 	"golang.org/x/exp/slices"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -41,11 +42,10 @@ func Validate(ctx context.Context, token string, methodConf *structs.ACLAuthMeth
 		}
 	}
 
-	var algorithms []jwt.Alg
-	for _, m := range methodConf.SigningAlgs {
-		alg := jwt.Alg(m)
-		algorithms = append(algorithms, alg)
-	}
+	// SigningAlgs field is a string, we need to convert it to a type the go-jwt
+	// accepts in order to validate.
+	toAlgFn := func(m string) jwt.Alg { return jwt.Alg(m) }
+	algorithms := helper.ConvertSlice(methodConf.SigningAlgs, toAlgFn)
 
 	expected := jwt.Expected{
 		Audiences:         methodConf.BoundAudiences,

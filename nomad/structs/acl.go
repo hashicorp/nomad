@@ -978,8 +978,9 @@ func (a *ACLAuthMethodConfig) UnmarshalJSON(data []byte) (err error) {
 			}
 		case float64:
 			a.ExpirationLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ExpirationLeeway type: %v", v)
 		}
-
 	}
 	if aux.NotBeforeLeeway != nil {
 		switch v := aux.NotBeforeLeeway.(type) {
@@ -991,8 +992,9 @@ func (a *ACLAuthMethodConfig) UnmarshalJSON(data []byte) (err error) {
 			}
 		case float64:
 			a.NotBeforeLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected NotBeforeLeeway type: %v", v)
 		}
-
 	}
 	if aux.ClockSkewLeeway != nil {
 		switch v := aux.ClockSkewLeeway.(type) {
@@ -1004,8 +1006,9 @@ func (a *ACLAuthMethodConfig) UnmarshalJSON(data []byte) (err error) {
 			}
 		case float64:
 			a.ClockSkewLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ClockSkewLeeway type: %v", v)
 		}
-
 	}
 	return nil
 }

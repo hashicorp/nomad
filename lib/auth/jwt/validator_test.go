@@ -45,23 +45,23 @@ func TestValidate(t *testing.T) {
 	// generate a key pair, so that we can use it for consistent signing and
 	// set it as our test server key
 	rsaKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	token, _, err := mock.SampleJWTokenWithKeys(claims, rsaKey)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	tokenWithNoClaims, pubKeyPem, err := mock.SampleJWTokenWithKeys(nil, rsaKey)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// make an expired token...
 	expired := time.Now().Add(-time.Hour).Unix()
 	expiredClaims := jwt.MapClaims{"iat": iat, "nbf": nbf, "exp": expired}
 	expiredToken, _, err := mock.SampleJWTokenWithKeys(expiredClaims, rsaKey)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// ...and one with invalid issuer, too
 	invalidIssuer := jwt.MapClaims{"iat": iat, "nbf": nbf, "exp": exp, "iss": "hashicorp vault"}
 	invalidIssuerToken, _, err := mock.SampleJWTokenWithKeys(invalidIssuer, rsaKey)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	testServer := oidc.StartTestProvider(t)
 	defer testServer.Stop()
@@ -69,7 +69,7 @@ func TestValidate(t *testing.T) {
 	keyID := strconv.Itoa(int(time.Now().Unix()))
 	testServer.SetSigningKeys(rsaKey, rsaKey.Public(), oidc.RS256, keyID)
 	tokenSignedWithRemoteServerKeys, _, err := mock.SampleJWTokenWithKeys(claims, rsaKey)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	tests := []struct {
 		name    string
