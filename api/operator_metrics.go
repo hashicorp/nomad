@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io"
 	"io/ioutil"
 	"time"
 )
@@ -84,4 +85,11 @@ func (op *Operator) MetricsSummary(q *QueryOptions) (*MetricsSummary, *QueryMeta
 	}
 
 	return resp, qm, nil
+}
+
+// MetricsStream returns an io.ReadCloser which will emit a stream of metrics
+// until the context is cancelled. The metrics are json encoded.
+// The caller is responsible for closing the returned io.ReadCloser.
+func (op *Operator) MetricsStream(q *QueryOptions) (io.ReadCloser, error) {
+	return op.c.rawQuery("/v1/metrics/stream", q)
 }
