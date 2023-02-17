@@ -127,6 +127,9 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
+	// BuildDate is the time of the git commit used to build the program.
+	BuildDate time.Time
+
 	// Revision is a string that carries the version.GitCommit of Nomad that
 	// was compiled.
 	Revision string

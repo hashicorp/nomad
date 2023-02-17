@@ -3,9 +3,14 @@ package version
 import (
 	"bytes"
 	"fmt"
+	"time"
 )
 
 var (
+	// BuildDate is the time of the git commit used to build the program,
+	// in RFC3339 format. It is filled in by the compiler via makefile.
+	BuildDate string
+
 	// The git commit that was compiled. This will be filled in by the compiler.
 	GitCommit   string
 	GitDescribe string
@@ -24,6 +29,7 @@ var (
 
 // VersionInfo
 type VersionInfo struct {
+	BuildDate         time.Time
 	Revision          string
 	Version           string
 	VersionPrerelease string
@@ -50,7 +56,11 @@ func GetVersion() *VersionInfo {
 		rel = "dev"
 	}
 
+	// on parse error, will be zero value time.Time{}
+	built, _ := time.Parse(time.RFC3339, BuildDate)
+
 	return &VersionInfo{
+		BuildDate:         built,
 		Revision:          GitCommit,
 		Version:           ver,
 		VersionPrerelease: rel,
