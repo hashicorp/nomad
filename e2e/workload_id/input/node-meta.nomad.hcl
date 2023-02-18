@@ -23,8 +23,7 @@ variable "unset_constraint" {
 }
 
 job "node-meta" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"

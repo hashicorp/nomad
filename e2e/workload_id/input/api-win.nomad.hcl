@@ -1,5 +1,4 @@
 job "api-win" {
-  datacenters = ["dc1"]
   type        = "batch"
 
   constraint {

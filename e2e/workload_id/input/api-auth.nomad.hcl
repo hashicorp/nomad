@@ -1,5 +1,4 @@
 job "api-auth" {
-  datacenters = ["dc1"]
   type        = "batch"
 
   constraint {
