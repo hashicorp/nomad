@@ -1091,6 +1091,15 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	if err := a.srv.agent.RPC("ACL.WhoAmI", &args, &reply); err != nil {
+		// When ACLs are enabled, WhoAmI returns ErrPermissionDenied on bad
+		// credentials, so convert it to a Forbidden response code.
+		if err.Error() == structs.ErrPermissionDenied.Error() {
+			a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
+			resp.WriteHeader(http.StatusForbidden)
+			resp.Write([]byte(http.StatusText(http.StatusForbidden)))
+			return
+		}
+
 		a.srv.logger.Error("error authenticating built API request", "error", err, "url", req.URL, "method", req.Method)
 		resp.WriteHeader(500)
 		resp.Write([]byte("Server error authenticating request\n"))
