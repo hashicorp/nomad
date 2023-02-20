@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // tlsHook sets the task runner's TLS cert and CA public key
@@ -57,25 +58,29 @@ func (h *tlsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 	h.certPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertFile)
 	h.caPath = filepath.Join(req.TaskDir.SecretsDir, tlsCAPubKeyFile)
 
-	return h.setTlsFiles()
+	return h.setTlsFiles(ctx, req.TaskResources)
 }
 
-func (h *tlsHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
+func (h *tlsHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	return h.setTlsFiles()
+	return h.setTlsFiles(ctx, req.TaskResources)
 }
 
 // setTlsFiles adds the TLS files to the task's environment and writes it to a
 // file if requested by the jobsepc.
-func (h *tlsHook) setTlsFiles() error {
+func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedTaskResources) error {
 
-	// TODO: Somehow get the files here!
+	// TODO: Somehow get the key files here!
+	// THIS IS HOW THE SIGNED IDENTITIES ARE FETCHED
+
 	// token := h.tr.alloc.SignedIdentities[h.taskName]
 	// if token == "" {
 	// 	return nil
 	// }
+
+	// TODO: THIS WILL COME FROM A CERT THAT IS STORED IN STATE
 
 	privateKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca-key.pem"
 	caPrivateKey, err := os.ReadFile(privateKeyFile)
@@ -94,18 +99,26 @@ func (h *tlsHook) setTlsFiles() error {
 		return fmt.Errorf("failed to Parse signer: %w", err)
 	}
 
-	name := "name"
+	// TODO: What name to give it?
+	name := "some-name!"
+
 	var DNSNames []string
 	DNSNames = append(DNSNames, "localhost")
+	for _, network := range resources.Networks {
+		DNSNames = append(DNSNames, network.Hostname)
+	}
 
 	var IPAddresses []net.IP
 	IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
+	for _, network := range resources.Networks {
+		IPAddresses = append(IPAddresses, net.ParseIP(network.IP))
+	}
 
 	// TODO: what does this do?
 	var extKeyUsage []x509.ExtKeyUsage
 
 	// pub, priv, err
-	pub, _, err := tlsutil.GenerateCert(tlsutil.CertOpts{
+	tlsCert, _, err := tlsutil.GenerateCert(tlsutil.CertOpts{
 		Signer: signer, CA: string(caPubKey), Name: name, Days: 365,
 		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
 	})
@@ -113,14 +126,11 @@ func (h *tlsHook) setTlsFiles() error {
 		return fmt.Errorf("failed to Generate cert: %w", err)
 	}
 
-	// ...how do I make me a cert?
-	tlsCert := pub
-
 	h.tr.setTlsValues(tlsCert, string(caPubKey))
 
 	// TODO: Make this optional like in the identity hook
 	if err := h.writeTlsValues(tlsCert, string(caPubKey)); err != nil {
-		return fmt.Errorf("failed to write Tls values: %w", err)
+		return fmt.Errorf("failed to write TLS values: %w", err)
 	}
 
 	return nil

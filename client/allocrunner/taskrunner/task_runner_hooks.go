@@ -488,9 +488,10 @@ func (tr *TaskRunner) updateHooks() {
 
 		// Build the request
 		req := interfaces.TaskUpdateRequest{
-			VaultToken: tr.getVaultToken(),
-			Alloc:      alloc,
-			TaskEnv:    tr.envBuilder.Build(),
+			VaultToken:    tr.getVaultToken(),
+			Alloc:         alloc,
+			TaskEnv:       tr.envBuilder.Build(),
+			TaskResources: tr.taskResources,
 		}
 
 		// Time the update hook
