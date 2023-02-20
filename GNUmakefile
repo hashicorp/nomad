@@ -3,15 +3,15 @@ PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
 THIS_ARCH := $(shell uname -m)
 
-REPO = github.com/hashicorp/nomad
+GO_MODULE = github.com/hashicorp/nomad
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
-GIT_COMMIT_FLAG = $(REPO)/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
+GIT_COMMIT_FLAG = $(GO_MODULE)/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
 
 # build date is based on most recent commit, in RFC3339 format
 BUILD_DATE ?= $(shell TZ=UTC0 git show -s --format=%cd --date=format-local:'%Y-%m-%dT%H:%M:%SZ' HEAD)
-BUILD_DATE_FLAG = $(REPO)/version.BuildDate=$(BUILD_DATE)
+BUILD_DATE_FLAG = $(GO_MODULE)/version.BuildDate=$(BUILD_DATE)
 
 GO_LDFLAGS = -X $(GIT_COMMIT_FLAG) -X $(BUILD_DATE_FLAG)
 
