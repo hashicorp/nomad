@@ -19,31 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Txn is a transaction against a state store.
-// This can be a read or write transaction.
-type Txn interface {
-	Index() uint64
-	Abort()
-	//	Changes() memdb.Changes
-	Commit() error
-	//	Defer(fn func())
-	Delete(table string, obj any) error
-	DeleteAll(table, index string, args ...any) (int, error)
-	//	DeletePrefix(table string, prefix_index string, prefix string) (bool, error)
-	First(table, index string, args ...any) (any, error)
-	FirstWatch(table, index string, args ...any) (<-chan struct{}, any, error)
-	Get(table, index string, args ...any) (memdb.ResultIterator, error)
-	// GetReverse(table, index string, args ...any) (memdb.ResultIterator, error)
-	Insert(table string, obj any) error
-	// Last(table, index string, args ...any) (any, error)
-	// LastWatch(table, index string, args ...any) (<-chan struct{}, any, error)
-	// LongestPrefix(table, index string, args ...any) (any, error)
-	//	LowerBound(table, index string, args ...any) (memdb.ResultIterator, error)
-	//	ReverseLowerBound(table, index string, args ...any) (memdb.ResultIterator, error)
-	//Snapshot() *memdb.Txn
-	//TrackChanges()
-}
-
 // SortOption represents how results can be sorted.
 type SortOption bool
 
@@ -106,6 +81,10 @@ type StateStoreConfig struct {
 
 	// EventBufferSize configures the amount of events to hold in memory
 	EventBufferSize int64
+
+	// EnableChecksumming is used to enable or disable checksumming.
+	// WARNING: this should not be enabled in production code!
+	EnableChecksumming bool
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -117,7 +96,7 @@ type StateStoreConfig struct {
 // considered a constant and NEVER modified in place.
 type StateStore struct {
 	logger hclog.Logger
-	db     *changeTrackerDB
+	db     MemDBWrapper
 
 	// config is the passed in configuration
 	config *StateStoreConfig
@@ -157,6 +136,12 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		stopEventBroker: cancel,
 	}
 
+	s.db = NewBaseMemDBWrapper(db)
+
+	if config.EnableChecksumming {
+		s.db = NewChecksummingDB(s.db, config.EnableChecksumming)
+	}
+
 	if config.EnablePublisher {
 		// Create new event publisher using provided config
 		broker, err := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
@@ -166,9 +151,9 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		if err != nil {
 			return nil, fmt.Errorf("creating state store event broker %w", err)
 		}
-		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
+		s.db = NewChangeTrackerDB(s.db, broker, eventsFromChanges)
 	} else {
-		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
+		s.db = NewChangeTrackerDB(s.db, nil, noOpProcessChanges)
 	}
 
 	// Initialize the state store with the default namespace.
@@ -189,10 +174,10 @@ func (s *StateStore) NewWatchSet() memdb.WatchSet {
 }
 
 func (s *StateStore) EventBroker() (*stream.EventBroker, error) {
-	if s.db.publisher == nil {
+	if s.db.Publisher() == nil {
 		return nil, fmt.Errorf("EventBroker not configured")
 	}
-	return s.db.publisher, nil
+	return s.db.Publisher(), nil
 }
 
 // namespaceInit ensures the default namespace exists.
@@ -223,7 +208,9 @@ func (s *StateStore) Config() *StateStoreConfig {
 // we use MemDB, we just need to snapshot the state of the underlying
 // database.
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
-	memDBSnap := s.db.memdb.Snapshot()
+	var memDBSnap MemDBWrapper
+	memDBSnap = NewBaseMemDBWrapper(s.db.Snapshot())
+	memDBSnap = NewChecksummingDB(memDBSnap, s.config.EnableChecksumming)
 
 	store := StateStore{
 		logger: s.logger,
@@ -6296,9 +6283,9 @@ func (s *StateStore) SchedulerCASConfig(index, cidx uint64, config *structs.Sche
 	return true, nil
 }
 
-func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *txn, config *structs.SchedulerConfiguration) error {
+func (s *StateStore) schedulerSetConfigTxn(idx uint64, txn Txn, config *structs.SchedulerConfiguration) error {
 	// Check for an existing config
-	existing, err := tx.First("scheduler_config", "id")
+	existing, err := txn.First("scheduler_config", "id")
 	if err != nil {
 		return fmt.Errorf("failed scheduler config lookup: %s", err)
 	}
@@ -6311,7 +6298,7 @@ func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *txn, config *structs.
 	}
 	config.ModifyIndex = idx
 
-	if err := tx.Insert("scheduler_config", config); err != nil {
+	if err := txn.Insert("scheduler_config", config); err != nil {
 		return fmt.Errorf("failed updating scheduler config: %s", err)
 	}
 	return nil

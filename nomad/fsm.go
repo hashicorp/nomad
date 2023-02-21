@@ -150,10 +150,11 @@ type FSMConfig struct {
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
-		Logger:          config.Logger,
-		Region:          config.Region,
-		EnablePublisher: config.EnableEventBroker,
-		EventBufferSize: config.EventBufferSize,
+		Logger:             config.Logger,
+		Region:             config.Region,
+		EnablePublisher:    config.EnableEventBroker,
+		EventBufferSize:    config.EventBufferSize,
+		EnableChecksumming: true, // TODO: make this configurable
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
@@ -1456,10 +1457,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		Logger:          n.config.Logger,
-		Region:          n.config.Region,
-		EnablePublisher: n.config.EnableEventBroker,
-		EventBufferSize: n.config.EventBufferSize,
+		Logger:             n.config.Logger,
+		Region:             n.config.Region,
+		EnablePublisher:    n.config.EnableEventBroker,
+		EventBufferSize:    n.config.EventBufferSize,
+		EnableChecksumming: true, // TODO: make this configurable
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {

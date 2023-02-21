@@ -10,7 +10,7 @@ import (
 // only using a single large transaction instead of thousands of sub
 // transactions.
 type StateRestore struct {
-	txn *txn
+	txn Txn
 }
 
 // Abort is used to abort the restore operation

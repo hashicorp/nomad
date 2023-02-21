@@ -30,7 +30,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
 	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
-	setupTx.Txn.Commit()
+	setupTx.Commit()
 
 	msgType := structs.DeploymentStatusUpdateRequestType
 

@@ -114,7 +114,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
 	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
-	setupTx.Txn.Commit()
+	setupTx.Commit()
 
 	msgType := structs.DeploymentStatusUpdateRequestType
 
@@ -192,7 +192,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
 
 	// commit setup transaction
-	setupTx.Txn.Commit()
+	setupTx.Commit()
 
 	e := mock.Eval()
 	// Request to promote canaries
@@ -715,8 +715,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 	cases := []struct {
 		Name       string
 		MsgType    structs.MessageType
-		Setup      func(s *StateStore, tx *txn) error
-		Mutate     func(s *StateStore, tx *txn) error
+		Setup      func(s *StateStore, tx Txn) error
+		Mutate     func(s *StateStore, tx Txn) error
 		WantEvents []structs.Event
 		WantTopic  structs.Topic
 	}{
@@ -724,7 +724,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			MsgType:   structs.NodeRegisterRequestType,
 			WantTopic: structs.TopicNode,
 			Name:      "node registered",
-			Mutate: func(s *StateStore, tx *txn) error {
+			Mutate: func(s *StateStore, tx Txn) error {
 				return upsertNodeTxn(tx, tx.Index(), testNode())
 			},
 			WantEvents: []structs.Event{{
@@ -741,7 +741,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			MsgType:   structs.NodeRegisterRequestType,
 			WantTopic: structs.TopicNode,
 			Name:      "node registered initializing",
-			Mutate: func(s *StateStore, tx *txn) error {
+			Mutate: func(s *StateStore, tx Txn) error {
 				return upsertNodeTxn(tx, tx.Index(), testNode(nodeNotReady))
 			},
 			WantEvents: []structs.Event{{
@@ -758,10 +758,10 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			MsgType:   structs.NodeDeregisterRequestType,
 			WantTopic: structs.TopicNode,
 			Name:      "node deregistered",
-			Setup: func(s *StateStore, tx *txn) error {
+			Setup: func(s *StateStore, tx Txn) error {
 				return upsertNodeTxn(tx, tx.Index(), testNode())
 			},
-			Mutate: func(s *StateStore, tx *txn) error {
+			Mutate: func(s *StateStore, tx Txn) error {
 				return deleteNodeTxn(tx, tx.Index(), []string{testNodeID()})
 			},
 			WantEvents: []structs.Event{{
@@ -778,11 +778,11 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			MsgType:   structs.NodeDeregisterRequestType,
 			WantTopic: structs.TopicNode,
 			Name:      "batch node deregistered",
-			Setup: func(s *StateStore, tx *txn) error {
+			Setup: func(s *StateStore, tx Txn) error {
 				require.NoError(t, upsertNodeTxn(tx, tx.Index(), testNode()))
 				return upsertNodeTxn(tx, tx.Index(), testNode(nodeIDTwo))
 			},
-			Mutate: func(s *StateStore, tx *txn) error {
+			Mutate: func(s *StateStore, tx Txn) error {
 				return deleteNodeTxn(tx, tx.Index(), []string{testNodeID(), testNodeIDTwo()})
 			},
 			WantEvents: []structs.Event{
@@ -810,11 +810,11 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			MsgType:   structs.UpsertNodeEventsType,
 			WantTopic: structs.TopicNode,
 			Name:      "batch node events upserted",
-			Setup: func(s *StateStore, tx *txn) error {
+			Setup: func(s *StateStore, tx Txn) error {
 				require.NoError(t, upsertNodeTxn(tx, tx.Index(), testNode()))
 				return upsertNodeTxn(tx, tx.Index(), testNode(nodeIDTwo))
 			},
-			Mutate: func(s *StateStore, tx *txn) error {
+			Mutate: func(s *StateStore, tx Txn) error {
 				eventFn := func(id string) []*structs.NodeEvent {
 					return []*structs.NodeEvent{
 						{
@@ -868,7 +868,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				// Bypass publish mechanism for setup
 				setupTx := s.db.WriteTxn(10)
 				require.NoError(t, tc.Setup(s, setupTx))
-				setupTx.Txn.Commit()
+				setupTx.Commit()
 			}
 
 			tx := s.db.WriteTxnMsgT(tc.MsgType, 100)
@@ -919,7 +919,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 
 	require.NoError(t, upsertNodeTxn(setupTx, 10, node))
 	require.NoError(t, s.upsertAllocsImpl(100, []*structs.Allocation{alloc1, alloc2}, setupTx))
-	setupTx.Txn.Commit()
+	setupTx.Commit()
 
 	// changes
 	tx := s.db.WriteTxn(100)
@@ -965,7 +965,7 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 	updated, err := testState.upsertServiceRegistrationTxn(10, writeTxn, service)
 	require.True(t, updated)
 	require.NoError(t, err)
-	writeTxn.Txn.Commit()
+	writeTxn.Commit()
 
 	// Pull the events from the stream.
 	registerChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ServiceRegistrationUpsertRequestType}
@@ -983,7 +983,7 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 	// Delete the previously upserted service registration.
 	deleteTxn := testState.db.WriteTxn(20)
 	require.NoError(t, testState.deleteServiceRegistrationByIDTxn(uint64(20), deleteTxn, service.Namespace, service.ID))
-	writeTxn.Txn.Commit()
+	writeTxn.Commit()
 
 	// Pull the events from the stream.
 	deregisterChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ServiceRegistrationDeleteByIDRequestType}
@@ -1013,7 +1013,7 @@ func Test_eventsFromChanges_ACLRole(t *testing.T) {
 	updated, err := testState.upsertACLRoleTxn(10, writeTxn, aclRole, true)
 	require.True(t, updated)
 	require.NoError(t, err)
-	writeTxn.Txn.Commit()
+	writeTxn.Commit()
 
 	// Pull the events from the stream.
 	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ACLRolesUpsertRequestType}
@@ -1034,7 +1034,7 @@ func Test_eventsFromChanges_ACLRole(t *testing.T) {
 	deleteTxn := testState.db.WriteTxn(20)
 	require.NoError(t, testState.deleteACLRoleByIDTxn(deleteTxn, aclRole.ID))
 	require.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLRoles, 20}))
-	deleteTxn.Txn.Commit()
+	deleteTxn.Commit()
 
 	// Pull the events from the stream.
 	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ACLRolesDeleteByIDRequestType}
@@ -1065,7 +1065,7 @@ func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
 	updated, err := testState.upsertACLAuthMethodTxn(10, writeTxn, authMethod)
 	must.True(t, updated)
 	must.NoError(t, err)
-	writeTxn.Txn.Commit()
+	writeTxn.Commit()
 
 	// Pull the events from the stream.
 	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ACLAuthMethodsUpsertRequestType}
@@ -1086,7 +1086,7 @@ func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
 	deleteTxn := testState.db.WriteTxn(20)
 	must.NoError(t, testState.deleteACLAuthMethodTxn(deleteTxn, authMethod.Name))
 	must.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLAuthMethods, 20}))
-	deleteTxn.Txn.Commit()
+	deleteTxn.Commit()
 
 	// Pull the events from the stream.
 	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ACLAuthMethodsDeleteRequestType}
@@ -1117,7 +1117,7 @@ func Test_eventsFromChanges_ACLBindingRule(t *testing.T) {
 	updated, err := testState.upsertACLBindingRuleTxn(10, writeTxn, bindingRule, true)
 	must.True(t, updated)
 	must.NoError(t, err)
-	writeTxn.Txn.Commit()
+	writeTxn.Commit()
 
 	// Pull the events from the stream.
 	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.ACLBindingRulesUpsertRequestType}
@@ -1138,7 +1138,7 @@ func Test_eventsFromChanges_ACLBindingRule(t *testing.T) {
 	deleteTxn := testState.db.WriteTxn(20)
 	must.NoError(t, testState.deleteACLBindingRuleTxn(deleteTxn, bindingRule.ID))
 	must.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLBindingRules, 20}))
-	deleteTxn.Txn.Commit()
+	deleteTxn.Commit()
 
 	// Pull the events from the stream.
 	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.ACLBindingRulesDeleteRequestType}

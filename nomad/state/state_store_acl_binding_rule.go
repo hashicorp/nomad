@@ -52,7 +52,7 @@ func (s *StateStore) UpsertACLBindingRules(
 // store using the provided write transaction. It is the responsibility of the
 // caller to update the index table.
 func (s *StateStore) upsertACLBindingRuleTxn(
-	index uint64, txn *txn, rule *structs.ACLBindingRule, allowMissingAuthMethod bool) (bool, error) {
+	index uint64, txn Txn, rule *structs.ACLBindingRule, allowMissingAuthMethod bool) (bool, error) {
 
 	// Ensure the rule hash is not zero to provide defense in depth. This
 	// should be done outside the state store, so we do not spend time here and
@@ -141,7 +141,7 @@ func (s *StateStore) DeleteACLBindingRules(index uint64, bindingRuleIDs []string
 // deleteACLBindingRuleTxn deletes a single ACL binding rule from the state
 // store using the provided write transaction. It is the responsibility of the
 // caller to update the index table.
-func (s *StateStore) deleteACLBindingRuleTxn(txn *txn, ruleID string) error {
+func (s *StateStore) deleteACLBindingRuleTxn(txn Txn, ruleID string) error {
 	existing, err := txn.First(TableACLBindingRules, indexID, ruleID)
 	if err != nil {
 		return fmt.Errorf("ACL binding rule lookup failed: %v", err)

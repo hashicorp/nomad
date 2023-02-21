@@ -33,7 +33,7 @@ func (s *StateStore) GetVariablesByNamespace(
 }
 
 func (s *StateStore) getVariablesByNamespaceImpl(
-	txn *txn, ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	txn Txn, ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
 	// Walk the entire table.
 	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, "")
 	if err != nil {

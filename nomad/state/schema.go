@@ -21,6 +21,7 @@ const (
 	TableACLAuthMethods       = "acl_auth_methods"
 	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
+	TableChecksums            = "checksums"
 )
 
 const (
@@ -1556,6 +1557,22 @@ func bindingRulesTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "AuthMethod",
+				},
+			},
+		},
+	}
+}
+
+func checksumTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableChecksums,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
 				},
 			},
 		},
