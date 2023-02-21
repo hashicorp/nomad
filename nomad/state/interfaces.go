@@ -76,7 +76,13 @@ func (b *baseMemDBWrapper) ReadTxn() Txn {
 	return &baseTxn{Txn: b.memdb.Txn(false)}
 }
 
-// WriteTxn ... TODO
+// WriteTxn returns a Txn wrapping a memdb.Txn suitable for writes to the state store.
+//
+// The idx argument must be the index of the current Raft operation. Most
+// mutations to state should happen as part of a raft apply, so the index of the
+// log being applied should be the one passed to WriteTxn. The only exception
+// are transactions executed on empty memdb.DB as part of Restore, which should
+// use WriteTxnRestore instead.
 func (b *baseMemDBWrapper) WriteTxn(idx uint64) Txn {
 	return &baseTxn{
 		// Note: the zero value of structs.MessageType is noderegistration.
@@ -86,7 +92,9 @@ func (b *baseMemDBWrapper) WriteTxn(idx uint64) Txn {
 	}
 }
 
-// WriteTxnMsgT ... TODO
+// WriteTxnMsgT returns a Txn wrapping a memdb.Txn suitable for writes to the
+// state store. This is the same as WriteTxn but includes the MessageType, which
+// is useful for wrappers that change behavior based on that value.
 func (b *baseMemDBWrapper) WriteTxnMsgT(msgType structs.MessageType, idx uint64) Txn {
 	return &baseTxn{
 		msgType: msgType,
@@ -95,7 +103,12 @@ func (b *baseMemDBWrapper) WriteTxnMsgT(msgType structs.MessageType, idx uint64)
 	}
 }
 
-// WriteTxnRestore ... TODO
+// WriteTxnRestore returns a Txn wrapping a memdb.Txn suitable for writes. This
+// should only be used in Restore where we need to replace the entire contents
+// of the store, and wrappers may need to change their behavior based on
+// that. WriteTxnRestore uses a zero index since the whole restore doesn't
+// really occur at one index - the effect is to write many values that were
+// previously written across many indexes.
 func (b *baseMemDBWrapper) WriteTxnRestore() Txn {
 	return &baseTxn{Txn: b.memdb.Txn(true), index: 0}
 }
