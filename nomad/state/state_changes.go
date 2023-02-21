@@ -118,6 +118,7 @@ type changeTrackedTxn struct {
 	msgType structs.MessageType
 
 	Txn
+
 	// index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
 	// index is stored so that it may be passed along to any subscribers as part

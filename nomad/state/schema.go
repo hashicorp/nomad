@@ -91,6 +91,7 @@ func init() {
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
+		checksumTableSchema,
 	}...)
 }
 
@@ -1571,8 +1572,15 @@ func checksumTableSchema() *memdb.TableSchema {
 				Name:         indexID,
 				AllowMissing: false,
 				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "ID",
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Table",
+						},
+						&memdb.UintFieldIndex{
+							Field: "Hash",
+						},
+					},
 				},
 			},
 		},
