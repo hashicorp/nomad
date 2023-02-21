@@ -1026,6 +1026,20 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 	return nil
 }
 
+// LookupAction finds an action by name
+func (j *Job) LookupAction(name string) *Action {
+	fmt.Println(fmt.Sprintf("Looking up action %s", name))
+
+	for _, action := range j.Actions {
+		fmt.Println(fmt.Sprintf("  -  is it %s?", action.Name))
+		if action.Name == name {
+			fmt.Println(fmt.Sprintf("  -  Aye! it is %s!", action.Name))
+			return action
+		}
+	}
+	return nil
+}
+
 // JobSummary summarizes the state of the allocations of a job
 type JobSummary struct {
 	JobID     string

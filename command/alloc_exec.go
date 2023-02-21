@@ -63,6 +63,9 @@ Exec Specific Options:
     character is only recognized at the beginning of a line.  The escape character
     followed by a dot ('.') closes the connection.  Setting the character to
     'none' disables any escapes and makes the session fully transparent.
+
+	-action <action-name>
+		Run the command/args defined in the jobspec as an "action"
   `
 	return strings.TrimSpace(helpText)
 }
@@ -101,7 +104,7 @@ func (l *AllocExecCommand) Name() string { return "alloc exec" }
 
 func (l *AllocExecCommand) Run(args []string) int {
 	var job, stdinOpt, ttyOpt bool
-	var task, escapeChar string
+	var task, escapeChar, action string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
@@ -110,6 +113,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 	flags.BoolVar(&ttyOpt, "t", isTty(), "")
 	flags.StringVar(&escapeChar, "e", "~", "")
 	flags.StringVar(&task, "task", "", "")
+	flags.StringVar(&action, "action", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -132,7 +136,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(args) < 2 {
+	if len(args) < 2 && action == "" {
 		l.Ui.Error("A command is required")
 		l.Ui.Error(commandErrorText(l))
 		return 1
@@ -205,6 +209,24 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
+	// var jobAction api.Action
+	l.Ui.Output((fmt.Sprintf("==> jobAction initialized %s", action)))
+	// spew.Dump(jobAction)
+
+	jobAction, err := validateActionExists(action, alloc)
+	// if action != "" {
+	// 	err = validateActionExists(action, alloc)
+	// } else {
+	// 	jobAction = *alloc.Job.LookupAction(action)
+	// }
+	if err != nil {
+		l.Ui.Error(err.Error())
+		return 1
+	}
+
+	l.Ui.Output("TWO")
+	spew.Dump(jobAction)
+
 	if !stdinOpt {
 		l.Stdin = bytes.NewReader(nil)
 	}
@@ -222,25 +244,32 @@ func (l *AllocExecCommand) Run(args []string) int {
 	}
 
 	// Log out the args
-	jobber, _, _ := client.Jobs().Info(alloc.JobID, q)
-	l.Ui.Output((fmt.Sprintf("==> Command about to be execd on %s", alloc.ID)))
-	l.Ui.Output((fmt.Sprintf("    %s", args[1:])))
-	// Job?
-	l.Ui.Output((fmt.Sprintf("    job %s", alloc.JobID)))
-	spew.Dump(jobber)
-	l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
-	spew.Dump(jobber.Datacenters)
-	l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
-	spew.Dump(jobber.Actions)
-	// l.Ui.Output(spew.Dump(client.Jobs().Info(alloc.JobID)))
-	l.Ui.Output(fmt.Sprint("~~~FIN~~~"))
+	// jobContext, _, _ := client.Jobs().Info(alloc.JobID, q)
+	// l.Ui.Output((fmt.Sprintf("==> Command about to be execd on %s", alloc.ID)))
+	// l.Ui.Output((fmt.Sprintf("    %s", args[1:])))
+	// // Job?
+	// l.Ui.Output((fmt.Sprintf("    job %s", alloc.JobID)))
+	// spew.Dump(jobber)
+	// l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
+	// spew.Dump(jobber.Datacenters)
+	// l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
+	// spew.Dump(jobber.Actions)
+	// // l.Ui.Output(spew.Dump(client.Jobs().Info(alloc.JobID)))
+	// l.Ui.Output(fmt.Sprint("~~~FIN~~~"))
 
 	// realCommand := args[1:]
-	realCommand := []string{"/bin/sh", "-c", `play -n synth \
-	sin %-12 \
-	sin %-9 sin %-5 sin %-2 \
-	delay 0 1.4 1.0 1.05 \
-	fade 0 4.5 1.5`}
+	// realCommand := []string{"/bin/sh", "-c", `play -n synth \
+	// sin %-12 \
+	// sin %-9 sin %-5 sin %-2 \
+	// delay 0 1.4 1.0 1.05 \
+	// fade 0 4.5 1.5`}
+
+	// actionName = "howdy too"
+
+	// jobAction := jobContext.LookupAction(action)
+
+	realCommand := append([]string{*jobAction.Command}, jobAction.Args...)
+	spew.Dump(realCommand)
 
 	code, err := l.execImpl(client, alloc, task, ttyOpt, realCommand, escapeChar, l.Stdin, l.Stdout, l.Stderr)
 	if err != nil {
@@ -396,4 +425,12 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 	}()
 
 	return cancel, nil
+}
+
+func validateActionExists(action string, alloc *api.Allocation) (*api.Action, error) {
+	jobAction := alloc.Job.LookupAction(action)
+	if jobAction == nil {
+		return nil, fmt.Errorf("could not find action: %s", action)
+	}
+	return jobAction, nil
 }
