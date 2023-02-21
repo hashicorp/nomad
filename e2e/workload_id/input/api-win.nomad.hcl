@@ -1,5 +1,5 @@
 job "api-win" {
-  type        = "batch"
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
