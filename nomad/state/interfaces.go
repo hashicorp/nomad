@@ -10,6 +10,7 @@ import (
 // This can be a read or write transaction.
 type Txn interface {
 	// Methods not in memdb.Txn
+	MsgType() structs.MessageType
 	Index() uint64
 	Commit() error // note: this signature is different from memdb.Commit()
 
@@ -27,7 +28,9 @@ type Txn interface {
 	Insert(table string, obj any) error
 	TrackChanges()
 
-	// Not implemented methods of memdb.Txn
+	// Unimplemented methods of memdb.Txn because we don't call them (directly)
+	// from wrappers
+	//
 	// Commit()
 	// Last(table, index string, args ...any) (any, error)
 	// LastWatch(table, index string, args ...any) (<-chan struct{}, any, error)
@@ -35,7 +38,6 @@ type Txn interface {
 	// LowerBound(table, index string, args ...any) (memdb.ResultIterator, error)
 	// ReverseLowerBound(table, index string, args ...any) (memdb.ResultIterator, error)
 	// Snapshot() *memdb.Txn
-
 }
 
 // ReadTxn is implemented by memdb.Txn to perform read operations.
@@ -58,7 +60,9 @@ type MemDBWrapper interface {
 }
 
 // baseMemDBWrapper is a thin wrapper around memdb.DB used as the innermost
-// MemDBWrapper
+// MemDBWrapper; it translates between MemDBWrapper methods and memdb.DB
+// methods. All other MemDBWrappers should wrap this one so that they can call
+// their inner MemDBWrapper methods directly.
 type baseMemDBWrapper struct {
 	memdb *memdb.MemDB
 }
@@ -67,40 +71,69 @@ func NewBaseMemDBWrapper(db *memdb.MemDB) *baseMemDBWrapper {
 	return &baseMemDBWrapper{memdb: db}
 }
 
+// ReadTxn ... TODO
 func (b *baseMemDBWrapper) ReadTxn() Txn {
 	return &baseTxn{Txn: b.memdb.Txn(false)}
 }
 
-func (b *baseMemDBWrapper) WriteTxn(index uint64) Txn {
-	return &baseTxn{Txn: b.memdb.Txn(true), index: index}
+// WriteTxn ... TODO
+func (b *baseMemDBWrapper) WriteTxn(idx uint64) Txn {
+	return &baseTxn{
+		// Note: the zero value of structs.MessageType is noderegistration.
+		msgType: structs.IgnoreUnknownTypeFlag,
+		index:   idx,
+		Txn:     b.memdb.Txn(true),
+	}
 }
 
-func (b *baseMemDBWrapper) WriteTxnMsgT(_ structs.MessageType, index uint64) Txn {
-	return &baseTxn{Txn: b.memdb.Txn(true), index: index}
+// WriteTxnMsgT ... TODO
+func (b *baseMemDBWrapper) WriteTxnMsgT(msgType structs.MessageType, idx uint64) Txn {
+	return &baseTxn{
+		msgType: msgType,
+		index:   idx,
+		Txn:     b.memdb.Txn(true),
+	}
 }
 
+// WriteTxnRestore ... TODO
 func (b *baseMemDBWrapper) WriteTxnRestore() Txn {
 	return &baseTxn{Txn: b.memdb.Txn(true), index: 0}
 }
 
+// Snapshot ... TODO
 func (c *baseMemDBWrapper) Snapshot() *memdb.MemDB {
 	return c.memdb.Snapshot()
 }
 
+// Publisher ... TODO
 func (c *baseMemDBWrapper) Publisher() *stream.EventBroker {
 	return nil
 }
 
+// baseTxn is the Txn returned by baseMemDBWrapper methods. Note that the inner
+// transaction for a baseTxn is a real memdb.Txn, unlike the other wrappers
+// which wrap other state.Txn interfaces
 type baseTxn struct {
+	msgType structs.MessageType
+	index   uint64
 	*memdb.Txn
-	index uint64
 }
 
+// MsgType returns a MessageType from the Txn's context. If the context is empty
+// or the value isn't set IgnoreUnknownTypeFlag will be returned to signal that
+// the MsgType is unknown.
+func (tx *baseTxn) MsgType() structs.MessageType {
+	return tx.msgType
+}
+
+// Index returns the Index of the Txn. This will be 0 if the Txn is part of a
+// restore.
+func (tx *baseTxn) Index() uint64 {
+	return tx.index
+}
+
+// Commit commits the inner memdb transaction
 func (tx *baseTxn) Commit() error {
 	tx.Txn.Commit()
 	return nil
-}
-
-func (tx *baseTxn) Index() uint64 {
-	return tx.index
 }

@@ -15,11 +15,6 @@ var (
 	errMsgStateStoreChecksumMissing  = "detected missing checksum in %q table"
 )
 
-type Checksum struct {
-	Table string
-	Hash  uint64
-}
-
 type checksummingDB struct {
 	memdb   MemDBWrapper
 	enabled bool
@@ -40,9 +35,10 @@ func (c *checksummingDB) ReadTxn() Txn {
 // WriteTxn ... TODO
 func (c *checksummingDB) WriteTxn(idx uint64) Txn {
 	t := &checksummedTxn{
-		Txn:     c.memdb.WriteTxn(idx),
+		// Note: the zero value of structs.MessageType is noderegistration.
+		msgType: structs.IgnoreUnknownTypeFlag,
 		index:   idx,
-		msgType: structs.IgnoreUnknownTypeFlag, // The zero value of structs.MessageType is noderegistration.
+		Txn:     c.memdb.WriteTxn(idx),
 	}
 	t.Txn.TrackChanges()
 	return t
@@ -61,8 +57,7 @@ func (c *checksummingDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) T
 
 // WriteTxnRestore ... TODO
 func (c *checksummingDB) WriteTxnRestore() Txn {
-	return &checksummedTxn{Txn: c.memdb.WriteTxnRestore()}
-
+	return &checksummedTxn{Txn: c.memdb.WriteTxnRestore(), index: 0}
 }
 
 // Publisher ... TODO
@@ -75,40 +70,14 @@ func (c *checksummingDB) Snapshot() *memdb.MemDB {
 	return c.memdb.Snapshot()
 }
 
-// checksummedTxn ... TODO
-type checksummedTxn struct {
-	msgType structs.MessageType
-	index   uint64
-	Txn     // wrap the inner Txn
+// Checksum is the object we put in the checksums table when we Insert an object
+// and use to compare against when we read the object back out
+type Checksum struct {
+	Table string
+	Hash  uint64
 }
 
-// Delete ... TODO
-func (tx *checksummedTxn) Delete(table string, obj any) error {
-	if err := tx.verifyChecksum(table, obj); err != nil {
-		return err
-	}
-	return tx.Txn.Delete(table, obj)
-}
-
-func (tx *checksummedTxn) verifyChecksum(table string, obj any) error {
-	if obj == nil || table == tableIndex {
-		return nil
-	}
-	hash, err := hashstructure.Hash(obj, nil)
-	if err != nil {
-		return fmt.Errorf(errMsgBadHash, table, err)
-	}
-	raw, err := tx.Txn.First(TableChecksums, indexID, table, hash)
-	if err != nil {
-		return err // unreachable
-	}
-	if raw == nil {
-		// if our checksum doesn't match we won't find anything for this hash
-		return fmt.Errorf(errMsgStateStoreChecksumMismatch, table, obj)
-	}
-	return nil
-}
-
+// ChecksumIterator implements memdb.ResultIterator
 type ChecksumIterator struct {
 	inner memdb.ResultIterator
 
@@ -116,7 +85,8 @@ type ChecksumIterator struct {
 	index   int
 }
 
-func (tx *checksummedTxn) newIterator(table string, iter memdb.ResultIterator) (memdb.ResultIterator, error) {
+func NewChecksumIterator(tx *checksummedTxn, table string, iter memdb.ResultIterator) (memdb.ResultIterator, error) {
+	// TODO: is is possible to not have to greedily digest the results iterator?
 	checksumIter := &ChecksumIterator{inner: iter, results: []any{}}
 	for {
 		obj := iter.Next()
@@ -145,15 +115,32 @@ func (iter *ChecksumIterator) WatchCh() <-chan struct{} {
 	return iter.inner.WatchCh()
 }
 
+// checksummedTxn is the Txn returned by baseMemDBWrapper methods. Its methods
+// checksum each read and write and return errors if there are checksum
+// mismatches.
+type checksummedTxn struct {
+	msgType structs.MessageType
+	index   uint64
+	Txn     // wrap the inner Txn
+}
+
+// Delete ... TODO
+func (tx *checksummedTxn) Delete(table string, obj any) error {
+	if err := tx.verifyChecksum(table, obj); err != nil {
+		return err
+	}
+	return tx.Txn.Delete(table, obj)
+}
+
 // DeleteAll ... TODO
 func (tx *checksummedTxn) DeleteAll(table, index string, args ...any) (int, error) {
-	// TODO: checksum on delete
+	// TODO: figure out how to checksum DeleteAll
 	return tx.Txn.DeleteAll(table, index, args...)
 }
 
 // DeletePrefix ... TODO
 func (tx *checksummedTxn) DeletePrefix(table, prefix_index, prefix string) (bool, error) {
-	// TODO: checksum on delete
+	// TODO: figure out how to checksum DeletePrefix
 	return tx.Txn.DeletePrefix(table, prefix_index, prefix)
 }
 
@@ -163,7 +150,8 @@ func (tx *checksummedTxn) Get(table, index string, args ...any) (memdb.ResultIte
 	if err != nil {
 		return nil, err
 	}
-	return tx.newIterator(table, iter)
+
+	return NewChecksumIterator(tx, table, iter)
 }
 
 // GetReverse ... TODO
@@ -172,7 +160,7 @@ func (tx *checksummedTxn) GetReverse(table, index string, args ...any) (memdb.Re
 	if err != nil {
 		return nil, err
 	}
-	return tx.newIterator(table, iter)
+	return NewChecksumIterator(tx, table, iter)
 }
 
 // First ... TODO
@@ -226,12 +214,53 @@ func (tx *checksummedTxn) Insert(table string, obj any) error {
 	return tx.Txn.Insert(table, obj)
 }
 
-// MsgType ... TODO
+// MsgType returns a MessageType from the Txn's context. If the context is empty
+// or the value isn't set IgnoreUnknownTypeFlag will be returned to signal that
+// the MsgType is unknown.
 func (tx *checksummedTxn) MsgType() structs.MessageType {
 	return tx.msgType
 }
 
-// Index ... TODO
+// Index returns the Index of the Txn. This will be 0 if the Txn is part of a
+// restore.
 func (tx *checksummedTxn) Index() uint64 {
 	return tx.index
+}
+
+// verifyChecksum hashes the object and verifies whether that checksum exists in
+// the checksums table
+func (tx *checksummedTxn) verifyChecksum(table string, obj any) error {
+	if obj == nil || table == tableIndex {
+		return nil
+	}
+	hash, err := hashstructure.Hash(obj, nil)
+	if err != nil {
+		return fmt.Errorf(errMsgBadHash, table, err)
+	}
+	raw, err := tx.Txn.First(TableChecksums, indexID, table, hash)
+	if err != nil {
+		return err // unreachable
+	}
+	if raw == nil {
+		// if our checksum doesn't match we won't find anything for this hash
+		return fmt.Errorf(errMsgStateStoreChecksumMismatch, table, obj)
+	}
+	return nil
+}
+
+func (tx *checksummedTxn) newIterator(table string, iter memdb.ResultIterator) (memdb.ResultIterator, error) {
+	// TODO: is is possible to not have to greedily digest the results iterator?
+	checksumIter := &ChecksumIterator{inner: iter, results: []any{}}
+	for {
+		obj := iter.Next()
+		if obj == nil {
+			break
+		}
+		err := tx.verifyChecksum(table, obj)
+		if err != nil {
+			return nil, err
+		}
+		checksumIter.results = append(checksumIter.results, obj)
+	}
+	return checksumIter, nil
 }
