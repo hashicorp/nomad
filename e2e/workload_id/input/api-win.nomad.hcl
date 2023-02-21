@@ -1,6 +1,5 @@
 job "api-win" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"

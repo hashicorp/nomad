@@ -30,13 +30,14 @@ func TestDynamicNodeMetadata(t *testing.T) {
 func testDynamicNodeMetadata(t *testing.T) {
 	nomad := e2eutil.NomadClient(t)
 
-	nodes, _, err := nomad.Nodes().List(nil)
+	nodes, err := e2eutil.ListLinuxClientNodes(nomad)
 	must.NoError(t, err)
 	if len(nodes) == 0 {
 		t.Skip("requires at least 1 linux node")
 	}
 
-	node := nodes[0]
+	node, _, err := nomad.Nodes().Info(nodes[0], nil)
+	must.NoError(t, err)
 
 	keyFoo := "foo-" + uuid.Short()
 	keyEmpty := "empty-" + uuid.Short()
@@ -47,6 +48,9 @@ func testDynamicNodeMetadata(t *testing.T) {
 	jobID := "node-meta-" + uuid.Short()
 	jobIDs := []string{jobID}
 	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+
+	t.Logf("test config: job=%s node=%s foo=%s empty=%s unset=%s",
+		jobID, node.ID, keyFoo, keyEmpty, keyUnset)
 
 	path := "./input/node-meta.nomad.hcl"
 	jobBytes, err := os.ReadFile(path)
@@ -84,6 +88,8 @@ func testDynamicNodeMetadata(t *testing.T) {
 	must.MapContainsKey(t, resp.Meta, keyEmpty)
 	must.Eq(t, "", resp.Meta[keyEmpty])
 	must.MapNotContainsKey(t, resp.Meta, keyUnset)
+
+	t.Logf("job submitted, node metadata applied, waiting for metadata to be visible...")
 
 	// Wait up to 10 seconds (with 1s buffer) for updates to be visible to the
 	// scheduler.
