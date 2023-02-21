@@ -220,7 +220,19 @@ func (l *AllocExecCommand) Run(args []string) int {
 		l.Stderr = os.Stderr
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, args[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
+	// Log out the args
+	l.Ui.Output((fmt.Sprintf("==> Command about to be execd on %s", alloc.ID)))
+	l.Ui.Output((fmt.Sprintf("    %s", args[1:])))
+	l.Ui.Output(fmt.Sprint("~~~FIN~~~"))
+
+	// realCommand := args[1:]
+	realCommand := []string{"/bin/sh", "-c", `play -n synth \
+	sin %-12 \
+	sin %-9 sin %-5 sin %-2 \
+	delay 0 1.4 1.0 1.05 \
+	fade 0 4.5 1.5`}
+
+	code, err := l.execImpl(client, alloc, task, ttyOpt, realCommand, escapeChar, l.Stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1

@@ -314,6 +314,6 @@ func lookupAllocTask(alloc *api.Allocation) (string, error) {
 	for _, t := range tg.Tasks {
 		fmt.Fprintf(&errStr, "  * %s\n", t.Name)
 	}
-	fmt.Fprintf(&errStr, "\nPlease specify the task.")
+	fmt.Fprintf(&errStr, "\nPlease specify the task with the -task \"<task-name>\" flag.")
 	return "", errors.New(errStr.String())
 }
