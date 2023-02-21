@@ -888,6 +888,7 @@ type Job struct {
 	Meta             map[string]string       `hcl:"meta,block"`
 	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+	Actions          []*Action               `hcl:"action,block"`
 
 	/* Fields set by server, not sourced from job config file */
 
@@ -1413,4 +1414,10 @@ type JobEvaluateRequest struct {
 // EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
+}
+
+type Action struct {
+	Name    string   `hcl:"name,label"`
+	Command *string  `mapstructure:"command" hcl:"command"`
+	Args    []string `mapstructure:"args" hcl:"args,optional"`
 }

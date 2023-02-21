@@ -11,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper/escapingio"
@@ -221,8 +222,17 @@ func (l *AllocExecCommand) Run(args []string) int {
 	}
 
 	// Log out the args
+	jobber, _, _ := client.Jobs().Info(alloc.JobID, q)
 	l.Ui.Output((fmt.Sprintf("==> Command about to be execd on %s", alloc.ID)))
 	l.Ui.Output((fmt.Sprintf("    %s", args[1:])))
+	// Job?
+	l.Ui.Output((fmt.Sprintf("    job %s", alloc.JobID)))
+	spew.Dump(jobber)
+	l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
+	spew.Dump(jobber.Datacenters)
+	l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
+	spew.Dump(jobber.Actions)
+	// l.Ui.Output(spew.Dump(client.Jobs().Info(alloc.JobID)))
 	l.Ui.Output(fmt.Sprint("~~~FIN~~~"))
 
 	// realCommand := args[1:]

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 )
 
@@ -106,6 +107,14 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 			return nil, err
 		}
 	}
+
+	fmt.Println("++> looking at conn")
+	spew.Dump(s.command)
+	fmt.Println("+++++++++++")
+	spew.Dump(commandBytes)
+	fmt.Println("+++++++++++")
+	spew.Dump(s.task)
+	fmt.Println("~~~~FIN~~~~")
 
 	return conn, nil
 }

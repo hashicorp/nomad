@@ -924,6 +924,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		// Actions:        *job.Actions,
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -994,7 +995,22 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	if job.Actions != nil {
+		j.Actions = []*structs.Action{}
+		for _, action := range job.Actions {
+			act := &structs.Action{}
+			ApiActionToStructsAction(j, action, act)
+			j.Actions = append(j.Actions, act)
+		}
+	}
+
 	return j
+}
+
+func ApiActionToStructsAction(job *structs.Job, action *api.Action, act *structs.Action) {
+	act.Name = action.Name
+	act.Args = action.Args
+	act.Command = action.Command
 }
 
 func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.TaskGroup) {

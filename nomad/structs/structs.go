@@ -4241,6 +4241,9 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
+	// TODO: TEMP
+	Actions []*Action
+
 	// See agent.ApiJobToStructJob
 	// Update provides defaults for the TaskGroup Update blocks
 	Update UpdateStrategy
@@ -12436,4 +12439,10 @@ func NewRpcError(err error, code *int64) *RpcError {
 
 func (r *RpcError) Error() string {
 	return r.Message
+}
+
+type Action struct {
+	Name    string
+	Command *string
+	Args    []string
 }

@@ -705,6 +705,7 @@ type Task struct {
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
 	Identity        *WorkloadIdentity      `hcl:"identity,block"`
+	Actions         []*Action              `hcl:"action,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
