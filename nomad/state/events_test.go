@@ -725,7 +725,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "node registered",
 			Mutate: func(s *StateStore, tx *txn) error {
-				return upsertNodeTxn(tx, tx.Index, testNode())
+				return upsertNodeTxn(tx, tx.Index(), testNode())
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
@@ -742,7 +742,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "node registered initializing",
 			Mutate: func(s *StateStore, tx *txn) error {
-				return upsertNodeTxn(tx, tx.Index, testNode(nodeNotReady))
+				return upsertNodeTxn(tx, tx.Index(), testNode(nodeNotReady))
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
@@ -759,10 +759,10 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
-				return upsertNodeTxn(tx, tx.Index, testNode())
+				return upsertNodeTxn(tx, tx.Index(), testNode())
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
-				return deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
+				return deleteNodeTxn(tx, tx.Index(), []string{testNodeID()})
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
@@ -779,11 +779,11 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "batch node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
-				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
-				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
+				require.NoError(t, upsertNodeTxn(tx, tx.Index(), testNode()))
+				return upsertNodeTxn(tx, tx.Index(), testNode(nodeIDTwo))
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
-				return deleteNodeTxn(tx, tx.Index, []string{testNodeID(), testNodeIDTwo()})
+				return deleteNodeTxn(tx, tx.Index(), []string{testNodeID(), testNodeIDTwo()})
 			},
 			WantEvents: []structs.Event{
 				{
@@ -811,8 +811,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "batch node events upserted",
 			Setup: func(s *StateStore, tx *txn) error {
-				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
-				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
+				require.NoError(t, upsertNodeTxn(tx, tx.Index(), testNode()))
+				return upsertNodeTxn(tx, tx.Index(), testNode(nodeIDTwo))
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
 				eventFn := func(id string) []*structs.NodeEvent {
@@ -833,8 +833,8 @@ func TestNodeEventsFromChanges(t *testing.T) {
 						},
 					}
 				}
-				require.NoError(t, s.upsertNodeEvents(tx.Index, testNodeID(), eventFn(testNodeID()), tx))
-				return s.upsertNodeEvents(tx.Index, testNodeIDTwo(), eventFn(testNodeIDTwo()), tx)
+				require.NoError(t, s.upsertNodeEvents(tx.Index(), testNodeID(), eventFn(testNodeID()), tx))
+				return s.upsertNodeEvents(tx.Index(), testNodeIDTwo(), eventFn(testNodeIDTwo()), tx)
 			},
 			WantEvents: []structs.Event{
 				{

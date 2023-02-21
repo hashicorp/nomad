@@ -66,7 +66,7 @@ func (c *changeTrackerDB) ReadTxn() *txn {
 func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 	t := &txn{
 		Txn:     c.memdb.Txn(true),
-		Index:   idx,
+		index:   idx,
 		publish: c.publish,
 		msgType: structs.IgnoreUnknownTypeFlag, // The zero value of structs.MessageType is noderegistration.
 	}
@@ -78,7 +78,7 @@ func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) 
 	t := &txn{
 		msgType: msgType,
 		Txn:     c.memdb.Txn(true),
-		Index:   idx,
+		index:   idx,
 		publish: c.publish,
 	}
 	t.Txn.TrackChanges()
@@ -106,7 +106,7 @@ func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
 func (c *changeTrackerDB) WriteTxnRestore() *txn {
 	return &txn{
 		Txn:   c.memdb.Txn(true),
-		Index: 0,
+		index: 0,
 	}
 }
 
@@ -121,11 +121,11 @@ type txn struct {
 	msgType structs.MessageType
 
 	*memdb.Txn
-	// Index in raft where the write is occurring. The value is zero for a
+	// index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
-	// Index is stored so that it may be passed along to any subscribers as part
+	// index is stored so that it may be passed along to any subscribers as part
 	// of a change event.
-	Index   uint64
+	index   uint64
 	publish func(changes Changes) (*structs.Events, error)
 }
 
@@ -141,7 +141,7 @@ func (tx *txn) Commit() error {
 	// to publish.
 	if tx.publish != nil {
 		changes := Changes{
-			Index:   tx.Index,
+			Index:   tx.Index(),
 			Changes: tx.Txn.Changes(),
 			MsgType: tx.MsgType(),
 		}
@@ -160,4 +160,8 @@ func (tx *txn) Commit() error {
 // be returned to signal that the MsgType is unknown.
 func (tx *txn) MsgType() structs.MessageType {
 	return tx.msgType
+}
+
+func (tx *txn) Index() uint64 {
+	return tx.index
 }
