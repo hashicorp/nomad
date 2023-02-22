@@ -224,6 +224,7 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	info := structs.AllocInfo{
 		AllocID:   h.allocID,
 		JobID:     h.jobID,
+		Group:     h.groupName,
 		Task:      h.taskName,
 		Namespace: h.namespace,
 	}

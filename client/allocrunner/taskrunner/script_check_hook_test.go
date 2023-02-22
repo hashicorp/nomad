@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -271,14 +272,17 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	scHook.taskEnv = env
 	scHook.driverExec = exec
 
-	expectedSvc := svcHook.getWorkloadServices().Services[0]
+	workload := svcHook.getWorkloadServices()
+	must.Eq(t, "web", workload.AllocInfo.Group)
+
+	expectedSvc := workload.Services[0]
 	expected := agentconsul.MakeCheckID(serviceregistration.MakeAllocServiceID(
 		alloc.ID, task.Name, expectedSvc), expectedSvc.Checks[0])
 
 	actual := scHook.newScriptChecks()
 	check, ok := actual[expected]
-	require.True(t, ok)
-	require.Equal(t, "my-job-frontend-check", check.check.Name)
+	must.True(t, ok)
+	must.Eq(t, "my-job-frontend-check", check.check.Name)
 
 	// emulate an update
 	env = taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv(
@@ -293,8 +297,8 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 
 	actual = scHook.newScriptChecks()
 	check, ok = actual[expected]
-	require.True(t, ok)
-	require.Equal(t, "my-job-backend-check", check.check.Name)
+	must.True(t, ok)
+	must.Eq(t, "my-job-backend-check", check.check.Name)
 }
 
 func TestScript_associated(t *testing.T) {
