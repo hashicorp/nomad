@@ -95,14 +95,15 @@ func (tr *TaskRunner) setNomadToken(token string) {
 		tr.envBuilder.SetWorkloadToken(token, false)
 	}
 }
-func (tr *TaskRunner) setTlsValues(tlsCert, caPubKey string) {
+func (tr *TaskRunner) setTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey string) {
 	tr.tlsLock.Lock()
 	defer tr.tlsLock.Unlock()
-	tr.tlsCert = tlsCert
-	tr.tlsCA = caPubKey
+	tr.tlsPublicCert = tlsPublicCert
+	tr.tlsPrivateCert = tlsPrivateCert
+	tr.tlsCAPubKey = tlsCAPubKey
 
 	// TODO: Make optional like setNomadToken
-	tr.envBuilder.SetTlsValues(tlsCert, caPubKey)
+	tr.envBuilder.SetTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey)
 }
 
 // getDriverHandle returns a driver handle.

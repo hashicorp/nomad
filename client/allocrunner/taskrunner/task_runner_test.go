@@ -2601,7 +2601,7 @@ func TestTaskRunner_TlsHook_Enabled(t *testing.T) {
 
 	testWaitForTaskToDie(t, tr)
 
-	certBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_cert"))
+	certBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_public_key.pem"))
 	require.NoError(t, err)
 	cert := string(certBytes)
 
@@ -2627,13 +2627,22 @@ func TestTaskRunner_TlsHook_Enabled(t *testing.T) {
 	must.SliceContainsAll(t, expectedIPs, certIps)
 
 	// Note: testing not much about this since it is currently just grabbed from a file
-	caKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_ca_key"))
+	// caKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_private_key.pem"))
+	// require.NoError(t, err)
+
+	// caKey := string(caKeyBytes)
+	// caCert, err := tlsutil.ParseCert(caKey)
+	// require.NoError(t, err)
+	// require.NotNil(t, caCert)
+
+	// Note: testing not much about this since it is currently just grabbed from a file
+	caPubKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_ca_public_key.pem"))
 	require.NoError(t, err)
 
-	caKey := string(caKeyBytes)
-	caCert, err := tlsutil.ParseCert(caKey)
+	caPubKey := string(caPubKeyBytes)
+	caPubCert, err := tlsutil.ParseCert(caPubKey)
 	require.NoError(t, err)
-	require.NotNil(t, caCert)
+	require.NotNil(t, caPubCert)
 }
 
 // // TestTaskRunner_IdentityHook_Disabled asserts that the identity hook does not

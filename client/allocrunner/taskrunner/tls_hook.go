@@ -20,10 +20,12 @@ import (
 // tlsHook sets the task runner's TLS cert and CA public key
 
 const (
-	// tlsCertFile is the name of the file holding the TLS cert for the alloc
-	tlsCertFile = "nomad_tls_cert"
+	// tlsCertPubKeyFile is the name of the file holding the TLS cert public key
+	tlsCertPubKeyFile = "nomad_tls_public_key.pem"
+	// tlsCertPrviKeyFile is the name of the file holding the TLS cert private key
+	tlsCertPrviKeyFile = "nomad_tls_private_key.pem"
 	// tlsCAPubKeyFile is the name of the file holding the CA's public key
-	tlsCAPubKeyFile = "nomad_tls_ca_key"
+	tlsCAPubKeyFile = "nomad_tls_ca_public_key.pem"
 )
 
 type tlsHook struct {
@@ -32,11 +34,14 @@ type tlsHook struct {
 	taskName string
 	lock     sync.Mutex
 
-	// certPath is the path in which to read and write the cert
-	certPath string
+	// certPrivKeyPath is the path in which to read and write the cert pub key
+	certPrivKeyPath string
 
-	// caPath is the path in which to read and write the ca public key
-	caPath string
+	// certPubKeyPath is the path in which to read and write the cert priv key
+	certPubKeyPath string
+
+	// caPubKeyPath is the path in which to read and write the ca public key
+	caPubKeyPath string
 }
 
 func newTlsHook(tr *TaskRunner, logger log.Logger) *tlsHook {
@@ -55,8 +60,9 @@ func (*tlsHook) Name() string {
 func (h *tlsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	h.certPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertFile)
-	h.caPath = filepath.Join(req.TaskDir.SecretsDir, tlsCAPubKeyFile)
+	h.certPubKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertPubKeyFile)
+	h.certPrivKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertPrviKeyFile)
+	h.caPubKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCAPubKeyFile)
 
 	return h.setTlsFiles(ctx, req.TaskResources)
 }
@@ -100,7 +106,8 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 	}
 
 	// TODO: What name to give it?
-	name := "some-name!"
+	// Probably something from service disco?
+	name := "*"
 
 	var DNSNames []string
 	DNSNames = append(DNSNames, "localhost")
@@ -117,8 +124,7 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 	// TODO: what does this do?
 	var extKeyUsage []x509.ExtKeyUsage
 
-	// pub, priv, err
-	tlsCert, _, err := tlsutil.GenerateCert(tlsutil.CertOpts{
+	tlsPublicCert, tlsPrivateCert, err := tlsutil.GenerateCert(tlsutil.CertOpts{
 		Signer: signer, CA: string(caPubKey), Name: name, Days: 365,
 		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
 	})
@@ -126,10 +132,10 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 		return fmt.Errorf("failed to Generate cert: %w", err)
 	}
 
-	h.tr.setTlsValues(tlsCert, string(caPubKey))
+	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, string(caPubKey))
 
 	// TODO: Make this optional like in the identity hook
-	if err := h.writeTlsValues(tlsCert, string(caPubKey)); err != nil {
+	if err := h.writeTlsValues(tlsPublicCert, tlsPrivateCert, string(caPubKey)); err != nil {
 		return fmt.Errorf("failed to write TLS values: %w", err)
 	}
 
@@ -137,13 +143,17 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 }
 
 // writeToken writes the given token to disk
-func (h *tlsHook) writeTlsValues(tlsCert, caKey string) error {
+func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey string) error {
 	// Write token as owner readable only
-	if err := users.WriteFileFor(h.certPath, []byte(tlsCert), h.tr.task.User); err != nil {
-		return fmt.Errorf("failed to write TLS cert: %w", err)
+	if err := users.WriteFileFor(h.certPubKeyPath, []byte(tlsPublicCert), h.tr.task.User); err != nil {
+		return fmt.Errorf("failed to write TLS Pub cert: %w", err)
 	}
 
-	if err := users.WriteFileFor(h.caPath, []byte(caKey), h.tr.task.User); err != nil {
+	if err := users.WriteFileFor(h.certPrivKeyPath, []byte(tlsPrivateCert), h.tr.task.User); err != nil {
+		return fmt.Errorf("failed to write TLS Private cert: %w", err)
+	}
+
+	if err := users.WriteFileFor(h.caPubKeyPath, []byte(tlsCAPubKey), h.tr.task.User); err != nil {
 		return fmt.Errorf("failed to write CA public key: %w", err)
 	}
 

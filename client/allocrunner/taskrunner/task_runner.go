@@ -202,9 +202,11 @@ type TaskRunner struct {
 	nomadTokenLock sync.Mutex
 
 	// TODO: document these
-	tlsCert string
-	tlsCA   string
-	tlsLock sync.Mutex
+
+	tlsPublicCert  string
+	tlsPrivateCert string
+	tlsCAPubKey    string
+	tlsLock        sync.Mutex
 
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
@@ -434,7 +436,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.setNomadToken(config.ClientConfig.Node.SecretID)
 
 	// TODO: Presumably I need this just like the token above?
-	tr.setTlsValues("", "")
+	tr.setTlsValues("", "", "")
 
 	// Initialize the runners hooks. Must come after initDriver so hooks
 	// can use tr.driverCapabilities

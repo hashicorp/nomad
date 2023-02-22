@@ -125,6 +125,11 @@ const (
 
 	// WorkloadToken is the environment variable for passing the Nomad Workload Identity token
 	WorkloadToken = "NOMAD_TOKEN"
+
+	// TODO: Document
+	TlsPublicKey  = "TLS_PUBLIC_KEY"
+	TlsPrivateKey = "TLS_PRIVATE_KEY"
+	TlsCAPubKey   = "TLS_CA_PUBLIC_KEY"
 )
 
 // The node values that can be interpreted.
@@ -427,8 +432,9 @@ type Builder struct {
 	injectVaultToken bool
 	workloadToken    string
 
-	tlsCert  string
-	tlsCAKey string
+	tlsPublicCert  string
+	tlsPrivateCert string
+	tlsCAPubKey    string
 
 	injectWorkloadToken bool
 	jobID               string
@@ -553,6 +559,23 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 	if b.region != "" {
 		envMap[Region] = b.region
+	}
+
+	if b.tlsPublicCert != "" {
+		envMap[TlsPublicKey] = b.tlsPublicCert
+	}
+	if b.tlsPrivateCert != "" {
+		envMap[TlsPrivateKey] = b.tlsPrivateCert
+	}
+	if b.tlsCAPubKey != "" {
+		envMap[TlsCAPubKey] = b.tlsCAPubKey
+	}
+
+	if b.groupName != "" {
+		envMap[GroupName] = b.groupName
+	}
+	if b.groupName != "" {
+		envMap[GroupName] = b.groupName
 	}
 
 	// Build the network related env vars
@@ -1040,10 +1063,11 @@ func (b *Builder) SetWorkloadToken(token string, inject bool) *Builder {
 	return b
 }
 
-func (b *Builder) SetTlsValues(tlsCert, caPubKey string) *Builder {
+func (b *Builder) SetTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey string) *Builder {
 	b.mu.Lock()
-	b.tlsCert = tlsCert
-	b.tlsCAKey = caPubKey
+	b.tlsPublicCert = tlsPublicCert
+	b.tlsPrivateCert = tlsPrivateCert
+	b.tlsCAPubKey = tlsCAPubKey
 	b.mu.Unlock()
 	return b
 }
