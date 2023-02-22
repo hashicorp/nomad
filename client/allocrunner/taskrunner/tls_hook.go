@@ -42,12 +42,15 @@ type tlsHook struct {
 
 	// caPubKeyPath is the path in which to read and write the ca public key
 	caPubKeyPath string
+
+	rpcer RPCer
 }
 
-func newTlsHook(tr *TaskRunner, logger log.Logger) *tlsHook {
+func newTlsHook(tr *TaskRunner, rpcer RPCer, logger log.Logger) *tlsHook {
 	h := &tlsHook{
 		tr:       tr,
 		taskName: tr.taskName,
+		rpcer:    rpcer,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -86,27 +89,40 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 	// 	return nil
 	// }
 
-	// TODO: THIS WILL COME FROM A CERT THAT IS STORED IN STATE
+	path := "tls/testing"
 
-	privateKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca-key.pem"
-	caPrivateKey, err := os.ReadFile(privateKeyFile)
+	args := structs.VariablesReadRequest{
+		Path: path,
+	}
+	var out structs.VariablesReadResponse
+
+	err := h.rpcer.RPC(
+		structs.VariablesReadRPCMethod,
+		&args,
+		&out,
+	)
+
 	if err != nil {
-		return fmt.Errorf("Error reading CA priv key: %w", err)
+		panic(err)
 	}
 
-	pubKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca.pem"
-	caPubKey, err := os.ReadFile(pubKeyFile)
-	if err != nil {
-		return fmt.Errorf("Error reading CA pub key: %w", err)
+	if out.Data == nil {
+		fmt.Println("XKCD - IT WAS NIL")
+	} else {
+		fmt.Println("XKCD - GOT DATA!!!")
 	}
 
-	signer, err := tlsutil.ParseSigner(string(caPrivateKey))
+	caPrivateKey, caPubKey, _ := h.getCaKeys()
+
+	signer, err := tlsutil.ParseSigner(caPrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to Parse signer: %w", err)
 	}
 
 	// TODO: What name to give it?
-	// Probably something from service disco?
+	// Something from service disco?
+	// Tho, I don't think this matters because DNSNames
+	// & IPAddresses inform alt names
 	name := "*"
 
 	var DNSNames []string
@@ -125,17 +141,17 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 	var extKeyUsage []x509.ExtKeyUsage
 
 	tlsPublicCert, tlsPrivateCert, err := tlsutil.GenerateCert(tlsutil.CertOpts{
-		Signer: signer, CA: string(caPubKey), Name: name, Days: 365,
+		Signer: signer, CA: caPubKey, Name: name, Days: 365,
 		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to Generate cert: %w", err)
 	}
 
-	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, string(caPubKey))
+	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey)
 
 	// TODO: Make this optional like in the identity hook
-	if err := h.writeTlsValues(tlsPublicCert, tlsPrivateCert, string(caPubKey)); err != nil {
+	if err := h.writeTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey); err != nil {
 		return fmt.Errorf("failed to write TLS values: %w", err)
 	}
 
@@ -158,4 +174,20 @@ func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey stri
 	}
 
 	return nil
+}
+
+func (h *tlsHook) getCaKeys() (string, string, error) {
+	privateKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca-key.pem"
+	caPrivateKey, err := os.ReadFile(privateKeyFile)
+	if err != nil {
+		return "", "", fmt.Errorf("Error reading CA priv key: %w", err)
+	}
+
+	pubKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca.pem"
+	caPubKey, err := os.ReadFile(pubKeyFile)
+	if err != nil {
+		return "", "", fmt.Errorf("Error reading CA pub key: %w", err)
+	}
+
+	return string(caPrivateKey), string(caPubKey), nil
 }

@@ -203,6 +203,10 @@ type TaskRunner struct {
 
 	// TODO: document these
 
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+
 	tlsPublicCert  string
 	tlsPrivateCert string
 	tlsCAPubKey    string
@@ -268,6 +272,11 @@ type TaskRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 type Config struct {
@@ -336,6 +345,8 @@ type Config struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
+
+	RPCClient RPCer
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -396,6 +407,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
 		getter:                 config.Getter,
+		rpcClient:              config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
