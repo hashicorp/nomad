@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
@@ -195,54 +196,110 @@ func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
 		panic(err)
 	}
 
-	var privateKeyFromVar, publicKeyFromVar string
-
 	if out.Data == nil {
-		fmt.Println("XKCD - TIME TO CREATE A CA!")
-
-		caOpts := tlsutil.CAOpts{
-			Name:                fmt.Sprintf("internal-nomad-ca-%s-%s", opts.Namespace, opts.Region),
-			Days:                9999,
-			Domain:              "*",
-			PermittedDNSDomains: []string{"*"},
-		}
-
-		ca, pk, err := tlsutil.GenerateCA(caOpts)
+		fmt.Println("XKCD - NO DATA SO CREATING A CA")
+		privateKey, publicKey, err := h.createNewCA(opts)
 		if err != nil {
-			return "", "", fmt.Errorf("Error generating new CA: %w", err)
+			return "", "", err
 		}
 
-		fmt.Println("XKCD - CREATED A CA BUT NOT YET SAVING IT!")
-		fmt.Println("PUBLIC CA:")
-		fmt.Println(ca)
-
-		fmt.Println("PRIVATE KEY:")
-		fmt.Println(pk)
-
-		return pk, ca, nil
-
+		// May overwrite privateKey & publicKey if there is a conflict
+		return h.writeCAToVariable(privateKey, publicKey, opts)
 	} else {
-		fmt.Println("XKCD - USING AN EXISTING CA")
+		fmt.Println("XKCD - DATA EXISTS, SO USING OLD CA")
+		return h.useExistingCA(out, opts)
+	}
+}
 
-		privateKeyFromVarBase64 := out.Data.Items["private-key"]
-		privateKeyFromVarBytes, err := base64.StdEncoding.DecodeString(privateKeyFromVarBase64)
-		if err != nil {
-			return "", "", fmt.Errorf("Error decoding base64 private CA key: %w", err)
-		}
+func (h *tlsHook) createNewCA(opts setTlsOpts) (string, string, error) {
+	caOpts := tlsutil.CAOpts{
+		Name:                fmt.Sprintf("internal-nomad-ca-%s-%s", opts.Namespace, opts.Region),
+		Days:                9999,
+		Domain:              "*",
+		PermittedDNSDomains: []string{"*"},
+	}
 
-		publicKeyFromVarBase64 := out.Data.Items["public-key"]
-		publicKeyFromVarBytes, err := base64.StdEncoding.DecodeString(publicKeyFromVarBase64)
-		if err != nil {
-			return "", "", fmt.Errorf("Error decoding base64 public CA key: %w", err)
-		}
+	publicKey, privateKey, err := tlsutil.GenerateCA(caOpts)
+	if err != nil {
+		return "", "", fmt.Errorf("Error generating new CA: %w", err)
+	}
 
-		privateKeyFromVar = string(privateKeyFromVarBytes)
-		publicKeyFromVar = string(publicKeyFromVarBytes)
+	return privateKey, publicKey, nil
+}
+
+func (h *tlsHook) useExistingCA(existingCAData structs.VariablesReadResponse, opts setTlsOpts) (string, string, error) {
+	privateKeyFromVar, publicKeyFromVar, err := decodeKeys(existingCAData.Data)
+	if err != nil {
+		return "", "", err
 	}
 
 	if privateKeyFromVar != "" && publicKeyFromVar != "" {
 		return privateKeyFromVar, publicKeyFromVar, nil
 	}
 
-	return "", "", errors.New("Could not get or generate CA keys")
+	return "", "", errors.New("could not get or generate CA keys")
+}
+
+func (h *tlsHook) writeCAToVariable(privateKey, publicKey string, opts setTlsOpts) (string, string, error) {
+	var Variable structs.VariableDecrypted
+	Variable.Path = "tls"
+	Variable.Items = structs.VariableItems{
+		"private-key": base64.StdEncoding.EncodeToString([]byte(privateKey)),
+		"public-key":  base64.StdEncoding.EncodeToString([]byte(publicKey)),
+	}
+	Variable.ModifyIndex = 0
+
+	args := structs.VariablesApplyRequest{
+		Op:  structs.VarOpCAS,
+		Var: &Variable,
+		WriteRequest: structs.WriteRequest{
+			Region:    opts.Region,
+			Namespace: opts.Namespace,
+		},
+	}
+
+	fmt.Println("XKCD - ATTEMPTING WRITE")
+	var out structs.VariablesApplyResponse
+	if err := h.rpcer.RPC(structs.VariablesApplyRPCMethod, &args, &out); err != nil {
+		if strings.Contains(err.Error(), "cas error:") && out.Conflict != nil {
+			fmt.Println("XKCD - HAS CONFLICT BUT NO OUTPUT")
+			return "", "", fmt.Errorf("Conflicting value: %w", err)
+		}
+
+		// TODO: I THINK THERE IS A BUG HERE WITH THE CONDITIONS WHERE THIS IS HIT
+		if out.Conflict != nil {
+			fmt.Println("XKCD - USING THE CONFLICT VALUE")
+			return decodeKeys(out.Conflict)
+		}
+
+		fmt.Println("XKCD - SOME ERROR")
+		return "", "", fmt.Errorf("Some write error: %w", err)
+	}
+
+	if out.Conflict != nil {
+		fmt.Println("XKCD - USING THE CONFLICT VALUE - NO ERROR")
+		return decodeKeys(out.Conflict)
+	}
+
+	fmt.Println("XKCD - PROPERLY WRITTEN AND USING!")
+	return decodeKeys(out.Output)
+}
+
+func decodeKeys(variableData *structs.VariableDecrypted) (string, string, error) {
+	privateKeyFromVarBase64 := variableData.Items["private-key"]
+	privateKeyFromVarBytes, err := base64.StdEncoding.DecodeString(privateKeyFromVarBase64)
+	if err != nil {
+		return "", "", fmt.Errorf("Error decoding base64 private CA key: %w", err)
+	}
+
+	publicKeyFromVarBase64 := variableData.Items["public-key"]
+	publicKeyFromVarBytes, err := base64.StdEncoding.DecodeString(publicKeyFromVarBase64)
+	if err != nil {
+		return "", "", fmt.Errorf("Error decoding base64 public CA key: %w", err)
+	}
+
+	privateKeyFromVar := string(privateKeyFromVarBytes)
+	publicKeyFromVar := string(publicKeyFromVarBytes)
+
+	return privateKeyFromVar, publicKeyFromVar, nil
 }
