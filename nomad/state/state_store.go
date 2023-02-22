@@ -6034,6 +6034,7 @@ func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint6
 	// Update the Create/Modify time
 	token.CreateIndex = index
 	token.ModifyIndex = index
+	token.SetHash()
 
 	// Insert the token
 	if err := txn.Insert("acl_token", token); err != nil {
