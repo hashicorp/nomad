@@ -176,7 +176,6 @@ func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey stri
 func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
 	path := "tls"
 
-	// TODO: Pass in the namespace - this is important :)
 	args := structs.VariablesReadRequest{
 		Path: path,
 		QueryOptions: structs.QueryOptions{
@@ -197,7 +196,7 @@ func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
 	}
 
 	if out.Data == nil {
-		fmt.Println("XKCD - NO DATA SO CREATING A CA")
+		// fmt.Println("XKCD - NO DATA SO CREATING A CA")
 		privateKey, publicKey, err := h.createNewCA(opts)
 		if err != nil {
 			return "", "", err
@@ -206,7 +205,7 @@ func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
 		// May overwrite privateKey & publicKey if there is a conflict
 		return h.writeCAToVariable(privateKey, publicKey, opts)
 	} else {
-		fmt.Println("XKCD - DATA EXISTS, SO USING OLD CA")
+		// fmt.Println("XKCD - DATA EXISTS, SO USING OLD CA")
 		return h.useExistingCA(out, opts)
 	}
 }
@@ -215,8 +214,8 @@ func (h *tlsHook) createNewCA(opts setTlsOpts) (string, string, error) {
 	caOpts := tlsutil.CAOpts{
 		Name:                fmt.Sprintf("internal-nomad-ca-%s-%s", opts.Namespace, opts.Region),
 		Days:                9999,
-		Domain:              "*",
-		PermittedDNSDomains: []string{"*"},
+		Domain:              "nomad",
+		PermittedDNSDomains: []string{},
 	}
 
 	publicKey, privateKey, err := tlsutil.GenerateCA(caOpts)
@@ -258,30 +257,30 @@ func (h *tlsHook) writeCAToVariable(privateKey, publicKey string, opts setTlsOpt
 		},
 	}
 
-	fmt.Println("XKCD - ATTEMPTING WRITE")
+	// fmt.Println("XKCD - ATTEMPTING WRITE")
 	var out structs.VariablesApplyResponse
 	if err := h.rpcer.RPC(structs.VariablesApplyRPCMethod, &args, &out); err != nil {
 		if strings.Contains(err.Error(), "cas error:") && out.Conflict != nil {
-			fmt.Println("XKCD - HAS CONFLICT BUT NO OUTPUT")
-			return "", "", fmt.Errorf("Conflicting value: %w", err)
+			// fmt.Println("XKCD - HAS CONFLICT BUT NO OUTPUT")
+			return "", "", fmt.Errorf("conflicting value: %w", err)
 		}
 
 		// TODO: I THINK THERE IS A BUG HERE WITH THE CONDITIONS WHERE THIS IS HIT
 		if out.Conflict != nil {
-			fmt.Println("XKCD - USING THE CONFLICT VALUE")
+			// fmt.Println("XKCD - USING THE CONFLICT VALUE")
 			return decodeKeys(out.Conflict)
 		}
 
-		fmt.Println("XKCD - SOME ERROR")
-		return "", "", fmt.Errorf("Some write error: %w", err)
+		// fmt.Println("XKCD - SOME ERROR")
+		return "", "", fmt.Errorf("some write error: %w", err)
 	}
 
 	if out.Conflict != nil {
-		fmt.Println("XKCD - USING THE CONFLICT VALUE - NO ERROR")
+		// fmt.Println("XKCD - USING THE CONFLICT VALUE - NO ERROR")
 		return decodeKeys(out.Conflict)
 	}
 
-	fmt.Println("XKCD - PROPERLY WRITTEN AND USING!")
+	// fmt.Println("XKCD - PROPERLY WRITTEN AND USING!")
 	return decodeKeys(out.Output)
 }
 
