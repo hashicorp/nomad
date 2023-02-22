@@ -3490,6 +3490,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	vs = slurp(iter)
 	require.False(t, vs[0].HasFreeWriteClaims())
 
+	claim0 = claim0.Copy()
 	claim0.Mode = u
 	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
 	require.NoError(t, err)
@@ -3520,6 +3521,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// release claims to unblock deregister
 	index++
+	claim0 = claim0.Copy()
 	claim0.State = structs.CSIVolumeClaimStateReadyToFree
 	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
 	require.NoError(t, err)
@@ -3577,7 +3579,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		require.Equal(t, counts.nodesHealthy, plug.NodesHealthy, "nodes healthy")
 		require.Equal(t, counts.controllersExpected, plug.ControllersExpected, "controllers expected")
 		require.Equal(t, counts.nodesExpected, plug.NodesExpected, "nodes expected")
-		return plug
+		return plug.Copy()
 	}
 
 	type allocUpdateKind int

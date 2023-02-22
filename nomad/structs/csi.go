@@ -254,6 +254,16 @@ type CSIVolumeClaim struct {
 	State          CSIVolumeClaimState
 }
 
+func (c *CSIVolumeClaim) Copy() *CSIVolumeClaim {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(CSIVolumeClaim)
+	*nc = *c
+	return nc
+}
+
 type CSIVolumeClaimState int
 
 const (
