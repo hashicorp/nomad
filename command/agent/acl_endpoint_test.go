@@ -1015,6 +1015,7 @@ func TestHTTPServer_ACLRoleSpecificRequest(t *testing.T) {
 
 				// Update the role policy list and make the request via the
 				// HTTP API.
+				mockACLRole = mockACLRole.Copy()
 				mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: "mocked-test-policy-1"}}
 
 				req, err = http.NewRequest(http.MethodPost, url, encodeReq(mockACLRole))
@@ -1315,6 +1316,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 
 				// Update the auth-method and make the request via the HTTP
 				// API.
+				mockACLAuthMethod = mockACLAuthMethod.Copy()
 				mockACLAuthMethod.MaxTokenTTL = 3600 * time.Hour
 				mockACLAuthMethod.SetHash()
 
@@ -1640,6 +1642,7 @@ func TestHTTPServer_ACLBindingRuleSpecificRequest(t *testing.T) {
 
 				// Update the binding rule and make the request via the HTTP
 				// API.
+				result = result.Copy()
 				result.Description = "new description"
 
 				req, err = http.NewRequest(http.MethodPost, url, encodeReq(result))
