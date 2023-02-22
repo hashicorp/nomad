@@ -44,5 +44,28 @@
         @awaitingConfirmation={{this.startJob.isRunning}}
         @onConfirm={{perform this.startJob}} />
     {{/if}}
+    {{log "JOB ACTIONS" this.job this.job.actions.length}}
+    {{#if this.job.actions.length}}
+      <div class="actions">
+        {{#each this.job.actions as |job-action|}}
+        <button type="button"
+          class="button is-small is-outlined is-{{job-action.name}}"
+          {{on "click" (action job-action.perform)}}
+          disabled={{job-action.isRunning}}
+        >
+          <span>{{job-action.name}}</span>
+        </button>
+          {{!-- <TwoStepButton
+            data-test-action={{action.name}}
+            @alignRight={{true}}
+            @idleText={{action.name}}
+            @cancelText="Cancel"
+            @confirmText="Yes, {{action.name}}"
+            @confirmationMessage={{action.confirmationMessage}}
+            @awaitingConfirmation={{action.isRunning}}
+            @onConfirm={{action.perform}} /> --}}
+        {{/each}}
+        </div>
+    {{/if}}
   </div>
 </h1>

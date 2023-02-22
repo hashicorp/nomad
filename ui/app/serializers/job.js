@@ -52,6 +52,17 @@ export default class JobSerializer extends ApplicationSerializer {
       });
     }
 
+    // If the hash has actions, push them into the store as action models.
+    if (hash.Actions) {
+      this.store.pushPayload('action', {
+        actions: hash.Actions.map((action) => {
+          action.ID = action.Name;
+          action.JobID = hash.ID;
+          return action;
+        }),
+      });
+    }
+
     return super.normalize(typeHash, hash);
   }
 
