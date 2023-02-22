@@ -149,6 +149,9 @@ type TaskExitedHook interface {
 
 	// Exited is called after a task exits and may or may not be restarted.
 	// Prestart may or may not have been called.
+	// Hooks that perform background work may need to implement this method to
+	// stop work when non-sidecar prestart and poststart exit, otherwise it
+	// will keep running until the job is stopped and the Stop hook is called.
 	//
 	// The context is cancelled if the task is killed.
 	Exited(context.Context, *TaskExitedRequest, *TaskExitedResponse) error

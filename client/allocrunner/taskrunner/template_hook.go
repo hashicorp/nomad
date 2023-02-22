@@ -171,6 +171,25 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	return unblock, nil
 }
 
+// Exited runs when the task exits, but it may run again on restart.
+// Stop the template manager to prevent updates to templates of exited tasks.
+func (h *templateHook) Exited(ctx context.Context, req *interfaces.TaskExitedRequest, resp *interfaces.TaskExitedResponse) error {
+	h.managerLock.Lock()
+	defer h.managerLock.Unlock()
+
+	// Shutdown any created template
+	if h.templateManager != nil {
+		h.templateManager.Stop()
+
+		// Set templateManager to nil so it's recreated by Prestart on restart.
+		h.templateManager = nil
+	}
+
+	return nil
+}
+
+// Stop is called when the tasks exits and will not start again. It is the only
+// hook guaranteed to be called so make sure the template is cleaned-up.
 func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
+	arinterfaces "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -295,6 +297,107 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 	check, ok = actual[expected]
 	require.True(t, ok)
 	require.Equal(t, "my-job-backend-check", check.check.Name)
+}
+
+func TestTaskRunner_ScriptCheckHook_StartRestartStop(t *testing.T) {
+	ci.Parallel(t)
+
+	logger := testlog.HCLogger(t)
+	consulClient := regMock.NewServiceRegistrationHandler(logger)
+	exec, cancel := newBlockingScriptExec()
+	defer cancel()
+
+	alloc := mock.ConnectAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	checkInterval := time.Duration(testutil.TestMultiplier()) * time.Second
+	task.Services[0].Checks[0].Interval = checkInterval
+	alloc.Job.Canonicalize() // need to re-canonicalize b/c the mock already did it
+
+	env := taskenv.NewBuilder(mock.Node(), alloc, task, "global").SetHookEnv(
+		"script_check",
+		map[string]string{"SVC_NAME": "backend"}).Build()
+
+	hook := newScriptCheckHook(scriptCheckHookConfig{
+		alloc:        alloc,
+		task:         task,
+		consul:       consulClient,
+		logger:       logger,
+		shutdownWait: time.Hour, // TTLUpdater will never be called
+	})
+
+	// Simulate the task starting by running the Prestart and Poststart hooks.
+	prestartReq := &arinterfaces.TaskPrestartRequest{
+		Task: task,
+	}
+	err := hook.Prestart(context.Background(), prestartReq, nil)
+	require.NoError(t, err)
+
+	poststartReq := &arinterfaces.TaskPoststartRequest{
+		DriverExec: exec,
+		TaskEnv:    env,
+	}
+	err = hook.Poststart(context.Background(), poststartReq, nil)
+	require.NoError(t, err)
+
+	// Verify script runs.
+	select {
+	case <-exec.running:
+	case <-time.After(3 * checkInterval):
+		t.Fatalf("timeout waiting for check to run")
+	}
+
+	// Simulate the task being completed, but not stopped, by running the Exited hook.
+	hook.Exited(context.Background(), nil, nil)
+
+	// Verify script doesn't run anymore.
+	// Ignore one execution due to potental timing issues.
+	ran := false
+	for {
+		select {
+		case <-exec.running:
+			if ran {
+				t.Fatalf("unexpected script execution")
+			}
+			ran = true
+			continue
+		case <-time.After(3 * checkInterval):
+		}
+		break
+	}
+
+	// Simulate a task restart by re-running the Prestart and Poststart hooks.
+	err = hook.Prestart(context.Background(), prestartReq, nil)
+	require.NoError(t, err)
+	err = hook.Poststart(context.Background(), poststartReq, nil)
+	require.NoError(t, err)
+
+	// Verify script runs again.
+	select {
+	case <-exec.running:
+	case <-time.After(3 * checkInterval):
+		t.Fatalf("timeout waiting for check to run")
+	}
+
+	// Simulate a task shutdown by running the Exited and Stop hooks.
+	hook.Exited(context.Background(), nil, nil)
+	hook.Stop(context.Background(), nil, nil)
+
+	// Verify script doesn't run anymore.
+	// Ignore one execution due to potental timing issues.
+	ran = false
+	for {
+		select {
+		case <-exec.running:
+			if ran {
+				t.Fatalf("unexpected script execution")
+			}
+			ran = true
+			continue
+		case <-time.After(3 * checkInterval):
+		}
+		break
+	}
 }
 
 func TestScript_associated(t *testing.T) {

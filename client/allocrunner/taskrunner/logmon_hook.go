@@ -193,6 +193,21 @@ func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPr
 	return nil
 }
 
+// Exited runs when the task exits, but it may run again on restart.
+// Stop the logmong process but leave any final reattach cleanup for Stop.
+func (h *logmonHook) Exited(_ context.Context, _ *interfaces.TaskExitedRequest, _ *interfaces.TaskExitedResponse) error {
+	var err error
+	if h.logmon != nil {
+		err = h.logmon.Stop()
+	}
+
+	if h.logmonPluginClient != nil {
+		h.logmonPluginClient.Kill()
+	}
+
+	return err
+}
+
 func (h *logmonHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, _ *interfaces.TaskStopResponse) error {
 
 	// It's possible that Stop was called without calling Prestart on agent

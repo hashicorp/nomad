@@ -55,10 +55,10 @@ func TestTaskRunner_LogmonHook_LoadReattach(t *testing.T) {
 	require.Equal(t, orig, cfg)
 }
 
-// TestTaskRunner_LogmonHook_StartStop asserts that a new logmon is created the
-// first time Prestart is called, reattached to on subsequent restarts, and
-// killed on Stop.
-func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
+// TestTaskRunner_LogmonHook_StartRestartStop asserts that a new logmon is
+// created the first time Prestart is called, reattached to on subsequent
+// restarts, killed on Exited, restarted on restart, and killed on Stop.
+func TestTaskRunner_LogmonHook_StartRestartStop(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -93,6 +93,17 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 	require.False(t, resp.Done)
 	origHookData = resp.State[logmonReattachKey]
 	require.Equal(t, origHookData, req.PreviousState[logmonReattachKey])
+
+	// Runnig exited should shutdown logmon
+	exitReq := interfaces.TaskExitedRequest{}
+	require.NoError(t, hook.Exited(context.Background(), &exitReq, nil))
+
+	// Restarting the task should run logmon again
+	req.PreviousState = map[string]string{
+		logmonReattachKey: origHookData,
+	}
+	require.NoError(t, hook.Prestart(context.Background(), &req, &resp))
+	require.False(t, resp.Done)
 
 	// Running stop should shutdown logmon
 	stopReq := interfaces.TaskStopRequest{
