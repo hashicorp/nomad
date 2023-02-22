@@ -806,6 +806,7 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Update TG to add a new service (inplace)
+	job = job.Copy()
 	tg := job.TaskGroups[0]
 	tg.Services = []*structs.Service{
 		{
@@ -919,6 +920,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
+	job = job.Copy()
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
 	resource := &structs.Resources{CPU: 737}

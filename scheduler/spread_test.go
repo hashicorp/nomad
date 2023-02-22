@@ -60,10 +60,6 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
-		t.Fatalf("failed to UpsertAllocs: %v", err)
-	}
-
 	// Create spread target of 80% in dc1
 	// Implicitly, this means 20% in dc2
 	spread := &structs.Spread{
@@ -77,6 +73,11 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		},
 	}
 	tg.Spreads = []*structs.Spread{spread}
+
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
+		t.Fatalf("failed to UpsertAllocs: %v", err)
+	}
+
 	spreadIter := NewSpreadIterator(ctx, static)
 	spreadIter.SetJob(job)
 	spreadIter.SetTaskGroup(tg)
@@ -222,10 +223,6 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
-		t.Fatalf("failed to UpsertAllocs: %v", err)
-	}
-
 	spread1 := &structs.Spread{
 		Weight:    100,
 		Attribute: "${node.datacenter}",
@@ -257,6 +254,11 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 	}
 
 	tg.Spreads = []*structs.Spread{spread1, spread2}
+
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
+		t.Fatalf("failed to UpsertAllocs: %v", err)
+	}
+
 	spreadIter := NewSpreadIterator(ctx, static)
 	spreadIter.SetJob(job)
 	spreadIter.SetTaskGroup(tg)

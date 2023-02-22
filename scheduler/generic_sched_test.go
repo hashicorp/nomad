@@ -3236,6 +3236,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	for i := 0; i < 4; i++ {
 		out, _ := h.State.AllocByID(ws, allocs[i].ID)
+		out = out.Copy()
 		out.ClientStatus = structs.AllocClientStatusRunning
 		require.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{out}))
 	}
@@ -6352,6 +6353,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	}
 
 	// Update the job to 5 instances
+	job = job.Copy()
 	job.TaskGroups[0].Count = 5
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
 
