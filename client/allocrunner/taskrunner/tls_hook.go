@@ -24,8 +24,8 @@ import (
 const (
 	// tlsCertPubKeyFile is the name of the file holding the TLS cert public key
 	tlsCertPubKeyFile = "nomad_tls_public_key.pem"
-	// tlsCertPrviKeyFile is the name of the file holding the TLS cert private key
-	tlsCertPrviKeyFile = "nomad_tls_private_key.pem"
+	// tlsCertPrivKeyFile is the name of the file holding the TLS cert private key
+	tlsCertPrivKeyFile = "nomad_tls_private_key.pem"
 	// tlsCAPubKeyFile is the name of the file holding the CA's public key
 	tlsCAPubKeyFile = "nomad_tls_ca_public_key.pem"
 )
@@ -72,7 +72,7 @@ func (h *tlsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	h.certPubKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertPubKeyFile)
-	h.certPrivKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertPrviKeyFile)
+	h.certPrivKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertPrivKeyFile)
 	h.caPubKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCAPubKeyFile)
 
 	opts := setTlsOpts{
