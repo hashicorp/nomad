@@ -207,7 +207,7 @@ func (tx *checksummedTxn) Insert(table string, obj any) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("inserting checksum on", table, hash)
 	err = tx.Txn.Insert(TableChecksums, Checksum{Table: table, Hash: hash})
 	if err != nil {
 		return err
@@ -239,6 +239,7 @@ func (tx *checksummedTxn) verifyChecksum(table string, obj any) error {
 	if err != nil {
 		return fmt.Errorf(errMsgBadHash, table, err)
 	}
+	fmt.Println("verifying checksum on", table, hash)
 	raw, err := tx.Txn.First(TableChecksums, indexID, table, hash)
 	if err != nil {
 		return err // unreachable

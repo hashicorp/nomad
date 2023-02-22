@@ -366,7 +366,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	if err != nil {
 		return err
 	}
-
 	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted)
 	if err != nil {
 		return err
@@ -900,7 +899,7 @@ func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node 
 
 	err := upsertNodeTxn(txn, index, node)
 	if err != nil {
-		return nil
+		return err
 	}
 	return txn.Commit()
 }
@@ -1708,16 +1707,12 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 			return fmt.Errorf("job lookup failed: %v", err)
 		}
 		if updated != nil {
-			job = updated.(*structs.Job)
+			job = updated.(*structs.Job).Copy()
 		}
 	}
 
 	if err := s.updateSummaryWithJob(index, job, txn); err != nil {
 		return fmt.Errorf("unable to create job summary: %v", err)
-	}
-
-	if err := s.upsertJobVersion(index, job, txn); err != nil {
-		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
 	if err := s.updateJobScalingPolicies(index, job, txn); err != nil {
@@ -1730,6 +1725,13 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 
 	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
 		return fmt.Errorf("unable to update job csi plugins: %v", err)
+	}
+
+	// anti-corruption note: upserting the job version must come last, otherwise
+	// changes from scaling policies, recommendations, or plugins will cause a
+	// checksum mismatch between the job and job_versions table
+	if err := s.upsertJobVersion(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
 	// Insert the job

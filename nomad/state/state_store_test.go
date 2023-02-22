@@ -177,8 +177,8 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	}
 
 	require := require.New(t)
-	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 999, job))
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 999, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 
 	// modify job and ensure that stopped and preempted alloc point to original Job
 	mJob := job.Copy()
@@ -3513,7 +3513,6 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{vol0}, true)
 	require.Error(t, err, "volume force deregistered while in use")
-
 	// we use the ID, not a prefix
 	index++
 	err = state.CSIVolumeDeregister(index, ns, []string{"fo"}, true)
@@ -4565,8 +4564,8 @@ func TestStateStore_DeleteEval_UserInitiated(t *testing.T) {
 
 	// Upsert a scheduler config object, so we have something to check and
 	// modify.
-	schedulerConfig := structs.SchedulerConfiguration{PauseEvalBroker: false}
-	require.NoError(t, testState.SchedulerSetConfig(10, &schedulerConfig))
+	schedulerConfig := &structs.SchedulerConfiguration{PauseEvalBroker: false}
+	require.NoError(t, testState.SchedulerSetConfig(10, schedulerConfig))
 
 	// Generate some mock evals and upsert these into state.
 	mockEval1 := mock.Eval()
@@ -4582,8 +4581,9 @@ func TestStateStore_DeleteEval_UserInitiated(t *testing.T) {
 
 	// Pause the eval broker on the scheduler config, and try deleting the
 	// evals again.
+	schedulerConfig = schedulerConfig.Copy()
 	schedulerConfig.PauseEvalBroker = true
-	require.NoError(t, testState.SchedulerSetConfig(30, &schedulerConfig))
+	require.NoError(t, testState.SchedulerSetConfig(30, schedulerConfig))
 
 	require.NoError(t, testState.DeleteEval(40, mockEvalIDs, []string{}, true))
 
@@ -5172,13 +5172,17 @@ func TestStateStore_EvalsRelatedToID(t *testing.T) {
 		require.NoError(t, err)
 
 		// Update an eval off the chain and make sure watchset doesn't fire.
+		e7 = e7.Copy()
 		e7.Status = structs.EvalStatusComplete
-		state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{e7})
+		err = state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{e7})
+		require.NoError(t, err)
 		require.False(t, watchFired(ws))
 
 		// Update an eval in the chain and make sure watchset does fire.
+		e3 = e3.Copy()
 		e3.Status = structs.EvalStatusComplete
-		state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{e3})
+		err = state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{e3})
+		require.NoError(t, err)
 		require.True(t, watchFired(ws))
 	})
 }
@@ -6388,7 +6392,8 @@ func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
 
 	// Make the summary incorrect in the state store
 	summary, err := state.JobSummaryByID(nil, job1.Namespace, job1.ID)
-	require.Nil(err)
+	must.NoError(t, err)
+	summary = summary.Copy()
 
 	summary.Children = nil
 	summary.Summary = make(map[string]structs.TaskGroupSummary)
@@ -6404,7 +6409,8 @@ func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
 	ws := memdb.NewWatchSet()
 
 	// Verify parent summary is corrected
-	summary, _ = state.JobSummaryByID(ws, alloc.Namespace, job1.ID)
+	summary, err = state.JobSummaryByID(ws, alloc.Namespace, job1.ID)
+	must.NoError(t, err)
 	expectedSummary := structs.JobSummary{
 		JobID:     job1.ID,
 		Namespace: job1.Namespace,
@@ -7780,6 +7786,8 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	d.TaskGroups["web"].DesiredCanaries = 2
 	require.Nil(state.UpsertDeployment(2, d))
 
+	d = d.Copy()
+
 	// Create a set of allocations
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
@@ -7879,6 +7887,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
+	d = d.Copy()
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: pointer.Of(true),
@@ -7892,9 +7901,9 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, state.UpsertDeployment(3, d))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4,
+		[]*structs.Allocation{c1, c2}))
 
 	// Create an eval
 	e := mock.Eval()
@@ -7907,10 +7916,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	must.NoError(t, state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 5, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
@@ -7974,6 +7980,8 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
+
+	d = d.Copy()
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: pointer.Of(true),
@@ -9649,6 +9657,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	require.NotEmpty(p1.ID)
 
 	// update the job
+	job = job.Copy()
 	job.Meta["new-meta"] = "new-value"
 	newIndex += 100
 	err = state.UpsertJob(structs.MsgTypeTestSetup, newIndex, job)
@@ -9696,6 +9705,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	// update the job with the updated scaling policy; make sure to use a different object
 	newPolicy := p1.Copy()
 	newPolicy.Policy["new-field"] = "new-value"
+	job = job.Copy()
 	job.TaskGroups[0].Scaling = newPolicy
 	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, oldIndex+100, job))
 	require.True(watchFired(ws), "watch should have fired")
@@ -9797,6 +9807,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 	// Stop the job
 	job, err = state.JobByID(nil, job.Namespace, job.ID)
 	require.NoError(err)
+	job = job.Copy()
 	job.Stop = true
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1200, job)
 	require.NoError(err)
@@ -9844,6 +9855,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	_, err = state.ScalingPolicies(ws)
 	require.NoError(err)
 	// Unstop this job, say you'll run it again...
+	job = job.Copy()
 	job.Stop = false
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 1100, job)
 	require.NoError(err)
