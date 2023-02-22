@@ -126,9 +126,11 @@ type checksummedTxn struct {
 
 // Delete ... TODO
 func (tx *checksummedTxn) Delete(table string, obj any) error {
-	if err := tx.verifyChecksum(table, obj); err != nil {
-		return err
-	}
+	// TODO: figure out how to checksum Delete... the object we're deleting may be a mutated copy, but we're just getting its ID and then deleting *that*
+
+	// if err := tx.verifyChecksum(table, obj); err != nil {
+	// 	return err
+	// }
 	return tx.Txn.Delete(table, obj)
 }
 
