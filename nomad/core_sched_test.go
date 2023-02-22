@@ -1103,6 +1103,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	}
 
 	// Update the second eval to be terminal
+	eval2 = eval2.Copy()
 	eval2.Status = structs.EvalStatusComplete
 	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
 	if err != nil {
@@ -1247,8 +1248,9 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	}
 
 	// Update the second alloc to be terminal
+	alloc2 = outA2.Copy()
 	alloc2.ClientStatus = structs.AllocClientStatusComplete
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc2})
+	err = store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1259,6 +1261,10 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	core = NewCoreScheduler(s1, snap)
+
+	a, err := snap.AllocByID(ws, alloc2.ID)
+	must.NoError(t, err)
+	must.Eq(t, structs.AllocClientStatusComplete, a.ClientStatus)
 
 	// Attempt the GC
 	gc = s1.coreJobEval(structs.CoreJobJobGC, 2000)

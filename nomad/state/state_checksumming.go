@@ -169,7 +169,7 @@ func (tx *checksummedTxn) GetReverse(table, index string, args ...any) (memdb.Re
 func (tx *checksummedTxn) First(table, index string, args ...any) (any, error) {
 	obj, err := tx.Txn.First(table, index, args...)
 	if err != nil { // unreachable
-		return obj, err
+		return nil, err
 	}
 	if obj == nil {
 		return nil, nil
