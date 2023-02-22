@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -47,6 +47,12 @@ type tlsHook struct {
 	rpcer RPCer
 }
 
+type setTlsOpts struct {
+	Namespace string
+	Region    string
+	Resources *structs.AllocatedTaskResources
+}
+
 func newTlsHook(tr *TaskRunner, rpcer RPCer, logger log.Logger) *tlsHook {
 	h := &tlsHook{
 		tr:       tr,
@@ -68,20 +74,32 @@ func (h *tlsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 	h.certPrivKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCertPrviKeyFile)
 	h.caPubKeyPath = filepath.Join(req.TaskDir.SecretsDir, tlsCAPubKeyFile)
 
-	return h.setTlsFiles(ctx, req.TaskResources)
+	opts := setTlsOpts{
+		Namespace: req.Alloc.Namespace,
+		Region:    req.Alloc.Job.Region,
+		Resources: req.TaskResources,
+	}
+
+	return h.setTlsFiles(ctx, opts)
 }
 
 func (h *tlsHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	return h.setTlsFiles(ctx, req.TaskResources)
+	opts := setTlsOpts{
+		Namespace: req.Alloc.Namespace,
+		Region:    req.Alloc.Job.Region,
+		Resources: req.TaskResources,
+	}
+
+	return h.setTlsFiles(ctx, opts)
 }
 
 // setTlsFiles adds the TLS files to the task's environment and writes it to a
 // file if requested by the jobsepc.
-func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedTaskResources) error {
-
+func (h *tlsHook) setTlsFiles(ctx context.Context, opts setTlsOpts) error {
+	resources := opts.Resources
 	// TODO: Somehow get the key files here!
 	// THIS IS HOW THE SIGNED IDENTITIES ARE FETCHED
 
@@ -90,7 +108,7 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 	// 	return nil
 	// }
 
-	caPrivateKey, caPubKey, _ := h.getCaKeys()
+	caPrivateKey, caPubKey, _ := h.getCaKeys(opts)
 
 	signer, err := tlsutil.ParseSigner(caPrivateKey)
 	if err != nil {
@@ -154,13 +172,16 @@ func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey stri
 	return nil
 }
 
-func (h *tlsHook) getCaKeys() (string, string, error) {
-	path := "tls/testing"
+func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
+	path := "tls"
 
 	// TODO: Pass in the namespace - this is important :)
 	args := structs.VariablesReadRequest{
-		Path:         path,
-		QueryOptions: structs.QueryOptions{Namespace: "default", Region: "global"},
+		Path: path,
+		QueryOptions: structs.QueryOptions{
+			Namespace: opts.Namespace,
+			Region:    opts.Region,
+		},
 	}
 	var out structs.VariablesReadResponse
 
@@ -177,9 +198,31 @@ func (h *tlsHook) getCaKeys() (string, string, error) {
 	var privateKeyFromVar, publicKeyFromVar string
 
 	if out.Data == nil {
-		fmt.Println("XKCD - IT WAS NIL")
+		fmt.Println("XKCD - TIME TO CREATE A CA!")
+
+		caOpts := tlsutil.CAOpts{
+			Name:                fmt.Sprintf("internal-nomad-ca-%s-%s", opts.Namespace, opts.Region),
+			Days:                9999,
+			Domain:              "*",
+			PermittedDNSDomains: []string{"*"},
+		}
+
+		ca, pk, err := tlsutil.GenerateCA(caOpts)
+		if err != nil {
+			return "", "", fmt.Errorf("Error generating new CA: %w", err)
+		}
+
+		fmt.Println("XKCD - CREATED A CA BUT NOT YET SAVING IT!")
+		fmt.Println("PUBLIC CA:")
+		fmt.Println(ca)
+
+		fmt.Println("PRIVATE KEY:")
+		fmt.Println(pk)
+
+		return pk, ca, nil
+
 	} else {
-		fmt.Println("XKCD - GOT DATA!!!")
+		fmt.Println("XKCD - USING AN EXISTING CA")
 
 		privateKeyFromVarBase64 := out.Data.Items["private-key"]
 		privateKeyFromVarBytes, err := base64.StdEncoding.DecodeString(privateKeyFromVarBase64)
@@ -197,28 +240,9 @@ func (h *tlsHook) getCaKeys() (string, string, error) {
 		publicKeyFromVar = string(publicKeyFromVarBytes)
 	}
 
-	if privateKeyFromVar != "" {
-		fmt.Println("XKCD - RETURNING THE VALUE FROM THE VARIABLE")
-		fmt.Println("XKCD - Private Key:")
-		fmt.Println(privateKeyFromVar)
-		fmt.Println("XKCD - Public Key:")
-		fmt.Println(publicKeyFromVar)
-
+	if privateKeyFromVar != "" && publicKeyFromVar != "" {
 		return privateKeyFromVar, publicKeyFromVar, nil
 	}
 
-	privateKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca-key.pem"
-	caPrivateKey, err := os.ReadFile(privateKeyFile)
-	if err != nil {
-		return "", "", fmt.Errorf("Error reading CA priv key: %w", err)
-	}
-
-	pubKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca.pem"
-	caPubKey, err := os.ReadFile(pubKeyFile)
-	if err != nil {
-		return "", "", fmt.Errorf("Error reading CA pub key: %w", err)
-	}
-
-	fmt.Println("XKCD - RETURNING THE DEFAULT VALUE")
-	return string(caPrivateKey), string(caPubKey), nil
+	return "", "", errors.New("Could not get or generate CA keys")
 }
