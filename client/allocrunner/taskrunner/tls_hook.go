@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
@@ -89,29 +90,6 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, resources *structs.AllocatedT
 	// 	return nil
 	// }
 
-	path := "tls/testing"
-
-	args := structs.VariablesReadRequest{
-		Path: path,
-	}
-	var out structs.VariablesReadResponse
-
-	err := h.rpcer.RPC(
-		structs.VariablesReadRPCMethod,
-		&args,
-		&out,
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	if out.Data == nil {
-		fmt.Println("XKCD - IT WAS NIL")
-	} else {
-		fmt.Println("XKCD - GOT DATA!!!")
-	}
-
 	caPrivateKey, caPubKey, _ := h.getCaKeys()
 
 	signer, err := tlsutil.ParseSigner(caPrivateKey)
@@ -177,6 +155,58 @@ func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey stri
 }
 
 func (h *tlsHook) getCaKeys() (string, string, error) {
+	path := "tls/testing"
+
+	// TODO: Pass in the namespace - this is important :)
+	args := structs.VariablesReadRequest{
+		Path:         path,
+		QueryOptions: structs.QueryOptions{Namespace: "default", Region: "global"},
+	}
+	var out structs.VariablesReadResponse
+
+	err := h.rpcer.RPC(
+		structs.VariablesReadRPCMethod,
+		&args,
+		&out,
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var privateKeyFromVar, publicKeyFromVar string
+
+	if out.Data == nil {
+		fmt.Println("XKCD - IT WAS NIL")
+	} else {
+		fmt.Println("XKCD - GOT DATA!!!")
+
+		privateKeyFromVarBase64 := out.Data.Items["private-key"]
+		privateKeyFromVarBytes, err := base64.StdEncoding.DecodeString(privateKeyFromVarBase64)
+		if err != nil {
+			return "", "", fmt.Errorf("Error decoding base64 private CA key: %w", err)
+		}
+
+		publicKeyFromVarBase64 := out.Data.Items["public-key"]
+		publicKeyFromVarBytes, err := base64.StdEncoding.DecodeString(publicKeyFromVarBase64)
+		if err != nil {
+			return "", "", fmt.Errorf("Error decoding base64 public CA key: %w", err)
+		}
+
+		privateKeyFromVar = string(privateKeyFromVarBytes)
+		publicKeyFromVar = string(publicKeyFromVarBytes)
+	}
+
+	if privateKeyFromVar != "" {
+		fmt.Println("XKCD - RETURNING THE VALUE FROM THE VARIABLE")
+		fmt.Println("XKCD - Private Key:")
+		fmt.Println(privateKeyFromVar)
+		fmt.Println("XKCD - Public Key:")
+		fmt.Println(publicKeyFromVar)
+
+		return privateKeyFromVar, publicKeyFromVar, nil
+	}
+
 	privateKeyFile := "/Users/mike/Code/nomad/nomad-agent-ca-key.pem"
 	caPrivateKey, err := os.ReadFile(privateKeyFile)
 	if err != nil {
@@ -189,5 +219,6 @@ func (h *tlsHook) getCaKeys() (string, string, error) {
 		return "", "", fmt.Errorf("Error reading CA pub key: %w", err)
 	}
 
+	fmt.Println("XKCD - RETURNING THE DEFAULT VALUE")
 	return string(caPrivateKey), string(caPubKey), nil
 }
