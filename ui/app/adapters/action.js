@@ -22,7 +22,10 @@ export default class ActionAdapter extends ApplicationAdapter {
     console.log('socket?', socket, this.token.secret);
     let adapter = new ExecSocketAction(socket, this.token.secret);
     console.log('adapter', adapter);
-    adapter.handleData(args.join(' '));
+    // TODO: HACKY WAITER
+    setTimeout(() => {
+      adapter.handleData(args.join(' '));
+    }, 500);
 
     // console.log('url', url);
     // return this.ajax(url, 'POST', {
