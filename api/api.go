@@ -278,6 +278,13 @@ func defaultHttpClient() *http.Client {
 		MinVersion: tls.VersionTLS12,
 	}
 
+	_, err := os.Stat("/secrets/api.sock")
+	if err == nil && os.Getenv("NOMAD_ADDR") == "" {
+		transport.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
+			return net.Dial("unix", "/secrets/api.sock")
+		}
+	}
+
 	// Default to http/1: alloc exec/websocket aren't supported in http/2
 	// well yet: https://github.com/gorilla/websocket/issues/417
 	transport.ForceAttemptHTTP2 = false
