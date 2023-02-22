@@ -23,6 +23,9 @@ export default class ExecSocketXtermAdapter {
     socket.onmessage = (e) => {
       let json = JSON.parse(e.data);
 
+      console.log('oh wow!!!', json.stdout, base64DecodeString(json.stdout.data));
+
+
       // stderr messages will not be produced as the socket is opened with the tty flag
       if (json.stdout && json.stdout.data) {
         terminal.write(base64DecodeString(json.stdout.data));

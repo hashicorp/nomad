@@ -30,6 +30,7 @@ export default class SocketsService extends Service {
         },
       });
     } else {
+      console.log('whats task state', taskState);
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const applicationAdapter = getOwner(this).lookup('adapter:application');
       const prefix = `${
