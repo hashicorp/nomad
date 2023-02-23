@@ -136,6 +136,10 @@ func (h *tlsHook) setUpCircleTls(ctx context.Context, circleName string, opts se
 		return fmt.Errorf("failed to write TLS values: %w", err)
 	}
 
+	if err := h.addToCombinedCAcert(caPubKey); err != nil {
+		return fmt.Errorf("failed to add to combined CA cert: %w", err)
+	}
+
 	return nil
 }
 
@@ -157,6 +161,10 @@ func (h *tlsHook) setUpNamespaceTls(ctx context.Context, opts setTlsOpts) error 
 	// TODO: Make this optional with jobspec config (see identity hook)
 	if err := h.writeTlsValues(dashName, tlsPublicCert, tlsPrivateCert, caPubKey); err != nil {
 		return fmt.Errorf("failed to write TLS values: %w", err)
+	}
+
+	if err := h.writeInitialCombinedCACert(caPubKey); err != nil {
+		return fmt.Errorf("failed to write combined VA cert: %w", err)
 	}
 
 	return nil
@@ -223,6 +231,43 @@ func (h *tlsHook) writeTlsValues(namespaceOrCotName, tlsPublicCert, tlsPrivateCe
 	}
 	if err := users.WriteFileFor(caCertPath, []byte(tlsCAPubKey), h.tr.task.User); err != nil {
 		return fmt.Errorf("failed to write CA public key: %w", err)
+	}
+
+	return nil
+}
+
+// writeToken writes the given token to disk
+func (h *tlsHook) writeInitialCombinedCACert(tlsCAPubKey string) error {
+	caCertDirPath := filepath.Join(h.secretsDir, caCertDir)
+	caCertPath := filepath.Join(caCertDirPath, "combined_ca_public_key.pem")
+
+	if _, err := os.Stat(caCertPath); os.IsNotExist(err) {
+		os.MkdirAll(caCertDirPath, 0700) // Create your file
+	}
+	if err := users.WriteFileFor(caCertPath, []byte(tlsCAPubKey), h.tr.task.User); err != nil {
+		return fmt.Errorf("failed to write combined CA public key: %w", err)
+	}
+
+	return nil
+}
+
+func (h *tlsHook) addToCombinedCAcert(tlsCAPubKey string) error {
+	caCertDirPath := filepath.Join(h.secretsDir, caCertDir)
+	caCertPath := filepath.Join(caCertDirPath, "combined_ca_public_key.pem")
+
+	file, err := os.OpenFile(caCertPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	if err != nil {
+		return fmt.Errorf("cpuld not open file: %w", err)
+	}
+	defer file.Close()
+
+	_, err2 := file.WriteString(tlsCAPubKey)
+
+	if err2 != nil {
+		fmt.Println("Could not write text to global ca key")
+	} else {
+		fmt.Println("Operation successful! Text has been appended to global ca key")
 	}
 
 	return nil
