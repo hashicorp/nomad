@@ -8433,3 +8433,42 @@ func TestJob_GetServiceRegistrations(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkChecksummingRPC_Disabled(b *testing.B) {
+	benchmarkChecksummingRPC(b, false)
+}
+
+func BenchmarkChecksummingRPC_Enabled(b *testing.B) {
+	benchmarkChecksummingRPC(b, true)
+}
+
+func benchmarkChecksummingRPC(b *testing.B, checksumEnabled bool) {
+
+	s1, cleanupS1 := TestServer(b, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+		c.EnableDebugChecksumming = checksumEnabled
+	})
+	defer cleanupS1()
+	codec := rpcClient(b, s1)
+	testutil.WaitForLeader(b, s1.RPC)
+
+	job := mock.Job()
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	for n := 0; n < b.N; n++ {
+		job = job.Copy()
+		job.Version++
+		req.Job = job
+		var resp structs.JobRegisterResponse
+		if err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp); err != nil {
+			b.Fatalf("err: %v", err)
+		}
+
+	}
+}
