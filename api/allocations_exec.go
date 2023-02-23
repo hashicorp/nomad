@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 )
 
@@ -85,10 +84,6 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 		q.Params = make(map[string]string)
 	}
 
-	// if theres an action, look up its command and run it
-	fmt.Println("++> Has an action come in?")
-	fmt.Println(s.action)
-
 	commandBytes, err := json.Marshal(s.command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal command: %W", err)
@@ -113,15 +108,6 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 			return nil, err
 		}
 	}
-
-	fmt.Println("++> looking at conn")
-	spew.Dump(s.command)
-	fmt.Println("+++++++++++")
-	spew.Dump(commandBytes)
-	fmt.Println("+++++++++++")
-	spew.Dump(s.task)
-	fmt.Println("~~~~FIN~~~~")
-
 	return conn, nil
 }
 
@@ -259,11 +245,3 @@ func (s *execSession) startReceiving(ctx context.Context, conn *websocket.Conn) 
 
 	return exitCodeCh, errCh
 }
-
-// func validateActionExists(action string, alloc Allocation) (*Action, error) {
-// 	jobAction := alloc.Job.LookupAction(action)
-// 	if jobAction == nil {
-// 		return nil, fmt.Errorf("could not find action: %s", action)
-// 	}
-// 	return jobAction, nil
-// }

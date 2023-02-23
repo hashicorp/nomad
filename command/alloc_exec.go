@@ -208,11 +208,6 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	// var jobAction api.Action
-	l.Ui.Output((fmt.Sprintf("==> jobAction initialized %s", action)))
-	// spew.Dump(jobAction)
-
-	// jobAction, err := validateActionExists(action, alloc)
 	if err != nil {
 		l.Ui.Error(err.Error())
 		return 1
@@ -237,35 +232,6 @@ func (l *AllocExecCommand) Run(args []string) int {
 		l.Stderr = os.Stderr
 	}
 
-	// Log out the args
-	// jobContext, _, _ := client.Jobs().Info(alloc.JobID, q)
-	// l.Ui.Output((fmt.Sprintf("==> Command about to be execd on %s", alloc.ID)))
-	// l.Ui.Output((fmt.Sprintf("    %s", args[1:])))
-	// // Job?
-	// l.Ui.Output((fmt.Sprintf("    job %s", alloc.JobID)))
-	// spew.Dump(jobber)
-	// l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
-	// spew.Dump(jobber.Datacenters)
-	// l.Ui.Output(fmt.Sprint("!!!!!!!!!!"))
-	// spew.Dump(jobber.Actions)
-	// // l.Ui.Output(spew.Dump(client.Jobs().Info(alloc.JobID)))
-	// l.Ui.Output(fmt.Sprint("~~~FIN~~~"))
-
-	// realCommand := args[1:]
-	// realCommand := []string{"/bin/sh", "-c", `play -n synth \
-	// sin %-12 \
-	// sin %-9 sin %-5 sin %-2 \
-	// delay 0 1.4 1.0 1.05 \
-	// fade 0 4.5 1.5`}
-
-	// actionName = "howdy too"
-
-	// jobAction := jobContext.LookupAction(action)
-
-	// realCommand := append([]string{*jobAction.Command}, jobAction.Args...) // TODO: maybe do this in exec.go
-	// spew.Dump(realCommand)
-	l.Ui.Output("Is there any chance that the API is calling this, from command?")
-
 	code, err := l.execImpl(client, alloc, task, ttyOpt, action, args[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
 
 	if err != nil {
@@ -279,15 +245,6 @@ func (l *AllocExecCommand) Run(args []string) int {
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
 func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool, action string,
 	command []string, escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
-
-	// // First, determine command if action exists
-	// if action != "" {
-	// 	command = make([]string, 0, 5)
-	// 	jobAction, _ := validateActionExists(action, alloc)
-	// 	if jobAction != nil {
-	// 		command = append([]string{*jobAction.Command}, jobAction.Args...)
-	// 	}
-	// }
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
@@ -431,11 +388,3 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 
 	return cancel, nil
 }
-
-// func validateActionExists(action string, alloc *api.Allocation) (*api.Action, error) {
-// 	jobAction := alloc.Job.LookupAction(action)
-// 	if jobAction == nil {
-// 		return nil, fmt.Errorf("could not find action: %s", action)
-// 	}
-// 	return jobAction, nil
-// }

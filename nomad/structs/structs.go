@@ -4323,12 +4323,8 @@ type Job struct {
 
 // LookupAction finds an action by name
 func (j *Job) LookupAction(name string) *Action {
-	// fmt.Println(fmt.Sprintf("Looking up action %s", name))
-
 	for _, action := range j.Actions {
-		// fmt.Println(fmt.Sprintf("  -  is it %s?", action.Name))
 		if action.Name == name {
-			// fmt.Println(fmt.Sprintf("  -  Aye! it is %s!", action.Name))
 			return action
 		}
 	}

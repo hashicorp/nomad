@@ -483,17 +483,6 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	action := req.URL.Query().Get("action")
 	cmdJsonStr := req.URL.Query().Get("command")
 
-	// TODO: LOOK UP THE COMMAND HERE WITH VALIDATEACTIONEXISTS
-	// // First, determine command if action exists
-	// if action != "" {
-	// 	// realCommand := make([]string, 0, 5)
-	// 	jobAction, _ := validateActionExists(action, *s.alloc)
-	// 	if jobAction != nil {
-	// 		realCommand := append([]string{*jobAction.Command}, jobAction.Args...)
-	// 		cmdJsonStr = strings.Join(realCommand, ",")
-	// 	}
-	// }
-
 	var command []string
 	if cmdJsonStr != "" {
 		localErr := json.Unmarshal([]byte(cmdJsonStr), &command)
@@ -722,11 +711,3 @@ func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- H
 		}
 	}
 }
-
-// func validateActionExists(action string, alloc *api.Allocation) (*api.Action, error) {
-// 	jobAction := alloc.Job.LookupAction(action)
-// 	if jobAction == nil {
-// 		return nil, fmt.Errorf("could not find action: %s", action)
-// 	}
-// 	return jobAction, nil
-// }

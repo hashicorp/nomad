@@ -1011,6 +1011,7 @@ func ApiActionToStructsAction(job *structs.Job, action *api.Action, act *structs
 	act.Name = action.Name
 	act.Args = action.Args
 	act.Command = action.Command
+	act.Type = action.Type
 }
 
 func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
