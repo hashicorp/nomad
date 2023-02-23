@@ -7,6 +7,7 @@ import ExecSocketAction from 'nomad-ui/utils/classes/exec-socket-action';
 export default class ActionAdapter extends ApplicationAdapter {
   @service sockets;
   @service token;
+  @service flashMessages;
 
   /**
    * @param {ActionModel} action
@@ -15,26 +16,26 @@ export default class ActionAdapter extends ApplicationAdapter {
   perform(action) {
     const { name, args, command } = action;
     let allocation = action.job.get('allocations').objectAt(0); // TODO: HACK ALERT
-    console.log('action adapter perform', name);
-    // const url = `/${this.namespace}/client/allocation/${allocation.id}/exec`;
     let task = allocation.get('states').objectAt(0); //TODO: HACK ALERT
     let socket = this.sockets.getTaskStateSocket(task, null, name);
-    console.log('socket?', socket, this.token.secret);
-    let adapter = new ExecSocketAction(socket, this.token.secret);
-    // console.log('adapter', adapter);
-    // TODO: HACKY WAITER
-    // setTimeout(() => {
-    //   adapter.handleAction(name);
-    // }, 500);
-
-    // console.log('url', url);
-    // return this.ajax(url, 'POST', {
-    //   data: {
-    //     name,
-    //     args: JSON.stringify(args),
-    //     command        
-    //   },
-    // });
+    let adapter = new ExecSocketAction(socket, this.token.secret, action);
+    adapter.socket.onerror = (evt) => {
+      console.log("FUUUUUUUCK", evt);
+    }
+    adapter.socket.onclose = (evt) => {
+      console.log('EVT', evt);
+      console.log('abacus',evt.target);
+      console.log('mesbuf', action.messageBuffer)
+      this.flashMessages.add({
+        title: 'Action Performed',
+        message: action.messageBuffer,
+        code: true,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 0,
+      });
+      action.messageBuffer = "";
+    };
   }
 
   // openAndConnectSocket(command) {

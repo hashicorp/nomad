@@ -23,6 +23,22 @@ section.notifications {
       background-color: lighten($danger, 45%);
     }
 
+    &.code {
+      width: 600px; // TODO: handle better w HDS notifications
+      // background-color: black;
+      // color: white;
+  
+      code {
+        display: block;
+        margin-top: 1rem;
+
+        pre {
+          background-color: rgba(0,0,0,0.9);
+          color: white;
+        }
+      }
+    }
+
     h3 {
       font-weight: bold;
     }

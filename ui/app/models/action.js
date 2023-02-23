@@ -14,6 +14,8 @@ export default class ActionModel extends Model {
   @attr('string') command;
   @attr('string', { defaultValue: 'tertiary' }) type; // defaultValue doesnt work??
 
+  @attr('string') messageBuffer;
+
   @action
   perform(params) {
     return this.store.adapterFor('action').perform(this);
