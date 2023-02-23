@@ -12,7 +12,7 @@ export default class ExecSocketAction {
     socket.onopen = () => {
       console.log("SOCKET OPEN");
       this.sendWsHandshake();
-      this.handleData('nomad status');
+      // this.handleData('nomad status');
       // this.sendTtySize();
       // this.startHeartbeat();
 
@@ -86,6 +86,15 @@ export default class ExecSocketAction {
     //     JSON.stringify({ stdin: { close: true }})
     //   )
     // }, 3000);
-    
+  }
+
+  /**
+   * 
+   * @param {string} name 
+   */
+  handleAction(name) {
+    this.socket.send(
+      JSON.stringify({action: name})
+    )
   }
 }

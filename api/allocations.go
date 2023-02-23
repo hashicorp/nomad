@@ -86,7 +86,7 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 // Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
 // long pauses on this API call.
 func (a *Allocations) Exec(ctx context.Context,
-	alloc *Allocation, task string, tty bool, command []string,
+	alloc *Allocation, task string, tty bool, action string, command []string,
 	stdin io.Reader, stdout, stderr io.Writer,
 	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
 
@@ -96,6 +96,7 @@ func (a *Allocations) Exec(ctx context.Context,
 		task:    task,
 		tty:     tty,
 		command: command,
+		action:  action,
 
 		stdin:  stdin,
 		stdout: stdout,

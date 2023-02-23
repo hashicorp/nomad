@@ -475,29 +475,56 @@ func (s *HTTPServer) allocChecks(allocID string, resp http.ResponseWriter, req *
 }
 
 func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	s.logger.Info("+++ command/agent/alloc_endpoint.go:allocExec")
+
 	// Build the request and parse the ACL token
 	task := req.URL.Query().Get("task")
+	action := req.URL.Query().Get("action")
 	cmdJsonStr := req.URL.Query().Get("command")
+
+	// TODO: LOOK UP THE COMMAND HERE WITH VALIDATEACTIONEXISTS
+	// // First, determine command if action exists
+	// if action != "" {
+	// 	// realCommand := make([]string, 0, 5)
+	// 	jobAction, _ := validateActionExists(action, *s.alloc)
+	// 	if jobAction != nil {
+	// 		realCommand := append([]string{*jobAction.Command}, jobAction.Args...)
+	// 		cmdJsonStr = strings.Join(realCommand, ",")
+	// 	}
+	// }
+
 	var command []string
-	err := json.Unmarshal([]byte(cmdJsonStr), &command)
-	if err != nil {
-		// this shouldn't happen, []string is always be serializable to json
-		return nil, fmt.Errorf("failed to marshal command into json: %v", err)
+	if cmdJsonStr != "" {
+		localErr := json.Unmarshal([]byte(cmdJsonStr), &command)
+		if localErr != nil {
+			// this shouldn't happen, []string is always be serializable to json
+			return nil, fmt.Errorf("failed to marshal command into json: %v", localErr)
+		}
 	}
 
-	ttyB := false
+	if action != "" {
+		s.logger.Info("+++ YOU HAVE AN ACTION AND IT IS", action)
+		s.logger.Info("+++ AND ANYWAY YOUR COMMAND IS", cmdJsonStr)
+		s.logger.Info("+++ AND ANYWAY YOUR CMD IS", command)
+	}
+
+	var ttyB = false
 	if tty := req.URL.Query().Get("tty"); tty != "" {
-		ttyB, err = strconv.ParseBool(tty)
+		localttyB, err := strconv.ParseBool(tty)
 		if err != nil {
 			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
 		}
+		ttyB = localttyB
 	}
 
 	args := cstructs.AllocExecRequest{
 		AllocID: allocID,
 		Task:    task,
 		Cmd:     command,
-		Tty:     ttyB,
+		// TODO: MAYBE ACTION HERE?!?!?!?
+		Action: action,
+		Tty:    ttyB,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
@@ -695,3 +722,11 @@ func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- H
 		}
 	}
 }
+
+// func validateActionExists(action string, alloc *api.Allocation) (*api.Action, error) {
+// 	jobAction := alloc.Job.LookupAction(action)
+// 	if jobAction == nil {
+// 		return nil, fmt.Errorf("could not find action: %s", action)
+// 	}
+// 	return jobAction, nil
+// }

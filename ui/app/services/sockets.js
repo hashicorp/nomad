@@ -6,7 +6,7 @@ import { inject as service } from '@ember/service';
 export default class SocketsService extends Service {
   @service system;
 
-  getTaskStateSocket(taskState, command) {
+  getTaskStateSocket(taskState, command=null, action=null) {
     const mirageEnabled =
       config.environment !== 'production' &&
       config['ember-cli-mirage'] &&
@@ -38,12 +38,22 @@ export default class SocketsService extends Service {
       }/${applicationAdapter.urlPrefix()}`;
       const region = this.system.activeRegion;
 
-      return new WebSocket(
-        `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
-          `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
-          (region ? `&region=${region}` : '') +
-          `&command=${encodeURIComponent(`["${command}"]`)}`
-      );
+
+      if (action) {
+        return new WebSocket(
+          `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
+            `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
+            (region ? `&region=${region}` : '') +
+            `&action=${action}`
+        );
+      } else {
+        return new WebSocket(
+          `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
+            `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
+            (region ? `&region=${region}` : '') +
+            `&command=${encodeURIComponent(`["${command}"]`)}`
+        );
+      }
     }
   }
 }

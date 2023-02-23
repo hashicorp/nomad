@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper/escapingio"
@@ -213,19 +212,14 @@ func (l *AllocExecCommand) Run(args []string) int {
 	l.Ui.Output((fmt.Sprintf("==> jobAction initialized %s", action)))
 	// spew.Dump(jobAction)
 
-	jobAction, err := validateActionExists(action, alloc)
-	// if action != "" {
-	// 	err = validateActionExists(action, alloc)
-	// } else {
-	// 	jobAction = *alloc.Job.LookupAction(action)
-	// }
+	// jobAction, err := validateActionExists(action, alloc)
 	if err != nil {
 		l.Ui.Error(err.Error())
 		return 1
 	}
 
-	l.Ui.Output("TWO")
-	spew.Dump(jobAction)
+	// l.Ui.Output("TWO")
+	// spew.Dump(jobAction)
 
 	if !stdinOpt {
 		l.Stdin = bytes.NewReader(nil)
@@ -268,10 +262,12 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	// jobAction := jobContext.LookupAction(action)
 
-	realCommand := append([]string{*jobAction.Command}, jobAction.Args...)
-	spew.Dump(realCommand)
+	// realCommand := append([]string{*jobAction.Command}, jobAction.Args...) // TODO: maybe do this in exec.go
+	// spew.Dump(realCommand)
+	l.Ui.Output("Is there any chance that the API is calling this, from command?")
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, realCommand, escapeChar, l.Stdin, l.Stdout, l.Stderr)
+	code, err := l.execImpl(client, alloc, task, ttyOpt, action, args[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
+
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
@@ -281,8 +277,17 @@ func (l *AllocExecCommand) Run(args []string) int {
 }
 
 // execImpl invokes the Alloc Exec api call, it also prepares and restores terminal states as necessary.
-func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool,
+func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, task string, tty bool, action string,
 	command []string, escapeChar string, stdin io.Reader, stdout, stderr io.WriteCloser) (int, error) {
+
+	// // First, determine command if action exists
+	// if action != "" {
+	// 	command = make([]string, 0, 5)
+	// 	jobAction, _ := validateActionExists(action, alloc)
+	// 	if jobAction != nil {
+	// 		command = append([]string{*jobAction.Command}, jobAction.Args...)
+	// 	}
+	// }
 
 	sizeCh := make(chan api.TerminalSize, 1)
 
@@ -341,7 +346,7 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 	}()
 
 	return client.Allocations().Exec(ctx,
-		alloc, task, tty, command, stdin, stdout, stderr, sizeCh, nil)
+		alloc, task, tty, action, command, stdin, stdout, stderr, sizeCh, nil)
 }
 
 // isTty returns true if both stdin and stdout are a TTY
@@ -427,10 +432,10 @@ func watchTerminalSize(out io.Writer, resize chan<- api.TerminalSize) (func(), e
 	return cancel, nil
 }
 
-func validateActionExists(action string, alloc *api.Allocation) (*api.Action, error) {
-	jobAction := alloc.Job.LookupAction(action)
-	if jobAction == nil {
-		return nil, fmt.Errorf("could not find action: %s", action)
-	}
-	return jobAction, nil
-}
+// func validateActionExists(action string, alloc *api.Allocation) (*api.Action, error) {
+// 	jobAction := alloc.Job.LookupAction(action)
+// 	if jobAction == nil {
+// 		return nil, fmt.Errorf("could not find action: %s", action)
+// 	}
+// 	return jobAction, nil
+// }

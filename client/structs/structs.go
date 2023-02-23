@@ -179,6 +179,9 @@ type AllocExecRequest struct {
 	// Cmd is the command to be executed
 	Cmd []string
 
+	// Action is the name of a predefined command to be executed
+	Action string
+
 	structs.QueryOptions
 }
 

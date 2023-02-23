@@ -4321,6 +4321,20 @@ type Job struct {
 	JobModifyIndex uint64
 }
 
+// LookupAction finds an action by name
+func (j *Job) LookupAction(name string) *Action {
+	// fmt.Println(fmt.Sprintf("Looking up action %s", name))
+
+	for _, action := range j.Actions {
+		// fmt.Println(fmt.Sprintf("  -  is it %s?", action.Name))
+		if action.Name == name {
+			// fmt.Println(fmt.Sprintf("  -  Aye! it is %s!", action.Name))
+			return action
+		}
+	}
+	return nil
+}
+
 // NamespacedID returns the namespaced id useful for logging
 func (j *Job) NamespacedID() NamespacedID {
 	return NamespacedID{
@@ -12445,4 +12459,5 @@ type Action struct {
 	Name    string
 	Command *string
 	Args    []string
+	Type    *string
 }

@@ -169,6 +169,7 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, nstructs.MsgpackHandle)
 
 	code, err := a.execImpl(encoder, decoder, execID)
+	a.c.logger.Info("Does this get hit from the API?", code)
 	if err != nil {
 		a.c.logger.Info("task exec session ended with an error", "error", err, "code", code)
 		handleStreamResultError(err, code, encoder)
@@ -217,6 +218,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 			"alloc_id", req.AllocID,
 			"task", req.Task,
 			"command", req.Cmd,
+			"action", req.Action,
 			"tty", req.Tty,
 			"access_token_name", tokenName,
 			"access_token_id", tokenID,
@@ -228,6 +230,19 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return nil, err
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		return nil, nstructs.ErrPermissionDenied
+	}
+
+	// If an action is present, figure out the command.
+	// TODO: LOOK UP THE COMMAND HERE WITH VALIDATEACTIONEXISTS
+	// First, determine command if action exists
+	if req.Action != "" {
+		// realCommand := make([]string, 0, 5)
+		alloc, _ := a.c.GetAlloc(req.AllocID)
+		jobAction, _ := validateActionExists(req.Action, alloc)
+		if jobAction != nil {
+			req.Cmd = append([]string{*jobAction.Command}, jobAction.Args...)
+			// req.Cmd = strings.Join(realCommand, ",")
+		}
 	}
 
 	// Validate the arguments
@@ -329,4 +344,12 @@ func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 	req := drivers.ExecTaskStreamingRequestMsg{}
 	err := s.decoder.Decode(&req)
 	return &req, err
+}
+
+func validateActionExists(action string, alloc *nstructs.Allocation) (*nstructs.Action, error) {
+	jobAction := alloc.Job.LookupAction(action)
+	if jobAction == nil {
+		return nil, fmt.Errorf("could not find action: %s", action)
+	}
+	return jobAction, nil
 }

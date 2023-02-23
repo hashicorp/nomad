@@ -15,17 +15,17 @@ export default class ActionAdapter extends ApplicationAdapter {
   perform(action) {
     const { name, args, command } = action;
     let allocation = action.job.get('allocations').objectAt(0); // TODO: HACK ALERT
-    console.log('action adapter perform', args, action);
+    console.log('action adapter perform', name);
     // const url = `/${this.namespace}/client/allocation/${allocation.id}/exec`;
     let task = allocation.get('states').objectAt(0); //TODO: HACK ALERT
-    let socket = this.sockets.getTaskStateSocket(task, command);
+    let socket = this.sockets.getTaskStateSocket(task, null, name);
     console.log('socket?', socket, this.token.secret);
     let adapter = new ExecSocketAction(socket, this.token.secret);
-    console.log('adapter', adapter);
+    // console.log('adapter', adapter);
     // TODO: HACKY WAITER
-    setTimeout(() => {
-      adapter.handleData(args.join(' '));
-    }, 500);
+    // setTimeout(() => {
+    //   adapter.handleAction(name);
+    // }, 500);
 
     // console.log('url', url);
     // return this.ajax(url, 'POST', {
