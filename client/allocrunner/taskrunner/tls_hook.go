@@ -98,16 +98,74 @@ func (h *tlsHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest,
 // file if requested by the jobsepc.
 func (h *tlsHook) setTlsFiles(ctx context.Context, opts setTlsOpts) error {
 
-	fmt.Println("===SPRUCE")
-	fmt.Println(opts.TrustCircles)
-	fmt.Println("GOOSE===")
+	// Set up the tls for the namespace
+	err := h.setUpNamespaceTls(ctx, opts)
+	if err != nil {
+		return err
+	}
 
+	// Set up tls for any declared circles
+	for _, circleName := range opts.TrustCircles {
+		err = h.setUpCircleTls(ctx, circleName, opts)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *tlsHook) setUpCircleTls(ctx context.Context, circleName string, opts setTlsOpts) error {
 	resources := opts.Resources
-	caPrivateKey, caPubKey, _ := h.getCaKeys(opts)
+	variablePath := fmt.Sprintf("tls/cot/%s", circleName)
+	dashName := fmt.Sprintf("cot-%s", circleName)
+	caPrivateKey, caPubKey, err := h.getCaKeys(variablePath, dashName, true, opts)
+	if err != nil {
+		return fmt.Errorf("error getting ca keys %w", err)
+	}
+	tlsPublicCert, tlsPrivateCert, err := createTlsCerts(caPrivateKey, caPubKey, resources)
+	if err != nil {
+		return fmt.Errorf("error generating tls certs %w", err)
+	}
 
+	// ???not sure if I need this???
+	// h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey, opts.TrustCircles)
+
+	// TODO: CHECK THIS
+	if err := h.writeTlsValues(dashName, tlsPublicCert, tlsPrivateCert, caPubKey); err != nil {
+		return fmt.Errorf("failed to write TLS values: %w", err)
+	}
+
+	return nil
+}
+
+func (h *tlsHook) setUpNamespaceTls(ctx context.Context, opts setTlsOpts) error {
+	resources := opts.Resources
+	variablePath := "tls/ns"
+	dashName := "ns"
+	caPrivateKey, caPubKey, err := h.getCaKeys(variablePath, dashName, false, opts)
+	if err != nil {
+		return fmt.Errorf("error getting ca keys %w", err)
+	}
+	tlsPublicCert, tlsPrivateCert, err := createTlsCerts(caPrivateKey, caPubKey, resources)
+	if err != nil {
+		return fmt.Errorf("error generating tls certs %w", err)
+	}
+
+	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey, opts.TrustCircles)
+
+	// TODO: Make this optional with jobspec config (see identity hook)
+	if err := h.writeTlsValues(dashName, tlsPublicCert, tlsPrivateCert, caPubKey); err != nil {
+		return fmt.Errorf("failed to write TLS values: %w", err)
+	}
+
+	return nil
+}
+
+func createTlsCerts(caPrivateKey, caPubKey string, resources *structs.AllocatedTaskResources) (string, string, error) {
 	signer, err := tlsutil.ParseSigner(caPrivateKey)
 	if err != nil {
-		return fmt.Errorf("failed to Parse signer: %w", err)
+		return "", "", fmt.Errorf("failed to Parse signer: %w", err)
 	}
 
 	// TODO: Figure out what name this should have
@@ -133,23 +191,14 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, opts setTlsOpts) error {
 		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to Generate cert: %w", err)
+		return "", "", fmt.Errorf("failed to Generate cert: %w", err)
 	}
 
-	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey, opts.TrustCircles)
-
-	// TODO: Make this optional with jobspec config (see identity hook)
-	if err := h.writeTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey); err != nil {
-		return fmt.Errorf("failed to write TLS values: %w", err)
-	}
-
-	return nil
+	return tlsPublicCert, tlsPrivateCert, nil
 }
 
 // writeToken writes the given token to disk
-func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey string) error {
-	namespaceOrCotName := "ns"
-
+func (h *tlsHook) writeTlsValues(namespaceOrCotName, tlsPublicCert, tlsPrivateCert, tlsCAPubKey string) error {
 	namespacedTlsPath := filepath.Join(h.secretsDir, tlsKeyDir, namespaceOrCotName)
 	pubKeyPath := filepath.Join(namespacedTlsPath, tlsCertPubKeyFile)
 	privKeyPath := filepath.Join(namespacedTlsPath, tlsCertPrivKeyFile)
@@ -179,13 +228,16 @@ func (h *tlsHook) writeTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey stri
 	return nil
 }
 
-func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
-	path := "tls"
+func (h *tlsHook) getCaKeys(variablePath, dashName string, globalNs bool, opts setTlsOpts) (string, string, error) {
+	namespace := opts.Namespace
+	if globalNs {
+		namespace = "default"
+	}
 
 	args := structs.VariablesReadRequest{
-		Path: path,
+		Path: variablePath,
 		QueryOptions: structs.QueryOptions{
-			Namespace: opts.Namespace,
+			Namespace: namespace,
 			Region:    opts.Region,
 		},
 	}
@@ -202,23 +254,21 @@ func (h *tlsHook) getCaKeys(opts setTlsOpts) (string, string, error) {
 	}
 
 	if out.Data == nil {
-		// fmt.Println("XKCD - NO DATA SO CREATING A CA")
-		privateKey, publicKey, err := h.createNewCA(opts)
+		privateKey, publicKey, err := h.createNewCA(dashName, opts)
 		if err != nil {
 			return "", "", err
 		}
 
 		// May overwrite privateKey & publicKey if there is a conflict
-		return h.writeCAToVariable(privateKey, publicKey, opts)
+		return h.writeCAToVariable(variablePath, privateKey, publicKey, opts)
 	} else {
-		// fmt.Println("XKCD - DATA EXISTS, SO USING OLD CA")
 		return h.useExistingCA(out, opts)
 	}
 }
 
-func (h *tlsHook) createNewCA(opts setTlsOpts) (string, string, error) {
+func (h *tlsHook) createNewCA(nameSuffix string, opts setTlsOpts) (string, string, error) {
 	caOpts := tlsutil.CAOpts{
-		Name:                fmt.Sprintf("internal-nomad-ca-%s-%s", opts.Namespace, opts.Region),
+		Name:                fmt.Sprintf("internal-nomad-ca-%s", nameSuffix),
 		Days:                9999,
 		Domain:              "nomad",
 		PermittedDNSDomains: []string{},
@@ -245,9 +295,9 @@ func (h *tlsHook) useExistingCA(existingCAData structs.VariablesReadResponse, op
 	return "", "", errors.New("could not get or generate CA keys")
 }
 
-func (h *tlsHook) writeCAToVariable(privateKey, publicKey string, opts setTlsOpts) (string, string, error) {
+func (h *tlsHook) writeCAToVariable(variablePath, privateKey, publicKey string, opts setTlsOpts) (string, string, error) {
 	var Variable structs.VariableDecrypted
-	Variable.Path = "tls"
+	Variable.Path = variablePath
 	Variable.Items = structs.VariableItems{
 		"private-key": base64.StdEncoding.EncodeToString([]byte(privateKey)),
 		"public-key":  base64.StdEncoding.EncodeToString([]byte(publicKey)),
@@ -263,30 +313,24 @@ func (h *tlsHook) writeCAToVariable(privateKey, publicKey string, opts setTlsOpt
 		},
 	}
 
-	// fmt.Println("XKCD - ATTEMPTING WRITE")
 	var out structs.VariablesApplyResponse
 	if err := h.rpcer.RPC(structs.VariablesApplyRPCMethod, &args, &out); err != nil {
 		if strings.Contains(err.Error(), "cas error:") && out.Conflict != nil {
-			// fmt.Println("XKCD - HAS CONFLICT BUT NO OUTPUT")
 			return "", "", fmt.Errorf("conflicting value: %w", err)
 		}
 
 		// TODO: I THINK THERE IS A BUG HERE WITH THE CONDITIONS WHERE THIS IS HIT
 		if out.Conflict != nil {
-			// fmt.Println("XKCD - USING THE CONFLICT VALUE")
 			return decodeKeys(out.Conflict)
 		}
 
-		// fmt.Println("XKCD - SOME ERROR")
 		return "", "", fmt.Errorf("some write error: %w", err)
 	}
 
 	if out.Conflict != nil {
-		// fmt.Println("XKCD - USING THE CONFLICT VALUE - NO ERROR")
 		return decodeKeys(out.Conflict)
 	}
 
-	// fmt.Println("XKCD - PROPERLY WRITTEN AND USING!")
 	return decodeKeys(out.Output)
 }
 
