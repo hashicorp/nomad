@@ -18,6 +18,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 	// Make a new test server
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
 		config.Client.Enabled = runClient
+		config.Server.EnableDebugChecksumming = true
 
 		if cb != nil {
 			cb(config)

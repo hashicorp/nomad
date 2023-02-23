@@ -94,6 +94,9 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 		MinTermLength: 2,
 	}
 
+	// Enabled state store checksumming by default
+	config.EnableDebugChecksumming = true
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)

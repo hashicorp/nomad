@@ -83,7 +83,7 @@ type StateStoreConfig struct {
 	EventBufferSize int64
 
 	// EnableChecksumming is used to enable or disable checksumming.
-	// WARNING: this should not be enabled in production code!
+	// WARNING: this should not be enabled in production!
 	EnableChecksumming bool
 }
 
@@ -139,7 +139,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	s.db = NewBaseMemDBWrapper(db)
 
 	if config.EnableChecksumming {
-		s.db = NewChecksummingDB(s.db, config.EnableChecksumming)
+		s.db = NewChecksummingDB(s.db)
 	}
 
 	if config.EnablePublisher {
@@ -210,7 +210,10 @@ func (s *StateStore) Config() *StateStoreConfig {
 func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	var memDBSnap MemDBWrapper
 	memDBSnap = NewBaseMemDBWrapper(s.db.Snapshot())
-	memDBSnap = NewChecksummingDB(memDBSnap, s.config.EnableChecksumming)
+
+	if s.config.EnableChecksumming {
+		memDBSnap = NewChecksummingDB(memDBSnap)
+	}
 
 	store := StateStore{
 		logger: s.logger,

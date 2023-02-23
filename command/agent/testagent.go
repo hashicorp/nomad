@@ -386,6 +386,9 @@ func (a *TestAgent) config() *Config {
 	}
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 
+	// Enabled state store checksumming by default
+	config.EnableDebugChecksumming = true
+
 	if a.ConfigCallback != nil {
 		a.ConfigCallback(conf)
 	}

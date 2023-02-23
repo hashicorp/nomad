@@ -16,14 +16,12 @@ var (
 )
 
 type checksummingDB struct {
-	memdb   MemDBWrapper
-	enabled bool
+	memdb MemDBWrapper
 }
 
-func NewChecksummingDB(db MemDBWrapper, enabled bool) *checksummingDB {
+func NewChecksummingDB(db MemDBWrapper) *checksummingDB {
 	return &checksummingDB{
-		memdb:   db,
-		enabled: enabled,
+		memdb: db,
 	}
 }
 
