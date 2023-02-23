@@ -71,7 +71,7 @@ func NewBaseMemDBWrapper(db *memdb.MemDB) *baseMemDBWrapper {
 	return &baseMemDBWrapper{memdb: db}
 }
 
-// ReadTxn ... TODO
+// ReadTxn returns a Txn wrapping a read-only memdb.Txn
 func (b *baseMemDBWrapper) ReadTxn() Txn {
 	return &baseTxn{Txn: b.memdb.Txn(false)}
 }
@@ -113,14 +113,14 @@ func (b *baseMemDBWrapper) WriteTxnRestore() Txn {
 	return &baseTxn{Txn: b.memdb.Txn(true), index: 0}
 }
 
-// Snapshot ... TODO
-func (c *baseMemDBWrapper) Snapshot() *memdb.MemDB {
-	return c.memdb.Snapshot()
-}
-
-// Publisher ... TODO
+// Publisher is just here to implement the Txn interface
 func (c *baseMemDBWrapper) Publisher() *stream.EventBroker {
 	return nil
+}
+
+// Snapshot returns the inner DB's Snapshot()
+func (c *baseMemDBWrapper) Snapshot() *memdb.MemDB {
+	return c.memdb.Snapshot()
 }
 
 // baseTxn is the Txn returned by baseMemDBWrapper methods. Note that the inner

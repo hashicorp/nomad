@@ -27,12 +27,18 @@ func NewChecksummingDB(db MemDBWrapper, enabled bool) *checksummingDB {
 	}
 }
 
-// ReadTxn ... TODO
+// ReadTxn returns a Txn wrapping a read-only memdb.Txn
 func (c *checksummingDB) ReadTxn() Txn {
 	return &checksummedTxn{Txn: c.memdb.ReadTxn()}
 }
 
-// WriteTxn ... TODO
+// WriteTxn returns a Txn wrapping a Txn suitable for writes to the state store.
+//
+// The idx argument must be the index of the current Raft operation. Most
+// mutations to state should happen as part of a raft apply, so the index of the
+// log being applied should be the one passed to WriteTxn. The only exception
+// are transactions executed on empty memdb.DB as part of Restore, which should
+// use WriteTxnRestore instead.
 func (c *checksummingDB) WriteTxn(idx uint64) Txn {
 	t := &checksummedTxn{
 		// Note: the zero value of structs.MessageType is noderegistration.
@@ -44,7 +50,7 @@ func (c *checksummingDB) WriteTxn(idx uint64) Txn {
 	return t
 }
 
-// WriteTxnMsgT ... TODO
+// WriteTxnMsgT returns a write Txn annotated by MessageType
 func (c *checksummingDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) Txn {
 	t := &checksummedTxn{
 		msgType: msgType,
@@ -55,17 +61,17 @@ func (c *checksummingDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) T
 	return t
 }
 
-// WriteTxnRestore ... TODO
+// WriteTxnRestore returns a pass-through write Txn
 func (c *checksummingDB) WriteTxnRestore() Txn {
 	return &checksummedTxn{Txn: c.memdb.WriteTxnRestore(), index: 0}
 }
 
-// Publisher ... TODO
+// Publisher is just here to implement the Txn interface
 func (c *checksummingDB) Publisher() *stream.EventBroker {
 	return nil
 }
 
-// Snapshot ... TODO
+// Snapshot returns the inner DB's Snapshot()
 func (c *checksummingDB) Snapshot() *memdb.MemDB {
 	return c.memdb.Snapshot()
 }
@@ -124,29 +130,9 @@ type checksummedTxn struct {
 	Txn     // wrap the inner Txn
 }
 
-// Delete ... TODO
-func (tx *checksummedTxn) Delete(table string, obj any) error {
-	// TODO: figure out how to checksum Delete... the object we're deleting may be a mutated copy, but we're just getting its ID and then deleting *that*
-
-	// if err := tx.verifyChecksum(table, obj); err != nil {
-	// 	return err
-	// }
-	return tx.Txn.Delete(table, obj)
-}
-
-// DeleteAll ... TODO
-func (tx *checksummedTxn) DeleteAll(table, index string, args ...any) (int, error) {
-	// TODO: figure out how to checksum DeleteAll
-	return tx.Txn.DeleteAll(table, index, args...)
-}
-
-// DeletePrefix ... TODO
-func (tx *checksummedTxn) DeletePrefix(table, prefix_index, prefix string) (bool, error) {
-	// TODO: figure out how to checksum DeletePrefix
-	return tx.Txn.DeletePrefix(table, prefix_index, prefix)
-}
-
-// Get ... TODO
+// Get returns an iterator or error. This implementation greedily iterates the
+// whole result set and returns a checksum error if any of the results have been
+// corrupted.
 func (tx *checksummedTxn) Get(table, index string, args ...any) (memdb.ResultIterator, error) {
 	iter, err := tx.Txn.Get(table, index, args...)
 	if err != nil {
@@ -156,7 +142,9 @@ func (tx *checksummedTxn) Get(table, index string, args ...any) (memdb.ResultIte
 	return NewChecksumIterator(tx, table, iter)
 }
 
-// GetReverse ... TODO
+// GetReverse returns an iterator or error. This implementation greedily
+// iterates the whole result set and returns a checksum error if any of the
+// results have been corrupted.
 func (tx *checksummedTxn) GetReverse(table, index string, args ...any) (memdb.ResultIterator, error) {
 	iter, err := tx.Txn.GetReverse(table, index, args...)
 	if err != nil {
@@ -165,7 +153,8 @@ func (tx *checksummedTxn) GetReverse(table, index string, args ...any) (memdb.Re
 	return NewChecksumIterator(tx, table, iter)
 }
 
-// First ... TODO
+// First returns a result or error. This method returns a checksum error if the
+// result has been corrupted.
 func (tx *checksummedTxn) First(table, index string, args ...any) (any, error) {
 	obj, err := tx.Txn.First(table, index, args...)
 	if err != nil { // unreachable
@@ -180,7 +169,8 @@ func (tx *checksummedTxn) First(table, index string, args ...any) (any, error) {
 	return obj, nil
 }
 
-// FirstWatch ... TODO
+// FirstWatch returns a watch channel and result or error. This method returns a
+// checksum error if the result has been corrupted.
 func (tx *checksummedTxn) FirstWatch(table, index string, args ...any) (<-chan struct{}, any, error) {
 	ch, obj, err := tx.Txn.FirstWatch(table, index, args...)
 	if err != nil {
@@ -195,7 +185,8 @@ func (tx *checksummedTxn) FirstWatch(table, index string, args ...any) (<-chan s
 	return ch, obj, nil
 }
 
-// Insert ... TODO
+// Insert inserts the object and also inserts a checksum of the object in the
+// checksum table.
 func (tx *checksummedTxn) Insert(table string, obj any) error {
 
 	if table == tableIndex {
@@ -207,7 +198,6 @@ func (tx *checksummedTxn) Insert(table string, obj any) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("inserting checksum on", table, hash)
 	err = tx.Txn.Insert(TableChecksums, Checksum{Table: table, Hash: hash})
 	if err != nil {
 		return err
@@ -239,7 +229,6 @@ func (tx *checksummedTxn) verifyChecksum(table string, obj any) error {
 	if err != nil {
 		return fmt.Errorf(errMsgBadHash, table, err)
 	}
-	fmt.Println("verifying checksum on", table, hash)
 	raw, err := tx.Txn.First(TableChecksums, indexID, table, hash)
 	if err != nil {
 		return err // unreachable
@@ -249,21 +238,4 @@ func (tx *checksummedTxn) verifyChecksum(table string, obj any) error {
 		return fmt.Errorf(errMsgStateStoreChecksumMismatch, table, obj)
 	}
 	return nil
-}
-
-func (tx *checksummedTxn) newIterator(table string, iter memdb.ResultIterator) (memdb.ResultIterator, error) {
-	// TODO: is is possible to not have to greedily digest the results iterator?
-	checksumIter := &ChecksumIterator{inner: iter, results: []any{}}
-	for {
-		obj := iter.Next()
-		if obj == nil {
-			break
-		}
-		err := tx.verifyChecksum(table, obj)
-		if err != nil {
-			return nil, err
-		}
-		checksumIter.results = append(checksumIter.results, obj)
-	}
-	return checksumIter, nil
 }
