@@ -115,9 +115,9 @@ type Agent struct {
 	builtinListener net.Listener
 	builtinDialer   *bufconndialer.BufConnWrapper
 
-	// builtinServer is an HTTP server for attaching per-task listeners. Always
+	// taskAPIServer is an HTTP server for attaching per-task listeners. Always
 	// requires auth.
-	builtinServer *builtinAPI
+	taskAPIServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
 }
@@ -1050,10 +1050,10 @@ func (a *Agent) setupClient() error {
 	a.builtinListener, a.builtinDialer = bufconndialer.New()
 	conf.TemplateDialer = a.builtinDialer
 
-	// Initialize builtin API server here for use in the client, but it won't
-	// accept connections until the HTTP servers are created.
-	a.builtinServer = newBuiltinAPI()
-	conf.APIListenerRegistrar = a.builtinServer
+	// Initialize builtin Task API server here for use in the client, but it
+	// won't accept connections until the HTTP servers are created.
+	a.taskAPIServer = newBuiltinAPI()
+	conf.APIListenerRegistrar = a.taskAPIServer
 
 	nomadClient, err := client.NewClient(
 		conf, a.consulCatalog, a.consulProxies, a.consulService, nil)
@@ -1162,6 +1162,10 @@ func (a *Agent) Shutdown() error {
 
 	a.logger.Info("requesting shutdown")
 	if a.client != nil {
+		// Task API must be closed separately from other HTTP servers and should
+		// happen before the client is shutdown
+		a.taskAPIServer.Shutdown()
+
 		if err := a.client.Shutdown(); err != nil {
 			a.logger.Error("client shutdown failed", "error", err)
 		}

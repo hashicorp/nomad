@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -189,6 +190,15 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		srvs = append(srvs, srv)
 	}
 
+	// Return early on errors
+	if serverInitializationErrors != nil {
+		for _, srv := range srvs {
+			srv.Shutdown()
+		}
+
+		return srvs, serverInitializationErrors
+	}
+
 	// This HTTP server is only created when running in client mode, otherwise
 	// the builtinDialer and builtinListener will be nil.
 	if agent.builtinDialer != nil && agent.builtinListener != nil {
@@ -212,23 +222,18 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			ErrorLog: newHTTPServerLogger(srv.logger),
 		}
 
-		agent.builtinServer.SetServer(&httpServer)
+		agent.taskAPIServer.SetServer(&httpServer)
 
 		go func() {
 			defer close(srv.listenerCh)
 			httpServer.Serve(agent.builtinListener)
 		}()
 
-		srvs = append(srvs, srv)
+		// Don't append builtin servers to srvs as they don't need to be reloaded
+		// when TLS changes. This does mean they need to be shutdown independently.
 	}
 
-	if serverInitializationErrors != nil {
-		for _, srv := range srvs {
-			srv.Shutdown()
-		}
-	}
-
-	return srvs, serverInitializationErrors
+	return srvs, nil
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If
@@ -532,8 +537,13 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 // bufconndialer provides similar functionality to consul-template except it
 // satisfies the Dialer API as opposed to the Serve(Listener) API.
 type builtinAPI struct {
-	srv        *http.Server
+	// srvReadyCh is closed when srv is ready
 	srvReadyCh chan struct{}
+
+	// srv is a builtin http server. Must lock around setting as it could happen
+	// concurrently with shutting down.
+	srv     *http.Server
+	srvLock sync.Mutex
 }
 
 func newBuiltinAPI() *builtinAPI {
@@ -544,13 +554,17 @@ func newBuiltinAPI() *builtinAPI {
 
 // SetServer sets the API HTTP server for Serve to add listeners to.
 //
-// It must be called exactly once and will panic if called more than once.
+// It must be called exactly once and will noop on subsequent calls.
 func (b *builtinAPI) SetServer(srv *http.Server) {
 	select {
 	case <-b.srvReadyCh:
-		panic(fmt.Sprintf("SetServer called twice. first=%p second=%p", b.srv, srv))
+		return
 	default:
 	}
+
+	b.srvLock.Lock()
+	defer b.srvLock.Unlock()
+
 	b.srv = srv
 	close(b.srvReadyCh)
 }
@@ -569,6 +583,21 @@ func (b *builtinAPI) Serve(ctx context.Context, l net.Listener) error {
 	}
 
 	return b.srv.Serve(l)
+}
+
+func (b *builtinAPI) Shutdown() {
+	b.srvLock.Lock()
+	defer b.srvLock.Unlock()
+
+	if b.srv != nil {
+		b.srv.Close()
+	}
+
+	select {
+	case <-b.srvReadyCh:
+	default:
+		close(b.srvReadyCh)
+	}
 }
 
 // HTTPCodedError is used to provide the HTTP error code
