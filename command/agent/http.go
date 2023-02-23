@@ -222,7 +222,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			ErrorLog: newHTTPServerLogger(srv.logger),
 		}
 
-		agent.builtinServer.SetServer(&httpServer)
+		agent.taskAPIServer.SetServer(&httpServer)
 
 		go func() {
 			defer close(srv.listenerCh)
