@@ -35,6 +35,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 
 	anonymousPolicy := mock.ACLPolicy()
 	anonymousPolicy.Name = "anonymous"
+	anonymousPolicy.SetHash()
 	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1001, []*structs.ACLPolicy{anonymousPolicy})
 
 	// Create a token with one the policy
@@ -55,7 +56,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Equal(t, policy, resp.Policy)
+	assert.Equal(t, policy, resp.Policy.Copy()) // Copy to remove RulesJSON
 
 	// Lookup non-existing policy
 	get.Name = uuid.Generate()
@@ -78,7 +79,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	assert.EqualValues(t, 1000, resp2.Index)
-	assert.Equal(t, policy, resp2.Policy)
+	assert.Equal(t, policy, resp2.Policy.Copy()) // Copy to remove RulesJSON
 
 	// Lookup the anonymous policy with no token
 	get = &structs.ACLPolicySpecificRequest{
@@ -92,7 +93,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 		require.NoError(t, err)
 	}
 	assert.EqualValues(t, 1001, resp3.Index)
-	assert.Equal(t, anonymousPolicy, resp3.Policy)
+	assert.Equal(t, anonymousPolicy, resp3.Policy.Copy()) // Copy to remove RulesJSON
 
 	// Lookup non-anonoymous policy with no token
 	get = &structs.ACLPolicySpecificRequest{
@@ -133,7 +134,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	var resp5 structs.SingleACLPolicyResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", req5, &resp5))
 	must.Eq(t, 1000, resp5.Index)
-	must.Eq(t, policy, resp5.Policy)
+	must.Eq(t, policy, resp5.Policy.Copy()) // Copy to strip off RulesJSON
 }
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {

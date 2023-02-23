@@ -12015,6 +12015,23 @@ type ACLPolicy struct {
 	ModifyIndex uint64
 }
 
+// Copy returns a copy of the ACLPolicy but intentionally excludes RulesJSON
+// (which is denormalized and set on read).
+func (p *ACLPolicy) Copy() *ACLPolicy {
+	if p == nil {
+		return nil
+	}
+	newP := new(ACLPolicy)
+	*newP = *p
+	newP.RulesJSON = nil
+
+	if p.JobACL != nil {
+		*newP.JobACL = *p.JobACL
+	}
+	newP.SetHash()
+	return newP
+}
+
 // JobACL represents an ACL policy's attachment to a job, group, or task.
 type JobACL struct {
 	Namespace string // namespace of the job
