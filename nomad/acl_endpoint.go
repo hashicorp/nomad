@@ -988,13 +988,23 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	return a.srv.blockingRPC(&opts)
 }
 
-// ResolveToken is used to lookup a specific token by a secret ID. This is used for enforcing ACLs by clients.
+// ResolveToken is used to lookup a specific token by a secret ID or workload
+// identity.
+// This is used for enforcing ACLs by Clients, so it returns a special
+// aclDisabled error if the Client should forego checking ACLs entirely. This
+// is likely a misconfiguration on the Client as ACLs should be enabled or
+// disabled cluster-wide.
 func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+
+	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
 		return err
+	}
+	if authErr != nil {
+		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolve_token"}, time.Now())
 

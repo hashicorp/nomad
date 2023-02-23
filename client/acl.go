@@ -36,8 +36,9 @@ type clientACLResolver struct {
 	// policyCache is used to maintain the fetched policy objects
 	policyCache *structs.ACLCache[*structs.ACLPolicy]
 
+	//TODO(schmichael) rename?
 	// tokenCache is used to maintain the fetched token objects
-	tokenCache *structs.ACLCache[*structs.ACLToken]
+	tokenCache *structs.ACLCache[*structs.AuthenticatedIdentity]
 
 	// roleCache is used to maintain a cache of the fetched ACL roles. Each
 	// entry is keyed by the role ID.
@@ -48,10 +49,11 @@ type clientACLResolver struct {
 func (c *clientACLResolver) init() {
 	c.aclCache = structs.NewACLCache[*acl.ACL](aclCacheSize)
 	c.policyCache = structs.NewACLCache[*structs.ACLPolicy](policyCacheSize)
-	c.tokenCache = structs.NewACLCache[*structs.ACLToken](tokenCacheSize)
+	c.tokenCache = structs.NewACLCache[*structs.AuthenticatedIdentity](tokenCacheSize)
 	c.roleCache = structs.NewACLCache[*structs.ACLRole](roleCacheSize)
 }
 
+// TODO(schmichael) rename to ResolveBearerToken? or Authenticate?
 // ResolveToken is used to translate an ACL Token Secret ID into
 // an ACL object, nil if ACLs are disabled, or an error.
 func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
@@ -64,6 +66,7 @@ func (c *Client) ResolveSecretToken(secretID string) (*structs.ACLToken, error) 
 	return t, err
 }
 
+// TODO(schmichael) rename?
 func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToken, error) {
 	// Fast-path if ACLs are disabled
 	if !c.GetConfig().ACLEnabled {
@@ -115,10 +118,11 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToke
 	return aclObj, token, nil
 }
 
+// TODO(schmichael) rename?
 // resolveTokenValue is used to translate a secret ID into an ACL token with caching
 // We use a local cache up to the TTL limit, and then resolve via a server. If we cannot
 // reach a server, but have a cached value we extend the TTL to gracefully handle outages.
-func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
+func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdentity, error) {
 	// Hot-path the anonymous token
 	if secretID == "" {
 		return structs.AnonymousACLToken, nil
@@ -127,21 +131,22 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 	// Lookup the token entry in the cache
 	entry, ok := c.tokenCache.Get(secretID)
 	if ok {
+		//TODO(schmichael) use a different cache for workload identities since we
 		if entry.Age() <= c.GetConfig().ACLTokenTTL {
 			return entry.Get(), nil
 		}
 	}
 
 	// Lookup the token
-	req := structs.ResolveACLTokenRequest{
-		SecretID: secretID,
+	req := structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
+			AuthToken:  secretID,
 			Region:     c.Region(),
-			AllowStale: true,
+			AllowStale: false, //TODO(schmichael) I don't think we should allow this
 		},
 	}
-	var resp structs.ResolveACLTokenResponse
-	if err := c.RPC("ACL.ResolveToken", &req, &resp); err != nil {
+	var resp structs.WhoAmIResponse
+	if err := c.RPC("ACL.WhoAmI", &req, &resp); err != nil {
 		// If we encounter an error but have a cached value, mask the error and extend the cache
 		if ok {
 			c.logger.Warn("failed to resolve token, using expired cached value", "error", err)
@@ -151,8 +156,8 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.ACLToken, error) {
 	}
 
 	// Cache the response (positive or negative)
-	c.tokenCache.Add(secretID, resp.Token)
-	return resp.Token, nil
+	c.tokenCache.Add(secretID, resp.Identity)
+	return resp.Identity, nil
 }
 
 // resolvePolicies is used to translate a set of named ACL policies into the objects.

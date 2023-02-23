@@ -281,7 +281,8 @@ type QueryOptions struct {
 	// If set, used as prefix for resource list searches
 	Prefix string
 
-	// AuthToken is secret portion of the ACL token used for the request
+	// AuthToken is secret portion of the ACL token or workload identity used for
+	// the request.
 	AuthToken string
 
 	// Filter specifies the go-bexpr filter expression to be used for
@@ -515,6 +516,16 @@ func (ai *AuthenticatedIdentity) String() string {
 		return fmt.Sprintf("client:%s", ai.ClientID)
 	}
 	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
+}
+
+func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
+	// Only ACLTokens currently support expiry so return unexpired if there isn't
+	// one.
+	if ai.ACLToken == nil {
+		return false
+	}
+
+	return ai.ACLToken.IsExpired(now)
 }
 
 type RequestWithIdentity interface {
