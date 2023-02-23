@@ -160,10 +160,11 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// the old ones
 	drainedAllocs := make([]*structs.Allocation, len(drains.Allocs))
 	for i, a := range drains.Allocs {
+		a = a.Copy()
 		a.DesiredTransition.Migrate = pointer.Of(true)
 
-		// create a copy so we can reuse this slice
-		drainedAllocs[i] = a.Copy()
+		// re-copy so we can reuse this slice
+		drainedAllocs[i] = a
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
 	drains.Resp.Respond(index, nil)
@@ -178,6 +179,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	updates := make([]*structs.Allocation, 0, len(drainedAllocs)*2)
 	for i, a := range drainedAllocs {
 		// Stop drained allocs
+		a = a.Copy()
 		a.DesiredTransition.Migrate = nil
 		a.DesiredStatus = structs.AllocDesiredStatusStop
 
@@ -200,11 +202,13 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	assertJobWatcherOps(t, jobWatcher, 0, 6)
 
 	// Finally kickoff further drain activity by "starting" replacements
-	for _, a := range replacements {
+	for i, a := range replacements {
+		a = a.Copy()
 		a.ClientStatus = structs.AllocClientStatusRunning
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Healthy: pointer.Of(true),
 		}
+		replacements[i] = a
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
 	index++
@@ -217,9 +221,10 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// Fake migrations once more to finish the drain
 	drainedAllocs = make([]*structs.Allocation, len(drains.Allocs))
 	for i, a := range drains.Allocs {
+		a = a.Copy()
 		a.DesiredTransition.Migrate = pointer.Of(true)
 
-		// create a copy so we can reuse this slice
+		// re-copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
@@ -231,11 +236,14 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	replacements = make([]*structs.Allocation, len(drainedAllocs))
 	updates = make([]*structs.Allocation, 0, len(drainedAllocs)*2)
 	for i, a := range drainedAllocs {
+		a = a.Copy()
 		a.DesiredTransition.Migrate = nil
 		a.DesiredStatus = structs.AllocDesiredStatusStop
 
 		replacement := newAlloc(runningNode, a.Job)
 		updates = append(updates, a, replacement)
+
+		// re-copy so we can reuse this slice
 		replacements[i] = replacement.Copy()
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
@@ -243,11 +251,13 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 
 	assertJobWatcherOps(t, jobWatcher, 0, 6)
 
-	for _, a := range replacements {
+	for i, a := range replacements {
+		a = a.Copy()
 		a.ClientStatus = structs.AllocClientStatusRunning
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Healthy: pointer.Of(true),
 		}
+		replacements[i] = a.Copy()
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
 	index++
@@ -260,9 +270,10 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// Fake migrations once more to finish the drain
 	drainedAllocs = make([]*structs.Allocation, len(drains.Allocs))
 	for i, a := range drains.Allocs {
+		a = a.Copy()
 		a.DesiredTransition.Migrate = pointer.Of(true)
 
-		// create a copy so we can reuse this slice
+		// re-copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
@@ -274,23 +285,27 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	replacements = make([]*structs.Allocation, len(drainedAllocs))
 	updates = make([]*structs.Allocation, 0, len(drainedAllocs)*2)
 	for i, a := range drainedAllocs {
+		a = a.Copy()
 		a.DesiredTransition.Migrate = nil
 		a.DesiredStatus = structs.AllocDesiredStatusStop
 
 		replacement := newAlloc(runningNode, a.Job)
 		updates = append(updates, a, replacement)
-		replacements[i] = replacement.Copy()
+		// re-copy so we can reuse this slice
+		replacements[i] = a.Copy()
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
 	index++
 
 	assertJobWatcherOps(t, jobWatcher, 0, 4)
 
-	for _, a := range replacements {
+	for i, a := range replacements {
+		a = a.Copy()
 		a.ClientStatus = structs.AllocClientStatusRunning
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Healthy: pointer.Of(true),
 		}
+		replacements[i] = a
 	}
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
 

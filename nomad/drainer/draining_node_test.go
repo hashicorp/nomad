@@ -47,6 +47,12 @@ func assertDrainingNode(t *testing.T, dn *drainingNode, isDone bool, remaining, 
 func TestDrainingNode_Table(t *testing.T) {
 	ci.Parallel(t)
 
+	copyAllocs := func(allocs []*structs.Allocation) {
+		for i, alloc := range allocs {
+			allocs[i] = alloc.Copy()
+		}
+	}
+
 	cases := []struct {
 		name      string
 		isDone    bool
@@ -113,10 +119,11 @@ func TestDrainingNode_Table(t *testing.T) {
 				// StateStore doesn't like inserting new allocs
 				// with a terminal status, so set the status in
 				// a second pass
+				copyAllocs(allocs)
 				for _, a := range allocs {
 					a.ClientStatus = structs.AllocClientStatusComplete
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				require.Nil(t, dn.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -133,8 +140,9 @@ func TestDrainingNode_Table(t *testing.T) {
 				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service job as terminal
+				copyAllocs(allocs)
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				require.Nil(t, dn.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -151,9 +159,10 @@ func TestDrainingNode_Table(t *testing.T) {
 				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service and batch jobs as terminal
+				copyAllocs(allocs)
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[2].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				require.Nil(t, dn.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -170,9 +179,10 @@ func TestDrainingNode_Table(t *testing.T) {
 				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service and batch jobs as terminal
+				copyAllocs(allocs)
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[1].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				require.Nil(t, dn.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 		{
@@ -196,10 +206,11 @@ func TestDrainingNode_Table(t *testing.T) {
 				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
 
 				// Set only the service and batch jobs as terminal
+				copyAllocs(allocs)
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[1].ClientStatus = structs.AllocClientStatusComplete
 				allocs[2].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				require.Nil(t, dn.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 103, allocs))
 			},
 		},
 	}
