@@ -122,7 +122,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job: plan.Job,
+			Job: plan.Job.Copy(),
 		},
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,

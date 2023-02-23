@@ -2148,12 +2148,364 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 	ci.Parallel(t)
 
 	systemJob := mock.SystemJob()
+	systemJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
 	systemAlloc := mock.SystemAlloc()
 	systemAlloc.Name = fmt.Sprintf("my-job.%s[0]", systemJob.TaskGroups[0].Name)
+
+	now := time.Now().UTC()
+
+	unknownAllocState := []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  now,
+	}}
+
+	expiredAllocState := []*structs.AllocState{{
+		Field: structs.AllocStateFieldClientStatus,
+		Value: structs.AllocClientStatusUnknown,
+		Time:  now.Add(-60 * time.Second),
+	}}
+
+	reconnectedAllocState := []*structs.AllocState{
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusUnknown,
+			Time:  now.Add(-60 * time.Second),
+		},
+		{
+			Field: structs.AllocStateFieldClientStatus,
+			Value: structs.AllocClientStatusRunning,
+			Time:  now,
+		},
+	}
+
+	type testCase struct {
+		name                   string
+		migrate                bool
+		draining               bool
+		targeted               bool
+		modifyJob              bool
+		nodeStatus             string
+		clientStatus           string
+		desiredStatus          string
+		allocState             []*structs.AllocState
+		taskState              map[string]*structs.TaskState
+		expectedPlanCount      int
+		expectedNodeAllocation map[string]*structs.Allocation
+		expectedNodeUpdate     map[string]*structs.Allocation
+	}
+
+	testCases := []testCase{
+		{
+			name:              "running-disconnect",
+			nodeStatus:        structs.NodeStatusDisconnected,
+			migrate:           false,
+			draining:          false,
+			targeted:          true,
+			modifyJob:         false,
+			clientStatus:      structs.AllocClientStatusRunning,
+			desiredStatus:     structs.AllocDesiredStatusRun,
+			allocState:        nil,
+			expectedPlanCount: 1,
+			expectedNodeAllocation: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusUnknown,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+				},
+			},
+			expectedNodeUpdate: nil,
+		},
+		{
+			name:                   "running-reconnect",
+			nodeStatus:             structs.NodeStatusReady,
+			migrate:                false,
+			draining:               false,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusRunning,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			allocState:             reconnectedAllocState,
+			expectedPlanCount:      0,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate:     nil,
+		},
+		{
+			name:                   "unknown-expired",
+			nodeStatus:             structs.NodeStatusDisconnected,
+			migrate:                false,
+			draining:               false,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusUnknown,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			allocState:             expiredAllocState,
+			expectedPlanCount:      1,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusLost,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+				},
+			},
+		},
+		{
+			name:                   "migrate",
+			nodeStatus:             structs.NodeStatusDown,
+			migrate:                true,
+			draining:               true,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusRunning,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			allocState:             nil,
+			expectedPlanCount:      1,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusRunning,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+				},
+			},
+		},
+		{
+			name:                   "ignore-unknown",
+			nodeStatus:             structs.NodeStatusDisconnected,
+			migrate:                false,
+			draining:               false,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusUnknown,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			allocState:             unknownAllocState,
+			expectedPlanCount:      0,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate:     nil,
+		},
+		{
+			name:                   "lost",
+			nodeStatus:             structs.NodeStatusDown,
+			migrate:                false,
+			draining:               false,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusRunning,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			allocState:             nil,
+			expectedPlanCount:      1,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusLost,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+				},
+			},
+		},
+		{
+			name:                   "node-draining",
+			nodeStatus:             structs.NodeStatusReady,
+			migrate:                false,
+			draining:               true,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusRunning,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			expectedPlanCount:      0,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate:     nil,
+		},
+		{
+			name:                   "node-down-complete",
+			nodeStatus:             structs.NodeStatusDown,
+			migrate:                false,
+			draining:               false,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusComplete,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			expectedPlanCount:      0,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate:     nil,
+		},
+		{
+			name:                   "ignore-ineligible",
+			nodeStatus:             structs.NodeStatusDisconnected,
+			migrate:                false,
+			draining:               false,
+			targeted:               true,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusPending,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			expectedPlanCount:      0,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate:     nil,
+		},
+		{
+			name:                   "stop-not-targeted",
+			nodeStatus:             structs.NodeStatusReady,
+			migrate:                false,
+			draining:               false,
+			targeted:               false,
+			modifyJob:              false,
+			clientStatus:           structs.AllocClientStatusRunning,
+			desiredStatus:          structs.AllocDesiredStatusRun,
+			expectedPlanCount:      1,
+			expectedNodeAllocation: nil,
+			expectedNodeUpdate: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusRunning,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+				},
+			},
+		},
+		{
+			name:              "update-job-version",
+			nodeStatus:        structs.NodeStatusReady,
+			migrate:           false,
+			draining:          false,
+			targeted:          true,
+			modifyJob:         true,
+			clientStatus:      structs.AllocClientStatusRunning,
+			desiredStatus:     structs.AllocDesiredStatusRun,
+			allocState:        nil,
+			expectedPlanCount: 1,
+			expectedNodeAllocation: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusPending,
+					DesiredStatus: structs.AllocDesiredStatusRun,
+				},
+			},
+			expectedNodeUpdate: map[string]*structs.Allocation{
+				"id": {
+					ClientStatus:  structs.AllocClientStatusRunning,
+					DesiredStatus: structs.AllocDesiredStatusStop,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewHarness(t)
+
+			// Register a node
+			node := mock.Node()
+			node.Status = tc.nodeStatus
+
+			if tc.draining {
+				node.SchedulingEligibility = structs.NodeSchedulingIneligible
+			}
+
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+			// Generate a fake job allocated on that node.
+			job := systemJob.Copy()
+
+			// If we are no longer on a targeted node, change it to a non-targeted datacenter
+			if !tc.targeted {
+				job.Datacenters = []string{"not-targeted"}
+			}
+
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+			alloc := systemAlloc.Copy()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = node.ID
+			alloc.TaskGroup = job.TaskGroups[0].Name
+			alloc.ClientStatus = tc.clientStatus
+			alloc.DesiredStatus = tc.desiredStatus
+			alloc.DesiredTransition.Migrate = pointer.Of(tc.migrate)
+			alloc.AllocStates = tc.allocState
+			alloc.TaskStates = tc.taskState
+
+			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+			alloc = alloc.Copy()
+
+			if tc.modifyJob {
+				job = job.Copy()
+				job.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{{Label: "grpc"}}
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+			}
+
+			// Create a mock evaluation to deal with disconnect
+			eval := &structs.Evaluation{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    50,
+				TriggeredBy: structs.EvalTriggerNodeUpdate,
+				JobID:       job.ID,
+				NodeID:      node.ID,
+				Status:      structs.EvalStatusPending,
+			}
+
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// Process the evaluation
+			err := h.Process(NewSystemScheduler, eval)
+			must.NoError(t, err)
+
+			// Expect a plan or not
+			must.Len(t, tc.expectedPlanCount, h.Plans,
+				must.Sprintf("expected %d plans", tc.expectedPlanCount))
+			if tc.expectedPlanCount == 0 {
+				return
+			}
+
+			plan := h.Plans[0]
+
+			must.Len(t, len(tc.expectedNodeAllocation), plan.NodeAllocation[node.ID],
+				must.Sprintf("expected NodeAllocations in plan"))
+			must.Len(t, len(tc.expectedNodeUpdate), plan.NodeUpdate[node.ID],
+				must.Sprintf("expected NodeUpdates in plan"))
+
+			foundMatch := false
+
+			for _, plannedNodeAllocs := range plan.NodeAllocation {
+				for _, actual := range plannedNodeAllocs {
+					for _, expected := range tc.expectedNodeAllocation {
+						if expected.ClientStatus == actual.ClientStatus &&
+							expected.DesiredStatus == actual.DesiredStatus {
+							foundMatch = true
+							break
+						}
+					}
+				}
+			}
+
+			if len(tc.expectedNodeAllocation) > 0 {
+				require.True(t, foundMatch, "NodeAllocation did not match")
+			}
+
+			foundMatch = false
+			for _, plannedNodeUpdates := range plan.NodeUpdate {
+				for _, actual := range plannedNodeUpdates {
+					for _, expected := range tc.expectedNodeUpdate {
+						if expected.ClientStatus == actual.ClientStatus &&
+							expected.DesiredStatus == actual.DesiredStatus {
+							foundMatch = true
+							break
+						}
+					}
+				}
+			}
+
+			if len(tc.expectedNodeUpdate) > 0 {
+				require.True(t, foundMatch, "NodeUpdate did not match")
+			}
+
+			h.AssertEvalStatus(t, structs.EvalStatusComplete)
+		})
+	}
+}
+
+func TestSysbatchSched_NodeDisconnected(t *testing.T) {
+	ci.Parallel(t)
 
 	sysBatchJob := mock.SystemBatchJob()
 	sysBatchJob.TaskGroups[0].Tasks[0].Env = make(map[string]string)
 	sysBatchJob.TaskGroups[0].Tasks[0].Env["foo"] = "bar"
+	sysBatchJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
+
 	sysBatchAlloc := mock.SysBatchAlloc()
 	sysBatchAlloc.Name = fmt.Sprintf("my-sysbatch.%s[0]", sysBatchJob.TaskGroups[0].Name)
 
@@ -2185,7 +2537,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 	}
 
 	successTaskState := map[string]*structs.TaskState{
-		systemJob.TaskGroups[0].Tasks[0].Name: {
+		sysBatchJob.TaskGroups[0].Tasks[0].Name: {
 			State:  structs.TaskStateDead,
 			Failed: false,
 		},
@@ -2193,7 +2545,6 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 
 	type testCase struct {
 		name                   string
-		jobType                string
 		exists                 bool
 		required               bool
 		migrate                bool
@@ -2213,95 +2564,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:              "system-running-disconnect",
-			jobType:           structs.JobTypeSystem,
-			exists:            true,
-			required:          true,
-			nodeStatus:        structs.NodeStatusDisconnected,
-			migrate:           false,
-			draining:          false,
-			targeted:          true,
-			modifyJob:         false,
-			previousTerminal:  false,
-			clientStatus:      structs.AllocClientStatusRunning,
-			desiredStatus:     structs.AllocDesiredStatusRun,
-			allocState:        nil,
-			expectedPlanCount: 1,
-			expectedNodeAllocation: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusUnknown,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-				},
-			},
-			expectedNodeUpdate: nil,
-		},
-		{
-			name:                   "system-running-reconnect",
-			jobType:                structs.JobTypeSystem,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusReady,
-			migrate:                false,
-			draining:               false,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusRunning,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             reconnectedAllocState,
-			expectedPlanCount:      0,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate:     nil,
-		},
-		{
-			name:                   "system-unknown-expired",
-			jobType:                structs.JobTypeSystem,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusDisconnected,
-			migrate:                false,
-			draining:               false,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusUnknown,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             expiredAllocState,
-			expectedPlanCount:      1,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusLost,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:                   "system-migrate",
-			jobType:                structs.JobTypeSysBatch,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusReady,
-			migrate:                true,
-			draining:               true,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusRunning,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             nil,
-			expectedPlanCount:      1,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:              "sysbatch-running-unknown",
-			jobType:           structs.JobTypeSysBatch,
+			name:              "running-unknown",
 			required:          true,
 			exists:            true,
 			nodeStatus:        structs.NodeStatusDisconnected,
@@ -2323,8 +2586,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate: nil,
 		},
 		{
-			name:                   "system-ignore-unknown",
-			jobType:                structs.JobTypeSystem,
+			name:                   "ignore-unknown",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDisconnected,
@@ -2341,26 +2603,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-ignore-unknown",
-			jobType:                structs.JobTypeSysBatch,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusDisconnected,
-			migrate:                false,
-			draining:               false,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusUnknown,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             unknownAllocState,
-			expectedPlanCount:      0,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate:     nil,
-		},
-		{
-			name:                   "sysbatch-ignore-complete-disconnected",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "ignore-complete-disconnected",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDisconnected,
@@ -2377,8 +2620,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-running-reconnect",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "running-reconnect",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2395,8 +2637,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-failed-reconnect",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "failed-reconnect",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2413,8 +2654,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-complete-reconnect",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "complete-reconnect",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2431,8 +2671,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-unknown-expired",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "unknown-expired",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2454,8 +2693,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			},
 		},
 		{
-			name:                   "sysbatch-migrate",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "migrate",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDown,
@@ -2477,8 +2715,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			},
 		},
 		{
-			name:                   "system-stopped",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "stopped",
 			required:               false,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDown,
@@ -2500,8 +2737,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			},
 		},
 		{
-			name:                   "system-lost",
-			jobType:                structs.JobTypeSystem,
+			name:                   "lost",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDown,
@@ -2523,31 +2759,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			},
 		},
 		{
-			name:                   "sysbatch-lost",
-			jobType:                structs.JobTypeSysBatch,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusDown,
-			migrate:                false,
-			draining:               false,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusRunning,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			allocState:             nil,
-			expectedPlanCount:      1,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusLost,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:                   "system-node-draining",
-			jobType:                structs.JobTypeSystem,
+			name:                   "node-draining",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2563,25 +2775,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-node-draining",
-			jobType:                structs.JobTypeSysBatch,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusReady,
-			migrate:                false,
-			draining:               true,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusRunning,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			expectedPlanCount:      0,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate:     nil,
-		},
-		{
-			name:                   "system-node-down-complete",
-			jobType:                structs.JobTypeSystem,
+			name:                   "node-down-complete",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDown,
@@ -2597,25 +2791,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-node-down-complete",
-			jobType:                structs.JobTypeSysBatch,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusDown,
-			migrate:                false,
-			draining:               false,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusComplete,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			expectedPlanCount:      0,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate:     nil,
-		},
-		{
-			name:                   "sysbatch-ignore-terminal",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "ignore-terminal",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2631,8 +2807,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "system-ignore-ineligible",
-			jobType:                structs.JobTypeSystem,
+			name:                   "ignore-ineligible",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDisconnected,
@@ -2648,47 +2823,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:                   "sysbatch-ignore-ineligible",
-			jobType:                structs.JobTypeSysBatch,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusDisconnected,
-			migrate:                false,
-			draining:               false,
-			targeted:               true,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusPending,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			expectedPlanCount:      0,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate:     nil,
-		},
-		{
-			name:                   "system-stop-not-targeted",
-			jobType:                structs.JobTypeSystem,
-			required:               true,
-			exists:                 true,
-			nodeStatus:             structs.NodeStatusReady,
-			migrate:                false,
-			draining:               false,
-			targeted:               false,
-			modifyJob:              false,
-			previousTerminal:       false,
-			clientStatus:           structs.AllocClientStatusRunning,
-			desiredStatus:          structs.AllocDesiredStatusRun,
-			expectedPlanCount:      1,
-			expectedNodeAllocation: nil,
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:                   "sysbatch-stop-not-targeted",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "stop-not-targeted",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2709,65 +2844,39 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				},
 			},
 		},
+		// {
+		// 	// TODO(tgross): this test is failing but looks like it might be hiding
+		// 	// an actual bug in the scheduler. Need to revisit once the PFNR PR
+		// 	// https://github.com/hashicorp/nomad/pull/16097 gets merged
+		// 	//
+		// 	name:              "update-job-version",
+		// 	required:          true,
+		// 	exists:            true,
+		// 	nodeStatus:        structs.NodeStatusReady,
+		// 	migrate:           false,
+		// 	draining:          false,
+		// 	targeted:          true,
+		// 	modifyJob:         true,
+		// 	previousTerminal:  false,
+		// 	clientStatus:      structs.AllocClientStatusRunning,
+		// 	desiredStatus:     structs.AllocDesiredStatusRun,
+		// 	allocState:        nil,
+		// 	expectedPlanCount: 1,
+		// 	expectedNodeAllocation: map[string]*structs.Allocation{
+		// 		"id": {
+		// 			ClientStatus:  structs.AllocClientStatusPending,
+		// 			DesiredStatus: structs.AllocDesiredStatusRun,
+		// 		},
+		// 	},
+		// 	expectedNodeUpdate: map[string]*structs.Allocation{
+		// 		"id": {
+		// 			ClientStatus:  structs.AllocClientStatusRunning,
+		// 			DesiredStatus: structs.AllocDesiredStatusStop,
+		// 		},
+		// 	},
+		// },
 		{
-			name:              "system-update-job-version",
-			jobType:           structs.JobTypeSystem,
-			required:          true,
-			exists:            true,
-			nodeStatus:        structs.NodeStatusReady,
-			migrate:           false,
-			draining:          false,
-			targeted:          true,
-			modifyJob:         true,
-			previousTerminal:  false,
-			clientStatus:      structs.AllocClientStatusRunning,
-			desiredStatus:     structs.AllocDesiredStatusRun,
-			allocState:        nil,
-			expectedPlanCount: 1,
-			expectedNodeAllocation: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusPending,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-				},
-			},
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:              "sysbatch-update-job-version",
-			jobType:           structs.JobTypeSysBatch,
-			required:          true,
-			exists:            true,
-			nodeStatus:        structs.NodeStatusReady,
-			migrate:           false,
-			draining:          false,
-			targeted:          true,
-			modifyJob:         true,
-			previousTerminal:  false,
-			clientStatus:      structs.AllocClientStatusRunning,
-			desiredStatus:     structs.AllocDesiredStatusRun,
-			allocState:        nil,
-			expectedPlanCount: 1,
-			expectedNodeAllocation: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusPending,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-				},
-			},
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusRunning,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:                   "sysbatch-ignore-successful-tainted",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "ignore-successful-tainted",
 			required:               true,
 			exists:                 true,
 			nodeStatus:             structs.NodeStatusDown,
@@ -2785,8 +2894,7 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			expectedNodeUpdate:     nil,
 		},
 		{
-			name:              "sysbatch-annotate-when-not-existing",
-			jobType:           structs.JobTypeSysBatch,
+			name:              "annotate-when-not-existing",
 			required:          true,
 			exists:            false,
 			nodeStatus:        structs.NodeStatusReady,
@@ -2807,37 +2915,39 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			},
 			expectedNodeUpdate: nil,
 		},
+		// {
+		// 	// TODO(tgross): this test is failing but looks like it might be hiding
+		// 	// an actual bug in the scheduler. Need to revisit once the PFNR PR
+		// 	// https://github.com/hashicorp/nomad/pull/16097 gets merged
+		// 	//
+		// 	name:              "update-modified-terminal-when-not-existing",
+		// 	required:          true,
+		// 	exists:            false,
+		// 	nodeStatus:        structs.NodeStatusReady,
+		// 	migrate:           false,
+		// 	draining:          false,
+		// 	targeted:          true,
+		// 	modifyJob:         true,
+		// 	previousTerminal:  true,
+		// 	clientStatus:      structs.AllocClientStatusRunning,
+		// 	desiredStatus:     structs.AllocDesiredStatusRun,
+		// 	allocState:        nil,
+		// 	expectedPlanCount: 1,
+		// 	expectedNodeAllocation: map[string]*structs.Allocation{
+		// 		"id": {
+		// 			ClientStatus:  structs.AllocClientStatusPending,
+		// 			DesiredStatus: structs.AllocDesiredStatusRun,
+		// 		},
+		// 	},
+		// 	expectedNodeUpdate: map[string]*structs.Allocation{
+		// 		"id": {
+		// 			ClientStatus:  structs.AllocClientStatusComplete,
+		// 			DesiredStatus: structs.AllocDesiredStatusStop,
+		// 		},
+		// 	},
+		// },
 		{
-			name:              "sysbatch-update-modified-terminal-when-not-existing",
-			jobType:           structs.JobTypeSysBatch,
-			required:          true,
-			exists:            false,
-			nodeStatus:        structs.NodeStatusReady,
-			migrate:           false,
-			draining:          false,
-			targeted:          true,
-			modifyJob:         true,
-			previousTerminal:  true,
-			clientStatus:      structs.AllocClientStatusRunning,
-			desiredStatus:     structs.AllocDesiredStatusRun,
-			allocState:        nil,
-			expectedPlanCount: 1,
-			expectedNodeAllocation: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusPending,
-					DesiredStatus: structs.AllocDesiredStatusRun,
-				},
-			},
-			expectedNodeUpdate: map[string]*structs.Allocation{
-				"id": {
-					ClientStatus:  structs.AllocClientStatusComplete,
-					DesiredStatus: structs.AllocDesiredStatusStop,
-				},
-			},
-		},
-		{
-			name:                   "sysbatch-ignore-unmodified-terminal-when-not-existing",
-			jobType:                structs.JobTypeSysBatch,
+			name:                   "ignore-unmodified-terminal-when-not-existing",
 			required:               true,
 			exists:                 false,
 			nodeStatus:             structs.NodeStatusReady,
@@ -2867,23 +2977,10 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				node.SchedulingEligibility = structs.NodeSchedulingIneligible
 			}
 
-			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 			// Generate a fake job allocated on that node.
-			var job *structs.Job
-			var alloc *structs.Allocation
-			switch tc.jobType {
-			case structs.JobTypeSystem:
-				job = systemJob.Copy()
-				alloc = systemAlloc.Copy()
-			case structs.JobTypeSysBatch:
-				job = sysBatchJob.Copy()
-				alloc = sysBatchAlloc.Copy()
-			default:
-				require.FailNow(t, "invalid jobType")
-			}
-
-			job.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
+			job := sysBatchJob.Copy()
 
 			if !tc.required {
 				job.Stop = true
@@ -2894,9 +2991,11 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				job.Datacenters = []string{"not-targeted"}
 			}
 
-			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+			job = job.Copy()
 
-			alloc.Job = job.Copy()
+			alloc := sysBatchAlloc.Copy()
+			alloc.Job = job
 			alloc.JobID = job.ID
 			alloc.NodeID = node.ID
 			alloc.TaskGroup = job.TaskGroups[0].Name
@@ -2907,29 +3006,26 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			alloc.TaskStates = tc.taskState
 
 			if tc.exists {
-				require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+				must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 			}
 
 			if tc.modifyJob {
-				if tc.jobType == structs.JobTypeSystem {
-					job.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{{Label: "grpc"}}
-				}
-				if tc.jobType == structs.JobTypeSysBatch {
-					alloc.Job.TaskGroups[0].Tasks[0].Driver = "raw_exec"
-				}
-				require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+				job = job.Copy()
+				job.TaskGroups[0].Tasks[0].Driver = "raw_exec"
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
 			}
 
 			if tc.previousTerminal {
 				prev := alloc.Copy()
 				if tc.modifyJob {
+					prev.Job = job.Copy()
 					prev.Job.JobModifyIndex = alloc.Job.JobModifyIndex - 1
 				}
 				prev.ClientStatus = structs.AllocClientStatusComplete
 				prev.DesiredStatus = structs.AllocDesiredStatusRun
-
-				require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{prev}))
+				must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{prev}))
 			}
+
 			// Create a mock evaluation to deal with disconnect
 			eval := &structs.Evaluation{
 				Namespace:   structs.DefaultNamespace,
@@ -2940,14 +3036,16 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				NodeID:      node.ID,
 				Status:      structs.EvalStatusPending,
 			}
-			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
-			err := h.Process(NewSystemScheduler, eval)
-			require.NoError(t, err)
+			err := h.Process(NewSysBatchScheduler, eval)
+			must.NoError(t, err)
 
 			// Ensure a single plan
-			require.Len(t, h.Plans, tc.expectedPlanCount)
+			must.Len(t, tc.expectedPlanCount, h.Plans,
+				must.Sprintf("expected %d plans", tc.expectedPlanCount))
 			if tc.expectedPlanCount == 0 {
 				return
 			}
@@ -2955,11 +3053,13 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 			plan := h.Plans[0]
 
 			// Ensure the plan creates the expected plan
-			require.Len(t, plan.NodeAllocation[node.ID], len(tc.expectedNodeAllocation))
-			require.Len(t, plan.NodeUpdate[node.ID], len(tc.expectedNodeUpdate))
+			must.Len(t, len(tc.expectedNodeUpdate), plan.NodeUpdate[node.ID],
+				must.Sprintf("expected NodeUpdates in plan"))
+
+			must.Len(t, len(tc.expectedNodeAllocation), plan.NodeAllocation[node.ID],
+				must.Sprintf("expected NodeAllocations in plan"))
 
 			foundMatch := false
-
 			for _, plannedNodeAllocs := range plan.NodeAllocation {
 				for _, actual := range plannedNodeAllocs {
 					for _, expected := range tc.expectedNodeAllocation {

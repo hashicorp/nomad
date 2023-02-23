@@ -2410,9 +2410,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		t.Fatalf("bad: %#v", plan)
 	}
 	for _, p := range planned {
-		if p.Job != job2 {
-			t.Fatalf("should update job")
-		}
+		must.Eq(t, job2, p.Job, must.Sprint("should update job"))
 	}
 
 	// Lookup the allocations by JobID
@@ -3749,6 +3747,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	assert.Equal(failedAllocID, newAlloc.RescheduleTracker.Events[0].PrevAllocID)
 
 	// Mark this alloc as failed again, should not get rescheduled
+	newAlloc = newAlloc.Copy()
 	newAlloc.ClientStatus = structs.AllocClientStatusFailed
 
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{newAlloc}))
@@ -3972,6 +3971,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		assert.Equal(newAlloc.ID, prevFailedAlloc.NextAllocation)
 
 		// Mark this alloc as failed again
+		newAlloc = newAlloc.Copy()
 		newAlloc.ClientStatus = structs.AllocClientStatusFailed
 		newAlloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
 			StartedAt:  now.Add(-12 * time.Second),
@@ -3980,7 +3980,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 		failedAllocId = newAlloc.ID
 		failedNodeID = newAlloc.NodeID
 
-		require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{newAlloc}))
+		require.NoError(t, h.State.UpdateAllocsFromClient(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{newAlloc}))
 
 		// Create another mock evaluation
 		eval = &structs.Evaluation{
@@ -6363,9 +6363,10 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 		h.NextIndex(), []*structs.Evaluation{eval}))
 	err = h.Process(NewServiceScheduler, eval)
 	require.NoError(err)
-	require.Len(h.Plans, 1, "expected one plan")
+	require.Len(h.Plans, 2, "expected two plans")
+	must.MapEmpty(t, h.Plans[1].NodeUpdate, must.Sprint("expected no new allocs"))
 
-	// Expect the eval to have failed
+	// Expect the eval to have spawned a new queued-allocs eval
 	require.NotEqual("", h.Evals[1].BlockedEval,
 		"expected a blocked eval to be spawned")
 	require.Equal(2, h.Evals[1].QueuedAllocations["web"], "expected 2 queued allocs")
@@ -6386,18 +6387,15 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 		h.NextIndex(), []*structs.Evaluation{eval}))
 	err = h.Process(NewServiceScheduler, eval)
 	require.NoError(err)
-	require.Len(h.Plans, 2, "expected two plans")
+	require.Len(h.Plans, 3, "expected three plans")
 	require.Nil(h.Plans[1].Annotations, "expected no annotations")
 
 	require.Equal("", h.Evals[2].BlockedEval, "did not expect a blocked eval")
 	require.Len(h.Evals[2].FailedTGAllocs, 0)
 
 	// Ensure the plan allocated and we got expected placements
-	planned = []*structs.Allocation{}
-	for _, allocList := range h.Plans[1].NodeAllocation {
-		planned = append(planned, allocList...)
-	}
-	require.Len(planned, 2, "expected 2 new planned allocations")
+	must.MapLen(t, 2, h.Plans[2].NodeAllocation, must.Sprint("expected 2 new planned allocations"))
+	must.MapEmpty(t, h.Plans[2].NodeUpdate, must.Sprint("expected 2 allocation updates"))
 
 	out, err = h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
 	require.NoError(err)

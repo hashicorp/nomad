@@ -919,12 +919,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
-	// Create a new task group that updates the resources.
+	// Create a new task group that updates the services.
 	job = job.Copy()
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
-	resource := &structs.Resources{CPU: 737}
-	tg.Tasks[0].Resources = resource
 	newServices := []*structs.Service{
 		{
 			Name:      "dummy-service",
@@ -941,6 +939,8 @@ func TestInplaceUpdate_Success(t *testing.T) {
 
 	// Add the new services
 	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
+	alloc = alloc.Copy()
+	alloc.Job = job
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
@@ -949,9 +949,10 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	require.True(t, len(unplaced) == 0 && len(inplace) == 1, "inplaceUpdate did not do an inplace update")
-	require.Equal(t, 1, len(ctx.plan.NodeAllocation), "inplaceUpdate did not do an inplace update")
-	require.Equal(t, alloc.ID, inplace[0].Alloc.ID, "inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace)
+	must.Len(t, 0, unplaced, must.Sprintf("inplaceUpdate left unplaced updates"))
+	must.Len(t, 1, inplace, must.Sprintf("inplaceUpdate did not do an inplace update"))
+	must.MapLen(t, 1, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate did not do an inplace update"))
+	must.Eq(t, alloc.ID, inplace[0].Alloc.ID, must.Sprintf("inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace))
 
 	// Get the alloc we inserted.
 	a := inplace[0].Alloc // TODO(sean@): Verify this is correct vs: ctx.plan.NodeAllocation[alloc.NodeID][0]
