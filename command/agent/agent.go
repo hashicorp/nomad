@@ -1165,6 +1165,9 @@ func (a *Agent) Shutdown() error {
 		if err := a.client.Shutdown(); err != nil {
 			a.logger.Error("client shutdown failed", "error", err)
 		}
+
+		// Task API must be closed separately
+		a.builtinServer.Shutdown()
 	}
 	if a.server != nil {
 		if err := a.server.Shutdown(); err != nil {
