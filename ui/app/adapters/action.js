@@ -32,7 +32,7 @@ export default class ActionAdapter extends ApplicationAdapter {
         code: true,
         type: 'success',
         destroyOnClick: false,
-        timeout: 0,
+        timeout: 5000,
       });
       action.messageBuffer = "";
     };
