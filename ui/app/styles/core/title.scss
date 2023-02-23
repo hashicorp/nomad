@@ -18,3 +18,21 @@
     justify-content: space-between;
   }
 }
+
+// TODO: make yer own scss file
+
+.job-actions {
+  background: #eee;
+  padding: 1rem;
+  margin: 1.5rem 0;
+  & > h2 {
+    margin-bottom: 1rem;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+  & > div {
+    display: grid;
+    grid-auto-flow: column;
+    gap: 0.5rem;
+  }
+}

@@ -58,6 +58,7 @@ export default class JobSerializer extends ApplicationSerializer {
         actions: hash.Actions.map((action) => {
           action.ID = action.Name;
           action.JobID = hash.ID;
+          action.Type = action.Type || 'secondary';
           return action;
         }),
       });

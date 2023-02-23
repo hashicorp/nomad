@@ -12,6 +12,7 @@ export default class ActionModel extends Model {
   @attr() args;
   @attr('string') name;
   @attr('string') command;
+  @attr('string', { defaultValue: 'tertiary' }) type; // defaultValue doesnt work??
 
   @action
   perform(params) {
