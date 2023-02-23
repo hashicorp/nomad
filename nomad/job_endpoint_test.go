@@ -428,17 +428,19 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 	require.Equal("connect-proxy-backend", out.TaskGroups[0].Networks[0].DynamicPorts[0].Label)
 
 	// Check that round tripping the job doesn't change the sidecarTask
+	out = out.Copy()
 	out.Meta["test"] = "abc"
 	req.Job = out
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	require.NotZero(resp.Index)
-	// Check for the new node in the FSM
+
+	// Check for the updated job in the FSM
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
 	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	require.NoError(err)
 	require.NotNil(out)
-	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+	require.NotEqual(resp.JobModifyIndex, out.CreateIndex)
 
 	require.Len(out.TaskGroups[0].Tasks, 2)
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
@@ -502,18 +504,19 @@ func TestJobEndpoint_Register_ConnectIngressGateway_minimum(t *testing.T) {
 	}, service.Connect.Gateway.Ingress)
 
 	// Check that round-tripping does not inject a duplicate task
+	out = out.Copy()
 	out.Meta["test"] = "abc"
 	req.Job = out
 	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	r.NotZero(resp.Index)
 
-	// Check for the new node in the fsm
+	// Check for the new job in the fsm
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
 	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	r.NoError(err)
 	r.NotNil(out)
-	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+	r.NotEqual(resp.JobModifyIndex, out.CreateIndex)
 
 	// Check we did not re-add the task that was added the first time
 	r.Len(out.TaskGroups[0].Tasks, 1)
@@ -629,18 +632,19 @@ func TestJobEndpoint_Register_ConnectIngressGateway_full(t *testing.T) {
 	}, service.Connect.Gateway.Ingress)
 
 	// Check that round-tripping does not inject a duplicate task
+	out = out.Copy()
 	out.Meta["test"] = "abc"
 	req.Job = out
 	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	r.NotZero(resp.Index)
 
-	// Check for the new node in the fsm
+	// Check for the new job in the fsm
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
 	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	r.NoError(err)
 	r.NotNil(out)
-	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+	r.NotEqual(resp.JobModifyIndex, out.CreateIndex)
 
 	// Check we did not re-add the task that was added the first time
 	r.Len(out.TaskGroups[0].Tasks, 1)
@@ -743,18 +747,19 @@ func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
 	}, grpcPath)
 
 	// make sure round tripping does not create duplicate expose paths
+	out = out.Copy()
 	out.Meta["test"] = "abc"
 	req.Job = out
 	r.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	r.NotZero(resp.Index)
 
-	// Check for the new node in the FSM
+	// Check for the updated job in the FSM
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
 	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	r.NoError(err)
 	r.NotNil(out)
-	r.Equal(resp.JobModifyIndex, out.CreateIndex)
+	r.NotEqual(resp.JobModifyIndex, out.CreateIndex)
 
 	// make sure we are not re-adding what has already been added
 	r.Len(out.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Expose.Paths, 2)
@@ -840,17 +845,19 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	require.Equal(cfg, sidecarTask.Config)
 
 	// Check that round tripping the job doesn't change the sidecarTask
+	out = out.Copy()
 	out.Meta["test"] = "abc"
 	req.Job = out
 	require.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
 	require.NotZero(resp.Index)
-	// Check for the new node in the FSM
+
+	// Check for the updated job in the FSM
 	state = s1.fsm.State()
 	ws = memdb.NewWatchSet()
 	out, err = state.JobByID(ws, job.Namespace, job.ID)
 	require.NoError(err)
 	require.NotNil(out)
-	require.Equal(resp.JobModifyIndex, out.CreateIndex)
+	require.NotEqual(resp.JobModifyIndex, out.CreateIndex)
 
 	require.Len(out.TaskGroups[0].Tasks, 2)
 	require.Exactly(sidecarTask, out.TaskGroups[0].Tasks[1])
@@ -4608,6 +4615,7 @@ func TestJobEndpoint_GetJobVersions_ACL(t *testing.T) {
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 10, job)
 	require.Nil(err)
 
+	job = job.Copy()
 	job.Priority = 100
 	err = state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.Nil(err)

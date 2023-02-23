@@ -737,6 +737,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 		must.NoError(t, err)
 		must.NotNil(t, schedulerConfig)
 
+		schedulerConfig = schedulerConfig.Copy()
 		schedulerConfig.PauseEvalBroker = !enabled
 		must.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
 	}
@@ -787,17 +788,17 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 
 		// Attempt to delete the eval, which should succeed as the eval
 		// broker is disabled.
-		get := &structs.EvalDeleteRequest{
+		del := &structs.EvalDeleteRequest{
 			EvalIDs:      []string{mockEval.ID},
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 		var resp structs.EvalDeleteResponse
-		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, del, &resp))
 
 		// Attempt to read the eval from state; this should not be found.
 		ws := memdb.NewWatchSet()
 		respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
-		must.Nil(t, err)
+		must.NoError(t, err)
 		must.Nil(t, respEval)
 	})
 
@@ -830,7 +831,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 		// Attempt to read the eval from state; this should not be found.
 		ws := memdb.NewWatchSet()
 		respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
-		must.Nil(t, err)
+		must.NoError(t, err)
 		must.Nil(t, respEval)
 	})
 

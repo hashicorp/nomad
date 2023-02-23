@@ -3634,6 +3634,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	}
 
 	// Update to be running on the node
+	alloc = alloc.Copy()
 	alloc.NodeID = node.ID
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
@@ -3648,6 +3649,7 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	}
 
 	// Update to be terminal
+	alloc = alloc.Copy()
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)

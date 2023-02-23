@@ -125,8 +125,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	})
 
 	// make alloc non-terminal
+	alloc1 = alloc1.Copy()
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
-	must.NoError(t, store.UpsertAllocs(
+	must.NoError(t, store.UpdateAllocsFromClient(
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {

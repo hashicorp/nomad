@@ -274,6 +274,7 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 	require.True(nstructs.IsErrNodeLacksRpc(err), err.Error())
 
 	// Test for a missing version error
+	node = node.Copy()
 	delete(node.Attributes, "nomad.version")
 	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
