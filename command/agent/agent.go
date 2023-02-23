@@ -693,7 +693,7 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	if len(invalidConsulKeys) > 0 {
 		a.logger.Warn("invalid consul keys", "keys", strings.Join(invalidConsulKeys, ","))
 		a.logger.Warn(`Nomad client ignores consul related configuration in client options.
-		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
+		Please refer to the guide https://developer.hashicorp.com/nomad/docs/configuration/consul
 		to configure Nomad to work with Consul.`)
 	}
 

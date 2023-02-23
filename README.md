@@ -9,12 +9,12 @@ Nomad
   </a>
 </p>
 
-Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://www.nomadproject.io/docs/drivers/docker.html), [podman](https://www.nomadproject.io/docs/drivers/podman)), non-containerized applications ([executable](https://www.nomadproject.io/docs/drivers/exec.html), [Java](https://www.nomadproject.io/docs/drivers/java)), and virtual machines ([qemu](https://www.nomadproject.io/docs/drivers/qemu.html)) across on-prem and clouds at scale.
+Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://developer.hashicorp.com/nomad/docs/drivers/docker), [podman](https://developer.hashicorp.com/nomad/plugins/drivers/podman)), non-containerized applications ([executable](https://developer.hashicorp.com/nomad/docs/drivers/exec), [Java](https://developer.hashicorp.com/nomad/docs/drivers/java)), and virtual machines ([qemu](https://developer.hashicorp.com/nomad/docs/drivers/qemu)) across on-prem and clouds at scale.
 
-Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://www.nomadproject.io/docs/enterprise), is also available.
+Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://developer.hashicorp.com/nomad/docs/enterprise), is also available.
 
 * Website: https://nomadproject.io
-* Tutorials: [HashiCorp Learn](https://learn.hashicorp.com/nomad)
+* Tutorials: [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials)
 * Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
 
 Nomad provides several key features:
@@ -35,18 +35,18 @@ Quick Start
 ---
 
 #### Testing
-See [Learn: Getting Started](https://learn.hashicorp.com/collections/nomad/get-started) for instructions on setting up a local Nomad cluster for non-production use.
+See [Developer: Getting Started](https://developer.hashicorp.com/nomad/tutorials/get-started) for instructions on setting up a local Nomad cluster for non-production use.
 
 Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
 
 #### Production
-See [Learn: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
+See [Developer: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
 
 Documentation
 ---
 Full, comprehensive documentation is available on the Nomad website: https://www.nomadproject.io/docs
 
-Guides are available on [HashiCorp Learn](https://learn.hashicorp.com/nomad).
+Guides are available on [HashiCorp Developer](https://developer.hashicorp.com/nomad/tutorials).
 
 Roadmap
 ---
