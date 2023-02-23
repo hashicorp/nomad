@@ -2601,7 +2601,7 @@ func TestTaskRunner_TlsHook_Enabled(t *testing.T) {
 
 	testWaitForTaskToDie(t, tr)
 
-	certBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_public_key.pem"))
+	certBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "tls_keys", "public_key.pem"))
 	require.NoError(t, err)
 	cert := string(certBytes)
 
@@ -2627,7 +2627,7 @@ func TestTaskRunner_TlsHook_Enabled(t *testing.T) {
 	must.SliceContainsAll(t, expectedIPs, certIps)
 
 	// Note: testing not much about this since it is currently just grabbed from a file
-	// caKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_private_key.pem"))
+	// caKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "tls_keys", "private_key.pem"))
 	// require.NoError(t, err)
 
 	// caKey := string(caKeyBytes)
@@ -2636,7 +2636,7 @@ func TestTaskRunner_TlsHook_Enabled(t *testing.T) {
 	// require.NotNil(t, caCert)
 
 	// Note: testing not much about this since it is currently just grabbed from a file
-	caPubKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_tls_ca_public_key.pem"))
+	caPubKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "ca_certs", "ca_public_key.pem"))
 	require.NoError(t, err)
 
 	caPubKey := string(caPubKeyBytes)
