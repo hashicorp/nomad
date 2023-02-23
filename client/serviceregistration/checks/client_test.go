@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -239,7 +240,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 	}
 
 	encoding := [2]string{"Accept-Encoding", "gzip"}
-	agent := [2]string{"User-Agent", "Go-http-client/1.1"}
+	agent := [2]string{useragent.Header, useragent.String()}
 
 	cases := []struct {
 		name    string
@@ -268,6 +269,13 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 			headers: makeHeaders(encoding, agent,
 				[2]string{"X-My-Header", "hello"},
 				[2]string{"Authorization", "Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="},
+			),
+		},
+		{
+			name:   "user agent header",
+			method: "GET",
+			headers: makeHeaders(encoding,
+				[2]string{"User-Agent", "my-custom-agent"},
 			),
 		},
 		{
@@ -348,7 +356,7 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 				}
 			}
 			if !hostSent {
-				must.Eq(t, nil, tc.headers["Host"])
+				must.Nil(t, tc.headers["Host"])
 			}
 
 			must.Eq(t, tc.headers, headers)
