@@ -8,6 +8,12 @@ import (
 	"github.com/hashicorp/nomad/version"
 )
 
+const (
+	// Header is the User-Agent header key
+	// https://www.rfc-editor.org/rfc/rfc7231#section-5.5.3
+	Header = `User-Agent`
+)
+
 var (
 	// projectURL is the project URL.
 	projectURL = "https://www.nomadproject.io/"
@@ -37,6 +43,6 @@ type HeaderSetter interface {
 // SetHeaders configures the User-Agent http.Header for the client.
 func SetHeaders(client HeaderSetter) {
 	client.SetHeaders(http.Header{
-		"User-Agent": []string{String()},
+		Header: []string{String()},
 	})
 }
