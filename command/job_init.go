@@ -14,7 +14,7 @@ import (
 const (
 	// DefaultInitName is the default name we use when
 	// initializing the example file
-	DefaultInitName = "example.nomad.hcl"
+	DefaultInitName = "hello.nomad.hcl"
 )
 
 // JobInitCommand generates a new job template that you can customize to your
@@ -175,7 +175,7 @@ func (c *JobInitCommand) Run(args []string) int {
 		case connect && short:
 			jobSpec = asset.JobConnectShort
 		case !connect && short:
-			jobSpec = asset.JobExampleShort
+			jobSpec = asset.JobHelloNomad
 		default:
 			jobSpec = asset.JobExample
 		}

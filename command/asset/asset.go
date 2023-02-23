@@ -13,3 +13,6 @@ var JobConnect []byte
 
 //go:embed connect-short.nomad.hcl
 var JobConnectShort []byte
+
+//go:embed hello.nomad.hcl
+var JobHelloNomad []byte
