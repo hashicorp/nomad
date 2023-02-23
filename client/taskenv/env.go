@@ -126,6 +126,9 @@ const (
 	// WorkloadToken is the environment variable for passing the Nomad Workload Identity token
 	WorkloadToken = "NOMAD_TOKEN"
 
+	// TrustCircles is the environment variable for seeing which circles of trust a task is part of
+	TrustCircles = "TRUST_CIRCLES"
+
 	// TODO: Document
 	TlsPublicKey  = "TLS_PUBLIC_KEY"
 	TlsPrivateKey = "TLS_PRIVATE_KEY"
@@ -431,6 +434,7 @@ type Builder struct {
 	vaultNamespace   string
 	injectVaultToken bool
 	workloadToken    string
+	trustCircles     []string
 
 	tlsPublicCert  string
 	tlsPrivateCert string
@@ -602,6 +606,11 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Build the Nomad Workload Token
 	if b.injectWorkloadToken && b.workloadToken != "" {
 		envMap[WorkloadToken] = b.workloadToken
+	}
+
+	// Build the Nomad Workload Token
+	if len(b.trustCircles) > 0 {
+		envMap[TrustCircles] = strings.Join(b.trustCircles, ",")
 	}
 
 	// Copy and interpolate task meta
@@ -1059,6 +1068,13 @@ func (b *Builder) SetWorkloadToken(token string, inject bool) *Builder {
 	b.mu.Lock()
 	b.workloadToken = token
 	b.injectWorkloadToken = inject
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetTrustCircles(trustCircles []string, inject bool) *Builder {
+	b.mu.Lock()
+	b.trustCircles = trustCircles
 	b.mu.Unlock()
 	return b
 }

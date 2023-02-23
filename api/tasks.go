@@ -705,6 +705,7 @@ type Task struct {
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
 	Identity        *WorkloadIdentity      `hcl:"identity,block"`
+	TrustCircles    []string               `hcl:"trust_circles,optional"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {

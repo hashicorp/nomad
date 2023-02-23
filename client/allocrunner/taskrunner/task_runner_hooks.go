@@ -491,6 +491,7 @@ func (tr *TaskRunner) updateHooks() {
 		req := interfaces.TaskUpdateRequest{
 			VaultToken:    tr.getVaultToken(),
 			Alloc:         alloc,
+			Task:          tr.Task(),
 			TaskEnv:       tr.envBuilder.Build(),
 			TaskResources: tr.taskResources,
 		}

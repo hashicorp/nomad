@@ -286,6 +286,10 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		if !at.Identity.Equal(bt.Identity) {
 			return true
 		}
+
+		if !reflect.DeepEqual(at.TrustCircles, bt.TrustCircles) {
+			return true
+		}
 	}
 	return false
 }

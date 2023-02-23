@@ -45,9 +45,10 @@ type tlsHook struct {
 }
 
 type setTlsOpts struct {
-	Namespace string
-	Region    string
-	Resources *structs.AllocatedTaskResources
+	Namespace    string
+	Region       string
+	Resources    *structs.AllocatedTaskResources
+	TrustCircles []string
 }
 
 func newTlsHook(tr *TaskRunner, rpcer RPCer, logger log.Logger) *tlsHook {
@@ -70,9 +71,10 @@ func (h *tlsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequ
 	h.secretsDir = req.TaskDir.SecretsDir
 
 	opts := setTlsOpts{
-		Namespace: req.Alloc.Namespace,
-		Region:    req.Alloc.Job.Region,
-		Resources: req.TaskResources,
+		Namespace:    req.Alloc.Namespace,
+		Region:       req.Alloc.Job.Region,
+		Resources:    req.TaskResources,
+		TrustCircles: req.Task.TrustCircles,
 	}
 
 	return h.setTlsFiles(ctx, opts)
@@ -83,9 +85,10 @@ func (h *tlsHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest,
 	defer h.lock.Unlock()
 
 	opts := setTlsOpts{
-		Namespace: req.Alloc.Namespace,
-		Region:    req.Alloc.Job.Region,
-		Resources: req.TaskResources,
+		Namespace:    req.Alloc.Namespace,
+		Region:       req.Alloc.Job.Region,
+		Resources:    req.TaskResources,
+		TrustCircles: req.Task.TrustCircles,
 	}
 
 	return h.setTlsFiles(ctx, opts)
@@ -94,6 +97,11 @@ func (h *tlsHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest,
 // setTlsFiles adds the TLS files to the task's environment and writes it to a
 // file if requested by the jobsepc.
 func (h *tlsHook) setTlsFiles(ctx context.Context, opts setTlsOpts) error {
+
+	fmt.Println("===SPRUCE")
+	fmt.Println(opts.TrustCircles)
+	fmt.Println("GOOSE===")
+
 	resources := opts.Resources
 	caPrivateKey, caPubKey, _ := h.getCaKeys(opts)
 
@@ -128,7 +136,7 @@ func (h *tlsHook) setTlsFiles(ctx context.Context, opts setTlsOpts) error {
 		return fmt.Errorf("failed to Generate cert: %w", err)
 	}
 
-	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey)
+	h.tr.setTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey, opts.TrustCircles)
 
 	// TODO: Make this optional with jobspec config (see identity hook)
 	if err := h.writeTlsValues(tlsPublicCert, tlsPrivateCert, caPubKey); err != nil {

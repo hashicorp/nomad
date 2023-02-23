@@ -168,6 +168,9 @@ type TaskUpdateRequest struct {
 
 	// TaskEnv is the task's environment
 	TaskEnv *taskenv.TaskEnv
+
+	// Task is the task to run
+	Task *structs.Task
 }
 type TaskUpdateResponse struct{}
 
