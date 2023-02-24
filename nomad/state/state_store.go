@@ -1458,14 +1458,13 @@ func deleteNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 
 // updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
 func updateOrGCPlugin(index uint64, txn Txn, plug *structs.CSIPlugin) error {
-	plug.ModifyIndex = index
-
 	if plug.IsEmpty() {
 		err := txn.Delete("csi_plugins", plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins delete error: %v", err)
 		}
 	} else {
+		plug.ModifyIndex = index
 		err := txn.Insert("csi_plugins", plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins update error %s: %v", plug.ID, err)
@@ -2601,6 +2600,7 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 // volSafeToForce checks if the any of the remaining allocations
 // are in a non-terminal state.
 func (s *StateStore) volSafeToForce(txn Txn, v *structs.CSIVolume) bool {
+	v = v.Copy()
 	vol, err := s.csiVolumeDenormalizeTxn(txn, nil, v)
 	if err != nil {
 		return false
