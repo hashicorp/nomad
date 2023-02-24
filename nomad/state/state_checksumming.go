@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"hash"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/stream"
@@ -24,6 +25,8 @@ func NewChecksummingDB(db MemDBWrapper) *checksummingDB {
 		memdb: db,
 	}
 }
+
+var Hasher hash.Hash64
 
 // ReadTxn returns a Txn wrapping a read-only memdb.Txn
 func (c *checksummingDB) ReadTxn() Txn {
@@ -192,7 +195,7 @@ func (tx *checksummedTxn) Insert(table string, obj any) error {
 		return tx.Txn.Insert(table, obj)
 	}
 
-	hash, err := hashstructure.Hash(obj, nil)
+	hash, err := hashstructure.Hash(obj, &hashstructure.HashOptions{Hasher: Hasher})
 	if err != nil {
 		return err
 	}
@@ -223,7 +226,7 @@ func (tx *checksummedTxn) verifyChecksum(table string, obj any) error {
 	if obj == nil || table == tableIndex {
 		return nil
 	}
-	hash, err := hashstructure.Hash(obj, nil)
+	hash, err := hashstructure.Hash(obj, &hashstructure.HashOptions{Hasher: Hasher})
 	if err != nil {
 		return fmt.Errorf(errMsgBadHash, table, err)
 	}

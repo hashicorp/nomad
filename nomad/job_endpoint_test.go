@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
@@ -15,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
@@ -8438,7 +8440,12 @@ func BenchmarkChecksummingRPC_Disabled(b *testing.B) {
 	benchmarkChecksummingRPC(b, false)
 }
 
-func BenchmarkChecksummingRPC_Enabled(b *testing.B) {
+func BenchmarkChecksummingRPC_Enabled_FNV(b *testing.B) {
+	benchmarkChecksummingRPC(b, true)
+}
+
+func BenchmarkChecksummingRPC_Enabled_xxHash(b *testing.B) {
+	state.Hasher = xxhash.New()
 	benchmarkChecksummingRPC(b, true)
 }
 
