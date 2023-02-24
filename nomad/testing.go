@@ -36,13 +36,13 @@ func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, 
 	return server, token, cleanup
 }
 
-func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
+func TestServer(t testing.TB, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
 	require.NoError(t, err, "failed to start test server")
 	return s, c
 }
 
-func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
+func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
 
@@ -93,6 +93,9 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 		LimitResults:  100,
 		MinTermLength: 2,
 	}
+
+	// Disabled state store checksumming by default
+	config.EnableDebugChecksumming = false
 
 	// Invoke the callback if any
 	if cb != nil {

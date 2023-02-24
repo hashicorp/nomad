@@ -316,12 +316,12 @@ func (s *StateStore) StopEventBroker() {
 
 // QueryFn is the definition of a function that can be used to implement a basic
 // blocking query against the state store.
-type QueryFn func(memdb.WatchSet, *StateStore) (resp interface{}, index uint64, err error)
+type QueryFn func(memdb.WatchSet, *StateStore) (resp any, index uint64, err error)
 
 // BlockingQuery takes a query function and runs the function until the minimum
 // query index is met or until the passed context is cancelled.
 func (s *StateStore) BlockingQuery(query QueryFn, minIndex uint64, ctx context.Context) (
-	resp interface{}, index uint64, err error) {
+	resp any, index uint64, err error) {
 
 RUN_QUERY:
 	// We capture the state store and its abandon channel but pass a snapshot to
@@ -369,7 +369,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	if err != nil {
 		return err
 	}
-
 	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted)
 	if err != nil {
 		return err
@@ -680,8 +679,8 @@ func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploym
 
 // deploymentNamespaceFilter returns a filter function that filters all
 // deployment not in the given namespace.
-func deploymentNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func deploymentNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		d, ok := raw.(*structs.Deployment)
 		if !ok {
 			return true
@@ -903,7 +902,7 @@ func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node 
 
 	err := upsertNodeTxn(txn, index, node)
 	if err != nil {
-		return nil
+		return err
 	}
 	return txn.Commit()
 }
@@ -1469,14 +1468,13 @@ func deleteNodeCSIPlugins(txn Txn, node *structs.Node, index uint64) error {
 
 // updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
 func updateOrGCPlugin(index uint64, txn Txn, plug *structs.CSIPlugin) error {
-	plug.ModifyIndex = index
-
 	if plug.IsEmpty() {
 		err := txn.Delete("csi_plugins", plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins delete error: %v", err)
 		}
 	} else {
+		plug.ModifyIndex = index
 		err := txn.Insert("csi_plugins", plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins update error %s: %v", plug.ID, err)
@@ -1712,16 +1710,12 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 			return fmt.Errorf("job lookup failed: %v", err)
 		}
 		if updated != nil {
-			job = updated.(*structs.Job)
+			job = updated.(*structs.Job).Copy()
 		}
 	}
 
 	if err := s.updateSummaryWithJob(index, job, txn); err != nil {
 		return fmt.Errorf("unable to create job summary: %v", err)
-	}
-
-	if err := s.upsertJobVersion(index, job, txn); err != nil {
-		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
 	if err := s.updateJobScalingPolicies(index, job, txn); err != nil {
@@ -1734,6 +1728,13 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 
 	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
 		return fmt.Errorf("unable to update job csi plugins: %v", err)
+	}
+
+	// anti-corruption note: upserting the job version must come last, otherwise
+	// changes from scaling policies, recommendations, or plugins will cause a
+	// checksum mismatch between the job and job_versions table
+	if err := s.upsertJobVersion(index, job, txn); err != nil {
+		return fmt.Errorf("unable to upsert job into job_version table: %v", err)
 	}
 
 	// Insert the job
@@ -1874,7 +1875,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 
 	// Put them into a slice so there are no safety concerns while actually
 	// performing the deletes
-	policies := []interface{}{}
+	policies := []any{}
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -2040,7 +2041,7 @@ func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix strin
 	ws.Add(iter.WatchCh())
 
 	// Filter the iterator by ID prefix
-	f := func(raw interface{}) bool {
+	f := func(raw any) bool {
 		job, ok := raw.(*structs.Job)
 		if !ok {
 			return true
@@ -2372,7 +2373,7 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, 
 	}
 
 	// Filter the iterator by namespace
-	f := func(raw interface{}) bool {
+	f := func(raw any) bool {
 		v, ok := raw.(*structs.CSIVolume)
 		if !ok {
 			return false
@@ -2417,7 +2418,7 @@ func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix 
 	ws.Add(iter.WatchCh())
 
 	// Filter the iterator by ID prefix
-	f := func(raw interface{}) bool {
+	f := func(raw any) bool {
 		v, ok := raw.(*structs.CSIVolume)
 		if !ok {
 			return false
@@ -2612,6 +2613,7 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 // volSafeToForce checks if the any of the remaining allocations
 // are in a non-terminal state.
 func (s *StateStore) volSafeToForce(txn Txn, v *structs.CSIVolume) bool {
+	v = v.Copy()
 	vol, err := s.csiVolumeDenormalizeTxn(txn, nil, v)
 	if err != nil {
 		return false
@@ -3500,8 +3502,8 @@ func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string, so
 
 // evalNamespaceFilter returns a filter function that filters all evaluations
 // not in the given namespace.
-func evalNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func evalNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		eval, ok := raw.(*structs.Evaluation)
 		if !ok {
 			return true
@@ -4003,8 +4005,8 @@ func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, namespace, id string, s
 
 // allocNamespaceFilter returns a filter function that filters all allocations
 // not in the given namespace.
-func allocNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func allocNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		alloc, ok := raw.(*structs.Allocation)
 		if !ok {
 			return true
@@ -6035,6 +6037,7 @@ func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint6
 	// Update the Create/Modify time
 	token.CreateIndex = index
 	token.ModifyIndex = index
+	token.SetHash()
 
 	// Insert the token
 	if err := txn.Insert("acl_token", token); err != nil {
@@ -6170,8 +6173,8 @@ func (s *StateStore) OneTimeTokenBySecret(ws memdb.WatchSet, secret string) (*st
 
 // expiredOneTimeTokenFilter returns a filter function that returns only
 // expired one-time tokens
-func expiredOneTimeTokenFilter(now time.Time) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func expiredOneTimeTokenFilter(now time.Time) func(any) bool {
+	return func(raw any) bool {
 		ott, ok := raw.(*structs.OneTimeToken)
 		if !ok {
 			return true
@@ -6705,7 +6708,7 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace, ty
 
 	// If policy type is specified as well, wrap again
 	if typ != "" {
-		iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+		iter = memdb.NewFilterIterator(iter, func(raw any) bool {
 			p, ok := raw.(*structs.ScalingPolicy)
 			if !ok {
 				return true
@@ -6729,7 +6732,7 @@ func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID, p
 		return iter, nil
 	}
 
-	filter := func(raw interface{}) bool {
+	filter := func(raw any) bool {
 		p, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true
@@ -6750,7 +6753,7 @@ func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID
 
 	ws.Add(iter.WatchCh())
 
-	filter := func(raw interface{}) bool {
+	filter := func(raw any) bool {
 		d, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true
@@ -6832,8 +6835,8 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 
 // scalingPolicyNamespaceFilter returns a filter function that filters all
 // scaling policies not targeting the given namespace.
-func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func scalingPolicyNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		p, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true

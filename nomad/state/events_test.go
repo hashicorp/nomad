@@ -176,6 +176,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
+	d = d.Copy()
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: pointer.Of(true),
@@ -189,6 +190,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
+	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
 
 	// commit setup transaction
@@ -253,6 +255,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	c1 := mock.Alloc()
 	c1.JobID = j.ID
 	c1.DeploymentID = d.ID
+	d = d.Copy()
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Healthy: pointer.Of(true),

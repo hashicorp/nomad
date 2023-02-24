@@ -618,7 +618,9 @@ func TestStateStore_fixTokenRoleLinks(t *testing.T) {
 					structs.MsgTypeTestSetup, 30, []*structs.ACLToken{token1}))
 
 				// Now change the name of one of the ACL roles.
+				mockedACLRoles[0] = mockedACLRoles[0].Copy()
 				mockedACLRoles[0].Name = "badger-badger-badger"
+				mockedACLRoles[0].SetHash()
 				require.NoError(t, testState.UpsertACLRoles(structs.MsgTypeTestSetup, 40, mockedACLRoles, false))
 
 				// Perform the fix and check the returned token contains the
