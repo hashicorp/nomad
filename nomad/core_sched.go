@@ -760,7 +760,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		// we only call the claim release RPC if the volume has claims
 		// that no longer have valid allocations. otherwise we'd send
 		// out a lot of do-nothing RPCs.
-		vol, err := c.snap.CSIVolumeDenormalize(ws, vol)
+		vol, err := c.snap.CSIVolumeDenormalize(ws, vol.Copy())
 		if err != nil {
 			return err
 		}

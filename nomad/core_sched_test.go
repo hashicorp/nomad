@@ -2217,6 +2217,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	require.NoError(t, err)
 
 	// Empty the plugin
+	plug = plug.Copy()
 	plug.Controllers = map[string]*structs.CSIInfo{}
 	plug.Nodes = map[string]*structs.CSIInfo{}
 
