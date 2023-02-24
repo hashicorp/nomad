@@ -6,12 +6,16 @@ package scheduler
 // reconciler.
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -94,6 +98,9 @@ type allocReconciler struct {
 	// result is the results of the reconcile. During computation it can be
 	// used to store intermediate state
 	result *reconcileResults
+
+	span    trace.Span
+	spanCtx context.Context
 }
 
 // reconcileResults contains the results of the reconciliation and should be
@@ -177,7 +184,7 @@ func (r *reconcileResults) Changes() int {
 
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
-func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
+func NewAllocReconciler(ctx context.Context, logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
 	evalPriority int, supportsDisconnectedClients bool) *allocReconciler {
@@ -201,6 +208,8 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 			desiredTGUpdates:     make(map[string]*structs.DesiredUpdates),
 			desiredFollowupEvals: make(map[string][]*structs.Evaluation),
 		},
+		spanCtx: ctx,
+		span:    trace.SpanFromContext(ctx),
 	}
 }
 
@@ -215,6 +224,7 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// If we are just stopping a job we do not need to do anything more than
 	// stopping all running allocs
 	if a.job.Stopped() {
+		a.span.AddEvent("job is stopped")
 		a.handleStop(m)
 		return a.result
 	}
@@ -310,6 +320,9 @@ func (a *allocReconciler) cancelUnneededDeployments() {
 	// If the job is stopped and there is a non-terminal deployment, cancel it
 	if a.job.Stopped() {
 		if a.deployment != nil && a.deployment.Active() {
+			a.span.AddEvent("canceling unneeded deployment", trace.WithAttributes(
+				attribute.String("nomad.deployment.description", structs.DeploymentStatusDescriptionStoppedJob),
+			))
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
 				Status:            structs.DeploymentStatusCancelled,
@@ -331,6 +344,13 @@ func (a *allocReconciler) cancelUnneededDeployments() {
 	// Check if the deployment is active and referencing an older job and cancel it
 	if d.JobCreateIndex != a.job.CreateIndex || d.JobVersion != a.job.Version {
 		if d.Active() {
+			a.span.AddEvent("canceling old deployment", trace.WithAttributes(
+				attribute.String("nomad.deployment.description", structs.DeploymentStatusDescriptionNewerJob),
+				attribute.String("nomad.deployment.job_create_index", fmt.Sprintf("%v", d.JobCreateIndex)),
+				attribute.String("nomad.deployment.job_version", fmt.Sprintf("%v", d.JobVersion)),
+				attribute.String("nomad.job.create_index", fmt.Sprintf("%v", a.job.CreateIndex)),
+				attribute.String("nomad.job.version", fmt.Sprintf("%v", a.job.Version)),
+			))
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
 				Status:            structs.DeploymentStatusCancelled,
@@ -344,6 +364,7 @@ func (a *allocReconciler) cancelUnneededDeployments() {
 
 	// Clear it as the current deployment if it is successful
 	if d.Status == structs.DeploymentStatusSuccessful {
+		a.span.AddEvent("deployment successful")
 		a.oldDeployment = d
 		a.deployment = nil
 	}
@@ -376,6 +397,7 @@ func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
 // particular client status and description.
 func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescription string) {
 	for _, alloc := range allocs {
+		a.span.AddEvent("marking alloc as stopped", trace.WithAttributes(attribute.String("alloc.id", alloc.ID)))
 		a.result.stop = append(a.result.stop, allocStopResult{
 			alloc:             alloc,
 			clientStatus:      clientStatus,
@@ -397,12 +419,30 @@ func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescr
 	}
 }
 
+func emitChanges(ctx context.Context, msg string, current, last *structs.DesiredUpdates) *structs.DesiredUpdates {
+	span := trace.SpanFromContext(ctx)
+	if !current.IsEmpty() && !current.Equal(last) {
+		span.AddEvent(msg, trace.WithAttributes(
+			attribute.String("changes", current.GoString()),
+		))
+		last = current.Copy()
+	}
+	return last
+}
+
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
 func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
+	ctx, span := otel.Tracer("").Start(a.spanCtx, "allocReconciler.computeGroup", trace.WithAttributes(
+		attribute.String("nomad.task_group.name", groupName),
+	))
+	defer span.End()
+
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
 	a.result.desiredTGUpdates[groupName] = desiredChanges
+
+	var lastEmitedChanges *structs.DesiredUpdates
 
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
@@ -411,6 +451,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
+		span.AddEvent("task group is nil, stopping all allocs")
 		desiredChanges.Stop = a.filterAndStopAll(all)
 		return true
 	}
@@ -421,12 +462,14 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// from an older job version and are terminal.
 	all, ignore := a.filterOldTerminalAllocs(all)
 	desiredChanges.Ignore += uint64(len(ignore))
+	lastEmitedChanges = emitChanges(ctx, "changes after filtering old allocs", desiredChanges, lastEmitedChanges)
 
 	canaries, all := a.cancelUnneededCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost, disconnecting, reconnecting, ignore := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	desiredChanges.Ignore += uint64(len(ignore))
+	lastEmitedChanges = emitChanges(ctx, "changes after tainted nodes", desiredChanges, lastEmitedChanges)
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
@@ -462,10 +505,12 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	stop, reconnecting := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, reconnecting, isCanarying, lostLaterEvals)
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
+	lastEmitedChanges = emitChanges(ctx, "changes after compute stop", desiredChanges, lastEmitedChanges)
 
 	// Validate and add reconnecting allocs to the plan so that they will be logged.
 	a.computeReconnecting(reconnecting)
 	desiredChanges.Ignore += uint64(len(a.result.reconnectUpdates))
+	lastEmitedChanges = emitChanges(ctx, "changes after compute reconnecting", desiredChanges, lastEmitedChanges)
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
@@ -475,6 +520,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
+	lastEmitedChanges = emitChanges(ctx, "changes after compute updates", desiredChanges, lastEmitedChanges)
 
 	// Remove the canaries now that we have handled rescheduling so that we do
 	// not consider them when making placement decisions.
@@ -485,10 +531,15 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if requiresCanaries {
 		a.computeCanaries(tg, dstate, destructive, canaries, desiredChanges, nameIndex)
 	}
+	lastEmitedChanges = emitChanges(ctx, "changes after compute canaries", desiredChanges, lastEmitedChanges)
 
 	// Determine how many non-canary allocs we can place
 	isCanarying = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 	underProvisionedBy := a.computeUnderProvisionedBy(tg, untainted, destructive, migrate, isCanarying)
+	span.AddEvent("canary result", trace.WithAttributes(
+		attribute.Bool("is_canarying", isCanarying),
+		attribute.Int("under_provisioned_by", underProvisionedBy),
+	))
 
 	// Place if:
 	// * The deployment is not paused or failed
@@ -510,14 +561,18 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
 	underProvisionedBy = a.computeReplacements(deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
+	lastEmitedChanges = emitChanges(ctx, "changes after compute replacements", desiredChanges, lastEmitedChanges)
 
 	if deploymentPlaceReady {
 		a.computeDestructiveUpdates(destructive, underProvisionedBy, desiredChanges, tg)
 	} else {
 		desiredChanges.Ignore += uint64(len(destructive))
 	}
+	lastEmitedChanges = emitChanges(ctx, "changes after compute destructive updates", desiredChanges, lastEmitedChanges)
 
 	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
+	lastEmitedChanges = emitChanges(ctx, "changes after compute migrations", desiredChanges, lastEmitedChanges)
+
 	a.createDeployment(tg.Name, tg.Update, existingDeployment, dstate, all, destructive)
 
 	// Deployments that are still initializing need to be sent in full in the
@@ -528,6 +583,9 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
 		migrate, rescheduleNow, place, rescheduleLater, requiresCanaries)
+	span.AddEvent("deployment complete", trace.WithAttributes(
+		attribute.Bool("complete", deploymentComplete),
+	))
 
 	return deploymentComplete
 }

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/acl"
@@ -34,6 +36,8 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var otelRouteRegex = regexp.MustCompile(`^(?P<controller>/v1/[^/]+)(?:/(?P<id_or_action>[^/]+))?(?:/(?P<action>[^/]+))?$`)
 
 const (
 	// ErrInvalidMethod is used if the HTTP method is not supported
@@ -175,8 +179,37 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		// Create HTTP server with timeouts
 		httpServer := http.Server{
-			Addr:      srv.Addr,
-			Handler:   handlers.CompressHandler(srv.mux),
+			Addr: srv.Addr,
+			Handler: otelhttp.NewHandler(handlers.CompressHandler(srv.mux), "http_request", otelhttp.WithSpanNameFormatter(func(op string, r *http.Request) string {
+				matches := otelRouteRegex.FindAllStringSubmatch(r.URL.Path, -1)
+				if len(matches) == 0 {
+					return r.Method
+				}
+
+				firstEmpty := len(matches[0])
+				for i, m := range matches[0] {
+					if len(m) == 0 {
+						firstEmpty = i
+						break
+					}
+				}
+
+				var route string
+				switch firstEmpty {
+				case 2:
+					route = matches[0][1]
+				case 3:
+					if strings.HasSuffix(matches[0][1], "s") {
+						route = fmt.Sprintf("%s/%s", matches[0][1], matches[0][2])
+					} else {
+						route = fmt.Sprintf("%s/:id", matches[0][1])
+					}
+				case 4:
+					route = fmt.Sprintf("%s/:id/%s", matches[0][1], matches[0][3])
+				}
+
+				return fmt.Sprintf("%s %s", r.Method, route)
+			})),
 			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
@@ -208,7 +241,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		// builtinServer adds a wrapper to always authenticate requests
 		httpServer := http.Server{
 			Addr:     srv.Addr,
-			Handler:  newAuthMiddleware(srv, srv.mux),
+			Handler:  otelhttp.NewHandler(newAuthMiddleware(srv, srv.mux), "ClientHTTPServer"),
 			ErrorLog: newHTTPServerLogger(srv.logger),
 		}
 

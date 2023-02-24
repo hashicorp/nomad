@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -34,6 +35,13 @@ import (
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -747,6 +755,8 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	go c.otel(config)
+
 	defer func() {
 		c.agent.Shutdown()
 
@@ -808,6 +818,50 @@ func (c *Command) Run(args []string) int {
 
 	// Wait for exit
 	return c.handleSignals()
+}
+
+func (c *Command) otel(config *Config) {
+	client := otlptracehttp.NewClient(otlptracehttp.WithInsecure())
+	exporter, err := otlptrace.New(context.Background(), client)
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("failed to create OTLP trace exporter: %v", err))
+		return
+	}
+
+	attrs := []attribute.KeyValue{
+		semconv.ServiceName("nomad"),
+		semconv.ServiceVersion(config.Version.VersionNumber()),
+	}
+	//if config.Server.Enabled {
+	//	attrs = append(attrs, semconv.ServiceInstanceID(c.agent.server.config.NodeID))
+	//} else {
+	//	attrs = append(attrs, semconv.ServiceInstanceID())
+	//}
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			attrs...,
+		),
+	)
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("failed to create OpenTelemtry resource: %v", err))
+		return
+	}
+
+	tp := trace.NewTracerProvider(
+		trace.WithBatcher(exporter),
+		trace.WithResource(r),
+	)
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			c.Ui.Output(fmt.Sprintf("failed to shutdown trace provider: %v", err))
+			return
+		}
+	}()
+	otel.SetTracerProvider(tp)
+
+	<-c.ShutdownCh
 }
 
 // handleRetryJoin is used to start retry joining if it is configured.

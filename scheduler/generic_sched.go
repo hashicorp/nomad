@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"sort"
@@ -12,6 +13,10 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/semconv"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -115,6 +120,9 @@ type GenericScheduler struct {
 	blocked        *structs.Evaluation
 	failedTGAllocs map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
+
+	span    trace.Span
+	spanCtx context.Context
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -143,13 +151,27 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state Sta
 
 // Process is used to handle a single evaluation
 func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
-
 	defer func() {
 		if r := recover(); r != nil {
 			s.logger.Error("processing eval panicked scheduler - please report this as a bug!", "eval_id", eval.ID, "error", r, "stack_trace", string(debug.Stack()))
 			err = fmt.Errorf("failed to process eval: %v", r)
 		}
 	}()
+
+	var attrs []attribute.KeyValue
+	if s.batch {
+		attrs = append(attrs, semconv.NomadSchedulerBatch)
+	} else {
+		attrs = append(attrs, semconv.NomadSchedulerService)
+	}
+	attrs = append(attrs, semconv.Eval(eval)...)
+
+	s.spanCtx, s.span = otel.Tracer("").Start(
+		context.Background(),
+		"GenericScheduler.Process",
+		trace.WithAttributes(attrs...),
+	)
+	defer s.span.End()
 
 	// Store the evaluation
 	s.eval = eval
@@ -194,6 +216,10 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
+			s.span.AddEvent(
+				fmt.Sprintf("failed to process eval, creating blocked eval: %v", err),
+				trace.WithAttributes(semconv.NomadEvalID(s.blocked.ID)),
+			)
 			return mErr.ErrorOrNil()
 		}
 		return err
@@ -207,6 +233,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 		newEval.EscapedComputedClass = e.HasEscaped()
 		newEval.ClassEligibility = e.GetClasses()
 		newEval.QuotaLimitReached = e.QuotaLimitReached()
+		s.span.AddEvent("reblocking eval")
 		return s.planner.ReblockEval(newEval)
 	}
 
@@ -250,6 +277,8 @@ func (s *GenericScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job %q: %v", s.eval.JobID, err)
 	}
 
+	s.span.SetAttributes(semconv.Job(s.job)...)
+
 	numTaskGroups := 0
 	stopped := s.job.Stopped()
 	if !stopped {
@@ -266,6 +295,12 @@ func (s *GenericScheduler) process() (bool, error) {
 		s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
 		if err != nil {
 			return false, fmt.Errorf("failed to get job deployment %q: %v", s.eval.JobID, err)
+		}
+		if s.deployment != nil {
+			s.span.SetAttributes(semconv.Deployment(s.deployment)...)
+			s.span.AddEvent("found deployment", trace.WithAttributes(
+				attribute.String("nomad.deployment.status", s.deployment.Status),
+			))
 		}
 	}
 
@@ -286,6 +321,9 @@ func (s *GenericScheduler) process() (bool, error) {
 		s.logger.Error("failed to compute job allocations", "error", err)
 		return false, err
 	}
+	s.span.AddEvent("computed job allocs", trace.WithAttributes(
+		attribute.String("plan", s.plan.GoString()),
+	))
 
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available. If the
@@ -301,11 +339,13 @@ func (s *GenericScheduler) process() (bool, error) {
 			return false, err
 		}
 		s.logger.Debug("failed to place all allocations, blocked eval created", "blocked_eval_id", s.blocked.ID)
+		s.span.AddEvent("created blocked eval", trace.WithAttributes(semconv.NomadEvalID(s.blocked.ID)))
 	}
 
 	// If the plan is a no-op, we can bail. If AnnotatePlan is set submit the plan
 	// anyways to get the annotations.
 	if s.plan.IsNoOp() && !s.eval.AnnotatePlan {
+		s.span.AddEvent("plan is no-op")
 		return true, nil
 	}
 
@@ -320,15 +360,20 @@ func (s *GenericScheduler) process() (bool, error) {
 				return false, err
 			}
 			s.logger.Debug("found reschedulable allocs, followup eval created", "followup_eval_id", eval.ID)
+			s.span.AddEvent("created follow-up eval", trace.WithAttributes(semconv.NomadEvalID(eval.ID)))
 		}
 	}
 
 	// Submit the plan and store the results.
+	s.span.AddEvent("submitting plan")
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
 	if err != nil {
 		return false, err
 	}
+	s.span.AddEvent("got plan result", trace.WithAttributes(
+		attribute.String("result", result.GoString()),
+	))
 
 	// Decrement the number of allocations pending per task group based on the
 	// number of allocations successfully placed
@@ -336,6 +381,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// If we got a state refresh, try again since we have stale data
 	if newState != nil {
+		s.span.AddEvent("got new state")
 		s.logger.Debug("refresh forced")
 		s.state = newState
 		return false, nil
@@ -344,6 +390,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Try again if the plan was not fully committed, potential conflict
 	fullCommit, expected, actual := result.FullCommit(s.plan)
 	if !fullCommit {
+		s.span.AddEvent("partial commit")
 		s.logger.Debug("plan didn't fully commit", "attempted", expected, "placed", actual)
 		if newState == nil {
 			return false, fmt.Errorf("missing state refresh after partial commit")
@@ -373,17 +420,38 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			s.eval.JobID, err)
 	}
 
+	if s.span.IsRecording() {
+		allocIDs := []string{}
+		for _, a := range allocs {
+			allocIDs = append(allocIDs, a.ID[:8])
+		}
+		if len(allocIDs) > 0 {
+			s.span.AddEvent("found affected allocs", trace.WithAttributes(attribute.StringSlice("allocs", allocIDs)))
+		}
+
+		taintedIDs := []string{}
+		for _, n := range tainted {
+			taintedIDs = append(taintedIDs, n.ID[:8])
+		}
+		if len(taintedIDs) > 0 {
+			s.span.AddEvent("found tainted ndoes", trace.WithAttributes(attribute.StringSlice("nodes", taintedIDs)))
+		}
+	}
+
 	// Update the allocations which are in pending/running state on tainted
 	// nodes to lost, but only if the scheduler has already marked them
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
-	reconciler := NewAllocReconciler(s.logger,
+	reconciler := NewAllocReconciler(s.spanCtx, s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID,
 		s.eval.Priority, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 
 	results := reconciler.Compute()
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", results))
+	s.span.AddEvent("reconcile done", trace.WithAttributes(
+		attribute.String("changes", results.GoString()),
+	))
 
 	if s.eval.AnnotatePlan {
 		s.plan.Annotations = &structs.PlanAnnotations{

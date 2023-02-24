@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/semconv"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -432,6 +434,12 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
 		return nil, err
 	}
+
+	trace.SpanFromContext(req.Context()).SetAttributes(
+		semconv.NomadJobID(*args.Job.ID),
+		semconv.NomadEvalID(out.EvalID),
+	)
+
 	setIndex(resp, out.Index)
 	return out, nil
 }

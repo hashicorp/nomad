@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	vapi "github.com/hashicorp/vault/api"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/hashicorp/nomad/acl"
@@ -22,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/semconv"
 	"github.com/hashicorp/raft"
 )
 
@@ -1278,6 +1281,12 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 	if node == nil {
 		return fmt.Errorf("node %s not found", nodeID)
 	}
+
+	_, span := otel.Tracer("").Start(context.Background(), "RPC Node.UpdateAlloc", trace.WithAttributes(
+		semconv.Node(node)...,
+	))
+	defer span.End()
+
 	if node.UnresponsiveStatus() {
 		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", nodeID, node.Status)
 	}

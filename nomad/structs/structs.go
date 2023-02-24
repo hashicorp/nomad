@@ -11806,6 +11806,76 @@ type PlanResult struct {
 	AllocIndex uint64
 }
 
+func (p *PlanResult) GoString() string {
+	var out string
+	if len(p.NodeUpdate) > 0 {
+		out += " NodeUpdate: "
+		for node, allocs := range p.NodeUpdate {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ") "
+		}
+	}
+	if len(p.NodeAllocation) > 0 {
+		out += " NodeAllocations: "
+		for node, allocs := range p.NodeAllocation {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ") "
+		}
+	}
+	if len(p.NodePreemptions) > 0 {
+		out += " NodePreemptions: "
+		for node, allocs := range p.NodePreemptions {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ") "
+		}
+	}
+	if len(p.RejectedNodes) > 0 {
+		out += " RejectedNodes: ("
+		for _, node := range p.RejectedNodes {
+			out += fmt.Sprintf(" %s", node[:8])
+		}
+		out += ") "
+	}
+	if len(p.IneligibleNodes) > 0 {
+		out += " IneligibleNodes: ("
+		for _, node := range p.IneligibleNodes {
+			out += fmt.Sprintf(" %s", node[:8])
+		}
+		out += ") "
+	}
+	if p.Deployment != nil {
+		out += fmt.Sprintf(" Deployment %s", p.Deployment.ID[:8])
+	}
+	if len(p.DeploymentUpdates) > 0 {
+		out += " DeploymentUpdates: "
+		for _, dupdate := range p.DeploymentUpdates {
+			out += fmt.Sprintf("(%s %s)",
+				dupdate.DeploymentID[:8], dupdate.Status)
+		}
+		out += " "
+	}
+	if p.RefreshIndex != 0 {
+		out += fmt.Sprintf("RefreshIndex: %v", p.RefreshIndex)
+	}
+
+	return out
+}
+
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
 	return len(p.IneligibleNodes) == 0 && len(p.NodeUpdate) == 0 &&
@@ -11853,6 +11923,36 @@ type DesiredUpdates struct {
 func (d *DesiredUpdates) GoString() string {
 	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d)",
 		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary)
+}
+
+func (d *DesiredUpdates) Copy() *DesiredUpdates {
+	if d == nil {
+		return nil
+	}
+	nd := new(DesiredUpdates)
+	*nd = *d
+	return nd
+}
+
+func (d *DesiredUpdates) IsEmpty() bool {
+	if d == nil {
+		return true
+	}
+	return d.Ignore+d.Place+d.Migrate+d.Stop+d.InPlaceUpdate+d.DestructiveUpdate+d.Canary+d.Preemptions == 0
+}
+
+func (d *DesiredUpdates) Equal(o *DesiredUpdates) bool {
+	if d == nil || o == nil {
+		return d == o
+	}
+	return d.Ignore == o.Ignore &&
+		d.Place == o.Place &&
+		d.Migrate == o.Migrate &&
+		d.Stop == o.Stop &&
+		d.InPlaceUpdate == o.InPlaceUpdate &&
+		d.DestructiveUpdate == o.DestructiveUpdate &&
+		d.Canary == o.Canary &&
+		d.Preemptions == o.Preemptions
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs

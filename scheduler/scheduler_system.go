@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 
@@ -8,6 +9,10 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/semconv"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -48,6 +53,9 @@ type SystemScheduler struct {
 
 	failedTGAllocs map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
+
+	span    trace.Span
+	spanCtx context.Context
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -81,6 +89,14 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 			err = fmt.Errorf("failed to process eval: %v", r)
 		}
 	}()
+
+	var attr attribute.KeyValue
+	if s.sysbatch {
+		attr = semconv.NomadSchedulerSysbatch
+	} else {
+		attr = semconv.NomadSchedulerSystem
+	}
+	s.spanCtx, s.span = otel.Tracer("").Start(context.Background(), "SystemScheduler.Process", trace.WithAttributes(attr))
 
 	// Store the evaluation
 	s.eval = eval

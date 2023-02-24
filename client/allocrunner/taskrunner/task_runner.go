@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/semconv"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
@@ -514,9 +517,17 @@ func (tr *TaskRunner) MarkFailedDead(reason string) {
 
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
 // Run closes WaitCh when it exits. Should be started in a goroutine.
-func (tr *TaskRunner) Run() {
+func (tr *TaskRunner) Run(ctx context.Context) {
 	defer close(tr.waitCh)
 	var result *drivers.ExitResult
+
+	_, span := otel.Tracer("").Start(
+		ctx,
+		"taskRunner.Run",
+		trace.WithAttributes(
+			semconv.Task(tr.Task())...,
+		),
+	)
 
 	tr.stateLock.RLock()
 	dead := tr.state.State == structs.TaskStateDead
@@ -528,6 +539,7 @@ func (tr *TaskRunner) Run() {
 	// post stop hooks and exit early, otherwise proceed until the
 	// ALLOC_RESTART loop skipping MAIN since the task is dead.
 	if dead {
+		span.AddEvent("task is dead")
 		// do cleanup functions without emitting any additional events/work
 		// to handle cases where we restored a dead task where client terminated
 		// after task finished before completing post-run actions.
@@ -537,6 +549,7 @@ func (tr *TaskRunner) Run() {
 			if err := tr.stop(); err != nil {
 				tr.logger.Error("stop failed on terminal task", "error", err)
 			}
+			span.AddEvent("task is complete")
 			return
 		}
 	}
@@ -549,6 +562,7 @@ func (tr *TaskRunner) Run() {
 	// If restore failed wait until servers are contacted before running.
 	// #1795
 	if tr.waitOnServers {
+		span.AddEvent("waiting on server")
 		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
 		select {
 		case <-tr.killCtx.Done():
@@ -557,6 +571,7 @@ func (tr *TaskRunner) Run() {
 			return
 		case <-tr.serversContactedCh:
 			tr.logger.Info("server contacted; unblocking waiting task")
+			span.AddEvent("got server response")
 		}
 	}
 
@@ -606,6 +621,8 @@ MAIN:
 			tr.restartTracker.SetStartError(err)
 			goto RESTART
 		}
+		span.AddEvent("task is running")
+		span.End()
 
 		// Run the poststart hooks
 		if err := tr.poststart(); err != nil {

@@ -17,6 +17,9 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/semconv"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Txn is a transaction against a state store.
@@ -3607,12 +3610,21 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
+	_, span := otel.Tracer("").Start(
+		context.Background(),
+		"StateStore.UpdateAllocsFromClient",
+	)
+	defer span.End()
+
 	// Capture all nodes being affected. Alloc updates from clients are batched
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
 
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
+		span.AddEvent(fmt.Sprintf("updating alloc to %s", alloc.ClientStatus), trace.WithAttributes(
+			semconv.Alloc(alloc)...,
+		))
 		nodeIDs.Insert(alloc.NodeID)
 		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
 			return err
@@ -3626,6 +3638,9 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 
 	// Update the index of when nodes last updated their allocs.
 	for _, nodeID := range nodeIDs.List() {
+		span.AddEvent("updating node", trace.WithAttributes(
+			semconv.NomadNodeID(nodeID),
+		))
 		if err := s.updateClientAllocUpdateIndex(txn, index, nodeID); err != nil {
 			return fmt.Errorf("node update failed: %v", err)
 		}

@@ -32,6 +32,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/semconv"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
@@ -317,6 +320,15 @@ func (ar *allocRunner) WaitCh() <-chan struct{} {
 // Run the AllocRunner. Starts tasks if the alloc is non-terminal and closes
 // WaitCh when it exits. Should be started in a goroutine.
 func (ar *allocRunner) Run() {
+	ctx, span := otel.Tracer("").Start(
+		context.Background(),
+		"allocRunner.Run",
+		trace.WithAttributes(
+			semconv.Alloc(ar.Alloc())...,
+		),
+	)
+	defer span.End()
+
 	// Close the wait channel on return
 	defer close(ar.waitCh)
 
@@ -350,7 +362,7 @@ func (ar *allocRunner) Run() {
 	}
 
 	// Run the runners (blocks until they exit)
-	ar.runTasks()
+	ar.runTasks(ctx)
 
 POST:
 	if ar.isShuttingDown() {
@@ -389,11 +401,12 @@ func (ar *allocRunner) shouldRun() bool {
 }
 
 // runTasks is used to run the task runners and block until they exit.
-func (ar *allocRunner) runTasks() {
+func (ar *allocRunner) runTasks(ctx context.Context) {
 	// Start and wait for all tasks.
 	for _, task := range ar.tasks {
-		go task.Run()
+		go task.Run(ctx)
 	}
+	trace.SpanFromContext(ctx).End()
 	for _, task := range ar.tasks {
 		<-task.WaitCh()
 	}
