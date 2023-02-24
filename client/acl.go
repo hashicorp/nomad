@@ -61,13 +61,8 @@ func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
 	return a, err
 }
 
-func (c *Client) ResolveSecretToken(secretID string) (*structs.ACLToken, error) {
-	_, t, err := c.resolveTokenAndACL(secretID)
-	return t, err
-}
-
 // TODO(schmichael) rename?
-func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToken, error) {
+func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.AuthenticatedIdentity, error) {
 	// Fast-path if ACLs are disabled
 	if !c.GetConfig().ACLEnabled {
 		return nil, nil, nil
@@ -75,39 +70,61 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToke
 	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
 
 	// Resolve the token value
-	token, err := c.resolveTokenValue(secretID)
+	ident, err := c.resolveTokenValue(secretID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if token == nil {
+
+	// Only allow ACLs and workload identities to call client RPCs
+	if ident.ACLToken == nil && ident.Claims == nil {
 		return nil, nil, structs.ErrTokenNotFound
 	}
 
 	// Give the token expiry some slight leeway in case the client and server
 	// clocks are skewed.
-	if token.IsExpired(time.Now().Add(2 * time.Second)) {
+	if ident.IsExpired(time.Now().Add(2 * time.Second)) {
 		return nil, nil, structs.ErrTokenExpired
 	}
 
-	// Check if this is a management token
-	if token.Type == structs.ACLManagementToken {
-		return acl.ManagementACL, token, nil
-	}
+	var policies []*structs.ACLPolicy
 
-	// Resolve the policy links within the token ACL roles.
-	policyNames, err := c.resolveTokenACLRoles(secretID, token.Roles)
-	if err != nil {
-		return nil, nil, err
-	}
+	// Resolve token policies
+	if token := ident.ACLToken; token != nil {
+		// Check if this is a management token
+		if ident.ACLToken.Type == structs.ACLManagementToken {
+			return acl.ManagementACL, ident, nil
+		}
 
-	// Generate a slice of all policy names included within the token, taken
-	// from both the ACL roles and the direct assignments.
-	policyNames = append(policyNames, token.Policies...)
+		// Resolve the policy links within the token ACL roles.
+		policyNames, err := c.resolveTokenACLRoles(secretID, token.Roles)
+		if err != nil {
+			return nil, nil, err
+		}
 
-	// Resolve the policies
-	policies, err := c.resolvePolicies(token.SecretID, policyNames)
-	if err != nil {
-		return nil, nil, err
+		// Generate a slice of all policy names included within the token, taken
+		// from both the ACL roles and the direct assignments.
+		policyNames = append(policyNames, token.Policies...)
+
+		// Resolve ACL token policies
+		if policies, err = c.resolvePolicies(token.SecretID, policyNames); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		// Resolve policies for workload identities
+		policyArgs := structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{
+				AuthToken: secretID,
+				Region:    c.Region(),
+			},
+		}
+		policyReply := structs.ACLPolicySetResponse{}
+		if err := c.RPC("ACL.GetClaimPolicies", &policyArgs, &policyReply); err != nil {
+			return nil, nil, err
+		}
+		policies = make([]*structs.ACLPolicy, 0, len(policyReply.Policies))
+		for _, p := range policyReply.Policies {
+			policies = append(policies, p)
+		}
 	}
 
 	// Resolve the ACL object
@@ -115,7 +132,7 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToke
 	if err != nil {
 		return nil, nil, err
 	}
-	return aclObj, token, nil
+	return aclObj, ident, nil
 }
 
 // TODO(schmichael) rename?
@@ -125,7 +142,7 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.ACLToke
 func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdentity, error) {
 	// Hot-path the anonymous token
 	if secretID == "" {
-		return structs.AnonymousACLToken, nil
+		return &structs.AuthenticatedIdentity{ACLToken: structs.AnonymousACLToken}, nil
 	}
 
 	// Lookup the token entry in the cache
@@ -145,7 +162,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdent
 			AllowStale: false, //TODO(schmichael) I don't think we should allow this
 		},
 	}
-	var resp structs.WhoAmIResponse
+	var resp structs.ACLWhoAmIResponse
 	if err := c.RPC("ACL.WhoAmI", &req, &resp); err != nil {
 		// If we encounter an error but have a cached value, mask the error and extend the cache
 		if ok {

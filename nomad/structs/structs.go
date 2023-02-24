@@ -481,8 +481,13 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 // ACLToken makes the original of the credential clear to RPC handlers, who may
 // have different behavior for internal vs external origins.
 type AuthenticatedIdentity struct {
+	// ACLToken authenticated. Claims will be nil if this is set.
 	ACLToken *ACLToken
-	Claims   *IdentityClaims
+
+	// Claims authenticated by workload identity. ACLToken will be nil if this is
+	// set.
+	Claims *IdentityClaims
+
 	ClientID string
 	TLSName  string
 	RemoteIP net.IP

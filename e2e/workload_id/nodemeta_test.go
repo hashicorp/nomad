@@ -70,6 +70,20 @@ func testDynamicNodeMetadata(t *testing.T) {
 	})
 	must.NoError(t, err)
 	job.ID = pointer.Of(jobID)
+
+	// Setup ACLs
+	for _, task := range job.TaskGroups[0].Tasks {
+		p := e2eutil.ApplyJobPolicy(t, nomad, "default",
+			jobID, *job.TaskGroups[0].Name, task.Name, `node { policy = "write" }`)
+
+		if p == nil {
+			t.Logf("skipping policy for %s as ACLs are disabled", task.Name)
+		} else {
+			t.Logf("created policy %s for %s", p.Name, task.Name)
+		}
+	}
+
+	// Register job
 	_, _, err = nomad.Jobs().Register(job, nil)
 	must.NoError(t, err)
 
