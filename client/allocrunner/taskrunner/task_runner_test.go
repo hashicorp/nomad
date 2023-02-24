@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/rawexec"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2583,3 +2584,91 @@ func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
 	taskEnv := tr.envBuilder.Build()
 	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN")
 }
+
+// TestTaskRunner_IdentityHook_Enabled asserts that the identity hook exposes a
+// workload identity to a task.
+func TestTaskRunner_TlsHook_Enabled(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	// TODO: later set up the state
+	// TODO: later set up task to reflrect jobspec options
+
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	defer cleanup()
+
+	testWaitForTaskToDie(t, tr)
+
+	certBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "tls_keys", "public_key.pem"))
+	require.NoError(t, err)
+	cert := string(certBytes)
+
+	tlsCert, err := tlsutil.ParseCert(cert)
+	require.NoError(t, err)
+	require.NotNil(t, tlsCert)
+
+	expectedDnsNames := []string{"localhost"}
+	expectedIPs := []string{"127.0.0.1"}
+	for _, network := range alloc.Resources.Networks {
+		expectedDnsNames = append(expectedDnsNames, network.Hostname)
+		expectedIPs = append(expectedIPs, network.IP)
+	}
+
+	must.StrContains(t, tlsCert.Subject.String(), "some-name!")
+
+	must.SliceContainsAll(t, expectedDnsNames, tlsCert.DNSNames)
+	certIps := []string{}
+	for _, ip := range tlsCert.IPAddresses {
+		certIps = append(certIps, ip.String())
+	}
+
+	must.SliceContainsAll(t, expectedIPs, certIps)
+
+	// Note: testing not much about this since it is currently just grabbed from a file
+	// caKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "tls_keys", "private_key.pem"))
+	// require.NoError(t, err)
+
+	// caKey := string(caKeyBytes)
+	// caCert, err := tlsutil.ParseCert(caKey)
+	// require.NoError(t, err)
+	// require.NotNil(t, caCert)
+
+	// Note: testing not much about this since it is currently just grabbed from a file
+	caPubKeyBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "ca_certs", "ca_public_key.pem"))
+	require.NoError(t, err)
+
+	caPubKey := string(caPubKeyBytes)
+	caPubCert, err := tlsutil.ParseCert(caPubKey)
+	require.NoError(t, err)
+	require.NotNil(t, caPubCert)
+}
+
+// // TestTaskRunner_IdentityHook_Disabled asserts that the identity hook does not
+// // expose a workload identity to a task by default.
+// func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
+// 	ci.Parallel(t)
+
+// 	alloc := mock.BatchAlloc()
+// 	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+// 	// Fake an identity but don't expose it to the task
+// 	alloc.SignedIdentities = map[string]string{
+// 		task.Name: "foo",
+// 	}
+// 	task.Identity = nil
+
+// 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
+// 	defer cleanup()
+
+// 	testWaitForTaskToDie(t, tr)
+
+// 	// Assert the token was written to the filesystem
+// 	_, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_token"))
+// 	must.Error(t, err)
+
+// 	// Assert the token is built into the task env
+// 	taskEnv := tr.envBuilder.Build()
+// 	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN")
+// }

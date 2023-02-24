@@ -125,6 +125,14 @@ const (
 
 	// WorkloadToken is the environment variable for passing the Nomad Workload Identity token
 	WorkloadToken = "NOMAD_TOKEN"
+
+	// TrustCircles is the environment variable for seeing which circles of trust a task is part of
+	TrustCircles = "TRUST_CIRCLES"
+
+	// TODO: Document
+	TlsPublicKey  = "TLS_PUBLIC_KEY"
+	TlsPrivateKey = "TLS_PRIVATE_KEY"
+	TlsCAPubKey   = "TLS_CA_PUBLIC_KEY"
 )
 
 // The node values that can be interpreted.
@@ -409,23 +417,29 @@ type Builder struct {
 	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
 	clientTaskSecretsDir string
 
-	cpuCores            string
-	cpuLimit            int64
-	memLimit            int64
-	memMaxLimit         int64
-	taskName            string
-	allocIndex          int
-	datacenter          string
-	cgroupParent        string
-	namespace           string
-	region              string
-	allocId             string
-	allocName           string
-	groupName           string
-	vaultToken          string
-	vaultNamespace      string
-	injectVaultToken    bool
-	workloadToken       string
+	cpuCores         string
+	cpuLimit         int64
+	memLimit         int64
+	memMaxLimit      int64
+	taskName         string
+	allocIndex       int
+	datacenter       string
+	cgroupParent     string
+	namespace        string
+	region           string
+	allocId          string
+	allocName        string
+	groupName        string
+	vaultToken       string
+	vaultNamespace   string
+	injectVaultToken bool
+	workloadToken    string
+	trustCircles     []string
+
+	tlsPublicCert  string
+	tlsPrivateCert string
+	tlsCAPubKey    string
+
 	injectWorkloadToken bool
 	jobID               string
 	jobName             string
@@ -551,6 +565,23 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 		envMap[Region] = b.region
 	}
 
+	if b.tlsPublicCert != "" {
+		envMap[TlsPublicKey] = b.tlsPublicCert
+	}
+	if b.tlsPrivateCert != "" {
+		envMap[TlsPrivateKey] = b.tlsPrivateCert
+	}
+	if b.tlsCAPubKey != "" {
+		envMap[TlsCAPubKey] = b.tlsCAPubKey
+	}
+
+	if b.groupName != "" {
+		envMap[GroupName] = b.groupName
+	}
+	if b.groupName != "" {
+		envMap[GroupName] = b.groupName
+	}
+
 	// Build the network related env vars
 	buildNetworkEnv(envMap, b.networks, b.driverNetwork)
 
@@ -575,6 +606,11 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Build the Nomad Workload Token
 	if b.injectWorkloadToken && b.workloadToken != "" {
 		envMap[WorkloadToken] = b.workloadToken
+	}
+
+	// Build the Nomad Workload Token
+	if len(b.trustCircles) > 0 {
+		envMap[TrustCircles] = strings.Join(b.trustCircles, ",")
 	}
 
 	// Copy and interpolate task meta
@@ -1032,6 +1068,22 @@ func (b *Builder) SetWorkloadToken(token string, inject bool) *Builder {
 	b.mu.Lock()
 	b.workloadToken = token
 	b.injectWorkloadToken = inject
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetTrustCircles(trustCircles []string, inject bool) *Builder {
+	b.mu.Lock()
+	b.trustCircles = trustCircles
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey string) *Builder {
+	b.mu.Lock()
+	b.tlsPublicCert = tlsPublicCert
+	b.tlsPrivateCert = tlsPrivateCert
+	b.tlsCAPubKey = tlsCAPubKey
 	b.mu.Unlock()
 	return b
 }

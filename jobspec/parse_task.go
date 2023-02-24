@@ -34,6 +34,7 @@ var (
 		"affinity",
 		"dispatch_payload",
 		"identity",
+		"trust_circles",
 		"lifecycle",
 		"leader",
 		"restart",
@@ -292,6 +293,9 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		t.Identity = v
 	}
 
+	// Parse trust_circles
+	// TODO: Do I need this? Skipping
+
 	// Parse templates
 	if o := listVal.Filter("template"); len(o.Items) > 0 {
 		if err := parseTemplates(&t.Templates, o); err != nil {
@@ -373,6 +377,11 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 			return nil, err
 		}
 	}
+
+	fmt.Println("END OF THE PARSE!!")
+	fmt.Println(t.TrustCircles)
+	fmt.Println("END OF THE PARSE!!")
+
 	return &t, nil
 }
 

@@ -41,6 +41,7 @@ func GeneratePrivateKey() (crypto.Signer, string, error) {
 		return nil, "", fmt.Errorf("error marshaling ECDSA private key: %s", err)
 	}
 
+	// TODO: I think bs might be encoded incorrectly?
 	pemBlock, err := pemEncodeKey(bs, "EC PRIVATE KEY")
 	if err != nil {
 		return nil, "", err

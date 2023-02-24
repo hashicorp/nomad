@@ -7216,6 +7216,9 @@ type Task struct {
 	// Identity controls if and how the workload identity is exposed to
 	// tasks similar to the Vault block.
 	Identity *WorkloadIdentity
+
+	// TrustCircles controls which CAs this task will trust and get certs from
+	TrustCircles []string
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7277,6 +7280,7 @@ func (t *Task) Copy() *Task {
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
+	nt.TrustCircles = slices.Clone(nt.TrustCircles)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))

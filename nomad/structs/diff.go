@@ -532,6 +532,12 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, sDiffs...)
 	}
 
+	// TrustCircles diff
+	setDiff := stringSetDiff(t.TrustCircles, other.TrustCircles, "TrustCircles", contextual)
+	if setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
 	// Vault diff
 	vDiff := vaultDiff(t.Vault, other.Vault, contextual)
 	if vDiff != nil {

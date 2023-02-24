@@ -201,6 +201,18 @@ type TaskRunner struct {
 	nomadToken     string
 	nomadTokenLock sync.Mutex
 
+	// TODO: document these
+
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+
+	tlsPublicCert  string
+	tlsPrivateCert string
+	tlsCAPubKey    string
+	trustCircles   []string
+	tlsLock        sync.Mutex
+
 	// baseLabels are used when emitting tagged metrics. All task runner metrics
 	// will have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -261,6 +273,11 @@ type TaskRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 type Config struct {
@@ -329,6 +346,8 @@ type Config struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
+
+	RPCClient RPCer
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -389,6 +408,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
 		getter:                 config.Getter,
+		rpcClient:              config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
@@ -427,6 +447,10 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	// Use the client secret only as the initial value; the identity hook will
 	// update this with a workload identity if one is available
 	tr.setNomadToken(config.ClientConfig.Node.SecretID)
+
+	// TODO: Presumably I need this just like the token above?
+	trustCircles := tr.task.TrustCircles
+	tr.setTlsValues("", "", "", trustCircles)
 
 	// Initialize the runners hooks. Must come after initDriver so hooks
 	// can use tr.driverCapabilities

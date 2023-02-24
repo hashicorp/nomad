@@ -159,12 +159,18 @@ type TaskUpdateRequest struct {
 
 	NomadToken string
 
+	// TaskResources is the resources assigned to the task
+	TaskResources *structs.AllocatedTaskResources
+
 	// Alloc is the current version of the allocation (may have been
 	// updated since the hook was created)
 	Alloc *structs.Allocation
 
 	// TaskEnv is the task's environment
 	TaskEnv *taskenv.TaskEnv
+
+	// Task is the task to run
+	Task *structs.Task
 }
 type TaskUpdateResponse struct{}
 

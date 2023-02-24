@@ -96,6 +96,18 @@ func (tr *TaskRunner) setNomadToken(token string) {
 	}
 }
 
+func (tr *TaskRunner) setTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey string, trustCircles []string) {
+	tr.tlsLock.Lock()
+	defer tr.tlsLock.Unlock()
+	tr.tlsPublicCert = tlsPublicCert
+	tr.tlsPrivateCert = tlsPrivateCert
+	tr.tlsCAPubKey = tlsCAPubKey
+	tr.trustCircles = trustCircles
+
+	// TODO: Make optional like setNomadToken
+	tr.envBuilder.SetTlsValues(tlsPublicCert, tlsPrivateCert, tlsCAPubKey)
+}
+
 // getDriverHandle returns a driver handle.
 func (tr *TaskRunner) getDriverHandle() *DriverHandle {
 	tr.handleLock.Lock()

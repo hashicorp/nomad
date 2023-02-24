@@ -293,6 +293,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ShutdownDelayCtx:    ar.shutdownDelayCtx,
 			ServiceRegWrapper:   ar.serviceRegWrapper,
 			Getter:              ar.getter,
+			RPCClient:           ar.rpcClient,
 		}
 
 		if ar.cpusetManager != nil {

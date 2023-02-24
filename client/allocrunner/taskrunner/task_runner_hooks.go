@@ -58,10 +58,12 @@ func (tr *TaskRunner) initHooks() {
 	// Create the task directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := tr.Alloc()
+
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
+		newTlsHook(tr, tr.rpcClient, hookLogger),
 		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),
@@ -487,9 +489,11 @@ func (tr *TaskRunner) updateHooks() {
 
 		// Build the request
 		req := interfaces.TaskUpdateRequest{
-			VaultToken: tr.getVaultToken(),
-			Alloc:      alloc,
-			TaskEnv:    tr.envBuilder.Build(),
+			VaultToken:    tr.getVaultToken(),
+			Alloc:         alloc,
+			Task:          tr.Task(),
+			TaskEnv:       tr.envBuilder.Build(),
+			TaskResources: tr.taskResources,
 		}
 
 		// Time the update hook
