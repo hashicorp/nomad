@@ -410,6 +410,10 @@ type Config struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority int
+
+	// EnableDebugChecksumming is used to enable or disable state store checksumming.
+	// WARNING: this should not be enabled in production!
+	EnableDebugChecksumming bool
 }
 
 func (c *Config) Copy() *Config {
@@ -529,6 +533,7 @@ func DefaultConfig() *Config {
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
+		EnableDebugChecksumming:  false,
 	}
 
 	// Enable all known schedulers by default

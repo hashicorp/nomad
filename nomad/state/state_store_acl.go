@@ -79,7 +79,7 @@ func (s *StateStore) UpsertACLRoles(
 // provided write transaction. It is the responsibility of the caller to update
 // the index table.
 func (s *StateStore) upsertACLRoleTxn(
-	index uint64, txn *txn, role *structs.ACLRole, allowMissingPolicies bool) (bool, error) {
+	index uint64, txn Txn, role *structs.ACLRole, allowMissingPolicies bool) (bool, error) {
 
 	// Ensure the role hash is not zero to provide defense in depth. This
 	// should be done outside the state store, so we do not spend time here
@@ -159,7 +159,7 @@ func (s *StateStore) upsertACLRoleTxn(
 
 // validateACLRolePolicyLinksTxn is the same as ValidateACLRolePolicyLinks but
 // allows callers to pass their own transaction.
-func (s *StateStore) validateACLRolePolicyLinksTxn(txn *txn, role *structs.ACLRole) error {
+func (s *StateStore) validateACLRolePolicyLinksTxn(txn Txn, role *structs.ACLRole) error {
 	for _, policyLink := range role.Policies {
 		_, existing, err := txn.FirstWatch("acl_policy", indexID, policyLink.Name)
 		if err != nil {
@@ -199,7 +199,7 @@ func (s *StateStore) DeleteACLRolesByID(
 // deleteACLRoleByIDTxn deletes a single ACL role from the state store using the
 // provided write transaction. It is the responsibility of the caller to update
 // the index table.
-func (s *StateStore) deleteACLRoleByIDTxn(txn *txn, roleID string) error {
+func (s *StateStore) deleteACLRoleByIDTxn(txn Txn, roleID string) error {
 
 	existing, err := txn.First(TableACLRoles, indexID, roleID)
 	if err != nil {

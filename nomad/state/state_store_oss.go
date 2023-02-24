@@ -8,17 +8,17 @@ import (
 )
 
 // quotaSpecExists on returns whether the quota exists
-func (s *StateStore) quotaSpecExists(txn *txn, name string) (bool, error) {
+func (s *StateStore) quotaSpecExists(txn Txn, name string) (bool, error) {
 	return false, nil
 }
 
-func (s *StateStore) quotaReconcile(index uint64, txn *txn, newQuota, oldQuota string) error {
+func (s *StateStore) quotaReconcile(index uint64, txn Txn, newQuota, oldQuota string) error {
 	return nil
 }
 
 // updateEntWithAlloc is used to update Nomad Enterprise objects when an allocation is
 // added/modified/deleted
-func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.Allocation, txn *txn) error {
+func (s *StateStore) updateEntWithAlloc(index uint64, new, existing *structs.Allocation, txn Txn) error {
 	return nil
 }
 

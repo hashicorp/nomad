@@ -50,7 +50,7 @@ func (s *StateStore) UpsertServiceRegistrations(
 // state store using the provided write transaction. It is the responsibility
 // of the caller to update the index table.
 func (s *StateStore) upsertServiceRegistrationTxn(
-	index uint64, txn *txn, service *structs.ServiceRegistration) (bool, error) {
+	index uint64, txn Txn, service *structs.ServiceRegistration) (bool, error) {
 
 	existing, err := txn.First(TableServiceRegistrations, indexID, service.Namespace, service.ID)
 	if err != nil {
@@ -93,7 +93,7 @@ func (s *StateStore) DeleteServiceRegistrationByID(
 }
 
 func (s *StateStore) deleteServiceRegistrationByIDTxn(
-	index uint64, txn *txn, namespace, id string) error {
+	index uint64, txn Txn, namespace, id string) error {
 
 	// Lookup the service registration by its ID and namespace. This is a
 	// unique index and therefore there will be a maximum of one entry.

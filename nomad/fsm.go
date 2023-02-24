@@ -144,16 +144,21 @@ type FSMConfig struct {
 
 	// EventBufferSize is the amount of messages to hold in memory
 	EventBufferSize int64
+
+	// EnableChecksumming is used to enable or disable checksumming.
+	// WARNING: this should not be enabled in production!
+	EnableChecksumming bool
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
-		Logger:          config.Logger,
-		Region:          config.Region,
-		EnablePublisher: config.EnableEventBroker,
-		EventBufferSize: config.EventBufferSize,
+		Logger:             config.Logger,
+		Region:             config.Region,
+		EnablePublisher:    config.EnableEventBroker,
+		EventBufferSize:    config.EventBufferSize,
+		EnableChecksumming: config.EnableChecksumming,
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
@@ -1456,10 +1461,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		Logger:          n.config.Logger,
-		Region:          n.config.Region,
-		EnablePublisher: n.config.EnableEventBroker,
-		EventBufferSize: n.config.EventBufferSize,
+		Logger:             n.config.Logger,
+		Region:             n.config.Region,
+		EnablePublisher:    n.config.EnableEventBroker,
+		EventBufferSize:    n.config.EventBufferSize,
+		EnableChecksumming: n.config.EnableChecksumming,
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
