@@ -52,12 +52,12 @@
     <div>
     {{#each this.job.actions as |job-action|}}
     <Hds::Button
-          {{keyboard-shortcut 
-            enumerated=true
-            action=(action job-action.perform)
-          }}
-
-      @size="small"
+      {{keyboard-shortcut 
+        enumerated=true
+        action=(action job-action.perform)
+      }}
+      @size="large"
+      class={{if job-action.isRunning "is-running"}}
       @disabled={{job-action.isRunning}}
       {{on "click" (action job-action.perform)}}
       @text={{job-action.name}}

@@ -15,6 +15,7 @@ export default class ActionModel extends Model {
   @attr('string', { defaultValue: 'tertiary' }) type; // defaultValue doesnt work??
 
   @attr('string') messageBuffer;
+  @attr('boolean') isRunning;
 
   @action
   perform(params) {

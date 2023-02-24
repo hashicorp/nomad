@@ -35,4 +35,41 @@
     grid-auto-flow: column;
     gap: 0.5rem;
   }
+  button {
+    position: relative;
+    transition: 1s;
+  }
+  button.is-running {
+    background-color: black !important;
+    color: white;
+    animation: pulse 2s infinite;
+    transform: scale(1.5);
+    z-index: 3;
+    // use shimmer animation with multiple background colors
+  }
 }
+
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.4);
+  }
+  30% {
+    box-shadow: 0 0 0 30px rgba(0, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+// Shimmering background color keyframes with multiple background colors
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+

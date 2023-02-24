@@ -15,6 +15,7 @@ export default class ActionAdapter extends ApplicationAdapter {
   */
   perform(action) {
     const { name, args, command } = action;
+    action.isRunning = true;
     let allocation = action.job.get('allocations').objectAt(0); // TODO: HACK ALERT
     let task = allocation.get('states').objectAt(0); //TODO: HACK ALERT
     let socket = this.sockets.getTaskStateSocket(task, null, name);
@@ -32,8 +33,9 @@ export default class ActionAdapter extends ApplicationAdapter {
         code: true,
         type: 'success',
         destroyOnClick: false,
-        timeout: 5000,
+        timeout: 2000,
       });
+      action.isRunning = false;
       action.messageBuffer = "";
     };
   }
