@@ -122,6 +122,36 @@ func Job() *structs.Job {
 	return job
 }
 
+// MinJob returns a minimal service job with a mock driver task.
+func MinJob() *structs.Job {
+	job := &structs.Job{
+		ID:     "j" + uuid.Short(),
+		Name:   "j",
+		Region: "global",
+		Type:   "service",
+		TaskGroups: []*structs.TaskGroup{
+			{
+				Name:  "g",
+				Count: 1,
+				Tasks: []*structs.Task{
+					{
+						Name:   "t",
+						Driver: "mock_driver",
+						Config: map[string]any{
+							// An empty config actually causes an error, so set a reasonably
+							// long run_for duration.
+							"run_for": "10m",
+						},
+						LogConfig: structs.DefaultLogConfig(),
+					},
+				},
+			},
+		},
+	}
+	job.Canonicalize()
+	return job
+}
+
 func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 	job := Job()
 	policy := &structs.ScalingPolicy{

@@ -228,7 +228,7 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	assert.Nil(t, out4)
 }
 
-func TestClient_ACL_ResolveSecretToken(t *testing.T) {
+func TestClient_ACL_ResolveToken_Expired(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, _, _, cleanupS1 := testACLServer(t, nil)
@@ -241,25 +241,118 @@ func TestClient_ACL_ResolveSecretToken(t *testing.T) {
 	})
 	defer cleanup()
 
-	token := mock.ACLToken()
-
-	err := s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token})
-	assert.Nil(t, err)
-
-	respToken, err := c1.ResolveSecretToken(token.SecretID)
-	assert.Nil(t, err)
-	if assert.NotNil(t, respToken) {
-		assert.NotEmpty(t, respToken.AccessorID)
-	}
-
 	// Create and upsert a token which has just expired.
 	mockExpiredToken := mock.ACLToken()
 	mockExpiredToken.ExpirationTime = pointer.Of(time.Now().Add(-5 * time.Minute))
 
-	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 120, []*structs.ACLToken{mockExpiredToken})
+	err := s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 120, []*structs.ACLToken{mockExpiredToken})
 	must.NoError(t, err)
 
-	expiredTokenResp, err := c1.ResolveSecretToken(mockExpiredToken.SecretID)
+	expiredTokenResp, err := c1.ResolveToken(mockExpiredToken.SecretID)
 	must.Nil(t, expiredTokenResp)
-	must.StrContains(t, err.Error(), "ACL token expired")
+	must.ErrorContains(t, err, "ACL token expired")
+}
+
+// TestClient_ACL_ResolveToken_Claims asserts that ResolveToken
+// properly resolves valid workload identity claims.
+func TestClient_ACL_ResolveToken_Claims(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, rootToken, cleanupS1 := testACLServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanup := TestClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+		c.ACLEnabled = true
+	})
+	defer cleanup()
+
+	// Create a minimal job
+	job := mock.MinJob()
+
+	// Add a job policy
+	polArgs := structs.ACLPolicyUpsertRequest{
+		Policies: []*structs.ACLPolicy{
+			{
+				Name:        "nw",
+				Description: "test job can write to nodes",
+				Rules:       `node { policy = "write" }`,
+				JobACL: &structs.JobACL{
+					Namespace: job.Namespace,
+					JobID:     job.ID,
+				},
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    job.Region,
+			AuthToken: rootToken.SecretID,
+			Namespace: job.Namespace,
+		},
+	}
+	polReply := structs.GenericResponse{}
+	must.NoError(t, s1.RPC("ACL.UpsertPolicies", &polArgs, &polReply))
+	must.NonZero(t, polReply.WriteMeta.Index)
+
+	allocs := testutil.WaitForRunningWithToken(t, s1.RPC, job, rootToken.SecretID)
+	must.Len(t, 1, allocs)
+
+	alloc, err := s1.State().AllocByID(nil, allocs[0].ID)
+	must.NoError(t, err)
+	must.MapContainsKey(t, alloc.SignedIdentities, "t")
+	wid := alloc.SignedIdentities["t"]
+
+	aclObj, err := c1.ResolveToken(wid)
+	must.NoError(t, err)
+	must.True(t, aclObj.AllowNodeWrite(), must.Sprintf("expected workload id to allow node write"))
+}
+
+// TestClient_ACL_ResolveToken_InvalidClaims asserts that ResolveToken properly
+// rejects invalid workload identity claims.
+func TestClient_ACL_ResolveToken_InvalidClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, rootToken, cleanupS1 := testACLServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanup := TestClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+		c.ACLEnabled = true
+	})
+	defer cleanup()
+
+	// Create a minimal job
+	job := mock.MinJob()
+	allocs := testutil.WaitForRunningWithToken(t, s1.RPC, job, rootToken.SecretID)
+	must.Len(t, 1, allocs)
+
+	// Get wid while it's still running
+	alloc, err := s1.State().AllocByID(nil, allocs[0].ID)
+	must.NoError(t, err)
+	must.MapContainsKey(t, alloc.SignedIdentities, "t")
+	wid := alloc.SignedIdentities["t"]
+
+	// Stop job
+	deregArgs := structs.JobDeregisterRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    job.Region,
+			Namespace: job.Namespace,
+			AuthToken: rootToken.SecretID,
+		},
+	}
+	deregReply := structs.JobDeregisterResponse{}
+	must.NoError(t, s1.RPC("Job.Deregister", &deregArgs, &deregReply))
+
+	cond := map[string]int{
+		structs.AllocClientStatusComplete: 1,
+	}
+	allocs = testutil.WaitForJobAllocStatusWithToken(t, s1.RPC, job, cond, rootToken.SecretID)
+	must.Len(t, 1, allocs)
+
+	// ResolveToken should error now that alloc is dead
+	aclObj, err := c1.ResolveToken(wid)
+	must.ErrorContains(t, err, "allocation is terminal")
+	must.Nil(t, aclObj)
 }

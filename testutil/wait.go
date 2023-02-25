@@ -289,9 +289,10 @@ func WaitForJobAllocStatus(t testing.TB, rpc rpcFn, job *structs.Job, allocStatu
 
 // WaitForJobAllocStatusWithToken behaves the same way as WaitForJobAllocStatus
 // but is used for clusters with ACL enabled.
-func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int, token string) {
+func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int, token string) []*structs.AllocListStub {
 	t.Helper()
 
+	var allocs []*structs.AllocListStub
 	WaitForResultRetries(2000*TestMultiplier(), func() (bool, error) {
 		args := &structs.JobSpecificRequest{
 			JobID: job.ID,
@@ -310,9 +311,11 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 
 		if len(resp.Allocations) == 0 {
 			evals := structs.JobEvaluationsResponse{}
-			require.NoError(t, rpc("Job.Evaluations", args, &evals), "error looking up evals")
+			must.NoError(t, rpc("Job.Evaluations", args, &evals), must.Sprintf("error looking up evals"))
 			return false, fmt.Errorf("0 allocations; evals: %s", pretty.Sprint(evals.Evaluations))
 		}
+
+		allocs = resp.Allocations
 
 		got := map[string]int{}
 		for _, alloc := range resp.Allocations {
@@ -325,6 +328,8 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 	}, func(err error) {
 		must.NoError(t, err)
 	})
+
+	return allocs
 }
 
 // WaitForFiles blocks until all the files in the slice are present
