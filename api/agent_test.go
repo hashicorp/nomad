@@ -110,7 +110,31 @@ func TestAgent_ForceLeave(t *testing.T) {
 	err := a.ForceLeave("nope")
 	must.NoError(t, err)
 
-	// TODO: test force-leave on an existing node
+	// Force-leave on an existing node
+	_, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.Server.BootstrapExpect = 0
+	})
+	defer s2.Stop()
+	// Create a new node to join
+	n, err := a.Join(s2.SerfAddr)
+	must.NoError(t, err)
+	must.One(t, n)
+
+	membersBefore, err := a.MembersOpts(&QueryOptions{})
+	must.Eq(t, membersBefore.Members[1].Status, "alive")
+
+	err = a.ForceLeave(membersBefore.Members[1].Name)
+	must.NoError(t, err)
+
+	time.Sleep(3 * time.Second)
+
+	membersAfter, err := a.MembersOpts(&QueryOptions{})
+
+	for _, node := range membersAfter.Members {
+		if node.Name == membersBefore.Members[1].Name {
+			must.Eq(t, node.Status, "leaving")
+		}
+	}
 }
 
 func (a *AgentMember) String() string {

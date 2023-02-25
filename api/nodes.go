@@ -35,7 +35,7 @@ func (c *Client) Nodes() *Nodes {
 	return &Nodes{client: c}
 }
 
-// List is used to list out all of the nodes
+// List is used to list out all the nodes
 func (n *Nodes) List(q *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
 	var resp NodeIndexSort
 	qm, err := n.client.query("/v1/nodes", &resp, q)
