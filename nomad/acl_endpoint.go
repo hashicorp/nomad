@@ -1030,25 +1030,20 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	return a.srv.blockingRPC(&opts)
 }
 
-// ResolveToken is used to lookup a specific token by a secret ID or workload
-// identity.
-// This is used for enforcing ACLs by Clients, so it returns a special
-// aclDisabled error if the Client should forego checking ACLs entirely. This
-// is likely a misconfiguration on the Client as ACLs should be enabled or
-// disabled cluster-wide.
+// ResolveToken is used to lookup a specific token by a secret ID.
+//
+// Deprecated: Prior to Nomad 1.5 this RPC was used by clients for
+// authenticating local RPCs. Since Nomad 1.5 added workload identity support,
+// clients now use the more flexible ACL.WhoAmI RPC. The /v1/acl/token/self API
+// is the only remaining caller and should be switched to ACL.WhoAmI.
 func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
-
-	authErr := a.srv.Authenticate(a.ctx, args)
 	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
 		return err
 	}
 	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolve_token"}, time.Now())
 
 	// Setup the query meta
