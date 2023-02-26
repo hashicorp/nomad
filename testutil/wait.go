@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 type testFn func() (bool, error)
@@ -256,7 +255,7 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 
 		if len(resp.Allocations) == 0 {
 			evals := structs.JobEvaluationsResponse{}
-			require.NoError(t, rpc("Job.Evaluations", args, &evals), "error looking up evals")
+			must.NoError(t, rpc("Job.Evaluations", args, &evals), "error looking up evals")
 			return false, fmt.Errorf("0 allocations; evals: %s", pretty.Sprint(evals.Evaluations))
 		}
 
@@ -269,7 +268,7 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	return resp.Allocations
