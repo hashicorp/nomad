@@ -17,8 +17,9 @@ const (
 	// construction cost, so we keep the hot objects cached to reduce the ACL token resolution time.
 	aclCacheSize = 64
 
-	// tokenCacheSize is the number of ACL tokens to keep cached. Tokens have a fetching cost,
-	// so we keep the hot tokens cached to reduce the lookups.
+	// tokenCacheSize is the number of bearer tokens, ACL and workload identity,
+	// to keep cached. Tokens have a fetching cost, so we keep the hot tokens
+	// cached to reduce the lookups.
 	tokenCacheSize = 128
 
 	// roleCacheSize is the number of ACL roles to keep cached. Looking up
@@ -36,7 +37,6 @@ type clientACLResolver struct {
 	// policyCache is used to maintain the fetched policy objects
 	policyCache *structs.ACLCache[*structs.ACLPolicy]
 
-	//TODO(schmichael) rename?
 	// tokenCache is used to maintain the fetched token objects
 	tokenCache *structs.ACLCache[*structs.AuthenticatedIdentity]
 
@@ -53,16 +53,14 @@ func (c *clientACLResolver) init() {
 	c.roleCache = structs.NewACLCache[*structs.ACLRole](roleCacheSize)
 }
 
-// TODO(schmichael) rename to ResolveBearerToken? or Authenticate?
-// ResolveToken is used to translate an ACL Token Secret ID into
-// an ACL object, nil if ACLs are disabled, or an error.
-func (c *Client) ResolveToken(secretID string) (*acl.ACL, error) {
-	a, _, err := c.resolveTokenAndACL(secretID)
+// ResolveToken is used to translate an ACL Token Secret ID or workload
+// identity into an ACL object, nil if ACLs are disabled, or an error.
+func (c *Client) ResolveToken(bearerToken string) (*acl.ACL, error) {
+	a, _, err := c.resolveTokenAndACL(bearerToken)
 	return a, err
 }
 
-// TODO(schmichael) rename?
-func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.AuthenticatedIdentity, error) {
+func (c *Client) resolveTokenAndACL(bearerToken string) (*acl.ACL, *structs.AuthenticatedIdentity, error) {
 	// Fast-path if ACLs are disabled
 	if !c.GetConfig().ACLEnabled {
 		return nil, nil, nil
@@ -70,7 +68,7 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.Authent
 	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
 
 	// Resolve the token value
-	ident, err := c.resolveTokenValue(secretID)
+	ident, err := c.resolveTokenValue(bearerToken)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -96,7 +94,7 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.Authent
 		}
 
 		// Resolve the policy links within the token ACL roles.
-		policyNames, err := c.resolveTokenACLRoles(secretID, token.Roles)
+		policyNames, err := c.resolveTokenACLRoles(bearerToken, token.Roles)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -113,7 +111,7 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.Authent
 		// Resolve policies for workload identities
 		policyArgs := structs.GenericRequest{
 			QueryOptions: structs.QueryOptions{
-				AuthToken: secretID,
+				AuthToken: bearerToken,
 				Region:    c.Region(),
 			},
 		}
@@ -135,18 +133,18 @@ func (c *Client) resolveTokenAndACL(secretID string) (*acl.ACL, *structs.Authent
 	return aclObj, ident, nil
 }
 
-// TODO(schmichael) rename?
-// resolveTokenValue is used to translate a secret ID into an ACL token with caching
-// We use a local cache up to the TTL limit, and then resolve via a server. If we cannot
+// resolveTokenValue is used to translate a bearer token, either an ACL token's
+// secret or a workload identity, into an ACL token with caching We use a local
+// cache up to the TTL limit, and then resolve via a server. If we cannot
 // reach a server, but have a cached value we extend the TTL to gracefully handle outages.
-func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdentity, error) {
+func (c *Client) resolveTokenValue(bearerToken string) (*structs.AuthenticatedIdentity, error) {
 	// Hot-path the anonymous token
-	if secretID == "" {
+	if bearerToken == "" {
 		return &structs.AuthenticatedIdentity{ACLToken: structs.AnonymousACLToken}, nil
 	}
 
 	// Lookup the token entry in the cache
-	entry, ok := c.tokenCache.Get(secretID)
+	entry, ok := c.tokenCache.Get(bearerToken)
 	if ok {
 		if entry.Age() <= c.GetConfig().ACLTokenTTL {
 			return entry.Get(), nil
@@ -156,7 +154,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdent
 	// Lookup the token
 	req := structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
-			AuthToken:  secretID,
+			AuthToken:  bearerToken,
 			Region:     c.Region(),
 			AllowStale: true,
 		},
@@ -172,7 +170,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdent
 	}
 
 	// Cache the response (positive or negative)
-	c.tokenCache.Add(secretID, resp.Identity)
+	c.tokenCache.Add(bearerToken, resp.Identity)
 	return resp.Identity, nil
 }
 
