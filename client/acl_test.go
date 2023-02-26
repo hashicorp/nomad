@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_clientACLResolver_init(t *testing.T) {
@@ -47,33 +47,29 @@ func TestClient_ACL_resolveTokenValue(t *testing.T) {
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
 	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
-	assert.Nil(t, err)
+	must.NoError(t, err)
 	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token, token2})
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Test the client resolution
 	out0, err := c1.resolveTokenValue("")
-	assert.Nil(t, err)
-	assert.NotNil(t, out0)
-	assert.Equal(t, structs.AnonymousACLToken, out0)
+	test.Nil(t, err)
+	must.NotNil(t, out0)
+	test.Eq(t, structs.AnonymousACLToken, out0.ACLToken)
 
-	// Test the client resolution
 	out1, err := c1.resolveTokenValue(token.SecretID)
-	assert.Nil(t, err)
-	assert.NotNil(t, out1)
-	assert.Equal(t, token, out1)
+	test.Nil(t, err)
+	must.NotNil(t, out1)
+	test.Eq(t, token, out1.ACLToken)
 
 	out2, err := c1.resolveTokenValue(token2.SecretID)
-	assert.Nil(t, err)
-	assert.NotNil(t, out2)
-	assert.Equal(t, token2, out2)
+	test.Nil(t, err)
+	must.NotNil(t, out2)
+	test.Eq(t, token2, out2.ACLToken)
 
 	out3, err := c1.resolveTokenValue(token.SecretID)
-	assert.Nil(t, err)
-	assert.NotNil(t, out3)
-	if out1 != out3 {
-		t.Fatalf("bad caching")
-	}
+	test.Nil(t, err)
+	must.Eq(t, out1, out3, must.Sprintf("bad caching"))
 }
 
 func TestClient_ACL_resolvePolicies(t *testing.T) {
@@ -98,19 +94,19 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
 	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
-	assert.Nil(t, err)
+	must.NoError(t, err)
 	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token, token2})
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Test the client resolution
 	out, err := c1.resolvePolicies(root.SecretID, []string{policy.Name, policy2.Name})
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(out))
+	must.NoError(t, err)
+	test.Len(t, 2, out)
 
 	// Test caching
 	out2, err := c1.resolvePolicies(root.SecretID, []string{policy.Name, policy2.Name})
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(out2))
+	must.NoError(t, err)
+	test.Len(t, 2, out2)
 
 	// Check we get the same objects back (ignore ordering)
 	if out[0] != out2[0] && out[0] != out2[1] {
@@ -173,8 +169,8 @@ func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
 
 	// Should always get nil when disabled
 	aclObj, err := c1.ResolveToken("blah")
-	assert.Nil(t, err)
-	assert.Nil(t, aclObj)
+	must.NoError(t, err)
+	must.Nil(t, aclObj)
 }
 
 func TestClient_ACL_ResolveToken(t *testing.T) {
@@ -199,33 +195,29 @@ func TestClient_ACL_ResolveToken(t *testing.T) {
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
 	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
-	assert.Nil(t, err)
+	must.NoError(t, err)
 	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token, token2})
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Test the client resolution
 	out, err := c1.ResolveToken(token.SecretID)
-	assert.Nil(t, err)
-	assert.NotNil(t, out)
+	must.NoError(t, err)
+	test.NotNil(t, out)
 
 	// Test caching
 	out2, err := c1.ResolveToken(token.SecretID)
-	assert.Nil(t, err)
-	if out != out2 {
-		t.Fatalf("should be cached")
-	}
+	must.NoError(t, err)
+	must.Eq(t, out, out2, must.Sprintf("should be cached"))
 
 	// Test management token
 	out3, err := c1.ResolveToken(token2.SecretID)
-	assert.Nil(t, err)
-	if acl.ManagementACL != out3 {
-		t.Fatalf("should be management")
-	}
+	must.NoError(t, err)
+	must.Eq(t, acl.ManagementACL, out3)
 
 	// Test bad token
 	out4, err := c1.ResolveToken(uuid.Generate())
-	assert.Equal(t, structs.ErrTokenNotFound, err)
-	assert.Nil(t, out4)
+	test.EqError(t, err, structs.ErrPermissionDenied.Error())
+	test.Nil(t, out4)
 }
 
 func TestClient_ACL_ResolveToken_Expired(t *testing.T) {
