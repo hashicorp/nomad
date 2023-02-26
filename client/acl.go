@@ -19,7 +19,7 @@ const (
 
 	// tokenCacheSize is the number of ACL tokens to keep cached. Tokens have a fetching cost,
 	// so we keep the hot tokens cached to reduce the lookups.
-	tokenCacheSize = 64
+	tokenCacheSize = 128
 
 	// roleCacheSize is the number of ACL roles to keep cached. Looking up
 	// roles requires an RPC call, so we keep the hot roles cached to reduce
@@ -148,7 +148,6 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdent
 	// Lookup the token entry in the cache
 	entry, ok := c.tokenCache.Get(secretID)
 	if ok {
-		//TODO(schmichael) use a different cache for workload identities since we
 		if entry.Age() <= c.GetConfig().ACLTokenTTL {
 			return entry.Get(), nil
 		}
