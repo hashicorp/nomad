@@ -159,7 +159,7 @@ func (c *Client) resolveTokenValue(secretID string) (*structs.AuthenticatedIdent
 		QueryOptions: structs.QueryOptions{
 			AuthToken:  secretID,
 			Region:     c.Region(),
-			AllowStale: false, //TODO(schmichael) I don't think we should allow this
+			AllowStale: true,
 		},
 	}
 	var resp structs.ACLWhoAmIResponse
