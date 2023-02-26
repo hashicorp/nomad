@@ -90,6 +90,7 @@ endif
 	@CGO_ENABLED=$(CGO_ENABLED) \
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
+		GOAMD64=$(GOAMD64) \
 		CC=$(CC) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
@@ -106,6 +107,8 @@ pkg/linux_%/nomad: CGO_ENABLED = 0
 endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
+
+pkg/%_amd64/nomad: GOAMD64 = v3
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget

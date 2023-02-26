@@ -128,6 +128,13 @@ The default threshold is `24h`. If you need to access completed allocations for
 batch jobs that are older than 24h you must increase this value when upgrading
 Nomad.
 
+#### CPU support for amd64 processors
+
+Compiled release binaries for Nomad 1.5 now set [`GOAMD64=v3`][goamd64] at build
+time for all amd64 targets. This allows the Go compiler to better optimize for modern
+processors made in the past ~10 years. Hardware older than the Intel Haswell or
+AMD Excavator series microarchitectures are no longer supported.
+
 ## Nomad 1.4.4, 1.3.9
 
 #### Garbage collection of evaluations and allocations for batch job
@@ -1670,3 +1677,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
 [decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables
+[goamd64]: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels
+
