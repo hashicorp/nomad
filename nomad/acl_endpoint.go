@@ -1045,6 +1045,7 @@ func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.
 	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
