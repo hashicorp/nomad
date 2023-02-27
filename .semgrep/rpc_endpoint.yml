@@ -1,5 +1,7 @@
 rules:
-  # Check potentially unauthenticated RPC endpoints
+  # Check potentially unauthenticated RPC endpoints. Technically more
+  # authorization (authz) oriented than authn, but before Nomad 1.4/1.5 that
+  # distinction wasn't as important.
   - id: "rpc-potentially-unauthenticated"
     patterns:
       - pattern: |
