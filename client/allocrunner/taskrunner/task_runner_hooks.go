@@ -482,6 +482,7 @@ func (tr *TaskRunner) updateHooks() {
 
 		// Build the request
 		req := interfaces.TaskUpdateRequest{
+			NomadToken: tr.getNomadToken(),
 			VaultToken: tr.getVaultToken(),
 			Alloc:      alloc,
 			TaskEnv:    tr.envBuilder.Build(),
