@@ -7,11 +7,12 @@ export default class JobStatusPanelComponent extends Component {
   allocTypes = [
     'running',
     'failed',
-    'unknown',
+    // 'unknown',
     'starting',
-    'lost',
+    // 'lost',
     'queued',
     'complete',
+    'remaining',
   ].map((type) => {
     return {
       label: type,
@@ -20,9 +21,10 @@ export default class JobStatusPanelComponent extends Component {
   });
 
   get allocBlocks() {
+    console.log('yob', this.args.job);
     let availableSlotsToFill = this.totalAllocs;
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
-    return this.allocTypes.reduce((blocks, type) => {
+    let allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {
       const jobAllocsOfType = this.args.job.allocations.filterBy(
         'clientStatus',
         type.label
@@ -41,6 +43,14 @@ export default class JobStatusPanelComponent extends Component {
       }
       return blocks;
     }, {});
+    if (availableSlotsToFill > 0) {
+      allocationsOfShowableType['remaining'] = Array(availableSlotsToFill)
+        .fill()
+        .map((_, i) => {
+          return { clientStatus: 'remaining' };
+        });
+    }
+    return allocationsOfShowableType;
   }
 
   /**
