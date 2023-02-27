@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
