@@ -285,6 +285,12 @@ func defaultHttpClient() *http.Client {
 	return httpClient
 }
 
+func DefaultInClusterConfig() *Config {
+	base := DefaultConfig()
+	base.Address = "/secrets/api.sock"
+	return base
+}
+
 // DefaultConfig returns a default configuration for the client
 func DefaultConfig() *Config {
 	config := &Config{
@@ -464,7 +470,9 @@ func NewClient(config *Config) (*Client, error) {
 
 	if config.Address == "" {
 		config.Address = defConfig.Address
-	} else if _, err := url.Parse(config.Address); err != nil {
+	}
+	url, err := url.Parse(config.Address)
+	if err != nil {
 		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
 	}
 
@@ -473,6 +481,12 @@ func NewClient(config *Config) (*Client, error) {
 		httpClient = defaultHttpClient()
 		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
 			return nil, err
+		}
+		if url.Scheme == "unix" {
+			transport := httpClient.Transport.(*http.Transport)
+			transport.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", url.Path)
+			}
 		}
 	}
 
