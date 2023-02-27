@@ -3,12 +3,14 @@
     <h2>Status</h2>
     <div class="select-mode">
       <button type="button"
+        data-test-status-mode-current
         class="button is-small is-borderless {{if (eq this.mode "current") "is-active"}}"
         {{on "click" (action (mut this.mode) "current")}}
       >
         Current
       </button>
       <button type="button"
+        data-test-status-mode-historical
         class="button is-small is-borderless {{if (eq this.mode "historical") "is-active"}}"
         {{on "click" (action (mut this.mode) "historical")}}>
         Historical
