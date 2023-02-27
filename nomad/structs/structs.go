@@ -281,7 +281,8 @@ type QueryOptions struct {
 	// If set, used as prefix for resource list searches
 	Prefix string
 
-	// AuthToken is secret portion of the ACL token used for the request
+	// AuthToken is secret portion of the ACL token or workload identity used for
+	// the request.
 	AuthToken string
 
 	// Filter specifies the go-bexpr filter expression to be used for
@@ -480,8 +481,13 @@ func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
 // ACLToken makes the original of the credential clear to RPC handlers, who may
 // have different behavior for internal vs external origins.
 type AuthenticatedIdentity struct {
+	// ACLToken authenticated. Claims will be nil if this is set.
 	ACLToken *ACLToken
-	Claims   *IdentityClaims
+
+	// Claims authenticated by workload identity. ACLToken will be nil if this is
+	// set.
+	Claims *IdentityClaims
+
 	ClientID string
 	TLSName  string
 	RemoteIP net.IP
@@ -515,6 +521,16 @@ func (ai *AuthenticatedIdentity) String() string {
 		return fmt.Sprintf("client:%s", ai.ClientID)
 	}
 	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
+}
+
+func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
+	// Only ACLTokens currently support expiry so return unexpired if there isn't
+	// one.
+	if ai.ACLToken == nil {
+		return false
+	}
+
+	return ai.ACLToken.IsExpired(now)
 }
 
 type RequestWithIdentity interface {
@@ -10598,10 +10614,10 @@ func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
 		JobID:        a.JobID,
 		AllocationID: a.ID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			// TODO: in Nomad 1.5.0 we'll have a refresh loop to
-			// prevent allocation identities from expiring before the
-			// allocation is terminal. Once that's implemented, add an
-			// ExpiresAt here ExpiresAt: &jwt.NumericDate{},
+			// TODO: implement a refresh loop to prevent allocation identities from
+			// expiring before the allocation is terminal. Once that's implemented,
+			// add an ExpiresAt here ExpiresAt: &jwt.NumericDate{}
+			// https://github.com/hashicorp/nomad/issues/16258
 			NotBefore: now,
 			IssuedAt:  now,
 		},

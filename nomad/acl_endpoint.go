@@ -416,6 +416,48 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	return a.srv.blockingRPC(&opts)
 }
 
+// GetClaimPolicies return the ACLPolicy objects for a workload identity.
+// Similar to GetPolicies except an error will *not* be returned if ACLs are
+// disabled.
+func (a *ACL) GetClaimPolicies(args *structs.GenericRequest, reply *structs.ACLPolicySetResponse) error {
+	authErr := a.srv.Authenticate(a.ctx, args)
+	if done, err := a.srv.forward("ACL.GetClaimPolicies", args, args, reply); done {
+		return err
+	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "acl", "get_claim_policies"}, time.Now())
+
+	// Should only be called using a workload identity
+	claims := args.GetIdentity().Claims
+	if claims == nil {
+		// Calling this RPC without a workload identity is either a bug or an
+		// attacker as this RPC is not exposed to users directly.
+		a.logger.Debug("ACL.GetClaimPolicies called without a workload identity", "id", args.GetIdentity())
+		return structs.ErrPermissionDenied
+	}
+
+	policies, err := a.srv.resolvePoliciesForClaims(claims)
+	if err != nil {
+		// Likely only hit if a job/alloc has been GC'd on the server but the
+		// client hasn't stopped it yet. Return Permission Denied as there's no way
+		// this call should error that leaves the claims valid.
+		a.logger.Warn("Policies could not be resolved for claims", "error", err, "id", args.GetIdentity())
+		return structs.ErrPermissionDenied
+	}
+
+	reply.Policies = make(map[string]*structs.ACLPolicy, len(policies))
+	for _, p := range policies {
+		if p.ModifyIndex > reply.QueryMeta.Index {
+			reply.QueryMeta.Index = p.ModifyIndex
+		}
+		reply.Policies[p.Name] = p
+	}
+	return nil
+}
+
 // Bootstrap is used to bootstrap the initial token
 func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.ACLTokenUpsertResponse) error {
 	// Ensure ACLs are enabled, and always flow modification requests to the authoritative region
@@ -988,7 +1030,12 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	return a.srv.blockingRPC(&opts)
 }
 
-// ResolveToken is used to lookup a specific token by a secret ID. This is used for enforcing ACLs by clients.
+// ResolveToken is used to lookup a specific token by a secret ID.
+//
+// Deprecated: Prior to Nomad 1.5 this RPC was used by clients for
+// authenticating local RPCs. Since Nomad 1.5 added workload identity support,
+// clients now use the more flexible ACL.WhoAmI RPC. The /v1/acl/token/self API
+// is the only remaining caller and should be switched to ACL.WhoAmI.
 func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
@@ -996,6 +1043,7 @@ func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.
 	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
 		return err
 	}
+	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
 	defer metrics.MeasureSince([]string{"nomad", "acl", "resolve_token"}, time.Now())
 
 	// Setup the query meta
