@@ -765,9 +765,10 @@ func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.A
 // raftApplyFn is the function signature for applying a msg to Raft
 type raftApplyFn func(t structs.MessageType, msg interface{}) (interface{}, uint64, error)
 
-// raftApply is used to encode a message, run it through raft, and return
-// the FSM response along with any errors
-func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{}, uint64, error) {
+// raftApply is used to encode a message, run it through raft, and return the
+// FSM response along with any errors. If the FSM.Apply response is an error it
+// will be returned as the error return value with a nil response.
+func (s *Server) raftApply(t structs.MessageType, msg any) (any, uint64, error) {
 	future, err := s.raftApplyFuture(t, msg)
 	if err != nil {
 		return nil, 0, err
@@ -775,7 +776,11 @@ func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{},
 	if err := future.Error(); err != nil {
 		return nil, 0, err
 	}
-	return future.Response(), future.Index(), nil
+	resp := future.Response()
+	if err, ok := resp.(error); ok && err != nil {
+		return nil, future.Index(), err
+	}
+	return resp, future.Index(), nil
 }
 
 // setQueryMeta is used to populate the QueryMeta data for an RPC call
