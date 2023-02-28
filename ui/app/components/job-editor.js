@@ -24,15 +24,18 @@ export default class JobEditor extends Component {
     this.isEditing = true;
   }
 
+  @action
   onCancel() {
     this.isEditing = false;
   }
 
   get stage() {
-    return this.planOutput ? 'plan' : 'editor';
+    if (this.planOutput) return 'plan';
+    if (this.isEditing) return 'edit';
+    else return 'read';
   }
 
-  @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
+  @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
 
   @(task(function* () {
     this.reset();
@@ -127,16 +130,27 @@ export default class JobEditor extends Component {
 
   get data() {
     return {
-      view: this.view,
+      cancelable: this.args.cancelable,
       definition: this.definition,
       job: this.args.job,
+      planOutput: this.planOutput,
+      shouldShowPlanMessage: this.shouldShowPlanMessage,
+      stage: this.stage,
+      view: this.view,
     };
   }
 
   get fns() {
     return {
+      onCancel: this.onCancel,
       onEdit: this.edit,
+      onPlan: this.plan,
+      onReset: this.reset,
+      onSaveAs: this.args.handleSaveAsTemplate,
+      onSubmit: this.submit,
       onToggle: this.toggleView,
+      onUpdate: this.updateCode,
+      onUpload: this.uploadJobSpec,
     };
   }
 }

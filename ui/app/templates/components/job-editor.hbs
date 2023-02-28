@@ -13,7 +13,11 @@
       </p>
     </header>
 
-  <JobEditor::Read @data={{this.data}} @fns={{this.fns}} />
-  <JobEditor::Edit />
-  <JobEditor::Review />
+  {{#if (eq this.stage "read")}}
+    <JobEditor::Read @data={{this.data}} @fns={{this.fns}} />
+  {{else if (eq this.stage "edit")}}
+    <JobEditor::Edit @data={{this.data}} @fns={{this.fns}} />
+  {{else}}
+    <JobEditor::Review @data={{this.data}} @fns={{this.fns}} />
+  {{/if}}
 </div>

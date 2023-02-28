@@ -1,5 +1,4 @@
-{{#if (eq this.stage "plan")}}
-{{#if this.showPlanMessage}}
+{{#if @data.shouldShowPlanMessage}}
     <div class="notification is-info">
     <div class="columns">
         <div class="column">
@@ -18,20 +17,20 @@
     <div class="boxed-section-body is-dark">
     <JobDiff
         data-test-plan-output
-        @diff={{this.planOutput.diff}}
+        @diff={{@data.planOutput.diff}}
         @verbose={{false}}
     />
     </div>
 </div>
 <div
     class="boxed-section
-    {{if this.planOutput.failedTGAllocs 'is-warning' 'is-primary'}}"
+    {{if @data.planOutput.failedTGAllocs 'is-warning' 'is-primary'}}"
     data-test-dry-run-message
 >
     <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
     <div class="boxed-section-body" data-test-dry-run-body>
-    {{#if this.planOutput.failedTGAllocs}}
-        {{#each this.planOutput.failedTGAllocs as |placementFailure|}}
+    {{#if @data.planOutput.failedTGAllocs}}
+        {{#each @data.planOutput.failedTGAllocs as |placementFailure|}}
         <PlacementFailure @failedTGAlloc={{placementFailure}} />
         {{/each}}
     {{else}}
@@ -41,7 +40,7 @@
 </div>
 {{#if
     (and
-    this.planOutput.preemptions.isFulfilled this.planOutput.preemptions.length
+    @data.planOutput.preemptions.isFulfilled @data.planOutput.preemptions.length
     )
 }}
     <div class="boxed-section is-warning" data-test-preemptions>
@@ -51,7 +50,7 @@
     </div>
     <div class="boxed-section-body" data-test-preemptions-body>
         <ListTable
-        @source={{this.planOutput.preemptions}}
+        @source={{@data.planOutput.preemptions}}
         @class="allocations is-isolated"
         as |t|
         >
@@ -76,7 +75,6 @@
     </div>
 {{/if}}
 <Hds::ButtonSet class="is-associative">
-    <Hds::Button @text="Run" {{on "click" (perform this.submit)}} disabled={{this.submit.isRunning}} data-test-run />
-    <Hds::Button @color="secondary" @text="Cancel" {{on "click" this.reset}} disabled={{this.submit.isRunning}} data-test-cancel />
+    <Hds::Button @text="Run" {{on "click" (perform @fns.onSubmit)}} disabled={{@fns.onSubmit.isRunning}} data-test-run />
+    <Hds::Button @color="secondary" @text="Cancel" {{on "click" @fns.onReset}} disabled={{@fns.onSubmit.isRunning}} data-test-cancel />
 </Hds::ButtonSet>
-{{/if}}
