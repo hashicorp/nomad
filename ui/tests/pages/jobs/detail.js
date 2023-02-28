@@ -98,8 +98,12 @@ export default create({
       tooltip: attribute('aria-label'),
     },
   },
-  childrenSummary: jobClientStatusBar('[data-test-children-status-bar]'),
-  allocationsSummary: jobClientStatusBar('[data-test-allocation-status-bar]'),
+  childrenSummary: jobClientStatusBar(
+    '[data-test-children-status-bar]:not(.is-narrow)'
+  ),
+  allocationsSummary: jobClientStatusBar(
+    '[data-test-allocation-status-bar]:not(.is-narrow)'
+  ),
   ...taskGroups(),
   ...allocations(),
 
