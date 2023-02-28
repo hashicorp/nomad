@@ -80,12 +80,12 @@ export default create({
   statusModes: {
     current: {
       scope: '[data-test-status-mode-current]',
-      click: clickable(),  
+      click: clickable(),
     },
     historical: {
       scope: '[data-test-status-mode-historical]',
-      click: clickable(),  
-    }
+      click: clickable(),
+    },
   },
 
   jobClientStatusSummary: {
@@ -98,12 +98,8 @@ export default create({
       tooltip: attribute('aria-label'),
     },
   },
-  childrenSummary: jobClientStatusBar(
-    '[data-test-children-status-bar]'
-  ),
-  allocationsSummary: jobClientStatusBar(
-    '[data-test-allocation-status-bar]'
-  ),
+  childrenSummary: jobClientStatusBar('[data-test-children-status-bar]'),
+  allocationsSummary: jobClientStatusBar('[data-test-allocation-status-bar]'),
   ...taskGroups(),
   ...allocations(),
 

@@ -48,6 +48,10 @@ export default function moduleForJob(
       if (context === 'allocations' && hasClientStatus) {
         await click("[data-test-accordion-summary-chart='allocation-status']");
       }
+      const hasJobStatusPanel = ['service'].includes(job.type);
+      if (hasJobStatusPanel) {
+        await JobDetail.statusModes.historical.click();
+      }
     });
 
     test('visiting /jobs/:job_id', async function (assert) {
@@ -171,7 +175,7 @@ export default function moduleForJob(
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
-        const slice = JobDetail.allocationsSummary.slices[1];
+        const slice = JobDetail.allocationsSummary.slices[0];
         const status = slice.label;
         await slice.click();
 

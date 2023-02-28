@@ -46,7 +46,7 @@ export default class JobStatusPanelComponent extends Component {
     if (availableSlotsToFill > 0) {
       allocationsOfShowableType['remaining'] = Array(availableSlotsToFill)
         .fill()
-        .map((_, i) => {
+        .map(() => {
           return { clientStatus: 'remaining' };
         });
     }

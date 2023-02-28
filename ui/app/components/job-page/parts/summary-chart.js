@@ -21,5 +21,4 @@ export default class JobPagePartsSummaryChartComponent extends Component {
   onSliceClick(ev, slice) {
     this.gotoAllocations([camelize(slice.label)]);
   }
-
 }
