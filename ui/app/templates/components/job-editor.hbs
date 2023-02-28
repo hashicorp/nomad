@@ -13,11 +13,5 @@
       </p>
     </header>
 
-  {{#if (eq this.stage "read")}}
-    <JobEditor::Read @data={{this.data}} @fns={{this.fns}} />
-  {{else if (eq this.stage "edit")}}
-    <JobEditor::Edit @data={{this.data}} @fns={{this.fns}} />
-  {{else}}
-    <JobEditor::Review @data={{this.data}} @fns={{this.fns}} />
-  {{/if}}
+    {{component (concat 'job-editor/' this.stage) data=this.data fns=this.fns}}
 </div>

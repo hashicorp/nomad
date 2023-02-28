@@ -30,7 +30,7 @@ export default class JobEditor extends Component {
   }
 
   get stage() {
-    if (this.planOutput) return 'plan';
+    if (this.planOutput) return 'review';
     if (this.isEditing) return 'edit';
     else return 'read';
   }
@@ -135,7 +135,6 @@ export default class JobEditor extends Component {
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
-      stage: this.stage,
       view: this.view,
     };
   }
