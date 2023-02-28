@@ -30,6 +30,18 @@ moduleForJobWithClientStatus(
     })
 );
 
+moduleForJobWithClientStatus(
+  'Acceptance | job detail with client status (system with wildcard dc)',
+  () =>
+    server.create('job', {
+      id: 'system-wildcard-dc',
+      status: 'running',
+      datacenters: ['*'],
+      type: 'system',
+      createAllocations: false,
+    })
+);
+
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
   server.create('job', { type: 'sysbatch', shallow: true })
 );
