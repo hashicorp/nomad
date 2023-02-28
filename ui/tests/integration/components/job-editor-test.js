@@ -1,6 +1,7 @@
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
+import { click } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
@@ -77,7 +78,8 @@ module('Integration | Component | job-editor', function (hooks) {
     <JobEditor
       @job={{job}}
       @context={{context}}
-      @onSubmit={{onSubmit}} />
+      @onSubmit={{onSubmit}} 
+    />
   `;
 
   const cancelableTemplate = hbs`
@@ -86,7 +88,7 @@ module('Integration | Component | job-editor', function (hooks) {
       @context={{context}}
       @cancelable={{true}}
       @onSubmit={{onSubmit}}
-      @onCancel={{onCancel}} />
+    />
   `;
 
   const renderNewJob = async (component, job) => {
@@ -98,7 +100,6 @@ module('Integration | Component | job-editor', function (hooks) {
     component.setProperties({
       job,
       onSubmit: sinon.spy(),
-      onCancel: sinon.spy(),
       context: 'edit',
     });
     await component.render(cancelableTemplate);
@@ -116,7 +117,7 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    assert.ok(Editor.editor.isPresent, 'Editor is present');
+    assert.ok('[data-test-job-editor]', 'Editor is present');
 
     await componentA11yAudit(this.element, assert);
   });
@@ -126,8 +127,13 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await planJob(spec);
-    console.log('wait');
+    await click('[data-test-toggle-full]');
+    await click('[data-test-edit-job]');
+
+    const cm = getCodeMirrorInstance(['data-test-editor']);
+    cm.setValue(spec);
+    await Editor.plan();
+
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.notOk(
       requests.includes('/v1/jobs/parse'),
@@ -144,6 +150,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.ok(
@@ -168,13 +176,17 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     assert.ok(Editor.planOutput, 'The plan is outputted');
     assert.notOk(
       Editor.editor.isPresent,
       'The editor is replaced with the plan output'
     );
-    assert.ok(Editor.planHelp.isPresent, 'The plan explanation popup is shown');
+    assert
+      .dom('[data-test-plan-help-title]')
+      .exists('The plan explanation popup is shown');
 
     await componentA11yAudit(this.element, assert);
   });
@@ -184,6 +196,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     await Editor.cancel();
     assert.ok(Editor.editor.isPresent, 'The editor is shown again');
@@ -204,6 +218,8 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server.pretender.post('/v1/jobs/parse', () => [400, {}, errorMessage]);
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     assert
       .dom('[data-test-error="plan"]')
@@ -236,6 +252,8 @@ module('Integration | Component | job-editor', function (hooks) {
     ]);
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     assert
       .dom('[data-test-error="parse"]')
@@ -264,8 +282,11 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server.pretender.post('/v1/jobs', () => [400, {}, errorMessage]);
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     await Editor.run();
+
     assert
       .dom('[data-test-error="plan"]')
       .doesNotExist('Plan error is not shown');
@@ -273,7 +294,7 @@ module('Integration | Component | job-editor', function (hooks) {
       .dom('[data-test-error="parse"]')
       .doesNotExist('Parse error is not shown');
 
-    assert.ok(Editor.runError.isPresent, 'Run error is shown');
+    assert.dom('[data-test-error="run"]').exists('Run error is shown');
     assert.equal(
       Editor.runError.message,
       errorMessage,
@@ -290,6 +311,9 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-toggle-full]');
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     assert.ok(
       Editor.dryRunMessage.errored,
@@ -314,6 +338,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     assert.ok(
       Editor.dryRunMessage.succeeded,
@@ -332,6 +358,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderEditJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     await Editor.run();
     const requests = this.server.pretender.handledRequests
@@ -352,6 +380,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     await Editor.run();
     const requests = this.server.pretender.handledRequests
@@ -372,6 +402,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    await click('[data-test-edit-job]');
+
     await planJob(spec);
     await Editor.run();
     assert.ok(
@@ -393,6 +425,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderEditJob(this, job);
+    await click('[data-test-edit-job]');
+
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
 
     await componentA11yAudit(this.element, assert);
@@ -402,7 +436,11 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderEditJob(this, job);
+    await click('[data-test-edit-job]');
+
     await Editor.cancelEditing();
-    assert.ok(this.onCancel.calledOnce, 'The onCancel hook was called');
+    assert
+      .dom('[data-test-job-spec-view]')
+      .exists('We reset state to be in read only mode after hitting cancel.');
   });
 });
