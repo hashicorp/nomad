@@ -66,7 +66,8 @@ Create Index = 14
 Modify Index = 14
 ```
 
-Create a new ACL Binding Rule where the selector needs to be escaped:
+Create a new ACL Binding Rule where the selector needs to be escaped on UNIX
+machines:
 
 ```shell-session
 $ nomad acl binding-rule create \
@@ -75,6 +76,28 @@ $ nomad acl binding-rule create \
     -bind-type "role" \
     -bind-name "eng-ro" \
     -selector "\"product-developer\" in list.roles"
+ID           = 698fdad6-dcb3-79dd-dc72-b43374057dea
+Description  = example binding rule
+Auth Method  = auth0
+Selector     = "\"project-developer\" in list.roles"
+Bind Type    = role
+Bind Name    = eng-ro
+Create Time  = 2022-12-20 11:15:22.582568 +0000 UTC
+Modify Time  = 2022-12-20 11:15:22.582568 +0000 UTC
+Create Index = 14
+Modify Index = 14
+```
+
+Create a new ACL Binding Rule where the selector needs to be escaped on Windows
+machines via PowerShell:
+
+```shell-session
+$ nomad.exe acl binding-rule create \
+    -description "example binding rule" \
+    -auth-method "auth0" \
+    -bind-type "role" \
+    -bind-name "eng-ro" \
+    -selector="`"project-developer`"
 ID           = 698fdad6-dcb3-79dd-dc72-b43374057dea
 Description  = example binding rule
 Auth Method  = auth0
