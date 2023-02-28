@@ -157,7 +157,7 @@ export default function moduleForJob(
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
         const legendItem =
-          JobDetail.allocationsSummary.legend.clickableItems[1];
+          JobDetail.allocationsSummary.legend.clickableItems[0];
         const status = legendItem.label;
         await legendItem.click();
 
