@@ -846,6 +846,9 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	if err != nil {
 		return err
 	}
+	if job == nil {
+		return nil
+	}
 
 	var eval *structs.Evaluation
 
@@ -854,7 +857,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	now := time.Now().UnixNano()
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
+	if !(job.IsPeriodic() || job.IsParameterized()) {
 
 		// The evaluation priority is determined by several factors. It
 		// defaults to the job default priority and is overridden by the
@@ -863,7 +866,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		// If the user supplied an eval priority override, we subsequently
 		// use this.
 		priority := structs.JobDefaultPriority
-		if job != nil {
+		if job.Priority > 0 {
 			priority = job.Priority
 		}
 		if args.EvalPriority > 0 {
