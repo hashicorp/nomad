@@ -1,12 +1,12 @@
 // @ts-check
 import { module, test } from 'qunit';
-import { visit, currentURL } from '@ember/test-helpers';
+import { visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import percySnapshot from '@percy/ember';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
-
-module('Acceptance | job status panel', function(hooks) {
+module('Acceptance | job status panel', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
@@ -15,25 +15,10 @@ module('Acceptance | job status panel', function(hooks) {
 
   hooks.beforeEach(async function () {
     server.create('node');
-
-    // if (!job.namespace || job.namespace === 'default') {
-    //   await JobDetail.visit({ id: job.id });
-    // } else {
-    //   await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
-    // }
-
-    // const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
-    // if (context === 'allocations' && hasClientStatus) {
-    //   await click("[data-test-accordion-summary-chart='allocation-status']");
-    // }
-    // const hasJobStatusPanel = ['service'].includes(job.type);
-    // if (hasJobStatusPanel) {
-    //   await JobDetail.statusModes.historical.click();
-    // }
   });
 
-
-  test('Status panel lets you switch between Current and Historical', async function(assert) {
+  test('Status panel lets you switch between Current and Historical', async function (assert) {
+    assert.expect(2);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
@@ -44,6 +29,7 @@ module('Acceptance | job status panel', function(hooks) {
 
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
+    await a11yAudit(assert);
     await percySnapshot(assert);
   });
 });
