@@ -89,7 +89,7 @@
     color: white;
 
     $queued: $grey;
-    $starting: $grey-lighter;
+    $pending: $grey-lighter;
     $running: $primary;
     $complete: $nomad-green-dark;
     $failed: $danger;
@@ -110,8 +110,8 @@
     &.complete {
       background: $complete;
     }
-    &.starting {
-      background: $starting;
+    &.pending {
+      background: $pending;
       color: black;
     }
     &.lost {
