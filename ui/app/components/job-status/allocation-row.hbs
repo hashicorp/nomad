@@ -1,5 +1,8 @@
 {{#if this.showSummaries}}
-  <div class="alloc-status-summaries" {{did-insert this.captureElement}}>
+  <div class="alloc-status-summaries"
+    {{did-insert this.captureElement}}
+    {{window-resize this.reflow}}
+  >
     {{#each-in @allocBlocks as |status allocs|}}
       {{#if (gt allocs.length 0)}}
         <JobStatus::AllocationStatusBlock @status={{status}} @count={{allocs.length}} @width={{compute (action this.calcPerc) allocs.length}} />

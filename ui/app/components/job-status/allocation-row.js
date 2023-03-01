@@ -1,14 +1,11 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
-import { alias } from '@ember/object/computed';
 import { tracked } from '@glimmer/tracking';
 
 const UNGROUPED_ALLOCS_THRESHOLD = 50;
 
 export default class JobStatusAllocationRowComponent extends Component {
-  @tracked element = null;
-
-  @alias('element.clientWidth') width;
+  @tracked width = 0;
 
   get allocBlockSlots() {
     return Object.values(this.args.allocBlocks).reduce(
@@ -25,8 +22,12 @@ export default class JobStatusAllocationRowComponent extends Component {
     return (count / this.allocBlockSlots) * this.width;
   }
 
+  @action reflow(element) {
+    this.width = element.clientWidth;
+  }
+
   @action
   captureElement(element) {
-    this.element = element;
+    this.width = element.clientWidth;
   }
 }
