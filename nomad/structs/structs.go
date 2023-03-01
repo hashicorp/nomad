@@ -8348,6 +8348,10 @@ const (
 	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
 	// shutdown delay before being TaskKilled
 	TaskWaitingShuttingDownDelay = "Waiting for shutdown delay"
+
+	// TaskSkippingShutdownDelay indicates that the task operation was
+	// configured to ignore the shutdown delay value set for the tas.
+	TaskSkippingShutdownDelay = "Skipping shutdown delay"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

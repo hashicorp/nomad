@@ -1108,6 +1108,16 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 
 	err := <-killed
 	require.NoError(t, err, "killing task returned unexpected error")
+
+	// Check that we only emit the expected events.
+	hasEvent := false
+	for _, ev := range tr.state.Events {
+		require.NotEqual(t, structs.TaskWaitingShuttingDownDelay, ev.Type)
+		if ev.Type == structs.TaskSkippingShutdownDelay {
+			hasEvent = true
+		}
+	}
+	require.True(t, hasEvent)
 }
 
 // TestTaskRunner_Dispatch_Payload asserts that a dispatch job runs and the
