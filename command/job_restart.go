@@ -184,7 +184,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 	// Handle SIGINT to prevent accidental cancellations.
 	// activeCh is blocked while a signal is being handled.
-	activeCh := make(chan interface{})
+	activeCh := make(chan any)
 	sigsCh := make(chan os.Signal, 1)
 	signal.Notify(sigsCh, syscall.SIGINT)
 	go c.handleSignal(sigsCh, activeCh)
@@ -234,7 +234,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 		shortAllocID := limit(alloc.ID, c.length)
 
 		// Skip allocations that are not running.
-		allocRunning := alloc.ClientStatus == api.AllocClientStatusRunning && alloc.DesiredStatus == api.AllocDesiredStatusRun
+		allocRunning := alloc.ClientStatus == api.AllocClientStatusRunning || alloc.DesiredStatus == api.AllocDesiredStatusRun
 		if !allocRunning {
 			if c.verbose {
 				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
@@ -775,7 +775,7 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 //
 // Exit immediately if the user confirms the interrupt, otherwise resume the
 // command and feed activeCh to unblock it.
-func (c *JobRestartCommand) handleSignal(sigsCh chan os.Signal, activeCh chan interface{}) {
+func (c *JobRestartCommand) handleSignal(sigsCh chan os.Signal, activeCh chan any) {
 
 	for {
 		select {
