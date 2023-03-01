@@ -376,13 +376,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		args.Deployment = j.multiregionCreateDeployment(job, eval)
 
 		// Commit this update via Raft
-		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-		if err, ok := fsmErr.(error); ok && err != nil {
-			j.logger.Error("registering job failed", "error", err, "fsm", true)
-			return err
-		}
+		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 		if err != nil {
-			j.logger.Error("registering job failed", "error", err, "raft", true)
+			j.logger.Error("registering job failed", "error", err)
 			return err
 		}
 
@@ -2027,13 +2023,9 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	}
 
 	// Commit this update via Raft
-	fsmErr, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
-	if err, ok := fsmErr.(error); ok && err != nil {
-		j.logger.Error("dispatched job register failed", "error", err, "fsm", true)
-		return err
-	}
+	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
 	if err != nil {
-		j.logger.Error("dispatched job register failed", "error", err, "raft", true)
+		j.logger.Error("dispatched job register failed", "error")
 		return err
 	}
 

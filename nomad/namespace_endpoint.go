@@ -60,13 +60,8 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	}
 
 	// Update via Raft
-	out, index, err := n.srv.raftApply(structs.NamespaceUpsertRequestType, args)
+	_, index, err := n.srv.raftApply(structs.NamespaceUpsertRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if there was an error when applying.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -124,13 +119,8 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	}
 
 	// Update via Raft
-	out, index, err := n.srv.raftApply(structs.NamespaceDeleteRequestType, args)
+	_, index, err := n.srv.raftApply(structs.NamespaceDeleteRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if there was an error when applying.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
