@@ -127,8 +127,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-toggle-full]');
-    await click('[data-test-edit-job]');
 
     const cm = getCodeMirrorInstance(['data-test-editor']);
     cm.setValue(spec);
@@ -150,7 +148,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     const requests = this.server.pretender.handledRequests.mapBy('url');
@@ -176,7 +173,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     assert.ok(Editor.planOutput, 'The plan is outputted');
@@ -196,7 +192,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     await Editor.cancel();
@@ -218,7 +213,6 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server.pretender.post('/v1/jobs/parse', () => [400, {}, errorMessage]);
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     assert
@@ -252,7 +246,6 @@ module('Integration | Component | job-editor', function (hooks) {
     ]);
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     assert
@@ -282,7 +275,6 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server.pretender.post('/v1/jobs', () => [400, {}, errorMessage]);
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     await Editor.run();
@@ -311,8 +303,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-toggle-full]');
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     assert.ok(
@@ -338,7 +328,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     assert.ok(
@@ -380,7 +369,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     await Editor.run();
@@ -402,7 +390,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    await click('[data-test-edit-job]');
 
     await planJob(spec);
     await Editor.run();
@@ -437,7 +424,6 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderEditJob(this, job);
     await click('[data-test-edit-job]');
-
     await Editor.cancelEditing();
     assert
       .dom('[data-test-job-spec-view]')

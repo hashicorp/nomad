@@ -13,7 +13,16 @@ export default class JobEditor extends Component {
   @tracked error = null;
   @tracked planOutput = null;
   @tracked view = 'job-spec';
-  @tracked isEditing = false;
+  @tracked isEditing;
+
+  constructor() {
+    super(...arguments);
+    this.isEditing = !!(this.args.context === 'new');
+  }
+
+  toggleEdit(bool) {
+    this.isEditing = bool || !this.isEditing;
+  }
 
   @action
   edit() {
@@ -21,12 +30,12 @@ export default class JobEditor extends Component {
       '_newDefinition',
       JSON.stringify(this.args.definition, null, 2)
     );
-    this.isEditing = true;
+    this.toggleEdit(true);
   }
 
   @action
   onCancel() {
-    this.isEditing = false;
+    this.toggleEdit(false);
   }
 
   get stage() {
