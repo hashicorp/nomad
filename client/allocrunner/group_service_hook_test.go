@@ -60,12 +60,11 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	require.NoError(t, h.PreTaskRestart())
 
 	ops := consulMockClient.GetOps()
-	require.Len(t, ops, 5)
+	require.Len(t, ops, 4)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
 	require.Equal(t, "remove", ops[2].Op) // Postrun
-	require.Equal(t, "remove", ops[3].Op) // Restart -> preKill
-	require.Equal(t, "add", ops[4].Op)    // Restart -> preRun
+	require.Equal(t, "add", ops[3].Op)    // Restart -> preRun
 }
 
 // TestGroupServiceHook_ShutdownDelayUpdate asserts calling group service hooks
@@ -143,12 +142,11 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	require.NoError(t, h.PreTaskRestart())
 
 	ops := consulMockClient.GetOps()
-	require.Len(t, ops, 5)
+	require.Len(t, ops, 4)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
 	require.Equal(t, "remove", ops[2].Op) // Postrun
-	require.Equal(t, "remove", ops[3].Op) // Restart -> preKill
-	require.Equal(t, "add", ops[4].Op)    // Restart -> preRun
+	require.Equal(t, "add", ops[3].Op)    // Restart -> preRun
 }
 
 // TestGroupServiceHook_GroupServices_Nomad asserts group service hooks with
@@ -189,12 +187,11 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 
 	// Ensure the Nomad mock provider has the expected operations.
 	ops := nomadMockClient.GetOps()
-	require.Len(t, ops, 5)
+	require.Len(t, ops, 4)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
 	require.Equal(t, "remove", ops[2].Op) // Postrun
-	require.Equal(t, "remove", ops[3].Op) // Restart -> preKill
-	require.Equal(t, "add", ops[4].Op)    // Restart -> preRun
+	require.Equal(t, "add", ops[3].Op)    // Restart -> preRun
 
 	// Ensure the Consul mock provider has zero operations.
 	require.Len(t, consulMockClient.GetOps(), 0)
@@ -244,12 +241,11 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	require.NoError(t, h.PreTaskRestart())
 
 	ops := consulMockClient.GetOps()
-	require.Len(t, ops, 5)
+	require.Len(t, ops, 4)
 	require.Equal(t, "add", ops[0].Op)    // Prerun
 	require.Equal(t, "update", ops[1].Op) // Update
 	require.Equal(t, "remove", ops[2].Op) // Postrun
-	require.Equal(t, "remove", ops[3].Op) // Restart -> preKill
-	require.Equal(t, "add", ops[4].Op)    // Restart -> preRun
+	require.Equal(t, "add", ops[3].Op)    // Restart -> preRun
 }
 
 func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
@@ -284,6 +280,6 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 		logger:            logger,
 	})
 
-	services := h.getWorkloadServices()
+	services := h.getWorkloadServicesLocked()
 	require.Len(t, services.Services, 1)
 }
