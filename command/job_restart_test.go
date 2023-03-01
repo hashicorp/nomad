@@ -1342,7 +1342,6 @@ func TestJobRestartCommand_failOnError(t *testing.T) {
 	var allocRestarts int32
 	proxy := httptest.NewServer(&httputil.ReverseProxy{
 		ModifyResponse: func(resp *http.Response) error {
-			t.Log(resp.Request.URL)
 			if strings.HasSuffix(resp.Request.URL.Path, "/restart") {
 				count := atomic.AddInt32(&allocRestarts, 1)
 				if count == 2 {

@@ -776,7 +776,6 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 // Exit immediately if the user confirms the interrupt, otherwise resume the
 // command and feed activeCh to unblock it.
 func (c *JobRestartCommand) handleSignal(sigsCh chan os.Signal, activeCh chan any) {
-
 	for {
 		select {
 		case <-sigsCh:

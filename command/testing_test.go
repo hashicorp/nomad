@@ -170,7 +170,6 @@ func waitForJobAllocsStatus(t *testing.T, client *api.Client, jobID string, stat
 	}, func(err error) {
 		must.NoError(t, err)
 	})
-
 }
 
 func waitForAllocStatus(t *testing.T, client *api.Client, allocID string, status string) {
