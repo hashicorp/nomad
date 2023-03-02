@@ -26,8 +26,8 @@ func TestChecks_NomadCheckID(t *testing.T) {
 	}
 
 	different := func(a, b ServiceCheck) bool {
-		idA := NomadCheckID("id", "group", &a)
-		idB := NomadCheckID("id", "group", &b)
+		idA := NomadCheckID("test", "id", "group", &a)
+		idB := NomadCheckID("test", "id", "group", &b)
 		return idA != idB
 	}
 

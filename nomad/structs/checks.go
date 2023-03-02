@@ -3,6 +3,8 @@ package structs
 import (
 	"crypto/md5"
 	"fmt"
+
+	"github.com/shoenig/netlog"
 )
 
 // The CheckMode of a Nomad check is either Healthiness or Readiness.
@@ -72,7 +74,9 @@ const (
 // NomadCheckID returns an ID unique to the nomad service check.
 //
 // Checks of group-level services have no task.
-func NomadCheckID(allocID, group string, c *ServiceCheck) CheckID {
+func NomadCheckID(origin, allocID, group string, c *ServiceCheck) CheckID {
+	netlog.Cyan("NomadCheckID", "ctx", origin, "allocID", allocID, "group", group, "c", fmt.Sprintf("%#v", c))
+
 	sum := md5.New()
 	hashString(sum, allocID)
 	hashString(sum, group)

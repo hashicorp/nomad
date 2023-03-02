@@ -148,7 +148,7 @@ func (h *checksHook) observe(alloc *structs.Allocation, services []*structs.Serv
 			now := time.Now().UTC().Unix()
 
 			// create the deterministic check id for this check
-			id := structs.NomadCheckID(alloc.ID, alloc.TaskGroup, check)
+			id := structs.NomadCheckID("observe", alloc.ID, alloc.TaskGroup, check)
 
 			// an observer for this check already exists
 			if _, exists := h.observers[id]; exists {
@@ -227,7 +227,7 @@ func (h *checksHook) Update(request *interfaces.RunnerUpdateRequest) error {
 	next := make([]structs.CheckID, 0, len(h.observers))
 	for _, service := range services {
 		for _, check := range service.Checks {
-			next = append(next, structs.NomadCheckID(
+			next = append(next, structs.NomadCheckID("update",
 				request.Alloc.ID,
 				request.Alloc.TaskGroup,
 				check,
