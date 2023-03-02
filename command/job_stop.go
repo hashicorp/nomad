@@ -156,30 +156,9 @@ func (c *JobStopCommand) Run(args []string) int {
 			}
 
 			// Check if the job exists
-			jobs, _, err := client.Jobs().PrefixList(jobID)
+			job, err := c.JobByPrefix(client, jobID, nil)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error finding jobs with prefix: %s err: %s", jobID, err))
-				statusCh <- 1
-				return
-			}
-			if len(jobs) == 0 {
-				c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
-				statusCh <- 1
-				return
-			}
-			if len(jobs) > 1 {
-				if (jobID != jobs[0].ID) || (c.allNamespaces() && jobs[0].ID == jobs[1].ID) {
-					c.Ui.Error(fmt.Sprintf("Prefix %q matched multiple jobs\n\n%s", jobID, createStatusListOutput(jobs, c.allNamespaces())))
-					statusCh <- 1
-					return
-				}
-			}
-
-			// Prefix lookup matched a single job
-			q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
-			job, _, err := client.Jobs().Info(jobs[0].ID, q)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error deregistering job with id %s err: %s", jobID, err))
+				c.Ui.Error(err.Error())
 				statusCh <- 1
 				return
 			}
@@ -233,7 +212,7 @@ func (c *JobStopCommand) Run(args []string) int {
 
 			// Invoke the stop
 			opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority, NoShutdownDelay: noShutdownDelay}
-			wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
+			wq := &api.WriteOptions{Namespace: *job.Namespace}
 			evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Error deregistering job with id %s err: %s", jobID, err))
