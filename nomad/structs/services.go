@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -1202,7 +1203,7 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 	}
 
 	// config compare
-	if !opaqueMapsEqual(t.Config, o.Config) {
+	if !lang.OpaqueMapsEqual(t.Config, o.Config) {
 		return false
 	}
 
@@ -1378,15 +1379,6 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	}
 }
 
-// opaqueMapsEqual compares map[string]interface{} commonly used for opaque
-// config blocks. Interprets nil and {} as the same.
-func opaqueMapsEqual(a, b map[string]interface{}) bool {
-	if len(a) == 0 && len(b) == 0 {
-		return true
-	}
-	return reflect.DeepEqual(a, b)
-}
-
 // Equal returns true if the structs are recursively equal.
 func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 	if p == nil || o == nil {
@@ -1409,7 +1401,7 @@ func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 		return false
 	}
 
-	if !opaqueMapsEqual(p.Config, o.Config) {
+	if !lang.OpaqueMapsEqual(p.Config, o.Config) {
 		return false
 	}
 
@@ -1504,7 +1496,7 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 		return false
 	case !u.MeshGateway.Equal(o.MeshGateway):
 		return false
-	case !opaqueMapsEqual(u.Config, o.Config):
+	case !lang.OpaqueMapsEqual(u.Config, o.Config):
 		return false
 	}
 	return true
@@ -1790,7 +1782,7 @@ func (p *ConsulGatewayProxy) Equal(o *ConsulGatewayProxy) bool {
 		return false
 	}
 
-	if !opaqueMapsEqual(p.Config, o.Config) {
+	if !lang.OpaqueMapsEqual(p.Config, o.Config) {
 		return false
 	}
 
