@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -27,6 +28,10 @@ const (
 	// jobRestartWaitAsk is the special token used to indicate that the
 	// command should ask user for confirmation between batches.
 	jobRestartWaitAsk = "ask"
+
+	// jobRestartFailedToPlaceNewAllocation is the error returned when a
+	// reschedule fails to create new placements.
+	jobRestartFailedToPlaceNewAllocation = "Failed to place new allocation"
 )
 
 var (
@@ -392,6 +397,11 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 	err = restarts.Wait().ErrorOrNil()
 	if err != nil {
+		if mErr, ok := err.(*multierror.Error); ok {
+			// Format multierror because some errors may be deeply nested
+			// resulting in very long outputs.
+			mErr.ErrorFormat = c.errorFormat
+		}
 		c.ui.Error(fmt.Sprintf("\nErrors while restarting job:\n%s", strings.TrimSpace(err.Error())))
 		return 1
 	}
@@ -635,7 +645,13 @@ func (c *JobRestartCommand) handleAlloc(allocID string) error {
 		err = c.restartAlloc(alloc)
 	}
 	if err != nil {
-		return fmt.Errorf("Error restarting allocation %s: %v", limit(allocID, c.length), err)
+		msg := fmt.Sprintf("Error restarting allocation %q:", limit(allocID, c.length))
+		if mErr, ok := err.(*multierror.Error); ok {
+			// Unwrap the errors and prefix them with a common message to
+			// prevent deep nesting of errors.
+			return multierror.Prefix(mErr, msg)
+		}
+		return fmt.Errorf("%s %v", msg, err)
 	}
 	return nil
 }
@@ -684,7 +700,11 @@ func (c *JobRestartCommand) restartAlloc(alloc *api.Allocation) error {
 
 		restarts.Go(func(task string) func() error {
 			return func() error {
-				return c.client.Allocations().Restart(alloc, task, nil)
+				err := c.client.Allocations().Restart(alloc, task, nil)
+				if err != nil {
+					return fmt.Errorf("Failed to restart task %q: %v", task, err)
+				}
+				return nil
 			}
 		}(task))
 	}
@@ -710,50 +730,92 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 		}
 	}
 
-	// Stop allocation and use a blocking query to wait for the evaluation to
-	// be processed by the scheduler.
-	resp, err := c.client.Allocations().Stop(alloc, q)
+	// Stop allocation and wait for its replacement to be running or for a
+	// blocked evaluation that prevents placements for this task group to
+	// happen.
+	_, err := c.client.Allocations().Stop(alloc, q)
 	if err != nil {
 		return fmt.Errorf("Failed to stop allocation %q: %v", shortAllocID, err)
 	}
 
-	q = &api.QueryOptions{WaitIndex: 1}
-	var qm *api.QueryMeta
-	var eval *api.Evaluation
+	// errCh receives an error if anything goes wrong or nil when the
+	// replacement allocation is running.
+	// Use a buffered channel to prevent both goroutine from blocking trying to
+	// send a result back.
+	errCh := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go c.monitorBlockedEvals(ctx, alloc, errCh)
+	go c.monitorReplacementAlloc(ctx, alloc, errCh)
+
+	// If we receive an error and nil it's safe to ignore the error since the
+	// nil result is what we are looking for.
+	return <-errCh
+}
+
+// monitorBlockedEvals searches for blocked evaluations for the allocation job.
+//
+// Returns an error in errCh if anything goes wrong or if there are placement
+// failures for the allocation task group.
+func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc *api.Allocation, errCh chan<- error) {
+	q := &api.QueryOptions{WaitIndex: 1}
 	for {
-		eval, qm, err = c.client.Evaluations().Info(resp.EvalID, q)
-		if err != nil {
-			return fmt.Errorf("Error retrieving evaluation %s: %v", resp.EvalID, err)
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
-		if eval.Status != api.EvalStatusPending {
-			break
+
+		evals, qm, err := c.client.Jobs().Evaluations(alloc.JobID, q)
+		if err != nil {
+			errCh <- fmt.Errorf("Failed to retrieve evaluations for job %q: %v", alloc.JobID, err)
+			return
+		}
+
+		for _, eval := range evals {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			if eval.Status != api.EvalStatusBlocked {
+				continue
+			}
+
+			failures := eval.FailedTGAllocs[alloc.TaskGroup]
+			if failures != nil {
+				errCh <- fmt.Errorf("%s:\n%s",
+					jobRestartFailedToPlaceNewAllocation,
+					formatAllocMetrics(failures, false, strings.Repeat(" ", 4)),
+				)
+				return
+			}
 		}
 		q.WaitIndex = qm.LastIndex
 	}
+}
 
-	// Check for placement failures.
-	var mErr *multierror.Error
-	for tg, metrics := range eval.FailedTGAllocs {
-		failures := metrics.CoalescedFailures + 1
-		mErr = multierror.Append(mErr, fmt.Errorf(
-			"Task Group %q (failed to place %s):\n%s",
-			tg,
-			english.Plural(failures, "allocation", "allocations"),
-			formatAllocMetrics(metrics, false, strings.Repeat(" ", 4)),
-		))
-	}
-	if err := mErr.ErrorOrNil(); err != nil {
-		return err
-	}
-
-	// Use a blocking query to re-fetch the allocation that was just stopped to
-	// find the follow-up allocation.
-	q = &api.QueryOptions{WaitIndex: 1}
+// monitorReplacementAlloc waits for the allocation to have a follow-up
+// placement and for the new allocation be running.
+//
+// Returns an error in errCh if anything goes wrong or nil when the new
+// allocation is running.
+func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc *api.Allocation, errCh chan<- error) {
+	q := &api.QueryOptions{WaitIndex: 1}
 	var nextAllocID string
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		oldAlloc, qm, err := c.client.Allocations().Info(alloc.ID, q)
 		if err != nil {
-			return fmt.Errorf("Error retrieving allocation %s: %v", shortAllocID, err)
+			errCh <- fmt.Errorf("Failed to retrieve allocation %q: %v", limit(alloc.ID, c.length), err)
+			return
 		}
 		if oldAlloc.NextAllocation != "" {
 			nextAllocID = oldAlloc.NextAllocation
@@ -762,20 +824,25 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 		q.WaitIndex = qm.LastIndex
 	}
 
-	// Use a blocking query to wait for the follow-up allocation to be running.
 	q = &api.QueryOptions{WaitIndex: 1}
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		newAlloc, qm, err := c.client.Allocations().Info(nextAllocID, q)
 		if err != nil {
-			return fmt.Errorf("Error retrieving replacement allocation %s: %v", limit(nextAllocID, c.length), err)
+			errCh <- fmt.Errorf("Failed to retrieve replacement allocation %q: %v", limit(nextAllocID, c.length), err)
+			return
 		}
 		if newAlloc.ClientStatus == api.AllocClientStatusRunning {
-			break
+			errCh <- nil
+			return
 		}
 		q.WaitIndex = qm.LastIndex
 	}
-
-	return nil
 }
 
 // handleSignal receives input signals and blocks the activeCh until the user
@@ -833,8 +900,39 @@ Allocations not restarted yet will not be restarted. [y/N]`
 	}
 }
 
+// isErrNotRecoverable returns true when the error is likely to impact all
+// restarts and so there is not reason to keep going.
 func (c *JobRestartCommand) isErrNotRecoverable(err error) bool {
-	return strings.Contains(err.Error(), api.PermissionDeniedErrorContent)
+	patterns := []string{
+		api.PermissionDeniedErrorContent,
+		jobRestartFailedToPlaceNewAllocation,
+	}
+	for _, pattern := range patterns {
+		if strings.Contains(err.Error(), pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// errorFormat is a multierror.ErrorFormatFunc that uses 2 spaces instead of a
+// tab before each error bullet point. This prevents deeply nested errors from
+// outputting very long lines.
+func (c *JobRestartCommand) errorFormat(es []error) string {
+	space := strings.Repeat(" ", 2)
+
+	if len(es) == 1 {
+		return fmt.Sprintf("1 error occurred:\n%s* %s\n\n", space, es[0])
+	}
+
+	points := make([]string, len(es))
+	for i, err := range es {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+
+	return fmt.Sprintf(
+		"%d errors occurred:\n%s%s\n\n",
+		len(es), space, strings.Join(points, fmt.Sprintf("\n%s", space)))
 }
 
 // formatSliceOf returns a string with the length and the given singular or
