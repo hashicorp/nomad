@@ -1174,7 +1174,7 @@ func TestJobRestartCommand_skipAllocs(t *testing.T) {
 			},
 			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
 				for _, alloc := range allocs {
-					skipMsg := fmt.Sprintf("Skipping allocation %s", alloc.ID)
+					skipMsg := fmt.Sprintf("Skipping allocation %q", alloc.ID)
 					if alloc.TaskGroup != "group_1" {
 						must.StrContains(t, stdout, skipMsg)
 					} else {
@@ -1196,7 +1196,7 @@ func TestJobRestartCommand_skipAllocs(t *testing.T) {
 			},
 			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
 				for _, alloc := range allocs {
-					skipMsg := fmt.Sprintf("Skipping allocation %s", alloc.ID)
+					skipMsg := fmt.Sprintf("Skipping allocation %q", alloc.ID)
 					if alloc.TaskGroup != "group_1" {
 						must.StrContains(t, stdout, skipMsg)
 					} else {
@@ -1218,7 +1218,7 @@ func TestJobRestartCommand_skipAllocs(t *testing.T) {
 			},
 			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
 				for _, alloc := range allocs {
-					skipMsg := fmt.Sprintf("Skipping allocation %s", alloc.ID)
+					skipMsg := fmt.Sprintf("Skipping allocation %q", alloc.ID)
 					if alloc.DesiredStatus == api.AllocDesiredStatusStop {
 						must.StrContains(t, stdout, skipMsg)
 					}

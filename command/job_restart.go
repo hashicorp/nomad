@@ -224,7 +224,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// eligible for restart.
 	allocs, _, err := c.client.Jobs().Allocations(c.jobID, false, nil)
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("Error retrieving allocations for jobs %s: %v", c.jobID, err))
+		c.ui.Error(fmt.Sprintf("Error retrieving allocations for job %q: %v", c.jobID, err))
 		return 1
 	}
 
@@ -237,7 +237,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 		if !allocRunning {
 			if c.verbose {
 				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
-					"[dark_gray]    %s: Skipping allocation %s because desired status is %q and client status is %q[reset]",
+					"[dark_gray]    %s: Skipping allocation %q because desired status is %q and client status is %q[reset]",
 					formatTime(time.Now()),
 					shortAllocID,
 					alloc.ClientStatus,
@@ -251,7 +251,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 		if c.groups.Size() > 0 && !c.groups.Contains(alloc.TaskGroup) {
 			if c.verbose {
 				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
-					"[dark_gray]    %s: Skipping allocation %s because it doesn't have any of requested groups[reset]",
+					"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested groups[reset]",
 					formatTime(time.Now()),
 					shortAllocID,
 				)))
@@ -271,7 +271,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 			if !hasTask {
 				if c.verbose {
 					c.ui.Output(c.Colorize().Color(fmt.Sprintf(
-						"[dark_gray]    %s: Skipping allocation %s because it doesn't have any of requested tasks[reset]",
+						"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested tasks[reset]",
 						formatTime(time.Now()),
 						shortAllocID,
 					)))
@@ -459,7 +459,7 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (error, int) {
 	c.batchSizePercent = strings.HasSuffix(batchSizeStr, "%")
 	c.batchSize, err = strconv.Atoi(matches[1])
 	if err != nil {
-		return fmt.Errorf("Invalid -batch-size value %s: %v", batchSizeStr, err), 1
+		return fmt.Errorf("Invalid -batch-size value %q: %v", batchSizeStr, err), 1
 	}
 	if c.batchSize == 0 {
 		return fmt.Errorf(
@@ -612,7 +612,7 @@ func (c *JobRestartCommand) shouldProceed() bool {
 			}
 
 			c.ui.Output(fmt.Sprintf(
-				"    %s: Invalid option '%s'",
+				"    %s: Invalid option %q",
 				formatTime(time.Now()),
 				answer,
 			))
@@ -625,7 +625,7 @@ func (c *JobRestartCommand) shouldProceed() bool {
 func (c *JobRestartCommand) handleAlloc(allocID string) error {
 	alloc, _, err := c.client.Allocations().Info(allocID, nil)
 	if err != nil {
-		return fmt.Errorf("Error retrieving allocation %s: %v", allocID, err)
+		return fmt.Errorf("Error retrieving allocation %q: %v", limit(allocID, c.length), err)
 	}
 
 	if c.reschedule {
@@ -714,7 +714,7 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 	// be processed by the scheduler.
 	resp, err := c.client.Allocations().Stop(alloc, q)
 	if err != nil {
-		return fmt.Errorf("Error stopping allocation %s: %v", shortAllocID, err)
+		return fmt.Errorf("Failed to stop allocation %q: %v", shortAllocID, err)
 	}
 
 	q = &api.QueryOptions{WaitIndex: 1}
@@ -828,7 +828,7 @@ Allocations not restarted yet will not be restarted. [y/N]`
 		case "n", "no", "":
 			return false
 		default:
-			c.ui.Output(fmt.Sprintf("Invalid option '%s'", answer))
+			c.ui.Output(fmt.Sprintf("Invalid option %q", answer))
 		}
 	}
 }
