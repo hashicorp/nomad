@@ -258,9 +258,6 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 		op.logger.Error("failed applying AutoPilot configuration", "error", err)
 		return err
 	}
-	if respErr, ok := resp.(error); ok {
-		return respErr
-	}
 
 	// Check if the return type is a bool.
 	if respBool, ok := resp.(bool); ok {
@@ -325,9 +322,8 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	if err != nil {
 		op.logger.Error("failed applying Scheduler configuration", "error", err)
 		return err
-	} else if respErr, ok := resp.(error); ok {
-		return respErr
 	}
+
 	//  If CAS request, raft returns a boolean indicating if the update was applied.
 	// Otherwise, assume success
 	reply.Updated = true
