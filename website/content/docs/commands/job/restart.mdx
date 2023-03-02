@@ -10,6 +10,15 @@ description: |
 The `job restart` command is used to restart or reschedule allocations for a
 particular job.
 
+Restarting the job calls the [Restart Allocation][api_alloc_restart] API
+endpoint to restart the tasks inside allocations, so the allocations themselves
+are not modified but rather restarted in-place.
+
+Rescheduling the job uses the [Stop Allocation][api_alloc_stop] API endpoint to
+stop the allocations and trigger the Nomad scheduler to compute new placements.
+This may cause the new allocations to be scheduled in different clients from
+the originals.
+
 ## Usage
 
 ```plaintext
@@ -211,3 +220,5 @@ All allocations restarted successfully!
 [`max_parallel`]: /nomad/docs/job-specification/update#max_parallel
 [`shutdown_delay`]: /nomad/docs/job-specification/task#shutdown_delay
 [`update`]: /nomad/docs/job-specification/update
+[api_alloc_restart]: /nomad/api-docs/allocations#restart-allocation
+[api_alloc_stop]: /nomad/api-docs/allocations#stop-allocation

@@ -74,10 +74,21 @@ func (c *JobRestartCommand) Help() string {
 	helpText := `
 Usage: nomad job restart [options] <job>
 
-  Restart or reschedule allocations for a particular job. This command can
-  operate in batches and it waits until all restarted or rescheduled
-  allocations are running again before proceeding to the next batch. It is also
-  possible to specify additional time to wait between batches.
+  Restart or reschedule allocations for a particular job.
+
+  Restarting the job calls the 'Restart Allocation' API endpoint to restart the
+  tasks inside allocations, so the allocations themselves are not modified but
+  rather restarted in-place.
+
+  Rescheduling the job uses the 'Stop Allocation' API endpoint to stop the
+  allocations and trigger the Nomad scheduler to compute new placements. This
+  may cause the new allocations to be scheduled in different clients from the
+  originals.
+
+  This command can operate in batches and it waits until all restarted or
+  rescheduled allocations are running again before proceeding to the next
+  batch. It is also possible to specify additional time to wait between
+  batches.
 
   Allocations can be restarted in-place or rescheduled. When restarting
   in-place the command may target specific tasks in the allocations, restart
