@@ -10,9 +10,9 @@ export default class JobStatusPanelComponent extends Component {
     'failed',
     // 'unknown',
     // 'lost',
-    'queued',
-    'complete',
-    'remaining',
+    // 'queued',
+    // 'complete',
+    'unplaced',
   ].map((type) => {
     return {
       label: type,
@@ -43,10 +43,10 @@ export default class JobStatusPanelComponent extends Component {
       return blocks;
     }, {});
     if (availableSlotsToFill > 0) {
-      allocationsOfShowableType['remaining'] = Array(availableSlotsToFill)
+      allocationsOfShowableType['unplaced'] = Array(availableSlotsToFill)
         .fill()
         .map(() => {
-          return { clientStatus: 'remaining' };
+          return { clientStatus: 'unplaced' };
         });
     }
     return allocationsOfShowableType;

@@ -240,7 +240,7 @@ module('Acceptance | job status panel', function (hooks) {
       allocStatusDistribution: {
         running: 0.5,
         failed: 0.3,
-        complete: 0.1,
+        pending: 0.1,
         lost: 0.1,
       },
       groupTaskCount,
@@ -250,12 +250,12 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    // With 51 allocs split across 4 statuses distributed as above, we can expect 25 running, 16 failed, 6 complete, and 4 remaining.
+    // With 51 allocs split across 4 statuses distributed as above, we can expect 25 running, 16 failed, 6 pending, and 4 remaining.
     // At standard test resolution, each status will be ungrouped/grouped as follows:
     // 25 running: 9 ungrouped, 16 grouped
     // 13 failed: 5 ungrouped, 11 grouped
-    // 9 complete: 0 ungrouped, 6 grouped
-    // 4 lost: 0 ungrouped, 4 grouped
+    // 9 pending: 0 ungrouped, 6 grouped
+    // 4 lost: 0 ungrouped, 4 grouped. Represented as "Unplaced"
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
@@ -288,33 +288,33 @@ module('Acceptance | job status panel', function (hooks) {
       );
 
     assert
-      .dom('.ungrouped-allocs .represented-allocation.complete')
-      .exists({ count: 0 }, '0 complete allocations are represented ungrouped');
+      .dom('.ungrouped-allocs .represented-allocation.pending')
+      .exists({ count: 0 }, '0 pending allocations are represented ungrouped');
     assert
-      .dom('.represented-allocation.rest.complete')
+      .dom('.represented-allocation.rest.pending')
       .exists(
-        'Complete allocations are numerous enough that a summary block exists'
+        'pending allocations are numerous enough that a summary block exists'
       );
     assert
-      .dom('.represented-allocation.rest.complete')
+      .dom('.represented-allocation.rest.pending')
       .hasText(
         '9',
-        'Summary block has the correct number of grouped complete allocs'
+        'Summary block has the correct number of grouped pending allocs'
       );
 
     assert
-      .dom('.ungrouped-allocs .represented-allocation.remaining')
-      .exists({ count: 0 }, '0 lost allocations are represented ungrouped');
+      .dom('.ungrouped-allocs .represented-allocation.unplaced')
+      .exists({ count: 0 }, '0 unplaced allocations are represented ungrouped');
     assert
-      .dom('.represented-allocation.rest.remaining')
+      .dom('.represented-allocation.rest.unplaced')
       .exists(
-        'Lost allocations are numerous enough that a summary block exists'
+        'Unplaced allocations are numerous enough that a summary block exists'
       );
     assert
-      .dom('.represented-allocation.rest.remaining')
+      .dom('.represented-allocation.rest.unplaced')
       .hasText(
         '4',
-        'Summary block has the correct number of grouped lost allocs'
+        'Summary block has the correct number of grouped unplaced allocs'
       );
     await percySnapshot(
       'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)'
