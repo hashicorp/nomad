@@ -45,8 +45,6 @@ var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
 var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
 
-var minJobRegisterAtomicEvalVersion = version.Must(version.NewVersion("0.12.1"))
-
 var minOneTimeAuthenticationTokenVersion = version.Must(version.NewVersion("1.1.0"))
 
 // minACLRoleVersion is the Nomad version at which the ACL role table was
