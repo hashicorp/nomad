@@ -13,6 +13,7 @@ import (
 )
 
 func queryNodeList(t *testing.T, nodes *Nodes) ([]*NodeListStub, *QueryMeta) {
+	t.Helper()
 	var (
 		nodeListStub []*NodeListStub
 		queryMeta    *QueryMeta
