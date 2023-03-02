@@ -141,4 +141,87 @@ module('Acceptance | job status panel', function (hooks) {
       );
     await percySnapshot(assert);
   });
+
+  test('Status Panel groups allocations when they get past a threshold', async function (assert) {
+    faker.seed(1);
+
+    let groupTaskCount = 50;
+
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+        failed: 0,
+        unknown: 0,
+        lost: 0,
+      },
+      groupTaskCount,
+      shallow: true,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    let jobAllocCount = server.db.allocations.where({
+      jobId: job.id,
+    }).length;
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists(
+        { count: jobAllocCount },
+        `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`
+      );
+
+    groupTaskCount = 51;
+
+    job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+        failed: 0,
+        unknown: 0,
+        lost: 0,
+      },
+      groupTaskCount,
+      shallow: true,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    jobAllocCount = server.db.allocations.where({
+      jobId: job.id,
+    }).length;
+
+    // At standard test resolution, 51 allocations will attempt to display 20 ungrouped, and 31 grouped.
+    let desiredUngroupedAllocCount = 20;
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists(
+        { count: desiredUngroupedAllocCount },
+        `${desiredUngroupedAllocCount} allocations are represented ungrouped`
+      );
+
+    assert
+      .dom('.represented-allocation.rest')
+      .exists('Allocations are numerous enough that a summary block exists');
+    assert
+      .dom('.represented-allocation.rest')
+      .hasText(
+        `+${groupTaskCount - desiredUngroupedAllocCount}`,
+        'Summary block has the correct number of grouped allocs'
+      );
+
+    await percySnapshot(assert);
+  });
 });
