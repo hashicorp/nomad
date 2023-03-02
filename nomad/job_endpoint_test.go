@@ -3587,13 +3587,11 @@ func TestJobEndpoint_Deregister_ACL(t *testing.T) {
 	require.NotZero(eval.CreateTime)
 	require.NotZero(eval.ModifyTime)
 
-	// Deregistration is not idempotent, produces a new eval after the job is
-	// deregistered. TODO(langmartin) make it idempotent.
+	// Deregistration is idempotent
 	var validResp2 structs.JobDeregisterResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", req, &validResp2)
-	require.NoError(err)
-	require.NotEqual("", validResp2.EvalID)
-	require.NotEqual(validResp.EvalID, validResp2.EvalID)
+	must.NoError(t, err)
+	must.Eq(t, "", validResp2.EvalID)
 }
 
 func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
@@ -3616,51 +3614,15 @@ func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
 		},
 	}
 	var resp2 structs.JobDeregisterResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.JobModifyIndex == 0 {
-		t.Fatalf("bad index: %d", resp2.Index)
-	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2))
+	must.Eq(t, 0, resp2.JobModifyIndex, must.Sprint("expected no modify index"))
 
 	// Lookup the evaluation
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
-	eval, err := state.EvalByID(ws, resp2.EvalID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if eval == nil {
-		t.Fatalf("expected eval")
-	}
-	if eval.CreateIndex != resp2.EvalCreateIndex {
-		t.Fatalf("index mis-match")
-	}
-
-	if eval.Priority != structs.JobDefaultPriority {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Type != structs.JobTypeService {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.TriggeredBy != structs.EvalTriggerJobDeregister {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobID != jobID {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.JobModifyIndex != resp2.JobModifyIndex {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.Status != structs.EvalStatusPending {
-		t.Fatalf("bad: %#v", eval)
-	}
-	if eval.CreateTime == 0 {
-		t.Fatalf("eval CreateTime is unset: %#v", eval)
-	}
-	if eval.ModifyTime == 0 {
-		t.Fatalf("eval ModifyTime is unset: %#v", eval)
-	}
+	eval, err := state.EvalsByJob(ws, structs.DefaultNamespace, jobID)
+	must.NoError(t, err)
+	must.Nil(t, eval)
 }
 
 func TestJobEndpoint_Deregister_EvalPriority(t *testing.T) {

@@ -354,13 +354,10 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		}
 	}
 
-	resp, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
+	_, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "register")
 		return err
-	}
-	if respErr, ok := resp.(error); ok {
-		return respErr
 	}
 
 	reply.Index = index
@@ -397,13 +394,10 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return fmt.Errorf("missing volume IDs")
 	}
 
-	resp, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, args)
+	_, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
 		return err
-	}
-	if respErr, ok := resp.(error); ok {
-		return respErr
 	}
 
 	reply.Index = index
@@ -458,13 +452,10 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		args.NodeID = alloc.NodeID
 	}
 
-	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
+	_, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "claim")
 		return err
-	}
-	if respErr, ok := resp.(error); ok {
-		return respErr
 	}
 
 	if isNewClaim {
@@ -931,13 +922,10 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 			Namespace: vol.Namespace,
 		},
 	}
-	resp, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
+	_, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err)
 		return err
-	}
-	if respErr, ok := resp.(error); ok {
-		return respErr
 	}
 	vol.ModifyIndex = index
 	return nil
@@ -1023,13 +1011,10 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		}
 	}
 
-	resp, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, regArgs)
+	_, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, regArgs)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "register")
-		return err
-	}
-	if respErr, ok := resp.(error); ok {
-		multierror.Append(&mErr, respErr)
+		multierror.Append(&mErr, err)
 	}
 
 	err = mErr.ErrorOrNil()
@@ -1123,13 +1108,10 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 		VolumeIDs:    args.VolumeIDs,
 		WriteRequest: args.WriteRequest,
 	}
-	resp, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, deregArgs)
+	_, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, deregArgs)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
 		return err
-	}
-	if respErr, ok := resp.(error); ok {
-		return respErr
 	}
 
 	reply.Index = index
@@ -1611,14 +1593,10 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 		return fmt.Errorf("missing plugin ID")
 	}
 
-	resp, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
+	_, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
 	if err != nil {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "delete")
 		return err
-	}
-
-	if respErr, ok := resp.(error); ok {
-		return respErr
 	}
 
 	reply.Index = index

@@ -1554,7 +1554,7 @@ func TestJobs_Deregister(t *testing.T) {
 	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
-	// Attempting delete on non-existing job returns an error
+	// Attempting delete on non-existing job does not return an error
 	_, _, err = jobs.Deregister("nope", false, nil)
 	must.NoError(t, err)
 

@@ -1342,13 +1342,8 @@ func (a *ACL) UpsertRoles(
 	}
 
 	// Update via Raft.
-	out, index, err := a.srv.raftApply(structs.ACLRolesUpsertRequestType, args)
+	_, index, err := a.srv.raftApply(structs.ACLRolesUpsertRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -1413,13 +1408,8 @@ func (a *ACL) DeleteRolesByID(
 	}
 
 	// Update via Raft.
-	out, index, err := a.srv.raftApply(structs.ACLRolesDeleteByIDRequestType, args)
+	_, index, err := a.srv.raftApply(structs.ACLRolesDeleteByIDRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -1899,13 +1889,8 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Update via Raft
-	out, index, err := a.srv.raftApply(structs.ACLAuthMethodsUpsertRequestType, args)
+	_, index, err := a.srv.raftApply(structs.ACLAuthMethodsUpsertRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -1972,13 +1957,8 @@ func (a *ACL) DeleteAuthMethods(
 	}
 
 	// Update via Raft
-	out, index, err := a.srv.raftApply(structs.ACLAuthMethodsDeleteRequestType, args)
+	_, index, err := a.srv.raftApply(structs.ACLAuthMethodsDeleteRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -2278,13 +2258,8 @@ func (a *ACL) UpsertBindingRules(
 	}
 
 	// Update via Raft.
-	out, index, err := a.srv.raftApply(structs.ACLBindingRulesUpsertRequestType, args)
+	_, index, err := a.srv.raftApply(structs.ACLBindingRulesUpsertRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -2353,13 +2328,8 @@ func (a *ACL) DeleteBindingRules(
 	}
 
 	// Update via Raft.
-	out, index, err := a.srv.raftApply(structs.ACLBindingRulesDeleteRequestType, args)
+	_, index, err := a.srv.raftApply(structs.ACLBindingRulesDeleteRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
