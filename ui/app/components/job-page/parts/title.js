@@ -9,6 +9,7 @@ import classic from 'ember-classic-decorator';
 @tagName('')
 export default class Title extends Component {
   @service router;
+  @service notifications;
 
   job = null;
   title = null;
@@ -34,12 +35,10 @@ export default class Title extends Component {
     try {
       const job = this.job;
       yield job.purge();
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Job Purged',
         message: `You have purged ${this.job.name}`,
-        type: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
+        color: 'success',
       });
       this.router.transitionTo('jobs');
     } catch (err) {

@@ -7,7 +7,7 @@ import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 @classic
 export default class JobsRunIndexRoute extends Route {
   @service can;
-  @service flashMessages;
+  @service notifications;
   @service router;
   @service store;
   @service system;
@@ -51,11 +51,10 @@ export default class JobsRunIndexRoute extends Route {
   handle404(e) {
     const error404 = e.errors?.find((err) => err.status === 404);
     if (error404) {
-      this.flashMessages.add({
+      this.notifications.add({
         title: `Error loading job template`,
         message: error404.detail,
-        type: 'error',
-        destroyOnClick: false,
+        color: 'critical',
         sticky: true,
       });
 

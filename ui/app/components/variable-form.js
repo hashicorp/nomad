@@ -24,7 +24,7 @@ const EMPTY_KV = {
 const invalidKeyCharactersRegex = new RegExp(/[^_\p{Letter}\p{Number}]/gu);
 
 export default class VariableFormComponent extends Component {
-  @service flashMessages;
+  @service notifications;
   @service router;
   @service store;
 
@@ -240,23 +240,20 @@ export default class VariableFormComponent extends Component {
       this.args.model.setAndTrimPath();
       await this.args.model.save({ adapterOptions: { overwrite } });
 
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Variable saved',
         message: `${this.path} successfully saved`,
-        type: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
+        color: 'success',
       });
       this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       notifyConflict(this)(error);
       if (!this.hasConflict) {
-        this.flashMessages.add({
+        this.notifications.add({
           title: `Error saving ${this.path}`,
           message: error,
-          type: 'error',
-          destroyOnClick: false,
+          color: 'critical',
           sticky: true,
         });
       } else {
