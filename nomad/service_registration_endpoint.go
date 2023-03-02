@@ -79,13 +79,8 @@ func (s *ServiceRegistration) Upsert(
 	}
 
 	// Update via Raft.
-	out, index, err := s.srv.raftApply(structs.ServiceRegistrationUpsertRequestType, args)
+	_, index, err := s.srv.raftApply(structs.ServiceRegistrationUpsertRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
@@ -152,13 +147,8 @@ func (s *ServiceRegistration) DeleteByID(
 	}
 
 	// Update via Raft.
-	out, index, err := s.srv.raftApply(structs.ServiceRegistrationDeleteByIDRequestType, args)
+	_, index, err := s.srv.raftApply(structs.ServiceRegistrationDeleteByIDRequestType, args)
 	if err != nil {
-		return err
-	}
-
-	// Check if the FSM response, which is an interface, contains an error.
-	if err, ok := out.(error); ok && err != nil {
 		return err
 	}
 
