@@ -2,7 +2,7 @@
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
-import { click, visit } from '@ember/test-helpers';
+import { click, visit, find, triggerEvent } from '@ember/test-helpers';
 
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
@@ -50,7 +50,7 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel shows accurate number and types of ungrouped allocation blocks', async function (assert) {
-    // assert.expect(3);
+    assert.expect(7);
 
     faker.seed(1);
 
@@ -143,6 +143,8 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
+    assert.expect(6);
+
     faker.seed(1);
 
     let groupTaskCount = 50;
@@ -223,5 +225,162 @@ module('Acceptance | job status panel', function (hooks) {
       );
 
     await percySnapshot(assert);
+  });
+
+  test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
+    faker.seed(3);
+    let groupTaskCount = 51;
+
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 0.5,
+        failed: 0.3,
+        complete: 0.1,
+        lost: 0.1,
+      },
+      groupTaskCount,
+      shallow: true,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    // With 51 allocs split across 4 statuses distributed as above, we can expect 25 running, 16 failed, 6 complete, and 4 remaining.
+    // At standard test resolution, each status will be ungrouped/grouped as follows:
+    // 25 running: 9 ungrouped, 16 grouped
+    // 13 failed: 5 ungrouped, 11 grouped
+    // 9 complete: 0 ungrouped, 6 grouped
+    // 4 lost: 0 ungrouped, 4 grouped
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists({ count: 9 }, '9 running allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.running')
+      .exists(
+        'Running allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.running')
+      .hasText(
+        '+16',
+        'Summary block has the correct number of grouped running allocs'
+      );
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.failed')
+      .exists({ count: 4 }, '4 failed allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.failed')
+      .exists(
+        'Failed allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.failed')
+      .hasText(
+        '+9',
+        'Summary block has the correct number of grouped failed allocs'
+      );
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.complete')
+      .exists({ count: 0 }, '0 complete allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.complete')
+      .exists(
+        'Complete allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.complete')
+      .hasText(
+        '9',
+        'Summary block has the correct number of grouped complete allocs'
+      );
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.remaining')
+      .exists({ count: 0 }, '0 lost allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.remaining')
+      .exists(
+        'Lost allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.remaining')
+      .hasText(
+        '4',
+        'Summary block has the correct number of grouped lost allocs'
+      );
+    await percySnapshot(
+      'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)'
+    );
+
+    // Simulate a window resize event; will recompute how many of each ought to be grouped.
+
+    // At 1000px, only running allocations have some ungrouped allocs. The rest are all fully grouped.
+    find('.page-body').style.width = '1000px';
+    await triggerEvent(window, 'resize');
+
+    await percySnapshot(
+      'Status Panel groups allocations when they get past a threshold, multiple statuses (1000px)'
+    );
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists({ count: 6 }, '6 running allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.running')
+      .exists(
+        'Running allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.running')
+      .hasText(
+        '+19',
+        'Summary block has the correct number of grouped running allocs'
+      );
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.failed')
+      .doesNotExist('5 failed allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.failed')
+      .exists(
+        'Failed allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.failed')
+      .hasText(
+        '13',
+        'Summary block has the correct number of grouped failed allocs'
+      );
+
+    // At 500px, only running allocations have some ungrouped allocs. The rest are all fully grouped.
+    find('.page-body').style.width = '800px';
+    await triggerEvent(window, 'resize');
+
+    await percySnapshot(
+      'Status Panel groups allocations when they get past a threshold, multiple statuses (500px)'
+    );
+
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .doesNotExist('6 running allocations are represented ungrouped');
+    assert
+      .dom('.represented-allocation.rest.running')
+      .exists(
+        'Running allocations are numerous enough that a summary block exists'
+      );
+    assert
+      .dom('.represented-allocation.rest.running')
+      .hasText(
+        '25',
+        'Summary block has the correct number of grouped running allocs'
+      );
   });
 });
