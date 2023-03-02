@@ -217,7 +217,7 @@ export default Factory.extend({
       withTaskServices: job.withTaskServices,
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
-      withLotsOfAllocs: job.withLotsOfAllocs,
+      allocStatusDistribution: job.allocStatusDistribution,
     };
 
     if (job.groupTaskCount) {

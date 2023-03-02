@@ -111,14 +111,8 @@ export default Factory.extend({
     });
 
     if (group.createAllocations) {
-      if (group.withLotsOfAllocs) {
-        // Random assignment for the following clientStatus prop:
-        // running: 75%
-        // failed: 5%
-        // unknown: 10%
-        // lost: 10%
-
-        const statusProbabilities = {
+      if (group.allocStatusDistribution) {
+        const statusProbabilities = group.allocStatusDistribution || {
           running: 0.6,
           failed: 0.05,
           unknown: 0.25,
@@ -128,7 +122,7 @@ export default Factory.extend({
         Array(group.count)
           .fill(null)
           .forEach((_, i) => {
-            let rand = Math.random();
+            let rand = faker.random.number({ min: 1, max: 100 }) / 100; // emulate Math.random float precision, but observe Faker random seed
 
             let clientStatus;
 

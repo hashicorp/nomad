@@ -21,7 +21,6 @@ export default class JobStatusPanelComponent extends Component {
   });
 
   get allocBlocks() {
-    // console.log('yob', this.args.job);
     let availableSlotsToFill = this.totalAllocs;
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     let allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {

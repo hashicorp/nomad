@@ -1,35 +1,144 @@
 // @ts-check
 import { module, test } from 'qunit';
-import { visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
+
+import { click, visit } from '@ember/test-helpers';
+
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import faker from 'nomad-ui/mirage/faker';
 import percySnapshot from '@percy/ember';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+// TODO: Mirage is not type-friendly / assigns "serfver" as a global. Try to work around this shortcoming.
 
 module('Acceptance | job status panel', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
-
-  // let server;
-  // let job;
 
   hooks.beforeEach(async function () {
     server.create('node');
   });
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {
-    assert.expect(2);
+    assert.expect(5);
     let job = server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
       createAllocations: true,
-      withLotsOfAllocs: true,
     });
 
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
     await a11yAudit(assert);
+    await percySnapshot(assert);
+
+    assert
+      .dom('[data-test-status-mode="current"]')
+      .exists('Current mode by default');
+
+    await click('[data-test-status-mode-current]');
+
+    assert
+      .dom('[data-test-status-mode="current"]')
+      .exists('Clicking active mode makes no change');
+
+    await click('[data-test-status-mode-historical]');
+
+    assert
+      .dom('[data-test-status-mode="historical"]')
+      .exists('Lets you switch to historical mode');
+  });
+
+  test('Status Panel shows accurate number and types of ungrouped allocation blocks', async function (assert) {
+    // assert.expect(3);
+
+    faker.seed(1);
+
+    let groupTaskCount = 10;
+
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+        failed: 0,
+        unknown: 0,
+        lost: 0,
+      },
+      groupTaskCount,
+      shallow: true,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    let jobAllocCount = server.db.allocations.where({
+      jobId: job.id,
+    }).length;
+
+    assert.equal(
+      jobAllocCount,
+      groupTaskCount * job.taskGroups.length,
+      'Correect number of allocs generated (metatest)'
+    );
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists(
+        { count: jobAllocCount },
+        `All ${jobAllocCount} allocations are represented in the status panel`
+      );
+
+    groupTaskCount = 40;
+
+    job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 0.5,
+        failed: 0.5,
+        unknown: 0,
+        lost: 0,
+      },
+      groupTaskCount,
+      shallow: true,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    let runningAllocCount = server.db.allocations.where({
+      jobId: job.id,
+      clientStatus: 'running',
+    }).length;
+
+    let failedAllocCount = server.db.allocations.where({
+      jobId: job.id,
+      clientStatus: 'failed',
+    }).length;
+
+    assert.equal(
+      runningAllocCount + failedAllocCount,
+      groupTaskCount * job.taskGroups.length,
+      'Correect number of allocs generated (metatest)'
+    );
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists(
+        { count: runningAllocCount },
+        `All ${runningAllocCount} running allocations are represented in the status panel`
+      );
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.failed')
+      .exists(
+        { count: failedAllocCount },
+        `All ${failedAllocCount} running allocations are represented in the status panel`
+      );
     await percySnapshot(assert);
   });
 });
