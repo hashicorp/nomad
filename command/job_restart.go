@@ -83,7 +83,9 @@ Usage: nomad job restart [options] <job>
 
   When rescheduling, the current allocations are stopped triggering the Nomad
   scheduler to create replacement allocations that may be placed in different
-  clients.
+  clients. The command waits until the new allocations have client status
+  'ready' before proceeding with the remaining batches. Services health checks
+  are not taken into account.
 
   By default the command restarts all running tasks in-place with one
   allocation per batch.
@@ -99,7 +101,8 @@ Restart Options:
 
   -all-tasks
     If set, all tasks in the allocations are restarted, even the ones that
-    have already run. This option cannot be used with '-task'.
+    have already run, such as non-sidecar tasks. Tasks will restart following
+    their lifecycle order. This option cannot be used with '-task'.
 
   -batch-size=<n|n%>
     Number of allocations to restart at once. It may be defined as a percentage
@@ -109,7 +112,8 @@ Restart Options:
   -batch-wait=<duration|'ask'>
     Time to wait between restart batches. If set to 'ask' the command halts
     between batches and waits for user input on how to proceed. If the answer
-    is a time duration all next batches will use this new value. Defaults to 0.
+    is a time duration all remaining batches will use this new value. Defaults
+    to 0.
 
   -fail-on-error
     Fail command as soon as an allocation restart fails. By default errors are
@@ -129,14 +133,16 @@ Restart Options:
     If set, allocations are stopped and rescheduled instead of restarted
     in-place. Since the group is not modified the restart does not create a new
     deployment, and so values defined in 'update' blocks, such as
-    'max_parallel', are not taken into account. This option cannot be use with
+    'max_parallel', are not taken into account. This option cannot be used with
     '-task'.
 
   -task=<task-name>
     Specify the task to restart. Can be specified multiple times. If groups are
-    also specified the task must exist in at least of them. If no task is set
-    only tasks that are currently running are restarted. This option cannot be
-    used with '-all-tasks' or '-reschedule'.
+    also specified the task must exist in at least one of them. If no task is
+    set only tasks that are currently running are restarted. For example,
+    non-sidecar tasks that already ran are not restarted unless '-all-tasks' is
+    used instead. This option cannot be used with '-all-tasks' or
+    '-reschedule'.
 
   -verbose
     Display full information.
@@ -181,13 +187,6 @@ func (c *JobRestartCommand) Name() string { return "job restart" }
 
 func (c *JobRestartCommand) Run(args []string) int {
 	c.ui = &cli.ConcurrentUi{Ui: c.Ui}
-
-	// Handle SIGINT to prevent accidental cancellations.
-	// activeCh is blocked while a signal is being handled.
-	activeCh := make(chan any)
-	sigsCh := make(chan os.Signal, 1)
-	signal.Notify(sigsCh, syscall.SIGINT)
-	go c.handleSignal(sigsCh, activeCh)
 
 	// Parse and validate command line arguments.
 	err, code := c.parseAndValidate(args)
@@ -304,6 +303,15 @@ func (c *JobRestartCommand) Run(args []string) int {
 		english.Plural(len(restartAllocs), "allocation", "allocations"),
 	)))
 
+	// Handle SIGINT to prevent accidental cancellations of the long-lived
+	// restart loop. activeCh is blocked while a signal is being handled to
+	// prevent new work from starting while the user is deciding if they want
+	// to cancel the command or not.
+	activeCh := make(chan any)
+	sigsCh := make(chan os.Signal, 1)
+	signal.Notify(sigsCh, syscall.SIGINT)
+	go c.handleSignal(sigsCh, activeCh)
+
 	var restarts multierror.Group
 	for restartCount, allocID := range restartAllocs {
 		// Block and wait before each iteration if the command is handling an
@@ -326,7 +334,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 		}
 
 		// Restart allocation. Wrap the callback function to capture the
-		// allocID loop variable and prevent if from changing inside the
+		// allocID loop variable and prevent it from changing inside the
 		// goroutine at each iteration.
 		restarts.Go(func(allocID string) func() error {
 			return func() error {

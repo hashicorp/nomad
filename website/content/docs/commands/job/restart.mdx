@@ -32,7 +32,9 @@ those groups are restarted.
 
 When rescheduling, the current allocations are stopped triggering the Nomad
 scheduler to create replacement allocations that may be placed in different
-clients.
+clients. The command waits until the new allocations have client status `ready`
+before proceeding with the remaining batches. Services health checks are not
+taken into account.
 
 By default the command restarts all running tasks in-place with one allocation
 per batch.
@@ -47,7 +49,9 @@ When ACLs are enabled, this command requires a token with the
 ## Restart Options
 
 - `-all-tasks`: If set, all tasks in the allocations are restarted, even the
-  ones that have already run. This option cannot be used with `-task`.
+  ones that have already run, such as non-sidecar tasks. Tasks will restart
+  following their [`lifecycle`][] order. This option cannot be used with
+  `-task`.
 
 - `-batch-size=<n|n%>`: Number of allocations to restart at once. It may be
   defined as a percentage value of the current number of running allocations.
@@ -55,8 +59,8 @@ When ACLs are enabled, this command requires a token with the
 
 - `-batch-wait=<duration|ask>`: Time to wait between restart batches. If set
   to `ask` the command halts between batches and waits for user input on how to
-  proceed. If the answer is a time duration all next batches will use this new
-  value. Defaults to `0`.
+  proceed. If the answer is a time duration all remaining batches will use this
+  new value. Defaults to `0`.
 
 - `-fail-on-error`: Fail command as soon as an allocation restart fails. By
   default errors are accumulated and displayed when the command exits.
@@ -73,13 +77,15 @@ When ACLs are enabled, this command requires a token with the
 - `-reschedule`: If set, allocations are stopped and rescheduled instead of
   restarted in-place. Since the group is not modified the restart does not
   create a new deployment, and so values defined in [`update`][] blocks, such
-  as [`max_parallel`][], are not taken into account. This option cannot be use
+  as [`max_parallel`][], are not taken into account. This option cannot be used
   with `-task`.
 
 - `-task=<task-name>`: Specify the task to restart. Can be specified multiple
-  times. If groups are also specified the task must exist in at least of them.
-  If no task is set only tasks that are currently running are restarted. This
-  option cannot be used with `-all-tasks` or `-reschedule`.
+  times. If groups are also specified the task must exist in at least one of
+  them. If no task is set only tasks that are currently running are restarted.
+  For example, non-sidecar tasks that already ran are not restarted unless
+  `-all-tasks` is used instead. This option cannot be used with `-all-tasks` or
+  `-reschedule`.
 
 - `-verbose`: Display full information.
 
@@ -201,6 +207,7 @@ $ nomad job restart -batch-size=2 -batch-wait=10s example
 All allocations restarted successfully!
 ```
 
+[`lifecycle`]: /nomad/docs/job-specification/lifecycle
 [`max_parallel`]: /nomad/docs/job-specification/update#max_parallel
 [`shutdown_delay`]: /nomad/docs/job-specification/task#shutdown_delay
 [`update`]: /nomad/docs/job-specification/update
