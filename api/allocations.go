@@ -150,7 +150,7 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 // long pauses on this API call.
 //
 // BREAKING: This method will have the following signature in 1.6.0
-// func (a *Allocations) Restart(allocID string, taskName string, w *WriteOptions) (*WriteMeta, error) {
+// func (a *Allocations) Restart(allocID string, taskName string, allTasks bool, w *WriteOptions) (*WriteMeta, error) {
 func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOptions) error {
 	req := AllocationRestartRequest{
 		TaskName: taskName,
@@ -168,8 +168,7 @@ func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOption
 // Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
 // long pauses on this API call.
 //
-// BREAKING: This method will have the following signature in 1.6.0
-// func (a *Allocations) RestartAllTasks(allocID string, w *WriteOptions) (*WriteMeta, error) {
+// DEPRECATED: This method will be removed in 1.6.0
 func (a *Allocations) RestartAllTasks(alloc *Allocation, q *QueryOptions) error {
 	req := AllocationRestartRequest{
 		AllTasks: true,
