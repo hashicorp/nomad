@@ -35,7 +35,7 @@ func TestJobPeriodicForceCommand_Fails(t *testing.T) {
 	code = cmd.Run([]string{"-address=nope", "12"})
 	require.Equal(t, code, 1, "expected error")
 	out = ui.ErrorWriter.String()
-	require.Contains(t, out, "Error forcing periodic job", "expected force error")
+	require.Contains(t, out, "Error querying job prefix", "expected force error")
 }
 
 func TestJobPeriodicForceCommand_AutocompleteArgs(t *testing.T) {
