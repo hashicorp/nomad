@@ -227,238 +227,6 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 	}
 }
 
-func TestJobRestartCommand_validateGroupsAndTasks(t *testing.T) {
-	ci.Parallel(t)
-
-	ui := cli.NewMockUi()
-	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
-
-	// Test job with several tasks, groups, and allocations.
-	prestartTask := api.NewTask("prestart", "mock_driver").
-		SetConfig("run_for", "100ms").
-		SetConfig("exit_code", 0).
-		SetLifecycle(&api.TaskLifecycle{
-			Hook:    api.TaskLifecycleHookPrestart,
-			Sidecar: false,
-		})
-	sidecarTask := api.NewTask("sidecar", "mock_driver").
-		SetConfig("run_for", "1m").
-		SetConfig("exit_code", 0).
-		SetLifecycle(&api.TaskLifecycle{
-			Hook:    api.TaskLifecycleHookPoststart,
-			Sidecar: true,
-		})
-	mainTask := api.NewTask("main", "mock_driver").
-		SetConfig("run_for", "1m").
-		SetConfig("exit_code", 0)
-
-	jobID := "test_job_restart"
-	job := api.NewServiceJob(jobID, jobID, "global", 1).
-		AddDatacenter("dc1").
-		AddTaskGroup(
-			api.NewTaskGroup("single_task", 3).
-				AddTask(mainTask),
-		).
-		AddTaskGroup(
-			api.NewTaskGroup("multiple_tasks", 2).
-				AddTask(prestartTask).
-				AddTask(sidecarTask).
-				AddTask(mainTask),
-		)
-
-	testCases := []struct {
-		name        string
-		args        []string
-		expectedErr string
-	}{
-		{
-			name: "group valid",
-			args: []string{
-				"-group", "single_task",
-				jobID,
-			},
-		},
-		{
-			name: "group invalid",
-			args: []string{
-				"-group", "not-valid",
-				jobID,
-			},
-			expectedErr: `Group "not-valid" not found`,
-		},
-		{
-			name: "groups valid",
-			args: []string{
-				"-group", "single_task",
-				"-group", "multiple_tasks",
-				jobID,
-			},
-		},
-		{
-			name: "groups invalid",
-			args: []string{
-				"-group", "not-valid",
-				"-group", "invalid",
-				jobID,
-			},
-			expectedErr: `Groups "invalid", "not-valid" not found`,
-		},
-		{
-			name: "groups valid and invalid",
-			args: []string{
-				"-group", "not-valid", "-group", "invalid",
-				"-group", "single_task",
-				jobID,
-			},
-			expectedErr: `Groups "invalid", "not-valid" not found`,
-		},
-		{
-			name: "task valid",
-			args: []string{
-				"-task", "main",
-				jobID,
-			},
-		},
-		{
-			name: "task valid for group",
-			args: []string{
-				"-task", "main",
-				"-group", "single_task",
-				jobID,
-			},
-		},
-		{
-			name: "task valid for both groups",
-			args: []string{
-				"-task", "main",
-				"-group", "multiple_tasks", "-group", "single_task",
-				jobID,
-			},
-		},
-		{
-			name: "task valid for at least one group",
-			args: []string{
-				"-task", "sidecar",
-				"-group", "multiple_tasks", "-group", "single_task",
-				jobID,
-			},
-		},
-		{
-			name: "task invalid",
-			args: []string{
-				"-task", "not-valid",
-				jobID,
-			},
-			expectedErr: `Task "not-valid" not found`,
-		},
-		{
-			name: "task invalid for group",
-			args: []string{
-				"-task", "not-valid",
-				"-group", "multiple_tasks",
-				jobID,
-			},
-			expectedErr: `Task "not-valid" not found in group "multiple_tasks"`,
-		},
-		{
-			name: "task invalid for groups",
-			args: []string{
-				"-task", "not-valid",
-				"-group", "multiple_tasks", "-group", "single_task",
-				jobID,
-			},
-			expectedErr: `Task "not-valid" not found in groups "multiple_tasks", "single_task"`,
-		},
-		{
-			name: "tasks valid",
-			args: []string{
-				"-task", "main",
-				"-task", "sidecar",
-				jobID,
-			},
-		},
-		{
-			name: "tasks valid for group",
-			args: []string{
-				"-task", "main", "-task", "sidecar",
-				"-group", "multiple_tasks",
-				jobID,
-			},
-		},
-		{
-			name: "tasks valid for groups",
-			args: []string{
-				"-task", "main", "-task", "sidecar",
-				"-group", "multiple_tasks", "-group", "single_task",
-				jobID,
-			},
-		},
-		{
-			name: "tasks invalid",
-			args: []string{
-				"-task", "not-valid",
-				"-task", "invalid",
-				jobID,
-			},
-			expectedErr: `Tasks "invalid", "not-valid" not found`,
-		},
-		{
-			name: "tasks valid and invalid",
-			args: []string{
-				"-task", "not-valid", "-task", "invalid",
-				"-task", "sidecar", "-task", "main",
-				jobID,
-			},
-			expectedErr: `Tasks "invalid", "not-valid" not found`,
-		},
-		{
-			name: "tasks invalid for group",
-			args: []string{
-				"-task", "not-valid", "-task", "invalid",
-				"-group", "multiple_tasks",
-				jobID,
-			},
-			expectedErr: `Tasks "invalid", "not-valid" not found in group "multiple_tasks"`,
-		},
-		{
-			name: "tasks invalid for groups",
-			args: []string{
-				"-task", "not-valid", "-task", "invalid",
-				"-group", "multiple_tasks", "-group", "single_task",
-				jobID,
-			},
-			expectedErr: `Tasks "invalid", "not-valid" not found in groups "multiple_tasks", "single_task"`,
-		},
-		{
-			name: "tasks valid and invalid for groups",
-			args: []string{
-				"-task", "not-valid",
-				"-task", "main",
-				"-group", "multiple_tasks", "-group", "single_task",
-				jobID,
-			},
-			expectedErr: `Task "not-valid" not found in groups "multiple_tasks", "single_task"`,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			defer ui.ErrorWriter.Reset()
-
-			err, code := cmd.parseAndValidate(tc.args)
-			must.NoError(t, err)
-			must.Zero(t, code)
-
-			err = cmd.validateGroupsAndTasks(job)
-			if tc.expectedErr != "" {
-				must.ErrorContains(t, err, tc.expectedErr)
-			} else {
-				must.NoError(t, err)
-			}
-		})
-	}
-}
-
 func TestJobRestartCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1152,158 +920,194 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 	}
 }
 
-func TestJobRestartCommand_skipAllocs(t *testing.T) {
+func TestJobRestartCommand_filterAllocs(t *testing.T) {
 	ci.Parallel(t)
 
+	task1 := api.NewTask("task_1", "mock_driver")
+	task2 := api.NewTask("task_2", "mock_driver")
+	task3 := api.NewTask("task_3", "mock_driver")
+
+	jobV1 := api.NewServiceJob("example", "example", "global", 1).
+		AddTaskGroup(
+			api.NewTaskGroup("group_1", 1).
+				AddTask(task1),
+		).
+		AddTaskGroup(
+			api.NewTaskGroup("group_2", 1).
+				AddTask(task1).
+				AddTask(task2),
+		).
+		AddTaskGroup(
+			api.NewTaskGroup("group_3", 1).
+				AddTask(task3),
+		)
+	jobV1.Version = pointer.Of(uint64(1))
+
+	jobV2 := api.NewServiceJob("example", "example", "global", 1).
+		AddTaskGroup(
+			api.NewTaskGroup("group_1", 1).
+				AddTask(task1),
+		).
+		AddTaskGroup(
+			api.NewTaskGroup("group_2", 1).
+				AddTask(task2),
+		)
+	jobV2.Version = pointer.Of(uint64(2))
+
+	allAllocs := []AllocationListStubWithJob{}
+	allocs := map[string]AllocationListStubWithJob{}
+	for _, job := range []*api.Job{jobV1, jobV2} {
+		for _, tg := range job.TaskGroups {
+			for _, desired := range []string{api.AllocDesiredStatusRun, api.AllocDesiredStatusStop} {
+				for _, client := range []string{api.AllocClientStatusRunning, api.AllocClientStatusComplete} {
+					key := fmt.Sprintf("job_v%d_%s_%s_%s", *job.Version, *tg.Name, desired, client)
+					alloc := AllocationListStubWithJob{
+						AllocationListStub: &api.AllocationListStub{
+							ID:            key,
+							JobVersion:    *job.Version,
+							TaskGroup:     *tg.Name,
+							DesiredStatus: desired,
+							ClientStatus:  client,
+						},
+						Job: job,
+					}
+					allocs[key] = alloc
+					allAllocs = append(allAllocs, alloc)
+				}
+			}
+		}
+	}
+
 	testCases := []struct {
-		name             string
-		args             []string
-		expectedRestarts map[string]map[string]bool
-		validateOutputFn func(*testing.T, []*api.AllocationListStub, string)
+		name           string
+		args           []string
+		expectedAllocs []AllocationListStubWithJob
 	}{
 		{
 			name: "skip by group",
 			args: []string{"-group", "group_1"},
-			expectedRestarts: map[string]map[string]bool{
-				"group_1": {
-					"task_1": true,
-				},
-				"group_2": {
-					"task_2": false,
-				},
+			expectedAllocs: []AllocationListStubWithJob{
+				allocs["job_v1_group_1_run_running"],
+				allocs["job_v1_group_1_run_complete"],
+				allocs["job_v1_group_1_stop_running"],
+				allocs["job_v2_group_1_run_running"],
+				allocs["job_v2_group_1_run_complete"],
+				allocs["job_v2_group_1_stop_running"],
 			},
-			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
-				for _, alloc := range allocs {
-					skipMsg := fmt.Sprintf("Skipping allocation %q", alloc.ID)
-					if alloc.TaskGroup != "group_1" {
-						must.StrContains(t, stdout, skipMsg)
-					} else {
-						must.StrNotContains(t, stdout, skipMsg)
-					}
-				}
+		},
+		{
+			name: "skip by old group",
+			args: []string{"-group", "group_3"},
+			expectedAllocs: []AllocationListStubWithJob{
+				allocs["job_v1_group_3_run_running"],
+				allocs["job_v1_group_3_run_complete"],
+				allocs["job_v1_group_3_stop_running"],
 			},
 		},
 		{
 			name: "skip by task",
-			args: []string{"-task", "task_1"},
-			expectedRestarts: map[string]map[string]bool{
-				"group_1": {
-					"task_1": true,
-				},
-				"group_2": {
-					"task_2": false,
-				},
-			},
-			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
-				for _, alloc := range allocs {
-					skipMsg := fmt.Sprintf("Skipping allocation %q", alloc.ID)
-					if alloc.TaskGroup != "group_1" {
-						must.StrContains(t, stdout, skipMsg)
-					} else {
-						must.StrNotContains(t, stdout, skipMsg)
-					}
-				}
+			args: []string{"-task", "task_2"},
+			expectedAllocs: []AllocationListStubWithJob{
+				allocs["job_v1_group_2_run_running"],
+				allocs["job_v1_group_2_run_complete"],
+				allocs["job_v1_group_2_stop_running"],
+				allocs["job_v2_group_2_run_running"],
+				allocs["job_v2_group_2_run_complete"],
+				allocs["job_v2_group_2_stop_running"],
 			},
 		},
 		{
-			name: "skip by non-running status",
-			args: []string{"-group", "group_2"},
-			expectedRestarts: map[string]map[string]bool{
-				"group_1": {
-					"task_1": false,
-				},
-				"group_2": {
-					"task_2": true,
-				},
+			name: "skip by old task",
+			args: []string{"-task", "task_3"},
+			expectedAllocs: []AllocationListStubWithJob{
+				allocs["job_v1_group_3_run_running"],
+				allocs["job_v1_group_3_run_complete"],
+				allocs["job_v1_group_3_stop_running"],
 			},
-			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
-				for _, alloc := range allocs {
-					skipMsg := fmt.Sprintf("Skipping allocation %q", alloc.ID)
-					if alloc.DesiredStatus == api.AllocDesiredStatusStop {
-						must.StrContains(t, stdout, skipMsg)
-					}
-				}
+		},
+		{
+			name: "skip by group and task",
+			args: []string{
+				"-group", "group_1",
+				"-group", "group_2",
+				"-task", "task_2",
 			},
+			// Only group_2 has task_2 in all job versions.
+			expectedAllocs: []AllocationListStubWithJob{
+				allocs["job_v1_group_2_run_running"],
+				allocs["job_v1_group_2_run_complete"],
+				allocs["job_v1_group_2_stop_running"],
+				allocs["job_v2_group_2_run_running"],
+				allocs["job_v2_group_2_run_complete"],
+				allocs["job_v2_group_2_stop_running"],
+			},
+		},
+		{
+			name: "skip by status",
+			args: []string{},
+			expectedAllocs: []AllocationListStubWithJob{
+				allocs["job_v1_group_1_run_running"],
+				allocs["job_v1_group_1_run_complete"],
+				allocs["job_v1_group_1_stop_running"],
+				allocs["job_v1_group_2_run_running"],
+				allocs["job_v1_group_2_run_complete"],
+				allocs["job_v1_group_2_stop_running"],
+				allocs["job_v1_group_3_run_running"],
+				allocs["job_v1_group_3_run_complete"],
+				allocs["job_v1_group_3_stop_running"],
+				allocs["job_v2_group_1_run_running"],
+				allocs["job_v2_group_1_run_complete"],
+				allocs["job_v2_group_1_stop_running"],
+				allocs["job_v2_group_2_run_running"],
+				allocs["job_v2_group_2_run_complete"],
+				allocs["job_v2_group_2_stop_running"],
+			},
+		},
+		{
+			name:           "no matches by group",
+			args:           []string{"-group", "group_404"},
+			expectedAllocs: []AllocationListStubWithJob{},
+		},
+		{
+			name:           "no matches by task",
+			args:           []string{"-task", "task_404"},
+			expectedAllocs: []AllocationListStubWithJob{},
+		},
+		{
+			name: "no matches by task with group",
+			args: []string{
+				"-group", "group_1",
+				"-task", "task_2", // group_1 never has task_2.
+			},
+			expectedAllocs: []AllocationListStubWithJob{},
 		},
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-
 			ui := cli.NewMockUi()
-			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+			cmd := &JobRestartCommand{
+				ui:   &cli.ConcurrentUi{Ui: ui},
+				Meta: Meta{Ui: ui},
+			}
 
-			// Start client and server and wait for node to be ready.
-			srv, client, url := testServer(t, true, nil)
-			defer srv.Shutdown()
-
-			waitForNodes(t, client)
-
-			// Register test job and wait for its allocs to be running.
-			task1 := api.NewTask("task_1", "mock_driver").
-				SetConfig("run_for", "10m").
-				SetConfig("exit_code", 0)
-			task2 := api.NewTask("task_2", "mock_driver").
-				SetConfig("run_for", "10m").
-				SetConfig("exit_code", 0)
-
-			jobID := nonAlphaNum.ReplaceAllString(tc.name, "-")
-			job := api.NewServiceJob(jobID, jobID, "global", 1).
-				AddDatacenter("dc1").
-				AddTaskGroup(
-					api.NewTaskGroup("group_1", 1).
-						AddTask(task1),
-				).
-				AddTaskGroup(
-					api.NewTaskGroup("group_2", 1).
-						AddTask(task2),
-				)
-
-			resp, _, err := client.Jobs().Register(job, nil)
+			args := append(tc.args, "-verbose", "example")
+			code, err := cmd.parseAndValidate(args)
 			must.NoError(t, err)
-
-			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
 			must.Zero(t, code)
 
-			// Update group_2 so it has non-running allocations.
-			job.TaskGroups[1].Tasks[0].Config["run_for"] = "15m"
+			got := cmd.filterAllocs(allAllocs)
+			must.SliceEqFunc(t, tc.expectedAllocs, got, func(a, b AllocationListStubWithJob) bool {
+				return a.ID == b.ID
+			})
 
-			resp, _, err = client.Jobs().Register(job, nil)
-			must.NoError(t, err)
-
-			code = waitForSuccess(ui, client, fullId, t, resp.EvalID)
-			must.Zero(t, code)
-
-			// Wait for allocations to have the expected ClientStatus.
-			allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
-			must.NoError(t, err)
-			for _, alloc := range allocStubs {
-				switch alloc.DesiredStatus {
-				case api.AllocDesiredStatusRun:
-					waitForAllocRunning(t, client, alloc.ID)
-				case api.AllocDesiredStatusStop:
-					waitForAllocStatus(t, client, alloc.ID, api.AllocClientStatusComplete)
+			expected := set.FromFunc(tc.expectedAllocs, func(a AllocationListStubWithJob) string {
+				return a.ID
+			})
+			for _, a := range allAllocs {
+				if !expected.Contains(a.ID) {
+					must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("Skipping allocation %q", a.ID))
 				}
-			}
-			ui.OutputWriter.Reset()
-
-			// Run command.
-			args := []string{
-				"-address", url,
-				"-verbose",
-			}
-			args = append(args, tc.args...)
-			args = append(args, jobID)
-
-			code = cmd.Run(args)
-			must.Zero(t, code)
-
-			waitTasksRestarted(t, client, allocStubs, tc.expectedRestarts)
-
-			if tc.validateOutputFn != nil {
-				tc.validateOutputFn(t, allocStubs, ui.OutputWriter.String())
 			}
 		})
 	}

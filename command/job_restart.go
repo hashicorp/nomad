@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -221,83 +220,35 @@ func (c *JobRestartCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if the job exists.
-	// Avoid prefix matching to make sure we only restart the expected job.
-	job, _, err := c.client.Jobs().Info(c.jobID, nil)
+	// Retrieve the job history so we can properly determine if a group or task
+	// exists in the specific allocation job version.
+	jobVersions, _, _, err := c.client.Jobs().Versions(c.jobID, false, nil)
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("Error retrieving job %q: %s", c.jobID, err))
+		c.ui.Error(fmt.Sprintf("Error retrieving versions of job %q: %s", c.jobID, err))
 		return 1
 	}
 
-	// Check if passed groups and tasks are valid.
-	err = c.validateGroupsAndTasks(job)
-	if err != nil {
-		c.ui.Error(err.Error())
-		return 1
+	// Index jobs by version.
+	jobVersionIndex := make(map[uint64]*api.Job, len(jobVersions))
+	for _, job := range jobVersions {
+		jobVersionIndex[*job.Version] = job
 	}
 
 	// Fetch all allocations for the job and filter out the ones that are not
 	// eligible for restart.
-	allocs, _, err := c.client.Jobs().Allocations(c.jobID, false, nil)
+	allocStubs, _, err := c.client.Jobs().Allocations(c.jobID, true, nil)
 	if err != nil {
 		c.ui.Error(fmt.Sprintf("Error retrieving allocations for job %q: %v", c.jobID, err))
 		return 1
 	}
-
-	restartAllocs := make([]string, 0, len(allocs))
-	for _, alloc := range allocs {
-		shortAllocID := limit(alloc.ID, c.length)
-
-		// Skip allocations that are not running.
-		allocRunning := alloc.ClientStatus == api.AllocClientStatusRunning || alloc.DesiredStatus == api.AllocDesiredStatusRun
-		if !allocRunning {
-			if c.verbose {
-				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
-					"[dark_gray]    %s: Skipping allocation %q because desired status is %q and client status is %q[reset]",
-					formatTime(time.Now()),
-					shortAllocID,
-					alloc.ClientStatus,
-					alloc.DesiredStatus,
-				)))
-			}
-			continue
-		}
-
-		// Skip allocations for groups that were not requested.
-		if c.groups.Size() > 0 && !c.groups.Contains(alloc.TaskGroup) {
-			if c.verbose {
-				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
-					"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested groups[reset]",
-					formatTime(time.Now()),
-					shortAllocID,
-				)))
-			}
-			continue
-		}
-
-		// Skip allocations that don't have any of the requested tasks.
-		if c.tasks.Size() > 0 {
-			hasTask := false
-			for task := range alloc.TaskStates {
-				if c.tasks.Contains(task) {
-					hasTask = true
-					break
-				}
-			}
-			if !hasTask {
-				if c.verbose {
-					c.ui.Output(c.Colorize().Color(fmt.Sprintf(
-						"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested tasks[reset]",
-						formatTime(time.Now()),
-						shortAllocID,
-					)))
-				}
-				continue
-			}
-		}
-
-		restartAllocs = append(restartAllocs, alloc.ID)
+	allocStubsWithJob := make([]AllocationListStubWithJob, 0, len(allocStubs))
+	for _, stub := range allocStubs {
+		allocStubsWithJob = append(allocStubsWithJob, AllocationListStubWithJob{
+			AllocationListStub: stub,
+			Job:                jobVersionIndex[stub.JobVersion],
+		})
 	}
+	restartAllocs := c.filterAllocs(allocStubsWithJob)
 
 	// Exit early if there's nothing to do.
 	if len(restartAllocs) == 0 {
@@ -329,7 +280,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	go c.handleSignal(sigsCh, activeCh)
 
 	var restarts multierror.Group
-	for restartCount, allocID := range restartAllocs {
+	for restartCount, alloc := range restartAllocs {
 		// Block and wait before each iteration if the command is handling an
 		// interrupt signal.
 		<-activeCh
@@ -352,11 +303,11 @@ func (c *JobRestartCommand) Run(args []string) int {
 		// Restart allocation. Wrap the callback function to capture the
 		// allocID loop variable and prevent it from changing inside the
 		// goroutine at each iteration.
-		restarts.Go(func(allocID string) func() error {
+		restarts.Go(func(allocStubWithJob AllocationListStubWithJob) func() error {
 			return func() error {
-				return c.handleAlloc(allocID)
+				return c.handleAlloc(allocStubWithJob)
 			}
-		}(allocID))
+		}(alloc))
 
 		// Check if we restarted enough allocations to complete a batch or if
 		// we restarted the last allocation.
@@ -522,78 +473,66 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (int, error) {
 	return 0, nil
 }
 
-// validateGroupsAndTasks validates that the combination of groups and tasks
-// defined in the command are valid for the target job.
-func (c *JobRestartCommand) validateGroupsAndTasks(job *api.Job) error {
+// filterAllocs returns a slice of the allocations that should be restarted.
+func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []AllocationListStubWithJob {
+	result := []AllocationListStubWithJob{}
+	for _, stub := range stubs {
+		shortAllocID := limit(stub.ID, c.length)
 
-	// If groups are set they must all exist in the job.
-	if c.groups.Size() > 0 {
-		groupsFound := set.New[string](0)
-		tasksFound := set.New[string](0)
+		// Skip allocations that are not running.
+		if !stub.IsRunning() {
+			if c.verbose {
+				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+					"[dark_gray]    %s: Skipping allocation %q because desired status is %q and client status is %q[reset]",
+					formatTime(time.Now()),
+					shortAllocID,
+					stub.ClientStatus,
+					stub.DesiredStatus,
+				)))
+			}
+			continue
+		}
 
-		// Collect which groups of job were also provided in the command.
-		// Also collect their tasks in case we need to check them as well.
-		for _, tg := range job.TaskGroups {
-			if !c.groups.Contains(*tg.Name) {
+		// Skip allocations for groups that were not requested.
+		if c.groups.Size() > 0 {
+			if !c.groups.Contains(stub.TaskGroup) {
+				if c.verbose {
+					c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+						"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested groups[reset]",
+						formatTime(time.Now()),
+						shortAllocID,
+					)))
+				}
 				continue
 			}
-
-			groupsFound.Insert(*tg.Name)
-			for _, t := range tg.Tasks {
-				tasksFound.Insert(t.Name)
-			}
 		}
 
-		// Find if any of the groups passed in the command are not in the job.
-		diff := c.groups.Difference(groupsFound)
-		if diff.Size() > 0 {
-			return fmt.Errorf(
-				"%s not found in job %q",
-				formatSliceOf(diff.Slice(), "Group", "Groups"),
-				c.jobID,
-			)
-		}
-
-		// If both tasks and groups were passed in the command all tasks must
-		// exist in at least one of the groups defined.
+		// Skip allocations that don't have any of the requested tasks.
 		if c.tasks.Size() > 0 {
-			diff := c.tasks.Difference(tasksFound)
-			if diff.Size() > 0 {
-				return fmt.Errorf(
-					"%s not found in %s of job %q",
-					formatSliceOf(diff.Slice(), "Task", "Tasks"),
-					formatSliceOf(c.groups.Slice(), "group", "groups"),
-					c.jobID,
-				)
+			hasTask := false
+			for _, taskName := range c.tasks.Slice() {
+				if stub.HasTask(taskName) {
+					hasTask = true
+					break
+				}
 			}
-		}
-		return nil
-	}
 
-	// If only tasks were defined in the command each must exist in at least
-	// one of the job's groups.
-	if c.tasks.Size() > 0 {
-		tasksFound := set.New[string](0)
-
-		// Collect all tasks present in all groups of the job.
-		for _, tg := range job.TaskGroups {
-			for _, t := range tg.Tasks {
-				tasksFound.Insert(t.Name)
+			if !hasTask {
+				if c.verbose {
+					c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+						"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested tasks[reset]",
+						formatTime(time.Now()),
+						shortAllocID,
+					)))
+				}
+				continue
 			}
 		}
 
-		// Find if any of the tasks passed in the command are not in the job.
-		diff := c.tasks.Difference(tasksFound)
-		if diff.Size() > 0 {
-			return fmt.Errorf(
-				"%s not found in any of the groups of job %q",
-				formatSliceOf(diff.Slice(), "Task", "Tasks"),
-				c.jobID,
-			)
-		}
-		return nil
+		result = append(result, stub)
 	}
-	return nil
+
+	return result
 }
 
 // shouldProceed blocks and waits for the user to provide a valid input.
@@ -643,12 +582,8 @@ func (c *JobRestartCommand) shouldProceed() bool {
 
 // handleAlloc stops or restarts an allocation in-place. Blocks until the
 // allocation  is done restarting or the rescheduled allocation is running.
-func (c *JobRestartCommand) handleAlloc(allocID string) error {
-	alloc, _, err := c.client.Allocations().Info(allocID, nil)
-	if err != nil {
-		return fmt.Errorf("Error retrieving allocation %q: %v", limit(allocID, c.length), err)
-	}
-
+func (c *JobRestartCommand) handleAlloc(alloc AllocationListStubWithJob) error {
+	var err error
 	if c.reschedule {
 		// Stopping an allocation triggers a reschedule.
 		err = c.stopAlloc(alloc)
@@ -656,7 +591,7 @@ func (c *JobRestartCommand) handleAlloc(allocID string) error {
 		err = c.restartAlloc(alloc)
 	}
 	if err != nil {
-		msg := fmt.Sprintf("Error restarting allocation %q:", limit(allocID, c.length))
+		msg := fmt.Sprintf("Error restarting allocation %q:", limit(alloc.ID, c.length))
 		if mErr, ok := err.(*multierror.Error); ok {
 			// Unwrap the errors and prefix them with a common message to
 			// prevent deep nesting of errors.
@@ -669,7 +604,7 @@ func (c *JobRestartCommand) handleAlloc(allocID string) error {
 
 // restartAlloc restarts an allocation in place and blocks until the tasks are
 // done restarting.
-func (c *JobRestartCommand) restartAlloc(alloc *api.Allocation) error {
+func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error {
 	shortAllocID := limit(alloc.ID, c.length)
 
 	if c.allTasks {
@@ -680,7 +615,7 @@ func (c *JobRestartCommand) restartAlloc(alloc *api.Allocation) error {
 			alloc.TaskGroup,
 		))
 
-		return c.client.Allocations().RestartAllTasks(alloc, nil)
+		return c.client.Allocations().RestartAllTasks(&api.Allocation{ID: alloc.ID}, nil)
 	}
 
 	if c.tasks.Size() == 0 {
@@ -691,13 +626,13 @@ func (c *JobRestartCommand) restartAlloc(alloc *api.Allocation) error {
 			alloc.TaskGroup,
 		))
 
-		return c.client.Allocations().Restart(alloc, "", nil)
+		return c.client.Allocations().Restart(&api.Allocation{ID: alloc.ID}, "", nil)
 	}
 
 	// Run restarts concurrently when specific tasks were requested.
 	var restarts multierror.Group
 	for _, task := range c.tasks.Slice() {
-		if _, ok := alloc.TaskStates[task]; !ok {
+		if !alloc.HasTask(task) {
 			continue
 		}
 
@@ -709,11 +644,11 @@ func (c *JobRestartCommand) restartAlloc(alloc *api.Allocation) error {
 			alloc.TaskGroup,
 		))
 
-		restarts.Go(func(task string) func() error {
+		restarts.Go(func(taskName string) func() error {
 			return func() error {
-				err := c.client.Allocations().Restart(alloc, task, nil)
+				err := c.client.Allocations().Restart(&api.Allocation{ID: alloc.ID}, taskName, nil)
 				if err != nil {
-					return fmt.Errorf("Failed to restart task %q: %v", task, err)
+					return fmt.Errorf("Failed to restart task %q: %v", taskName, err)
 				}
 				return nil
 			}
@@ -724,7 +659,7 @@ func (c *JobRestartCommand) restartAlloc(alloc *api.Allocation) error {
 
 // stopAlloc stops an allocation and blocks until the replacement allocation is
 // running.
-func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
+func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	shortAllocID := limit(alloc.ID, c.length)
 
 	c.ui.Output(fmt.Sprintf(
@@ -744,7 +679,7 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 	// Stop allocation and wait for its replacement to be running or for a
 	// blocked evaluation that prevents placements for this task group to
 	// happen.
-	_, err := c.client.Allocations().Stop(alloc, q)
+	_, err := c.client.Allocations().Stop(&api.Allocation{ID: alloc.ID}, q)
 	if err != nil {
 		return fmt.Errorf("Failed to stop allocation %q: %v", shortAllocID, err)
 	}
@@ -769,7 +704,7 @@ func (c *JobRestartCommand) stopAlloc(alloc *api.Allocation) error {
 //
 // Returns an error in errCh if anything goes wrong or if there are placement
 // failures for the allocation task group.
-func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc *api.Allocation, errCh chan<- error) {
+func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc AllocationListStubWithJob, errCh chan<- error) {
 	q := &api.QueryOptions{WaitIndex: 1}
 	for {
 		select {
@@ -813,7 +748,7 @@ func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc *api.
 //
 // Returns an error in errCh if anything goes wrong or nil when the new
 // allocation is running.
-func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc *api.Allocation, errCh chan<- error) {
+func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc AllocationListStubWithJob, errCh chan<- error) {
 	q := &api.QueryOptions{WaitIndex: 1}
 	var nextAllocID string
 	for {
@@ -946,21 +881,51 @@ func (c *JobRestartCommand) errorFormat(es []error) string {
 		len(es), space, strings.Join(points, fmt.Sprintf("\n%s", space)))
 }
 
-// formatSliceOf returns a string with the length and the given singular or
-// plural noun depending on how many elements are present.
-func formatSliceOf(in []string, singular string, plural string) string {
-	switch len(in) {
-	case 0:
-		return fmt.Sprintf("No %s", plural)
-	case 1:
-		return fmt.Sprintf("%s %q", singular, in[0])
-	default:
-		// Sort inputs to stabilize output.
-		sort.Strings(in)
-		quoted := []string{}
-		for _, s := range in {
-			quoted = append(quoted, fmt.Sprintf("%q", s))
-		}
-		return fmt.Sprintf("%s %s", plural, strings.Join(quoted, ", "))
+// AllocationListStubWithJob combines an AllocationListStub with its
+// corresponding job at the right version.
+type AllocationListStubWithJob struct {
+	*api.AllocationListStub
+	Job *api.Job
+}
+
+// HasTask returns true if the allocation has the given task in the specific
+// job version it was created.
+func (a *AllocationListStubWithJob) HasTask(name string) bool {
+	// Check task state first as it's the fastest and most reliable source.
+	if _, ok := a.TaskStates[name]; ok {
+		return true
 	}
+
+	// But task states are only set when the client updates its allocations
+	// with the server, so they may not be available yet. Lookup the task in
+	// the job version as a fallback.
+	if a.Job == nil {
+		return false
+	}
+
+	var taskGroup *api.TaskGroup
+	for _, tg := range a.Job.TaskGroups {
+		if tg.Name == nil || *tg.Name != a.TaskGroup {
+			continue
+		}
+		taskGroup = tg
+	}
+	if taskGroup == nil {
+		return false
+	}
+
+	for _, task := range taskGroup.Tasks {
+		if task.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+// IsRunning returns true if the allocation's ClientStatus or DesiredStatus is
+// running.
+func (a *AllocationListStubWithJob) IsRunning() bool {
+	return a.ClientStatus == api.AllocClientStatusRunning ||
+		a.DesiredStatus == api.AllocDesiredStatusRun
 }
