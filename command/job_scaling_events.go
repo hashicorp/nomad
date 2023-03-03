@@ -76,9 +76,6 @@ func (j *JobScalingEventsCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Get the job ID.
-	jobID := args[0]
-
 	// Get the HTTP client.
 	client, err := j.Meta.Client()
 	if err != nil {

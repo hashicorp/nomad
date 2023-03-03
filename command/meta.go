@@ -286,7 +286,6 @@ func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPref
 	if len(jobs) > 1 {
 		exactMatch := prefix == jobs[0].ID
 		matchInMultipleNamespaces := m.allNamespaces() && jobs[0].ID == jobs[1].ID
-		fmt.Println(m.allNamespaces())
 		if !exactMatch || matchInMultipleNamespaces {
 			return "", "", fmt.Errorf(
 				"Prefix %q matched multiple jobs\n\n%s",
