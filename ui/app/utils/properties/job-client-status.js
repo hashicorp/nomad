@@ -27,9 +27,9 @@ export default function jobClientStatus(nodesKey, jobKey) {
 
       // Filter nodes by the datacenters defined in the job.
       const filteredNodes = nodes.filter((n) => {
-        return job.datacenters.filter((dc) => {
+        return job.datacenters.find((dc) => {
           return !!matchGlob(dc, n.datacenter);
-        }).length;
+        });
       });
 
       if (job.status === 'pending') {
