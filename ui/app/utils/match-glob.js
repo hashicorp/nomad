@@ -2,75 +2,51 @@
 
 const WILDCARD_GLOB = '*';
 
-export default function matchGlob(pattern, path) {
-  console.log('matchGlob called with', pattern, path);
+/**
+ *
+ * @param {string} pattern
+ * @param {string} comparable
+ * @example matchGlob('foo', 'foo') // true
+ * @example matchGlob('foo', 'bar') // false
+ * @example matchGlob('foo*', 'footbar') // true
+ * @example matchGlob('foo*', 'bar') // false
+ * @example matchGlob('*foo', 'foobar') // false
+ * @example matchGlob('*foo', 'barfoo') // true
+ * @example matchGlob('foo*bar', 'footbar') // true
+ * @returns {boolean}
+ */
+export default function matchGlob(pattern, comparable) {
   const parts = pattern?.split(WILDCARD_GLOB);
   const hasLeadingGlob = pattern?.startsWith(WILDCARD_GLOB);
   const hasTrailingGlob = pattern?.endsWith(WILDCARD_GLOB);
   const lastPartOfPattern = parts[parts.length - 1];
   const isPatternWithoutGlob = parts.length === 1 && !hasLeadingGlob;
 
-  if (!pattern || !path || isPatternWithoutGlob) {
-    return pattern === path;
+  if (!pattern || !comparable || isPatternWithoutGlob) {
+    return pattern === comparable;
   }
 
   if (pattern === WILDCARD_GLOB) {
     return true;
   }
 
-  let subPathToMatchOn = path;
+  let subStringToMatchOn = comparable;
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
-    const idx = subPathToMatchOn?.indexOf(part);
-    const doesPathIncludeSubPattern = idx > -1;
+    const idx = subStringToMatchOn?.indexOf(part);
+    const doesStringIncludeSubPattern = idx > -1;
     const doesMatchOnFirstSubpattern = idx === 0;
 
     if (i === 0 && !hasLeadingGlob && !doesMatchOnFirstSubpattern) {
       return false;
     }
 
-    if (!doesPathIncludeSubPattern) {
+    if (!doesStringIncludeSubPattern) {
       return false;
     }
 
-    subPathToMatchOn = subPathToMatchOn.slice(0, idx + path.length);
+    subStringToMatchOn = subStringToMatchOn.slice(0, idx + comparable.length);
   }
 
-  return hasTrailingGlob || path.endsWith(lastPartOfPattern);
+  return hasTrailingGlob || comparable.endsWith(lastPartOfPattern);
 }
-
-// _doesMatchPattern(pattern, path) {
-//   const parts = pattern?.split(WILDCARD_GLOB);
-//   const hasLeadingGlob = pattern?.startsWith(WILDCARD_GLOB);
-//   const hasTrailingGlob = pattern?.endsWith(WILDCARD_GLOB);
-//   const lastPartOfPattern = parts[parts.length - 1];
-//   const isPatternWithoutGlob = parts.length === 1 && !hasLeadingGlob;
-
-//   if (!pattern || !path || isPatternWithoutGlob) {
-//     return pattern === path;
-//   }
-
-//   if (pattern === WILDCARD_GLOB) {
-//     return true;
-//   }
-
-//   let subPathToMatchOn = path;
-//   for (let i = 0; i < parts.length; i++) {
-//     const part = parts[i];
-//     const idx = subPathToMatchOn?.indexOf(part);
-//     const doesPathIncludeSubPattern = idx > -1;
-//     const doesMatchOnFirstSubpattern = idx === 0;
-
-//     if (i === 0 && !hasLeadingGlob && !doesMatchOnFirstSubpattern) {
-//       return false;
-//     }
-
-//     if (!doesPathIncludeSubPattern) {
-//       return false;
-//     }
-
-//     subPathToMatchOn = subPathToMatchOn.slice(0, idx + path.length);
-//   }
-
-//   return hasTrailingGlob || path.endsWith(lastPartOfPattern);
-// }
