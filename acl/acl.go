@@ -358,18 +358,25 @@ func (a *ACL) AllowHostVolume(ns string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
-func (a *ACL) AllowVariableOperation(ns, path, op string) bool {
+func (a *ACL) AllowVariableOperation(ns, path, op string, claim *ACLClaim) bool {
 	if a.management {
 		return true
 	}
 
 	// Check for a matching capability set
-	capabilities, ok := a.matchingVariablesCapabilitySet(ns, path)
+	capabilities, ok := a.matchingVariablesCapabilitySet(ns, path, claim)
 	if !ok {
 		return false
 	}
 
 	return capabilities.Check(op)
+}
+
+type ACLClaim struct {
+	Namespace string
+	Job       string
+	Group     string
+	Task      string
 }
 
 // AllowVariableSearch is a very loose check that the token has *any* access to
@@ -460,16 +467,30 @@ func (a *ACL) matchingHostVolumeCapabilitySet(name string) (capabilitySet, bool)
 	return a.findClosestMatchingGlob(a.wildcardHostVolumes, name)
 }
 
-// matchingVariablesCapabilitySet looks for a capabilitySet that matches the namespace and path,
-// if no concrete definitions are found, then we return the closest matching
-// glob.
+var workloadVariablesCapabilitySet = capabilitySet{"read": struct{}{}, "list": struct{}{}}
+
+// matchingVariablesCapabilitySet looks for a capabilitySet in the following order:
+// - matching the namespace and path from a policy
+// - automatic access based on the claim
+// - closest matching glob
+//
 // The closest matching glob is the one that has the smallest character
 // difference between the namespace and the glob.
-func (a *ACL) matchingVariablesCapabilitySet(ns, path string) (capabilitySet, bool) {
+func (a *ACL) matchingVariablesCapabilitySet(ns, path string, claim *ACLClaim) (capabilitySet, bool) {
 	// Check for a concrete matching capability set
 	raw, ok := a.variables.Get([]byte(ns + "\x00" + path))
 	if ok {
 		return raw.(capabilitySet), true
+	}
+	if claim != nil && ns == claim.Namespace {
+		switch path {
+		case "nomad/jobs",
+			fmt.Sprintf("nomad/jobs/%s", claim.Job),
+			fmt.Sprintf("nomad/jobs/%s/%s", claim.Job, claim.Group),
+			fmt.Sprintf("nomad/jobs/%s/%s/%s", claim.Job, claim.Group, claim.Task):
+			return workloadVariablesCapabilitySet, true
+		default:
+		}
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
