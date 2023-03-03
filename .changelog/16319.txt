@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fix `Allocations().Stop()` method to properly set the request `LastIndex` and `RequestTime` in the response
+```
