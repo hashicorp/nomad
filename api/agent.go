@@ -113,7 +113,7 @@ func (a *Agent) Region() (string, error) {
 
 // Join is used to instruct a server node to join another server
 // via the gossip protocol. Multiple addresses may be specified.
-// We attempt to join all of the hosts in the list. Returns the
+// We attempt to join all the hosts in the list. Returns the
 // number of nodes successfully joined and any error. If one or
 // more nodes have a successful result, no error is returned.
 func (a *Agent) Join(addrs ...string) (int, error) {

@@ -36,7 +36,7 @@ func TestJobAllocsCommand_Fails(t *testing.T) {
 	code = cmd.Run([]string{"-address=nope", "foo"})
 	outerr = ui.ErrorWriter.String()
 	require.Equalf(t, 1, code, "expected exit code 1, got: %d", code)
-	require.Containsf(t, outerr, "Error listing jobs", "expected failed query error, got: %s", outerr)
+	require.Containsf(t, outerr, "Error querying job prefix", "expected failed query error, got: %s", outerr)
 
 	ui.ErrorWriter.Reset()
 
@@ -44,7 +44,7 @@ func TestJobAllocsCommand_Fails(t *testing.T) {
 	code = cmd.Run([]string{"-address=" + url, "foo"})
 	outerr = ui.ErrorWriter.String()
 	require.Equalf(t, 1, code, "expected exit 1, got: %d", code)
-	require.Containsf(t, outerr, "No job(s) with prefix or id \"foo\" found", "expected no job found, got: %s", outerr)
+	require.Containsf(t, outerr, "No job(s) with prefix or ID \"foo\" found", "expected no job found, got: %s", outerr)
 
 	ui.ErrorWriter.Reset()
 }

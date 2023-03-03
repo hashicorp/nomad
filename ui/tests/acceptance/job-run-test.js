@@ -352,7 +352,7 @@ module('Acceptance | job run', function (hooks) {
         'We do not navigate away from the page if an error is returned by the API.'
       );
       assert
-        .dom('.flash-message.alert-error')
+        .dom('.flash-message.alert-critical')
         .exists('A toast error message pops up.');
     });
 

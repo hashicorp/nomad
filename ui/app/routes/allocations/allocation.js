@@ -8,7 +8,7 @@ import {
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
 export default class AllocationRoute extends Route.extend(WithWatchers) {
-  @service flashMessages;
+  @service notifications;
   @service router;
   @service store;
 
@@ -51,11 +51,10 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     } catch (e) {
       const [allocId, transition] = arguments;
       if (e?.errors[0]?.detail === 'alloc not found' && !!transition.from) {
-        this.flashMessages.add({
+        this.notifications.add({
           title: `Error:  Not Found`,
           message: `Allocation of id:  ${allocId} was not found.`,
-          type: 'error',
-          destroyOnClick: false,
+          color: 'critical',
           sticky: true,
         });
         this.goBackToReferrer(transition.from.name);

@@ -38,7 +38,7 @@ func TestInspectCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
 		t.Fatalf("expect exit 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No job(s) with prefix or id") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No job(s) with prefix or ID") {
 		t.Fatalf("expect not found error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()
@@ -47,7 +47,7 @@ func TestInspectCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope", "nope"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error inspecting job") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying job prefix") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

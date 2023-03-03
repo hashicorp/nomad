@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Sort output by Node name of the command `nomad operator raft list-peers`
+```

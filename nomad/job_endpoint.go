@@ -365,9 +365,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	if existingJob == nil || specChanged {
 
-		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
-		// 0.12.1 introduced atomic eval job registration
-		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
+		if eval != nil {
 			args.Eval = eval
 			submittedEval = true
 		}
@@ -376,13 +374,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		args.Deployment = j.multiregionCreateDeployment(job, eval)
 
 		// Commit this update via Raft
-		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
-		if err, ok := fsmErr.(error); ok && err != nil {
-			j.logger.Error("registering job failed", "error", err, "fsm", true)
-			return err
-		}
+		_, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
 		if err != nil {
-			j.logger.Error("registering job failed", "error", err, "raft", true)
+			j.logger.Error("registering job failed", "error", err)
 			return err
 		}
 
@@ -850,6 +844,9 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	if err != nil {
 		return err
 	}
+	if job == nil {
+		return nil
+	}
 
 	var eval *structs.Evaluation
 
@@ -858,7 +855,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	now := time.Now().UnixNano()
 
 	// If the job is periodic or parameterized, we don't create an eval.
-	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
+	if !(job.IsPeriodic() || job.IsParameterized()) {
 
 		// The evaluation priority is determined by several factors. It
 		// defaults to the job default priority and is overridden by the
@@ -867,7 +864,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		// If the user supplied an eval priority override, we subsequently
 		// use this.
 		priority := structs.JobDefaultPriority
-		if job != nil {
+		if job.Priority > 0 {
 			priority = job.Priority
 		}
 		if args.EvalPriority > 0 {
@@ -888,10 +885,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		reply.EvalID = eval.ID
 	}
 
-	// COMPAT(1.1.0): remove conditional and always set args.Eval
-	if ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
-		args.Eval = eval
-	}
+	args.Eval = eval
 
 	// Commit the job update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
@@ -904,27 +898,6 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.JobModifyIndex = index
 	reply.EvalCreateIndex = index
 	reply.Index = index
-
-	// COMPAT(1.1.0) - Remove entire conditional block
-	// 0.12.1 introduced atomic job deregistration eval
-	if eval != nil && args.Eval == nil {
-		// Create a new evaluation
-		eval.JobModifyIndex = index
-		update := &structs.EvalUpdateRequest{
-			Evals:        []*structs.Evaluation{eval},
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
-
-		// Commit this evaluation via Raft
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			j.logger.Error("eval create failed", "error", err, "method", "deregister")
-			return err
-		}
-
-		reply.EvalCreateIndex = evalIndex
-		reply.Index = evalIndex
-	}
 
 	err = j.multiregionStop(job, args, reply)
 	if err != nil {
@@ -2027,13 +2000,9 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	}
 
 	// Commit this update via Raft
-	fsmErr, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
-	if err, ok := fsmErr.(error); ok && err != nil {
-		j.logger.Error("dispatched job register failed", "error", err, "fsm", true)
-		return err
-	}
+	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
 	if err != nil {
-		j.logger.Error("dispatched job register failed", "error", err, "raft", true)
+		j.logger.Error("dispatched job register failed", "error")
 		return err
 	}
 

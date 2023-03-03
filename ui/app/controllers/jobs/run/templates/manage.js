@@ -4,7 +4,7 @@ import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 
 export default class JobsRunTemplatesManageController extends Controller {
-  @service flashMessages;
+  @service notifications;
   @service router;
 
   get templates() {
@@ -27,19 +27,16 @@ export default class JobsRunTemplatesManageController extends Controller {
   @task(function* (model) {
     try {
       yield model.destroyRecord();
-      this.flashMessages.add({
+      this.notifications.add({
         title: 'Job template deleted',
         message: `${model.path} successfully deleted`,
-        type: 'success',
-        destroyOnClick: false,
-        timeout: 5000,
+        color: 'success',
       });
     } catch (err) {
-      this.flashMessages.add({
+      this.notifications.add({
         title: `Job template could not be deleted.`,
         message: err,
-        type: 'error',
-        destroyOnClick: false,
+        color: 'critical',
         sticky: true,
       });
     }

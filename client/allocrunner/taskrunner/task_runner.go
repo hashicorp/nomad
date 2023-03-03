@@ -985,10 +985,16 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 	// This allows for things like service de-registration to run
 	// before waiting to kill task
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
-		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
-
-		ev := structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
-			SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
+		var ev *structs.TaskEvent
+		if tr.alloc.DesiredTransition.ShouldIgnoreShutdownDelay() {
+			tr.logger.Debug("skipping shutdown_delay", "shutdown_delay", delay)
+			ev = structs.NewTaskEvent(structs.TaskSkippingShutdownDelay).
+				SetDisplayMessage(fmt.Sprintf("Skipping shutdown_delay of %s before killing the task.", delay))
+		} else {
+			tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+			ev = structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
+				SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
+		}
 		tr.UpdateState(structs.TaskStatePending, ev)
 
 		select {

@@ -1107,7 +1107,17 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	}
 
 	err := <-killed
-	require.NoError(t, err, "killing task returned unexpected error")
+	must.NoError(t, err)
+
+	// Check that we only emit the expected events.
+	hasEvent := false
+	for _, ev := range tr.state.Events {
+		must.NotEq(t, structs.TaskWaitingShuttingDownDelay, ev.Type)
+		if ev.Type == structs.TaskSkippingShutdownDelay {
+			hasEvent = true
+		}
+	}
+	must.True(t, hasEvent)
 }
 
 // TestTaskRunner_Dispatch_Payload asserts that a dispatch job runs and the
@@ -1720,6 +1730,7 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 // TestTaskRunner_Download_RawExec asserts that downloaded artifacts may be
 // executed in a driver without filesystem isolation.
 func TestTaskRunner_Download_RawExec(t *testing.T) {
+	ci.SkipTestWithoutRootAccess(t)
 	ci.Parallel(t)
 
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))

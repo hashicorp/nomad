@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -112,31 +113,19 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 	}
 
 	// Check if the job exists
-	jobID := args[0]
-	jobs, _, err := client.Jobs().PrefixList(jobID)
+	jobIDPrefix := strings.TrimSpace(args[0])
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
+		return j.Periodic
+	})
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error forcing periodic job: %s", err))
-		return 1
-	}
-	// filter non-periodic jobs
-	periodicJobs := make([]*api.JobListStub, 0, len(jobs))
-	for _, j := range jobs {
-		if j.Periodic {
-			periodicJobs = append(periodicJobs, j)
+		var noPrefixErr *NoJobWithPrefixError
+		if errors.As(err, &noPrefixErr) {
+			err = fmt.Errorf("No periodic job(s) with prefix or ID %q found", jobIDPrefix)
 		}
-	}
-	if len(periodicJobs) == 0 {
-		c.Ui.Error(fmt.Sprintf("No periodic job(s) with prefix or id %q found", jobID))
+		c.Ui.Error(err.Error())
 		return 1
 	}
-	// preriodicJobs is sorted by job ID
-	// so if there is a job whose ID is equal to jobID then it must be the first item
-	if len(periodicJobs) > 1 && periodicJobs[0].ID != jobID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple periodic jobs\n\n%s", createStatusListOutput(periodicJobs, c.allNamespaces())))
-		return 1
-	}
-	jobID = periodicJobs[0].ID
-	q := &api.WriteOptions{Namespace: periodicJobs[0].JobSummary.Namespace}
+	q := &api.WriteOptions{Namespace: namespace}
 
 	// force the evaluation
 	evalID, _, err := client.Jobs().PeriodicForce(jobID, q)
