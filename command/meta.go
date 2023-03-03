@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper/pointer"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
@@ -224,6 +225,77 @@ func (m *Meta) FormatWarnings(header string, warnings string) string {
 			header,
 			warnings,
 		))
+}
+
+// JobByPrefixFilterFunc is a function used to filter jobs when performing a
+// prefix match. Only jobs that return true are included in the prefix match.
+type JobByPrefixFilterFunc func(*api.JobListStub) bool
+
+// NoJobWithPrefixError is the error returned when the job prefix doesn't
+// return any matches.
+type NoJobWithPrefixError struct {
+	Prefix string
+}
+
+func (e *NoJobWithPrefixError) Error() string {
+	return fmt.Sprintf("No job(s) with prefix or ID %q found", e.Prefix)
+}
+
+// JobByPrefix returns the job that best matches the given prefix. Returns an
+// error if there are no matches or if there are more than one exact match
+// across namespaces.
+func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (*api.Job, error) {
+	jobID, namespace, err := m.JobIDByPrefix(client, prefix, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	q := &api.QueryOptions{Namespace: namespace}
+	job, _, err := client.Jobs().Info(jobID, q)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying job %q: %s", jobID, err)
+	}
+	job.Namespace = pointer.Of(namespace)
+
+	return job, nil
+}
+
+// JobIDByPrefix returns the job that best matches the given prefix and its
+// namespace. Returns an error if there are no matches or if there are more
+// than one exact match across namespaces.
+func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (string, string, error) {
+	// Search job by prefix. Return an error if there is not an exact match.
+	jobs, _, err := client.Jobs().PrefixList(prefix)
+	if err != nil {
+		return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
+	}
+
+	if filter != nil {
+		var filtered []*api.JobListStub
+		for _, j := range jobs {
+			if filter(j) {
+				filtered = append(filtered, j)
+			}
+		}
+		jobs = filtered
+	}
+
+	if len(jobs) == 0 {
+		return "", "", &NoJobWithPrefixError{Prefix: prefix}
+	}
+	if len(jobs) > 1 {
+		exactMatch := prefix == jobs[0].ID
+		matchInMultipleNamespaces := m.allNamespaces() && jobs[0].ID == jobs[1].ID
+		if !exactMatch || matchInMultipleNamespaces {
+			return "", "", fmt.Errorf(
+				"Prefix %q matched multiple jobs\n\n%s",
+				prefix,
+				createStatusListOutput(jobs, m.allNamespaces()),
+			)
+		}
+	}
+
+	return jobs[0].ID, jobs[0].JobSummary.Namespace, nil
 }
 
 type usageOptsFlags uint8

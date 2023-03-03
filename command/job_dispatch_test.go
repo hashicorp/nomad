@@ -43,7 +43,7 @@ func TestJobDispatchCommand_Fails(t *testing.T) {
 	if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
 		t.Fatalf("expected exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Failed to dispatch") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying job prefix") {
 		t.Fatalf("expected failed query error, got: %s", out)
 	}
 	ui.ErrorWriter.Reset()

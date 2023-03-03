@@ -114,7 +114,7 @@ func TestStopCommand_Fails(t *testing.T) {
 	must.One(t, code)
 
 	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, "No job(s) with prefix or id")
+	must.StrContains(t, out, "No job(s) with prefix or ID")
 
 	ui.ErrorWriter.Reset()
 
@@ -123,7 +123,7 @@ func TestStopCommand_Fails(t *testing.T) {
 	must.One(t, code)
 
 	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, "Error finding jobs with prefix: nope")
+	must.StrContains(t, out, "Error querying job prefix")
 }
 
 func TestStopCommand_AutocompleteArgs(t *testing.T) {

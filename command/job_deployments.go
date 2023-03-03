@@ -110,27 +110,15 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		return 1
 	}
 
-	jobID := strings.TrimSpace(args[0])
-
 	// Check if the job exists
-	jobs, _, err := client.Jobs().PrefixList(jobID)
+	jobIDPrefix := strings.TrimSpace(args[0])
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error listing jobs: %s", err))
+		c.Ui.Error(err.Error())
 		return 1
-	}
-	if len(jobs) == 0 {
-		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
-		return 1
-	}
-	if len(jobs) > 1 {
-		if (jobID != jobs[0].ID) || (c.allNamespaces() && jobs[0].ID == jobs[1].ID) {
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
-			return 1
-		}
 	}
 
-	jobID = jobs[0].ID
-	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
+	q := &api.QueryOptions{Namespace: namespace}
 
 	// Truncate the id unless full length is requested
 	length := shortId

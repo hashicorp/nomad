@@ -138,7 +138,6 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
-	job := args[0]
 	var payload []byte
 	var readErr error
 
@@ -175,11 +174,22 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Check if the job exists
+	jobIDPrefix := strings.TrimSpace(args[0])
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
+		return j.ParameterizedJob
+	})
+	if err != nil {
+		c.Ui.Error(err.Error())
+		return 1
+	}
+
 	// Dispatch the job
 	w := &api.WriteOptions{
 		IdempotencyToken: idempotencyToken,
+		Namespace:        namespace,
 	}
-	resp, _, err := client.Jobs().Dispatch(job, metaMap, payload, idPrefixTemplate, w)
+	resp, _, err := client.Jobs().Dispatch(jobID, metaMap, payload, idPrefixTemplate, w)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1
