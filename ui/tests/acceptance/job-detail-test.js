@@ -36,7 +36,7 @@ moduleForJobWithClientStatus(
     server.create('job', {
       id: 'system-wildcard-dc',
       status: 'running',
-      datacenters: ['*'],
+      datacenters: ['dc*'],
       type: 'system',
       createAllocations: false,
     })

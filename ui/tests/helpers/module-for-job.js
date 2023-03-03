@@ -239,6 +239,16 @@ export function moduleForJobWithClientStatus(
         datacenter: 'dc1',
         status: 'ready',
       });
+
+      clients.push(
+        server.create('node', { datacenter: 'dc2', status: 'ready' })
+      );
+      clients.push(
+        server.create('node', { datacenter: 'dc3', status: 'ready' })
+      );
+      clients.push(
+        server.create('node', { datacenter: 'canada-west-1', status: 'ready' })
+      );
       job = jobFactory();
       clients.forEach((c) => {
         server.create('allocation', { jobId: job.id, nodeId: c.id });
@@ -298,6 +308,7 @@ export function moduleForJobWithClientStatus(
       });
 
       test('clicking in a slice takes you to a pre-filtered clients table', async function (assert) {
+        console.log('ahem', server.db.nodes);
         const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
         const status = slice.label;
         await slice.click();
