@@ -213,7 +213,7 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 			}
 
 			cmd := &JobRestartCommand{Meta: meta, ui: ui}
-			err, code := cmd.parseAndValidate(tc.args)
+			code, err := cmd.parseAndValidate(tc.args)
 
 			if tc.expectedErr != "" {
 				must.NonZero(t, code)

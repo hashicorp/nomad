@@ -205,7 +205,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	c.ui = &cli.ConcurrentUi{Ui: c.Ui}
 
 	// Parse and validate command line arguments.
-	err, code := c.parseAndValidate(args)
+	code, err := c.parseAndValidate(args)
 	if err != nil {
 		c.ui.Error(err.Error())
 		c.ui.Error(commandErrorText(c))
@@ -425,7 +425,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 //
 // This function mutates the command and is not thread-safe so it must be
 // called only once and early in the command lifecycle.
-func (c *JobRestartCommand) parseAndValidate(args []string) (error, int) {
+func (c *JobRestartCommand) parseAndValidate(args []string) (int, error) {
 	var batchSizeStr string
 	var batchWaitStr string
 	var groups []string
@@ -452,7 +452,7 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (error, int) {
 	err := flags.Parse(args)
 	if err != nil {
 		// Let the flags library handle and print the error message.
-		return nil, 1
+		return 1, nil
 	}
 
 	// Truncate IDs unless full length is requested.
@@ -464,62 +464,62 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (error, int) {
 	// Check that we got exactly one job.
 	args = flags.Args()
 	if len(args) != 1 {
-		return fmt.Errorf("This command takes one argument: <job>"), 1
+		return 1, fmt.Errorf("This command takes one argument: <job>")
 	}
 	c.jobID = strings.TrimSpace(args[0])
 
 	// Parse and validate -batch-size.
 	matches := jobRestartBatchSizeValueRegex.FindStringSubmatch(batchSizeStr)
 	if len(matches) != 2 {
-		return fmt.Errorf(
+		return 1, fmt.Errorf(
 			"Invalid -batch-size value %q: batch size must be an integer or a percentage",
 			batchSizeStr,
-		), 1
+		)
 	}
 
 	c.batchSizePercent = strings.HasSuffix(batchSizeStr, "%")
 	c.batchSize, err = strconv.Atoi(matches[1])
 	if err != nil {
-		return fmt.Errorf("Invalid -batch-size value %q: %v", batchSizeStr, err), 1
+		return 1, fmt.Errorf("Invalid -batch-size value %q: %v", batchSizeStr, err)
 	}
 	if c.batchSize == 0 {
-		return fmt.Errorf(
+		return 1, fmt.Errorf(
 			"Invalid -batch-size value %q: number value must be greater than zero",
 			batchSizeStr,
-		), 1
+		)
 	}
 
 	// Parse and validate -batch-wait.
 	if strings.ToLower(batchWaitStr) == jobRestartWaitAsk {
 		if !isTty() {
-			return fmt.Errorf(
+			return 1, fmt.Errorf(
 				"Invalid -batch-wait value %[1]q: %[1]q cannot be used when terminal is not interactive",
 				jobRestartWaitAsk,
-			), 1
+			)
 		}
 		c.batchWaitAsk = true
 	} else {
 		c.batchWait, err = time.ParseDuration(batchWaitStr)
 		if err != nil {
-			return fmt.Errorf("Invalid -batch-wait value %q: %v", batchWaitStr, err), 1
+			return 1, fmt.Errorf("Invalid -batch-wait value %q: %v", batchWaitStr, err)
 		}
 	}
 
 	// -all-tasks conflicts with -task and <task>.
 	if c.allTasks && len(tasks) != 0 {
-		return fmt.Errorf("The -all-tasks option cannot be used with -task"), 1
+		return 1, fmt.Errorf("The -all-tasks option cannot be used with -task")
 	}
 
 	// -reschedule conflicts with -task and <task>.
 	if c.reschedule && len(tasks) != 0 {
-		return fmt.Errorf("The -reschedule option cannot be used with -task"), 1
+		return 1, fmt.Errorf("The -reschedule option cannot be used with -task")
 	}
 
 	// Dedup tasks and groups.
 	c.groups = set.From(groups)
 	c.tasks = set.From(tasks)
 
-	return nil, 0
+	return 0, nil
 }
 
 // validateGroupsAndTasks validates that the combination of groups and tasks
