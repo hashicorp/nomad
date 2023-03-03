@@ -1998,8 +1998,8 @@ func TestJobEndpoint_Register_SemverConstraint(t *testing.T) {
 	})
 }
 
-// TestJobEndpoint_Register_EvalCreation_Modern asserts that job register creates an eval
-// atomically with the registration
+// TestJobEndpoint_Register_EvalCreation asserts that job register creates an
+// eval atomically with the registration
 func TestJobEndpoint_Register_EvalCreation_Modern(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2091,150 +2091,6 @@ func TestJobEndpoint_Register_EvalCreation_Modern(t *testing.T) {
 		require.Equal(t, resp3.EvalCreateIndex, eval.CreateIndex)
 
 		require.Nil(t, evalUpdateFromRaft(t, s1, eval.ID))
-	})
-
-	// Registering a parameterized job shouldn't create an eval
-	t.Run("periodic jobs shouldn't create an eval", func(t *testing.T) {
-		job := mock.PeriodicJob()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		require.NoError(t, err)
-		require.NotZero(t, resp.Index)
-		require.Empty(t, resp.EvalID)
-
-		// Check for the job in the FSM
-		state := s1.fsm.State()
-		out, err := state.JobByID(nil, job.Namespace, job.ID)
-		require.NoError(t, err)
-		require.NotNil(t, out)
-		require.Equal(t, resp.JobModifyIndex, out.CreateIndex)
-	})
-}
-
-// TestJobEndpoint_Register_EvalCreation_Legacy asserts that job register creates an eval
-// atomically with the registration, but handle legacy clients by adding a new eval update
-func TestJobEndpoint_Register_EvalCreation_Legacy(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
-	defer cleanupS1()
-
-	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-
-		// simulate presense of a server that doesn't handle
-		// new registration eval
-		c.Build = "0.12.0"
-	})
-	defer cleanupS2()
-
-	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
-	testutil.WaitForLeader(t, s2.RPC)
-
-	// keep s1 as the leader
-	if leader, _ := s1.getLeader(); !leader {
-		s1, s2 = s2, s1
-	}
-
-	codec := rpcClient(t, s1)
-
-	// Create the register request
-	t.Run("job registration always create evals", func(t *testing.T) {
-		job := mock.Job()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-
-		//// initial registration should create the job and a new eval
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		require.NoError(t, err)
-		require.NotZero(t, resp.Index)
-		require.NotEmpty(t, resp.EvalID)
-
-		// Check for the job in the FSM
-		state := s1.fsm.State()
-		out, err := state.JobByID(nil, job.Namespace, job.ID)
-		require.NoError(t, err)
-		require.NotNil(t, out)
-		require.Equal(t, resp.JobModifyIndex, out.CreateIndex)
-
-		// Lookup the evaluation
-		eval, err := state.EvalByID(nil, resp.EvalID)
-		require.NoError(t, err)
-		require.NotNil(t, eval)
-		require.Equal(t, resp.EvalCreateIndex, eval.CreateIndex)
-
-		raftEval := evalUpdateFromRaft(t, s1, eval.ID)
-		require.Equal(t, eval, raftEval)
-
-		//// re-registration should create a new eval, but leave the job untouched
-		var resp2 structs.JobRegisterResponse
-		err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp2)
-		require.NoError(t, err)
-		require.NotZero(t, resp2.Index)
-		require.NotEmpty(t, resp2.EvalID)
-		require.NotEqual(t, resp.EvalID, resp2.EvalID)
-
-		// Check for the job in the FSM
-		state = s1.fsm.State()
-		out, err = state.JobByID(nil, job.Namespace, job.ID)
-		require.NoError(t, err)
-		require.NotNil(t, out)
-		require.Equal(t, resp2.JobModifyIndex, out.CreateIndex)
-		require.Equal(t, out.CreateIndex, out.JobModifyIndex)
-
-		// Lookup the evaluation
-		eval, err = state.EvalByID(nil, resp2.EvalID)
-		require.NoError(t, err)
-		require.NotNil(t, eval)
-		require.Equal(t, resp2.EvalCreateIndex, eval.CreateIndex)
-
-		// this raft eval is the one found above
-		raftEval = evalUpdateFromRaft(t, s1, eval.ID)
-		require.Equal(t, eval, raftEval)
-
-		//// an update should update the job and create a new eval
-		req.Job.TaskGroups[0].Name += "a"
-		var resp3 structs.JobRegisterResponse
-		err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp3)
-		require.NoError(t, err)
-		require.NotZero(t, resp3.Index)
-		require.NotEmpty(t, resp3.EvalID)
-		require.NotEqual(t, resp.EvalID, resp3.EvalID)
-
-		// Check for the job in the FSM
-		state = s1.fsm.State()
-		out, err = state.JobByID(nil, job.Namespace, job.ID)
-		require.NoError(t, err)
-		require.NotNil(t, out)
-		require.Equal(t, resp3.JobModifyIndex, out.JobModifyIndex)
-
-		// Lookup the evaluation
-		eval, err = state.EvalByID(nil, resp3.EvalID)
-		require.NoError(t, err)
-		require.NotNil(t, eval)
-		require.Equal(t, resp3.EvalCreateIndex, eval.CreateIndex)
-
-		raftEval = evalUpdateFromRaft(t, s1, eval.ID)
-		require.Equal(t, eval, raftEval)
 	})
 
 	// Registering a parameterized job shouldn't create an eval
@@ -3786,9 +3642,9 @@ func TestJobEndpoint_Deregister_ParameterizedJob(t *testing.T) {
 	}
 }
 
-// TestJobEndpoint_Deregister_EvalCreation_Modern asserts that job deregister creates an eval
-// atomically with the registration
-func TestJobEndpoint_Deregister_EvalCreation_Modern(t *testing.T) {
+// TestJobEndpoint_Deregister_EvalCreation asserts that job deregister creates
+// an eval atomically with the registration
+func TestJobEndpoint_Deregister_EvalCreation(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -3834,105 +3690,6 @@ func TestJobEndpoint_Deregister_EvalCreation_Modern(t *testing.T) {
 
 		require.Nil(t, evalUpdateFromRaft(t, s1, eval.ID))
 
-	})
-
-	// Registering a parameterized job shouldn't create an eval
-	t.Run("periodic jobs shouldn't create an eval", func(t *testing.T) {
-		job := mock.PeriodicJob()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		require.NoError(t, err)
-		require.NotZero(t, resp.Index)
-
-		dereg := &structs.JobDeregisterRequest{
-			JobID: job.ID,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-		var resp2 structs.JobDeregisterResponse
-		err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2)
-		require.NoError(t, err)
-		require.Empty(t, resp2.EvalID)
-	})
-}
-
-// TestJobEndpoint_Deregister_EvalCreation_Legacy asserts that job deregister
-// creates an eval atomically with the registration, but handle legacy clients
-// by adding a new eval update
-func TestJobEndpoint_Deregister_EvalCreation_Legacy(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
-	defer cleanupS1()
-
-	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-
-		// simulate presense of a server that doesn't handle
-		// new registration eval
-		c.Build = "0.12.0"
-	})
-	defer cleanupS2()
-
-	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
-	testutil.WaitForLeader(t, s2.RPC)
-
-	// keep s1 as the leader
-	if leader, _ := s1.getLeader(); !leader {
-		s1, s2 = s2, s1
-	}
-
-	codec := rpcClient(t, s1)
-
-	// Create the register request
-	t.Run("job registration always create evals", func(t *testing.T) {
-		job := mock.Job()
-		req := &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-		var resp structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		require.NoError(t, err)
-
-		dereg := &structs.JobDeregisterRequest{
-			JobID: job.ID,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-		var resp2 structs.JobDeregisterResponse
-		err = msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp2)
-		require.NoError(t, err)
-		require.NotEmpty(t, resp2.EvalID)
-
-		state := s1.fsm.State()
-		eval, err := state.EvalByID(nil, resp2.EvalID)
-		require.Nil(t, err)
-		require.NotNil(t, eval)
-		require.EqualValues(t, resp2.EvalCreateIndex, eval.CreateIndex)
-
-		raftEval := evalUpdateFromRaft(t, s1, eval.ID)
-		require.Equal(t, eval, raftEval)
 	})
 
 	// Registering a parameterized job shouldn't create an eval
