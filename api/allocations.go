@@ -203,8 +203,10 @@ func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*AllocStopRespon
 
 	var resp AllocStopResponse
 	wm, err := a.client.put("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, w)
-	resp.LastIndex = wm.LastIndex
-	resp.RequestTime = wm.RequestTime
+	if wm != nil {
+		resp.LastIndex = wm.LastIndex
+		resp.RequestTime = wm.RequestTime
+	}
 
 	return &resp, err
 }
