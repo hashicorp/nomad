@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestAgent_Self(t *testing.T) {
@@ -129,12 +131,19 @@ func TestAgent_ForceLeave(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	membersAfter, err := a.MembersOpts(&QueryOptions{})
-
-	for _, node := range membersAfter.Members {
-		if node.Name == membersBefore.Members[1].Name {
-			must.Eq(t, node.Status, "leaving")
+	f := func() error {
+		for _, node := range membersAfter.Members {
+			if node.Name == membersBefore.Members[1].Name && node.Status != "leaving" {
+				return fmt.Errorf("expected node status to be leaving but got %s", node.Status)
+			}
 		}
+		return nil
 	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(10*time.Second),
+		wait.Gap(1*time.Second)),
+	)
 }
 
 func (a *AgentMember) String() string {
