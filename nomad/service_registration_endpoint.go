@@ -217,7 +217,8 @@ func (s *ServiceRegistration) List(
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	if args.GetIdentity().Claims == nil &&
+		!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -381,7 +382,8 @@ func (s *ServiceRegistration) GetService(
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	if args.GetIdentity().Claims == nil &&
+		!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
