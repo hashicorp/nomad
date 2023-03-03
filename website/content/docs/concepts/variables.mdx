@@ -130,7 +130,7 @@ namespace "default" {
 ```
 
 You can provide access to additional variables by creating policies associated
-with the task's [workload identity]. For example, to give the task above access
+with the task's [workload identity][]. For example, to give the task above access
 to all variables in the "shared" namespace, you can create the following policy
 file:
 
@@ -152,6 +152,37 @@ nomad acl policy apply \
    redis-policy ./policy.hcl
 ```
 
+Priority of policies and automatic task access to variables is similar to the
+[ACL policy namespace rules][]. The most specific rule for a path applies, so a
+rule for an exact path in a workload-attached policy overrides the automatic
+task access to variables, but a wildcard rule does not.
+
+As an example, consider the job `example` in the namespace `prod`, with a group
+`web` and a task named `httpd` with the following policy applied:
+
+```hcl
+namespace "*" {
+  variables {
+    path "nomad/jobs" {
+      capabilities = ["list"]
+    }
+
+    path "nomad/jobs/*" {
+      capabilities = ["deny"]
+    }
+  }
+}
+```
+
+The task will have read/list access to its own variables `nomad/jobs/example`,
+`nomad/jobs/example/web`, and `nomad/jobs/example/web/httpd` in the namespace
+`prod`, because those are more specific than the wildcard rule that denies
+access. The task will have list access to `nomad/jobs` in any namespace, because
+that path is more specific than the automatic task access to the `nomad/jobs`
+variable. And the task will not have access to `nomad/jobs/example` (or below)
+in namespaces other than `prod`, because the automatic access rule does not
+apply.
+
 See [Workload Associated ACL Policies] for more details.
 
 [HashiCorp Consul]: https://www.consul.io/
@@ -161,3 +192,4 @@ See [Workload Associated ACL Policies] for more details.
 [`template`]: /nomad/docs/job-specification/template
 [workload identity]: /nomad/docs/concepts/workload-identity
 [Workload Associated ACL Policies]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies
+[ACL policy namespace rules]: /nomad/docs/other-specifications/acl-policy#namespace-rules
