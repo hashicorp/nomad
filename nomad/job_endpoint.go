@@ -365,9 +365,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	if existingJob == nil || specChanged {
 
-		// COMPAT(1.1.0): Remove the ServerMeetMinimumVersion check to always set args.Eval
-		// 0.12.1 introduced atomic eval job registration
-		if eval != nil && ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
+		if eval != nil {
 			args.Eval = eval
 			submittedEval = true
 		}
@@ -887,10 +885,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 		reply.EvalID = eval.ID
 	}
 
-	// COMPAT(1.1.0): remove conditional and always set args.Eval
-	if ServersMeetMinimumVersion(j.srv.Members(), j.srv.Region(), minJobRegisterAtomicEvalVersion, false) {
-		args.Eval = eval
-	}
+	args.Eval = eval
 
 	// Commit the job update via Raft
 	_, index, err := j.srv.raftApply(structs.JobDeregisterRequestType, args)
@@ -903,27 +898,6 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	reply.JobModifyIndex = index
 	reply.EvalCreateIndex = index
 	reply.Index = index
-
-	// COMPAT(1.1.0) - Remove entire conditional block
-	// 0.12.1 introduced atomic job deregistration eval
-	if eval != nil && args.Eval == nil {
-		// Create a new evaluation
-		eval.JobModifyIndex = index
-		update := &structs.EvalUpdateRequest{
-			Evals:        []*structs.Evaluation{eval},
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
-
-		// Commit this evaluation via Raft
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
-		if err != nil {
-			j.logger.Error("eval create failed", "error", err, "method", "deregister")
-			return err
-		}
-
-		reply.EvalCreateIndex = evalIndex
-		reply.Index = evalIndex
-	}
 
 	err = j.multiregionStop(job, args, reply)
 	if err != nil {
