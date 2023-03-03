@@ -130,20 +130,25 @@ func TestAgent_ForceLeave(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 
-	membersAfter, err := a.MembersOpts(&QueryOptions{})
 	f := func() error {
+		membersAfter, err := a.MembersOpts(&QueryOptions{})
+		if err != nil {
+			return err
+		}
 		for _, node := range membersAfter.Members {
-			if node.Name == membersBefore.Members[1].Name && node.Status != "leaving" {
-				return fmt.Errorf("expected node status to be leaving but got %s", node.Status)
+			if node.Name == membersBefore.Members[1].Name {
+				if node.Status != "leaving" {
+					return fmt.Errorf("node did not leave")
+				}
 			}
 		}
 		return nil
 	}
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(f),
-		wait.Timeout(10*time.Second),
-		wait.Gap(1*time.Second)),
-	)
+		wait.Timeout(3*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
 }
 
 func (a *AgentMember) String() string {
