@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -882,11 +882,27 @@ func TestServiceRegistration_List(t *testing.T) {
 				// Generate an allocation with a signed identity
 				allocs := []*structs.Allocation{mock.Alloc()}
 				job := allocs[0].Job
+				job.Namespace = "platform"
+				allocs[0].Namespace = "platform"
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 				s.signAllocIdentities(job, allocs)
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
+
+				// Associate an unrelated policy with the identity's job to
+				// ensure it doesn't conflict.
+				policy := &structs.ACLPolicy{
+					Name:  "policy-for-identity",
+					Rules: mock.NodePolicy("read"),
+					JobACL: &structs.JobACL{
+						Namespace: "platform",
+						JobID:     job.ID,
+					},
+				}
+				policy.SetHash()
+				must.NoError(t, s.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 16,
+					[]*structs.ACLPolicy{policy}))
 
 				// Generate and upsert some service registrations.
 				services := mock.ServiceRegistrations()
