@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
 
@@ -269,6 +270,37 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		})
 	}
 
+}
+
+func TestAllocations_Stop(t *testing.T) {
+	testutil.RequireRoot(t)
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	a := c.Allocations()
+
+	// wait for node
+	_ = oneNodeFromNodeList(t, c.Nodes())
+
+	// Create a job and register it
+	job := testJob()
+	_, wm, err := c.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	stubs, qm, err := a.List(&QueryOptions{WaitIndex: wm.LastIndex})
+	must.NoError(t, err)
+	must.SliceLen(t, 1, stubs)
+
+	alloc, qm, err := a.Info(stubs[0].ID, &QueryOptions{WaitIndex: qm.LastIndex})
+	must.NoError(t, err)
+
+	resp, err := a.Stop(alloc, &QueryOptions{WaitIndex: qm.LastIndex})
+	must.NoError(t, err)
+	test.UUIDv4(t, resp.EvalID)
+	test.NonZero(t, resp.LastIndex)
 }
 
 // TestAllocations_ExecErrors ensures errors are properly formatted
