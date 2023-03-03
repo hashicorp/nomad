@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fixed an issue where system/sysbatch jobs with wildcard datacenters (like ["dc*"]) were not showing client status charts
+```

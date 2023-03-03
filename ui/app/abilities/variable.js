@@ -2,7 +2,7 @@
 import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';
 import AbstractAbility from './abstract';
-import { default as doesMatchPattern } from 'nomad-ui/utils/match-glob';
+import doesMatchPattern from 'nomad-ui/utils/match-glob';
 
 const WILDCARD_GLOB = '*';
 const WILDCARD_PATTERN = '/';
@@ -207,42 +207,6 @@ export default class Variable extends AbstractAbility {
 
     return this._smallestDifference(allMatchingPaths, path);
   }
-
-  // _doesMatchPattern(pattern, path) {
-  //   const parts = pattern?.split(WILDCARD_GLOB);
-  //   const hasLeadingGlob = pattern?.startsWith(WILDCARD_GLOB);
-  //   const hasTrailingGlob = pattern?.endsWith(WILDCARD_GLOB);
-  //   const lastPartOfPattern = parts[parts.length - 1];
-  //   const isPatternWithoutGlob = parts.length === 1 && !hasLeadingGlob;
-
-  //   if (!pattern || !path || isPatternWithoutGlob) {
-  //     return pattern === path;
-  //   }
-
-  //   if (pattern === WILDCARD_GLOB) {
-  //     return true;
-  //   }
-
-  //   let subPathToMatchOn = path;
-  //   for (let i = 0; i < parts.length; i++) {
-  //     const part = parts[i];
-  //     const idx = subPathToMatchOn?.indexOf(part);
-  //     const doesPathIncludeSubPattern = idx > -1;
-  //     const doesMatchOnFirstSubpattern = idx === 0;
-
-  //     if (i === 0 && !hasLeadingGlob && !doesMatchOnFirstSubpattern) {
-  //       return false;
-  //     }
-
-  //     if (!doesPathIncludeSubPattern) {
-  //       return false;
-  //     }
-
-  //     subPathToMatchOn = subPathToMatchOn.slice(0, idx + path.length);
-  //   }
-
-  //   return hasTrailingGlob || path.endsWith(lastPartOfPattern);
-  // }
 
   _computeLengthDiff(pattern, path) {
     const countGlobsInPattern = pattern
