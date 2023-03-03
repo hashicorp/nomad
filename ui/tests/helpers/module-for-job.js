@@ -308,7 +308,6 @@ export function moduleForJobWithClientStatus(
       });
 
       test('clicking in a slice takes you to a pre-filtered clients table', async function (assert) {
-        console.log('ahem', server.db.nodes);
         const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
         const status = slice.label;
         await slice.click();
