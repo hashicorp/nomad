@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestAgent_Self(t *testing.T) {
@@ -110,7 +112,43 @@ func TestAgent_ForceLeave(t *testing.T) {
 	err := a.ForceLeave("nope")
 	must.NoError(t, err)
 
-	// TODO: test force-leave on an existing node
+	// Force-leave on an existing node
+	_, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.Server.BootstrapExpect = 0
+	})
+	defer s2.Stop()
+	// Create a new node to join
+	n, err := a.Join(s2.SerfAddr)
+	must.NoError(t, err)
+	must.One(t, n)
+
+	membersBefore, err := a.MembersOpts(&QueryOptions{})
+	must.Eq(t, membersBefore.Members[1].Status, "alive")
+
+	err = a.ForceLeave(membersBefore.Members[1].Name)
+	must.NoError(t, err)
+
+	time.Sleep(3 * time.Second)
+
+	f := func() error {
+		membersAfter, err := a.MembersOpts(&QueryOptions{})
+		if err != nil {
+			return err
+		}
+		for _, node := range membersAfter.Members {
+			if node.Name == membersBefore.Members[1].Name {
+				if node.Status != "leaving" {
+					return fmt.Errorf("node did not leave")
+				}
+			}
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(3*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
 }
 
 func (a *AgentMember) String() string {
