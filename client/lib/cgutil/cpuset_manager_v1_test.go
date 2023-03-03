@@ -3,7 +3,7 @@
 package cgutil
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -41,7 +41,7 @@ func TestCpusetManager_V1_Init(t *testing.T) {
 
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName))
 	require.FileExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
-	sharedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
+	sharedCpusRaw, err := os.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	sharedCpus, err := cpuset.Parse(string(sharedCpusRaw))
 	require.NoError(t, err)
@@ -68,7 +68,7 @@ func TestCpusetManager_V1_AddAlloc_single(t *testing.T) {
 	// actual contents of shared group depends on machine core count
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName))
 	require.FileExists(t, filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
-	sharedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
+	sharedCpusRaw, err := os.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	sharedCpus, err := cpuset.Parse(string(sharedCpusRaw))
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestCpusetManager_V1_AddAlloc_single(t *testing.T) {
 
 	// check that the 0th core is allocated to reserved cgroup
 	require.DirExists(t, filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName))
-	reservedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
+	reservedCpusRaw, err := os.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	reservedCpus, err := cpuset.Parse(string(reservedCpusRaw))
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestCpusetManager_V1_AddAlloc_single(t *testing.T) {
 	require.True(t, ok)
 
 	require.DirExists(t, taskInfo.CgroupPath)
-	taskCpusRaw, err := ioutil.ReadFile(filepath.Join(taskInfo.CgroupPath, "cpuset.cpus"))
+	taskCpusRaw, err := os.ReadFile(filepath.Join(taskInfo.CgroupPath, "cpuset.cpus"))
 	require.NoError(t, err)
 	taskCpus, err := cpuset.Parse(string(taskCpusRaw))
 	require.NoError(t, err)
@@ -125,14 +125,14 @@ func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 	manager.reconcileCpusets()
 
 	// shared cpuset should not include any expected cores
-	sharedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
+	sharedCpusRaw, err := os.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	sharedCpus, err := cpuset.Parse(string(sharedCpusRaw))
 	require.NoError(t, err)
 	require.False(t, sharedCpus.ContainsAny(alloc1Cpuset.Union(alloc2Cpuset)))
 
 	// reserved cpuset should equal the expected cpus
-	reservedCpusRaw, err := ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
+	reservedCpusRaw, err := os.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	reservedCpus, err := cpuset.Parse(string(reservedCpusRaw))
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 	require.NoDirExists(t, alloc1TaskPath)
 
 	// shared cpuset should now include alloc1's cores
-	sharedCpusRaw, err = ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
+	sharedCpusRaw, err = os.ReadFile(filepath.Join(manager.cgroupParentPath, SharedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	sharedCpus, err = cpuset.Parse(string(sharedCpusRaw))
 	require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 	require.True(t, sharedCpus.IsSupersetOf(alloc1Cpuset))
 
 	// reserved cpuset should only include alloc2's cores
-	reservedCpusRaw, err = ioutil.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
+	reservedCpusRaw, err = os.ReadFile(filepath.Join(manager.cgroupParentPath, ReservedCpusetCgroupName, "cpuset.cpus"))
 	require.NoError(t, err)
 	reservedCpus, err = cpuset.Parse(string(reservedCpusRaw))
 	require.NoError(t, err)

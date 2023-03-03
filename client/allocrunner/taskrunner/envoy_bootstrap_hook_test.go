@@ -10,7 +10,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,7 +45,7 @@ func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 	dir := t.TempDir()
 
 	fPath := filepath.Join(dir, sidsTokenFile)
-	err := ioutil.WriteFile(fPath, []byte(s), fm)
+	err := os.WriteFile(fPath, []byte(s), fm)
 	require.NoError(t, err)
 
 	return dir
@@ -358,7 +357,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
 	siTokenFile := filepath.Join(req.TaskDir.SecretsDir, sidsTokenFile)
-	err = ioutil.WriteFile(siTokenFile, []byte(token), 0440)
+	err = os.WriteFile(siTokenFile, []byte(token), 0440)
 	require.NoError(t, err)
 
 	resp := &interfaces.TaskPrestartResponse{}

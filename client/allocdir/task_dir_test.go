@@ -1,7 +1,6 @@
 package allocdir
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -55,11 +54,11 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 
 	file := "foo"
 	subFile := "bar"
-	if err := ioutil.WriteFile(filepath.Join(host, file), []byte{'a'}, 0777); err != nil {
+	if err := os.WriteFile(filepath.Join(host, file), []byte{'a'}, 0777); err != nil {
 		t.Fatalf("Couldn't create file in host dir %v: %v", host, err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(subDir, subFile), []byte{'a'}, 0777); err != nil {
+	if err := os.WriteFile(filepath.Join(subDir, subFile), []byte{'a'}, 0777); err != nil {
 		t.Fatalf("Couldn't create file in host subdir %v: %v", subDir, err)
 	}
 
