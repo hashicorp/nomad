@@ -2,8 +2,8 @@ package nomad
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -1534,7 +1534,7 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 	// Create the reset file
 	output := []byte(fmt.Sprintf("%d", resetIdx))
 	path := filepath.Join(dir, aclBootstrapReset)
-	assert.Nil(t, ioutil.WriteFile(path, output, 0755))
+	assert.Nil(t, os.WriteFile(path, output, 0755))
 
 	// Try again, should work with reset
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", req, &resp); err != nil {

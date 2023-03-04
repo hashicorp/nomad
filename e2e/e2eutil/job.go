@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -50,7 +50,7 @@ func execCmd(jobID, jobFilePath string, cmd *exec.Cmd) error {
 		return fmt.Errorf("could not open stdin?: %w", err)
 	}
 
-	content, err := ioutil.ReadFile(jobFilePath)
+	content, err := os.ReadFile(jobFilePath)
 	if err != nil {
 		return fmt.Errorf("could not open job file: %w", err)
 	}
