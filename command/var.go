@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -235,7 +234,7 @@ func (b *KVBuilder) add(raw string) error {
 
 	if len(value) > 0 {
 		if value[0] == '@' {
-			contents, err := ioutil.ReadFile(value[1:])
+			contents, err := os.ReadFile(value[1:])
 			if err != nil {
 				return fmt.Errorf("error reading file: %w", err)
 			}
