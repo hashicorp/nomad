@@ -729,6 +729,11 @@ func (c *JobRestartCommand) monitorPlacementFailures(ctx context.Context, alloc 
 			default:
 			}
 
+			// Skip evaluations created before the allocation was stopped.
+			if eval.CreateIndex < index {
+				continue
+			}
+
 			failures := eval.FailedTGAllocs[alloc.TaskGroup]
 			if failures != nil {
 				errCh <- fmt.Errorf("%s:\n%s",
