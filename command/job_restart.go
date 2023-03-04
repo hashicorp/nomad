@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -44,10 +43,6 @@ var (
 
 type JobRestartCommand struct {
 	Meta
-
-	// ui is a cli.ConcurrentUi that wraps the UI passed in Meta so that
-	// goroutines can safely write to the terminal output concurrently.
-	ui *cli.ConcurrentUi
 
 	// client is the Nomad API client shared by all functions in the command to
 	// reuse the same connection.
@@ -206,13 +201,11 @@ func (c *JobRestartCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRestartCommand) Name() string { return "job restart" }
 
 func (c *JobRestartCommand) Run(args []string) int {
-	c.ui = &cli.ConcurrentUi{Ui: c.Ui}
-
 	// Parse and validate command line arguments.
 	code, err := c.parseAndValidate(args)
 	if err != nil {
-		c.ui.Error(err.Error())
-		c.ui.Error(commandErrorText(c))
+		c.Ui.Error(err.Error())
+		c.Ui.Error(commandErrorText(c))
 		return code
 	}
 	if code != 0 {
@@ -221,14 +214,14 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 	c.client, err = c.Meta.Client()
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("Error initializing client: %v", err))
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
 	}
 
 	// Use prefix matching to find job.
 	job, err := c.JobByPrefix(c.client, c.jobID, nil)
 	if err != nil {
-		c.ui.Error(err.Error())
+		c.Ui.Error(err.Error())
 		return 1
 	}
 
@@ -239,7 +232,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 	// Confirm that we should restat a multi-region job in a single region.
 	if job.IsMultiregion() && !c.autoYes && !c.shouldRestartMultiregion() {
-		c.ui.Output("\nJob restart canceled.")
+		c.Ui.Output("\nJob restart canceled.")
 		return 0
 	}
 
@@ -247,7 +240,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// exists in the specific allocation job version.
 	jobVersions, _, _, err := c.client.Jobs().Versions(c.jobID, false, nil)
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("Error retrieving versions of job %q: %s", c.jobID, err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving versions of job %q: %s", c.jobID, err))
 		return 1
 	}
 
@@ -261,7 +254,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// eligible for restart.
 	allocStubs, _, err := c.client.Jobs().Allocations(c.jobID, true, nil)
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("Error retrieving allocations for job %q: %v", c.jobID, err))
+		c.Ui.Error(fmt.Sprintf("Error retrieving allocations for job %q: %v", c.jobID, err))
 		return 1
 	}
 	allocStubsWithJob := make([]AllocationListStubWithJob, 0, len(allocStubs))
@@ -275,7 +268,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 	// Exit early if there's nothing to do.
 	if len(restartAllocs) == 0 {
-		c.ui.Output("No allocations to restart")
+		c.Ui.Output("No allocations to restart")
 		return 0
 	}
 
@@ -287,7 +280,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	}
 
 	// Restart allocations in batches.
-	c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+	c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 		"[bold]==> %s: Restarting %s[reset]",
 		formatTime(time.Now()),
 		english.Plural(len(restartAllocs), "allocation", "allocations"),
@@ -315,7 +308,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 			batchNumber := restartCount/c.batchSize + 1
 			remaining := len(restartAllocs) - restartCount
 
-			c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+			c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 				"[bold]==> %s: Restarting %s batch of %d allocations[reset]",
 				formatTime(time.Now()),
 				humanize.Ordinal(batchNumber),
@@ -358,14 +351,14 @@ func (c *JobRestartCommand) Run(args []string) int {
 			// Exit early if -batch-wait=ask and user provided a negative
 			// answer.
 			if c.batchWaitAsk && !c.autoYes && !c.shouldProceed() {
-				c.ui.Output("\nJob restart canceled.")
+				c.Ui.Output("\nJob restart canceled.")
 				return 0
 			}
 
 			// Sleep if -batch-wait is set of if -batch-wait=ask and user
 			// provided an interval.
 			if c.batchWait > 0 {
-				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 					"[bold]==> %s: Waiting %s before restarting the next batch[reset]",
 					formatTime(time.Now()),
 					c.batchWait,
@@ -375,7 +368,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 		}
 	}
 
-	c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+	c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 		"[bold]==> %s: Finished job restart[reset]",
 		formatTime(time.Now()),
 	)))
@@ -387,11 +380,11 @@ func (c *JobRestartCommand) Run(args []string) int {
 			// resulting in very long outputs.
 			mErr.ErrorFormat = c.errorFormat
 		}
-		c.ui.Error(fmt.Sprintf("\nErrors while restarting job:\n%s", strings.TrimSpace(err.Error())))
+		c.Ui.Error(fmt.Sprintf("\nErrors while restarting job:\n%s", strings.TrimSpace(err.Error())))
 		return 1
 	}
 
-	c.ui.Output("\nAll allocations restarted successfully!")
+	c.Ui.Output("\nAll allocations restarted successfully!")
 	return 0
 }
 
@@ -406,7 +399,7 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (int, error) {
 	var tasks []string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.Usage = func() { c.ui.Output(c.Help()) }
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.allTasks, "all-tasks", false, "")
 	flags.BoolVar(&c.autoYes, "yes", false, "")
 	flags.StringVar(&batchSizeStr, "batch-size", "1", "")
@@ -506,7 +499,7 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 		// Skip allocations that are not running.
 		if !stub.IsRunning() {
 			if c.verbose {
-				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 					"[dark_gray]    %s: Skipping allocation %q because desired status is %q and client status is %q[reset]",
 					formatTime(time.Now()),
 					shortAllocID,
@@ -521,7 +514,7 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 		if c.groups.Size() > 0 {
 			if !c.groups.Contains(stub.TaskGroup) {
 				if c.verbose {
-					c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+					c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 						"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested groups[reset]",
 						formatTime(time.Now()),
 						shortAllocID,
@@ -543,7 +536,7 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 
 			if !hasTask {
 				if c.verbose {
-					c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+					c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 						"[dark_gray]    %s: Skipping allocation %q because it doesn't have any of requested tasks[reset]",
 						formatTime(time.Now()),
 						shortAllocID,
@@ -569,12 +562,12 @@ func (c *JobRestartCommand) shouldRestartMultiregion() bool {
 	)
 
 	for {
-		answer, err := c.ui.Ask(question)
+		answer, err := c.Ui.Ask(question)
 		if err != nil {
 			if err.Error() == "interrupted" {
 				return false
 			}
-			c.ui.Output(err.Error())
+			c.Ui.Output(err.Error())
 			continue
 		}
 
@@ -584,7 +577,7 @@ func (c *JobRestartCommand) shouldRestartMultiregion() bool {
 		case "n", "no", "":
 			return false
 		default:
-			c.ui.Output(fmt.Sprintf("Invalid option %q.\n", answer))
+			c.Ui.Output(fmt.Sprintf("Invalid option %q.\n", answer))
 		}
 	}
 }
@@ -593,7 +586,7 @@ func (c *JobRestartCommand) shouldRestartMultiregion() bool {
 // Returns true if the answer is positive.
 func (c *JobRestartCommand) shouldProceed() bool {
 	for {
-		answer, err := c.ui.Ask(fmt.Sprintf(
+		answer, err := c.Ui.Ask(fmt.Sprintf(
 			"==> %s: Proceed with next batch? [Y/n/<duration>]",
 			formatTime(time.Now()),
 		))
@@ -601,7 +594,7 @@ func (c *JobRestartCommand) shouldProceed() bool {
 			if err.Error() == "interrupted" {
 				return false
 			}
-			c.ui.Output(err.Error())
+			c.Ui.Output(err.Error())
 			continue
 		}
 
@@ -617,7 +610,7 @@ func (c *JobRestartCommand) shouldProceed() bool {
 			if err == nil {
 				c.batchWaitAsk = false
 
-				c.ui.Output(c.Colorize().Color(fmt.Sprintf(
+				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 					"[bold]==> %s: Proceeding restarts with new wait time of %s[reset]",
 					formatTime(time.Now()),
 					c.batchWait,
@@ -625,7 +618,7 @@ func (c *JobRestartCommand) shouldProceed() bool {
 				return true
 			}
 
-			c.ui.Output(fmt.Sprintf(
+			c.Ui.Output(fmt.Sprintf(
 				"    %s: Invalid option %q",
 				formatTime(time.Now()),
 				answer,
@@ -662,7 +655,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 	shortAllocID := limit(alloc.ID, c.length)
 
 	if c.allTasks {
-		c.ui.Output(fmt.Sprintf(
+		c.Ui.Output(fmt.Sprintf(
 			"    %s: Restarting all tasks in allocation %q for group %q",
 			formatTime(time.Now()),
 			shortAllocID,
@@ -673,7 +666,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 	}
 
 	if c.tasks.Size() == 0 {
-		c.ui.Output(fmt.Sprintf(
+		c.Ui.Output(fmt.Sprintf(
 			"    %s: Restarting running tasks in allocation %q for group %q",
 			formatTime(time.Now()),
 			shortAllocID,
@@ -690,7 +683,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 			continue
 		}
 
-		c.ui.Output(fmt.Sprintf(
+		c.Ui.Output(fmt.Sprintf(
 			"    %s: Restarting task %q in allocation %q for group %q",
 			formatTime(time.Now()),
 			task,
@@ -716,7 +709,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	shortAllocID := limit(alloc.ID, c.length)
 
-	c.ui.Output(fmt.Sprintf(
+	c.Ui.Output(fmt.Sprintf(
 		"    %s: Rescheduling allocation %q for group %q",
 		formatTime(time.Now()),
 		shortAllocID,
@@ -867,7 +860,7 @@ func (c *JobRestartCommand) handleSignal(sigsCh chan os.Signal, activeCh chan an
 			}
 
 			if c.shouldExit() {
-				c.ui.Output("\nCanceling job restart process")
+				c.Ui.Output("\nCanceling job restart process")
 				os.Exit(0)
 			}
 		case activeCh <- struct{}{}:
@@ -887,10 +880,10 @@ Are you sure you want to stop the restart process?
 Allocations not restarted yet will not be restarted. [y/N]`
 
 	for {
-		answer, err := c.ui.Ask(exitQuestion)
+		answer, err := c.Ui.Ask(exitQuestion)
 		if err != nil {
 			if err.Error() != "interrupted" {
-				c.ui.Error(err.Error())
+				c.Ui.Error(err.Error())
 			}
 			return true
 		}
@@ -901,7 +894,7 @@ Allocations not restarted yet will not be restarted. [y/N]`
 		case "n", "no", "":
 			return false
 		default:
-			c.ui.Output(fmt.Sprintf("Invalid option %q", answer))
+			c.Ui.Output(fmt.Sprintf("Invalid option %q", answer))
 		}
 	}
 }
