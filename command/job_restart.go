@@ -55,6 +55,7 @@ type JobRestartCommand struct {
 
 	// Configuration values read and parsed from command flags and args.
 	allTasks         bool
+	autoYes          bool
 	batchSize        int
 	batchSizePercent bool
 	batchWait        time.Duration
@@ -159,6 +160,9 @@ Restart Options:
     used instead. This option cannot be used with '-all-tasks' or
     '-reschedule'.
 
+  -yes
+    Automatic yes to prompts.
+
   -verbose
     Display full information.
 `
@@ -179,6 +183,7 @@ func (c *JobRestartCommand) AutocompleteFlags() complete.Flags {
 			"-no-shutdown-delay": complete.PredictNothing,
 			"-reschedule":        complete.PredictNothing,
 			"-task":              complete.PredictAnything,
+			"-yes":               complete.PredictNothing,
 			"-verbose":           complete.PredictNothing,
 		})
 }
@@ -221,13 +226,22 @@ func (c *JobRestartCommand) Run(args []string) int {
 	}
 
 	// Use prefix matching to find job.
-	var namespace string
-	c.jobID, namespace, err = c.JobIDByPrefix(c.client, c.jobID, nil)
+	job, err := c.JobByPrefix(c.client, c.jobID, nil)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return 1
 	}
-	c.client.SetNamespace(namespace)
+
+	c.jobID = *job.ID
+	if job.Namespace != nil {
+		c.client.SetNamespace(*job.Namespace)
+	}
+
+	// Confirm that we should restat a multi-region job in a single region.
+	if job.IsMultiregion() && !c.autoYes && !c.shouldRestartMultiregion() {
+		c.ui.Output("\nJob restart canceled.")
+		return 0
+	}
 
 	// Retrieve the job history so we can properly determine if a group or task
 	// exists in the specific allocation job version.
@@ -343,7 +357,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 
 			// Exit early if -batch-wait=ask and user provided a negative
 			// answer.
-			if c.batchWaitAsk && !c.shouldProceed() {
+			if c.batchWaitAsk && !c.autoYes && !c.shouldProceed() {
 				c.ui.Output("\nJob restart canceled.")
 				return 0
 			}
@@ -394,6 +408,7 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (int, error) {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.ui.Output(c.Help()) }
 	flags.BoolVar(&c.allTasks, "all-tasks", false, "")
+	flags.BoolVar(&c.autoYes, "yes", false, "")
 	flags.StringVar(&batchSizeStr, "batch-size", "1", "")
 	flags.StringVar(&batchWaitStr, "batch-wait", "0s", "")
 	flags.BoolVar(&c.failOnError, "fail-on-error", false, "")
@@ -451,7 +466,7 @@ func (c *JobRestartCommand) parseAndValidate(args []string) (int, error) {
 
 	// Parse and validate -batch-wait.
 	if strings.ToLower(batchWaitStr) == jobRestartWaitAsk {
-		if !isTty() {
+		if !isTty() && !c.autoYes {
 			return 1, fmt.Errorf(
 				"Invalid -batch-wait value %[1]q: %[1]q cannot be used when terminal is not interactive",
 				jobRestartWaitAsk,
@@ -542,6 +557,36 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 	}
 
 	return result
+}
+
+// shouldRestart blocks and waits for the user to confirm if the restart of a
+// multi-region job should proceed.
+// Returns true if the answer is positive.
+func (c *JobRestartCommand) shouldRestartMultiregion() bool {
+	question := fmt.Sprintf(
+		"Are you sure you want to restart multi-region job %q in a single region? [y/N]",
+		c.jobID,
+	)
+
+	for {
+		answer, err := c.ui.Ask(question)
+		if err != nil {
+			if err.Error() == "interrupted" {
+				return false
+			}
+			c.ui.Output(err.Error())
+			continue
+		}
+
+		switch strings.TrimSpace(strings.ToLower(answer)) {
+		case "y", "yes":
+			return true
+		case "n", "no", "":
+			return false
+		default:
+			c.ui.Output(fmt.Sprintf("Invalid option %q.\n", answer))
+		}
+	}
 }
 
 // shouldProceed blocks and waits for the user to provide a valid input.

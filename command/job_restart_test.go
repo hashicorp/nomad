@@ -544,6 +544,28 @@ func TestJobRestartCommand_Run(t *testing.T) {
 			},
 		},
 		{
+			name: "restart in batch ask with yes",
+			args: []string{"-batch-size", "100%", "-batch-wait", "ask", "-yes", "-group", "single_task"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     false,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task"}, "main")
+				must.Len(t, 3, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
 			name: "reschedule in batches",
 			args: []string{"-reschedule", "-batch-size", "3"},
 			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
