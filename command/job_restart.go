@@ -220,6 +220,15 @@ func (c *JobRestartCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Use prefix matching to find job.
+	var namespace string
+	c.jobID, namespace, err = c.JobIDByPrefix(c.client, c.jobID, nil)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return 1
+	}
+	c.client.SetNamespace(namespace)
+
 	// Retrieve the job history so we can properly determine if a group or task
 	// exists in the specific allocation job version.
 	jobVersions, _, _, err := c.client.Jobs().Versions(c.jobID, false, nil)

@@ -634,6 +634,102 @@ func TestJobRestartCommand_Run(t *testing.T) {
 	}
 }
 
+func TestJobRestartCommand_jobPrefixAndNamespace(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+
+	// Start client and server and wait for node to be ready.
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	waitForNodes(t, client)
+
+	// Create non-default namespace.
+	_, err := client.Namespaces().Register(&api.Namespace{Name: "prod"}, nil)
+	must.NoError(t, err)
+
+	// Register job with same name in both namespaces.
+	evalIDs := []string{}
+
+	jobDefault := testJob("test_job_restart")
+	resp, _, err := client.Jobs().Register(jobDefault, nil)
+	must.NoError(t, err)
+	evalIDs = append(evalIDs, resp.EvalID)
+
+	jobProd := testJob("test_job_restart")
+	jobProd.Namespace = pointer.Of("prod")
+	resp, _, err = client.Jobs().Register(jobProd, nil)
+	must.NoError(t, err)
+	evalIDs = append(evalIDs, resp.EvalID)
+
+	jobUniqueProd := testJob("test_job_restart_prod_ns")
+	jobUniqueProd.Namespace = pointer.Of("prod")
+	resp, _, err = client.Jobs().Register(jobUniqueProd, nil)
+	must.NoError(t, err)
+	evalIDs = append(evalIDs, resp.EvalID)
+
+	// Wait for evals to be processed.
+	for _, evalID := range evalIDs {
+		code := waitForSuccess(ui, client, fullId, t, evalID)
+		must.Eq(t, 0, code)
+	}
+	ui.OutputWriter.Reset()
+
+	testCases := []struct {
+		name        string
+		args        []string
+		expectedErr string
+	}{
+		{
+			name: "prefix match in default namespace",
+			args: []string{"test_job"},
+		},
+		{
+			name:        "invalid job",
+			args:        []string{"not-valid"},
+			expectedErr: "No job(s) with prefix or ID",
+		},
+		{
+			name:        "prefix matches multiple jobs",
+			args:        []string{"-namespace", "prod", "test_job"},
+			expectedErr: "matched multiple jobs",
+		},
+		{
+			name:        "prefix matches multiple jobs across namespaces",
+			args:        []string{"-namespace", "*", "test_job"},
+			expectedErr: "matched multiple jobs",
+		},
+		{
+			name: "unique prefix match across namespaces",
+			args: []string{"-namespace", "*", "test_job_restart_prod"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				ui.OutputWriter.Reset()
+				ui.ErrorWriter.Reset()
+			}()
+
+			cmd := &JobRestartCommand{
+				ui:   &cli.ConcurrentUi{Ui: ui},
+				Meta: Meta{Ui: ui},
+			}
+			args := append([]string{"-address", url}, tc.args...)
+			code := cmd.Run(args)
+
+			if tc.expectedErr != "" {
+				must.NonZero(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
+			} else {
+				must.Zero(t, code)
+			}
+		})
+	}
+}
+
 func TestJobRestartCommand_noAllocs(t *testing.T) {
 	ci.Parallel(t)
 
