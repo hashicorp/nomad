@@ -2,7 +2,7 @@ package consul_test
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -48,8 +48,8 @@ func TestConsul_Integration(t *testing.T) {
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
+			c.Stdout = io.Discard
+			c.Stderr = io.Discard
 		}
 	})
 	if err != nil {

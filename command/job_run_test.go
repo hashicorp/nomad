@@ -2,7 +2,6 @@ package command
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,7 +22,7 @@ func TestRunCommand_Output_Json(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
 
-	fh, err := ioutil.TempFile("", "nomad")
+	fh, err := os.CreateTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -101,7 +100,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on invalid HCL
-	fh1, err := ioutil.TempFile("", "nomad")
+	fh1, err := os.CreateTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -118,7 +117,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on invalid job spec
-	fh2, err := ioutil.TempFile("", "nomad")
+	fh2, err := os.CreateTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -135,7 +134,7 @@ func TestRunCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure (requires a valid job)
-	fh3, err := ioutil.TempFile("", "nomad")
+	fh3, err := os.CreateTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

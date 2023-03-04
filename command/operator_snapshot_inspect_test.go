@@ -1,7 +1,7 @@
 package command
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -40,7 +40,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	err := ioutil.WriteFile(
+	err := os.WriteFile(
 		filepath.Join(tmpDir, "invalid.snap"),
 		[]byte("invalid data"),
 		0600)
