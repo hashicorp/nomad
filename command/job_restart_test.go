@@ -199,7 +199,6 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 			// Set some default values if not defined in test case.
 			if tc.expectedCmd != nil {
 				tc.expectedCmd.Meta = meta
-				tc.expectedCmd.ui = ui
 
 				if tc.expectedCmd.length == 0 {
 					tc.expectedCmd.length = shortId
@@ -212,7 +211,7 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 				}
 			}
 
-			cmd := &JobRestartCommand{Meta: meta, ui: ui}
+			cmd := &JobRestartCommand{Meta: meta}
 			code, err := cmd.parseAndValidate(tc.args)
 
 			if tc.expectedErr != "" {
@@ -736,8 +735,7 @@ func TestJobRestartCommand_jobPrefixAndNamespace(t *testing.T) {
 			}()
 
 			cmd := &JobRestartCommand{
-				ui:   &cli.ConcurrentUi{Ui: ui},
-				Meta: Meta{Ui: ui},
+				Meta: Meta{Ui: &cli.ConcurrentUi{Ui: ui}},
 			}
 			args := append([]string{"-address", url}, tc.args...)
 			code := cmd.Run(args)
@@ -1205,8 +1203,7 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			cmd := &JobRestartCommand{
-				ui:   &cli.ConcurrentUi{Ui: ui},
-				Meta: Meta{Ui: ui},
+				Meta: Meta{Ui: &cli.ConcurrentUi{Ui: ui}},
 			}
 
 			args := append(tc.args, "-verbose", "example")
