@@ -2,7 +2,6 @@ package loader
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1214,7 +1213,7 @@ func TestPluginLoader_External_SkipBadFiles(t *testing.T) {
 	require.NoError(os.Symlink(selfExe, filepath.Join(h.pluginDir(), plugins[0])))
 
 	// Create a non-executable file
-	require.NoError(ioutil.WriteFile(filepath.Join(h.pluginDir(), "some.yaml"), []byte("hcl > yaml"), 0666))
+	require.NoError(os.WriteFile(filepath.Join(h.pluginDir(), "some.yaml"), []byte("hcl > yaml"), 0666))
 
 	logger := testlog.HCLogger(t)
 	logger.SetLevel(log.Trace)
