@@ -381,7 +381,7 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	var pidData []byte
 	testutil.WaitForResult(func() (bool, error) {
 		var err error
-		pidData, err = io.ReadFile(filepath.Join(task.TaskDir().Dir, pidFile))
+		pidData, err = os.ReadFile(filepath.Join(task.TaskDir().Dir, pidFile))
 		if err != nil {
 			return false, err
 		}
