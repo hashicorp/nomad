@@ -679,7 +679,7 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	// Stop allocation and wait for its replacement to be running or for a
 	// blocked evaluation that prevents placements for this task group to
 	// happen.
-	_, err := c.client.Allocations().Stop(&api.Allocation{ID: alloc.ID}, q)
+	resp, err := c.client.Allocations().Stop(&api.Allocation{ID: alloc.ID}, q)
 	if err != nil {
 		return fmt.Errorf("Failed to stop allocation %q: %v", shortAllocID, err)
 	}
@@ -692,20 +692,23 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go c.monitorBlockedEvals(ctx, alloc, errCh)
-	go c.monitorReplacementAlloc(ctx, alloc, errCh)
+	// Pass the LastIndex from the Stop() call to only monitor data that was
+	// created after the Stop() call.
+	go c.monitorPlacementFailures(ctx, alloc, resp.LastIndex, errCh)
+	go c.monitorReplacementAlloc(ctx, alloc, resp.LastIndex, errCh)
 
 	// If we receive an error and nil it's safe to ignore the error since the
 	// nil result is what we are looking for.
 	return <-errCh
 }
 
-// monitorBlockedEvals searches for blocked evaluations for the allocation job.
+// monitorPlacementFailures searches for evaluations of the allocation job that
+// have placement failures.
 //
 // Returns an error in errCh if anything goes wrong or if there are placement
 // failures for the allocation task group.
-func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc AllocationListStubWithJob, errCh chan<- error) {
-	q := &api.QueryOptions{WaitIndex: 1}
+func (c *JobRestartCommand) monitorPlacementFailures(ctx context.Context, alloc AllocationListStubWithJob, index uint64, errCh chan<- error) {
+	q := &api.QueryOptions{WaitIndex: index}
 	for {
 		select {
 		case <-ctx.Done():
@@ -726,10 +729,6 @@ func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc Alloc
 			default:
 			}
 
-			if eval.Status != api.EvalStatusBlocked {
-				continue
-			}
-
 			failures := eval.FailedTGAllocs[alloc.TaskGroup]
 			if failures != nil {
 				errCh <- fmt.Errorf("%s:\n%s",
@@ -748,8 +747,8 @@ func (c *JobRestartCommand) monitorBlockedEvals(ctx context.Context, alloc Alloc
 //
 // Returns an error in errCh if anything goes wrong or nil when the new
 // allocation is running.
-func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc AllocationListStubWithJob, errCh chan<- error) {
-	q := &api.QueryOptions{WaitIndex: 1}
+func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc AllocationListStubWithJob, index uint64, errCh chan<- error) {
+	q := &api.QueryOptions{WaitIndex: index}
 	var nextAllocID string
 	for {
 		select {
@@ -770,7 +769,9 @@ func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc A
 		q.WaitIndex = qm.LastIndex
 	}
 
-	q = &api.QueryOptions{WaitIndex: 1}
+	// Reset the blocking query to the initial index because old allocation
+	// update may happen after the new allocation transitioned to "running".
+	q = &api.QueryOptions{WaitIndex: index}
 	for {
 		select {
 		case <-ctx.Done():
