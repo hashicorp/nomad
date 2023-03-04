@@ -1,8 +1,8 @@
 package agent
 
 import (
-	"io/ioutil"
 	"math"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -109,7 +109,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 	}
 	for _, tc := range tcases {
 		configFile := filepath.Join(tmpDir, "conf1.hcl")
-		err := ioutil.WriteFile(configFile, []byte(`client{
+		err := os.WriteFile(configFile, []byte(`client{
 			enabled = true
 			meta = {
 				"valid" = "yes"
@@ -163,7 +163,7 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 	}
 	for _, tc := range tcases {
 		configFile := filepath.Join(tmpDir, "conf1.hcl")
-		err := ioutil.WriteFile(configFile, []byte(`
+		err := os.WriteFile(configFile, []byte(`
         datacenter = "`+tc+`"
         client{
 			enabled = true
@@ -210,7 +210,7 @@ func TestCommand_NullCharInRegion(t *testing.T) {
 	}
 	for _, tc := range tcases {
 		configFile := filepath.Join(tmpDir, "conf1.hcl")
-		err := ioutil.WriteFile(configFile, []byte(`
+		err := os.WriteFile(configFile, []byte(`
         region = "`+tc+`"
         client{
 			enabled = true

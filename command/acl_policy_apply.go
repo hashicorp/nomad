@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -98,13 +98,13 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	var rawPolicy []byte
 	var err error
 	if file == "-" {
-		rawPolicy, err = ioutil.ReadAll(os.Stdin)
+		rawPolicy, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to read stdin: %v", err))
 			return 1
 		}
 	} else {
-		rawPolicy, err = ioutil.ReadFile(file)
+		rawPolicy, err = os.ReadFile(file)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to read file: %v", err))
 			return 1

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -469,7 +468,7 @@ func TestConfig_ParseConfigFile(t *testing.T) {
 		t.Fatalf("expected error, got nothing")
 	}
 
-	fh, err := ioutil.TempFile("", "nomad")
+	fh, err := os.CreateTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -523,19 +522,19 @@ func TestConfig_LoadConfigDir(t *testing.T) {
 	}
 
 	file1 := filepath.Join(dir, "conf1.hcl")
-	err = ioutil.WriteFile(file1, []byte(`{"region":"west"}`), 0600)
+	err = os.WriteFile(file1, []byte(`{"region":"west"}`), 0600)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	file2 := filepath.Join(dir, "conf2.hcl")
-	err = ioutil.WriteFile(file2, []byte(`{"datacenter":"sfo"}`), 0600)
+	err = os.WriteFile(file2, []byte(`{"datacenter":"sfo"}`), 0600)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	file3 := filepath.Join(dir, "conf3.hcl")
-	err = ioutil.WriteFile(file3, []byte(`nope;!!!`), 0600)
+	err = os.WriteFile(file3, []byte(`nope;!!!`), 0600)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -567,7 +566,7 @@ func TestConfig_LoadConfig(t *testing.T) {
 		t.Fatalf("expected error, got nothing")
 	}
 
-	fh, err := ioutil.TempFile("", "nomad")
+	fh, err := os.CreateTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -595,7 +594,7 @@ func TestConfig_LoadConfig(t *testing.T) {
 	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
-	err = ioutil.WriteFile(file1, []byte(`{"datacenter":"sfo"}`), 0600)
+	err = os.WriteFile(file1, []byte(`{"datacenter":"sfo"}`), 0600)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -1351,7 +1350,7 @@ func TestTelemetry_Parse(t *testing.T) {
 	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
-	err := ioutil.WriteFile(file1, []byte(`telemetry{
+	err := os.WriteFile(file1, []byte(`telemetry{
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true

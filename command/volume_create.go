@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -68,13 +68,13 @@ func (c *VolumeCreateCommand) Run(args []string) int {
 	var rawVolume []byte
 	var err error
 	if file == "-" {
-		rawVolume, err = ioutil.ReadAll(os.Stdin)
+		rawVolume, err = io.ReadAll(os.Stdin)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to read stdin: %v", err))
 			return 1
 		}
 	} else {
-		rawVolume, err = ioutil.ReadFile(file)
+		rawVolume, err = os.ReadFile(file)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to read file: %v", err))
 			return 1
