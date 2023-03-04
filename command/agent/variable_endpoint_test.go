@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -475,7 +474,7 @@ func encodeBrokenReq(obj interface{}) io.ReadCloser {
 	// enc.Encode(obj)
 	b, _ := json.Marshal(obj)
 	b = b[0 : len(b)-5] // strip newline and final }
-	return ioutil.NopCloser(bytes.NewReader(b))
+	return io.NopCloser(bytes.NewReader(b))
 }
 
 // rpcReadSV lets this test read a variable using the RPC endpoint

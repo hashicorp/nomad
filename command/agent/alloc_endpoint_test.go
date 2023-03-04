@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -766,7 +765,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		os.RemoveAll(allocDir.TaskDirs["web"].LocalDir)
 
 		// require Snapshot fails
-		if err := allocDir.Snapshot(ioutil.Discard); err != nil {
+		if err := allocDir.Snapshot(io.Discard); err != nil {
 			t.Logf("[DEBUG] agent.test: snapshot returned error: %v", err)
 		} else {
 			t.Errorf("expected Snapshot() to fail but it did not")

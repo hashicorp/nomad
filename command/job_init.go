@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -182,7 +181,7 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	// Write out the example
-	err = ioutil.WriteFile(filename, jobSpec, 0660)
+	err = os.WriteFile(filename, jobSpec, 0660)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to write '%s': %v", filename, err))
 		return 1
