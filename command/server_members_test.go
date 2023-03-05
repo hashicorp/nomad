@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -48,6 +49,29 @@ func TestServerMembersCommand_Run(t *testing.T) {
 	}
 	if out := ui.OutputWriter.String(); !strings.Contains(out, "Tags") {
 		t.Fatalf("expected tags in output, got: %s", out)
+	}
+	// Query members with JSON normal output
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+	var jsonMap []map[string]interface{}
+	var out string
+	if code := cmd.Run([]string{"-address=" + url, "-json"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if err = json.Unmarshal([]byte(out), &jsonMap); err != nil {
+		t.Fatalf("failed to parse JSON: %s", err)
+	}
+
+	// Query members with JSON verbose output
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+	if code := cmd.Run([]string{"-address=" + url, "-detailed", "-json"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+	out = ui.OutputWriter.String()
+	if err = json.Unmarshal([]byte(out), &jsonMap); err != nil {
+		t.Fatalf("failed to parse JSON: %s", err)
 	}
 }
 

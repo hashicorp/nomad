@@ -35,6 +35,9 @@ Server Members Options:
   -verbose
     Show detailed information about each member. This dumps a raw set of tags
     which shows more information than the default output format.
+
+  -json
+    Output the Server members information in JSON format.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,6 +46,7 @@ func (c *ServerMembersCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-detailed": complete.PredictNothing,
+			"-json":     complete.PredictNothing,
 		})
 }
 
@@ -57,12 +61,13 @@ func (c *ServerMembersCommand) Synopsis() string {
 func (c *ServerMembersCommand) Name() string { return "server members" }
 
 func (c *ServerMembersCommand) Run(args []string) int {
-	var detailed, verbose bool
+	var detailed, verbose, json bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detailed, "detailed", false, "Show detailed output")
 	flags.BoolVar(&verbose, "verbose", false, "Show detailed output")
+	flags.BoolVar(&json, "json", false, "Show output in JSON format")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -106,16 +111,34 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Determine the leaders per region.
 	leaders, leaderErr := regionLeaders(client, srvMembers.Members)
 
-	// Format the list
-	var out []string
-	if verbose {
-		out = verboseOutput(srvMembers.Members, leaders)
-	} else {
-		out = standardOutput(srvMembers.Members, leaders)
-	}
+	if !json {
+		// Format the list
+		var out []string
+		if verbose {
+			out = verboseOutput(srvMembers.Members, leaders)
+		} else {
+			out = standardOutput(srvMembers.Members, leaders)
+		}
 
-	// Dump the list
-	c.Ui.Output(columnize.SimpleFormat(out))
+		// Dump the list
+		c.Ui.Output(columnize.SimpleFormat(out))
+	} else {
+		var output_map []map[string]any
+		if verbose {
+			output_map = mapVerboseOutput(srvMembers.Members, leaders)
+		} else {
+			output_map = mapStandardOutput(srvMembers.Members, leaders)
+		}
+
+		json_output, jsonErr := Format(true, "", output_map)
+		if jsonErr != nil {
+			c.Ui.Output("")
+			c.Ui.Warn(fmt.Sprintf("Error formating json: %s", jsonErr))
+			return 1
+		}
+
+		c.Ui.Output(json_output)
+	}
 
 	// If there were leader errors display a warning
 	if leaderErr != nil {
@@ -215,4 +238,48 @@ func isLeader(member *api.AgentMember, leaders map[string]string) bool {
 	reg := member.Tags["region"]
 	regLeader, ok := leaders[reg]
 	return ok && regLeader == addr
+}
+
+// mapStandardOutput returns the standard output in a map so it can be used to create JSON output
+func mapStandardOutput(members []*api.AgentMember, leaders map[string]string) []map[string]any {
+	membersMap := make([]map[string]any, len(members)-1, len(members))
+
+	for _, member := range members {
+		membersMap = append(membersMap, map[string]any{
+			"Name":         member.Name,
+			"Address":      member.Addr,
+			"Port":         member.Port,
+			"Status":       member.Status,
+			"Leader":       isLeader(member, leaders),
+			"Raft Version": member.Tags["raft_vsn"],
+			"Build":        member.Tags["build"],
+			"Datacenter":   member.Tags["dc"],
+			"Region":       member.Tags["region"],
+		})
+	}
+
+	return membersMap
+}
+
+// mapStandardOutput returns the verbose output in a map so it can be used to create JSON output
+func mapVerboseOutput(members []*api.AgentMember, leaders map[string]string) []map[string]any {
+	membersMap := make([]map[string]any, len(members)-1, len(members))
+
+	for _, member := range members {
+		membersMap = append(membersMap, map[string]any{
+			"Name":         member.Name,
+			"Address":      member.Addr,
+			"Port":         member.Port,
+			"Status":       member.Status,
+			"Leader":       isLeader(member, leaders),
+			"Protocol":     member.ProtocolCur,
+			"Raft Version": member.Tags["raft_vsn"],
+			"Build":        member.Tags["build"],
+			"Datacenter":   member.Tags["dc"],
+			"Region":       member.Tags["region"],
+			"Tags":         member.Tags,
+		})
+	}
+
+	return membersMap
 }
