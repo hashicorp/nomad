@@ -83,10 +83,19 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 		return nil, false, err
 	}
 
+	// keep track of this pause container for reconciliation
+	d.pauseContainers.add(container.ID)
+
 	return specFromContainer(container, createSpec.Hostname), true, nil
 }
 
 func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
+	id := spec.Labels[dockerNetSpecLabelKey]
+
+	// no longer tracking this pause container; even if we fail here we should
+	// let the background reconciliation keep trying
+	d.pauseContainers.remove(id)
+
 	client, _, err := d.dockerClients()
 	if err != nil {
 		return fmt.Errorf("failed to connect to docker daemon: %s", err)
@@ -94,7 +103,7 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 
 	if err := client.RemoveContainer(docker.RemoveContainerOptions{
 		Force: true,
-		ID:    spec.Labels[dockerNetSpecLabelKey],
+		ID:    id,
 	}); err != nil {
 		return err
 	}
