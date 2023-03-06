@@ -1,0 +1,3 @@
+```release-note:improvement
+build: Set GOAMD64=v3 for amd64 builds
+```
