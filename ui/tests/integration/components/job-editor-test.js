@@ -127,7 +127,6 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     await planJob(spec);
-    console.log('wait');
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.notOk(
       requests.includes('/v1/jobs/parse'),

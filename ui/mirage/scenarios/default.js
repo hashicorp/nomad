@@ -68,6 +68,24 @@ function smallCluster(server) {
     id: 'service-haver',
     namespaceId: 'default',
   });
+  server.create('job', {
+    createAllocations: true,
+    groupTaskCount: 150,
+    shallow: true,
+    allocStatusDistribution: {
+      running: 0.5,
+      failed: 0.05,
+      unknown: 0.2,
+      lost: 0.1,
+      complete: 0.1,
+      pending: 0.05,
+    },
+    name: 'mixed-alloc-job',
+    id: 'mixed-alloc-job',
+    namespaceId: 'default',
+    type: 'service',
+    activeDeployment: true,
+  });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
