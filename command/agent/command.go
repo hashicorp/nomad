@@ -3,8 +3,6 @@ package agent
 import (
 	"flag"
 	"fmt"
-	"github.com/hashicorp/go-discover"
-	discoverk8s "github.com/hashicorp/go-discover/provider/k8s"
 	"io"
 	"log"
 	"os"
@@ -22,6 +20,8 @@ import (
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	checkpoint "github.com/hashicorp/go-checkpoint"
+	discover "github.com/hashicorp/go-discover"
+	discoverk8s "github.com/hashicorp/go-discover/provider/k8s"
 	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
