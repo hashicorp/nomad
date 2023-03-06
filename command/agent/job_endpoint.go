@@ -1567,6 +1567,7 @@ func apiConnectIngressListenerToStructs(in *api.ConsulIngressListener) *structs.
 		Port:     in.Port,
 		Protocol: in.Protocol,
 		Services: apiConnectIngressServicesToStructs(in.Services),
+		TLS:      apiConnectGatewayTLSConfig(in.TLS),
 	}
 }
 

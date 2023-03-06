@@ -490,6 +490,7 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 		"port",
 		"protocol",
 		"service",
+		"tls",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
