@@ -1,27 +1,27 @@
-<div class="job-status-panel boxed-section" data-test-job-status-panel data-test-status-mode={{this.mode}}>
+<div class="job-status-panel boxed-section" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
   <div class="boxed-section-head">
     <h2>Status</h2>
     <div class="select-mode">
       <button type="button"
         data-test-status-mode-current
-        class="button is-small is-borderless {{if (eq this.mode "current") "is-active"}}"
-        {{on "click" (action (mut this.mode) "current")}}
+        class="button is-small is-borderless {{if (eq @statusMode "current") "is-active"}}"
+        {{on "click" (action @setStatusMode "current")}}
       >
         Current
       </button>
       <button type="button"
         data-test-status-mode-historical
-        class="button is-small is-borderless {{if (eq this.mode "historical") "is-active"}}"
-        {{on "click" (action (mut this.mode) "historical")}}>
+        class="button is-small is-borderless {{if (eq @statusMode "historical") "is-active"}}"
+        {{on "click" (action @setStatusMode "historical")}}>
         Historical
       </button>
     </div>
   </div>
   <div class="boxed-section-body">
-    {{#if (eq this.mode "current")}}
+    {{#if (eq @statusMode "current")}}
       <h3 class="title is-4 running-allocs-title"><strong>{{@job.runningAllocs}}/{{this.totalAllocs}}</strong> Allocations Running</h3>
 
-      <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} />
+      aaa<JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} />bbb
 
       <footer>
         <legend>
@@ -46,7 +46,7 @@
         </section>
       </footer>
     {{/if}}
-    {{#if (eq this.mode "historical")}}
+    {{#if (eq @statusMode "historical")}}
       <JobPage::Parts::SummaryChart @job={{@job}} />
     {{/if}}
   </div>

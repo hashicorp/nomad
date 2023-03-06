@@ -1,3 +1,4 @@
+// @ts-check
 import Controller from '@ember/controller';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
@@ -21,6 +22,7 @@ export default class IndexController extends Controller.extend(
       sortDescending: 'desc',
     },
     'activeTask',
+    'statusMode',
   ];
 
   currentPage = 1;
@@ -31,6 +33,11 @@ export default class IndexController extends Controller.extend(
   sortDescending = false;
   activeTask = null;
 
+  /**
+   * @type {('current'|'historical')}
+   */
+  statusMode = 'current';
+
   @action
   setActiveTaskQueryParam(task) {
     if (task) {
@@ -38,5 +45,13 @@ export default class IndexController extends Controller.extend(
     } else {
       this.set('activeTask', null);
     }
+  }
+
+  /**
+   * @param {('current'|'historical')} mode
+   */
+  @action
+  setStatusMode(mode) {
+    this.set('statusMode', mode);
   }
 }

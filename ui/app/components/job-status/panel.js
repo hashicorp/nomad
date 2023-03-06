@@ -52,11 +52,6 @@ export default class JobStatusPanelComponent extends Component {
     return allocationsOfShowableType;
   }
 
-  /**
-   * @type {('current'|'historical')}
-   */
-  @tracked mode = 'current'; // can be either "current" or "historical"
-
   // TODO: eventually we will want this from a new property on a job.
   get totalAllocs() {
     // v----- Experimental method: Count all allocs. Good for testing but not a realistic representation of "Desired"
