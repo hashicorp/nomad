@@ -3,6 +3,8 @@ package agent
 import (
 	"flag"
 	"fmt"
+	"github.com/hashicorp/go-discover"
+	discoverk8s "github.com/hashicorp/go-discover/provider/k8s"
 	"io"
 	"log"
 	"os"
@@ -20,7 +22,6 @@ import (
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	checkpoint "github.com/hashicorp/go-checkpoint"
-	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
@@ -810,20 +811,34 @@ func (c *Command) Run(args []string) int {
 	return c.handleSignals()
 }
 
+func newDiscover() (*discover.Discover, error) {
+	providers := make(map[string]discover.Provider)
+	for k, v := range discover.Providers {
+		providers[k] = v
+	}
+	providers["k8s"] = &discoverk8s.Provider{}
+	return discover.New(
+		discover.WithProviders(providers),
+	)
+}
+
 // handleRetryJoin is used to start retry joining if it is configured.
 func (c *Command) handleRetryJoin(config *Config) error {
 	c.retryJoinErrCh = make(chan struct{})
-
 	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
+		disc, err := newDiscover()
+		if err != nil {
+			return err
+		}
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			discover:      disc,
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
 			serverEnabled: true,
 		}
 
-		if err := joiner.Validate(config); err != nil {
+		if err = joiner.Validate(config); err != nil {
 			return err
 		}
 
@@ -847,16 +862,19 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	if config.Server.Enabled &&
 		config.Server.ServerJoin != nil &&
 		len(config.Server.ServerJoin.RetryJoin) != 0 {
-
+		disc, err := newDiscover()
+		if err != nil {
+			return err
+		}
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			discover:      disc,
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
 			serverEnabled: true,
 		}
 
-		if err := joiner.Validate(config); err != nil {
+		if err = joiner.Validate(config); err != nil {
 			return err
 		}
 
@@ -866,15 +884,19 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	if config.Client.Enabled &&
 		config.Client.ServerJoin != nil &&
 		len(config.Client.ServerJoin.RetryJoin) != 0 {
+		disc, err := newDiscover()
+		if err != nil {
+			return err
+		}
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			discover:      disc,
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			clientJoin:    c.agent.client.SetServers,
 			clientEnabled: true,
 		}
 
-		if err := joiner.Validate(config); err != nil {
+		if err = joiner.Validate(config); err != nil {
 			return err
 		}
 
