@@ -4,7 +4,7 @@ import { tracked } from '@glimmer/tracking';
 
 const UNGROUPED_ALLOCS_THRESHOLD = 50;
 
-export default class JobStatusAllocationRowComponent extends Component {
+export default class JobStatusAllocationStatusRowComponent extends Component {
   @tracked width = 0;
 
   get allocBlockSlots() {

@@ -13,7 +13,6 @@ const REF_TIME = new Date();
 export default Factory.extend({
   id: (i) => (i >= 100 ? `${UUIDS[i % 100]}-${i}` : UUIDS[i]),
 
-  // jobVersion: () => faker.random.number({ min: 1, max: 10 }),
   jobVersion: 1,
 
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),

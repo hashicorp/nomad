@@ -72,8 +72,6 @@ function smallCluster(server) {
     createAllocations: true,
     groupTaskCount: 150,
     shallow: true,
-    // withGroupServices: true,
-    // withTaskServices: true,
     allocStatusDistribution: {
       running: 0.5,
       failed: 0.05,
