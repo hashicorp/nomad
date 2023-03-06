@@ -8,7 +8,7 @@ export default class JobStatusPanelComponent extends Component {
     'running',
     'pending',
     'failed',
-    // 'unknown',
+    'unknown',
     // 'lost',
     // 'queued',
     // 'complete',
@@ -49,6 +49,7 @@ export default class JobStatusPanelComponent extends Component {
           return { clientStatus: 'unplaced' };
         });
     }
+    console.log('panel about to return', allocationsOfShowableType);
     return allocationsOfShowableType;
   }
 

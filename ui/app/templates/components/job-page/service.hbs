@@ -4,9 +4,12 @@
     <jobPage.ui.Title />
     <jobPage.ui.StatsBox />
     <jobPage.ui.DasRecommendations />
-    <jobPage.ui.StatusPanel />
+    {{#if @job.runningDeployment}}
+      <jobPage.ui.LatestDeployment />
+    {{else}}
+      <jobPage.ui.StatusPanel />
+    {{/if}}
     <jobPage.ui.PlacementFailures />
-    <jobPage.ui.LatestDeployment />
     <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
     <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />
     <jobPage.ui.Meta />
