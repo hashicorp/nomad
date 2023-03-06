@@ -1,0 +1,17 @@
+<div
+  class="allocation-status-block {{unless this.countToShow "rest-only"}}"
+  style={{html-safe (concat "width: " @width "%")}}
+>
+  {{#if this.countToShow}}
+    <div class="ungrouped-allocs">
+      {{#each (range 0 this.countToShow)}}
+        <span class="represented-allocation {{@status}}" />
+      {{/each}}
+    </div>
+  {{/if}}
+  {{#if this.remaining}}
+    <span class="represented-allocation rest {{@status}}">
+      {{#if this.countToShow}}+{{/if}}{{this.remaining}}
+    </span>
+  {{/if}}
+</div>

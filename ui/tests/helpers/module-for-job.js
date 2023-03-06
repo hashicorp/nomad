@@ -10,6 +10,7 @@ import {
   currentRouteName,
   currentURL,
   visit,
+  find,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -52,6 +53,10 @@ export default function moduleForJob(
       const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
       if (context === 'allocations' && hasClientStatus) {
         await click("[data-test-accordion-summary-chart='allocation-status']");
+      }
+      const hasJobStatusPanel = ['service'].includes(job.type);
+      if (hasJobStatusPanel) {
+        await JobDetail.statusModes.historical.click();
       }
     });
 
@@ -157,9 +162,8 @@ export default function moduleForJob(
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
-        const legendItem =
-          JobDetail.allocationsSummary.legend.clickableItems[1];
-        const status = legendItem.label;
+        const legendItem = find('.legend li.is-clickable');
+        const status = legendItem.getAttribute('data-test-legend-label');
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
@@ -176,7 +180,7 @@ export default function moduleForJob(
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
-        const slice = JobDetail.allocationsSummary.slices[1];
+        const slice = JobDetail.allocationsSummary.slices[0];
         const status = slice.label;
         await slice.click();
 

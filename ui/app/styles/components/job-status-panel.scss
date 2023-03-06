@@ -1,0 +1,169 @@
+.job-status-panel {
+  .select-mode {
+    border: 1px solid $grey-blue;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 2px;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr 1fr;
+    padding: 0.25rem 0.5rem;
+    margin-left: 1rem;
+
+    button {
+      height: auto;
+      padding: 0 0.5rem;
+      background: transparent;
+      transition: 0.1s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      &.is-active {
+        background: $white;
+      }
+    }
+  }
+
+  .running-allocs-title {
+    strong {
+      font-weight: 800;
+    }
+  }
+
+  .ungrouped-allocs {
+    display: grid;
+    gap: 10px;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(1px, 32px);
+    & > .represented-allocation {
+      width: auto;
+    }
+  }
+
+  .alloc-status-summaries {
+    display: flex;
+    height: 32px;
+    gap: 1.5rem;
+
+    .allocation-status-block {
+      display: grid;
+      grid-template-columns: auto 50px;
+      gap: 10px;
+
+      &.rest-only {
+        grid-template-columns: auto;
+      }
+
+      & > .ungrouped-allocs {
+        display: grid;
+        grid-auto-flow: column;
+        gap: 10px;
+        grid-auto-columns: unset;
+        & > .represented-allocation {
+          width: 32px;
+        }
+      }
+
+      .represented-allocation.rest {
+        font-size: 0.8rem;
+        text-align: center;
+        display: grid;
+        align-content: center;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        width: 100%;
+
+        &.unplaced {
+          color: black;
+        }
+      }
+    }
+  }
+
+  .represented-allocation {
+    background: $green;
+    border-radius: 4px;
+    height: 32px;
+    width: 32px;
+    color: white;
+
+    $queued: $grey;
+    $pending: $grey-lighter;
+    $running: $primary;
+    $complete: $nomad-green-dark;
+    $failed: $danger;
+    $lost: $dark;
+
+    &.running {
+      background: $running;
+    }
+    &.failed {
+      background: $failed;
+    }
+    &.unknown {
+      background: $unknown;
+    }
+    &.queued {
+      background: $queued;
+    }
+    &.complete {
+      background: $complete;
+    }
+    &.pending {
+      background: $pending;
+      color: black;
+    }
+    &.lost {
+      background: $lost;
+    }
+
+    &.unplaced {
+      background: transparent;
+      border: 2px solid $grey-lighter;
+    }
+  }
+
+  & > .boxed-section-body > footer {
+    display: grid;
+    gap: 0.5rem;
+    padding-top: 2rem;
+    grid-template-columns: 50% 50%;
+
+    legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+
+      .legend-item {
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: auto 1fr;
+
+        &.faded {
+          opacity: 0.5;
+        }
+
+        .represented-allocation {
+          width: 20px;
+          height: 20px;
+        }
+      }
+    }
+
+    .versions {
+      h4 {
+        margin-bottom: 0.5rem;
+      }
+
+      & > ul {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, 100px);
+        gap: 0.5rem;
+        & > li {
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+}

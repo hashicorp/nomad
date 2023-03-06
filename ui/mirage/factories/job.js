@@ -222,6 +222,7 @@ export default Factory.extend({
       withTaskServices: job.withTaskServices,
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
+      allocStatusDistribution: job.allocStatusDistribution,
     };
 
     if (job.groupTaskCount) {
