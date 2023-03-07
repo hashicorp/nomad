@@ -2,6 +2,7 @@
 
 mkdir -p /opt/nomad/data
 chown nomad:nomad /opt/nomad/data
+chmod 0700 /opt/nomad/data
 chown -R nomad:nomad /etc/nomad.d
 
 if [ -d /run/systemd/system ]; then
