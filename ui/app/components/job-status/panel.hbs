@@ -21,7 +21,7 @@
     {{#if (eq @statusMode "current")}}
       <h3 class="title is-4 running-allocs-title"><strong>{{@job.runningAllocs}}/{{this.totalAllocs}}</strong> Allocations Running</h3>
 
-      aaa<JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} />bbb
+      <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} />
 
       <footer>
         <legend>
