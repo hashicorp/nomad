@@ -78,6 +78,7 @@ resource "null_resource" "install_nomad_configs_linux" {
     inline = [
       "mkdir -p /etc/nomad.d",
       "mkdir -p /opt/nomad/data",
+      "sudo chmod 0700 /opt/nomad/data",
       "sudo rm -rf /etc/nomad.d/*",
       "sudo mv /tmp/consul.hcl /etc/nomad.d/consul.hcl",
       "sudo mv /tmp/vault.hcl /etc/nomad.d/vault.hcl",
