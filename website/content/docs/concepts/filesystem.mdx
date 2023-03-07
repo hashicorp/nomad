@@ -71,7 +71,8 @@ allocation directory like the one below.
   - **«taskname»/secrets/**: This directory is the location provided to the task as
     `NOMAD_SECRETS_DIR`. The contents of files in this directory cannot be read
     by the `nomad alloc fs` command. It can be used to store secret data that
-    should not be visible outside the task.
+    should not be visible outside the task. Where possible it is backed by an
+    in-memory filesystem and mounted `noexec`.
 
   - **«taskname»/tmp/**: A temporary directory used as scratch space by task drivers.
 
