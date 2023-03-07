@@ -107,6 +107,9 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 				LocalServiceAddress: "lsa",
 				LocalServicePort:    80,
 			},
+			Meta: map[string]string{
+				"name": "sidecar",
+			},
 		}
 		css.Canonicalize()
 		must.Eq(t, &ConsulSidecarService{
@@ -115,6 +118,9 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 			Proxy: &ConsulProxy{
 				LocalServiceAddress: "lsa",
 				LocalServicePort:    80},
+			Meta: map[string]string{
+				"name": "sidecar",
+			},
 		}, css)
 	})
 }
