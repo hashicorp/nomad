@@ -9,7 +9,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID
@@ -66,12 +65,9 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]str
 			notReady[node.ID] = struct{}{}
 			continue
 		}
-		for _, dc := range dcs {
-			if node.IsInDC(dc) {
-				out = append(out, node)
-				dcMap[node.Datacenter]++
-				break
-			}
+		if node.IsInAnyDC(dcs) {
+			out = append(out, node)
+			dcMap[node.Datacenter]++
 		}
 	}
 	return out, notReady, dcMap, nil
@@ -558,7 +554,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		}
 
 		// The alloc is on a node that's now in an ineligible DC
-		if !slices.Contains(job.Datacenters, node.Datacenter) {
+		if !node.IsInAnyDC(job.Datacenters) {
 			continue
 		}
 
@@ -802,7 +798,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		}
 
 		// The alloc is on a node that's now in an ineligible DC
-		if !slices.Contains(newJob.Datacenters, node.Datacenter) {
+		if !node.IsInAnyDC(newJob.Datacenters) {
 			return false, true, nil
 		}
 

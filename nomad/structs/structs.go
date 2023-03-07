@@ -2311,8 +2311,13 @@ func (n *Node) ComparableResources() *ComparableResources {
 	}
 }
 
-func (n *Node) IsInDC(dc string) bool {
-	return glob.Glob(dc, n.Datacenter)
+func (n *Node) IsInAnyDC(datacenters []string) bool {
+	for _, dc := range datacenters {
+		if glob.Glob(dc, n.Datacenter) {
+			return true
+		}
+	}
+	return false
 }
 
 // Stub returns a summarized version of the node
