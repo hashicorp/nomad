@@ -15,6 +15,15 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.5.0
 
+#### Pause Container Reconciliation Regression
+
+Nomad 1.5.0 introduced a regression to the way the Docker driver reconciles
+dangling containers. This meant pause containers would be erroneously removed,
+even though the allocation was still running. This would not affect the running
+allocation, but does cause it to fail if it needs to restart. An immediate
+workaround is to disable
+[dangling container reconciliation][dangling_container_reconciliation].
+
 #### Artifact Download Sandboxing
 
 Nomad 1.5.0 changes the way [artifacts] are downloaded when specifying an `artifact`
@@ -127,6 +136,17 @@ to control how allocations and evaluations for batch jobs are collected.
 The default threshold is `24h`. If you need to access completed allocations for
 batch jobs that are older than 24h you must increase this value when upgrading
 Nomad.
+
+## Nomad 1.4.5, 1.3.10
+
+#### Pause Container Reconciliation Regression
+
+Nomad 1.4.5 and 1.3.10 introduced a regression to the way the Docker driver
+reconciles dangling containers. This meant pause containers would be erroneously
+removed, even though the allocation was still running. This would not affect the
+running allocation, but does cause it to fail if it needs to restart. An immediate
+workaround is to disable
+[dangling container reconciliation][dangling_container_reconciliation].
 
 ## Nomad 1.4.4, 1.3.9
 
@@ -1670,3 +1690,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
 [decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables
+[dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
