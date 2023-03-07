@@ -171,7 +171,7 @@ func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlu
 		ctx:             ctx,
 		logger:          logger,
 	}
-	go driver.recoverPauseContainers()
+	go driver.recoverPauseContainers(ctx)
 	return driver
 }
 
@@ -274,6 +274,9 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	d.tasks.Set(handle.Config.ID, h)
+
+	// find a pause container?
+
 	go h.run()
 
 	return nil
@@ -745,7 +748,7 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	return binds, nil
 }
 
-func (d *Driver) recoverPauseContainers() {
+func (d *Driver) recoverPauseContainers(ctx context.Context) {
 	// On Client restart, we must rebuild the set of pause containers
 	// we are tracking. Basically just scan all containers and pull the ID from
 	// anything that has the Nomad Label and has Name with prefix "/nomad_init_".
@@ -757,7 +760,8 @@ func (d *Driver) recoverPauseContainers() {
 	}
 
 	containers, listErr := dockerClient.ListContainers(docker.ListContainersOptions{
-		All: false, // running only
+		Context: ctx,
+		All:     false, // running only
 		Filters: map[string][]string{
 			"label": {dockerLabelAllocID},
 		},
