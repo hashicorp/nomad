@@ -1,7 +1,9 @@
+// @ts-check
 import Component from '@glimmer/component';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { alias } from '@ember/object/computed';
+// import { tracked } from '@glimmer/tracking';
 
 // TODO: temp proof of concept
 const groupBy = function (xs, key) {
@@ -13,6 +15,19 @@ const groupBy = function (xs, key) {
 
 export default class LatestDeployment extends Component {
   // job = null;
+
+  constructor(owner, args) {
+    super(owner, args);
+    // TODO: maybe handle in a did-render or something
+    // A deployment is about to happen! lets establish the allocs we need to track as being "old".
+    this.oldVersionAllocBlockIDs = this.job.allocations.filter(
+      (a) =>
+        a.clientStatus === 'running' &&
+        a.jobVersion !== this.deployment.get('versionNumber')
+    );
+  }
+
+  oldVersionAllocBlockIDs = [];
 
   @alias('args.job') job;
   @alias('args.handleError') handleError = () => {};
@@ -52,7 +67,7 @@ export default class LatestDeployment extends Component {
     'running',
     'pending',
     'failed',
-    'unknown',
+    // 'unknown',
     // 'lost',
     // 'queued',
     // 'complete',
@@ -106,9 +121,8 @@ export default class LatestDeployment extends Component {
     // return allocationsOfShowableType;
     return groupBy(
       this.job.allocations.filter(
-        (a) =>
-          a.clientStatus === 'running' &&
-          a.jobVersion !== this.deployment.get('versionNumber')
+        (a) => this.oldVersionAllocBlockIDs.includes(a)
+        // a.jobVersion !== this.deployment.get('versionNumber')
       ),
       'clientStatus'
     );
@@ -148,6 +162,4 @@ export default class LatestDeployment extends Component {
     }
     return allocationsOfShowableType;
   }
-
-  get jobAllocations() {}
 }
