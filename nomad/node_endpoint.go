@@ -1620,11 +1620,8 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		// here, but datacenter is a good optimization to start with as
 		// datacenter cardinality tends to be low so the check
 		// shouldn't add much work.
-		for _, dc := range job.Datacenters {
-			if node.IsInDC(dc) {
-				sysJobs = append(sysJobs, job)
-				break
-			}
+		if node.IsInAnyDC(job.Datacenters) {
+			sysJobs = append(sysJobs, job)
 		}
 	}
 

@@ -320,6 +320,7 @@ func TestTaskUpdatedSpread(t *testing.T) {
 
 	require.False(t, tasksUpdated(j5, j6, name))
 }
+
 func TestTasksUpdated(t *testing.T) {
 	ci.Parallel(t)
 
@@ -970,6 +971,35 @@ func TestInplaceUpdate_Success(t *testing.T) {
 			t.Errorf("Expected consul service name missing: %v", name)
 		}
 	}
+}
+
+func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+	job.Datacenters = []string{"*"}
+
+	node := mock.Node()
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+
+	// Register an alloc
+	alloc := mock.AllocForNode(node)
+	alloc.Job = job
+	alloc.JobID = job.ID
+	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
+	stack := NewGenericStack(false, ctx)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	must.Len(t, 1, inplace,
+		must.Sprintf("inplaceUpdate should have an inplace update"))
+	must.Len(t, 0, unplaced)
+	must.MapNotEmpty(t, ctx.plan.NodeAllocation,
+		must.Sprintf("inplaceUpdate should have an inplace update"))
 }
 
 func TestUtil_connectUpdated(t *testing.T) {
