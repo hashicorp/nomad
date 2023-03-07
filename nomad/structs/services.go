@@ -1101,6 +1101,9 @@ type ConsulSidecarService struct {
 	// DisableDefaultTCPCheck, if true, instructs Nomad to avoid setting a
 	// default TCP check for the sidecar service.
 	DisableDefaultTCPCheck bool
+
+	// Meta specifies arbitrary KV metadata linked to the sidecar service.
+	Meta map[string]string
 }
 
 // HasUpstreams checks if the sidecar service has any upstreams configured
@@ -1118,6 +1121,7 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 		Port:                   s.Port,
 		Proxy:                  s.Proxy.Copy(),
 		DisableDefaultTCPCheck: s.DisableDefaultTCPCheck,
+		Meta:                   maps.Clone(s.Meta),
 	}
 }
 
@@ -1136,6 +1140,10 @@ func (s *ConsulSidecarService) Equal(o *ConsulSidecarService) bool {
 	}
 
 	if !helper.SliceSetEq(s.Tags, o.Tags) {
+		return false
+	}
+
+	if !maps.Equal(s.Meta, o.Meta) {
 		return false
 	}
 

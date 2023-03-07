@@ -664,6 +664,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 		"proxy",
 		"tags",
 		"disable_default_tcp_check",
+		"meta",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
