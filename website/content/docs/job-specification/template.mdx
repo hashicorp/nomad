@@ -73,7 +73,9 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   that build a chroot in the task working directory (ex. `exec`) can render
   templates outside of the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or
   `NOMAD_SECRETS_DIR`. For more details on how `destination` interacts with
-  task drivers, see the [Filesystem internals] documentation.
+  task drivers, see the [Filesystem internals][] documentation. Note that where
+  possible, the `NOMAD_SECRETS_DIR` is mounted `noexec`, so rendered templates
+  can't be used as self-executing scripts.
 
 - `env` `(bool: false)` - Specifies the template should be read back in as
   environment variables for the task ([example](#environment-variables)). To
