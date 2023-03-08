@@ -189,7 +189,10 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		}
 
 		for _, fileEntry := range dirEntries {
-			entry, _ := fileEntry.Info()
+			entry, err := fileEntry.Info()
+			if err != nil {
+				return fmt.Errorf("Couldn't read the file information %v: %v", entry, err)
+			}
 			hostEntry := filepath.Join(source, entry.Name())
 			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
 			if entry.IsDir() {

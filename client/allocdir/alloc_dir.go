@@ -362,7 +362,10 @@ func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 	}
 	files := make([]*cstructs.AllocFileInfo, len(finfos))
 	for idx, file := range finfos {
-		info, _ := file.Info()
+		info, err := file.Info()
+		if err != nil {
+			return []*cstructs.AllocFileInfo{}, err
+		}
 		files[idx] = &cstructs.AllocFileInfo{
 			Name:     info.Name(),
 			IsDir:    info.IsDir(),
