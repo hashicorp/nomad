@@ -2,7 +2,6 @@ package logging
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -189,7 +188,7 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 	path := t.TempDir()
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
-	err := ioutil.WriteFile(fname1, []byte("abcd"), 0600)
+	err := os.WriteFile(fname1, []byte("abcd"), 0600)
 	require.NoError(t, err)
 
 	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
@@ -258,7 +257,7 @@ func TestFileRotator_PurgeOldFiles(t *testing.T) {
 	require.Equal(t, len(str), nw)
 
 	testutil.WaitForResult(func() (bool, error) {
-		f, err := ioutil.ReadDir(path)
+		f, err := os.ReadDir(path)
 		if err != nil {
 			return false, fmt.Errorf("failed to read dir %v: %w", path, err)
 		}

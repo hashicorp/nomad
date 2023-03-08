@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -130,7 +129,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	// directory
 	recoveredToken := ""
 	h.tokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
-	data, err := ioutil.ReadFile(h.tokenPath)
+	data, err := os.ReadFile(h.tokenPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to recover vault token: %v", err)
@@ -343,7 +342,7 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 
 // writeToken writes the given token to disk
 func (h *vaultHook) writeToken(token string) error {
-	if err := ioutil.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
+	if err := os.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
 		return fmt.Errorf("failed to write vault token: %v", err)
 	}
 

@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -122,7 +121,7 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 
 	dir1 := t.TempDir()
 
-	rc := ioutil.NopCloser(buf)
+	rc := io.NopCloser(buf)
 	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
 	if err := prevAlloc.streamAllocDir(context.Background(), rc, dir1); err != nil {
 		t.Fatalf("err: %v", err)

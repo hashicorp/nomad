@@ -3,7 +3,6 @@ package fingerprint
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -25,7 +24,7 @@ func TestBridgeFingerprint_detect(t *testing.T) {
 }
 
 func writeFile(t *testing.T, prefix, content string) string {
-	f, err := ioutil.TempFile("", "bridge-fp-")
+	f, err := os.CreateTemp("", "bridge-fp-")
 	require.NoError(t, err)
 
 	_, err = io.Copy(f, strings.NewReader(content))
