@@ -391,7 +391,7 @@ func TestService_Hash(t *testing.T) {
 					}},
 				},
 				Meta: map[string]string{
-					"name": "sidecar",
+					"test-key": "test-value",
 				},
 			},
 			// SidecarTask: nil // not hashed
@@ -534,7 +534,7 @@ func TestConsulConnect_CopyEqual(t *testing.T) {
 				},
 			},
 			Meta: map[string]string{
-				"name": "sidecar",
+				"test-key": "test-value",
 			},
 		},
 	}
@@ -840,7 +840,7 @@ func TestConsulSidecarService_Copy(t *testing.T) {
 			Port:  "port1",
 			Proxy: &ConsulProxy{LocalServiceAddress: "10.0.0.1"},
 			Meta: map[string]string{
-				"name": "sidecar",
+				"test-key": "test-value",
 			},
 		}
 		result := s.Copy()
@@ -849,7 +849,7 @@ func TestConsulSidecarService_Copy(t *testing.T) {
 			Port:  "port1",
 			Proxy: &ConsulProxy{LocalServiceAddress: "10.0.0.1"},
 			Meta: map[string]string{
-				"name": "sidecar",
+				"test-key": "test-value",
 			},
 		}, result)
 	})

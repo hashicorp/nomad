@@ -1360,7 +1360,9 @@ func TestParse(t *testing.T) {
 							Native: false,
 							SidecarService: &api.ConsulSidecarService{
 								Meta: map[string]string{
-									"test-key": "test-value",
+									"test-key":  "test-value",
+									"test-key1": "test-value1",
+									"test-key2": "test-value2",
 								},
 							},
 						},

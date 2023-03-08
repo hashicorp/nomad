@@ -108,7 +108,7 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 				LocalServicePort:    80,
 			},
 			Meta: map[string]string{
-				"name": "sidecar",
+				"test-key": "test-value",
 			},
 		}
 		css.Canonicalize()
@@ -119,7 +119,7 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 				LocalServiceAddress: "lsa",
 				LocalServicePort:    80},
 			Meta: map[string]string{
-				"name": "sidecar",
+				"test-key": "test-value",
 			},
 		}, css)
 	})
