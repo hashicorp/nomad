@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/shoenig/go-landlock"
 )
 
@@ -37,16 +36,10 @@ func attributes() *syscall.SysProcAttr {
 }
 
 // credentials returns the UID and GID of the user the child process
-// will run as. On Linux systems this will be the nobody user if Nomad
-// is being run as the root user, or the user Nomad is being run as
-// otherwise.
+// will run as - for now this is always the same user the Nomad agent is
+// running as.
 func credentials() (uint32, uint32) {
-	switch userUID {
-	case 0:
-		return users.NobodyIDs()
-	default:
-		return userUID, userGID
-	}
+	return userUID, userGID
 }
 
 // defaultEnvironment is the default minimal environment variables for Linux.

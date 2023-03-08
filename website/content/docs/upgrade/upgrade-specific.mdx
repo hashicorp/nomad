@@ -13,6 +13,22 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.5.1
+
+#### Artifact Download Regression Fix
+
+Nomad 1.5.1 reverts a behavior of 1.5.0 where artifact downloads were executed
+as the `nobody` user on compatible Linux systems. This was done optimistically
+as defense against compromised artifact endpoints attempting to exploit the
+Nomad Client or tools it uses to perform downloads such as git or mercurial.
+Unfortunately running the child process as any user other than root is not
+compatible with the advice given in Nomad's [security hardening guide][hard_guide]
+which calls for a specific directory tree structure making such operation impossible.
+
+Other changes to artifact downloading remain - they are executed as a child
+process of the Nomad agent, and on modern Linux systems make use of the Kernel
+landlock feature to restrict filesystem access from that process.
+
 ## Nomad 1.5.0
 
 #### Pause Container Reconciliation Regression
@@ -1691,3 +1707,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables
 [dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
+[hard_guide]: /nomad/docs/install/production/requirements#hardening-nomad
