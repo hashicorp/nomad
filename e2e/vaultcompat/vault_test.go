@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -233,7 +232,7 @@ func createBinDir(binDir string) error {
 // missingVault returns the binaries that must be downloaded. versions key must
 // be the Vault version.
 func missingVault(binDir string, versions map[string]string) (map[string]string, error) {
-	files, err := ioutil.ReadDir(binDir)
+	files, err := os.ReadDir(binDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return versions, nil

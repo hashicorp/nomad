@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -232,7 +231,7 @@ func volumeRegister(volID, volFilePath, createOrRegister string) error {
 		return fmt.Errorf("could not open stdin?: %w", err)
 	}
 
-	content, err := ioutil.ReadFile(volFilePath)
+	content, err := os.ReadFile(volFilePath)
 	if err != nil {
 		return fmt.Errorf("could not open vol file: %w", err)
 	}
