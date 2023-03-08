@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	golog "log"
 	"net"
 	"os"
@@ -945,7 +944,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 	// validate it. Saved state overwrites any configured node id
 	fileID := filepath.Join(config.DataDir, "node-id")
 	if _, err := os.Stat(fileID); err == nil {
-		rawID, err := ioutil.ReadFile(fileID)
+		rawID, err := os.ReadFile(fileID)
 		if err != nil {
 			return err
 		}
@@ -970,7 +969,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
+		if err := os.WriteFile(fileID, []byte(config.NodeID), 0600); err != nil {
 			return err
 		}
 		return nil
@@ -982,7 +981,7 @@ func (a *Agent) setupNodeID(config *nomad.Config) error {
 		if err := escapingfs.EnsurePath(fileID, false); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(fileID, []byte(id), 0600); err != nil {
+		if err := os.WriteFile(fileID, []byte(id), 0600); err != nil {
 			return err
 		}
 

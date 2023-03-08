@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -151,7 +150,7 @@ func (c *OperatorAPICommand) Run(args []string) int {
 
 		// Load stdin into a *bytes.Reader so that http.NewRequest can set the
 		// correct Content-Length value.
-		b, err := ioutil.ReadAll(Stdin)
+		b, err := io.ReadAll(Stdin)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading stdin: %v", err))
 			return 1
