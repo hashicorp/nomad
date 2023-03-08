@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -229,7 +228,7 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 
 	cr, err := newChecksumValidatingReader(resp.Body, digest)
 	if err != nil {
-		io.Copy(ioutil.Discard, resp.Body)
+		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 
 		return nil, err
