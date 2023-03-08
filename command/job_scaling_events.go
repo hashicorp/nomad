@@ -27,8 +27,10 @@ Usage: nomad job scaling-events [options] <args>
 
   List the scaling events for the specified job.
 
-  When ACLs are enabled, this command requires a token with the
-  'read-job-scaling' capability for the job's namespace.
+  When ACLs are enabled, this command requires a token with either the
+  'read-job' or 'read-job-scaling' capability for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID.
 
 General Options:
 
