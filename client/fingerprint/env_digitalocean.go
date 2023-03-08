@@ -2,7 +2,7 @@ package fingerprint
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -82,7 +82,7 @@ func (f *EnvDigitalOceanFingerprint) Get(attribute string, format string) (strin
 		return "", err
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		f.logger.Error("failed to read metadata", "attribute", attribute, "error", err, "resp_code", res.StatusCode)

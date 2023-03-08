@@ -2,9 +2,9 @@ package fingerprint
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -38,7 +38,7 @@ func fakeConsul(payload string) (*httptest.Server, *config.Config) {
 }
 
 func fakeConsulPayload(t *testing.T, filename string) string {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	require.NoError(t, err)
 	return string(b)
 }

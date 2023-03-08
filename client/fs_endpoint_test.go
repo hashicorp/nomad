@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"os"
@@ -1854,7 +1853,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
 		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, expected[i:i+1], 0777)
+		err := os.WriteFile(logFilePath, expected[i:i+1], 0777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
@@ -1928,7 +1927,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	}
 	writeToFile := func(index int, data []byte) {
 		logFilePath := filePath(index)
-		err := ioutil.WriteFile(logFilePath, data, 0777)
+		err := os.WriteFile(logFilePath, data, 0777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
