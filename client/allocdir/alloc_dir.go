@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -357,12 +356,16 @@ func (d *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 	}
 
 	p := filepath.Join(d.AllocDir, path)
-	finfos, err := ioutil.ReadDir(p)
+	finfos, err := os.ReadDir(p)
 	if err != nil {
 		return []*cstructs.AllocFileInfo{}, err
 	}
 	files := make([]*cstructs.AllocFileInfo, len(finfos))
-	for idx, info := range finfos {
+	for idx, file := range finfos {
+		info, err := file.Info()
+		if err != nil {
+			return []*cstructs.AllocFileInfo{}, err
+		}
 		files[idx] = &cstructs.AllocFileInfo{
 			Name:     info.Name(),
 			IsDir:    info.IsDir(),

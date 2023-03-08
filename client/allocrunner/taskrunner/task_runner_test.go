@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -743,7 +742,7 @@ func TestTaskRunner_TaskEnv_None(t *testing.T) {
 
 	// Read stdout
 	p := filepath.Join(conf.TaskDir.LogDir, task.Name+".stdout.0")
-	stdout, err := ioutil.ReadFile(p)
+	stdout, err := os.ReadFile(p)
 	require.NoError(err)
 	require.Equalf(exp, string(stdout), "expected: %s\n\nactual: %s\n", exp, stdout)
 }
@@ -1161,7 +1160,7 @@ func TestTaskRunner_Dispatch_Payload(t *testing.T) {
 
 	// Check that the file was written to disk properly
 	payloadPath := filepath.Join(tr.taskDir.LocalDir, fileName)
-	data, err := ioutil.ReadFile(payloadPath)
+	data, err := os.ReadFile(payloadPath)
 	require.NoError(t, err)
 	require.Equal(t, expected, data)
 }
@@ -1417,7 +1416,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 
 	// assert the token is on disk
 	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
-	data, err := ioutil.ReadFile(tokenPath)
+	data, err := os.ReadFile(tokenPath)
 	r.NoError(err)
 	r.Equal(token, string(data))
 }
@@ -1470,7 +1469,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 
 	// assert the token is on disk
 	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
-	data, err := ioutil.ReadFile(tokenPath)
+	data, err := os.ReadFile(tokenPath)
 	r.NoError(err)
 	r.Equal(token, string(data))
 }
@@ -1586,7 +1585,7 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 
 	// Check that the token is on disk
 	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
-	data, err := ioutil.ReadFile(tokenPath)
+	data, err := os.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
 
@@ -1663,7 +1662,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 
 	// Check that the token is on disk
 	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
-	data, err := ioutil.ReadFile(tokenPath)
+	data, err := os.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
 

@@ -2,7 +2,8 @@ package taskrunner
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -27,8 +28,8 @@ func getTestConsul(t *testing.T) *consultest.TestServer {
 	testConsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
 		c.Peering = nil         // fix for older versions of Consul (<1.13.0) that don't support peering
 		if !testing.Verbose() { // disable consul logging if -v not set
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
+			c.Stdout = io.Discard
+			c.Stderr = io.Discard
 		}
 	})
 	require.NoError(t, err, "failed to start test consul server")
@@ -42,7 +43,7 @@ func TestConnectNativeHook_Name(t *testing.T) {
 }
 
 func setupCertDirs(t *testing.T) (string, string) {
-	fd, err := ioutil.TempFile(t.TempDir(), "connect_native_testcert")
+	fd, err := os.CreateTemp(t.TempDir(), "connect_native_testcert")
 	require.NoError(t, err)
 	_, err = fd.WriteString("ABCDEF")
 	require.NoError(t, err)
@@ -65,7 +66,7 @@ func TestConnectNativeHook_copyCertificate(t *testing.T) {
 	t.Run("normal", func(t *testing.T) {
 		err := new(connectNativeHook).copyCertificate(f, d, "out.pem")
 		require.NoError(t, err)
-		b, err := ioutil.ReadFile(filepath.Join(d, "out.pem"))
+		b, err := os.ReadFile(filepath.Join(d, "out.pem"))
 		require.NoError(t, err)
 		require.Equal(t, "ABCDEF", string(b))
 	})
@@ -83,7 +84,7 @@ func TestConnectNativeHook_copyCertificates(t *testing.T) {
 			KeyFile:  f,
 		}, d)
 		require.NoError(t, err)
-		ls, err := ioutil.ReadDir(d)
+		ls, err := os.ReadDir(d)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(ls))
 	})
@@ -411,7 +412,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
 	siTokenFile := filepath.Join(request.TaskDir.SecretsDir, sidsTokenFile)
-	err = ioutil.WriteFile(siTokenFile, []byte(token), 0440)
+	err = os.WriteFile(siTokenFile, []byte(token), 0440)
 	require.NoError(t, err)
 
 	response := new(interfaces.TaskPrestartResponse)
@@ -538,7 +539,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 }
 
 func checkFilesInDir(t *testing.T, dir string, includes, excludes []string) {
-	ls, err := ioutil.ReadDir(dir)
+	ls, err := os.ReadDir(dir)
 	require.NoError(t, err)
 
 	var present []string
