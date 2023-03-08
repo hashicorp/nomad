@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
@@ -617,7 +616,7 @@ func (c *Client) init() error {
 
 	} else {
 		// Otherwise make a temp directory to use.
-		p, err := ioutil.TempDir("", "NomadClient")
+		p, err := os.MkdirTemp("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the StateDir: %v", err)
 		}
@@ -658,7 +657,7 @@ func (c *Client) init() error {
 		}
 	} else {
 		// Otherwise make a temp directory to use.
-		p, err := ioutil.TempDir("", "NomadClient")
+		p, err := os.MkdirTemp("", "NomadClient")
 		if err != nil {
 			return fmt.Errorf("failed creating temporary directory for the AllocDir: %v", err)
 		}
@@ -1384,14 +1383,14 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 
 	// Attempt to read existing ID
 	idPath := filepath.Join(conf.StateDir, "client-id")
-	idBuf, err := ioutil.ReadFile(idPath)
+	idBuf, err := os.ReadFile(idPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", "", err
 	}
 
 	// Attempt to read existing secret ID
 	secretPath := filepath.Join(conf.StateDir, "secret-id")
-	secretBuf, err := ioutil.ReadFile(secretPath)
+	secretBuf, err := os.ReadFile(secretPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", "", err
 	}
@@ -1403,7 +1402,7 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 		id = hostID
 
 		// Persist the ID
-		if err := ioutil.WriteFile(idPath, []byte(id), 0700); err != nil {
+		if err := os.WriteFile(idPath, []byte(id), 0700); err != nil {
 			return "", "", err
 		}
 	}
@@ -1415,7 +1414,7 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 		secret = uuid.Generate()
 
 		// Persist the ID
-		if err := ioutil.WriteFile(secretPath, []byte(secret), 0700); err != nil {
+		if err := os.WriteFile(secretPath, []byte(secret), 0700); err != nil {
 			return "", "", err
 		}
 	}

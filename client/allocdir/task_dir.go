@@ -2,7 +2,6 @@ package allocdir
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -184,12 +183,16 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		}
 
 		// Enumerate the files in source.
-		dirEntries, err := ioutil.ReadDir(source)
+		dirEntries, err := os.ReadDir(source)
 		if err != nil {
 			return fmt.Errorf("Couldn't read directory %v: %v", source, err)
 		}
 
-		for _, entry := range dirEntries {
+		for _, fileEntry := range dirEntries {
+			entry, err := fileEntry.Info()
+			if err != nil {
+				return fmt.Errorf("Couldn't read the file information %v: %v", entry, err)
+			}
 			hostEntry := filepath.Join(source, entry.Name())
 			taskEntry := filepath.Join(destDir, filepath.Base(hostEntry))
 			if entry.IsDir() {
