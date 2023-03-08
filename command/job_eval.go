@@ -23,8 +23,9 @@ Usage: nomad job eval [options] <job_id>
   operators to force the scheduler to create new allocations under certain
   scenarios.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace.
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the job's namespace. The 'list-jobs' capability is required to
+  run the command with a job prefix instead of the exact job ID.
 
 General Options:
 

@@ -27,8 +27,10 @@ Stop will issue a request to deregister the matched jobs and then invoke an
 interactive monitor that exits automatically once the scheduler has processed
 the requests. It is safe to exit the monitor early using ctrl+c.
 
-When ACLs are enabled, this command requires a token with the `submit-job`,
-`read-job`, and `list-jobs` capabilities for the job's namespace.
+When ACLs are enabled, this command requires a token with the `submit-job`
+and `read-job` capabilities for the job's namespace. The `list-jobs`
+capability is required to run the command with job prefixes instead of exact
+job IDs.
 
 ## General Options
 
