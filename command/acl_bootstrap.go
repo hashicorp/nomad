@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -88,10 +88,10 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 		case "":
 			terminalToken = []byte{}
 		case "-":
-			terminalToken, err = ioutil.ReadAll(os.Stdin)
+			terminalToken, err = io.ReadAll(os.Stdin)
 		default:
 			file = args[0]
-			terminalToken, err = ioutil.ReadFile(file)
+			terminalToken, err = os.ReadFile(file)
 		}
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading provided token: %v", err))
