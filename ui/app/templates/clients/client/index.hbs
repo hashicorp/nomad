@@ -879,6 +879,11 @@
             type="button"
             class="button is-primary"
             {{on "click" (action (mut this.editingMetadata) true)}}
+            {{keyboard-shortcut 
+              label="Add Dynamic Node Metadata"
+              pattern=(array "m" "e" "t" "a")
+              action=(action (mut this.editingMetadata) true)
+            }}
           >
             Add new Dynamic Metadata
           </button>
