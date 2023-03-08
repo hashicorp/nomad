@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -153,12 +152,12 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		t.Skipf("nomad version failed: %v", err)
 	}
 
-	dataDir, err := ioutil.TempDir("", "nomad")
+	dataDir, err := os.MkdirTemp("", "nomad")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	configFile, err := ioutil.TempFile(dataDir, "nomad")
+	configFile, err := os.CreateTemp(dataDir, "nomad")
 	if err != nil {
 		defer os.RemoveAll(dataDir)
 		t.Fatalf("err: %s", err)
