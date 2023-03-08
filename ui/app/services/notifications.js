@@ -29,7 +29,7 @@ export default class NotificationsService extends FlashService {
     }
 
     if (!('sticky' in notificationObject)) {
-      notificationObject.sticky = true;
+      notificationObject.sticky = false;
     }
 
     if (!('destroyOnClick' in notificationObject)) {
