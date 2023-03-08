@@ -261,7 +261,7 @@ func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter JobByPrefix
 }
 
 // JobIDByPrefix provides best effort match for the given job prefix.
-// Retuns the prefix itself if job prefix search is not allowed and an error
+// Returns the prefix itself if job prefix search is not allowed and an error
 // if there are no matches or if there are more than one exact match across
 // namespaces.
 func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (string, string, error) {
