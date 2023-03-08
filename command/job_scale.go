@@ -95,7 +95,16 @@ func (j *JobScaleCommand) Run(args []string) int {
 		countString = args[1]
 	}
 
-	// Convert the count string arg to an int as required by the API.
+	stringIsRelative := strings.Contains(countString, "%")
+	if stringIsRelative {
+		countString = strings.Replace(countString, "%", "", -1)
+	}
+	stringIsMultiple := strings.Contains(countString, "x")
+	if stringIsMultiple {
+		stringIsRelative = true
+		countString = strings.Replace(countString, "x", "", -1)
+	}
+
 	count, err := strconv.Atoi(countString)
 	if err != nil {
 		j.Ui.Error(fmt.Sprintf("Failed to convert count string to int: %s", err))
@@ -124,6 +133,31 @@ func (j *JobScaleCommand) Run(args []string) int {
 	if err != nil {
 		j.Ui.Error(fmt.Sprintf("Error querying job: %v", err))
 		return 1
+	}
+
+	// If it turns out that our countString contained a %, let's figure out the job's current count and modify based on that %
+	if stringIsRelative {
+		// Convert the string to an int
+		percent, err := strconv.Atoi(countString)
+		if stringIsMultiple {
+			percent = 100 * percent
+		}
+		j.Ui.Output(fmt.Sprintf("Percent: %d", percent))
+		if err != nil {
+			j.Ui.Error(fmt.Sprintf("Failed to convert count string to int: %s", err))
+			return 1
+		}
+		// Get the current count of the group
+		// Get the first taskGroup by ranging over the map first
+		// TODO: this is very obviously not how this is supposed to happen. I'm not sure how to get the first taskGroup in the map.
+		for _, tg := range job.TaskGroups {
+			currentCount := tg.Desired
+			j.Ui.Output(fmt.Sprintf("Old count: %d", currentCount))
+			// Calculate the new count based on the percentage
+			count = int(float64(currentCount) * (float64(percent) / 100))
+			break
+		}
+		j.Ui.Output(fmt.Sprintf("New count: %d", count))
 	}
 
 	if err := j.performGroupCheck(job.TaskGroups, &groupString); err != nil {
