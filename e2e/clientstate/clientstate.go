@@ -3,7 +3,7 @@ package clientstate
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -60,7 +60,7 @@ func getPID(client *api.Client, alloc *api.Allocation, path string) (int, error)
 	}
 	defer r.Close()
 
-	out, err := ioutil.ReadAll(r)
+	out, err := io.ReadAll(r)
 	if err != nil {
 		return 0, err
 	}
@@ -453,7 +453,7 @@ func (tc *ClientStateTC) TestClientState_Corrupt(f *framework.F) {
 		}
 		defer r.Close()
 
-		out, err := ioutil.ReadAll(r)
+		out, err := io.ReadAll(r)
 		if err != nil {
 			return false, err
 		}

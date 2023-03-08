@@ -1,7 +1,6 @@
 package jobspec2
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -19,7 +18,7 @@ func TestEquivalentToHCL1(t *testing.T) {
 	ci.Parallel(t)
 
 	hclSpecDir := "../jobspec/test-fixtures/"
-	fis, err := ioutil.ReadDir(hclSpecDir)
+	fis, err := os.ReadDir(hclSpecDir)
 	require.NoError(t, err)
 
 	for _, fi := range fis {
@@ -168,7 +167,7 @@ job "example" {
 	})
 
 	t.Run("set via var-files", func(t *testing.T) {
-		varFile, err := ioutil.TempFile("", "")
+		varFile, err := os.CreateTemp("", "")
 		require.NoError(t, err)
 		defer os.Remove(varFile.Name())
 
@@ -328,7 +327,7 @@ job "example" {
 		})
 		require.NoError(t, err)
 
-		expected, err := ioutil.ReadFile("parse_test.go")
+		expected, err := os.ReadFile("parse_test.go")
 		require.NoError(t, err)
 
 		require.NotNil(t, out.Region)
@@ -426,7 +425,7 @@ func TestParse_InvalidHCL(t *testing.T) {
 	})
 
 	t.Run("invalid vars file", func(t *testing.T) {
-		tmp, err := ioutil.TempFile("", "nomad-jobspec2-")
+		tmp, err := os.CreateTemp("", "nomad-jobspec2-")
 		require.NoError(t, err)
 		defer os.Remove(tmp.Name())
 

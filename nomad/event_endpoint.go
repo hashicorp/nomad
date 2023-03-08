@@ -3,7 +3,6 @@ package nomad
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
@@ -91,7 +90,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	defer cancel()
 	// goroutine to detect remote side closing
 	go func() {
-		io.Copy(ioutil.Discard, conn)
+		io.Copy(io.Discard, conn)
 		cancel()
 	}()
 
