@@ -3,7 +3,6 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -116,7 +115,7 @@ func (h *DriverHarness) cleanupCgroup() {
 // A cleanup func is returned and should be deferred so as to not leak dirs
 // between tests.
 func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func() {
-	dir, err := ioutil.TempDir("", "nomad_driver_harness-")
+	dir, err := os.MkdirTemp("", "nomad_driver_harness-")
 	require.NoError(h.t, err)
 
 	allocDir := allocdir.NewAllocDir(h.logger, dir, t.AllocID)
