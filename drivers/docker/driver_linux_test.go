@@ -4,7 +4,6 @@ package docker
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +24,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	helperContent := []byte(fmt.Sprintf("#!/bin/sh\ncat > %s/helper-$1.out;echo '%s'", dir, helperPayload))
 
 	helperFile := filepath.Join(dir, "docker-credential-testnomad")
-	err := ioutil.WriteFile(helperFile, helperContent, 0777)
+	err := os.WriteFile(helperFile, helperContent, 0777)
 	require.NoError(t, err)
 
 	path := os.Getenv("PATH")
@@ -41,7 +40,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "helper-get.out")); os.IsNotExist(err) {
 		t.Fatalf("Expected helper-get.out to exist")
 	}
-	content, err := ioutil.ReadFile(filepath.Join(dir, "helper-get.out"))
+	content, err := os.ReadFile(filepath.Join(dir, "helper-get.out"))
 	require.NoError(t, err)
 	require.Equal(t, "registry.local:5000", string(content))
 }
@@ -87,7 +86,7 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	outputFile := filepath.Join(task.TaskDir().LogDir, "redis-demo.stderr.0")
 	exp := "can't fork"
 	tu.WaitForResult(func() (bool, error) {
-		act, err := ioutil.ReadFile(outputFile)
+		act, err := os.ReadFile(outputFile)
 		if err != nil {
 			return false, err
 		}

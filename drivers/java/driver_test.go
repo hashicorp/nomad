@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 
 	"github.com/hashicorp/nomad/ci"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -90,7 +90,7 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	require.Zero(t, result.ExitCode)
 
 	// Get the stdout of the process and assert that it's not empty
-	stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "demo-app.stdout.0"))
+	stdout, err := os.ReadFile(filepath.Join(task.TaskDir().LogDir, "demo-app.stdout.0"))
 	require.NoError(t, err)
 	require.Contains(t, string(stdout), "Hello")
 
@@ -190,7 +190,7 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	require.Zero(t, result.ExitCode)
 
 	// Get the stdout of the process and assert that it's not empty
-	stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "demo-app.stdout.0"))
+	stdout, err := os.ReadFile(filepath.Join(task.TaskDir().LogDir, "demo-app.stdout.0"))
 	require.NoError(t, err)
 	require.Contains(t, string(stdout), "Hello")
 

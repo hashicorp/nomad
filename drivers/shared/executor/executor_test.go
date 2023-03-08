@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -383,7 +382,7 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	ci.Parallel(t)
 	// Create a temp file
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +421,7 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 
 	// Write a file under foo
 	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
-	err := ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
+	err := os.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.Nil(err)
 
 	// Lookup with full path on host to binary
@@ -436,7 +435,7 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 
 	// Write a file under task dir
 	filePath3 := filepath.Join(tmpDir, "tmp.txt")
-	ioutil.WriteFile(filePath3, []byte{1, 2}, os.ModeAppend)
+	os.WriteFile(filePath3, []byte{1, 2}, os.ModeAppend)
 
 	// Lookup with file name, should find the one we wrote above
 	path, err = lookupBin(tmpDir, "tmp.txt")
@@ -446,7 +445,7 @@ func TestUniversalExecutor_LookupPath(t *testing.T) {
 	// Write a file under local subdir
 	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
 	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
-	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
+	os.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
 
 	// Lookup with file name, should find the one we wrote above
 	path, err = lookupBin(tmpDir, "tmp.txt")
@@ -607,7 +606,7 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 			tmpDir := t.TempDir()
 
 			nonExecutablePath := filepath.Join(tmpDir, "nonexecutablefile")
-			ioutil.WriteFile(nonExecutablePath,
+			os.WriteFile(nonExecutablePath,
 				[]byte("#!/bin/sh\necho hello world"),
 				0600)
 
