@@ -3,7 +3,6 @@ package logmon
 import (
 	"crypto/rand"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,7 +121,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	require.NoError(err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
 			return false, err
 		}
@@ -151,7 +150,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	require.NoError(err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
 			return false, err
 		}
@@ -171,7 +170,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	_, err = stdout.Write([]byte("st\n"))
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
-		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
 			return false, err
 		}
@@ -228,7 +227,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	require.NoError(err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
 			return false, err
 		}
@@ -266,7 +265,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	_, err = stdout.Write([]byte("test\n"))
 	require.NoError(err)
 	testutil.WaitForResult(func() (bool, error) {
-		raw, err := ioutil.ReadFile(filepath.Join(dir, "stdout.0"))
+		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
 			return false, err
 		}
