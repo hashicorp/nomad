@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -729,8 +729,8 @@ func TestDebug_CollectConsul(t *testing.T) {
 	testconsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
+			c.Stdout = io.Discard
+			c.Stderr = io.Discard
 		}
 	})
 	require.NoError(t, err)

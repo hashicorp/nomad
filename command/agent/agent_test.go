@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1273,7 +1272,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	dir := t.TempDir()
 
 	tmpfn := filepath.Join(dir, "testcert")
-	err := ioutil.WriteFile(tmpfn, content, 0666)
+	err := os.WriteFile(tmpfn, content, 0666)
 	require.Nil(err)
 
 	const (
@@ -1325,7 +1324,7 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	`
 
 	os.Remove(tmpfn)
-	err = ioutil.WriteFile(tmpfn, []byte(newCertificate), 0666)
+	err = os.WriteFile(tmpfn, []byte(newCertificate), 0666)
 	require.Nil(err)
 
 	newAgentConfig := &Config{

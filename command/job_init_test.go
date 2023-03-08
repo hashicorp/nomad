@@ -1,7 +1,6 @@
 package command
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -47,7 +46,7 @@ func TestInitCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{}); code != 0 {
 		t.Fatalf("expect exit code 0, got: %d", code)
 	}
-	content, err := ioutil.ReadFile(DefaultInitName)
+	content, err := os.ReadFile(DefaultInitName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -61,7 +60,7 @@ func TestInitCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{"-short"}); code != 0 {
 		require.Zero(t, code, "unexpected exit code: %d", code)
 	}
-	content, err = ioutil.ReadFile(DefaultInitName)
+	content, err = os.ReadFile(DefaultInitName)
 	require.NoError(t, err)
 	shortJob, _ := Asset("command/assets/example-short.nomad")
 	require.Equal(t, string(content), string(shortJob))
@@ -109,7 +108,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	if code := cmd.Run([]string{filename}); code != 0 {
 		t.Fatalf("expect exit code 0, got: %d", code)
 	}
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -123,7 +122,7 @@ func TestInitCommand_customFilename(t *testing.T) {
 	if code := cmd.Run([]string{"-short", filename}); code != 0 {
 		require.Zero(t, code, "unexpected exit code: %d", code)
 	}
-	content, err = ioutil.ReadFile(filename)
+	content, err = os.ReadFile(filename)
 	require.NoError(t, err)
 	shortJob, _ := Asset("command/assets/example-short.nomad")
 	require.Equal(t, string(content), string(shortJob))

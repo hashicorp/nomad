@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -379,7 +379,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 					s.Server.logger.Warn("log that should be sent")
 					tried++
 				}
-				output, err := ioutil.ReadAll(resp.Body)
+				output, err := io.ReadAll(resp.Body)
 				if err != nil {
 					return false, err
 				}
@@ -420,7 +420,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 					s.Agent.logger.Warn("log that should be sent")
 					tried++
 				}
-				output, err := ioutil.ReadAll(resp.Body)
+				output, err := io.ReadAll(resp.Body)
 				if err != nil {
 					return false, err
 				}
