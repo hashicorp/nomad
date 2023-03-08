@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,7 +126,7 @@ func decode(c *jobConfig) error {
 }
 
 func parseFile(path string) (*hcl.File, hcl.Diagnostics) {
-	body, err := ioutil.ReadFile(path)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, hcl.Diagnostics{
 			&hcl.Diagnostic{

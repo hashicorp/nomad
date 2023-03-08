@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -614,7 +613,7 @@ func TestOperator_SnapshotSave(t *testing.T) {
 
 			index := resp.Index
 
-			snap, err := ioutil.TempFile("", "nomadtests-snapshot-")
+			snap, err := os.CreateTemp("", "nomadtests-snapshot-")
 			require.NoError(t, err)
 			defer os.Remove(snap.Name())
 
@@ -707,7 +706,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 			require.NotEmpty(t, resp.SnapshotChecksum)
 			require.Contains(t, resp.SnapshotChecksum, "sha-256=")
 
-			io.Copy(ioutil.Discard, p1)
+			io.Copy(io.Discard, p1)
 		})
 	}
 }
@@ -968,7 +967,7 @@ func TestOperator_SnapshotRestore_ACL(t *testing.T) {
 
 			require.NotZero(t, resp.Index)
 
-			io.Copy(ioutil.Discard, p1)
+			io.Copy(io.Discard, p1)
 		})
 	}
 }
