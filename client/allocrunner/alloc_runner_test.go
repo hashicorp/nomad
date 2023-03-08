@@ -3,7 +3,6 @@ package allocrunner
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -1677,10 +1676,10 @@ func TestAllocRunner_MoveAllocDir(t *testing.T) {
 	// Step 2. Modify its directory
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	dataFile := filepath.Join(ar.allocDir.SharedDir, "data", "data_file")
-	ioutil.WriteFile(dataFile, []byte("hello world"), os.ModePerm)
+	os.WriteFile(dataFile, []byte("hello world"), os.ModePerm)
 	taskDir := ar.allocDir.TaskDirs[task.Name]
 	taskLocalFile := filepath.Join(taskDir.LocalDir, "local_file")
-	ioutil.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
+	os.WriteFile(taskLocalFile, []byte("good bye world"), os.ModePerm)
 
 	// Step 3. Start a new alloc
 	alloc2 := mock.BatchAlloc()

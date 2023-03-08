@@ -8,7 +8,6 @@ package taskrunner
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -118,7 +117,7 @@ func TestSIDSHook_writeToken(t *testing.T) {
 	err := h.writeToken(secrets, id)
 	r.NoError(err)
 
-	content, err := ioutil.ReadFile(filepath.Join(secrets, sidsTokenFile))
+	content, err := os.ReadFile(filepath.Join(secrets, sidsTokenFile))
 	r.NoError(err)
 	r.Equal(id, string(content))
 }
@@ -273,7 +272,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	// successful token derivation
 	secrets := t.TempDir()
 	trConfig.TaskDir.SecretsDir = secrets
-	err := ioutil.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
+	err := os.WriteFile(filepath.Join(secrets, sidsTokenFile), nil, 0400)
 	r.NoError(err)
 
 	// set a consul token for the nomad client, which is what triggers the
@@ -306,7 +305,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 
 	// assert the token is *not* on disk, as secrets dir was un-writable
 	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
-	token, err := ioutil.ReadFile(tokenPath)
+	token, err := os.ReadFile(tokenPath)
 	r.NoError(err)
 	r.Empty(token)
 }

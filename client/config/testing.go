@@ -1,7 +1,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -31,7 +30,7 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	tmpDir = filepath.Clean(tmpDir)
 
 	// Create a tempdir to hold state and alloc subdirs
-	parent, err := ioutil.TempDir(tmpDir, "nomadtest")
+	parent, err := os.MkdirTemp(tmpDir, "nomadtest")
 	if err != nil {
 		t.Fatalf("error creating client dir: %v", err)
 	}

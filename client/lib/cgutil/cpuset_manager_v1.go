@@ -5,7 +5,6 @@ package cgutil
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -224,7 +223,7 @@ func (c *cpusetManagerV1) reconcileCpusets() {
 	}
 
 	// look for reserved cpusets which we don't know about and remove
-	files, err := ioutil.ReadDir(c.reservedCpusetPath())
+	files, err := os.ReadDir(c.reservedCpusetPath())
 	if err != nil {
 		c.logger.Error("failed to list files in reserved cgroup path during reconciliation", "path", c.reservedCpusetPath(), "error", err)
 	}
