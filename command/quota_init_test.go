@@ -1,7 +1,6 @@
 package command
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Zero(t, code)
 
-	content, err := ioutil.ReadFile(DefaultHclQuotaInitName)
+	content, err := os.ReadFile(DefaultHclQuotaInitName)
 	require.NoError(t, err)
 	require.Equal(t, defaultHclQuotaSpec, string(content))
 
@@ -57,7 +56,7 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Zero(t, code)
 
-	content, err = ioutil.ReadFile("mytest.hcl")
+	content, err = os.ReadFile("mytest.hcl")
 	require.NoError(t, err)
 	require.Equal(t, defaultHclQuotaSpec, string(content))
 }
@@ -89,7 +88,7 @@ func TestQuotaInitCommand_Run_JSON(t *testing.T) {
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Zero(t, code)
 
-	content, err := ioutil.ReadFile(DefaultJsonQuotaInitName)
+	content, err := os.ReadFile(DefaultJsonQuotaInitName)
 	require.NoError(t, err)
 	require.Equal(t, defaultJsonQuotaSpec, string(content))
 
@@ -104,7 +103,7 @@ func TestQuotaInitCommand_Run_JSON(t *testing.T) {
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Zero(t, code)
 
-	content, err = ioutil.ReadFile("mytest.json")
+	content, err = os.ReadFile("mytest.json")
 	require.NoError(t, err)
 	require.Equal(t, defaultJsonQuotaSpec, string(content))
 }
