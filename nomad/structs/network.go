@@ -758,7 +758,7 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, portsInOffer []int, minDynamicPo
 		}
 		// the pick conflicted with a previous pick that hasn't been saved to
 		// the index yet
-		if portsInOffer != nil && slices.Contains(portsInOffer, randPort) {
+		if slices.Contains(portsInOffer, randPort) {
 			goto PICK
 		}
 
