@@ -635,7 +635,7 @@ func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
 
 	// Set up our test registrations and index.
 	expectedIndex := uint64(13)
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	authMethod.CreateIndex = expectedIndex
 	authMethod.ModifyIndex = expectedIndex
 

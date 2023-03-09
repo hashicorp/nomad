@@ -2690,10 +2690,10 @@ func TestACLEndpoint_GetAuthMethod(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod}))
 
-	anonymousAuthMethod := mock.ACLAuthMethod()
+	anonymousAuthMethod := mock.ACLOIDCAuthMethod()
 	anonymousAuthMethod.Name = "anonymous"
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1001, []*structs.ACLAuthMethod{anonymousAuthMethod}))
 
@@ -2727,8 +2727,8 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the authMethods
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	// First create an unrelated authMethod
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -2786,8 +2786,8 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	authMethod := mock.ACLAuthMethod()
-	authMethod2 := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
+	authMethod2 := mock.ACLOIDCAuthMethod()
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod, authMethod2}))
 
 	// Lookup the authMethod
@@ -2823,8 +2823,8 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the authMethods
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	// First create an unrelated authMethod
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -2882,8 +2882,8 @@ func TestACLEndpoint_ListAuthMethods(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	am1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	am2.Name = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
@@ -2931,7 +2931,7 @@ func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the authMethod
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 
 	// Upsert auth method triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -2982,7 +2982,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	am1 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1}))
 
 	// Lookup the authMethods
@@ -3023,7 +3023,7 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	s1.config.ACLTokenMaxExpirationTTL = maxTTL
 
 	// Create the register request
-	am1 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
 	am1.Default = true // make sure it's going to be a default method
 	am1.SetHash()
 
@@ -3047,7 +3047,7 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	must.True(t, am1.Equal(resp.AuthMethods[0]))
 
 	// Try to insert another default authMethod
-	am2 := mock.ACLAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 	am2.Default = true
 	req = &structs.ACLAuthMethodUpsertRequest{
 		AuthMethods: []*structs.ACLAuthMethod{am2},
@@ -3111,7 +3111,7 @@ func TestACL_UpsertBindingRules(t *testing.T) {
 	must.EqError(t, err, "RPC Error:: 400,ACL auth method auth0 not found")
 
 	// Create the policies our ACL roles wants to link to.
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	authMethod.Name = aclBindingRule1.AuthMethod
 
 	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))
@@ -3528,7 +3528,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 
 	// Generate and upsert an ACL auth method for use. Certain values must be
 	// taken from the cap OIDC provider just like real world use.
-	mockedAuthMethod := mock.ACLAuthMethod()
+	mockedAuthMethod := mock.ACLOIDCAuthMethod()
 	mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 	mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
 	mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
@@ -3611,7 +3611,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	// Generate and upsert an ACL auth method for use. Certain values must be
 	// taken from the cap OIDC provider and these are validated. Others must
 	// match data we use later, such as the claims.
-	mockedAuthMethod := mock.ACLAuthMethod()
+	mockedAuthMethod := mock.ACLOIDCAuthMethod()
 	mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
 	mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 	mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
@@ -3786,9 +3786,8 @@ func TestACL_Login(t *testing.T) {
 	must.ErrorContains(t, err, "400")
 	must.ErrorContains(t, err, "auth-method \"test-oidc-auth-method\" not found")
 
-	// Generate and upsert an ACL auth method for use.
-	mockedAuthMethod := mock.ACLAuthMethod()
-	mockedAuthMethod.Type = "JWT"
+	// Generate and upsert a JWT ACL auth method for use.
+	mockedAuthMethod := mock.ACLJWTAuthMethod()
 	mockedAuthMethod.Config.BoundAudiences = []string{"engineering"}
 	mockedAuthMethod.Config.JWTValidationPubKeys = []string{testPubKey}
 	mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}

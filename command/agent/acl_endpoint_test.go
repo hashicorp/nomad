@@ -1064,7 +1064,7 @@ func TestHTTPServer_ACLAuthMethodListRequest(t *testing.T) {
 
 				// Upsert two auth-methods into state.
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
-					10, []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}))
+					10, []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}))
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodGet, "/v1/acl/auth-methods", nil)
@@ -1140,7 +1140,7 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Create a mock auth-method to use in the request body.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLAuthMethod))
@@ -1211,7 +1211,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Create a mock auth-method and put directly into state.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1236,7 +1236,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Create a mock auth-method and put directly into state.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1441,7 +1441,7 @@ func TestHTTPServer_ACLBindingRuleRequest(t *testing.T) {
 
 				// Upsert the auth method that the binding rule will associate
 				// with.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					10, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1549,7 +1549,7 @@ func TestHTTPServer_ACLBindingRuleSpecificRequest(t *testing.T) {
 
 				// Upsert the auth method that the binding rule will associate
 				// with.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					10, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1658,7 +1658,7 @@ func TestHTTPServer_ACLOIDCAuthURLRequest(t *testing.T) {
 
 				// Generate and upsert an ACL auth method for use. Certain values must be
 				// taken from the cap OIDC provider just like real world use.
-				mockedAuthMethod := mock.ACLAuthMethod()
+				mockedAuthMethod := mock.ACLOIDCAuthMethod()
 				mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 				mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
 				mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
@@ -1741,7 +1741,7 @@ func TestHTTPServer_ACLOIDCCompleteAuthRequest(t *testing.T) {
 
 				// Generate and upsert an ACL auth method for use. Certain values must be
 				// taken from the cap OIDC provider just like real world use.
-				mockedAuthMethod := mock.ACLAuthMethod()
+				mockedAuthMethod := mock.ACLOIDCAuthMethod()
 				mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
 				mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 				mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
