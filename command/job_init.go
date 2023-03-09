@@ -40,11 +40,11 @@ Init Options:
 
   -template
     Specifies a predefined template to initialize. Must be a Nomad Variable that
-		lives at nomad/job-templates/<template>
+    lives at nomad/job-templates/<template>
 
   -list-templates
     Display a list of possible job templates to pass to -template. Reads from
-		all variables pathed at nomad/job-templates/<template>
+    all variables pathed at nomad/job-templates/<template>
 `
 	return strings.TrimSpace(helpText)
 }
