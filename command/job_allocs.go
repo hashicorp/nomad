@@ -19,8 +19,9 @@ Usage: nomad job allocs [options] <job>
 
   Display allocations for a particular job.
 
-  When ACLs are enabled, this command requires a token with the 'read-job' and
-  'list-jobs' capabilities for the job's namespace.
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the job's namespace. The 'list-jobs' capability is required to
+  run the command with a job prefix instead of the exact job ID.
 
 General Options:
 

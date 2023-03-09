@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -147,4 +148,118 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	must.Len(t, 1, res)
 	must.Eq(t, j.ID, res[0])
+}
+
+func TestJobStopCommand_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start server with ACL enabled.
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
+		c.ACL.Enabled = true
+	})
+	defer srv.Shutdown()
+
+	testCases := []struct {
+		name        string
+		jobPrefix   bool
+		aclPolicy   string
+		expectedErr string
+	}{
+		{
+			name:        "no token",
+			aclPolicy:   "",
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "missing submit-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job"]
+}
+`,
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "missing read-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["submit-job"]
+}
+`,
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "read-job and submit-job allowed",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job", "submit-job"]
+}
+`,
+		},
+		{
+			name:      "job prefix requires list-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job", "submit-job"]
+}
+`,
+			expectedErr: "job not found",
+		},
+		{
+			name:      "job prefix works with list-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["list-jobs", "read-job", "submit-job"]
+}
+`,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
+			args := []string{
+				"-address", url,
+				"-yes",
+			}
+
+			// Create a job.
+			job := mock.MinJob()
+			state := srv.Agent.Server().State()
+			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), job)
+			must.NoError(t, err)
+			defer func() {
+				client.Jobs().Deregister(job.ID, true, &api.WriteOptions{
+					AuthToken: srv.RootToken.SecretID,
+				})
+			}()
+
+			if tc.aclPolicy != "" {
+				// Create ACL token with test case policy and add it to the
+				// command.
+				policyName := nonAlphaNum.ReplaceAllString(tc.name, "-")
+				token := mock.CreatePolicyAndToken(t, state, uint64(302+i), policyName, tc.aclPolicy)
+				args = append(args, "-token", token.SecretID)
+			}
+
+			// Add job ID or job ID prefix to the command.
+			if tc.jobPrefix {
+				args = append(args, job.ID[:3])
+			} else {
+				args = append(args, job.ID)
+			}
+
+			// Run command.
+			code := cmd.Run(args)
+			if tc.expectedErr == "" {
+				must.Zero(t, code)
+			} else {
+				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
+			}
+		})
+	}
 }

@@ -22,7 +22,10 @@ Usage: nomad job periodic force <job id>
   prohibit_overlap setting.
 
   When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'list-jobs' capabilities for the job's namespace.
+  capability for the job's namespace. The 'list-jobs' capability is required to
+  run the command with a job prefix instead of the exact job ID. The 'read-job'
+  capability is required to monitor the resulting evaluation when -detach is
+  not used.
 
 General Options:
 

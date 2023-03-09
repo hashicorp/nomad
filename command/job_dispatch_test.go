@@ -4,11 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -84,4 +87,124 @@ func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
 	res = predictor.Predict(args)
 	require.Equal(t, 1, len(res))
 	require.Equal(t, j1.ID, res[0])
+}
+
+func TestJobDispatchCommand_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start server with ACL enabled.
+	srv, _, url := testServer(t, true, func(c *agent.Config) {
+		c.ACL.Enabled = true
+	})
+	defer srv.Shutdown()
+
+	// Create a parameterized job.
+	job := mock.MinJob()
+	job.Type = "batch"
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	state := srv.Agent.Server().State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	must.NoError(t, err)
+
+	testCases := []struct {
+		name        string
+		jobPrefix   bool
+		aclPolicy   string
+		expectedErr string
+	}{
+		{
+			name:        "no token",
+			aclPolicy:   "",
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "missing dispatch-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job"]
+}
+`,
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "dispatch-job allowed but can't monitor eval without read-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["dispatch-job"]
+}
+`,
+			expectedErr: "No evaluation with id",
+		},
+		{
+			name: "dispatch-job allowed and can monitor eval with read-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["dispatch-job", "read-job"]
+}
+`,
+		},
+		{
+			name:      "job prefix requires list-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["dispatch-job"]
+}
+`,
+			expectedErr: "job not found",
+		},
+		{
+			name:      "job prefix works with list-job but can't monitor eval without read-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["dispatch-job", "list-jobs"]
+}
+`,
+			expectedErr: "No evaluation with id",
+		},
+		{
+			name:      "job prefix works with list-job and can monitor eval with read-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job", "dispatch-job", "list-jobs"]
+}
+`,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobDispatchCommand{Meta: Meta{Ui: ui}}
+			args := []string{
+				"-address", url,
+			}
+
+			if tc.aclPolicy != "" {
+				// Create ACL token with test case policy and add it to the
+				// command.
+				policyName := nonAlphaNum.ReplaceAllString(tc.name, "-")
+				token := mock.CreatePolicyAndToken(t, state, uint64(302+i), policyName, tc.aclPolicy)
+				args = append(args, "-token", token.SecretID)
+			}
+
+			// Add job ID or job ID prefix to the command.
+			if tc.jobPrefix {
+				args = append(args, job.ID[:3])
+			} else {
+				args = append(args, job.ID)
+			}
+
+			// Run command.
+			code := cmd.Run(args)
+			if tc.expectedErr == "" {
+				must.Zero(t, code)
+			} else {
+				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
+			}
+		})
+	}
 }
