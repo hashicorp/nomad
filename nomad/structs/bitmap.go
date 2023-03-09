@@ -88,7 +88,7 @@ func (b Bitmap) IndexesInRangeFiltered(set bool, from, to uint, filter []int) []
 	var indexes []int
 	for i := from; i <= to && i < b.Size(); i++ {
 		c := b.Check(i)
-		if c && set || !c && !set {
+		if c == set {
 			if len(filter) < 1 || !slices.Contains(filter, int(i)) {
 				indexes = append(indexes, int(i))
 			}
