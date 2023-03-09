@@ -260,13 +260,17 @@ func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter JobByPrefix
 	return job, nil
 }
 
-// JobIDByPrefix returns the job that best matches the given prefix and its
-// namespace. Returns an error if there are no matches or if there are more
-// than one exact match across namespaces.
+// JobIDByPrefix provides best effort match for the given job prefix.
+// Returns the prefix itself if job prefix search is not allowed and an error
+// if there are no matches or if there are more than one exact match across
+// namespaces.
 func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (string, string, error) {
 	// Search job by prefix. Return an error if there is not an exact match.
 	jobs, _, err := client.Jobs().PrefixList(prefix)
 	if err != nil {
+		if strings.Contains(err.Error(), api.PermissionDeniedErrorContent) {
+			return prefix, "", nil
+		}
 		return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
 	}
 

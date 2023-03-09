@@ -28,7 +28,9 @@ Usage: nomad job promote [options] <job id>
   "nomad job revert" command.
 
   When ACLs are enabled, this command requires a token with the 'submit-job',
-  'list-jobs', and 'read-job' capabilities for the job's namespace.
+  and 'read-job' capabilities for the job's namespace. The 'list-jobs'
+  capability is required to run the command with a job prefix instead of the
+  exact job ID.
 
 General Options:
 
