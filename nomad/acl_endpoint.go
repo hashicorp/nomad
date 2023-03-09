@@ -2576,7 +2576,7 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 // provider token for a Nomad ACL token, using the configured ACL role and
 // policy claims to provide authorization.
 func (a *ACL) OIDCCompleteAuth(
-	args *structs.ACLOIDCCompleteAuthRequest, reply *structs.ACLCompleteAuthResponse) error {
+	args *structs.ACLOIDCCompleteAuthRequest, reply *structs.ACLLoginResponse) error {
 
 	// The OIDC flow can only be used when the Nomad cluster has ACL enabled.
 	if !a.srv.config.ACLEnabled {
@@ -2744,7 +2744,7 @@ func (a *ACL) OIDCCompleteAuth(
 
 // Login RPC performs non-interactive auth using a given AuthMethod. This method
 // can not be used for OIDC login flow.
-func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLCompleteAuthResponse) error {
+func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginResponse) error {
 
 	// The login flow can only be used when the Nomad cluster has ACL enabled.
 	if !a.srv.config.ACLEnabled {

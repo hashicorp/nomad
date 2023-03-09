@@ -3583,7 +3583,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp1 structs.ACLCompleteAuthResponse
+	var completeAuthResp1 structs.ACLLoginResponse
 	err := msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq1, &completeAuthResp1)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3602,7 +3602,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp2 structs.ACLCompleteAuthResponse
+	var completeAuthResp2 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq2, &completeAuthResp2)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3650,7 +3650,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp3 structs.ACLCompleteAuthResponse
+	var completeAuthResp3 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3693,7 +3693,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp4 structs.ACLCompleteAuthResponse
+	var completeAuthResp4 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq4, &completeAuthResp4)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp4.ACLToken)
@@ -3726,7 +3726,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp5 structs.ACLCompleteAuthResponse
+	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq5, &completeAuthResp5)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp4.ACLToken)
@@ -3765,10 +3765,10 @@ func TestACL_Login(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp1 structs.ACLCompleteAuthResponse
+	var completeAuthResp1 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq1, &completeAuthResp1)
 	must.ErrorContains(t, err, "missing auth method name")
-	must.ErrorContains(t, err, "missing bearer token")
+	must.ErrorContains(t, err, "missing login token")
 
 	// Send a request that passes initial validation. The auth method does not
 	// exist meaning it will fail.
@@ -3780,7 +3780,7 @@ func TestACL_Login(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp2 structs.ACLCompleteAuthResponse
+	var completeAuthResp2 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq2, &completeAuthResp2)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3812,7 +3812,7 @@ func TestACL_Login(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp3 structs.ACLCompleteAuthResponse
+	var completeAuthResp3 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq3, &completeAuthResp3)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3852,7 +3852,7 @@ func TestACL_Login(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp4 structs.ACLCompleteAuthResponse
+	var completeAuthResp4 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq4, &completeAuthResp4)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp4.ACLToken)
@@ -3882,7 +3882,7 @@ func TestACL_Login(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp5 structs.ACLCompleteAuthResponse
+	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq5, &completeAuthResp5)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp4.ACLToken)

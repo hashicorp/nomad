@@ -171,7 +171,7 @@ const (
 	// roles as defined within the remote provider.
 	//
 	// Args: ACLLoginRequest
-	// Reply: ACLCompleteAuthResponse
+	// Reply: ACLLoginResponse
 	ACLLoginRPCMethod = "ACL.Login"
 )
 
@@ -1493,14 +1493,14 @@ func (a *ACLOIDCCompleteAuthRequest) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// ACLCompleteAuthResponse is the response when the auth flow has been
+// ACLLoginResponse is the response when the auth flow has been
 // completed successfully.
-type ACLCompleteAuthResponse struct {
+type ACLLoginResponse struct {
 	ACLToken *ACLToken
 	WriteMeta
 }
 
-// ACLLoginRequest is the request object to begin auth with an external bearer
+// ACLLoginRequest is the request object to begin auth with an external
 // token provider.
 type ACLLoginRequest struct {
 
@@ -1508,7 +1508,8 @@ type ACLLoginRequest struct {
 	// is a required parameter.
 	AuthMethodName string
 
-	// LoginToken is the token used to login. This is a required parameter.
+	// LoginToken is the 3rd party token that we use to exchange for Nomad ACL
+	// Token in order to authenticate. This is a required parameter.
 	LoginToken string
 
 	WriteRequest
@@ -1524,7 +1525,7 @@ func (a *ACLLoginRequest) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
 	}
 	if a.LoginToken == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("missing bearer token"))
+		mErr.Errors = append(mErr.Errors, errors.New("missing login token"))
 	}
 	return mErr.ErrorOrNil()
 }
