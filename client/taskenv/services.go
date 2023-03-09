@@ -6,10 +6,10 @@ import (
 
 // InterpolateServices returns an interpolated copy of services and checks with
 // values from the task's environment.
-func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*structs.Service {
+func (t *TaskEnv) InterpolateServices(services []*structs.Service) []*structs.Service {
 	// Guard against not having a valid taskEnv. This can be the case if the
 	// PreKilling or Exited hook is run before Poststart.
-	if taskEnv == nil || len(services) == 0 {
+	if t == nil || len(services) == 0 {
 		return nil
 	}
 
@@ -21,28 +21,28 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 		service := origService.Copy()
 
 		for _, check := range service.Checks {
-			check.Name = taskEnv.ReplaceEnv(check.Name)
-			check.Type = taskEnv.ReplaceEnv(check.Type)
-			check.Command = taskEnv.ReplaceEnv(check.Command)
-			check.Args = taskEnv.ParseAndReplace(check.Args)
-			check.Path = taskEnv.ReplaceEnv(check.Path)
-			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
-			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
-			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
-			check.Method = taskEnv.ReplaceEnv(check.Method)
-			check.GRPCService = taskEnv.ReplaceEnv(check.GRPCService)
-			check.Header = interpolateMapStringSliceString(taskEnv, check.Header)
+			check.Name = t.ReplaceEnv(check.Name)
+			check.Type = t.ReplaceEnv(check.Type)
+			check.Command = t.ReplaceEnv(check.Command)
+			check.Args = t.ParseAndReplace(check.Args)
+			check.Path = t.ReplaceEnv(check.Path)
+			check.Protocol = t.ReplaceEnv(check.Protocol)
+			check.PortLabel = t.ReplaceEnv(check.PortLabel)
+			check.InitialStatus = t.ReplaceEnv(check.InitialStatus)
+			check.Method = t.ReplaceEnv(check.Method)
+			check.GRPCService = t.ReplaceEnv(check.GRPCService)
+			check.Header = interpolateMapStringSliceString(t, check.Header)
 		}
 
-		service.Name = taskEnv.ReplaceEnv(service.Name)
-		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
-		service.Address = taskEnv.ReplaceEnv(service.Address)
-		service.Tags = taskEnv.ParseAndReplace(service.Tags)
-		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
-		service.Meta = interpolateMapStringString(taskEnv, service.Meta)
-		service.CanaryMeta = interpolateMapStringString(taskEnv, service.CanaryMeta)
-		service.TaggedAddresses = interpolateMapStringString(taskEnv, service.TaggedAddresses)
-		interpolateConnect(taskEnv, service.Connect)
+		service.Name = t.ReplaceEnv(service.Name)
+		service.PortLabel = t.ReplaceEnv(service.PortLabel)
+		service.Address = t.ReplaceEnv(service.Address)
+		service.Tags = t.ParseAndReplace(service.Tags)
+		service.CanaryTags = t.ParseAndReplace(service.CanaryTags)
+		service.Meta = interpolateMapStringString(t, service.Meta)
+		service.CanaryMeta = interpolateMapStringString(t, service.CanaryMeta)
+		service.TaggedAddresses = interpolateMapStringString(t, service.TaggedAddresses)
+		interpolateConnect(t, service.Connect)
 
 		interpolated[i] = service
 	}

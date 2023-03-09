@@ -176,8 +176,7 @@ func (h *scriptCheckHook) Stop(ctx context.Context, req *interfaces.TaskStopRequ
 
 func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	scriptChecks := make(map[string]*scriptCheck)
-	interpolatedTaskServices := taskenv.InterpolateServices(h.taskEnv, h.task.Services)
-	for _, service := range interpolatedTaskServices {
+	for _, service := range h.task.InterpolatedServices(h.taskEnv) {
 		for _, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue
@@ -212,8 +211,7 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	// service.check.task matches the task name. The service.check.task takes
 	// precedence.
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	interpolatedGroupServices := taskenv.InterpolateServices(h.taskEnv, tg.Services)
-	for _, service := range interpolatedGroupServices {
+	for _, service := range tg.InterpolatedServices(h.taskEnv) {
 		for _, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue

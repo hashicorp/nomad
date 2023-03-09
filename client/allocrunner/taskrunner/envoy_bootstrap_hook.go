@@ -206,10 +206,8 @@ func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, 
 
 func (h *envoyBootstrapHook) lookupService(svcKind, svcName string, taskEnv *taskenv.TaskEnv) (*structs.Service, error) {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
-
 	var service *structs.Service
-	for _, s := range interpolatedServices {
+	for _, s := range tg.InterpolatedServices(taskEnv) {
 		if s.Name == svcName {
 			service = s
 			break
@@ -427,8 +425,7 @@ func buildEnvoyBind(alloc *structs.Allocation, ifce, service, task string, taskE
 	port := basePort
 	switch tg.Networks[0].Mode {
 	case "host":
-		interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
-		for _, svc := range interpolatedServices {
+		for _, svc := range tg.InterpolatedServices(taskEnv) {
 			if svc.Name == service {
 				mapping := tg.Networks.Port(svc.PortLabel)
 				port = mapping.Value

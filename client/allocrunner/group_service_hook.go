@@ -239,7 +239,7 @@ func (h *groupServiceHook) deregister() {
 
 func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
+	interpolatedServices := h.taskEnvBuilder.Build().InterpolateServices(h.services)
 
 	var netStatus *structs.AllocNetworkStatus
 	if h.networkStatus != nil {

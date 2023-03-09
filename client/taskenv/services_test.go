@@ -74,7 +74,7 @@ func TestInterpolateServices(t *testing.T) {
 		},
 	}
 
-	interpolated := InterpolateServices(env, services)
+	interpolated := env.InterpolateServices(services)
 
 	exp := []*structs.Service{
 		{

@@ -48,6 +48,15 @@ const (
 	minCheckTimeout = 1 * time.Second
 )
 
+// ServiceInterpolator is the interface that wraps methods used to interpolate
+// runtime values into services.
+//
+// Implementations must not mutate their input but rather act on and return
+// copies.
+type ServiceInterpolator interface {
+	InterpolateServices([]*Service) []*Service
+}
+
 // ServiceCheck represents a Nomad or Consul service health check.
 //
 // The fields available depend on the service provider the check is being

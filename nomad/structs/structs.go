@@ -6334,7 +6334,8 @@ type TaskGroup struct {
 	// Consul configuration specific to this task group
 	Consul *Consul
 
-	// Services this group provides
+	// Services this group provides.Service fields may reference runtime
+	// variables that must be interpolated when reading them from clients.
 	Services []*Service
 
 	// Volumes is a map of volumes that have been requested by the task group.
@@ -6470,6 +6471,26 @@ func (tg *TaskGroup) ConsulServices() []*Service {
 	return tg.filterServices(func(s *Service) bool {
 		return s.Provider == ServiceProviderConsul || s.Provider == ""
 	})
+}
+
+// InterpolatedServices returns a copy of the all services in the task group
+// and its tasks with runtime values interpolated.
+func (tg *TaskGroup) InterpolatedServices(i ServiceInterpolator) []*Service {
+	return i.InterpolateServices(tg.Services)
+}
+
+// InterpolatedConsulServices returns a copy of the all services that use the
+// "consul" service provider in the task group and its tasks with runtime
+// values interpolated.
+func (tg *TaskGroup) InterpolatedConsulServices(i ServiceInterpolator) []*Service {
+	return i.InterpolateServices(tg.ConsulServices())
+}
+
+// InterpolatedNomadServices returns a copy of the all services that use the
+// "nomad" service provider in the task group and its tasks with runtime values
+// interpolated.
+func (tg *TaskGroup) InterpolatedNomadServices(i ServiceInterpolator) []*Service {
+	return i.InterpolateServices(tg.NomadServices())
 }
 
 func (tg *TaskGroup) filterServices(f func(s *Service) bool) []*Service {
@@ -7164,7 +7185,9 @@ type Task struct {
 	// Map of environment variables to be used by the driver
 	Env map[string]string
 
-	// List of service definitions exposed by the Task
+	// List of service definitions exposed by the Task. Service fields may
+	// reference runtime variables that must be interpolated when reading them
+	// from clients.
 	Services []*Service
 
 	// Vault is used to define the set of Vault policies that this task should
@@ -7369,6 +7392,12 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 
 func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
+}
+
+// InterpolatedServices returns a copy of the all services in the task with
+// runtime values interpolated.
+func (t *Task) InterpolatedServices(i ServiceInterpolator) []*Service {
+	return i.InterpolateServices(t.Services)
 }
 
 // Validate is used to check a task for reasonable configuration

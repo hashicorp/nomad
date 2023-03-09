@@ -21,7 +21,7 @@ func BuildAllocServices(
 			AllocID: alloc.ID,
 			Group:   alloc.TaskGroup,
 		},
-		Services: taskenv.InterpolateServices(taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build(), tg.Services),
+		Services: taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build().InterpolateServices(tg.Services),
 		Networks: alloc.AllocatedResources.Shared.Networks,
 
 		//TODO(schmichael) there's probably a better way than hacking driver network

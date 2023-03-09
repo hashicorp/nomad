@@ -219,7 +219,7 @@ func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest,
 
 func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
+	interpolatedServices := h.taskEnv.InterpolateServices(h.services)
 
 	info := structs.AllocInfo{
 		AllocID:   h.allocID,
