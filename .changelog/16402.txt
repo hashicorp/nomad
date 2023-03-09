@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug that prevented allocations with interpolated values in Consul services from being marked as healthy
+```
