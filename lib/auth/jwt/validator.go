@@ -18,8 +18,10 @@ import (
 // and returns a list of claims or an error in case any validation or signature
 // verification fails.
 func Validate(ctx context.Context, token string, methodConf *structs.ACLAuthMethodConfig) (map[string]any, error) {
-	var keySet jwt.KeySet
-	var err error
+	var (
+		keySet jwt.KeySet
+		err    error
+	)
 
 	// JWT validation can happen in 3 ways:
 	// - via embedded public keys, locally
@@ -72,12 +74,9 @@ func Validate(ctx context.Context, token string, methodConf *structs.ACLAuthMeth
 				"auth method specifies BoundIssuers but the provided token does not contain issuer information",
 			)
 		}
-		var iss string
-		var ok bool
-		if iss, ok = claims["iss"].(string); !ok {
+		if iss, ok := claims["iss"].(string); !ok {
 			return nil, fmt.Errorf("unable to read iss property of provided token")
-		}
-		if !slices.Contains(methodConf.BoundIssuer, iss) {
+		} else if !slices.Contains(methodConf.BoundIssuer, iss) {
 			return nil, fmt.Errorf("invalid JWT issuer: %v", claims["iss"])
 		}
 	}
