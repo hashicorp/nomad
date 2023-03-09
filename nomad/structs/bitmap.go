@@ -1,6 +1,10 @@
 package structs
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/exp/slices"
+)
 
 // Bitmap is a simple uncompressed bitmap
 type Bitmap []byte
@@ -75,4 +79,26 @@ func (b Bitmap) IndexesInRange(set bool, from, to uint) []int {
 	}
 
 	return indexes
+}
+
+// IndexesInRangeFiltered returns the indexes in which the values are either set
+// or unset based on the passed parameter in the passed range, and do not appear
+// in the filter slice
+func (b Bitmap) IndexesInRangeFiltered(set bool, from, to uint, filter []int) []int {
+	var indexes []int
+	for i := from; i <= to && i < b.Size(); i++ {
+		c := b.Check(i)
+		if c == set {
+			if len(filter) < 1 || !slices.Contains(filter, int(i)) {
+				indexes = append(indexes, int(i))
+			}
+		}
+	}
+
+	return indexes
+}
+
+// String represents the Bitmap the same as slice of the Bitmap's set values
+func (b Bitmap) String() string {
+	return fmt.Sprintf("%v", b.IndexesInRange(true, 0, b.Size()))
 }
