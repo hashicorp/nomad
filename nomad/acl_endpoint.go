@@ -2760,6 +2760,14 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	// Measure the login endpoint performance.
 	defer metrics.MeasureSince([]string{"nomad", "acl", "login"}, time.Now())
 
+	// This endpoint can only be used once all servers in all federated regions
+	// have been upgraded to 1.5.2 or greater, since JWT Auth method was
+	// introduced then.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLJWTAuthMethodVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use JWT ACL auth methods",
+			minACLJWTAuthMethodVersion)
+	}
+
 	// Validate the request arguments to ensure it contains all the data it
 	// needs.
 	if err := args.Validate(); err != nil {
