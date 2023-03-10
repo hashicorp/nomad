@@ -80,8 +80,7 @@ func TestTracker_ConsulChecks_Interpolation(t *testing.T) {
 	tg.Tasks[1].Name = "proxy"
 	tg.Tasks[1].Services[0].TaskName = "proxy"
 
-	// Allocations are already canonicalized in the client state. Call it
-	// manually here to simulate that.
+	// Canonicalize allocation to re-interpolate some of the variables.
 	alloc.Canonicalize()
 
 	// Synthesize running alloc and tasks
