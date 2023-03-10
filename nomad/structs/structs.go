@@ -6441,6 +6441,10 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
+	if job.Type == JobTypeSystem && tg.Count == 0 {
+		tg.Count = 1
+	}
+
 	if tg.Scaling != nil {
 		tg.Scaling.Canonicalize()
 	}

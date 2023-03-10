@@ -519,10 +519,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	job := mock.SystemJob()
-	job.TaskGroups[0].Count = 0 // "web"
-
 	tg := job.TaskGroups[0].Copy()
-	tg.Count = 1
 	tg.Name = "other"
 	job.TaskGroups = append(job.TaskGroups, tg)
 
