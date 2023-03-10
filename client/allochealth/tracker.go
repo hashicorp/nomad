@@ -519,18 +519,18 @@ OUTER:
 
 		// interpolate services to replace runtime variables
 		consulServices := t.tg.ConsulServices()
-		interpolatedServices := make([]*structs.Service, len(consulServices))
-		for i, service := range consulServices {
+		interpolatedServices := make([]*structs.Service, 0, len(consulServices))
+		for _, service := range consulServices {
 			env := t.taskEnvs[service.TaskName]
 			if env == nil {
 				// This is not expected to happen, but guard against a nil
-				// task environment by using the group environment since it has
-				// most of the same values.
-				t.logger.Warn("task environment not found, using group level environment for variable interpolation",
+				// task environment that could case a panic.
+				t.logger.Error("failed to interpolate service runtime variables: task environment not found",
 					"alloc_id", t.alloc.ID, "task", service.TaskName)
-				env = t.taskEnvs[""]
+				continue
 			}
-			interpolatedServices[i] = taskenv.InterpolateService(env, service)
+			interpolatedService := taskenv.InterpolateService(env, service)
+			interpolatedServices = append(interpolatedServices, interpolatedService)
 		}
 
 		// scan for missing or unhealthy consul checks
