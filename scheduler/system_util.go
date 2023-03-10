@@ -22,11 +22,7 @@ func materializeSystemTaskGroups(job *structs.Job) map[string]*structs.TaskGroup
 	}
 
 	for _, tg := range job.TaskGroups {
-		count := tg.Count
-		if job.Type == structs.JobTypeSystem {
-			count = 1 // system jobs don't accept a count
-		}
-		for i := 0; i < count; i++ {
+		for i := 0; i < tg.Count; i++ {
 			name := fmt.Sprintf("%s.%s[%d]", job.Name, tg.Name, i)
 			out[name] = tg
 		}
