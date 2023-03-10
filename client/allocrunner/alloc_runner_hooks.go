@@ -133,7 +133,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		return fmt.Errorf("failed to initialize network configurator: %v", err)
 	}
 
-	// Create a new taskenv.Builder which is used by hooks that mutate them to.
+	// Create a new taskenv.Builder which is used by hooks that mutate them to
 	// build new taskenv.TaskEnv.
 	newEnvBuilder := func() *taskenv.Builder {
 		return taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).

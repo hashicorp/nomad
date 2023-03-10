@@ -65,12 +65,11 @@ type allocHealthWatcherHook struct {
 	// alloc set by new func or Update. Must hold hookLock to access.
 	alloc *structs.Allocation
 
-	// taskEnvBuilder is used to build task environments for the group and each
-	// task in the allocation. Must hold hookLock to access to mutate.
+	// taskEnvBuilder is the current builder used to build task environments
+	// for the group and each of its tasks. Must hold hookLock to modify.
 	taskEnvBuilder *taskenv.Builder
 
-	// taskEnvBuilderFactory creates a new *taskenv.Builder instance with a nil
-	// task.
+	// taskEnvBuilderFactory creates a new *taskenv.Builder instance.
 	taskEnvBuilderFactory func() *taskenv.Builder
 
 	// isDeploy is true if monitoring a deployment. Set in init(). Must
