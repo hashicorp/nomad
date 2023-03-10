@@ -9,7 +9,7 @@ description: |
 
 **Alias: `nomad checks`**
 
-The `alloc exec` command runs a command in a running allocation.
+The `alloc checks` command outputs the latest health check status information for checks in the allocation.
 
 ## Usage
 
@@ -32,7 +32,25 @@ capabilities for the allocation's namespace.
 
 - `-verbose`: Display verbose output.
 
-- `-json` : Output the allocation in its JSON format.
+- `-json`: Output the allocation in its JSON format.
 
 ## Examples
+
+Short checks of an alloc health check using its short id:
+
+```shell-session
+$ nomad alloc checks e0fdbd85
+
+Status of 1 Nomad Service Checks
+
+ID         =  9f4e18fd0867cebb19a8fac3d7a1cf27
+Name       =  alive
+Group      =  example.cache[0]
+Task       =  (group)
+Service    =  redis-cache
+Status     =  success
+Mode       =  healthiness
+Timestamp  =  2023-03-09T16:10:23+01:00
+Output     =  nomad: tcp ok
+```
 
