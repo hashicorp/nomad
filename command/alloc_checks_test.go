@@ -122,6 +122,7 @@ func TestAllocChecksCommand_Run(t *testing.T) {
 	must.StrContains(t, out, `Mode       =  healthiness`)
 
 	ui.OutputWriter.Reset()
+
 	// List json
 	cmd = &AllocChecksCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", allocID}))
@@ -131,4 +132,14 @@ func TestAllocChecksCommand_Run(t *testing.T) {
 	must.NoError(t, err)
 
 	ui.OutputWriter.Reset()
+
+	// Go template to format the output
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Status }}{{end}}", allocID})
+	must.Zero(t, code)
+
+	out = ui.OutputWriter.String()
+	must.StrContains(t, out, "failure")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 }
