@@ -99,8 +99,7 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 
 	checks := new(mock.CheckShim)
 	alloc := mock.Alloc()
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnv, hs, b.Listen(), consul, checks)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks)
 
 	// Assert we implemented the right interfaces
 	prerunh, ok := h.(interfaces.RunnerPrerunHook)
@@ -139,8 +138,7 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	hs := &mockHealthSetter{}
 
 	checks := new(mock.CheckShim)
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnv, hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Prerun
 	require.NoError(h.Prerun())
@@ -180,8 +178,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	hs := &mockHealthSetter{}
 
 	checks := new(mock.CheckShim)
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnv, hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Set a DeploymentID to cause ClearHealth to be called
 	alloc.DeploymentID = uuid.Generate()
@@ -224,8 +221,7 @@ func TestHealthHook_Postrun(t *testing.T) {
 
 	alloc := mock.Alloc()
 	checks := new(mock.CheckShim)
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnv, hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Postrun
 	require.NoError(h.Postrun())
@@ -292,8 +288,7 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 	hs := newMockHealthSetter()
 
 	checks := new(mock.CheckShim)
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnv, hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Prerun
 	require.NoError(h.Prerun())
@@ -382,8 +377,7 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 	hs := newMockHealthSetter()
 
 	checks := new(mock.CheckShim)
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnv, hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Prerun
 	require.NoError(h.Prerun())
@@ -405,8 +399,7 @@ func TestHealthHook_SystemNoop(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.SystemAlloc()
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), taskEnv, nil, nil, nil, nil)
+	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), taskEnvBuilderFactory(alloc), nil, nil, nil, nil)
 
 	// Assert that it's the noop impl
 	_, ok := h.(noopAllocHealthWatcherHook)
@@ -428,10 +421,15 @@ func TestHealthHook_BatchNoop(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
-	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), taskEnv, nil, nil, nil, nil)
+	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), taskEnvBuilderFactory(alloc), nil, nil, nil, nil)
 
 	// Assert that it's the noop impl
 	_, ok := h.(noopAllocHealthWatcherHook)
 	require.True(t, ok)
+}
+
+func taskEnvBuilderFactory(alloc *structs.Allocation) func() *taskenv.Builder {
+	return func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 }
