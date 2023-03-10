@@ -526,6 +526,8 @@ OUTER:
 				// This is not expected to happen, but guard against a nil
 				// task environment by using the group environment since it has
 				// most of the same values.
+				t.logger.Warn("task environment not found, using group level environment for variable interpolation",
+					"alloc_id", t.alloc.ID, "task", service.TaskName)
 				env = t.taskEnvs[""]
 			}
 			interpolatedServices[i] = taskenv.InterpolateService(env, service)
