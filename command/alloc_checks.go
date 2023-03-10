@@ -30,6 +30,12 @@ Checks Specific Options:
 
   -verbose
     Show full information.
+
+  -json
+    Output the latest health check status information in a JSON format.
+
+  -t
+    Format and display latest health check status information using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -42,6 +48,8 @@ func (c *AllocChecksCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
 		})
 }
 
@@ -64,17 +72,21 @@ func (c *AllocChecksCommand) Name() string {
 }
 
 func (c *AllocChecksCommand) Run(args []string) int {
-	var verbose bool
+	var json, verbose bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
-	args = flags.Args()
 
+	// Check that we got only one argument
+	args = flags.Args()
 	if numArgs := len(args); numArgs < 1 {
 		c.Ui.Error("An allocation ID is required")
 		c.Ui.Error(commandErrorText(c))
@@ -128,6 +140,17 @@ func (c *AllocChecksCommand) Run(args []string) int {
 		return 1
 	}
 
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, checks)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
+	}
+
 	c.Ui.Output(fmt.Sprintf("Status of %d Nomad Service Checks", len(checks)))
 	c.Ui.Output("")
 
@@ -138,6 +161,7 @@ func (c *AllocChecksCommand) Run(args []string) int {
 		}
 		return s
 	}
+
 	for _, check := range checks {
 		list := []string{
 			pair("ID", check.ID),
@@ -155,6 +179,7 @@ func (c *AllocChecksCommand) Run(args []string) int {
 			pair("Timestamp", formatTaskTimes(time.Unix(check.Timestamp, 0))),
 			pair("Output", check.Output),
 		)
+
 		c.Ui.Output(formatList(list))
 		c.Ui.Output("")
 	}
