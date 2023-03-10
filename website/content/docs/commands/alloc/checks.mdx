@@ -1,0 +1,38 @@
+---
+layout: docs
+page_title: 'Commands: alloc checks'
+description: |
+  Outputs service health check status information.
+---
+
+# Command: alloc checks
+
+**Alias: `nomad checks`**
+
+The `alloc exec` command runs a command in a running allocation.
+
+## Usage
+
+```plaintext
+nomad alloc checks [options] <allocation>
+```
+
+Outputs the latest health check status information for services in the allocation
+using the Nomad service discovery provider. This command accepts an allocation
+ID or prefix as the sole argument.
+
+When ACLs are enabled, this command requires a token with the read-job and list-jobs 
+capabilities for the allocation's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Exec Options
+
+- `-verbose`: Display verbose output.
+
+- `-json` : Output the allocation in its JSON format.
+
+## Examples
+
