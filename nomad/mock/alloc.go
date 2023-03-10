@@ -79,6 +79,7 @@ func Alloc() *structs.Allocation {
 		ClientStatus:  structs.AllocClientStatusPending,
 	}
 	alloc.JobID = alloc.Job.ID
+	alloc.Canonicalize()
 	return alloc
 }
 

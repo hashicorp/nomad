@@ -133,13 +133,16 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		return fmt.Errorf("failed to initialize network configurator: %v", err)
 	}
 
-	// Create a new taskenv.Builder which is used and mutated by networkHook.
-	envBuilder := taskenv.NewBuilder(
-		config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir)
+	// Create a new taskenv.Builder which is used by hooks that mutate them to
+	// build new taskenv.TaskEnv.
+	newEnvBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).
+			SetAllocDir(ar.allocDir.AllocDir)
+	}
 
 	// Create a taskenv.TaskEnv which is used for read only purposes by the
 	// newNetworkHook.
-	builtTaskEnv := envBuilder.Build()
+	builtTaskEnv := newEnvBuilder().Build()
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
@@ -149,14 +152,14 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newCgroupHook(ar.Alloc(), ar.cpusetManager),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
-		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient, ar.checkStore),
+		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulClient, ar.checkStore),
 		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			providerNamespace: alloc.ServiceProviderNamespace(),
 			serviceRegWrapper: ar.serviceRegWrapper,
 			restarter:         ar,
-			taskEnvBuilder:    envBuilder,
+			taskEnvBuilder:    newEnvBuilder(),
 			networkStatus:     ar,
 			logger:            hookLogger,
 			shutdownDelayCtx:  ar.shutdownDelayCtx,
