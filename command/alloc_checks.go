@@ -33,6 +33,9 @@ Checks Specific Options:
 
   -json
     Output the latest health check status information in a JSON format.
+
+  -t
+    Format and display latest health check status information using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -46,6 +49,7 @@ func (c *AllocChecksCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
 			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
 		})
 }
 

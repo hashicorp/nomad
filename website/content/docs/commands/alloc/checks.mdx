@@ -54,3 +54,31 @@ Timestamp  =  2023-03-09T16:10:23+01:00
 Output     =  nomad: tcp ok
 ```
 
+The `-json` flag can be used to get the health checks status in json format:
+
+```shell-session
+nomad alloc checks -json 54fde4f8
+
+{
+    "9810e90177a4c21ce3bfe04dc7da6131": {
+        "Check": "alive",
+        "Group": "example.cache[0]",
+        "ID": "9810e90177a4c21ce3bfe04dc7da6131",
+        "Mode": "healthiness",
+        "Output": "nomad: tcp ok",
+        "Service": "redis-cache",
+        "Status": "success",
+        "StatusCode": 0,
+        "Task": "",
+        "Timestamp": 1678444309
+    }
+}
+```
+
+Or use the `-t` flag to format and display the health checks using a Go template:
+
+```shell-session
+$ nomad alloc checks -t '{{range .}}{{ printf "%s: %s\n" .ID  .Status }}{{end}}' 54
+
+9810e90177a4c21ce3bfe04dc7da6131: success
+```
