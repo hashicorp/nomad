@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
@@ -96,6 +97,10 @@ type Tracker struct {
 	// name -> state
 	taskHealth map[string]*taskHealthState
 
+	// taskEnvs maps each task in the allocation to a *taskenv.TaskEnv that is
+	// used to interpolate runtime variables used in service definitions.
+	taskEnvs map[string]*taskenv.TaskEnv
+
 	// logger is for logging things
 	logger hclog.Logger
 }
@@ -111,6 +116,7 @@ func NewTracker(
 	logger hclog.Logger,
 	alloc *structs.Allocation,
 	allocUpdates *cstructs.AllocListener,
+	taskEnvBuilder *taskenv.Builder,
 	consulClient serviceregistration.Handler,
 	checkStore checkstore.Shim,
 	minHealthyTime time.Duration,
@@ -132,6 +138,12 @@ func NewTracker(
 		lifecycleTasks:      map[string]string{},
 	}
 
+	// Build the map of TaskEnv for each task. Create the group-level TaskEnv
+	// first because taskEnvBuilder is mutated in every loop and we can't undo
+	// a call to UpdateTask().
+	t.taskEnvs = make(map[string]*taskenv.TaskEnv, len(t.tg.Tasks)+1)
+	t.taskEnvs[""] = taskEnvBuilder.Build()
+
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
 	for _, task := range t.tg.Tasks {
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
@@ -139,6 +151,8 @@ func NewTracker(
 		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
 			t.lifecycleTasks[task.Name] = task.Lifecycle.Hook
 		}
+
+		t.taskEnvs[task.Name] = taskEnvBuilder.UpdateTask(alloc, task).Build()
 
 		c, n := countChecks(task.Services)
 		t.consulCheckCount += c
@@ -503,8 +517,24 @@ OUTER:
 		// Detect if all the checks are passing
 		passed := true
 
+		// interpolate services to replace runtime variables
+		consulServices := t.tg.ConsulServices()
+		interpolatedServices := make([]*structs.Service, 0, len(consulServices))
+		for _, service := range consulServices {
+			env := t.taskEnvs[service.TaskName]
+			if env == nil {
+				// This is not expected to happen, but guard against a nil
+				// task environment that could case a panic.
+				t.logger.Error("failed to interpolate service runtime variables: task environment not found",
+					"alloc_id", t.alloc.ID, "task", service.TaskName)
+				continue
+			}
+			interpolatedService := taskenv.InterpolateService(env, service)
+			interpolatedServices = append(interpolatedServices, interpolatedService)
+		}
+
 		// scan for missing or unhealthy consul checks
-		if !evaluateConsulChecks(t.tg, allocReg) {
+		if !evaluateConsulChecks(interpolatedServices, allocReg) {
 			t.setCheckHealth(false)
 			passed = false
 		}
@@ -523,11 +553,10 @@ OUTER:
 	}
 }
 
-func evaluateConsulChecks(tg *structs.TaskGroup, registrations *serviceregistration.AllocRegistration) bool {
+func evaluateConsulChecks(services []*structs.Service, registrations *serviceregistration.AllocRegistration) bool {
 	// First, identify any case where a check definition is missing or outdated
 	// on the Consul side. Note that because check names are not unique, we must
 	// also keep track of the counts on each side and make sure those also match.
-	services := tg.ConsulServices()
 	expChecks := make(map[string]int)
 	regChecks := make(map[string]int)
 	for _, service := range services {
