@@ -41,9 +41,15 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 
 	input := &TaskConfig{
 		ID:            uuid.Generate(),
-		Name:          "task",
 		JobName:       "job",
+		JobID:         "job-id",
 		TaskGroupName: "group",
+		Name:          "task",
+		Namespace:     "default",
+		NodeName:      "node-1",
+		NodeID:        uuid.Generate(),
+		Env:           map[string]string{"gir": "zim"},
+		DeviceEnv:     map[string]string{"foo": "bar"},
 		Resources: &Resources{
 			NomadResources: &structs.AllocatedTaskResources{
 				Cpu: structs.AllocatedCpuResources{
@@ -82,8 +88,6 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 				PropagationMode: "private",
 			},
 		},
-		Env:        map[string]string{"gir": "zim"},
-		DeviceEnv:  map[string]string{"foo": "bar"},
 		User:       "user",
 		AllocDir:   "allocDir",
 		StdoutPath: "stdout",
