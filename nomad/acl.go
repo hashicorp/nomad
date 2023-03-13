@@ -267,11 +267,9 @@ func (s *Server) ResolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error)
 	if err != nil {
 		return nil, err
 	}
-	if len(policies) == 0 {
-		return nil, nil
-	}
 
-	// Compile and cache the ACL object
+	// Compile and cache the ACL object. For many claims this will result in an
+	// ACL object with no policies, which can be efficiently cached.
 	aclObj, err := structs.CompileACLObject(s.aclCache, policies)
 	if err != nil {
 		return nil, err

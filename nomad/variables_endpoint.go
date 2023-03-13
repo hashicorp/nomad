@@ -121,7 +121,7 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 	} else if aclObj != nil {
 		hasPerm := func(perm string) bool {
 			return aclObj.AllowVariableOperation(args.Var.Namespace,
-				args.Var.Path, perm)
+				args.Var.Path, perm, nil)
 		}
 		canRead = hasPerm(acl.VariablesCapabilityRead)
 
@@ -526,63 +526,53 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 	// Perform normal ACL validation. If the ACL object is nil, that means we're
 	// working with an identity claim.
 	if aclObj != nil {
-		if !aclObj.AllowVariableOperation(ns, pathOrPrefix, policy) {
+		allowed := aclObj.AllowVariableOperation(ns, pathOrPrefix, policy, nil)
+		if !allowed {
 			return structs.ErrPermissionDenied
 		}
 		return nil
 	}
 
+	// Check the workload-associated policies and automatic task access to
+	// variables.
 	if claims != nil {
-		// The workload identity gets access to paths that match its
-		// identity, without having to go thru the ACL system
-		err := sv.authValidatePrefix(claims, ns, pathOrPrefix)
-		if err == nil {
-			return nil
-		}
-
-		// If the workload identity doesn't match the implicit permissions
-		// given to paths, check for its attached ACL policies
-		aclObj, err = sv.srv.ResolveClaims(claims)
+		aclObj, err := sv.srv.ResolveClaims(claims)
 		if err != nil {
-			return err // this only returns an error when the state store has gone wrong
+			return err // returns internal errors only
 		}
-		if aclObj != nil && aclObj.AllowVariableOperation(
-			ns, pathOrPrefix, policy) {
-			return nil
+		if aclObj != nil {
+			group, err := sv.groupForAlloc(claims)
+			if err != nil {
+				// returns ErrPermissionDenied for claims from terminal
+				// allocations, otherwise only internal errors
+				return err
+			}
+			allowed := aclObj.AllowVariableOperation(
+				ns, pathOrPrefix, policy, &acl.ACLClaim{
+					Namespace: claims.Namespace,
+					Job:       claims.JobID,
+					Group:     group,
+					Task:      claims.TaskName,
+				})
+			if allowed {
+				return nil
+			}
 		}
 	}
 	return structs.ErrPermissionDenied
 }
 
-// authValidatePrefix asserts that the requested path is valid for
-// this allocation
-func (sv *Variables) authValidatePrefix(claims *structs.IdentityClaims, ns, pathOrPrefix string) error {
-
+func (sv *Variables) groupForAlloc(claims *structs.IdentityClaims) (string, error) {
 	store, err := sv.srv.fsm.State().Snapshot()
 	if err != nil {
-		return err
+		return "", err
 	}
 	alloc, err := store.AllocByID(nil, claims.AllocationID)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if alloc == nil || alloc.Job == nil {
-		return fmt.Errorf("allocation does not exist")
+		return "", structs.ErrPermissionDenied
 	}
-	if alloc.Job.Namespace != ns {
-		return fmt.Errorf("allocation is in another namespace")
-	}
-
-	parts := strings.Split(pathOrPrefix, "/")
-	expect := []string{"nomad", "jobs", claims.JobID, alloc.TaskGroup, claims.TaskName}
-	if len(parts) > len(expect) {
-		return structs.ErrPermissionDenied
-	}
-
-	for idx, part := range parts {
-		if part != expect[idx] {
-			return structs.ErrPermissionDenied
-		}
-	}
-	return nil
+	return alloc.TaskGroup, nil
 }
