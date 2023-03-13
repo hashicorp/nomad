@@ -9185,13 +9185,6 @@ func (a *Affinity) Equal(o *Affinity) bool {
 	return true
 }
 
-func (a *Affinity) Hash() string {
-	if a == nil {
-		return "(nil)"
-	}
-	return a.String()
-}
-
 func (a *Affinity) Copy() *Affinity {
 	if a == nil {
 		return nil
@@ -9273,8 +9266,19 @@ type Spread struct {
 	str string
 }
 
-func (s *Spread) Hash() string {
-	return s.String()
+func (s *Spread) Equal(o *Spread) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+	switch {
+	case s.Attribute != o.Attribute:
+		return false
+	case s.Weight != o.Weight:
+		return false
+	case !slices.EqualFunc(s.SpreadTarget, o.SpreadTarget, func(a, b *SpreadTarget) bool { return a.Equal(b) }):
+		return false
+	}
+	return true
 }
 
 type Affinities []*Affinity
@@ -9379,6 +9383,19 @@ func (s *SpreadTarget) String() string {
 	}
 	s.str = fmt.Sprintf("%q %v%%", s.Value, s.Percent)
 	return s.str
+}
+
+func (s *SpreadTarget) Equal(o *SpreadTarget) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+	switch {
+	case s.Value != o.Value:
+		return false
+	case s.Percent != o.Percent:
+		return false
+	}
+	return true
 }
 
 // EphemeralDisk is an ephemeral disk object

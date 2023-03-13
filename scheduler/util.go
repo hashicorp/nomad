@@ -7,7 +7,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
@@ -486,47 +485,61 @@ func networkPortMap(n *structs.NetworkResource) structs.AllocatedPorts {
 }
 
 func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
-	setA := set.HashSetFrom[*structs.Affinity, string](jobA.Affinities)
-	setB := set.HashSetFrom[*structs.Affinity, string](jobB.Affinities)
+	var affinitiesA structs.Affinities
+	var affinitiesB structs.Affinities
+
+	// accumulate job affinities
+
+	affinitiesA = append(affinitiesA, jobA.Affinities...)
+	affinitiesB = append(affinitiesB, jobB.Affinities...)
 
 	tgA := jobA.LookupTaskGroup(taskGroup)
 	tgB := jobB.LookupTaskGroup(taskGroup)
 
 	// append group level affinities
-	setA.InsertAll(tgA.Affinities)
-	setB.InsertAll(tgB.Affinities)
+
+	affinitiesA = append(affinitiesA, tgA.Affinities...)
+	affinitiesB = append(affinitiesB, tgB.Affinities...)
 
 	// append task level affinities for A
+
 	for _, task := range tgA.Tasks {
-		setA.InsertAll(task.Affinities)
+		affinitiesA = append(affinitiesA, task.Affinities...)
 	}
 
 	// append task level affinities for B
 	for _, task := range tgB.Tasks {
-		setB.InsertAll(task.Affinities)
+		affinitiesB = append(affinitiesB, task.Affinities...)
 	}
 
 	// finally check if all the affinities from both jobs match
-	if !setA.Equal(setB) {
-		return difference("affinities", setA, setB)
+	if !affinitiesA.Equal(&affinitiesB) {
+		return difference("affinities", affinitiesA, affinitiesB)
 	}
 
 	return same
 }
 
 func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
-	setA := set.HashSetFrom[*structs.Spread, string](jobA.Spreads)
-	setB := set.HashSetFrom[*structs.Spread, string](jobB.Spreads)
+	var spreadsA []*structs.Spread
+	var spreadsB []*structs.Spread
+
+	// accumulate job spreads
+
+	spreadsA = append(spreadsA, jobA.Spreads...)
+	spreadsB = append(spreadsB, jobB.Spreads...)
 
 	tgA := jobA.LookupTaskGroup(taskGroup)
 	tgB := jobB.LookupTaskGroup(taskGroup)
 
-	// append task group level spreads
-	setA.InsertAll(tgA.Spreads)
-	setB.InsertAll(tgB.Spreads)
+	// append group spreads
+	spreadsA = append(spreadsA, tgA.Spreads...)
+	spreadsB = append(spreadsB, tgB.Spreads...)
 
-	if !setA.Equal(setB) {
-		return difference("spreads", setA, setB)
+	if !slices.EqualFunc(spreadsA, spreadsB, func(a, b *structs.Spread) bool {
+		return a.Equal(b)
+	}) {
+		return difference("spreads", spreadsA, spreadsB)
 	}
 
 	return same
