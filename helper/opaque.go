@@ -1,4 +1,4 @@
-package lang
+package helper
 
 import (
 	"github.com/google/go-cmp/cmp"

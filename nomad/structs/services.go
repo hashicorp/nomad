@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -1203,7 +1202,7 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 	}
 
 	// config compare
-	if !lang.OpaqueMapsEqual(t.Config, o.Config) {
+	if !helper.OpaqueMapsEqual(t.Config, o.Config) {
 		return false
 	}
 
@@ -1401,7 +1400,7 @@ func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 		return false
 	}
 
-	if !lang.OpaqueMapsEqual(p.Config, o.Config) {
+	if !helper.OpaqueMapsEqual(p.Config, o.Config) {
 		return false
 	}
 
@@ -1496,7 +1495,7 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 		return false
 	case !u.MeshGateway.Equal(o.MeshGateway):
 		return false
-	case !lang.OpaqueMapsEqual(u.Config, o.Config):
+	case !helper.OpaqueMapsEqual(u.Config, o.Config):
 		return false
 	}
 	return true
@@ -1782,7 +1781,7 @@ func (p *ConsulGatewayProxy) Equal(o *ConsulGatewayProxy) bool {
 		return false
 	}
 
-	if !lang.OpaqueMapsEqual(p.Config, o.Config) {
+	if !helper.OpaqueMapsEqual(p.Config, o.Config) {
 		return false
 	}
 
