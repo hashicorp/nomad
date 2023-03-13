@@ -290,8 +290,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 
 	// The "old" job has a previous modify index but is otherwise unchanged, so
 	// existing non-terminal allocs for this version should be updated in-place
-	oldJob := new(structs.Job)
-	*oldJob = *job
+	oldJob := job.Copy()
 	oldJob.JobModifyIndex -= 1
 
 	drainNode := mock.DrainNode()
