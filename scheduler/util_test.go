@@ -17,6 +17,17 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+func BenchmarkTasksUpdated(b *testing.B) {
+	jobA := mock.BigBenchmarkJob()
+	jobB := jobA.Copy()
+	group := jobA.TaskGroups[0].Name
+	for n := 0; n < b.N; n++ {
+		if tasksUpdated(jobA, jobB, group) {
+			b.Fatal("tasks should be the same")
+		}
+	}
+}
+
 func newNode(name string) *structs.Node {
 	n := mock.Node()
 	n.Name = name

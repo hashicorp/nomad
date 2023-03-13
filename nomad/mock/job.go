@@ -568,3 +568,93 @@ func MaxParallelJob() *structs.Job {
 	job.Canonicalize()
 	return job
 }
+
+// BigBenchmarkJob creates a job with many fields set, ideal for benchmarking
+// stuff involving jobs.
+//
+// Should not be used outside of benchmarking - folks should feel free to add
+// more fields without risk of breaking test cases down the line.
+func BigBenchmarkJob() *structs.Job {
+	job := MultiTaskGroupJob()
+
+	// job affinities
+	job.Affinities = structs.Affinities{{
+		LTarget: "left",
+		RTarget: "right",
+		Operand: "!=",
+		Weight:  100,
+	}, {
+		LTarget: "a",
+		RTarget: "b",
+		Operand: "<",
+		Weight:  50,
+	}}
+
+	// job spreads
+	job.Spreads = []*structs.Spread{{
+		Attribute: "foo.x",
+		Weight:    100,
+		SpreadTarget: []*structs.SpreadTarget{{
+			Value:   "x",
+			Percent: 90,
+		}, {
+			Value:   "x2",
+			Percent: 99,
+		}},
+	}, {
+		Attribute: "foo.y",
+		Weight:    90,
+		SpreadTarget: []*structs.SpreadTarget{{
+			Value:   "y",
+			Percent: 10,
+		}},
+	}}
+
+	// group affinities
+	job.TaskGroups[0].Affinities = structs.Affinities{{
+		LTarget: "L",
+		RTarget: "R",
+		Operand: "!=",
+		Weight:  100,
+	}, {
+		LTarget: "b",
+		RTarget: "a",
+		Operand: ">",
+		Weight:  50,
+	}}
+
+	// group spreads
+	job.TaskGroups[0].Spreads = []*structs.Spread{{
+		Attribute: "bar.x",
+		Weight:    100,
+		SpreadTarget: []*structs.SpreadTarget{{
+			Value:   "x",
+			Percent: 90,
+		}, {
+			Value:   "x2",
+			Percent: 99,
+		}},
+	}, {
+		Attribute: "bar.y",
+		Weight:    90,
+		SpreadTarget: []*structs.SpreadTarget{{
+			Value:   "y",
+			Percent: 10,
+		}},
+	}}
+
+	// task affinities
+	job.TaskGroups[0].Tasks[0].Affinities = structs.Affinities{{
+		LTarget: "Left",
+		RTarget: "Right",
+		Operand: "!=",
+		Weight:  100,
+	}, {
+		LTarget: "A",
+		RTarget: "B",
+		Operand: "<",
+		Weight:  50,
+	}}
+
+	return job
+}
