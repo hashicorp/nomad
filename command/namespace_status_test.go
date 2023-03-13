@@ -1,6 +1,7 @@
 package command
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,6 +54,7 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	// Create a namespace
 	ns := &api.Namespace{
 		Name: "foo",
+		//Description: "Test namespace",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
 	assert.Nil(t, err)
@@ -66,6 +69,30 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	if !strings.Contains(out, "= foo") {
 		t.Fatalf("expected quota, got: %s", out)
 	}
+
+	ui.OutputWriter.Reset()
+
+	// List json
+	if code := cmd.Run([]string{"-address=" + url, "-json", ns.Name}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+
+	outJson := api.Namespace{}
+	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
+	must.NoError(t, err)
+
+	ui.OutputWriter.Reset()
+
+	// Go template to format the output
+	if code := cmd.Run([]string{"-address=" + url, "-t", "{{.Name}}", ns.Name}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+	}
+
+	out = ui.OutputWriter.String()
+	must.StrContains(t, out, "foo")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 }
 
 func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
