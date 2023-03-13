@@ -13,6 +13,18 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.6.0
+
+#### Job Evaluate API Endpoint Requires `submit-job` Instead of `read-job`
+
+Nomad 1.6.0 updated the ACL capability requirement for the job evaluate
+endpoint from `read-job` to `submit-job` to better reflect that this operation
+writes state to Nomad. This endpoint is used by the `nomad job eval` CLI
+command and so the ACL requirements changed for the command as well. Users that
+called this endpoint or used this command using tokens with just the `read-job`
+capability or the `read` policy must update their tokens to use the
+`submit-job` capability or the `write` policy.
+
 ## Nomad 1.5.1
 
 #### Artifact Download Regression Fix

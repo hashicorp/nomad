@@ -156,7 +156,7 @@ func TestJobEvalCommand_ACL(t *testing.T) {
 			expectedErr: api.PermissionDeniedErrorContent,
 		},
 		{
-			name: "missing read-job",
+			name: "missing submit-job",
 			aclPolicy: `
 namespace "default" {
 	capabilities = ["list-jobs"]
@@ -165,29 +165,48 @@ namespace "default" {
 			expectedErr: api.PermissionDeniedErrorContent,
 		},
 		{
-			name: "read-job allowed",
+			name: "submit-job allowed but can't monitor eval without read-job",
 			aclPolicy: `
 namespace "default" {
-	capabilities = ["read-job"]
+	capabilities = ["submit-job"]
+}
+`,
+			expectedErr: "No evaluation with id",
+		},
+		{
+			name: "submit-job allowed and can monitor eval with read-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job", "submit-job"]
 }
 `,
 		},
 		{
-			name:      "job prefix requires list-job",
+			name:      "job prefix requires list-jobs",
 			jobPrefix: true,
 			aclPolicy: `
 namespace "default" {
-	capabilities = ["read-job"]
+	capabilities = ["submit-job"]
 }
 `,
 			expectedErr: "job not found",
 		},
 		{
-			name:      "job prefix works with list-job",
+			name:      "job prefix works with list-jobs but can't monitor eval without read-job",
 			jobPrefix: true,
 			aclPolicy: `
 namespace "default" {
-	capabilities = ["read-job", "list-jobs"]
+	capabilities = ["list-jobs", "submit-job"]
+}
+`,
+			expectedErr: "No evaluation with id",
+		},
+		{
+			name:      "job prefix works with list-jobs and can monitor eval with read-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job", "list-jobs", "submit-job"]
 }
 `,
 		},

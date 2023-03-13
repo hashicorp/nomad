@@ -3163,7 +3163,7 @@ func TestJobEndpoint_Evaluate_ACL(t *testing.T) {
 
 	// Fetch the response with a valid token
 	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
-		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
+		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 
 	reEval.AuthToken = validToken.SecretID
 	var validResp2 structs.JobRegisterResponse
