@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where cpuset initialization fails after Client restart
+```
