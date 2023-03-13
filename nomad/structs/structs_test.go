@@ -2848,49 +2848,74 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name     string
-		config   *WaitConfig
-		expected *WaitConfig
+		name string
+		wc1  *WaitConfig
+		wc2  *WaitConfig
+		exp  bool
 	}{
 		{
 			name: "all-fields",
-			config: &WaitConfig{
+			wc1: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
-			expected: &WaitConfig{
+			wc2: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
+			exp: true,
 		},
 		{
-			name:     "no-fields",
-			config:   &WaitConfig{},
-			expected: &WaitConfig{},
+			name: "no-fields",
+			wc1:  &WaitConfig{},
+			wc2:  &WaitConfig{},
+			exp:  true,
 		},
 		{
 			name: "min-only",
-			config: &WaitConfig{
+			wc1: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
-			expected: &WaitConfig{
+			wc2: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
+			exp: true,
 		},
 		{
 			name: "max-only",
-			config: &WaitConfig{
+			wc1: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
-			expected: &WaitConfig{
+			wc2: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
+			exp: true,
+		},
+		{
+			name: "min-nil-vs-set",
+			wc1: &WaitConfig{
+				Min: pointer.Of(1 * time.Second),
+			},
+			wc2: &WaitConfig{
+				Min: nil,
+			},
+			exp: false,
+		},
+		{
+			name: "max-nil-vs-set",
+			wc1: &WaitConfig{
+				Max: pointer.Of(1 * time.Second),
+			},
+			wc2: &WaitConfig{
+				Max: nil,
+			},
+			exp: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.True(t, tc.config.Equal(tc.expected))
+			must.Eq(t, tc.exp, tc.wc1.Equal(tc.wc2))
 		})
 	}
 }
