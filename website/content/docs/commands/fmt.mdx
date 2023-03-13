@@ -24,6 +24,11 @@ extensions in the directory.
 If you provide a single dash (-) as argument, fmt will read from standard input
 (STDIN) and output the processed output to standard output (STDOUT).
 
+Note that, this command will check the syntax against
+[HCL2](https://github.com/hashicorp/hcl/blob/hcl2/README.md), the second
+generation of Hashicorp Configuration Language. Running this command with
+deprecated HCL1 jobspec will result in errors.
+
 ## Format Options:
 
 - `-check`: Check if the files are valid HCL files. If not, exit status of the
@@ -31,7 +36,7 @@ If you provide a single dash (-) as argument, fmt will read from standard input
   overrides any `-write` flag value.
 - `-list`: List the files which contain formatting inconsistencies. Defaults to
   `-list=true`.
-- `-recursive`: Process files in subdirectories. By default only the given (or
+- `-recursive`: Process files in subdirectories. By default, only the given (or
 	current) directory is processed.
 - `-write`: Overwrite the input files. Defaults to `-write=true`.
 
