@@ -1,13 +1,16 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 )
 
 func TestServerMembersCommand_Implements(t *testing.T) {
@@ -49,6 +52,30 @@ func TestServerMembersCommand_Run(t *testing.T) {
 	if out := ui.OutputWriter.String(); !strings.Contains(out, "Tags") {
 		t.Fatalf("expected tags in output, got: %s", out)
 	}
+
+	ui.OutputWriter.Reset()
+
+	// List json
+	if code := cmd.Run([]string{"-address=" + url, "-json"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+
+	outJson := []api.AgentMember{}
+	if err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson); err != nil {
+		t.Fatalf("expected json formatted output: %v", err)
+	}
+
+	ui.OutputWriter.Reset()
+
+	// Go template to format the output
+	if code := cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Status }}{{end}}"}); code != 0 {
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+
+	out := ui.OutputWriter.String()
+	must.StrContains(t, out, "alive")
+
+	ui.ErrorWriter.Reset()
 }
 
 func TestMembersCommand_Fails(t *testing.T) {
