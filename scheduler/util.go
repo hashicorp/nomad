@@ -8,7 +8,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set"
-	"github.com/hashicorp/nomad/lib/lang"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -260,7 +260,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if at.User != bt.User {
 			return difference("task user", at.User, bt.User)
 		}
-		if !lang.OpaqueMapsEqual(at.Config, bt.Config) {
+		if !helper.OpaqueMapsEqual(at.Config, bt.Config) {
 			return difference("task config", at.Config, bt.Config)
 		}
 		if !maps.Equal(at.Env, bt.Env) {
