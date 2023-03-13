@@ -4,6 +4,7 @@ package cgutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,8 +60,10 @@ func NewCpusetManagerV1(cgroupParent string, _ []uint16, logger hclog.Logger) Cp
 
 	// ensure the reserved cpuset exists, but only copy the mems from the parent if creating the cgroup
 	if err = os.Mkdir(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), 0755); err != nil {
-		logger.Warn("failed to ensure reserved cpuset.cpus interface exists; disable cpuset management", "error", err)
-		return new(NoopCpusetManager)
+		if !errors.Is(err, os.ErrExist) {
+			logger.Warn("failed to ensure reserved cpuset.cpus interface exists; disable cpuset management", "error", err)
+			return new(NoopCpusetManager)
+		}
 	}
 
 	if err = cgroups.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
