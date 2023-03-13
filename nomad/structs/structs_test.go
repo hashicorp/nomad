@@ -7416,14 +7416,45 @@ func TestAffinity_Equal(t *testing.T) {
 	}})
 }
 
-func TestAffinity_Hash(t *testing.T) {
+func TestSpreadTarget_Equal(t *testing.T) {
 	ci.Parallel(t)
 
-	must.Eq(t, "(nil)", (*Affinity)(nil).Hash())
-	must.Eq(t, "left op right 100", (&Affinity{
-		LTarget: "left",
-		RTarget: "right",
-		Operand: "op",
-		Weight:  100,
-	}).Hash())
+	must.Equal[*SpreadTarget](t, nil, nil)
+	must.NotEqual[*SpreadTarget](t, nil, new(SpreadTarget))
+
+	must.StructEqual(t, &SpreadTarget{
+		Value:   "dc1",
+		Percent: 99,
+	}, []must.Tweak[*SpreadTarget]{{
+		Field: "Value",
+		Apply: func(st *SpreadTarget) { st.Value = "dc2" },
+	}, {
+		Field: "Percent",
+		Apply: func(st *SpreadTarget) { st.Percent = 98 },
+	}})
+}
+
+func TestSpread_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*Spread](t, nil, nil)
+	must.NotEqual[*Spread](t, nil, new(Spread))
+
+	must.StructEqual(t, &Spread{
+		Attribute: "attr",
+		Weight:    100,
+		SpreadTarget: []*SpreadTarget{{
+			Value:   "dc1",
+			Percent: 99,
+		}},
+	}, []must.Tweak[*Spread]{{
+		Field: "Attribute",
+		Apply: func(s *Spread) { s.Attribute = "attr2" },
+	}, {
+		Field: "Weight",
+		Apply: func(s *Spread) { s.Weight = 50 },
+	}, {
+		Field: "SpreadTarget",
+		Apply: func(s *Spread) { s.SpreadTarget = nil },
+	}})
 }
