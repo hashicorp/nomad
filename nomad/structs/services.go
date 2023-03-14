@@ -1201,7 +1201,7 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 		return false
 	}
 
-	// config compare
+	// task config, use opaque maps equal
 	if !helper.OpaqueMapsEqual(t.Config, o.Config) {
 		return false
 	}
@@ -1400,7 +1400,8 @@ func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 		return false
 	}
 
-	if !helper.OpaqueMapsEqual(p.Config, o.Config) {
+	// envoy config, use reflect
+	if !reflect.DeepEqual(p.Config, o.Config) {
 		return false
 	}
 
@@ -1495,7 +1496,8 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 		return false
 	case !u.MeshGateway.Equal(o.MeshGateway):
 		return false
-	case !helper.OpaqueMapsEqual(u.Config, o.Config):
+	case !reflect.DeepEqual(u.Config, o.Config):
+		// envoy config, use reflect
 		return false
 	}
 	return true
@@ -1781,7 +1783,8 @@ func (p *ConsulGatewayProxy) Equal(o *ConsulGatewayProxy) bool {
 		return false
 	}
 
-	if !helper.OpaqueMapsEqual(p.Config, o.Config) {
+	// envoy config, use reflect
+	if !reflect.DeepEqual(p.Config, o.Config) {
 		return false
 	}
 
