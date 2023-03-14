@@ -328,6 +328,20 @@ The `policy` field for the plugin rule can have one of the following values:
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
 
+## UI rules
+
+Since the Nomad UI provides a much richer user experience than the CLI, additional API endpoints `/v1/agent` `/v1/node` are used when rendering pages.  Adding the rules below to your ACL when utilizing the Nomad UI is recommended.
+
+```hcl
+node {
+  policy = "read"
+}
+
+agent {
+  policy = "read"
+}
+```
+
 
 [Secure Nomad with Access Control]: https://learn.hashicorp.com/collections/nomad/access-control
 [hcl]: https://github.com/hashicorp/hcl
