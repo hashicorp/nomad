@@ -26,7 +26,9 @@ job "docs" {
   }
 }
 ```
-The ephemeral disk can be referenced under `alloc/data/`. More information can be found in the [filesystem internals].
+
+The ephemeral disk can be referenced under `alloc/data/`. More information can
+be found in the [filesystem internals][].
 
 ## `ephemeral_disk` Parameters
 
@@ -34,8 +36,11 @@ The ephemeral disk can be referenced under `alloc/data/`. More information can b
   Nomad client should make a best-effort attempt to migrate the data from a
   remote machine if placement cannot be made on the original node. During data
   migration, the task will block starting until the data migration has
-  completed. Migration is atomic and any partially migrated data will be
-  removed if an error is encountered.
+  completed. Migration is atomic and any partially migrated data will be removed
+  if an error is encountered. Note that data migration will not take place if a
+  client garbage collects a failed allocation or if the allocation has been
+  intentionally stopped via `nomad alloc stop`, because the original allocation
+  has already been removed.
 
 - `size` `(int: 300)` - Specifies the size of the ephemeral disk in MB. The
   current Nomad ephemeral storage implementation does not enforce this limit;
