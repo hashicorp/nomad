@@ -552,7 +552,7 @@ func TestParseToken(t *testing.T) {
 		{
 			Name:          "Parses token from X-Nomad-Token",
 			HeaderKey:     "X-Nomad-Token",
-			HeaderValue:   "foobar",
+			HeaderValue:   " foobar",
 			ExpectedToken: "foobar",
 		},
 		{
