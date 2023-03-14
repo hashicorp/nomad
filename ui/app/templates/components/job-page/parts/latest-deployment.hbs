@@ -47,13 +47,14 @@
       <li>Trying to deploy version {{this.job.latestDeployment.versionNumber}}.</li>
       <li>Allocs on this version: {{this.newVersionAllocBlocks}}</li>
     </ul>
-    Old Allocations:
-    <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} />
-    {{log "OLDIE" oldVersionAllocBlocks}}
-<hr />
-    New version: {{this.job.latestDeployment.versionNumber}}
+    {{#if this.oldVersionAllocBlockIDs.length}}
+      Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldVersionAllocBlocks.running.length}} running{{/if}}
+      <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} />
+    {{/if}}
+
+    New allocations: {{this.newVersionAllocBlocks.running.length}}/{{this.job.latestDeployment.desiredTotal}} running
     <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
-<hr />
+
     <footer>
       <legend>
         {{#each this.allocTypes as |type|}}
