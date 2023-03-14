@@ -96,7 +96,7 @@ $ nomad server members -json
 ]
   ```
 
-  Or use the `-t` flag to format and display the server members information using a Go template:
+Or use the `-t` flag to format and display the server members information using a Go template:
 
 ```shell-session
 $ nomad server members -t '{{range .}}{{printf "%s: %s" .Name .Status }}{{end}}'
