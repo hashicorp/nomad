@@ -43,28 +43,51 @@
     </div>
   </div>
   <div class="boxed-section-body with-foot">
-    <ul>
-      <li>Trying to deploy version {{this.job.latestDeployment.versionNumber}}.</li>
-      <li>Allocs on this version: {{this.newVersionAllocBlocks}}</li>
-    </ul>
+    <header>
+      Lenses:
+      <Hds::ButtonSet>
+        <Hds::Button @text="Status" @color="{{if (eq this.lens "status") "primary" "secondary"}}" {{on "click" (action (mut this.lens) "status") }}/>
+        <Hds::Button @text="Running Health" @color="{{if (eq this.lens "health") "primary" "secondary"}}" {{on "click" (action (mut this.lens) "health") }} />
+        <Hds::Button @text="Version" @color="{{if (eq this.lens "version") "primary" "secondary"}}" {{on "click" (action (mut this.lens) "version") }} />
+      </Hds::ButtonSet>
+
+    </header>
     {{#if this.oldVersionAllocBlockIDs.length}}
       Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldVersionAllocBlocks.running.length}} running{{/if}}
-      <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} />
+      <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @versioned={{eq this.lens "version"}} />
     {{/if}}
+    {{log "OLDIE" this.oldVersionAllocBlocks}}
 
-    New allocations: {{this.newVersionAllocBlocks.running.length}}/{{this.job.latestDeployment.desiredTotal}} running
+    {{#if (eq this.lens "health")}}
+      New allocations: {{this.newVersionAllocBlocks.healthy.length}}/{{this.job.latestDeployment.desiredTotal}} healthy
+    {{else}}
+      New allocations: {{this.newVersionAllocBlocks.running.length}}/{{this.job.latestDeployment.desiredTotal}} running
+    {{/if}}
     <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
 
     <footer>
       <legend>
-        {{#each this.allocTypes as |type|}}
-          <span class="legend-item {{if (eq (get (get this.newVersionAllocBlocks type.label) "length") 0) "faded"}}">
-            <span class="represented-allocation {{type.label}}"></span>
-            {{get (get this.newVersionAllocBlocks type.label) "length"}} {{capitalize type.label}}
-          </span>
-        {{/each}}
+        {{#if (eq this.lens "health")}}
+        <span class="legend-item healthy">
+          <span class="represented-allocation healthy"></span>
+          {{this.newVersionAllocBlocks.healthy.length}} Healthy
+        </span>
+        <span class="legend-item unhealthy">
+          <span class="represented-allocation unhealthy"></span>
+          {{this.newVersionAllocBlocks.unhealthy.length}} Unhealthy
+        </span>
+          {{else}}
+          {{#each this.allocTypes as |type|}}
+            <span class="legend-item {{if (eq (get (get this.newVersionAllocBlocks type.label) "length") 0) "faded"}}">
+              <span class="represented-allocation {{type.label}}"></span>
+              {{get (get this.newVersionAllocBlocks type.label) "length"}} {{capitalize type.label}}
+            </span>
+          {{/each}}
+        {{/if}}
       </legend>
     </footer>
+
+    <hr />Only included for posterity:
 
     <JobDeploymentDetails @deployment={{this.job.latestDeployment}} as |d|>
       <d.metrics />

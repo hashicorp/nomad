@@ -3,7 +3,7 @@ import Component from '@glimmer/component';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { alias } from '@ember/object/computed';
-// import { tracked } from '@glimmer/tracking';
+import { tracked } from '@glimmer/tracking';
 
 // TODO: temp proof of concept
 const groupBy = function (xs, key) {
@@ -15,6 +15,12 @@ const groupBy = function (xs, key) {
 
 export default class LatestDeployment extends Component {
   // job = null;
+
+  
+  /**
+   * @type {"status" | "health" | "version"}
+   */
+  @tracked lens = "status";
 
   constructor(owner, args) {
     super(owner, args);
@@ -119,13 +125,22 @@ export default class LatestDeployment extends Component {
     //     });
     // }
     // return allocationsOfShowableType;
-    return groupBy(
-      this.job.allocations.filter(
-        (a) => this.oldVersionAllocBlockIDs.includes(a)
-        // a.jobVersion !== this.deployment.get('versionNumber')
-      ),
-      'clientStatus'
-    );
+    if (this.lens === 'version') {
+      return groupBy(
+        this.job.allocations.filter(
+          (a) => this.oldVersionAllocBlockIDs.includes(a)
+        ),
+        'jobVersion'
+      );
+    } else {
+      return groupBy(
+        this.job.allocations.filter(
+          (a) => this.oldVersionAllocBlockIDs.includes(a)
+          // a.jobVersion !== this.deployment.get('versionNumber')
+        ),
+        'clientStatus'
+      );
+    }
   }
 
   get newVersionAllocBlocks() {
@@ -133,32 +148,62 @@ export default class LatestDeployment extends Component {
     let allocationsOfDeploymentVersion = this.job.allocations.filter(
       (a) => a.jobVersion === this.deployment.get('versionNumber')
     );
-    // Only fill up to 100% of desiredTotal. Once we've filled up, we can stop counting.
-    let allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {
-      const jobAllocsOfType = allocationsOfDeploymentVersion.filterBy(
-        'clientStatus',
-        type.label
-      );
-      if (availableSlotsToFill > 0) {
-        blocks[type.label] = Array(
-          Math.min(availableSlotsToFill, jobAllocsOfType.length)
+    console.log("checking to see if i get health here", allocationsOfDeploymentVersion, this.deployment.get('healthyAllocs'), this.deployment.get('unhealthyAllocs'));
+    let allocationsOfShowableType;
+    if (this.lens === 'health') {
+      allocationsOfShowableType = {
+        healthy: Array(this.deployment.get('healthyAllocs'))
+          .fill()
+          .map(() => {
+            return { clientStatus: 'healthy' };
+          }),
+        unhealthy: Array(this.deployment.get('unhealthyAllocs'))
+          .fill()
+          .map(() => {
+            return { clientStatus: 'healthy' };
+          }),
+        unplaced: Array(
+          Math.max(
+            0,
+            this.desiredTotal -
+              this.deployment.get('healthyAllocs') -
+              this.deployment.get('unhealthyAllocs')
+          )
         )
           .fill()
-          .map((_, i) => {
-            return jobAllocsOfType[i];
+          .map(() => {
+            return { clientStatus: 'unplaced' };
+          }),
+
+      };
+    } else {
+      // Only fill up to 100% of desiredTotal. Once we've filled up, we can stop counting.
+      allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {
+        const jobAllocsOfType = allocationsOfDeploymentVersion.filterBy(
+          'clientStatus',
+          type.label
+        );
+        if (availableSlotsToFill > 0) {
+          blocks[type.label] = Array(
+            Math.min(availableSlotsToFill, jobAllocsOfType.length)
+          )
+            .fill()
+            .map((_, i) => {
+              return jobAllocsOfType[i];
+            });
+          availableSlotsToFill -= blocks[type.label].length;
+        } else {
+          blocks[type.label] = [];
+        }
+        return blocks;
+      }, {});
+      if (availableSlotsToFill > 0) {
+        allocationsOfShowableType['unplaced'] = Array(availableSlotsToFill)
+          .fill()
+          .map(() => {
+            return { clientStatus: 'unplaced' };
           });
-        availableSlotsToFill -= blocks[type.label].length;
-      } else {
-        blocks[type.label] = [];
       }
-      return blocks;
-    }, {});
-    if (availableSlotsToFill > 0) {
-      allocationsOfShowableType['unplaced'] = Array(availableSlotsToFill)
-        .fill()
-        .map(() => {
-          return { clientStatus: 'unplaced' };
-        });
     }
     return allocationsOfShowableType;
   }

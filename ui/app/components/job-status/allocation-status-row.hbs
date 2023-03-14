@@ -5,7 +5,7 @@
   >
     {{#each-in @allocBlocks as |status allocs|}}
       {{#if (gt allocs.length 0)}}
-        <JobStatus::AllocationStatusBlock @status={{status}} @count={{allocs.length}} @width={{compute (action this.calcPerc) allocs.length}} />
+        <JobStatus::AllocationStatusBlock @status={{status}} @count={{allocs.length}} @width={{compute (action this.calcPerc) allocs.length}} @versioned={{@versioned}} />
       {{/if}}
     {{/each-in}}
   </div>
@@ -14,7 +14,7 @@
     {{#each-in @allocBlocks as |status allocs|}}
       {{#if (gt allocs.length 0)}}
         {{#each (range 0 allocs.length)}}
-          <span class="represented-allocation {{status}}"></span>
+          <span class="represented-allocation {{status}}" data-version={{if @versioned status ""}}></span>
         {{/each}}
       {{/if}}
     {{/each-in}}

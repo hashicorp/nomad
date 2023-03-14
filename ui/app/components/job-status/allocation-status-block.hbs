@@ -5,12 +5,19 @@
   {{#if this.countToShow}}
     <div class="ungrouped-allocs">
       {{#each (range 0 this.countToShow)}}
-        <span class="represented-allocation {{@status}}" />
+        <span class="represented-allocation {{@status}} {{if @versioned "versioned"}}">
+          {{#if @versioned}}
+            v{{@status}}
+          {{/if}}
+        </span>
       {{/each}}
     </div>
   {{/if}}
   {{#if this.remaining}}
-    <span class="represented-allocation rest {{@status}}">
+    <span class="represented-allocation rest {{@status}} {{if @versioned "versioned"}}">
+      {{#if @versioned}}
+        v{{@status}}
+      {{/if}}
       {{#if this.countToShow}}+{{/if}}{{this.remaining}}
     </span>
   {{/if}}
