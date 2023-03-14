@@ -2,23 +2,25 @@
     <div class="boxed-section-head">
     Job Definition
     <div class="pull-right" style="display: flex">
+        {{#if @data.hasSpecification}}
         <div class="select-mode" data-test-toggle={{@data.view}}>
-        <button 
-            class="button is-small is-borderless {{if (eq @data.view "job-spec") "is-active"}}"
-            type="button"
-            {{on "click" @fns.onToggle}}
-        >
-            Job Spec
-        </button>
-        <button 
-            class="button is-small is-borderless {{if (eq @data.view "full-definition") "is-active"}}"
-            type="button"
-            {{on "click" @fns.onToggle}}
-            data-test-toggle-full
-        >
-            Full Definition
-        </button>
+            <button 
+                class="button is-small is-borderless {{if (eq @data.view "job-spec") "is-active"}}"
+                type="button"
+                {{on "click" @fns.onToggle}}
+            >
+                Job Spec
+            </button>
+            <button 
+                class="button is-small is-borderless {{if (eq @data.view "full-definition") "is-active"}}"
+                type="button"
+                {{on "click" @fns.onToggle}}
+                data-test-toggle-full
+            >
+                Full Definition
+            </button>
         </div>
+        {{/if}}
         <button
             class="button is-light is-compact"
             type="button"
@@ -27,7 +29,7 @@
         >
             Edit
         </button>
-    </div>
+        </div>
     </div>
     <div class="boxed-section-body is-full-bleed">
     {{#if (eq @data.view "job-spec")}}
