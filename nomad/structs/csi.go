@@ -80,6 +80,25 @@ type TaskCSIPluginConfig struct {
 	HealthTimeout time.Duration `mapstructure:"health_timeout" hcl:"health_timeout,optional"`
 }
 
+func (t *TaskCSIPluginConfig) Equal(o *TaskCSIPluginConfig) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
+	switch {
+	case t.ID != o.ID:
+		return false
+	case t.Type != o.Type:
+		return false
+	case t.MountDir != o.MountDir:
+		return false
+	case t.StagePublishBaseDir != o.StagePublishBaseDir:
+		return false
+	case t.HealthTimeout != o.HealthTimeout:
+		return false
+	}
+	return true
+}
+
 func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {
 	if t == nil {
 		return nil
