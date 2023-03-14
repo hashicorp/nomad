@@ -71,26 +71,64 @@ func lockdown(allocDir, taskDir string) error {
 		landlock.Dir(allocDir, "rwc"),
 		landlock.Dir(taskDir, "rwc"),
 	}
-	paths = append(paths, systemVersionControlGlobalConfigs()...)
+
+	paths = append(paths, additionalFilesForVCS()...)
 	locker := landlock.New(paths...)
 	return locker.Lock(landlock.Mandatory)
 }
 
-func systemVersionControlGlobalConfigs() []*landlock.Path {
+func additionalFilesForVCS() []*landlock.Path {
 	const (
+		sshDir        = ".ssh"                  // git ssh
+		knownHosts    = ".ssh/known_hosts"      // git ssh
+		etcPasswd     = "/etc/passwd"           // git ssh
 		gitGlobalFile = "/etc/gitconfig"        // https://git-scm.com/docs/git-config#SCOPES
 		hgGlobalFile  = "/etc/mercurial/hgrc"   // https://www.mercurial-scm.org/doc/hgrc.5.html#files
 		hgGlobalDir   = "/etc/mercurial/hgrc.d" // https://www.mercurial-scm.org/doc/hgrc.5.html#files
 	)
-	return loadVersionControlGlobalConfigs(gitGlobalFile, hgGlobalFile, hgGlobalDir)
+	return filesForVCS(
+		sshDir,
+		knownHosts,
+		etcPasswd,
+		gitGlobalFile,
+		hgGlobalFile,
+		hgGlobalDir,
+	)
 }
 
-func loadVersionControlGlobalConfigs(gitGlobalFile, hgGlobalFile, hgGlobalDir string) []*landlock.Path {
+func filesForVCS(
+	sshDir,
+	knownHosts,
+	etcPasswd,
+	gitGlobalFile,
+	hgGlobalFile,
+	hgGlobalDir string) []*landlock.Path {
+
+	var includeSSH bool
+
+	// omit ssh if there is no home directory
+	if home, err := os.UserHomeDir(); err == nil {
+		includeSSH = true
+		sshDir = filepath.Join(home, sshDir)
+		knownHosts = filepath.Join(home, knownHosts)
+	}
+
+	// only add if a path exists
 	exists := func(p string) bool {
 		_, err := os.Stat(p)
 		return err == nil
 	}
-	result := make([]*landlock.Path, 0, 3)
+
+	result := make([]*landlock.Path, 0, 6)
+	if includeSSH && exists(sshDir) {
+		result = append(result, landlock.Dir(sshDir, "r"))
+	}
+	if includeSSH && exists(knownHosts) {
+		result = append(result, landlock.File(knownHosts, "rw"))
+	}
+	if exists(etcPasswd) {
+		result = append(result, landlock.File(etcPasswd, "r"))
+	}
 	if exists(gitGlobalFile) {
 		result = append(result, landlock.File(gitGlobalFile, "r"))
 	}

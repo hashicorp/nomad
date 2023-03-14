@@ -14,15 +14,27 @@ import (
 func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	const filePerm = 0o644
 	const dirPerm = 0o755
-	fakeEtc := t.TempDir()
 
-	var (
-		gitFile = filepath.Join(fakeEtc, "gitconfig")
-		hgFile  = filepath.Join(fakeEtc, "hgrc")
-		hgDir   = filepath.Join(fakeEtc, "hgrc.d")
+	fakeEtc := t.TempDir()
+	fakeHome := t.TempDir()
+
+	t.Setenv("HOME", fakeHome)
+
+	const (
+		ssh        = ".ssh"
+		knownHosts = ".ssh/known_hosts"
 	)
 
-	err := os.WriteFile(gitFile, []byte("git"), filePerm)
+	var (
+		gitConfig      = filepath.Join(fakeEtc, "gitconfig")
+		hgFile         = filepath.Join(fakeEtc, "hgrc")
+		hgDir          = filepath.Join(fakeEtc, "hgrc.d")
+		etcPasswd      = filepath.Join(fakeEtc, "passwd")
+		sshDir         = filepath.Join(fakeHome, ssh)
+		knownHostsFile = filepath.Join(fakeHome, knownHosts)
+	)
+
+	err := os.WriteFile(gitConfig, []byte("git"), filePerm)
 	must.NoError(t, err)
 
 	err = os.WriteFile(hgFile, []byte("hg"), filePerm)
@@ -31,9 +43,21 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	err = os.Mkdir(hgDir, dirPerm)
 	must.NoError(t, err)
 
-	paths := loadVersionControlGlobalConfigs(gitFile, hgFile, hgDir)
+	err = os.WriteFile(etcPasswd, []byte("x:y:z"), filePerm)
+	must.NoError(t, err)
+
+	err = os.Mkdir(sshDir, dirPerm)
+	must.NoError(t, err)
+
+	err = os.WriteFile(knownHostsFile, []byte("abc123"), filePerm)
+	must.NoError(t, err)
+
+	paths := filesForVCS(ssh, knownHosts, etcPasswd, gitConfig, hgFile, hgDir)
 	must.SliceEqual(t, []*landlock.Path{
-		landlock.File(gitFile, "r"),
+		landlock.Dir(sshDir, "r"),
+		landlock.File(knownHostsFile, "rw"),
+		landlock.File(etcPasswd, "r"),
+		landlock.File(gitConfig, "r"),
 		landlock.File(hgFile, "r"),
 		landlock.Dir(hgDir, "r"),
 	}, paths)
