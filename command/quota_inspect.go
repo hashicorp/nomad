@@ -128,7 +128,8 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 		Failures: failuresConverted,
 	}
 
-	out, err := Format(len(tmpl) == 0, tmpl, data)
+	ftr := JSONFormat{}
+	out, err := ftr.TransformData(data)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
