@@ -78,6 +78,31 @@ func (s *Status) Peers(args *structs.GenericRequest, reply *[]string) error {
 	return nil
 }
 
+// RPCServers is used to get all the RPC server addresses in a region
+func (s *Status) RPCServers(args *structs.GenericRequest, reply *[]string) error {
+	// note: we're intentionally throwing away any auth error here and only
+	// authenticate so that we can measure rate metrics
+	s.srv.Authenticate(s.ctx, args)
+	s.srv.MeasureRPCRate("status", structs.RateMetricList, args)
+
+	if args.Region == "" {
+		args.Region = s.srv.config.Region
+	}
+	if done, err := s.srv.forward("Status.RPCServers", args, args, reply); done {
+		return err
+	}
+
+	future := s.srv.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return err
+	}
+
+	for _, server := range future.Configuration().Servers {
+		*reply = append(*reply, s.srv.localPeers[server.Address].RPCAddr.String())
+	}
+	return nil
+}
+
 // Members return the list of servers in a cluster that a particular server is
 // aware of
 func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMembersResponse) error {

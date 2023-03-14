@@ -1,17 +1,21 @@
 package nomad
 
 import (
+	"fmt"
+	"net"
 	"testing"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStatusPing(t *testing.T) {
@@ -71,6 +75,52 @@ func TestStatusPeers(t *testing.T) {
 	if len(peers) != 1 {
 		t.Fatalf("no peers: %v", peers)
 	}
+}
+
+func TestStatus_RPCServers(t *testing.T) {
+	ci.Parallel(t)
+
+	advAddr1 := "127.0.1.1:1234"
+	adv1, err := net.ResolveTCPAddr("tcp", advAddr1)
+	must.NoError(t, err)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.Region = "region1"
+		c.ClientRPCAdvertise = adv1
+	})
+	defer cleanupS1()
+
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.Region = "region2"
+	})
+	defer cleanupS2()
+
+	// Join them together
+	s2Addr := fmt.Sprintf("127.0.0.1:%d", s2.config.SerfConfig.MemberlistConfig.BindPort)
+	n, err := s1.Join([]string{s2Addr})
+	must.NoError(t, err, must.Sprintf("Failed joining: %v (%d joined)", err, n))
+
+	codec := rpcClient(t, s1)
+
+	t.Run("own region", func(t *testing.T) {
+		arg := &structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{Region: "region1"},
+		}
+		var members []string
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Status.RPCServers", arg, &members))
+		must.Len(t, 1, members)
+		must.Eq(t, advAddr1, members[0])
+	})
+
+	t.Run("other region", func(t *testing.T) {
+		arg := &structs.GenericRequest{
+			QueryOptions: structs.QueryOptions{Region: "region2"},
+		}
+		var members []string
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Status.RPCServers", arg, &members))
+		must.Len(t, 1, members)
+		must.Eq(t, s2.clientRpcAdvertise.String(), members[0])
+	})
 }
 
 func TestStatusMembers(t *testing.T) {

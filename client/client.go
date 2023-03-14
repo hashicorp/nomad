@@ -2906,7 +2906,8 @@ func (c *Client) consulDiscoveryImpl() error {
 		dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 	}
 
-	// Query for servers in this client's region only
+	// Query for servers in this client's region only. Note this has to be an
+	// unauthenticated request because we haven't registered yet.
 	region := c.Region()
 	rpcargs := structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
@@ -2944,26 +2945,24 @@ DISCOLOOP:
 				continue
 			}
 
-			// Query the members from the region that Consul gave us, and
-			// extract the client-advertise RPC address from each member
-			var membersResp structs.ServerMembersResponse
-			if err := c.connPool.RPC(region, addr, "Status.Members", rpcargs, &membersResp); err != nil {
+			srv := &servers.Server{Addr: addr}
+			nomadServers = append(nomadServers, srv)
+
+			// Query the client-advertise RPC addresses from the region that
+			// Consul gave us
+			var members []string
+			if err := c.connPool.RPC(region, addr, "Status.RPCServers", rpcargs, &members); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
-			for _, member := range membersResp.Members {
-				if addrTag, ok := member.Tags["rpc_addr"]; ok {
-					if portTag, ok := member.Tags["port"]; ok {
-						addr, err := net.ResolveTCPAddr("tcp",
-							fmt.Sprintf("%s:%s", addrTag, portTag))
-						if err != nil {
-							mErr.Errors = append(mErr.Errors, err)
-							continue
-						}
-						srv := &servers.Server{Addr: addr}
-						nomadServers = append(nomadServers, srv)
-					}
+			for _, member := range members {
+				addr, err := net.ResolveTCPAddr("tcp", member)
+				if err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+					continue
 				}
+				srv := &servers.Server{Addr: addr}
+				nomadServers = append(nomadServers, srv)
 			}
 
 			if len(nomadServers) > 0 {
