@@ -66,30 +66,34 @@ The `-json` flag can be used to get the latest server members information in jso
 
 ```shell-session
 $ nomad server members -json
- [
+[
     {
-      "Name": "bacon-mac.global",
-      "Addr": "127.0.0.1",
-      "Port": 4648,
-      "Tags": {
-        "mvn": "1",
-        "build": "0.5.5dev",
-        "port": "4647",
-        "bootstrap": "1",
-        "role": "nomad",
-        "region": "global",
-        "dc": "dc1",
-        "vsn": "1"
-      },
-      "Status": "alive",
-      "ProtocolMin": 1,
-      "ProtocolMax": 5,
-      "ProtocolCur": 2,
-      "DelegateMin": 2,
-      "DelegateMax": 4,
-      "DelegateCur": 4
+        "Addr": "127.0.0.1",
+        "DelegateCur": 4,
+        "DelegateMax": 5,
+        "DelegateMin": 2,
+        "Name": "bacon-mac.global",
+        "Port": 4648,
+        "ProtocolCur": 2,
+        "ProtocolMax": 5,
+        "ProtocolMin": 1,
+        "Status": "alive",
+        "Tags": {
+            "build": "1.5.0",
+            "region": "global",
+            "rpc_addr": "127.0.0.1",
+            "role": "nomad",
+            "raft_vsn": "3",
+            "bootstrap": "1",
+            "expect": "1",
+            "dc": "dc1",
+            "port": "4647",
+            "revision": "fc40c491cacec3d8ec3f2f98cd82b9068a50797c",
+            "vsn": "1",
+            "id": "354fd9a8-4228-ca8e-8b93-3cf002514910"
+        }
     }
-  ]
+]
   ```
 
   Or use the `-t` flag to format and display the server members information using a Go template:
