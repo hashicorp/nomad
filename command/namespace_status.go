@@ -26,14 +26,14 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
-  Status Specific Options:
+Status Specific Options:
   
-	-json
-	  Output the latest namespace status information in a JSON format.
+  -json
+    Output the latest namespace status information in a JSON format.
   
-	-t
-	  Format and display namespace status information using a Go template.
-  `
+  -t
+    Format and display namespace status information using a Go template.
+`
 
 	return strings.TrimSpace(helpText)
 }
