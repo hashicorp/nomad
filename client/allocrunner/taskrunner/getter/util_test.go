@@ -144,9 +144,12 @@ func TestUtil_environment(t *testing.T) {
 	// not parallel
 	testutil.RequireLinux(t)
 
+	t.Setenv("HOME", "/test")
+
 	t.Run("default", func(t *testing.T) {
 		result := environment("/a/b/c", "")
 		must.Eq(t, []string{
+			"HOME=/test",
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
@@ -157,6 +160,7 @@ func TestUtil_environment(t *testing.T) {
 		t.Setenv("TWO", "2")
 		result := environment("/a/b/c", "ONE,TWO")
 		must.Eq(t, []string{
+			"HOME=/test",
 			"ONE=1",
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
@@ -169,6 +173,7 @@ func TestUtil_environment(t *testing.T) {
 		t.Setenv("TMPDIR", "/scratch")
 		result := environment("/a/b/c", "PATH,TMPDIR")
 		must.Eq(t, []string{
+			"HOME=/test",
 			"PATH=/opt/bin",
 			"TMPDIR=/scratch",
 		}, result)
@@ -178,6 +183,31 @@ func TestUtil_environment(t *testing.T) {
 		result := environment("/a/b/c", "DOES_NOT_EXIST")
 		must.Eq(t, []string{
 			"DOES_NOT_EXIST=",
+			"HOME=/test",
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/a/b/c/tmp",
+		}, result)
+	})
+
+	t.Run("homeless non-root", func(t *testing.T) {
+		testutil.RequireNonRoot(t)
+		t.Setenv("HOME", "")
+
+		result := environment("/a/b/c", "")
+		must.Eq(t, []string{
+			"HOME=/dev/null",
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/a/b/c/tmp",
+		}, result)
+	})
+
+	t.Run("homeless root", func(t *testing.T) {
+		testutil.RequireRoot(t)
+		t.Setenv("HOME", "")
+
+		result := environment("/a/b/c", "")
+		must.Eq(t, []string{
+			"HOME=/root",
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
