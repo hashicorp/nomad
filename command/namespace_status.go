@@ -24,13 +24,26 @@ Usage: nomad namespace status [options] <namespace>
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+Status Specific Options:
+  
+  -json
+    Output the latest namespace status information in a JSON format.
+  
+  -t
+    Format and display namespace status information using a Go template.
+`
 
 	return strings.TrimSpace(helpText)
 }
 
 func (c *NamespaceStatusCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
+		})
 }
 
 func (c *NamespaceStatusCommand) AutocompleteArgs() complete.Predictor {
@@ -44,7 +57,12 @@ func (c *NamespaceStatusCommand) Synopsis() string {
 func (c *NamespaceStatusCommand) Name() string { return "namespace status" }
 
 func (c *NamespaceStatusCommand) Run(args []string) int {
+	var json bool
+	var tmpl string
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -78,6 +96,17 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 	if len(possible) != 0 {
 		c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
 		return 1
+	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, ns)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
 	}
 
 	c.Ui.Output(formatNamespaceBasics(ns))
