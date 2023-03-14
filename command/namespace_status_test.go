@@ -24,24 +24,21 @@ func TestNamespaceStatusCommand_Fails(t *testing.T) {
 	cmd := &NamespaceStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+
 	ui.ErrorWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "retrieving namespace") {
-		t.Fatalf("connection error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "foo"})
+	must.One(t, code)
+
+	must.StrContains(t, ui.ErrorWriter.String(), "retrieving namespace")
 	ui.ErrorWriter.Reset()
 }
 
-func TestNamespaceStatusCommand_Good(t *testing.T) {
+func TestNamespaceStatusCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a server
@@ -54,15 +51,13 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	// Create a namespace
 	ns := &api.Namespace{
 		Name: "foo",
-		//Description: "Test namespace",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Check status on namespace
-	if code := cmd.Run([]string{"-address=" + url, ns.Name}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	code := cmd.Run([]string{"-address=" + url, ns.Name})
+	must.Zero(t, code)
 
 	// Check for basic spec
 	out := ui.OutputWriter.String()
@@ -73,9 +68,8 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// List json
-	if code := cmd.Run([]string{"-address=" + url, "-json", ns.Name}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	code = cmd.Run([]string{"-address=" + url, "-json", ns.Name})
+	must.Zero(t, code)
 
 	outJson := api.Namespace{}
 	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
@@ -84,9 +78,8 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Go template to format the output
-	if code := cmd.Run([]string{"-address=" + url, "-t", "{{.Name}}", ns.Name}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{.Name}}", ns.Name})
+	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
 	must.StrContains(t, out, "foo")
@@ -95,7 +88,7 @@ func TestNamespaceStatusCommand_Good(t *testing.T) {
 	ui.ErrorWriter.Reset()
 }
 
-func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
+func TestNamespaceStatusCommand_Run_Quota(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a server
@@ -123,25 +116,21 @@ func TestNamespaceStatusCommand_Good_Quota(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Check status on namespace
-	if code := cmd.Run([]string{"-address=" + url, ns.Name}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	code := cmd.Run([]string{"-address=" + url, ns.Name})
+	must.Zero(t, code)
+
+	out := ui.OutputWriter.String()
 
 	// Check for basic spec
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "= foo") {
-		t.Fatalf("expected quota, got: %s", out)
-	}
+	must.StrContains(t, out, "= foo")
 
 	// Check for usage
-	if !strings.Contains(out, "0 / 100") {
-		t.Fatalf("expected quota, got: %s", out)
-	}
+	must.StrContains(t, out, "0 / 100")
+
 }
 
 func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -154,14 +143,14 @@ func TestNamespaceStatusCommand_AutocompleteArgs(t *testing.T) {
 		Name: "foo",
 	}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	args := complete.Args{Last: "f"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(ns.Name, res[0])
+	must.One(t, len(res))
+	must.StrContains(t, ns.Name, res[0])
 }
 
 // This test should demonstrate the behavior of a namespace
@@ -181,27 +170,23 @@ func TestNamespaceStatusCommand_NamespaceMatchesPrefix(t *testing.T) {
 	// Create a namespace that uses foo as a prefix
 	ns := &api.Namespace{Name: "fooBar"}
 	_, err := client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Create a foo namespace
 	ns2 := &api.Namespace{Name: "foo"}
 	_, err = client.Namespaces().Register(ns2, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Adding a NS after to prevent sort from creating
 	// false successes
 	ns = &api.Namespace{Name: "fooBaz"}
 	_, err = client.Namespaces().Register(ns, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	// Check status on namespace
 	code := cmd.Run([]string{"-address=" + url, ns2.Name})
-	if code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	must.Zero(t, code)
+
 	// Check to ensure we got the proper foo
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "= foo\n") {
-		t.Fatalf("expected namespace foo, got: %s", out)
-	}
+	must.StrContains(t, ui.OutputWriter.String(), "= foo\n")
 }
