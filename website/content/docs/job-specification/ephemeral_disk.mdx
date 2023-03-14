@@ -37,7 +37,7 @@ be found in the [filesystem internals][].
   remote machine if placement cannot be made on the original node. During data
   migration, the task will block starting until the data migration has
   completed. Migration is atomic and any partially migrated data will be removed
-  if an error is encountered. Note a data migration will not take place if a
+  if an error is encountered. Note that data migration will not take place if a
   client garbage collects a failed allocation or if the allocation has been
   intentionally stopped via `nomad alloc stop`, because the original allocation
   has already been removed.
