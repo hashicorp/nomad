@@ -1,4 +1,4 @@
-<div class="job-status-panel boxed-section {{if this.isActivelyDeploying "is-info"}}" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
+<div class="job-status-panel boxed-section {{if this.isActivelyDeploying "active-deployment is-info"}}" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
   <div class="boxed-section-head">
     {{#if this.isActivelyDeploying}}
       <div class="boxed-section-row"
@@ -39,14 +39,14 @@
         <button type="button"
           data-test-status-mode-current
           class="button is-small is-borderless {{if (eq @statusMode "current") "is-active"}}"
-          {{on "click" (action @setStatusMode "current")}}
+          {{on "click" (action (optional @setStatusMode) "current")}}
         >
           Current
         </button>
         <button type="button"
           data-test-status-mode-historical
           class="button is-small is-borderless {{if (eq @statusMode "historical") "is-active"}}"
-          {{on "click" (action @setStatusMode "historical")}}>
+          {{on "click" (action (optional @setStatusMode) "historical")}}>
           Historical
         </button>
       </div>
@@ -54,7 +54,9 @@
   </div>
   <div class="boxed-section-body">
 
-    {{#if (eq @statusMode "current")}}
+    {{#if (eq @statusMode "historical")}}
+      <JobPage::Parts::SummaryChart @job={{@job}} />
+    {{else}}
       {{#if this.isActivelyDeploying}}
         {{#if this.oldVersionAllocBlockIDs.length}}
           <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldVersionAllocBlocks.running.length}} running{{/if}}</h4>
@@ -107,9 +109,6 @@
 
 
 
-    {{/if}}
-    {{#if (eq @statusMode "historical")}}
-      <JobPage::Parts::SummaryChart @job={{@job}} />
     {{/if}}
   </div>
 </div>
