@@ -78,7 +78,7 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 		},
 		{
 			name:        "all tasks conflicts with task",
-			args:        []string{"-all-tasks", "-task", "my-task", "my-job"},
+			args:        []string{"-all-tasks", "-task", "my-task", "-yes", "my-job"},
 			expectedErr: "The -all-tasks option cannot be used with -task",
 		},
 		{
@@ -148,12 +148,12 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 			expectedErr: "Invalid -batch-wait value",
 		},
 		{
-			name: "fail on error",
-			args: []string{"-fail-on-error", "my-job"},
+			name: "on error fail",
+			args: []string{"-on-error", "fail", "my-job"},
 			expectedCmd: &JobRestartCommand{
-				jobID:       "my-job",
-				batchSize:   1,
-				failOnError: true,
+				jobID:     "my-job",
+				batchSize: 1,
+				onError:   jobRestartOnErrorFail,
 			},
 		},
 		{
@@ -176,7 +176,7 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 		},
 		{
 			name:        "reschedule conflicts with task",
-			args:        []string{"-reschedule", "-task", "my-task", "my-job"},
+			args:        []string{"-reschedule", "-task", "my-task", "-yes", "my-job"},
 			expectedErr: "The -reschedule option cannot be used with -task",
 		},
 		{
@@ -209,6 +209,11 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 				if tc.expectedCmd.tasks == nil {
 					tc.expectedCmd.tasks = set.New[string](0)
 				}
+				if tc.expectedCmd.onError == "" {
+					tc.expectedCmd.onError = jobRestartOnErrorAsk
+					tc.expectedCmd.autoYes = true
+					tc.args = append([]string{"-yes"}, tc.args...)
+				}
 			}
 
 			cmd := &JobRestartCommand{Meta: meta}
@@ -218,8 +223,8 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 				must.NonZero(t, code)
 				must.ErrorContains(t, err, tc.expectedErr)
 			} else {
-				must.Zero(t, code)
 				must.NoError(t, err)
+				must.Zero(t, code)
 				must.Eq(t, tc.expectedCmd, cmd, must.Cmp(cmpopts.IgnoreFields(JobRestartCommand{}, "Meta", "Meta.Ui")))
 			}
 		})
@@ -639,7 +644,7 @@ func TestJobRestartCommand_Run(t *testing.T) {
 			must.NoError(t, err)
 
 			// Prepend server URL and append job ID to the test case command.
-			args := []string{"-address", url}
+			args := []string{"-address", url, "-yes"}
 			args = append(args, tc.args...)
 			args = append(args, jobID)
 
@@ -737,7 +742,7 @@ func TestJobRestartCommand_jobPrefixAndNamespace(t *testing.T) {
 			cmd := &JobRestartCommand{
 				Meta: Meta{Ui: &cli.ConcurrentUi{Ui: ui}},
 			}
-			args := append([]string{"-address", url}, tc.args...)
+			args := append([]string{"-address", url, "-yes"}, tc.args...)
 			code := cmd.Run(args)
 
 			if tc.expectedErr != "" {
@@ -777,6 +782,7 @@ func TestJobRestartCommand_noAllocs(t *testing.T) {
 	// Run job restart command and expect it to exit without restarts.
 	code = cmd.Run([]string{
 		"-address", url,
+		"-yes",
 		jobID,
 	})
 	must.Zero(t, code)
@@ -823,6 +829,7 @@ func TestJobRestartCommand_rescheduleFail(t *testing.T) {
 		"-address", url,
 		"-batch-size", "2",
 		"-reschedule",
+		"-yes",
 		jobID,
 	})
 	must.One(t, code)
@@ -896,6 +903,7 @@ namespace "default" {
 			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
 			args := []string{
 				"-address", url,
+				"-yes",
 			}
 
 			if tc.aclPolicy != "" {
@@ -996,6 +1004,7 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 				"-address", url,
 				"-batch-size", "1",
 				"-batch-wait", "0",
+				"-yes",
 			}
 			args = append(args, tc.args...)
 			args = append(args, jobID)
@@ -1206,7 +1215,7 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 				Meta: Meta{Ui: &cli.ConcurrentUi{Ui: ui}},
 			}
 
-			args := append(tc.args, "-verbose", "example")
+			args := append(tc.args, "-verbose", "-yes", "example")
 			code, err := cmd.parseAndValidate(args)
 			must.NoError(t, err)
 			must.Zero(t, code)
@@ -1228,7 +1237,7 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 	}
 }
 
-func TestJobRestartCommand_failOnError(t *testing.T) {
+func TestJobRestartCommand_onErrorFail(t *testing.T) {
 	ci.Parallel(t)
 
 	ui := cli.NewMockUi()
@@ -1279,7 +1288,7 @@ func TestJobRestartCommand_failOnError(t *testing.T) {
 	// Expect only 2 restarts requests even though there are 3 allocations.
 	code = cmd.Run([]string{
 		"-address", proxy.URL,
-		"-fail-on-error",
+		"-on-error", jobRestartOnErrorFail,
 		jobID,
 	})
 	must.One(t, code)

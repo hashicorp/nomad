@@ -176,7 +176,13 @@ func (m *Meta) allNamespaces() bool {
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
-	_, coloredUi := m.Ui.(*cli.ColoredUi)
+	ui := m.Ui
+
+	if cUi, ok := ui.(*cli.ConcurrentUi); ok {
+		ui = cUi.Ui
+	}
+
+	_, coloredUi := ui.(*cli.ColoredUi)
 
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
