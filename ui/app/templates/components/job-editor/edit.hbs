@@ -4,7 +4,7 @@
     {{#if @data.cancelable}}
         <button
             class="button is-light is-compact pull-right"
-            onclick={{fn @fns.onCancel}}
+            onclick={{@fns.onCancel}}
             type="button"
             data-test-cancel-editing
         >

@@ -12,12 +12,13 @@ export default class JobEditor extends Component {
 
   @tracked error = null;
   @tracked planOutput = null;
-  @tracked view = 'job-spec';
   @tracked isEditing;
+  @tracked view;
 
   constructor() {
     super(...arguments);
     this.isEditing = !!(this.args.context === 'new');
+    this.view = this.args.specification ? 'job-spec' : 'full-definition';
   }
 
   toggleEdit(bool) {
@@ -141,6 +142,7 @@ export default class JobEditor extends Component {
     return {
       cancelable: this.args.cancelable,
       definition: this.definition,
+      hasSpecification: !!this.args.specification,
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
