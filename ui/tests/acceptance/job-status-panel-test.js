@@ -49,6 +49,23 @@ module('Acceptance | job status panel', function (hooks) {
       .exists('Lets you switch to historical mode');
   });
 
+  test('Status panel observes query parameters for current/historical', async function (assert) {
+    assert.expect(2);
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      createAllocations: true,
+    });
+
+    await visit(`/jobs/${job.id}?statusMode=historical`);
+    assert.dom('.job-status-panel').exists();
+
+    assert
+      .dom('[data-test-status-mode="historical"]')
+      .exists('Historical mode when rendered with queryParams');
+  });
+
   test('Status Panel shows accurate number and types of ungrouped allocation blocks', async function (assert) {
     assert.expect(7);
 
