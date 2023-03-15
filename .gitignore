@@ -7,7 +7,6 @@
 .DS_Store
 Thumbs.db
 .idea
-.fleet
 
 # Folders
 _obj
@@ -62,7 +61,6 @@ go.work.sum
 
 # init outputs
 example.nomad
-example.nomad.hcl
 spec.hcl
 volume.hcl
 nomad_linux_amd64

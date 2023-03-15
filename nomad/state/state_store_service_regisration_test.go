@@ -139,7 +139,7 @@ func TestStateStore_UpsertServiceRegistrations(t *testing.T) {
 		}
 		require.Equal(t, insertIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, expectedModifyIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
-		require.True(t, expectedServiceReg.Equal(serviceReg))
+		require.True(t, expectedServiceReg.Equals(serviceReg))
 	}
 }
 

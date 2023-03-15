@@ -126,22 +126,14 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
 // fields) and returns any errors as warnings.
-type jobCanonicalizer struct {
-	srv *Server
-}
+type jobCanonicalizer struct{}
 
-func (c *jobCanonicalizer) Name() string {
+func (jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (c *jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	job.Canonicalize()
-
-	// If the job priority is not set, we fallback on the defaults specified in the server config
-	if job.Priority == 0 {
-		job.Priority = c.srv.GetConfig().JobDefaultPriority
-	}
-
 	return job, nil, nil
 }
 
@@ -217,7 +209,7 @@ type constraintMatcher uint
 const (
 	// constraintMatcherFull ensures that a constraint is only considered found
 	// when they match totally. This check is performed using the
-	// structs.Constraint Equal function.
+	// structs.Constraint Equals function.
 	constraintMatcherFull constraintMatcher = iota
 
 	// constraintMatcherLeft ensure that a constraint is considered found if
@@ -238,7 +230,7 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	switch matcher {
 	case constraintMatcherFull:
 		for _, c := range taskGroup.Constraints {
-			if c.Equal(constraint) {
+			if c.Equals(constraint) {
 				found = true
 				break
 			}
@@ -261,15 +253,13 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 // jobValidate validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-type jobValidate struct {
-	srv *Server
-}
+type jobValidate struct{}
 
-func (*jobValidate) Name() string {
+func (jobValidate) Name() string {
 	return "validate"
 }
 
-func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
@@ -295,10 +285,6 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	if len(job.Payload) != 0 {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
-	}
-
-	if job.Priority < structs.JobMinPriority || job.Priority > v.srv.config.JobMaxPriority {
-		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
 	return warnings, validationErrors.ErrorOrNil()

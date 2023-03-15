@@ -90,7 +90,7 @@ func TestClientStatsRequest_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientStatsRequest(respW, req)
 			assert.NotNil(err)
-			assert.ErrorContains(err, structs.ErrPermissionDenied.Error())
+			assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure

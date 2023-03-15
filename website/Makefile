@@ -57,4 +57,3 @@ website/build-local:
 	@echo "==> Building local Docker image"
 	@$(DOCKER_CMD) build https://github.com/hashicorp/dev-portal.git\#main \
 		-t $(DOCKER_IMAGE_LOCAL)
-

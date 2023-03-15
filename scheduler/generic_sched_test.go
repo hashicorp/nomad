@@ -767,7 +767,7 @@ func TestServiceSched_Spread(t *testing.T) {
 			remaining := uint8(100 - start)
 			// Create a job that uses spread over data center
 			job := mock.Job()
-			job.Datacenters = []string{"dc*"}
+			job.Datacenters = []string{"dc1", "dc2"}
 			job.TaskGroups[0].Count = 10
 			job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
 				&structs.Spread{
@@ -1122,9 +1122,10 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
-	_, ok = metrics.NodesAvailable["dc1"]
-	must.False(t, ok, must.Sprintf(
-		"expected NodesAvailable metric to be unpopulated when there are no nodes"))
+	// Check the available nodes
+	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 0 {
+		t.Fatalf("bad: %#v", metrics)
+	}
 
 	// Check queued allocations
 	queued := outEval.QueuedAllocations["web"]

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-sockaddr"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -38,7 +39,6 @@ import (
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc
 // calls to the passed server.
 func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
-	t.Helper()
 	addr := s.config.RPCAddr
 	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
 	if err != nil {
@@ -47,36 +47,6 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 	// Write the Nomad RPC byte to set the mode
 	conn.Write([]byte{byte(pool.RpcNomad)})
 	return pool.NewClientCodec(conn)
-}
-
-// rpcClientWithTLS is a test helper method to return a ClientCodec to use to
-// make RPC calls to the passed server via mTLS
-func rpcClientWithTLS(t *testing.T, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
-	t.Helper()
-
-	// configure TLS, ignoring client-side validation
-	tlsConf, err := tlsutil.NewTLSConfiguration(cfg, true, true)
-	must.NoError(t, err)
-	outTLSConf, err := tlsConf.OutgoingTLSConfig()
-	must.NoError(t, err)
-	outTLSConf.InsecureSkipVerify = true
-
-	// make the TCP connection
-	conn, err := net.DialTimeout("tcp", srv.config.RPCAddr.String(), time.Second)
-
-	// write the TLS byte to set the mode
-	_, err = conn.Write([]byte{byte(pool.RpcTLS)})
-	must.NoError(t, err)
-
-	// connect w/ TLS
-	tlsConn := tls.Client(conn, outTLSConf)
-	must.NoError(t, tlsConn.Handshake())
-
-	// write the Nomad RPC byte to set the mode
-	_, err = tlsConn.Write([]byte{byte(pool.RpcNomad)})
-	must.NoError(t, err)
-
-	return pool.NewClientCodec(tlsConn)
 }
 
 func TestRPC_forwardLeader(t *testing.T) {
@@ -101,7 +71,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 	if remote != nil {
 		var out struct{}
-		err := s1.forwardLeader(remote, "Status.Ping", &structs.GenericRequest{}, &out)
+		err := s1.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -114,7 +84,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 	if remote != nil {
 		var out struct{}
-		err := s2.forwardLeader(remote, "Status.Ping", &structs.GenericRequest{}, &out)
+		err := s2.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -177,12 +147,12 @@ func TestRPC_forwardRegion(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 
 	var out struct{}
-	err := s1.forwardRegion("global", "Status.Ping", &structs.GenericRequest{}, &out)
+	err := s1.forwardRegion("global", "Status.Ping", struct{}{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = s2.forwardRegion("global", "Status.Ping", &structs.GenericRequest{}, &out)
+	err = s2.forwardRegion("global", "Status.Ping", struct{}{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1346,9 +1316,9 @@ type tlsTestHelper struct {
 	nodeID int
 
 	mtlsServer1            *Server
-	mtlsServer1Cleanup     func()
+	mtlsServerCleanup1     func()
 	mtlsServer2            *Server
-	mtlsServer2Cleanup     func()
+	mtlsServerCleanup2     func()
 	nonVerifyServer        *Server
 	nonVerifyServerCleanup func()
 
@@ -1367,57 +1337,41 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 
 	// Generate CA certificate and write it to disk.
 	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Generate servers and their certificate.
 	h.serverCert = h.newCert(t, "server.global.nomad")
 
-	h.mtlsServer1, h.mtlsServer1Cleanup = TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               filepath.Join(h.dir, "ca.pem"),
-			CertFile:             h.serverCert + ".pem",
-			KeyFile:              h.serverCert + ".key",
-		}
-	})
-	h.mtlsServer2, h.mtlsServer2Cleanup = TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               filepath.Join(h.dir, "ca.pem"),
-			CertFile:             h.serverCert + ".pem",
-			KeyFile:              h.serverCert + ".key",
-		}
-	})
-	TestJoin(t, h.mtlsServer1, h.mtlsServer2)
-	testutil.WaitForLeader(t, h.mtlsServer1.RPC)
-	testutil.WaitForLeader(t, h.mtlsServer2.RPC)
+	makeServer := func(bootstrapExpect int, verifyServerHostname bool) (*Server, func()) {
+		return TestServer(t, func(c *Config) {
+			c.Logger.SetLevel(hclog.Off)
+			c.BootstrapExpect = bootstrapExpect
+			c.TLSConfig = &config.TLSConfig{
+				EnableRPC:            true,
+				VerifyServerHostname: verifyServerHostname,
+				CAFile:               filepath.Join(h.dir, "ca.pem"),
+				CertFile:             h.serverCert + ".pem",
+				KeyFile:              h.serverCert + ".key",
+			}
+		})
+	}
 
-	h.nonVerifyServer, h.nonVerifyServerCleanup = TestServer(t, func(c *Config) {
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: false,
-			CAFile:               filepath.Join(h.dir, "ca.pem"),
-			CertFile:             h.serverCert + ".pem",
-			KeyFile:              h.serverCert + ".key",
-		}
-	})
-	testutil.WaitForLeader(t, h.nonVerifyServer.RPC)
+	h.mtlsServer1, h.mtlsServerCleanup1 = makeServer(3, true)
+	h.mtlsServer2, h.mtlsServerCleanup2 = makeServer(3, true)
+	h.nonVerifyServer, h.nonVerifyServerCleanup = makeServer(3, false)
 
+	TestJoin(t, h.mtlsServer1, h.mtlsServer2, h.nonVerifyServer)
+	testutil.WaitForLeaders(t, h.mtlsServer1.RPC, h.mtlsServer2.RPC, h.nonVerifyServer.RPC)
 	return h
 }
 
 func (h tlsTestHelper) cleanup() {
-	h.mtlsServer1Cleanup()
-	h.mtlsServer2Cleanup()
+	h.mtlsServerCleanup1()
+	h.mtlsServerCleanup2()
 	h.nonVerifyServerCleanup()
-	os.RemoveAll(h.dir)
 }
 
 func (h tlsTestHelper) newCert(t *testing.T, name string) string {

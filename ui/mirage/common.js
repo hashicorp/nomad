@@ -1,8 +1,6 @@
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from './utils';
 
-faker.seed(1);
-
 // Realistically, resource reservations have a low cardinality
 const CPU_RESERVATIONS = [250, 500, 1000, 2000, 2500, 4000];
 const MEMORY_RESERVATIONS = [256, 512, 1024, 2048, 4096, 8192];
@@ -19,9 +17,7 @@ export const DATACENTERS = provide(
 );
 
 export const HOSTS = provide(100, () => {
-  const ip = faker.random.boolean()
-    ? faker.internet.ip()
-    : `[${faker.internet.ipv6()}]`;
+  const ip = faker.random.boolean() ? faker.internet.ip() : `[${faker.internet.ipv6()}]`;
   return `${ip}:${faker.random.number({ min: 4000, max: 4999 })}`;
 });
 
@@ -33,8 +29,7 @@ export function generateResources(options = {}) {
       CpuShares: options.CPU || faker.helpers.randomize(CPU_RESERVATIONS),
     },
     Memory: {
-      MemoryMB:
-        options.MemoryMB || faker.helpers.randomize(MEMORY_RESERVATIONS),
+      MemoryMB: options.MemoryMB || faker.helpers.randomize(MEMORY_RESERVATIONS),
     },
     Disk: {
       DiskMB: options.DiskMB || faker.helpers.randomize(DISK_RESERVATIONS),
@@ -44,12 +39,8 @@ export function generateResources(options = {}) {
   };
 
   if (faker.random.boolean()) {
-    const higherMemoryReservations = MEMORY_RESERVATIONS.filter(
-      (mb) => mb > resources.Memory.MemoryMB
-    );
-    resources.Memory.MemoryMaxMB =
-      faker.helpers.randomize(higherMemoryReservations) ||
-      resources.Memory.MemoryMB + 1;
+    const higherMemoryReservations = MEMORY_RESERVATIONS.filter(mb => mb > resources.Memory.MemoryMB);
+    resources.Memory.MemoryMaxMB = faker.helpers.randomize(higherMemoryReservations) || resources.Memory.MemoryMB + 1;
   } else {
     resources.Memory.MemoryMaxMB = 0;
   }
@@ -105,8 +96,6 @@ export function generatePorts(options = {}) {
       Label: faker.hacker.noun(),
       Value: faker.random.number({ min: 5000, max: 60000 }),
       To: faker.random.number({ min: 5000, max: 60000 }),
-      HostIP: faker.random.boolean()
-        ? faker.internet.ip()
-        : faker.internet.ipv6(),
+      HostIP: faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6(),
     }));
 }

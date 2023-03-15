@@ -17,7 +17,7 @@ func TestACLTokenInfoCommand_ViaEnvVar(t *testing.T) {
 	}
 
 	srv, _, url := testServer(t, true, config)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	state := srv.Agent.Server().State()
 

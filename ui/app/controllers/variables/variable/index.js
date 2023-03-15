@@ -13,8 +13,6 @@ export default class VariablesVariableIndexController extends Controller {
   @tracked sortProperty = 'key';
   @tracked sortDescending = true;
 
-  @service notifications;
-
   get sortedKeyValues() {
     const sorted = this.model.keyValues.sortBy(this.sortProperty);
     return this.sortDescending ? sorted : sorted.reverse();
@@ -41,16 +39,19 @@ export default class VariablesVariableIndexController extends Controller {
       } else {
         this.router.transitionTo('variables');
       }
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Variable deleted',
         message: `${this.model.path} successfully deleted`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
     } catch (err) {
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Error deleting ${this.model.path}`,
         message: err,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }

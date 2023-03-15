@@ -17,7 +17,7 @@ resource "aws_ecs_task_definition" "nomad_rtd_e2e" {
 
 data "template_file" "ecs_vars_hcl" {
   template = <<EOT
-security_groups = ["${aws_security_group.clients.id}"]
+security_groups = ["${aws_security_group.primary.id}"]
 subnets         = ["${data.aws_subnet.default.id}"]
 EOT
 }

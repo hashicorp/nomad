@@ -82,10 +82,6 @@
         "path": "concepts"
       },
       {
-        "title": "ACL",
-        "path": "concepts/acl"
-      },
-      {
         "title": "Architecture",
         "path": "concepts/architecture"
       },
@@ -245,56 +241,6 @@
             "path": "commands/acl/bootstrap"
           },
           {
-            "title": "auth-method",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/auth-method/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/auth-method/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/auth-method/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/auth-method/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/auth-method/update"
-              }
-            ]
-          },
-          {
-            "title": "binding-rule",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/binding-rule/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/binding-rule/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/binding-rule/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/binding-rule/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/binding-rule/update"
-              }
-            ]
-          },
-          {
             "title": "policy",
             "routes": [
               {
@@ -385,10 +331,6 @@
           {
             "title": "Overview",
             "path": "commands/alloc"
-          },
-          {
-            "title": "checks",
-            "path": "commands/alloc/checks"
           },
           {
             "title": "exec",
@@ -586,10 +528,6 @@
         ]
       },
       {
-        "title": "login",
-        "path": "commands/login"
-      },
-      {
         "title": "monitor",
         "path": "commands/monitor"
       },
@@ -672,10 +610,6 @@
             ]
           },
           {
-            "title": "client-state",
-            "path": "commands/operator/client-state"
-          },
-          {
             "title": "debug",
             "path": "commands/operator/debug"
           },
@@ -703,6 +637,14 @@
                 "path": "commands/operator/gossip/keyring-use"
               }
             ]
+          },
+          {
+            "title": "keygen",
+            "path": "commands/operator/keygen"
+          },
+          {
+            "title": "keyring",
+            "path": "commands/operator/keyring"
           },
           {
             "title": "metrics",
@@ -1566,10 +1508,6 @@
         "path": "job-specification/group"
       },
       {
-        "title": "identity",
-        "path": "job-specification/identity"
-      },
-      {
         "title": "job",
         "path": "job-specification/job"
       },
@@ -1681,10 +1619,6 @@
       {
         "title": "ACL Policy",
         "path": "other-specifications/acl-policy"
-      },
-      {
-        "title": "Variables",
-        "path": "other-specifications/variables"
       },
       {
         "title": "Volume",

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/hashicorp/raft"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -29,7 +27,7 @@ func TestAgent_RPC_Ping(t *testing.T) {
 	defer agent.Shutdown()
 
 	var out struct{}
-	if err := agent.RPC("Status.Ping", &structs.GenericRequest{}, &out); err != nil {
+	if err := agent.RPC("Status.Ping", struct{}{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -548,104 +546,6 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 			_, err := convertServerConfig(conf)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "raft_multiplier cannot be")
-		})
-	}
-}
-
-func TestAgent_ServerConfig_RaftTrailingLogs(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name   string
-		value  *int
-		expect interface{}
-		isErr  bool
-	}{
-		{
-			name:   "bad",
-			value:  pointer.Of(int(-1)),
-			isErr:  true,
-			expect: "raft_trailing_logs must be non-negative",
-		},
-		{
-			name:   "good",
-			value:  pointer.Of(int(10)),
-			expect: uint64(10),
-		},
-		{
-			name:   "empty",
-			value:  nil,
-			expect: raft.DefaultConfig().TrailingLogs,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-			tc := tc
-			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.RaftTrailingLogs = tc.value
-			nc, err := convertServerConfig(conf)
-
-			if !tc.isErr {
-				must.NoError(t, err)
-				val := tc.expect.(uint64)
-				must.Eq(t, val, nc.RaftConfig.TrailingLogs)
-				return
-			}
-			must.Error(t, err)
-			must.StrContains(t, err.Error(), tc.expect.(string))
-		})
-	}
-}
-
-func TestAgent_ServerConfig_RaftSnapshotThreshold(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name   string
-		value  *int
-		expect interface{}
-		isErr  bool
-	}{
-		{
-			name:   "bad",
-			value:  pointer.Of(int(-1)),
-			isErr:  true,
-			expect: "raft_snapshot_threshold must be non-negative",
-		},
-		{
-			name:   "good",
-			value:  pointer.Of(int(10)),
-			expect: uint64(10),
-		},
-		{
-			name:   "empty",
-			value:  nil,
-			expect: raft.DefaultConfig().SnapshotThreshold,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-			tc := tc
-			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.RaftSnapshotThreshold = tc.value
-			nc, err := convertServerConfig(conf)
-
-			if !tc.isErr {
-				must.NoError(t, err)
-				val := tc.expect.(uint64)
-				must.Eq(t, val, nc.RaftConfig.SnapshotThreshold)
-				return
-			}
-			must.Error(t, err)
-			must.StrContains(t, err.Error(), tc.expect.(string))
 		})
 	}
 }
@@ -1568,145 +1468,4 @@ func TestAgent_ProxyRPC_Dev(t *testing.T) {
 			t.Fatalf("was unable to read ClientStats.Stats RPC: %v", err)
 		})
 
-}
-
-func TestAgent_ServerConfig_JobMaxPriority_Ok(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		maxPriority    *int
-		jobMaxPriority int
-	}{
-		{
-			maxPriority:    nil,
-			jobMaxPriority: 100,
-		},
-
-		{
-			maxPriority:    pointer.Of(0),
-			jobMaxPriority: 100,
-		},
-		{
-			maxPriority:    pointer.Of(100),
-			jobMaxPriority: 100,
-		},
-		{
-			maxPriority:    pointer.Of(200),
-			jobMaxPriority: 200,
-		},
-		{
-			maxPriority:    pointer.Of(32766),
-			jobMaxPriority: 32766,
-		},
-	}
-
-	for _, tc := range cases {
-		v := "default"
-		if tc.maxPriority != nil {
-			v = fmt.Sprintf("%v", *tc.maxPriority)
-		}
-		t.Run(v, func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobMaxPriority = tc.maxPriority
-
-			serverConf, err := convertServerConfig(conf)
-			must.NoError(t, err)
-			must.Eq(t, tc.jobMaxPriority, serverConf.JobMaxPriority)
-		})
-	}
-}
-
-func TestAgent_ServerConfig_JobMaxPriority_Bad(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []int{
-		99,
-		math.MaxInt16,
-	}
-
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobMaxPriority = &tc
-
-			_, err := convertServerConfig(conf)
-			must.Error(t, err)
-			must.ErrorContains(t, err, "job_max_priority cannot be")
-		})
-	}
-}
-
-func TestAgent_ServerConfig_JobDefaultPriority_Ok(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		defaultPriority    *int
-		jobDefaultPriority int
-	}{
-		{
-			defaultPriority:    nil,
-			jobDefaultPriority: 50,
-		},
-
-		{
-			defaultPriority:    pointer.Of(0),
-			jobDefaultPriority: 50,
-		},
-		{
-			defaultPriority:    pointer.Of(50),
-			jobDefaultPriority: 50,
-		},
-		{
-			defaultPriority:    pointer.Of(60),
-			jobDefaultPriority: 60,
-		},
-		{
-			defaultPriority:    pointer.Of(99),
-			jobDefaultPriority: 99,
-		},
-	}
-
-	for _, tc := range cases {
-		v := "default"
-		if tc.defaultPriority != nil {
-			v = fmt.Sprintf("%v", *tc.defaultPriority)
-		}
-		t.Run(v, func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobDefaultPriority = tc.defaultPriority
-
-			serverConf, err := convertServerConfig(conf)
-			must.NoError(t, err)
-
-			must.Eq(t, tc.jobDefaultPriority, serverConf.JobDefaultPriority)
-		})
-	}
-}
-
-func TestAgent_ServerConfig_JobDefaultPriority_Bad(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []int{
-		49,
-		100,
-	}
-
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobDefaultPriority = &tc
-
-			_, err := convertServerConfig(conf)
-			must.Error(t, err)
-			must.ErrorContains(t, err, "job_default_priority cannot be")
-		})
-	}
 }

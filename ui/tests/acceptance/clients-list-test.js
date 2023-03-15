@@ -51,7 +51,7 @@ module('Acceptance | clients list', function (hooks) {
       );
     });
 
-    assert.equal(document.title, 'Clients - Mirage - Nomad');
+    assert.equal(document.title, 'Clients - Nomad');
   });
 
   test('each client record should show high-level info of the client', async function (assert) {

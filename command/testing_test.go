@@ -3,7 +3,6 @@ package command
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"testing"
 	"time"
 
@@ -15,8 +14,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var nonAlphaNum = regexp.MustCompile(`[^a-zA-Z0-9]+`)
-
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
 	// Make a new test server
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
@@ -26,7 +23,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 			cb(config)
 		}
 	})
-	t.Cleanup(a.Shutdown)
+	t.Cleanup(func() { _ = a.Shutdown() })
 
 	c := a.Client()
 	return a, c, a.HTTPAddr()
@@ -41,7 +38,7 @@ func testClient(t *testing.T, name string, cb func(*agent.Config)) (*agent.TestA
 			cb(config)
 		}
 	})
-	t.Cleanup(a.Shutdown)
+	t.Cleanup(func() { _ = a.Shutdown() })
 
 	c := a.Client()
 	t.Logf("Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
@@ -196,6 +193,10 @@ func getAllocFromJob(t *testing.T, client *api.Client, jobID string) string {
 	}
 	must.NotEq(t, "", allocID, must.Sprint("expected to find an evaluation after running job", jobID))
 	return allocID
+}
+
+func stopTestAgent(a *agent.TestAgent) {
+	_ = a.Shutdown()
 }
 
 func getTempFile(t *testing.T, name string) (string, func()) {

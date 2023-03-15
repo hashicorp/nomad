@@ -67,7 +67,7 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got one argument
+	// Check that we got one arguments
 	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <quota>")

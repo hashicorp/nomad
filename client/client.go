@@ -185,14 +185,8 @@ type Client struct {
 	// 	// <mutate newConfig>
 	// 	c.config = newConfig
 	// 	c.configLock.Unlock()
-	configLock  sync.Mutex
-	config      *config.Config
-	metaDynamic map[string]*string // dynamic node metadata
-
-	// metaStatic are the Node's static metadata set via the agent configuration
-	// and defaults during client initialization. Since this map is never updated
-	// at runtime it may be accessed outside of locks.
-	metaStatic map[string]string
+	config     *config.Config
+	configLock sync.Mutex
 
 	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
@@ -404,7 +398,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
 		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
-		getter:               getter.New(cfg.Artifact, logger),
+		getter:               getter.NewGetter(logger.Named("artifact_getter"), cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -440,7 +434,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.setupClientRpc(rpcs)
 
 	// Initialize the ACL state
-	c.clientACLResolver.init()
+	if err := c.clientACLResolver.init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize ACL state: %v", err)
+	}
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {
@@ -736,7 +732,7 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	return nil
 }
 
-// Reload allows a client to reload parts of its configuration on the fly
+// Reload allows a client to reload its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
 	existing := c.GetConfig()
 	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(existing.TLSConfig, newConfig.TLSConfig)
@@ -746,9 +742,7 @@ func (c *Client) Reload(newConfig *config.Config) error {
 	}
 
 	if shouldReloadTLS {
-		if err := c.reloadTLSConnections(newConfig.TLSConfig); err != nil {
-			return err
-		}
+		return c.reloadTLSConnections(newConfig.TLSConfig)
 	}
 
 	c.fingerprintManager.Reload()
@@ -786,30 +780,6 @@ func (c *Client) UpdateConfig(cb func(*config.Config)) *config.Config {
 	c.config = newConfig
 
 	return newConfig
-}
-
-// UpdateNode allows mutating just the Node portion of the client
-// configuration. The updated Node is returned.
-//
-// This is similar to UpdateConfig but avoids deep copying the entier Config
-// struct when only the Node is updated.
-func (c *Client) UpdateNode(cb func(*structs.Node)) *structs.Node {
-	c.configLock.Lock()
-	defer c.configLock.Unlock()
-
-	// Create a new copy of Node for updating
-	newNode := c.config.Node.Copy()
-
-	// newNode is now a fresh unshared copy, mutate away!
-	cb(newNode)
-
-	// Shallow copy config before mutating Node pointer which might have
-	// concurrent readers
-	newConfig := *c.config
-	newConfig.Node = newNode
-	c.config = &newConfig
-
-	return newNode
 }
 
 // Datacenter returns the datacenter for the given client
@@ -1536,7 +1506,7 @@ func (c *Client) setupNode() error {
 	}
 	node.Status = structs.NodeStatusInit
 
-	// Setup default static meta
+	// Setup default meta
 	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
 		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat
 	}
@@ -1548,43 +1518,6 @@ func (c *Client) setupNode() error {
 	}
 	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
 		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
-	}
-
-	// Since node.Meta will get dynamic metadata merged in, save static metadata
-	// here.
-	c.metaStatic = maps.Clone(node.Meta)
-
-	// Merge dynamic node metadata
-	c.metaDynamic, err = c.stateDB.GetNodeMeta()
-	if err != nil {
-		return fmt.Errorf("error reading dynamic node metadata: %w", err)
-	}
-
-	if c.metaDynamic == nil {
-		c.metaDynamic = map[string]*string{}
-	}
-
-	for dk, dv := range c.metaDynamic {
-		if dv == nil {
-			_, ok := node.Meta[dk]
-			if ok {
-				// Unset static node metadata
-				delete(node.Meta, dk)
-			} else {
-				// Forget dynamic node metadata tombstone as there's no
-				// static value to erase.
-				delete(c.metaDynamic, dk)
-			}
-			continue
-		}
-
-		node.Meta[dk] = *dv
-	}
-
-	// Write back dynamic node metadata as tombstones may have been removed
-	// above
-	if err := c.stateDB.PutNodeMeta(c.metaDynamic); err != nil {
-		return fmt.Errorf("error syncing dynamic node metadata: %w", err)
 	}
 
 	c.config = newConfig
@@ -1637,7 +1570,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.Resources.Networks = updateNetworks(
 			response.Resources.Networks,
 			newConfig)
-		if !newConfig.Node.Resources.Equal(response.Resources) {
+		if !newConfig.Node.Resources.Equals(response.Resources) {
 			newConfig.Node.Resources.Merge(response.Resources)
 			nodeHasChanged = true
 		}
@@ -1649,7 +1582,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.NodeResources.Networks = updateNetworks(
 			response.NodeResources.Networks,
 			newConfig)
-		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
+		if !newConfig.Node.NodeResources.Equals(response.NodeResources) {
 			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}
@@ -1943,7 +1876,7 @@ func (c *Client) retryRegisterNode() {
 		}
 
 		retryIntv := registerRetryIntv
-		if err == noServersErr {
+		if err == noServersErr || structs.IsErrNoRegionPath(err) {
 			c.logger.Debug("registration waiting on servers")
 			c.triggerDiscovery()
 			retryIntv = noServerRetryIntv
@@ -1970,6 +1903,11 @@ func (c *Client) registerNode() error {
 		return err
 	}
 
+	err := c.handleNodeUpdateResponse(resp)
+	if err != nil {
+		return err
+	}
+
 	// Update the node status to ready after we register.
 	c.UpdateConfig(func(c *config.Config) {
 		c.Node.Status = structs.NodeStatusReady
@@ -1984,6 +1922,7 @@ func (c *Client) registerNode() error {
 	defer c.heartbeatLock.Unlock()
 	c.heartbeatStop.setLastOk(time.Now())
 	c.heartbeatTTL = resp.HeartbeatTTL
+
 	return nil
 }
 
@@ -2035,6 +1974,22 @@ func (c *Client) updateNodeStatus() error {
 		}
 	})
 
+	err := c.handleNodeUpdateResponse(resp)
+	if err != nil {
+		return fmt.Errorf("heartbeat response returned no valid servers")
+	}
+
+	// If there's no Leader in the response we may be talking to a partitioned
+	// server. Redo discovery to ensure our server list is up to date.
+	if resp.LeaderRPCAddr == "" {
+		c.triggerDiscovery()
+	}
+
+	c.EnterpriseClient.SetFeatures(resp.Features)
+	return nil
+}
+
+func (c *Client) handleNodeUpdateResponse(resp structs.NodeUpdateResponse) error {
 	// Update the number of nodes in the cluster so we can adjust our server
 	// rebalance rate.
 	c.servers.SetNumNodes(resp.NumNodes)
@@ -2051,20 +2006,9 @@ func (c *Client) updateNodeStatus() error {
 		nomadServers = append(nomadServers, e)
 	}
 	if len(nomadServers) == 0 {
-		return fmt.Errorf("heartbeat response returned no valid servers")
+		return noServersErr
 	}
 	c.servers.SetServers(nomadServers)
-
-	// Begin polling Consul if there is no Nomad leader.  We could be
-	// heartbeating to a Nomad server that is in the minority of a
-	// partition of the Nomad server quorum, but this Nomad Agent still
-	// has connectivity to the existing majority of Nomad Servers, but
-	// only if it queries Consul.
-	if resp.LeaderRPCAddr == "" {
-		c.triggerDiscovery()
-	}
-
-	c.EnterpriseClient.SetFeatures(resp.Features)
 	return nil
 }
 
@@ -2906,14 +2850,6 @@ func (c *Client) consulDiscoveryImpl() error {
 		dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 	}
 
-	// Query for servers in this client's region only
-	region := c.Region()
-	rpcargs := structs.GenericRequest{
-		QueryOptions: structs.QueryOptions{
-			Region: region,
-		},
-	}
-
 	serviceName := c.GetConfig().ConsulConfig.ServerServiceName
 	var mErr multierror.Error
 	var nomadServers servers.Servers
@@ -2944,32 +2880,14 @@ DISCOLOOP:
 				continue
 			}
 
-			// Query the members from the region that Consul gave us, and
-			// extract the client-advertise RPC address from each member
-			var membersResp structs.ServerMembersResponse
-			if err := c.connPool.RPC(region, addr, "Status.Members", rpcargs, &membersResp); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-				continue
-			}
-			for _, member := range membersResp.Members {
-				if addrTag, ok := member.Tags["rpc_addr"]; ok {
-					if portTag, ok := member.Tags["port"]; ok {
-						addr, err := net.ResolveTCPAddr("tcp",
-							fmt.Sprintf("%s:%s", addrTag, portTag))
-						if err != nil {
-							mErr.Errors = append(mErr.Errors, err)
-							continue
-						}
-						srv := &servers.Server{Addr: addr}
-						nomadServers = append(nomadServers, srv)
-					}
-				}
-			}
-
-			if len(nomadServers) > 0 {
-				break DISCOLOOP
-			}
+			srv := &servers.Server{Addr: addr}
+			nomadServers = append(nomadServers, srv)
 		}
+
+		if len(nomadServers) > 0 {
+			break DISCOLOOP
+		}
+
 	}
 	if len(nomadServers) == 0 {
 		if len(mErr.Errors) > 0 {

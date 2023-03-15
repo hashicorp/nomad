@@ -120,6 +120,4 @@ string that is unique with in a test. Therefore, multiple tests with in the case
 can reliably create unique IDs between tests and setup/teardown. The string
 returned is 8 alpha numeric characters.
 */
-
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 package framework

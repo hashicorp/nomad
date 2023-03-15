@@ -273,7 +273,6 @@
       ],
       "encrypt": "abc",
       "eval_gc_threshold": "12h",
-      "csi_volume_claim_gc_interval": "3m",
       "heartbeat_grace": "30s",
       "job_gc_interval": "3m",
       "job_gc_threshold": "12h",
@@ -321,9 +320,7 @@
         }]
       }],
       "upgrade_version": "0.8.0",
-      "license_path": "/tmp/nomad.hclic",
-      "job_default_priority": 100,
-      "job_max_priority": 200
+      "license_path": "/tmp/nomad.hclic"
     }
   ],
   "syslog_facility": "LOCAL1",

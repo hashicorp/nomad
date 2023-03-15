@@ -11,11 +11,9 @@ import {
   jobURL,
   stopJob,
   startJob,
-  purgeJob,
   expectError,
   expectDeleteRequest,
   expectStartRequest,
-  expectPurgeRequest,
 } from './helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -226,25 +224,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await startJob();
 
     await expectError(assert, 'Could Not Start Job');
-  });
-
-  test('Purging a job sends a purge request for the job', async function (assert) {
-    assert.expect(1);
-
-    const mirageJob = this.server.create('job', 'periodic', {
-      childrenCount: 0,
-      createAllocations: false,
-      status: 'dead',
-    });
-    await this.store.findAll('job');
-
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
-
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
-
-    await purgeJob();
-    expectPurgeRequest(assert, this.server, job);
   });
 
   test('Each job row includes the submitted time', async function (assert) {

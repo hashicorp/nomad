@@ -4,7 +4,7 @@
 package resolvconf
 
 import (
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 
@@ -14,7 +14,7 @@ import (
 
 func Test_copySystemDNS(t *testing.T) {
 	require := require.New(t)
-	data, err := os.ReadFile(dresolvconf.Path())
+	data, err := ioutil.ReadFile(dresolvconf.Path())
 	require.NoError(err)
 
 	dest := filepath.Join(t.TempDir(), "resolv.conf")
@@ -22,7 +22,7 @@ func Test_copySystemDNS(t *testing.T) {
 	require.NoError(copySystemDNS(dest))
 	require.FileExists(dest)
 
-	tmpResolv, err := os.ReadFile(dest)
+	tmpResolv, err := ioutil.ReadFile(dest)
 	require.NoError(err)
 	require.Equal(data, tmpResolv)
 }

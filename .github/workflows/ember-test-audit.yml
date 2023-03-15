@@ -2,7 +2,6 @@ name: Ember test audit comparison
 on:
   pull_request:
     paths:
-    - '.github/workflows/ember*'
     - 'ui/**'
 
 defaults:
@@ -25,7 +24,7 @@ jobs:
           node-version: '14'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
-      - run: npx ember-test-audit 1 --json --output ../base-audit.json
+      - run: npx ember-test-audit 3 --json --output ../base-audit.json
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:
@@ -42,7 +41,7 @@ jobs:
           node-version: '14'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
-      - run: npx ember-test-audit 1 --json --output ../pr-audit.json
+      - run: npx ember-test-audit 3 --json --output ../pr-audit.json
       - name: Upload result
         uses: actions/upload-artifact@v2
         with:

@@ -195,6 +195,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	job := ApiJobToStructJob(validateRequest.Job)
+
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -818,7 +819,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 
 	queryRegion := req.URL.Query().Get("region")
 	requestRegion, jobRegion := regionForJob(
-		job, queryRegion, writeReq.Region, s.agent.GetConfig().Region,
+		job, queryRegion, writeReq.Region, s.agent.config.Region,
 	)
 
 	sJob := ApiJobToStructJob(job)
@@ -1149,13 +1150,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
-
-	if apiTask.Identity != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Env:  apiTask.Identity.Env,
-			File: apiTask.Identity.File,
-		}
-	}
 
 	if apiTask.RestartPolicy != nil {
 		structsTask.RestartPolicy = &structs.RestartPolicy{
@@ -1681,7 +1675,6 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          apiMeshGatewayToStructs(upstream.MeshGateway),
-			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams

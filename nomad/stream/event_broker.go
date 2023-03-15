@@ -10,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -41,7 +42,7 @@ type EventBroker struct {
 	publishCh chan *structs.Events
 
 	aclDelegate ACLDelegate
-	aclCache    *structs.ACLCache[*acl.ACL]
+	aclCache    *lru.TwoQueueCache
 
 	aclCh chan structs.Event
 
@@ -62,6 +63,11 @@ func NewEventBroker(ctx context.Context, aclDelegate ACLDelegate, cfg EventBroke
 		cfg.EventBufferSize = 100
 	}
 
+	aclCache, err := lru.New2Q(aclCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
 	buffer := newEventBuffer(cfg.EventBufferSize)
 	e := &EventBroker{
 		logger:      cfg.Logger.Named("event_broker"),
@@ -69,7 +75,7 @@ func NewEventBroker(ctx context.Context, aclDelegate ACLDelegate, cfg EventBroke
 		publishCh:   make(chan *structs.Events, 64),
 		aclCh:       make(chan structs.Event, 10),
 		aclDelegate: aclDelegate,
-		aclCache:    structs.NewACLCache[*acl.ACL](aclCacheSize),
+		aclCache:    aclCache,
 		subscriptions: &subscriptions{
 			byToken: make(map[string]map[*SubscribeRequest]*Subscription),
 		},
@@ -271,7 +277,7 @@ func (e *EventBroker) checkSubscriptionsAgainstACLChange() {
 }
 
 func aclObjFromSnapshotForTokenSecretID(
-	aclSnapshot ACLTokenProvider, aclCache *structs.ACLCache[*acl.ACL], tokenSecretID string) (
+	aclSnapshot ACLTokenProvider, aclCache *lru.TwoQueueCache, tokenSecretID string) (
 	*acl.ACL, *time.Time, error) {
 
 	aclToken, err := aclSnapshot.ACLTokenBySecretID(nil, tokenSecretID)

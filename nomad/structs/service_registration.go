@@ -106,9 +106,9 @@ func (s *ServiceRegistration) Copy() *ServiceRegistration {
 	return ns
 }
 
-// Equal performs an equality check on the two service registrations. It
+// Equals performs an equality check on the two service registrations. It
 // handles nil objects.
-func (s *ServiceRegistration) Equal(o *ServiceRegistration) bool {
+func (s *ServiceRegistration) Equals(o *ServiceRegistration) bool {
 	if s == nil || o == nil {
 		return s == o
 	}

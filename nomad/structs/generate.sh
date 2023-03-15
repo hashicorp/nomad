@@ -8,5 +8,5 @@ codecgen \
     -d 100 \
     -t codegen_generated \
     -o structs.generated.go \
-    -nr="(^ACLCache$)|(^IdentityClaims$)" \
+    -nr="^IdentityClaims$" \
     ${FILES}

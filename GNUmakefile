@@ -3,17 +3,10 @@ PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
 THIS_ARCH := $(shell uname -m)
 
-GO_MODULE = github.com/hashicorp/nomad
-
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
-GIT_COMMIT_FLAG = $(GO_MODULE)/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
 
-# build date is based on most recent commit, in RFC3339 format
-BUILD_DATE ?= $(shell TZ=UTC0 git show -s --format=%cd --date=format-local:'%Y-%m-%dT%H:%M:%SZ' HEAD)
-BUILD_DATE_FLAG = $(GO_MODULE)/version.BuildDate=$(BUILD_DATE)
-
-GO_LDFLAGS = -X $(GIT_COMMIT_FLAG) -X $(BUILD_DATE_FLAG)
+GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
 ifneq (MSYS_NT,$(THIS_OS))
 # GOPATH supports PATH style multi-paths; assume the first entry is favorable.
@@ -39,17 +32,12 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-#GOTEST_GROUP is set in CI pipelines. We have to set it for local run.
-ifndef GOTEST_GROUP
-GOTEST_GROUP := nomad client command drivers quick
-endif
-
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.5.1
+LAST_RELEASE ?= v1.4.7
 
 default: help
 
@@ -98,7 +86,7 @@ endif
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
-		go build -trimpath -ldflags "$(GO_LDFLAGS)" -tags "$(GO_TAGS)" -o $(GO_OUT)
+		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
 ifneq (armv7l,$(THIS_ARCH))
 pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
@@ -213,7 +201,7 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto ## Generate structs, protobufs
+generate-all: generate-structs proto generate-examples ## Generate structs, protobufs, examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
@@ -225,6 +213,12 @@ generate-structs: ## Update generated code
 proto: ## Generate protobuf bindings
 	@echo "==> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
+
+.PHONY: generate-examples
+generate-examples: command/job_init.bindata_assetfs.go
+
+command/job_init.bindata_assetfs.go: command/assets/*
+	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
 changelog: ## Generate changelog from entries
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
@@ -416,19 +410,3 @@ missing: ## Check for packages not being tested
 ec2info: ## Generate AWS EC2 CPU specification table
 	@echo "==> Generating AWS EC2 specifications ..."
 	@go run -modfile tools/go.mod tools/ec2info/main.go
-
-.PHONY: cl
-cl: ## Create a new Changelog entry
-	@go run -modfile tools/go.mod tools/cl-entry/main.go
-
-.PHONY: test
-test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
-test: ## Use this target as a smoke test
-	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
-	@echo "==> with packages: $(GOTEST_PKGS)"
-	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
-		-cover \
-		-timeout=20m \
-		-count=1 \
-		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS)

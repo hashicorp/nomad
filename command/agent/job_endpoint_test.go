@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2067,11 +2066,11 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 			}
 
 			sJob, sWriteReq := srv.apiJobAndRequestToStructs(job, req, apiReq)
-			must.Eq(t, tc.expectedJobRegion, sJob.Region)
-			must.Eq(t, tc.expectedNamespace, sJob.Namespace)
-			must.Eq(t, tc.expectedNamespace, sWriteReq.Namespace)
-			must.Eq(t, tc.expectedRequestRegion, sWriteReq.Region)
-			must.Eq(t, tc.expectedToken, sWriteReq.AuthToken)
+			require.Equal(t, tc.expectedJobRegion, sJob.Region)
+			require.Equal(t, tc.expectedNamespace, sJob.Namespace)
+			require.Equal(t, tc.expectedNamespace, sWriteReq.Namespace)
+			require.Equal(t, tc.expectedRequestRegion, sWriteReq.Region)
+			require.Equal(t, tc.expectedToken, sWriteReq.AuthToken)
 		})
 	}
 }
@@ -3547,17 +3546,16 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/validate/job", buf)
-		must.NoError(t, err)
+		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.ValidateJobRequest(respW, req)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		// Check the response
 		resp := obj.(structs.JobValidateResponse)
-		must.StrContains(t, resp.Error, `Job type "system" does not allow migrate block`)
-		must.Len(t, 1, resp.ValidationErrors)
+		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
 	})
 }
 

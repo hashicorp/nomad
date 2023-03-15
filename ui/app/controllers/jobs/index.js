@@ -245,9 +245,9 @@ export default class IndexController extends Controller.extend(
     });
   }
 
-  @alias('filteredJobs') listToSearch;
-  @alias('listSearched') listToSort;
-  @alias('listSorted') sortedJobs;
+  @alias('filteredJobs') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedJobs;
 
   isShowingDeploymentDetails = false;
 

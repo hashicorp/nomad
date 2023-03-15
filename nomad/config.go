@@ -11,6 +11,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -126,9 +127,6 @@ type Config struct {
 	// Build is a string that is gossiped around, and can be used to help
 	// operators track which versions are actively deployed
 	Build string
-
-	// BuildDate is the time of the git commit used to build the program.
-	BuildDate time.Time
 
 	// Revision is a string that carries the version.GitCommit of Nomad that
 	// was compiled.
@@ -351,12 +349,6 @@ type Config struct {
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
 
-	// DisableRPCRateMetricsLabels drops the label for the identity of the
-	// requester when publishing metrics on RPC rate on the server. This may be
-	// useful to control metrics collection costs in environments where request
-	// rate is well-controlled but cardinality of requesters is high.
-	DisableRPCRateMetricsLabels bool
-
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
 	AutopilotConfig *structs.AutopilotConfig
@@ -374,6 +366,13 @@ type Config struct {
 	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
 	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
 
 	// RPCHandshakeTimeout is the deadline by which RPC handshakes must
 	// complete. The RPC handshake includes the first byte read as well as
@@ -407,12 +406,6 @@ type Config struct {
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64
-
-	// JobDefaultPriority is the default Job priority if not specified.
-	JobDefaultPriority int
-
-	// JobMaxPriority is an upper bound on the Job priority.
-	JobMaxPriority int
 }
 
 func (c *Config) Copy() *Config {
@@ -530,8 +523,6 @@ func DefaultConfig() *Config {
 			},
 		},
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
-		JobDefaultPriority:       structs.JobDefaultPriority,
-		JobMaxPriority:           structs.JobDefaultMaxPriority,
 	}
 
 	// Enable all known schedulers by default

@@ -104,14 +104,6 @@ func (n NoopDB) PurgeCheckResults(allocID string) error {
 	return nil
 }
 
-func (n NoopDB) PutNodeMeta(map[string]*string) error {
-	return nil
-}
-
-func (n NoopDB) GetNodeMeta() (map[string]*string, error) {
-	return nil, nil
-}
-
 func (n NoopDB) Close() error {
 	return nil
 }

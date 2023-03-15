@@ -25,10 +25,6 @@ type FileSystem struct {
 	logger log.Logger
 }
 
-func NewFileSystemEndpoint(srv *Server) *FileSystem {
-	return &FileSystem{srv: srv, logger: srv.logger.Named("client_fs")}
-}
-
 func (f *FileSystem) register() {
 	f.srv.streamingRpcs.Register("FileSystem.Logs", f.logs)
 	f.srv.streamingRpcs.Register("FileSystem.Stream", f.stream)
@@ -106,15 +102,9 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	// in the forwarding chain.
 	args.QueryOptions.AllowStale = true
 
-	authErr := f.srv.Authenticate(nil, args)
-
 	// Potentially forward to a different region.
 	if done, err := f.srv.forward("FileSystem.List", args, args, reply); done {
 		return err
-	}
-	f.srv.MeasureRPCRate("file_system", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "file_system", "list"}, time.Now())
 
@@ -136,7 +126,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 
 	// Check namespace filesystem read permissions
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadFS)
-	aclObj, err := f.srv.ResolveACL(args)
+	aclObj, err := f.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	} else if !allowNsOp(aclObj, alloc.Namespace) {
@@ -166,15 +156,9 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	// in the forwarding chain.
 	args.QueryOptions.AllowStale = true
 
-	authErr := f.srv.Authenticate(nil, args)
-
 	// Potentially forward to a different region.
 	if done, err := f.srv.forward("FileSystem.Stat", args, args, reply); done {
 		return err
-	}
-	f.srv.MeasureRPCRate("file_system", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "file_system", "stat"}, time.Now())
 
@@ -195,7 +179,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	}
 
 	// Check filesystem read permissions
-	if aclObj, err := f.srv.ResolveACL(args); err != nil {
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
 		return structs.ErrPermissionDenied
@@ -233,17 +217,10 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
-	authErr := f.srv.Authenticate(nil, &args)
-
 	// Check if we need to forward to a different region
 	if r := args.RequestRegion(); r != f.srv.Region() {
 		forwardRegionStreamingRpc(f.srv, conn, encoder, &args, "FileSystem.Stream",
 			args.AllocID, &args.QueryOptions)
-		return
-	}
-	f.srv.MeasureRPCRate("file_system", structs.RateMetricRead, &args)
-	if authErr != nil {
-		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
 	}
 
@@ -271,7 +248,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	}
 
 	// Check namespace read-fs permissions.
-	if aclObj, err := f.srv.ResolveACL(&args); err != nil {
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
@@ -358,17 +335,10 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	authErr := f.srv.Authenticate(nil, &args)
-
 	// Check if we need to forward to a different region
 	if r := args.RequestRegion(); r != f.srv.Region() {
 		forwardRegionStreamingRpc(f.srv, conn, encoder, &args, "FileSystem.Logs",
 			args.AllocID, &args.QueryOptions)
-		return
-	}
-	f.srv.MeasureRPCRate("file_system", structs.RateMetricRead, &args)
-	if authErr != nil {
-		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
 	}
 
@@ -398,7 +368,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	// Check namespace read-logs *or* read-fs permissions.
 	allowNsOp := acl.NamespaceValidator(
 		acl.NamespaceCapabilityReadFS, acl.NamespaceCapabilityReadLogs)
-	aclObj, err := f.srv.ResolveACL(&args)
+	aclObj, err := f.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return

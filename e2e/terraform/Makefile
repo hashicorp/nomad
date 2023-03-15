@@ -7,14 +7,14 @@ plan:
 	terraform plan \
 		-var="nomad_local_binary=$(PKG_PATH)" \
 		-var="volumes=false" \
-		-var="client_count_ubuntu_jammy_amd64=3" \
+		-var="client_count_ubuntu_bionic_amd64=3" \
 		-var="client_count_windows_2016_amd64=0"
 
 apply:
 	terraform apply -auto-approve \
 		-var="nomad_local_binary=$(PKG_PATH)" \
 		-var="volumes=false" \
-		-var="client_count_ubuntu_jammy_amd64=3" \
+		-var="client_count_ubuntu_bionic_amd64=3" \
 		-var="client_count_windows_2016_amd64=0"
 
 clean: destroy tidy
@@ -22,7 +22,7 @@ clean: destroy tidy
 destroy:
 	terraform destroy -auto-approve \
 		-var="nomad_local_binary=$(PKG_PATH)" \
-		-var="client_count_ubuntu_jammy_amd64=3" \
+		-var="client_count_ubuntu_bionic_amd64=3" \
 		-var="client_count_windows_2016_amd64=0"
 
 # deploy what's in E2E nightly
