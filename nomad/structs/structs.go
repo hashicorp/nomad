@@ -1171,11 +1171,6 @@ type PeriodicForceRequest struct {
 	WriteRequest
 }
 
-// RPCServersResponse contains the list of RPC addresses for servers in this region
-type RPCServersResponse struct {
-	Addresses []string
-}
-
 // ServerMembersResponse has the list of servers in a cluster
 type ServerMembersResponse struct {
 	ServerName   string

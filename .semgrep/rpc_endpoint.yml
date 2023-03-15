@@ -103,7 +103,6 @@ rules:
             - pattern-not: '"CSIPlugin.List"'
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
-            - pattern-not: '"Status.RPCServers"'
             - pattern-not: '"Status.Version"'
     message: "RPC method $METHOD appears to be unauthenticated"
     languages:
