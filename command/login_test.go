@@ -39,16 +39,16 @@ func TestLoginCommand_Run(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Attempt to call it with an unsupported method type.
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-type=SAML"}))
+	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-method=test-auth-method", "-type=SAML"}))
 	must.StrContains(t, ui.ErrorWriter.String(), `Unsupported authentication type "SAML"`)
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	// Use a valid method type but with incorrect casing so we can ensure this
+	// Use a valid method type but with incorrect casing, so we can ensure this
 	// is handled.
 	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-type=oIdC"}))
-	must.StrContains(t, ui.ErrorWriter.String(), "Must specify an auth method name and type, no default found")
+	must.StrContains(t, ui.ErrorWriter.String(), "Must specify an auth method name, no default found")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
