@@ -28,14 +28,14 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-  Status Specific Options:
+Status Specific Options:
 	
-	-json
-	  Output the latest quota status information in a JSON format.
+  -json
+    Output the latest quota status information in a JSON format.
 	
-	-t
-	  Format and display quota status information using a Go template.
-  `
+  -t
+    Format and display quota status information using a Go template.
+`
 
 	return strings.TrimSpace(helpText)
 }
