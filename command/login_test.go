@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
@@ -45,22 +44,9 @@ func TestLoginCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	// Store a default auth method
-	state := srv.Agent.Server().State()
-	method := &structs.ACLAuthMethod{
-		Name:    "test-auth-method",
-		Default: true,
-		Type:    "SAML",
-		Config: &structs.ACLAuthMethodConfig{
-			OIDCDiscoveryURL: "http://example.com",
-		},
-	}
-	method.SetHash()
-	must.NoError(t, state.UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{method}))
-
-	// Attempt to login using an unsupported type
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL}))
-	must.StrContains(t, ui.ErrorWriter.String(), "Unsupported authentication type \"SAML\"")
+	// Attempt to login using a non-existing method
+	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-method", "there-is-no-such-method"}))
+	must.StrContains(t, ui.ErrorWriter.String(), "Error: method there-is-no-such-method not found in the state store. ")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

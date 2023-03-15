@@ -144,6 +144,7 @@ func (l *LoginCommand) Run(args []string) int {
 				"Error: method %s not found in the state store. ",
 				l.authMethodName,
 			))
+			return 1
 		}
 	}
 
@@ -151,14 +152,6 @@ func (l *LoginCommand) Run(args []string) int {
 	// for the specific login implementation. This allows the command to have
 	// reusable and generic handling of errors and outputs.
 	var authFn func(context.Context, *api.Client) (*api.ACLToken, error)
-
-	switch methodType {
-	case api.ACLAuthMethodTypeOIDC:
-		authFn = l.loginOIDC
-	default:
-		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", methodType))
-		return 1
-	}
 
 	ctx, cancel := contextWithInterrupt()
 	defer cancel()
