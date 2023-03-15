@@ -457,6 +457,7 @@ func TestVariablesMatching(t *testing.T) {
 		ns     string
 		path   string
 		op     string
+		claim  *ACLClaim
 		allow  bool
 	}{
 		{
@@ -611,6 +612,36 @@ func TestVariablesMatching(t *testing.T) {
 			op:    "list",
 			allow: true,
 		},
+		{
+			name: "claim with more specific policy",
+			policy: `namespace "ns" {
+					variables { path "nomad/jobs/example" { capabilities = ["deny"] }}}`,
+			ns:    "ns",
+			path:  "nomad/jobs/example",
+			op:    "read",
+			claim: &ACLClaim{Namespace: "ns", Job: "example", Group: "foo", Task: "bar"},
+			allow: false,
+		},
+		{
+			name: "claim with less specific policy",
+			policy: `namespace "ns" {
+					variables { path "nomad/jobs" { capabilities = ["deny"] }}}`,
+			ns:    "ns",
+			path:  "nomad/jobs/example",
+			op:    "read",
+			claim: &ACLClaim{Namespace: "ns", Job: "example", Group: "foo", Task: "bar"},
+			allow: true,
+		},
+		{
+			name: "claim with less specific wildcard policy",
+			policy: `namespace "ns" {
+					variables { path "nomad/jobs/*" { capabilities = ["deny"] }}}`,
+			ns:    "ns",
+			path:  "nomad/jobs/example",
+			op:    "read",
+			claim: &ACLClaim{Namespace: "ns", Job: "example", Group: "foo", Task: "bar"},
+			allow: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -622,7 +653,8 @@ func TestVariablesMatching(t *testing.T) {
 
 			acl, err := NewACL(false, []*Policy{policy})
 			require.NoError(t, err)
-			require.Equal(t, tc.allow, acl.AllowVariableOperation(tc.ns, tc.path, tc.op))
+			allowed := acl.AllowVariableOperation(tc.ns, tc.path, tc.op, tc.claim)
+			require.Equal(t, tc.allow, allowed)
 		})
 	}
 

@@ -1,7 +1,7 @@
 package host
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 )
@@ -119,7 +119,7 @@ func slurp(path string) string {
 		return err.Error()
 	}
 
-	bs, err := ioutil.ReadAll(fh)
+	bs, err := io.ReadAll(fh)
 	if err != nil {
 		return err.Error()
 	}

@@ -3,7 +3,7 @@ package fingerprint
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -96,7 +96,7 @@ func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, erro
 		return "", err
 	}
 
-	resp, err := ioutil.ReadAll(res.Body)
+	resp, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		f.logger.Error("error reading response body for Azure attribute", "attribute", attribute, "error", err)

@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -730,8 +730,8 @@ func TestDebug_CollectConsul(t *testing.T) {
 		c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
-			c.Stdout = ioutil.Discard
-			c.Stderr = ioutil.Discard
+			c.Stdout = io.Discard
+			c.Stderr = io.Discard
 		}
 	})
 	require.NoError(t, err)

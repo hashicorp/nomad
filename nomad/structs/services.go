@@ -1201,8 +1201,8 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 		return false
 	}
 
-	// config compare
-	if !opaqueMapsEqual(t.Config, o.Config) {
+	// task config, use opaque maps equal
+	if !helper.OpaqueMapsEqual(t.Config, o.Config) {
 		return false
 	}
 
@@ -1378,15 +1378,6 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	}
 }
 
-// opaqueMapsEqual compares map[string]interface{} commonly used for opaque
-// config blocks. Interprets nil and {} as the same.
-func opaqueMapsEqual(a, b map[string]interface{}) bool {
-	if len(a) == 0 && len(b) == 0 {
-		return true
-	}
-	return reflect.DeepEqual(a, b)
-}
-
 // Equal returns true if the structs are recursively equal.
 func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 	if p == nil || o == nil {
@@ -1409,7 +1400,8 @@ func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 		return false
 	}
 
-	if !opaqueMapsEqual(p.Config, o.Config) {
+	// envoy config, use reflect
+	if !reflect.DeepEqual(p.Config, o.Config) {
 		return false
 	}
 
@@ -1504,7 +1496,8 @@ func (u *ConsulUpstream) Equal(o *ConsulUpstream) bool {
 		return false
 	case !u.MeshGateway.Equal(o.MeshGateway):
 		return false
-	case !opaqueMapsEqual(u.Config, o.Config):
+	case !reflect.DeepEqual(u.Config, o.Config):
+		// envoy config, use reflect
 		return false
 	}
 	return true
@@ -1790,7 +1783,8 @@ func (p *ConsulGatewayProxy) Equal(o *ConsulGatewayProxy) bool {
 		return false
 	}
 
-	if !opaqueMapsEqual(p.Config, o.Config) {
+	// envoy config, use reflect
+	if !reflect.DeepEqual(p.Config, o.Config) {
 		return false
 	}
 

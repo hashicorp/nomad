@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strconv"
 )
@@ -399,7 +399,7 @@ func (a *Agent) pprofRequest(req string, opts PprofOptions, q *QueryOptions) ([]
 		return nil, err
 	}
 
-	resp, err := ioutil.ReadAll(body)
+	resp, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}

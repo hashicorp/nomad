@@ -793,6 +793,10 @@ func TestServiceSched_Spread(t *testing.T) {
 				if i%2 == 0 {
 					node.Datacenter = "dc2"
 				}
+				// setting a narrow range makes it more likely for this test to
+				// hit bugs in NetworkIndex
+				node.NodeResources.MinDynamicPort = 20000
+				node.NodeResources.MaxDynamicPort = 20005
 				nodes = append(nodes, node)
 				assert.Nil(h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node), "UpsertNode")
 				nodeMap[node.ID] = node

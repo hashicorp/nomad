@@ -1,6 +1,5 @@
 job "chroot_docker" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -20,7 +19,7 @@ job "chroot_docker" {
       }
       resources {
         cpu    = 50
-        memory = 32
+        memory = 50
       }
     }
   }

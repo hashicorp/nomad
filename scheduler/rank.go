@@ -199,7 +199,8 @@ OUTER:
 			return nil
 		}
 
-		// Get the proposed allocations
+		// Get the allocations that already exist on the node + those allocs
+		// that have been placed as part of this same evaluation
 		proposed, err := option.ProposedAllocs(iter.ctx)
 		if err != nil {
 			iter.ctx.Logger().Named("binpack").Error("failed retrieving proposed allocations", "error", err)
@@ -400,7 +401,6 @@ OUTER:
 						continue OUTER
 					}
 				}
-
 				// Reserve this to prevent another task from colliding
 				netIdx.AddReserved(offer)
 

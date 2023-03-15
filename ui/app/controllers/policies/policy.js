@@ -74,7 +74,7 @@ export default class PoliciesPolicyController extends Controller {
       });
       yield newToken.save();
       yield this.refreshTokens();
-      const thing = this.notifications.add({
+      this.notifications.add({
         title: 'Example Token Created',
         message: `${newToken.secret}`,
         color: 'success',
@@ -86,7 +86,6 @@ export default class PoliciesPolicyController extends Controller {
           },
         },
       });
-      console.log('thing', thing);
     } catch (err) {
       this.error = {
         title: 'Error creating new token',

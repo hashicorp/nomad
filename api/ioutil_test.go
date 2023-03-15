@@ -8,7 +8,6 @@ import (
 	"errors"
 	"hash"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"testing"
 	"testing/iotest"
@@ -41,10 +40,10 @@ func TestChecksumValidatingReader(t *testing.T) {
 			digest := c.algo + "=" + base64.StdEncoding.EncodeToString(checksum)
 
 			r := iotest.HalfReader(bytes.NewReader(data))
-			cr, err := newChecksumValidatingReader(ioutil.NopCloser(r), digest)
+			cr, err := newChecksumValidatingReader(io.NopCloser(r), digest)
 			must.NoError(t, err)
 
-			_, err = io.Copy(ioutil.Discard, cr)
+			_, err = io.Copy(io.Discard, cr)
 			must.NoError(t, err)
 		})
 
@@ -58,10 +57,10 @@ func TestChecksumValidatingReader(t *testing.T) {
 			digest := c.algo + "=" + base64.StdEncoding.EncodeToString(checksum)
 
 			r := iotest.HalfReader(bytes.NewReader(data))
-			cr, err := newChecksumValidatingReader(ioutil.NopCloser(r), digest)
+			cr, err := newChecksumValidatingReader(io.NopCloser(r), digest)
 			must.NoError(t, err)
 
-			_, err = io.Copy(ioutil.Discard, cr)
+			_, err = io.Copy(io.Discard, cr)
 			must.ErrorIs(t, err, errMismatchChecksum)
 		})
 	}
@@ -84,6 +83,6 @@ func TestChecksumValidatingReader_PropagatesError(t *testing.T) {
 	cr, err := newChecksumValidatingReader(pr, "sha-256=aaaa")
 	must.NoError(t, err)
 
-	_, err = io.Copy(ioutil.Discard, cr)
+	_, err = io.Copy(io.Discard, cr)
 	must.ErrorIs(t, err, expectedErr)
 }

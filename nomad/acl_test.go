@@ -748,11 +748,6 @@ func TestResolveClaims(t *testing.T) {
 		JobID:     claims.JobID,
 	}
 
-	index++
-	err := store.UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{
-		policy0, policy1, policy2, policy3, policy4, policy5, policy6, policy7})
-	must.NoError(t, err)
-
 	aclObj, err := srv.ResolveClaims(claims)
 	must.Nil(t, aclObj)
 	must.EqError(t, err, "allocation does not exist")
@@ -762,11 +757,22 @@ func TestResolveClaims(t *testing.T) {
 	err = store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
 	must.NoError(t, err)
 
+	// Resolve claims and check we that the ACL object without policies provides no access
 	aclObj, err = srv.ResolveClaims(claims)
 	must.NoError(t, err)
 	must.NotNil(t, aclObj)
+	must.False(t, aclObj.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs))
 
-	// Check that the ACL object looks reasonable
+	// Add the policies
+	index++
+	err = store.UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{
+		policy0, policy1, policy2, policy3, policy4, policy5, policy6, policy7})
+	must.NoError(t, err)
+
+	// Re-resolve and check that the resulting ACL looks reasonable
+	aclObj, err = srv.ResolveClaims(claims)
+	must.NoError(t, err)
+	must.NotNil(t, aclObj)
 	must.False(t, aclObj.IsManagement())
 	must.True(t, aclObj.AllowNamespaceOperation("default", acl.NamespaceCapabilityListJobs))
 	must.False(t, aclObj.AllowNamespaceOperation("other", acl.NamespaceCapabilityListJobs))

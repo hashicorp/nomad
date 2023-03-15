@@ -13,7 +13,44 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.6.0
+
+#### Job Evaluate API Endpoint Requires `submit-job` Instead of `read-job`
+
+Nomad 1.6.0 updated the ACL capability requirement for the job evaluate
+endpoint from `read-job` to `submit-job` to better reflect that this operation
+writes state to Nomad. This endpoint is used by the `nomad job eval` CLI
+command and so the ACL requirements changed for the command as well. Users that
+called this endpoint or used this command using tokens with just the `read-job`
+capability or the `read` policy must update their tokens to use the
+`submit-job` capability or the `write` policy.
+
+## Nomad 1.5.1
+
+#### Artifact Download Regression Fix
+
+Nomad 1.5.1 reverts a behavior of 1.5.0 where artifact downloads were executed
+as the `nobody` user on compatible Linux systems. This was done optimistically
+as defense against compromised artifact endpoints attempting to exploit the
+Nomad Client or tools it uses to perform downloads such as git or mercurial.
+Unfortunately running the child process as any user other than root is not
+compatible with the advice given in Nomad's [security hardening guide][hard_guide]
+which calls for a specific directory tree structure making such operation impossible.
+
+Other changes to artifact downloading remain - they are executed as a child
+process of the Nomad agent, and on modern Linux systems make use of the Kernel
+landlock feature to restrict filesystem access from that process.
+
 ## Nomad 1.5.0
+
+#### Pause Container Reconciliation Regression
+
+Nomad 1.5.0 introduced a regression to the way the Docker driver reconciles
+dangling containers. This meant pause containers would be erroneously removed,
+even though the allocation was still running. This would not affect the running
+allocation, but does cause it to fail if it needs to restart. An immediate
+workaround is to disable
+[dangling container reconciliation][dangling_container_reconciliation].
 
 #### Artifact Download Sandboxing
 
@@ -127,6 +164,17 @@ to control how allocations and evaluations for batch jobs are collected.
 The default threshold is `24h`. If you need to access completed allocations for
 batch jobs that are older than 24h you must increase this value when upgrading
 Nomad.
+
+## Nomad 1.4.5, 1.3.10
+
+#### Pause Container Reconciliation Regression
+
+Nomad 1.4.5 and 1.3.10 introduced a regression to the way the Docker driver
+reconciles dangling containers. This meant pause containers would be erroneously
+removed, even though the allocation was still running. This would not affect the
+running allocation, but does cause it to fail if it needs to restart. An immediate
+workaround is to disable
+[dangling container reconciliation][dangling_container_reconciliation].
 
 ## Nomad 1.4.4, 1.3.9
 
@@ -1670,3 +1718,5 @@ deleted and then Nomad 0.3.0 can be launched.
 [decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
 [decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables
+[dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
+[hard_guide]: /nomad/docs/install/production/requirements#hardening-nomad

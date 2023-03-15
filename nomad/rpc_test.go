@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
@@ -1370,7 +1369,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)
+	err = os.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)
 	require.NoError(t, err)
 
 	// Generate servers and their certificate.
@@ -1439,9 +1438,9 @@ func (h tlsTestHelper) newCert(t *testing.T, name string) string {
 	})
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(h.dir, node+"-"+name+".pem"), []byte(pem), 0600)
+	err = os.WriteFile(filepath.Join(h.dir, node+"-"+name+".pem"), []byte(pem), 0600)
 	require.NoError(t, err)
-	err = ioutil.WriteFile(filepath.Join(h.dir, node+"-"+name+".key"), []byte(key), 0600)
+	err = os.WriteFile(filepath.Join(h.dir, node+"-"+name+".key"), []byte(key), 0600)
 	require.NoError(t, err)
 
 	return filepath.Join(h.dir, node+"-"+name)

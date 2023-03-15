@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -448,7 +447,7 @@ func buildEnvoyBind(alloc *structs.Allocation, ifce, service, task string, taskE
 }
 
 func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
-	if err := ioutil.WriteFile(filename, []byte(config), 0440); err != nil {
+	if err := os.WriteFile(filename, []byte(config), 0440); err != nil {
 		_ = os.Remove(filename)
 		return err
 	}
@@ -596,7 +595,7 @@ func (e envoyBootstrapArgs) env(env []string) []string {
 // Consul ACLs are enabled), it will be in place by the time we try to read it.
 func (h *envoyBootstrapHook) maybeLoadSIToken(task, dir string) (string, error) {
 	tokenPath := filepath.Join(dir, sidsTokenFile)
-	token, err := ioutil.ReadFile(tokenPath)
+	token, err := os.ReadFile(tokenPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			h.logger.Error("failed to load SI token", "task", task, "error", err)

@@ -476,6 +476,18 @@ message TaskConfig {
 
     // DNSConfig is the configuration for task DNS resolvers and other options
     DNSConfig dns = 17;
+
+    // JobId is the ID of the job of which this task is part of
+    string job_id = 18;
+
+    // Namespace is the namespace of the job of which this task is part of
+    string namespace = 19;
+
+    // NodeName is the name of the node where the associated allocation is running
+    string node_name = 20;
+
+    // NodeId is the ID of the node where the associated allocation is running
+    string node_id = 21;
 }
 
 message Resources {

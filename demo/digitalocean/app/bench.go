@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strconv"
@@ -30,7 +29,7 @@ func main() {
 		return
 	}
 
-	fh, err := ioutil.TempFile("", "bench")
+	fh, err := os.CreateTemp("", "bench")
 	if err != nil {
 		fmt.Println(err.Error())
 		return

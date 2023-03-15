@@ -387,6 +387,10 @@
             "path": "commands/alloc"
           },
           {
+            "title": "checks",
+            "path": "commands/alloc/checks"
+          },
+          {
             "title": "exec",
             "path": "commands/alloc/exec"
           },

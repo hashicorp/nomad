@@ -69,9 +69,9 @@ working directory:
 - `local/`: This directory is private to each task. It can be used to store
   arbitrary data that should not be shared by tasks in the task group.
 - `secrets/`: This directory is private to each task, not accessible via the
-  `nomad alloc fs` command or filesystem APIs and where possible backed by an
-  in-memory filesystem. It can be used to store secret data that should not be
-  visible outside the task.
+  `nomad alloc fs` command or filesystem APIs. Where possible it is backed by an
+  in-memory filesystem and mounted `noexec`. It can be used to store secret data
+  that should not be visible outside the task.
 
 These directories are persisted until the allocation is removed, which occurs
 hours after all the tasks in the task group enter terminal states. This gives
@@ -85,7 +85,7 @@ chroot. Regardless of how the directories are made available, the path to the
 directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 `NOMAD_SECRETS_DIR` environment variables.
 
-For more details on the task directories, see the [Filesystem internals].
+For more details on the task directories, see the [Filesystem internals][].
 
 ## Meta
 

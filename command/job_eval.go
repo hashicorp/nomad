@@ -24,7 +24,10 @@ Usage: nomad job eval [options] <job_id>
   scenarios.
 
   When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace.
+  capability for the job's namespace. The 'list-jobs' capability is required to
+  run the command with a job prefix instead of the exact job ID. The 'read-job'
+  capability is required to monitor the resulting evaluation when -detach is
+  not used.
 
 General Options:
 

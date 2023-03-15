@@ -1,10 +1,11 @@
 job "chroot_exec" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
+
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
   }
+
   group "print" {
     task "env" {
       driver = "exec"
@@ -15,9 +16,10 @@ job "chroot_exec" {
           "echo $NOMAD_ALLOC_DIR; echo $NOMAD_TASK_DIR; echo $NOMAD_SECRETS_DIR; echo $PATH"
         ]
       }
+
       resources {
-        cpu    = 10
-        memory = 16
+        cpu    = 50
+        memory = 50
       }
     }
   }

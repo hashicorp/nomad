@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -554,7 +553,7 @@ func (a *ACL) fileBootstrapResetIndex() uint64 {
 	path := filepath.Join(a.srv.config.DataDir, aclBootstrapReset)
 
 	// Read the file
-	raw, err := ioutil.ReadFile(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			a.logger.Error("failed to read bootstrap file", "path", path, "error", err)

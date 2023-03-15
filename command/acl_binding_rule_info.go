@@ -95,6 +95,17 @@ func (a *ACLBindingRuleInfoCommand) Run(args []string) int {
 		return 1
 	}
 
+	if a.json || len(a.tmpl) > 0 {
+		out, err := Format(a.json, a.tmpl, aclBindingRule)
+		if err != nil {
+			a.Ui.Error(err.Error())
+			return 1
+		}
+
+		a.Ui.Output(out)
+		return 0
+	}
+
 	// Format the output.
 	a.Ui.Output(formatACLBindingRule(aclBindingRule))
 	return 0

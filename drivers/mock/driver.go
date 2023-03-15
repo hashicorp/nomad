@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -641,7 +641,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 
 	cmd := *h.execCommand
 	if len(execOpts.Command) == 1 && execOpts.Command[0] == "showinput" {
-		stdin, _ := ioutil.ReadAll(execOpts.Stdin)
+		stdin, _ := io.ReadAll(execOpts.Stdin)
 		cmd = Command{
 			RunFor: "1ms",
 			StdoutString: fmt.Sprintf("TTY: %v\nStdin:\n%s\n",

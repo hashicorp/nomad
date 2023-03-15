@@ -239,6 +239,16 @@ export function moduleForJobWithClientStatus(
         datacenter: 'dc1',
         status: 'ready',
       });
+
+      clients.push(
+        server.create('node', { datacenter: 'dc2', status: 'ready' })
+      );
+      clients.push(
+        server.create('node', { datacenter: 'dc3', status: 'ready' })
+      );
+      clients.push(
+        server.create('node', { datacenter: 'canada-west-1', status: 'ready' })
+      );
       job = jobFactory();
       clients.forEach((c) => {
         server.create('allocation', { jobId: job.id, nodeId: c.id });
