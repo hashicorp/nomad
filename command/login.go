@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cap/util"
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/lib/auth/oidc"
 )
 
 // Ensure LoginCommand satisfies the cli.Command interface.
@@ -21,7 +22,6 @@ var _ cli.Command = &LoginCommand{}
 type LoginCommand struct {
 	Meta
 
-	authMethodType string
 	authMethodName string
 	callbackAddr   string
 
@@ -47,10 +47,6 @@ Login Options:
     The name of the ACL auth method to login to. If the cluster administrator
     has configured a default, this flag is optional.
 
-  -type
-    Type of the auth method to login to. If the cluster administrator has
-    configured a default, this flag is optional.
-
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
     in the form of <IP>:<PORT> and defaults to "localhost:4649".
@@ -73,7 +69,6 @@ func (l *LoginCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(l.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-method":             complete.PredictAnything,
-			"-type":               complete.PredictSet("OIDC"),
 			"-oidc-callback-addr": complete.PredictAnything,
 			"-json":               complete.PredictNothing,
 			"-t":                  complete.PredictAnything,
@@ -89,7 +84,6 @@ func (l *LoginCommand) Run(args []string) int {
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&l.authMethodName, "method", "", "")
-	flags.StringVar(&l.authMethodType, "type", "", "")
 	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "localhost:4649", "")
 	flags.BoolVar(&l.json, "json", false, "")
 	flags.StringVar(&l.template, "t", "", "")
@@ -110,8 +104,10 @@ func (l *LoginCommand) Run(args []string) int {
 		return 1
 	}
 
-	// is there a default method available? Useful for further checks.
-	var defaultMethod *api.ACLAuthMethodListStub
+	var (
+		defaultMethod *api.ACLAuthMethodListStub
+		methodType    string
+	)
 
 	authMethodList, _, err := client.ACLAuthMethods().List(nil)
 	if err != nil {
@@ -125,51 +121,30 @@ func (l *LoginCommand) Run(args []string) int {
 		}
 	}
 
-	defaultMethodAvailable := defaultMethod != nil
-
-	// If the caller did not supply an auth method name or type, attempt to
-	// lookup the default. This ensures a nice UX as clusters are expected to
-	// only have one method, and this avoids having to type the name during
-	// each login.
+	// If there is a default method available, and the called did not pass method
+	// name, fill it in. In case there is no default method, error and quit.
 	if l.authMethodName == "" {
-		if defaultMethodAvailable {
+		if defaultMethod != nil {
 			l.authMethodName = defaultMethod.Name
+			methodType = defaultMethod.Type
 		} else {
 			l.Ui.Error("Must specify an auth method name, no default found")
 			return 1
 		}
-	}
-
-	if l.authMethodType == "" {
-		if defaultMethodAvailable {
-			l.authMethodType = defaultMethod.Type
-		} else {
-			l.Ui.Error("Must specify an auth method type, no default found")
-			return 1
+	} else {
+		// Find the method by name in the state store and get its type
+		for _, method := range authMethodList {
+			if method.Name == l.authMethodName {
+				methodType = method.Type
+			}
 		}
-	}
 
-	if defaultMethodAvailable && l.authMethodType != defaultMethod.Type {
-		l.Ui.Error(fmt.Sprintf(
-			"Specified type: %s does not match the type of the default method: %s",
-			l.authMethodType, defaultMethod.Type,
-		))
-		return 1
-	}
-
-	// Auth method types are particular with their naming, so ensure we forgive
-	// any case mistakes here from the user.
-	l.authMethodType = strings.ToUpper(l.authMethodType)
-
-	// Ensure we sanitize the method type so we do not pedantically return an
-	// error when the caller uses "oidc" rather than "OIDC". The flag default
-	// means an empty type is only possible is the caller specifies this
-	// explicitly.
-	switch l.authMethodType {
-	case api.ACLAuthMethodTypeOIDC:
-	default:
-		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", l.authMethodType))
-		return 1
+		if methodType == "" {
+			l.Ui.Error(fmt.Sprintf(
+				"Error: method %s not found in the state store. ",
+				l.authMethodName,
+			))
+		}
 	}
 
 	// Each login type should implement a function which matches this signature
@@ -177,11 +152,11 @@ func (l *LoginCommand) Run(args []string) int {
 	// reusable and generic handling of errors and outputs.
 	var authFn func(context.Context, *api.Client) (*api.ACLToken, error)
 
-	switch l.authMethodType {
+	switch methodType {
 	case api.ACLAuthMethodTypeOIDC:
 		authFn = l.loginOIDC
 	default:
-		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", l.authMethodType))
+		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", methodType))
 		return 1
 	}
 
@@ -204,7 +179,7 @@ func (l *LoginCommand) Run(args []string) int {
 		return 0
 	}
 
-	l.Ui.Output(fmt.Sprintf("Successfully logged in via %s and %s\n", l.authMethodType, l.authMethodName))
+	l.Ui.Output(fmt.Sprintf("Successfully logged in via %s and %s\n", methodType, l.authMethodName))
 	outputACLToken(l.Ui, token)
 	return 0
 }

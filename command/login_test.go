@@ -38,16 +38,8 @@ func TestLoginCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 
-	// Attempt to call it with an unsupported method type.
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-method=test-auth-method", "-type=SAML"}))
-	must.StrContains(t, ui.ErrorWriter.String(), `Unsupported authentication type "SAML"`)
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Use a valid method type but with incorrect casing, so we can ensure this
-	// is handled.
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-type=oIdC"}))
+	// Attempt to run the command without specifying a method name, when there's no default available
+	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL}))
 	must.StrContains(t, ui.ErrorWriter.String(), "Must specify an auth method name, no default found")
 
 	ui.OutputWriter.Reset()
@@ -58,7 +50,7 @@ func TestLoginCommand_Run(t *testing.T) {
 	method := &structs.ACLAuthMethod{
 		Name:    "test-auth-method",
 		Default: true,
-		Type:    "JWT",
+		Type:    "SAML",
 		Config: &structs.ACLAuthMethodConfig{
 			OIDCDiscoveryURL: "http://example.com",
 		},
@@ -66,9 +58,9 @@ func TestLoginCommand_Run(t *testing.T) {
 	method.SetHash()
 	must.NoError(t, state.UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{method}))
 
-	// Specify an incorrect type of default method
-	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL, "-type=OIDC"}))
-	must.StrContains(t, ui.ErrorWriter.String(), "Specified type: OIDC does not match the type of the default method: JWT")
+	// Attempt to login using an unsupported type
+	must.Eq(t, 1, cmd.Run([]string{"-address=" + agentURL}))
+	must.StrContains(t, ui.ErrorWriter.String(), "Unsupported authentication type \"SAML\"")
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

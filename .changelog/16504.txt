@@ -1,3 +1,6 @@
-```release-note:bug
-cli: Fixed a bug in the login command that did not checked if there was a default ACL Auth Method
+```release-note:breaking-change
+cli: Changed the behavior of nomad login command. It no longer requires a
+"type" flag, since auth method names are globally unique. This also fixes the
+reported bug where nomad login would disregard existence of the default auth
+method if no method name or type was provided.
 ```
