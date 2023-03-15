@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2847,49 +2848,74 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name     string
-		config   *WaitConfig
-		expected *WaitConfig
+		name string
+		wc1  *WaitConfig
+		wc2  *WaitConfig
+		exp  bool
 	}{
 		{
 			name: "all-fields",
-			config: &WaitConfig{
+			wc1: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
-			expected: &WaitConfig{
+			wc2: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
+			exp: true,
 		},
 		{
-			name:     "no-fields",
-			config:   &WaitConfig{},
-			expected: &WaitConfig{},
+			name: "no-fields",
+			wc1:  &WaitConfig{},
+			wc2:  &WaitConfig{},
+			exp:  true,
 		},
 		{
 			name: "min-only",
-			config: &WaitConfig{
+			wc1: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
-			expected: &WaitConfig{
+			wc2: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
+			exp: true,
 		},
 		{
 			name: "max-only",
-			config: &WaitConfig{
+			wc1: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
-			expected: &WaitConfig{
+			wc2: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
+			exp: true,
+		},
+		{
+			name: "min-nil-vs-set",
+			wc1: &WaitConfig{
+				Min: pointer.Of(1 * time.Second),
+			},
+			wc2: &WaitConfig{
+				Min: nil,
+			},
+			exp: false,
+		},
+		{
+			name: "max-nil-vs-set",
+			wc1: &WaitConfig{
+				Max: pointer.Of(1 * time.Second),
+			},
+			wc2: &WaitConfig{
+				Max: nil,
+			},
+			exp: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.True(t, tc.config.Equal(tc.expected))
+			must.Eq(t, tc.exp, tc.wc1.Equal(tc.wc2))
 		})
 	}
 }
@@ -6825,6 +6851,32 @@ func TestNodeResources_Merge(t *testing.T) {
 	}, res)
 }
 
+func TestAllocatedPortMapping_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*AllocatedPortMapping](t, nil, nil)
+	must.NotEqual[*AllocatedPortMapping](t, nil, new(AllocatedPortMapping))
+
+	must.StructEqual(t, &AllocatedPortMapping{
+		Label:  "http",
+		Value:  80,
+		To:     9000,
+		HostIP: "10.0.0.1",
+	}, []must.Tweak[*AllocatedPortMapping]{{
+		Field: "Label",
+		Apply: func(m *AllocatedPortMapping) { m.Label = "https" },
+	}, {
+		Field: "Value",
+		Apply: func(m *AllocatedPortMapping) { m.Value = 443 },
+	}, {
+		Field: "To",
+		Apply: func(m *AllocatedPortMapping) { m.To = 9999 },
+	}, {
+		Field: "HostIP",
+		Apply: func(m *AllocatedPortMapping) { m.HostIP = "10.1.1.1" },
+	}})
+}
+
 func TestAllocatedResources_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
@@ -7119,4 +7171,315 @@ func requireErrors(t *testing.T, err error, expected ...string) {
 	}
 
 	require.Equal(t, expected, found)
+}
+
+func TestEphemeralDisk_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*EphemeralDisk](t, nil, nil)
+	must.NotEqual[*EphemeralDisk](t, nil, new(EphemeralDisk))
+
+	must.StructEqual(t, &EphemeralDisk{
+		Sticky:  true,
+		SizeMB:  42,
+		Migrate: true,
+	}, []must.Tweak[*EphemeralDisk]{{
+		Field: "Sticky",
+		Apply: func(e *EphemeralDisk) { e.Sticky = false },
+	}, {
+		Field: "SizeMB",
+		Apply: func(e *EphemeralDisk) { e.SizeMB = 10 },
+	}, {
+		Field: "Migrate",
+		Apply: func(e *EphemeralDisk) { e.Migrate = false },
+	}})
+}
+
+func TestDNSConfig_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*DNSConfig](t, nil, nil)
+	must.NotEqual[*DNSConfig](t, nil, new(DNSConfig))
+
+	must.StructEqual(t, &DNSConfig{
+		Servers:  []string{"8.8.8.8", "8.8.4.4"},
+		Searches: []string{"org", "local"},
+		Options:  []string{"opt1"},
+	}, []must.Tweak[*DNSConfig]{{
+		Field: "Servers",
+		Apply: func(c *DNSConfig) { c.Servers = []string{"1.1.1.1"} },
+	}, {
+		Field: "Searches",
+		Apply: func(c *DNSConfig) { c.Searches = []string{"localhost"} },
+	}, {
+		Field: "Options",
+		Apply: func(c *DNSConfig) { c.Options = []string{"opt2"} },
+	}})
+}
+
+func TestChangeScript_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*ChangeScript](t, nil, nil)
+	must.NotEqual[*ChangeScript](t, nil, new(ChangeScript))
+
+	must.StructEqual(t, &ChangeScript{
+		Command:     "/bin/sleep",
+		Args:        []string{"infinity"},
+		Timeout:     1 * time.Second,
+		FailOnError: true,
+	}, []must.Tweak[*ChangeScript]{{
+		Field: "Command",
+		Apply: func(c *ChangeScript) { c.Command = "/bin/false" },
+	}, {
+		Field: "Args",
+		Apply: func(c *ChangeScript) { c.Args = []string{"1s"} },
+	}, {
+		Field: "Timeout",
+		Apply: func(c *ChangeScript) { c.Timeout = 2 * time.Second },
+	}, {
+		Field: "FailOnError",
+		Apply: func(c *ChangeScript) { c.FailOnError = false },
+	}})
+}
+
+func TestWaitConfig_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*WaitConfig](t, nil, nil)
+	must.NotEqual[*WaitConfig](t, nil, new(WaitConfig))
+
+	must.StructEqual(t, &WaitConfig{
+		Min: pointer.Of[time.Duration](100),
+		Max: pointer.Of[time.Duration](200),
+	}, []must.Tweak[*WaitConfig]{{
+		Field: "Min",
+		Apply: func(c *WaitConfig) { c.Min = pointer.Of[time.Duration](111) },
+	}, {
+		Field: "Max",
+		Apply: func(c *WaitConfig) { c.Max = pointer.Of[time.Duration](222) },
+	}})
+}
+
+func TestTaskArtifact_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*TaskArtifact](t, nil, nil)
+	must.NotEqual[*TaskArtifact](t, nil, new(TaskArtifact))
+
+	must.StructEqual(t, &TaskArtifact{
+		GetterSource:  "source",
+		GetterOptions: map[string]string{"a": "A"},
+		GetterHeaders: map[string]string{"b": "B"},
+		GetterMode:    "file",
+		RelativeDest:  "./local",
+	}, []must.Tweak[*TaskArtifact]{{
+		Field: "GetterSource",
+		Apply: func(ta *TaskArtifact) { ta.GetterSource = "other" },
+	}, {
+		Field: "GetterOptions",
+		Apply: func(ta *TaskArtifact) { ta.GetterOptions = nil },
+	}, {
+		Field: "GetterHeaders",
+		Apply: func(ta *TaskArtifact) { ta.GetterHeaders = nil },
+	}, {
+		Field: "GetterMode",
+		Apply: func(ta *TaskArtifact) { ta.GetterMode = "directory" },
+	}, {
+		Field: "RelativeDest",
+		Apply: func(ta *TaskArtifact) { ta.RelativeDest = "./alloc" },
+	}})
+}
+
+func TestVault_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*Vault](t, nil, nil)
+	must.NotEqual[*Vault](t, nil, new(Vault))
+
+	must.StructEqual(t, &Vault{
+		Policies:     []string{"one"},
+		Namespace:    "global",
+		Env:          true,
+		ChangeMode:   "signal",
+		ChangeSignal: "SIGILL",
+	}, []must.Tweak[*Vault]{{
+		Field: "Policies",
+		Apply: func(v *Vault) { v.Policies = []string{"two"} },
+	}, {
+		Field: "Namespace",
+		Apply: func(v *Vault) { v.Namespace = "regional" },
+	}, {
+		Field: "Env",
+		Apply: func(v *Vault) { v.Env = false },
+	}, {
+		Field: "ChangeMode",
+		Apply: func(v *Vault) { v.ChangeMode = "restart" },
+	}, {
+		Field: "ChangeSignal",
+		Apply: func(v *Vault) { v.ChangeSignal = "SIGTERM" },
+	}})
+}
+
+func TestTemplate_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*Template](t, nil, nil)
+	must.NotEqual[*Template](t, nil, new(Template))
+
+	must.StructEqual(t, &Template{
+		SourcePath:   "source",
+		DestPath:     "destination",
+		EmbeddedTmpl: "tmpl",
+		ChangeMode:   "mode",
+		ChangeSignal: "signal",
+		ChangeScript: &ChangeScript{
+			Command:     "/bin/sleep",
+			Args:        []string{"infinity"},
+			Timeout:     1 * time.Second,
+			FailOnError: true,
+		},
+		Splay:      1,
+		Perms:      "perms",
+		Uid:        pointer.Of(1000),
+		Gid:        pointer.Of(1000),
+		LeftDelim:  "{",
+		RightDelim: "}",
+		Envvars:    true,
+		VaultGrace: 1 * time.Second,
+		Wait: &WaitConfig{
+			Min: pointer.Of[time.Duration](1),
+			Max: pointer.Of[time.Duration](2),
+		},
+		ErrMissingKey: true,
+	}, []must.Tweak[*Template]{{
+		Field: "SourcePath",
+		Apply: func(t *Template) { t.SourcePath = "source2" },
+	}, {
+		Field: "DestPath",
+		Apply: func(t *Template) { t.DestPath = "destination2" },
+	}, {
+		Field: "EmbeddedTmpl",
+		Apply: func(t *Template) { t.EmbeddedTmpl = "tmpl2" },
+	}, {
+		Field: "ChangeMode",
+		Apply: func(t *Template) { t.ChangeMode = "mode2" },
+	}, {
+		Field: "ChangeSignal",
+		Apply: func(t *Template) { t.ChangeSignal = "signal2" },
+	}, {
+		Field: "ChangeScript",
+		Apply: func(t *Template) {
+			t.ChangeScript = &ChangeScript{
+				Command:     "/bin/sleep",
+				Args:        []string{"infinity", "plus", "one"},
+				Timeout:     1 * time.Second,
+				FailOnError: true,
+			}
+		},
+	}, {
+		Field: "Splay",
+		Apply: func(t *Template) { t.Splay = 2 },
+	}, {
+		Field: "Perms",
+		Apply: func(t *Template) { t.Perms = "perms2" },
+	}, {
+		Field: "Uid",
+		Apply: func(t *Template) { t.Uid = pointer.Of(0) },
+	}, {
+		Field: "Gid",
+		Apply: func(t *Template) { t.Gid = pointer.Of(0) },
+	}, {
+		Field: "LeftDelim",
+		Apply: func(t *Template) { t.LeftDelim = "[" },
+	}, {
+		Field: "RightDelim",
+		Apply: func(t *Template) { t.RightDelim = "]" },
+	}, {
+		Field: "Envvars",
+		Apply: func(t *Template) { t.Envvars = false },
+	}, {
+		Field: "VaultGrace",
+		Apply: func(t *Template) { t.VaultGrace = 2 * time.Second },
+	}, {
+		Field: "Wait",
+		Apply: func(t *Template) {
+			t.Wait = &WaitConfig{
+				Min: pointer.Of[time.Duration](1),
+				Max: nil,
+			}
+		},
+	}, {
+		Field: "ErrMissingKey",
+		Apply: func(t *Template) { t.ErrMissingKey = false },
+	}})
+}
+
+func TestAffinity_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*Affinity](t, nil, nil)
+	must.NotEqual[*Affinity](t, nil, new(Affinity))
+
+	must.StructEqual(t, &Affinity{
+		LTarget: "left",
+		RTarget: "right",
+		Operand: "op",
+		Weight:  100,
+	}, []must.Tweak[*Affinity]{{
+		Field: "LTarget",
+		Apply: func(a *Affinity) { a.LTarget = "left2" },
+	}, {
+		Field: "RTarget",
+		Apply: func(a *Affinity) { a.RTarget = "right2" },
+	}, {
+		Field: "Operand",
+		Apply: func(a *Affinity) { a.Operand = "op2" },
+	}, {
+		Field: "Weight",
+		Apply: func(a *Affinity) { a.Weight = 50 },
+	}})
+}
+
+func TestSpreadTarget_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*SpreadTarget](t, nil, nil)
+	must.NotEqual[*SpreadTarget](t, nil, new(SpreadTarget))
+
+	must.StructEqual(t, &SpreadTarget{
+		Value:   "dc1",
+		Percent: 99,
+	}, []must.Tweak[*SpreadTarget]{{
+		Field: "Value",
+		Apply: func(st *SpreadTarget) { st.Value = "dc2" },
+	}, {
+		Field: "Percent",
+		Apply: func(st *SpreadTarget) { st.Percent = 98 },
+	}})
+}
+
+func TestSpread_Equal(t *testing.T) {
+	ci.Parallel(t)
+
+	must.Equal[*Spread](t, nil, nil)
+	must.NotEqual[*Spread](t, nil, new(Spread))
+
+	must.StructEqual(t, &Spread{
+		Attribute: "attr",
+		Weight:    100,
+		SpreadTarget: []*SpreadTarget{{
+			Value:   "dc1",
+			Percent: 99,
+		}},
+	}, []must.Tweak[*Spread]{{
+		Field: "Attribute",
+		Apply: func(s *Spread) { s.Attribute = "attr2" },
+	}, {
+		Field: "Weight",
+		Apply: func(s *Spread) { s.Weight = 50 },
+	}, {
+		Field: "SpreadTarget",
+		Apply: func(s *Spread) { s.SpreadTarget = nil },
+	}})
 }

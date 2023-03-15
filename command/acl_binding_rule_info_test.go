@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -65,6 +66,24 @@ func TestACLBindingRuleInfoCommand_Run(t *testing.T) {
 	must.StrContains(t, s, "auth0")
 	must.StrContains(t, s, "role")
 	must.StrContains(t, s, "engineering")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+
+	// Test that the JSON flag works in return a string that has JSON markers.
+	must.Eq(t, 0, cmd.Run([]string{"-address=" + url, "-token=" + rootACLToken.SecretID, "-json", aclBindingRule.ID}))
+	s = ui.OutputWriter.String()
+	must.StrContains(t, s, "{")
+	must.StrContains(t, s, "}")
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+
+	// Test that we can pass in a custom go template to format the output.
+	must.Eq(t, 0, cmd.Run([]string{
+		"-address=" + url, "-token=" + rootACLToken.SecretID, "-t", "Custom: {{ .ID }}", aclBindingRule.ID}))
+	s = ui.OutputWriter.String()
+	must.StrContains(t, s, fmt.Sprintf("Custom: %s", aclBindingRule.ID))
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

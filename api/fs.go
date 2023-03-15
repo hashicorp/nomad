@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"strconv"
 	"sync"
@@ -291,7 +290,7 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 				if err == io.EOF || err == io.ErrClosedPipe {
 					close(frames)
 				} else {
-					buf, err2 := ioutil.ReadAll(dec.Buffered())
+					buf, err2 := io.ReadAll(dec.Buffered())
 					if err2 != nil {
 						errCh <- fmt.Errorf("failed to decode and failed to read buffered data: %w", multierror.Append(err, err2))
 					} else {

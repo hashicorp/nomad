@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -147,7 +146,7 @@ func (h *sidsHook) earlyExit() bool {
 // writeToken writes token into the secrets directory for the task.
 func (h *sidsHook) writeToken(dir string, token string) error {
 	tokenPath := filepath.Join(dir, sidsTokenFile)
-	if err := ioutil.WriteFile(tokenPath, []byte(token), sidsTokenFilePerms); err != nil {
+	if err := os.WriteFile(tokenPath, []byte(token), sidsTokenFilePerms); err != nil {
 		return fmt.Errorf("failed to write SI token: %w", err)
 	}
 	return nil
@@ -158,7 +157,7 @@ func (h *sidsHook) writeToken(dir string, token string) error {
 // is returned only for some other (e.g. disk IO) error.
 func (h *sidsHook) recoverToken(dir string) (string, error) {
 	tokenPath := filepath.Join(dir, sidsTokenFile)
-	token, err := ioutil.ReadFile(tokenPath)
+	token, err := os.ReadFile(tokenPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			h.logger.Error("failed to recover SI token", "error", err)

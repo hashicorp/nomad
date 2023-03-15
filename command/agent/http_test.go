@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -271,7 +270,7 @@ func TestWrapNonJSON(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
 	s.Server.wrapNonJSON(handler)(resp, req)
 
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	require.Equal(t, respBody, []byte("test response"))
 
 }
@@ -294,7 +293,7 @@ func TestWrapNonJSON_Error(t *testing.T) {
 		resp := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
 		s.Server.wrapNonJSON(handlerRPCErr)(resp, req)
-		respBody, _ := ioutil.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(resp.Body)
 		require.Equal(t, []byte("not found"), respBody)
 		require.Equal(t, 404, resp.Code)
 	}
@@ -304,7 +303,7 @@ func TestWrapNonJSON_Error(t *testing.T) {
 		resp := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
 		s.Server.wrapNonJSON(handlerCodedErr)(resp, req)
-		respBody, _ := ioutil.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(resp.Body)
 		require.Equal(t, []byte("unprocessable"), respBody)
 		require.Equal(t, 422, resp.Code)
 	}
@@ -354,7 +353,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to encode: %v", err)
 	}
-	actual, err := ioutil.ReadAll(resp.Body)
+	actual, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -553,7 +552,7 @@ func TestParseToken(t *testing.T) {
 		{
 			Name:          "Parses token from X-Nomad-Token",
 			HeaderKey:     "X-Nomad-Token",
-			HeaderValue:   "foobar",
+			HeaderValue:   " foobar",
 			ExpectedToken: "foobar",
 		},
 		{
@@ -798,7 +797,7 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 
 	// FAIL: Requests that specify a valid hostname and CA cert but lack a
 	// client certificate should fail
-	cacertBytes, err := ioutil.ReadFile(cafile)
+	cacertBytes, err := os.ReadFile(cafile)
 	if err != nil {
 		t.Fatalf("error reading cacert: %v", err)
 	}
@@ -908,7 +907,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	// HTTPS request should succeed
 	httpsReqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
-	cacertBytes, err := ioutil.ReadFile(cafile)
+	cacertBytes, err := os.ReadFile(cafile)
 	assert.Nil(err)
 	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
 
@@ -939,7 +938,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 		},
 	}
 
-	cacertBytes, err = ioutil.ReadFile(cafile)
+	cacertBytes, err = os.ReadFile(cafile)
 	assert.Nil(err)
 	tlsConf.RootCAs.AppendCertsFromPEM(cacertBytes)
 
@@ -1418,7 +1417,7 @@ func Test_decodeBody(t *testing.T) {
 			name:          "empty input request body",
 		},
 		{
-			inputReq: &http.Request{Body: ioutil.NopCloser(strings.NewReader(`{"foo":"bar"}`))},
+			inputReq: &http.Request{Body: io.NopCloser(strings.NewReader(`{"foo":"bar"}`))},
 			inputOut: &struct {
 				Foo string `json:"foo"`
 			}{},
@@ -1496,5 +1495,5 @@ func encodeReq(obj interface{}) io.ReadCloser {
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
 	enc.Encode(obj)
-	return ioutil.NopCloser(buf)
+	return io.NopCloser(buf)
 }

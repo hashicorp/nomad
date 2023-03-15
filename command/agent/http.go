@@ -969,7 +969,7 @@ func parseInt(req *http.Request, field string) (*int, error) {
 // parseToken is used to parse the X-Nomad-Token param
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
-		*token = other
+		*token = strings.TrimSpace(other)
 		return
 	}
 

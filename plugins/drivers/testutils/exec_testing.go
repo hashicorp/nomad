@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -176,7 +175,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		t.Logf("created file in task: %v", tempfile)
 
 		// read from host
-		b, err := ioutil.ReadFile(tempfile)
+		b, err := os.ReadFile(tempfile)
 		if !isolated {
 			require.NoError(t, err)
 			require.Equal(t, text, strings.TrimSpace(string(b)))

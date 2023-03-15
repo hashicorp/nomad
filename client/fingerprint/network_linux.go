@@ -2,7 +2,7 @@ package fingerprint
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -14,7 +14,7 @@ func (f *NetworkFingerprint) linkSpeedSys(device string) int {
 	path := fmt.Sprintf("/sys/class/net/%s/speed", device)
 
 	// Read contents of the device/speed file
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		f.logger.Debug("unable to read link speed", "path", path, "device", device)
 		return 0

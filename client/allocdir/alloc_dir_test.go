@@ -6,7 +6,6 @@ import (
 	"context"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -120,14 +119,14 @@ func TestAllocDir_MountSharedAlloc(t *testing.T) {
 	// Write a file to the shared dir.
 	contents := []byte("foo")
 	const filename = "bar"
-	if err := ioutil.WriteFile(filepath.Join(d.SharedDir, filename), contents, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(d.SharedDir, filename), contents, 0666); err != nil {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
 	// Check that the file exists in the task directories
 	for _, td := range []*TaskDir{td1, td2} {
 		taskFile := filepath.Join(td.SharedTaskDir, filename)
-		act, err := ioutil.ReadFile(taskFile)
+		act, err := os.ReadFile(taskFile)
 		if err != nil {
 			t.Errorf("Failed to read shared alloc file from task dir: %v", err)
 			continue
@@ -163,7 +162,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	// Write a file to the shared dir.
 	exp := []byte{'f', 'o', 'o'}
 	file := "bar"
-	if err := ioutil.WriteFile(filepath.Join(d.SharedDir, "data", file), exp, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(d.SharedDir, "data", file), exp, 0666); err != nil {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
@@ -176,7 +175,7 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	// Write a file to the task local
 	exp = []byte{'b', 'a', 'r'}
 	file1 := "lol"
-	if err := ioutil.WriteFile(filepath.Join(td1.LocalDir, file1), exp, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(td1.LocalDir, file1), exp, 0666); err != nil {
 		t.Fatalf("couldn't write file to task local directory: %v", err)
 	}
 
@@ -250,14 +249,14 @@ func TestAllocDir_Move(t *testing.T) {
 	// Write a file to the shared dir.
 	exp1 := []byte("foo")
 	file1 := "bar"
-	if err := ioutil.WriteFile(filepath.Join(dataDir, file1), exp1, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, file1), exp1, 0666); err != nil {
 		t.Fatalf("Couldn't write file to shared directory: %v", err)
 	}
 
 	// Write a file to the task local
 	exp2 := []byte("bar")
 	file2 := "lol"
-	if err := ioutil.WriteFile(filepath.Join(td1.LocalDir, file2), exp2, 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(td1.LocalDir, file2), exp2, 0666); err != nil {
 		t.Fatalf("couldn't write to task local directory: %v", err)
 	}
 
@@ -337,7 +336,7 @@ func TestAllocDir_ReadAt_SecretDir(t *testing.T) {
 
 	// create target file in the task secrets dir
 	full := filepath.Join(d.AllocDir, target)
-	err = ioutil.WriteFile(full, []byte("hi"), 0600)
+	err = os.WriteFile(full, []byte("hi"), 0600)
 	require.NoError(t, err)
 
 	// ReadAt of a file in the task secrets dir should fail

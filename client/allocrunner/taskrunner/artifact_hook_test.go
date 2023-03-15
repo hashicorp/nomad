@@ -3,7 +3,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -83,7 +82,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// Only create one of the 2 artifacts to cause an error on first run.
 	file1 := filepath.Join(srcdir, "foo.txt")
-	require.NoError(t, ioutil.WriteFile(file1, []byte{'1'}, 0644))
+	require.NoError(t, os.WriteFile(file1, []byte{'1'}, 0644))
 
 	// Test server to serve the artifacts
 	ts := httptest.NewServer(http.FileServer(http.Dir(srcdir)))
@@ -127,7 +126,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 
 	// Write file2 so artifacts can download successfully
 	file2 := filepath.Join(srcdir, "bar.txt")
-	require.NoError(t, ioutil.WriteFile(file2, []byte{'1'}, 0644))
+	require.NoError(t, os.WriteFile(file2, []byte{'1'}, 0644))
 
 	// Mock TaskRunner by copying state from resp to req and reset resp.
 	req.PreviousState = maps.Clone(resp.State)
@@ -174,7 +173,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	numOfFiles := 7
 	for i := 0; i < numOfFiles; i++ {
 		file := filepath.Join(srcdir, fmt.Sprintf("file%d.txt", i))
-		require.NoError(t, ioutil.WriteFile(file, []byte{byte(i)}, 0644))
+		require.NoError(t, os.WriteFile(file, []byte{byte(i)}, 0644))
 	}
 
 	// Test server to serve the artifacts
@@ -260,13 +259,13 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	srcdir := t.TempDir()
 
 	file1 := filepath.Join(srcdir, "file1.txt")
-	require.NoError(t, ioutil.WriteFile(file1, []byte{'1'}, 0644))
+	require.NoError(t, os.WriteFile(file1, []byte{'1'}, 0644))
 
 	file2 := filepath.Join(srcdir, "file2.txt")
-	require.NoError(t, ioutil.WriteFile(file2, []byte{'2'}, 0644))
+	require.NoError(t, os.WriteFile(file2, []byte{'2'}, 0644))
 
 	file3 := filepath.Join(srcdir, "file3.txt")
-	require.NoError(t, ioutil.WriteFile(file3, []byte{'3'}, 0644))
+	require.NoError(t, os.WriteFile(file3, []byte{'3'}, 0644))
 
 	// Test server to serve the artifacts
 	ts := httptest.NewServer(http.FileServer(http.Dir(srcdir)))
@@ -319,7 +318,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 
 	// create the missing file
 	file0 := filepath.Join(srcdir, "file0.txt")
-	require.NoError(t, ioutil.WriteFile(file0, []byte{'0'}, 0644))
+	require.NoError(t, os.WriteFile(file0, []byte{'0'}, 0644))
 
 	// Mock TaskRunner by copying state from resp to req and reset resp.
 	req.PreviousState = maps.Clone(resp.State)
@@ -342,19 +341,19 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
 	require.Contains(t, files[3], "file3.txt")
 
 	// verify the file contents too, since files will also be created for failed downloads
-	data0, err := ioutil.ReadFile(files[0])
+	data0, err := os.ReadFile(files[0])
 	require.NoError(t, err)
 	require.Equal(t, data0, []byte{'0'})
 
-	data1, err := ioutil.ReadFile(files[1])
+	data1, err := os.ReadFile(files[1])
 	require.NoError(t, err)
 	require.Equal(t, data1, []byte{'1'})
 
-	data2, err := ioutil.ReadFile(files[2])
+	data2, err := os.ReadFile(files[2])
 	require.NoError(t, err)
 	require.Equal(t, data2, []byte{'2'})
 
-	data3, err := ioutil.ReadFile(files[3])
+	data3, err := os.ReadFile(files[3])
 	require.NoError(t, err)
 	require.Equal(t, data3, []byte{'3'})
 

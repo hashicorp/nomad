@@ -3,7 +3,6 @@ package execagent
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -126,7 +125,7 @@ func NewMixedAgent(bin string) (*NomadAgent, error) {
 	if err := os.MkdirAll(BaseDir, 0755); err != nil {
 		return nil, err
 	}
-	dir, err := ioutil.TempDir(BaseDir, "agent")
+	dir, err := os.MkdirTemp(BaseDir, "agent")
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +160,7 @@ func NewClientServerPair(bin string, serverOut, clientOut io.Writer) (
 		return nil, nil, err
 	}
 
-	sdir, err := ioutil.TempDir(BaseDir, "server")
+	sdir, err := os.MkdirTemp(BaseDir, "server")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,7 +187,7 @@ func NewClientServerPair(bin string, serverOut, clientOut io.Writer) (
 	server.Cmd.Stdout = serverOut
 	server.Cmd.Stderr = serverOut
 
-	cdir, err := ioutil.TempDir(BaseDir, "client")
+	cdir, err := os.MkdirTemp(BaseDir, "client")
 	if err != nil {
 		return nil, nil, err
 	}

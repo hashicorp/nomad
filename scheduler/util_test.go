@@ -6,16 +6,25 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
+
+func BenchmarkTasksUpdated(b *testing.B) {
+	jobA := mock.BigBenchmarkJob()
+	jobB := jobA.Copy()
+	for n := 0; n < b.N; n++ {
+		if c := tasksUpdated(jobA, jobB, jobA.TaskGroups[0].Name); c.modified {
+			b.Errorf("tasks should be the same")
+		}
+	}
+}
 
 func newNode(name string) *structs.Node {
 	n := mock.Node()
@@ -189,8 +198,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 	j1 := mock.Job()
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
-
-	require.False(t, tasksUpdated(j1, j2, name))
+	must.False(t, tasksUpdated(j1, j2, name).modified)
 
 	// TaskGroup Affinity
 	j2.TaskGroups[0].Affinities = []*structs.Affinity{
@@ -201,7 +209,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 			Weight:  100,
 		},
 	}
-	require.True(t, tasksUpdated(j1, j2, name))
+	must.True(t, tasksUpdated(j1, j2, name).modified)
 
 	// TaskGroup Task Affinity
 	j3 := mock.Job()
@@ -213,8 +221,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 			Weight:  100,
 		},
 	}
-
-	require.True(t, tasksUpdated(j1, j3, name))
+	must.True(t, tasksUpdated(j1, j3, name).modified)
 
 	j4 := mock.Job()
 	j4.TaskGroups[0].Tasks[0].Affinities = []*structs.Affinity{
@@ -225,8 +232,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 			Weight:  100,
 		},
 	}
-
-	require.True(t, tasksUpdated(j1, j4, name))
+	must.True(t, tasksUpdated(j1, j4, name).modified)
 
 	// check different level of same affinity
 	j5 := mock.Job()
@@ -249,8 +255,7 @@ func TestTaskUpdatedAffinity(t *testing.T) {
 			Weight:  100,
 		},
 	}
-
-	require.False(t, tasksUpdated(j5, j6, name))
+	must.False(t, tasksUpdated(j5, j6, name).modified)
 }
 
 func TestTaskUpdatedSpread(t *testing.T) {
@@ -260,7 +265,7 @@ func TestTaskUpdatedSpread(t *testing.T) {
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
 
-	require.False(t, tasksUpdated(j1, j2, name))
+	must.False(t, tasksUpdated(j1, j2, name).modified)
 
 	// TaskGroup Spread
 	j2.TaskGroups[0].Spreads = []*structs.Spread{
@@ -279,7 +284,7 @@ func TestTaskUpdatedSpread(t *testing.T) {
 			},
 		},
 	}
-	require.True(t, tasksUpdated(j1, j2, name))
+	must.True(t, tasksUpdated(j1, j2, name).modified)
 
 	// check different level of same constraint
 	j5 := mock.Job()
@@ -318,31 +323,32 @@ func TestTaskUpdatedSpread(t *testing.T) {
 		},
 	}
 
-	require.False(t, tasksUpdated(j5, j6, name))
+	must.False(t, tasksUpdated(j5, j6, name).modified)
 }
+
 func TestTasksUpdated(t *testing.T) {
 	ci.Parallel(t)
 
 	j1 := mock.Job()
 	j2 := mock.Job()
 	name := j1.TaskGroups[0].Name
-	require.False(t, tasksUpdated(j1, j2, name))
+	must.False(t, tasksUpdated(j1, j2, name).modified)
 
 	j2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	require.True(t, tasksUpdated(j1, j2, name))
+	must.True(t, tasksUpdated(j1, j2, name).modified)
 
 	j3 := mock.Job()
 	j3.TaskGroups[0].Tasks[0].Name = "foo"
-	require.True(t, tasksUpdated(j1, j3, name))
+	must.True(t, tasksUpdated(j1, j3, name).modified)
 
 	j4 := mock.Job()
 	j4.TaskGroups[0].Tasks[0].Driver = "foo"
-	require.True(t, tasksUpdated(j1, j4, name))
+	must.True(t, tasksUpdated(j1, j4, name).modified)
 
 	j5 := mock.Job()
 	j5.TaskGroups[0].Tasks = append(j5.TaskGroups[0].Tasks,
 		j5.TaskGroups[0].Tasks[0])
-	require.True(t, tasksUpdated(j1, j5, name))
+	must.True(t, tasksUpdated(j1, j5, name).modified)
 
 	j6 := mock.Job()
 	j6.TaskGroups[0].Networks[0].DynamicPorts = []structs.Port{
@@ -350,15 +356,15 @@ func TestTasksUpdated(t *testing.T) {
 		{Label: "https", Value: 0},
 		{Label: "admin", Value: 0},
 	}
-	require.True(t, tasksUpdated(j1, j6, name))
+	must.True(t, tasksUpdated(j1, j6, name).modified)
 
 	j7 := mock.Job()
 	j7.TaskGroups[0].Tasks[0].Env["NEW_ENV"] = "NEW_VALUE"
-	require.True(t, tasksUpdated(j1, j7, name))
+	must.True(t, tasksUpdated(j1, j7, name).modified)
 
 	j8 := mock.Job()
 	j8.TaskGroups[0].Tasks[0].User = "foo"
-	require.True(t, tasksUpdated(j1, j8, name))
+	must.True(t, tasksUpdated(j1, j8, name).modified)
 
 	j9 := mock.Job()
 	j9.TaskGroups[0].Tasks[0].Artifacts = []*structs.TaskArtifact{
@@ -366,15 +372,15 @@ func TestTasksUpdated(t *testing.T) {
 			GetterSource: "http://foo.com/bar",
 		},
 	}
-	require.True(t, tasksUpdated(j1, j9, name))
+	must.True(t, tasksUpdated(j1, j9, name).modified)
 
 	j10 := mock.Job()
 	j10.TaskGroups[0].Tasks[0].Meta["baz"] = "boom"
-	require.True(t, tasksUpdated(j1, j10, name))
+	must.True(t, tasksUpdated(j1, j10, name).modified)
 
 	j11 := mock.Job()
 	j11.TaskGroups[0].Tasks[0].Resources.CPU = 1337
-	require.True(t, tasksUpdated(j1, j11, name))
+	must.True(t, tasksUpdated(j1, j11, name).modified)
 
 	j11d1 := mock.Job()
 	j11d1.TaskGroups[0].Tasks[0].Resources.Devices = structs.ResourceDevices{
@@ -390,38 +396,38 @@ func TestTasksUpdated(t *testing.T) {
 			Count: 2,
 		},
 	}
-	require.True(t, tasksUpdated(j11d1, j11d2, name))
+	must.True(t, tasksUpdated(j11d1, j11d2, name).modified)
 
 	j13 := mock.Job()
 	j13.TaskGroups[0].Networks[0].DynamicPorts[0].Label = "foobar"
-	require.True(t, tasksUpdated(j1, j13, name))
+	must.True(t, tasksUpdated(j1, j13, name).modified)
 
 	j14 := mock.Job()
 	j14.TaskGroups[0].Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
-	require.True(t, tasksUpdated(j1, j14, name))
+	must.True(t, tasksUpdated(j1, j14, name).modified)
 
 	j15 := mock.Job()
 	j15.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
-	require.True(t, tasksUpdated(j1, j15, name))
+	must.True(t, tasksUpdated(j1, j15, name).modified)
 
 	j16 := mock.Job()
 	j16.TaskGroups[0].EphemeralDisk.Sticky = true
-	require.True(t, tasksUpdated(j1, j16, name))
+	must.True(t, tasksUpdated(j1, j16, name).modified)
 
 	// Change group meta
 	j17 := mock.Job()
 	j17.TaskGroups[0].Meta["j17_test"] = "roll_baby_roll"
-	require.True(t, tasksUpdated(j1, j17, name))
+	must.True(t, tasksUpdated(j1, j17, name).modified)
 
 	// Change job meta
 	j18 := mock.Job()
 	j18.Meta["j18_test"] = "roll_baby_roll"
-	require.True(t, tasksUpdated(j1, j18, name))
+	must.True(t, tasksUpdated(j1, j18, name).modified)
 
 	// Change network mode
 	j19 := mock.Job()
 	j19.TaskGroups[0].Networks[0].Mode = "bridge"
-	require.True(t, tasksUpdated(j1, j19, name))
+	must.True(t, tasksUpdated(j1, j19, name).modified)
 
 	// Change cores resource
 	j20 := mock.Job()
@@ -430,7 +436,7 @@ func TestTasksUpdated(t *testing.T) {
 	j21 := mock.Job()
 	j21.TaskGroups[0].Tasks[0].Resources.CPU = 0
 	j21.TaskGroups[0].Tasks[0].Resources.Cores = 4
-	require.True(t, tasksUpdated(j20, j21, name))
+	must.True(t, tasksUpdated(j20, j21, name).modified)
 
 	// Compare identical Template wait configs
 	j22 := mock.Job()
@@ -451,10 +457,10 @@ func TestTasksUpdated(t *testing.T) {
 			},
 		},
 	}
-	require.False(t, tasksUpdated(j22, j23, name))
+	must.False(t, tasksUpdated(j22, j23, name).modified)
 	// Compare changed Template wait configs
 	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = pointer.Of(10 * time.Second)
-	require.True(t, tasksUpdated(j22, j23, name))
+	must.True(t, tasksUpdated(j22, j23, name).modified)
 
 	// Add a volume
 	j24 := mock.Job()
@@ -465,12 +471,12 @@ func TestTasksUpdated(t *testing.T) {
 			Type:   "csi",
 			Source: "test-volume[0]",
 		}}
-	require.True(t, tasksUpdated(j24, j25, name))
+	must.True(t, tasksUpdated(j24, j25, name).modified)
 
 	// Alter a volume
 	j26 := j25.Copy()
 	j26.TaskGroups[0].Volumes["myvolume"].ReadOnly = true
-	require.True(t, tasksUpdated(j25, j26, name))
+	must.True(t, tasksUpdated(j25, j26, name).modified)
 
 	// Alter a CSI plugin
 	j27 := mock.Job()
@@ -480,7 +486,7 @@ func TestTasksUpdated(t *testing.T) {
 	}
 	j28 := j27.Copy()
 	j28.TaskGroups[0].Tasks[0].CSIPluginConfig.Type = "monolith"
-	require.True(t, tasksUpdated(j27, j28, name))
+	must.True(t, tasksUpdated(j27, j28, name).modified)
 
 	// Compare identical Template ErrMissingKey
 	j29 := mock.Job()
@@ -495,11 +501,11 @@ func TestTasksUpdated(t *testing.T) {
 			ErrMissingKey: false,
 		},
 	}
-	require.False(t, tasksUpdated(j29, j30, name))
+	must.False(t, tasksUpdated(j29, j30, name).modified)
 
 	// Compare changed Template ErrMissingKey
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
-	require.True(t, tasksUpdated(j29, j30, name))
+	must.True(t, tasksUpdated(j29, j30, name).modified)
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
@@ -529,8 +535,8 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 		}, {
 			Name: "service2",
 		}}
-		updated := connectServiceUpdated(servicesA, servicesB)
-		require.False(t, updated)
+		updated := connectServiceUpdated(servicesA, servicesB).modified
+		must.False(t, updated)
 	})
 
 	t.Run("service connect tags updated", func(t *testing.T) {
@@ -545,8 +551,8 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 				},
 			},
 		}}
-		updated := connectServiceUpdated(servicesA, servicesB)
-		require.False(t, updated)
+		updated := connectServiceUpdated(servicesA, servicesB).modified
+		must.False(t, updated)
 	})
 
 	t.Run("service connect port updated", func(t *testing.T) {
@@ -562,8 +568,8 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 				},
 			},
 		}}
-		updated := connectServiceUpdated(servicesA, servicesB)
-		require.True(t, updated)
+		updated := connectServiceUpdated(servicesA, servicesB).modified
+		must.True(t, updated)
 	})
 
 	t.Run("service port label updated", func(t *testing.T) {
@@ -578,13 +584,14 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 				},
 			},
 		}}
-		updated := connectServiceUpdated(servicesA, servicesB)
-		require.True(t, updated)
+		updated := connectServiceUpdated(servicesA, servicesB).modified
+		must.True(t, updated)
 	})
 }
 
 func TestNetworkUpdated(t *testing.T) {
 	ci.Parallel(t)
+
 	cases := []struct {
 		name    string
 		a       []*structs.NetworkResource
@@ -641,11 +648,9 @@ func TestNetworkUpdated(t *testing.T) {
 		},
 	}
 
-	for i := range cases {
-		c := cases[i]
-		t.Run(c.name, func(tc *testing.T) {
-			tc.Parallel()
-			require.Equal(tc, c.updated, networkUpdated(c.a, c.b), "unexpected network updated result")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.updated, networkUpdated(tc.a, tc.b).modified)
 		})
 	}
 }
@@ -972,21 +977,50 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	}
 }
 
+func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+	job.Datacenters = []string{"*"}
+
+	node := mock.Node()
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+
+	// Register an alloc
+	alloc := mock.AllocForNode(node)
+	alloc.Job = job
+	alloc.JobID = job.ID
+	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
+	stack := NewGenericStack(false, ctx)
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	must.Len(t, 1, inplace,
+		must.Sprintf("inplaceUpdate should have an inplace update"))
+	must.Len(t, 0, unplaced)
+	must.MapNotEmpty(t, ctx.plan.NodeAllocation,
+		must.Sprintf("inplaceUpdate should have an inplace update"))
+}
+
 func TestUtil_connectUpdated(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("both nil", func(t *testing.T) {
-		require.False(t, connectUpdated(nil, nil))
+		must.False(t, connectUpdated(nil, nil).modified)
 	})
 
 	t.Run("one nil", func(t *testing.T) {
-		require.True(t, connectUpdated(nil, new(structs.ConsulConnect)))
+		must.True(t, connectUpdated(nil, new(structs.ConsulConnect)).modified)
 	})
 
 	t.Run("native differ", func(t *testing.T) {
 		a := &structs.ConsulConnect{Native: true}
 		b := &structs.ConsulConnect{Native: false}
-		require.True(t, connectUpdated(a, b))
+		must.True(t, connectUpdated(a, b).modified)
 	})
 
 	t.Run("gateway differ", func(t *testing.T) {
@@ -996,7 +1030,7 @@ func TestUtil_connectUpdated(t *testing.T) {
 		b := &structs.ConsulConnect{Gateway: &structs.ConsulGateway{
 			Terminating: new(structs.ConsulTerminatingConfigEntry),
 		}}
-		require.True(t, connectUpdated(a, b))
+		must.True(t, connectUpdated(a, b).modified)
 	})
 
 	t.Run("sidecar task differ", func(t *testing.T) {
@@ -1006,7 +1040,7 @@ func TestUtil_connectUpdated(t *testing.T) {
 		b := &structs.ConsulConnect{SidecarTask: &structs.SidecarTask{
 			Driver: "docker",
 		}}
-		require.True(t, connectUpdated(a, b))
+		must.True(t, connectUpdated(a, b).modified)
 	})
 
 	t.Run("sidecar service differ", func(t *testing.T) {
@@ -1016,13 +1050,13 @@ func TestUtil_connectUpdated(t *testing.T) {
 		b := &structs.ConsulConnect{SidecarService: &structs.ConsulSidecarService{
 			Port: "2222",
 		}}
-		require.True(t, connectUpdated(a, b))
+		must.True(t, connectUpdated(a, b).modified)
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := new(structs.ConsulConnect)
 		b := new(structs.ConsulConnect)
-		require.False(t, connectUpdated(a, b))
+		must.False(t, connectUpdated(a, b).modified)
 	})
 }
 
@@ -1030,23 +1064,23 @@ func TestUtil_connectSidecarServiceUpdated(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("both nil", func(t *testing.T) {
-		require.False(t, connectSidecarServiceUpdated(nil, nil))
+		require.False(t, connectSidecarServiceUpdated(nil, nil).modified)
 	})
 
 	t.Run("one nil", func(t *testing.T) {
-		require.True(t, connectSidecarServiceUpdated(nil, new(structs.ConsulSidecarService)))
+		require.True(t, connectSidecarServiceUpdated(nil, new(structs.ConsulSidecarService)).modified)
 	})
 
 	t.Run("ports differ", func(t *testing.T) {
 		a := &structs.ConsulSidecarService{Port: "1111"}
 		b := &structs.ConsulSidecarService{Port: "2222"}
-		require.True(t, connectSidecarServiceUpdated(a, b))
+		require.True(t, connectSidecarServiceUpdated(a, b).modified)
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := &structs.ConsulSidecarService{Port: "1111"}
 		b := &structs.ConsulSidecarService{Port: "1111"}
-		require.False(t, connectSidecarServiceUpdated(a, b))
+		require.False(t, connectSidecarServiceUpdated(a, b).modified)
 	})
 }
 
@@ -1059,12 +1093,12 @@ func TestTasksUpdated_Identity(t *testing.T) {
 
 	j2 := j1.Copy()
 
-	must.False(t, tasksUpdated(j1, j2, name))
+	must.False(t, tasksUpdated(j1, j2, name).modified)
 
 	// Set identity on j1 and assert update
 	j1.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{}
 
-	must.True(t, tasksUpdated(j1, j2, name))
+	must.True(t, tasksUpdated(j1, j2, name).modified)
 }
 
 func TestTaskGroupConstraints(t *testing.T) {

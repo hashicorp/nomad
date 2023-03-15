@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
+
+var nonAlphaNum = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
 	// Make a new test server

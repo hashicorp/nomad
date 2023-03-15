@@ -3,7 +3,7 @@ package fingerprint
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -111,7 +111,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 		return "", err
 	}
 
-	resp, err := ioutil.ReadAll(res.Body)
+	resp, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		f.logger.Error("error reading response body for GCE attribute", "attribute", attribute, "error", err)

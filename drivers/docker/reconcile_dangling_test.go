@@ -2,30 +2,30 @@ package docker
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/test/must"
 )
 
 func fakeContainerList(t *testing.T) (nomadContainer, nonNomadContainer docker.APIContainers) {
 	path := "./test-resources/docker/reconciler_containers_list.json"
 
 	f, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("failed to open file: %v", err)
-	}
+	must.NoError(t, err, must.Sprintf("failed to open %s", path))
 
 	var sampleContainerList []docker.APIContainers
 	err = json.NewDecoder(f).Decode(&sampleContainerList)
-	if err != nil {
-		t.Fatalf("failed to decode container list: %v", err)
-	}
+	must.NoError(t, err, must.Sprint("failed to decode container list"))
 
 	return sampleContainerList[0], sampleContainerList[1]
 }
@@ -35,15 +35,15 @@ func Test_HasMount(t *testing.T) {
 
 	nomadContainer, nonNomadContainer := fakeContainerList(t)
 
-	require.True(t, hasMount(nomadContainer, "/alloc"))
-	require.True(t, hasMount(nomadContainer, "/data"))
-	require.True(t, hasMount(nomadContainer, "/secrets"))
-	require.False(t, hasMount(nomadContainer, "/random"))
+	must.True(t, hasMount(nomadContainer, "/alloc"))
+	must.True(t, hasMount(nomadContainer, "/data"))
+	must.True(t, hasMount(nomadContainer, "/secrets"))
+	must.False(t, hasMount(nomadContainer, "/random"))
 
-	require.False(t, hasMount(nonNomadContainer, "/alloc"))
-	require.False(t, hasMount(nonNomadContainer, "/data"))
-	require.False(t, hasMount(nonNomadContainer, "/secrets"))
-	require.False(t, hasMount(nonNomadContainer, "/random"))
+	must.False(t, hasMount(nonNomadContainer, "/alloc"))
+	must.False(t, hasMount(nonNomadContainer, "/data"))
+	must.False(t, hasMount(nonNomadContainer, "/secrets"))
+	must.False(t, hasMount(nonNomadContainer, "/random"))
 }
 
 func Test_HasNomadName(t *testing.T) {
@@ -51,41 +51,45 @@ func Test_HasNomadName(t *testing.T) {
 
 	nomadContainer, nonNomadContainer := fakeContainerList(t)
 
-	require.True(t, hasNomadName(nomadContainer))
-	require.False(t, hasNomadName(nonNomadContainer))
+	must.True(t, hasNomadName(nomadContainer))
+	must.False(t, hasNomadName(nonNomadContainer))
 }
 
-// TestDanglingContainerRemoval asserts containers without corresponding tasks
+// TestDanglingContainerRemoval_normal asserts containers without corresponding tasks
 // are removed after the creation grace period.
-func TestDanglingContainerRemoval(t *testing.T) {
+func TestDanglingContainerRemoval_normal(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
 	// start two containers: one tracked nomad container, and one unrelated container
 	task, cfg, _ := dockerTask(t)
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, d, handle, cleanup := dockerSetup(t, task, nil)
-	defer cleanup()
-	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+	dockerClient, d, handle, cleanup := dockerSetup(t, task, nil)
+	t.Cleanup(cleanup)
 
-	nonNomadContainer, err := client.CreateContainer(docker.CreateContainerOptions{
+	// wait for task to start
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	nonNomadContainer, err := dockerClient.CreateContainer(docker.CreateContainerOptions{
 		Name: "mytest-image-" + uuid.Generate(),
 		Config: &docker.Config{
 			Image: cfg.Image,
 			Cmd:   append([]string{cfg.Command}, cfg.Args...),
 		},
 	})
-	require.NoError(t, err)
-	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    nonNomadContainer.ID,
-		Force: true,
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		_ = dockerClient.RemoveContainer(docker.RemoveContainerOptions{
+			ID:    nonNomadContainer.ID,
+			Force: true,
+		})
 	})
 
-	err = client.StartContainer(nonNomadContainer.ID, nil)
-	require.NoError(t, err)
+	err = dockerClient.StartContainer(nonNomadContainer.ID, nil)
+	must.NoError(t, err)
 
-	untrackedNomadContainer, err := client.CreateContainer(docker.CreateContainerOptions{
+	untrackedNomadContainer, err := dockerClient.CreateContainer(docker.CreateContainerOptions{
 		Name: "mytest-image-" + uuid.Generate(),
 		Config: &docker.Config{
 			Image: cfg.Image,
@@ -95,45 +99,47 @@ func TestDanglingContainerRemoval(t *testing.T) {
 			},
 		},
 	})
-	require.NoError(t, err)
-	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    untrackedNomadContainer.ID,
-		Force: true,
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		_ = dockerClient.RemoveContainer(docker.RemoveContainerOptions{
+			ID:    untrackedNomadContainer.ID,
+			Force: true,
+		})
 	})
 
-	err = client.StartContainer(untrackedNomadContainer.ID, nil)
-	require.NoError(t, err)
+	err = dockerClient.StartContainer(untrackedNomadContainer.ID, nil)
+	must.NoError(t, err)
 
 	dd := d.Impl().(*Driver)
 
 	reconciler := newReconciler(dd)
-	trackedContainers := map[string]bool{handle.containerID: true}
+	trackedContainers := set.From([]string{handle.containerID})
 
-	tf := reconciler.trackedContainers()
-	require.Contains(t, tf, handle.containerID)
-	require.NotContains(t, tf, untrackedNomadContainer)
-	require.NotContains(t, tf, nonNomadContainer.ID)
+	tracked := reconciler.trackedContainers()
+	must.Contains[string](t, handle.containerID, tracked)
+	must.NotContains[string](t, untrackedNomadContainer.ID, tracked)
+	must.NotContains[string](t, nonNomadContainer.ID, tracked)
 
 	// assert tracked containers should never be untracked
 	untracked, err := reconciler.untrackedContainers(trackedContainers, time.Now())
-	require.NoError(t, err)
-	require.NotContains(t, untracked, handle.containerID)
-	require.NotContains(t, untracked, nonNomadContainer.ID)
-	require.Contains(t, untracked, untrackedNomadContainer.ID)
+	must.NoError(t, err)
+	must.NotContains[string](t, handle.containerID, untracked)
+	must.NotContains[string](t, nonNomadContainer.ID, untracked)
+	must.Contains[string](t, untrackedNomadContainer.ID, untracked)
 
 	// assert we recognize nomad containers with appropriate cutoff
-	untracked, err = reconciler.untrackedContainers(map[string]bool{}, time.Now())
-	require.NoError(t, err)
-	require.Contains(t, untracked, handle.containerID)
-	require.Contains(t, untracked, untrackedNomadContainer.ID)
-	require.NotContains(t, untracked, nonNomadContainer.ID)
+	untracked, err = reconciler.untrackedContainers(set.New[string](0), time.Now())
+	must.NoError(t, err)
+	must.Contains[string](t, handle.containerID, untracked)
+	must.Contains[string](t, untrackedNomadContainer.ID, untracked)
+	must.NotContains[string](t, nonNomadContainer.ID, untracked)
 
 	// but ignore if creation happened before cutoff
-	untracked, err = reconciler.untrackedContainers(map[string]bool{}, time.Now().Add(-1*time.Minute))
-	require.NoError(t, err)
-	require.NotContains(t, untracked, handle.containerID)
-	require.NotContains(t, untracked, untrackedNomadContainer.ID)
-	require.NotContains(t, untracked, nonNomadContainer.ID)
+	untracked, err = reconciler.untrackedContainers(set.New[string](0), time.Now().Add(-1*time.Minute))
+	must.NoError(t, err)
+	must.NotContains[string](t, handle.containerID, untracked)
+	must.NotContains[string](t, untrackedNomadContainer.ID, untracked)
+	must.NotContains[string](t, nonNomadContainer.ID, untracked)
 
 	// a full integration tests to assert that containers are removed
 	prestineDriver := dockerDriverHarness(t, nil).Impl().(*Driver)
@@ -144,18 +150,54 @@ func TestDanglingContainerRemoval(t *testing.T) {
 	}
 	nReconciler := newReconciler(prestineDriver)
 
-	require.NoError(t, nReconciler.removeDanglingContainersIteration())
+	err = nReconciler.removeDanglingContainersIteration()
+	must.NoError(t, err)
 
-	_, err = client.InspectContainer(nonNomadContainer.ID)
-	require.NoError(t, err)
+	_, err = dockerClient.InspectContainerWithOptions(docker.InspectContainerOptions{ID: nonNomadContainer.ID})
+	must.NoError(t, err)
 
-	_, err = client.InspectContainer(handle.containerID)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), NoSuchContainerError)
+	_, err = dockerClient.InspectContainerWithOptions(docker.InspectContainerOptions{ID: handle.containerID})
+	must.ErrorContains(t, err, NoSuchContainerError)
 
-	_, err = client.InspectContainer(untrackedNomadContainer.ID)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), NoSuchContainerError)
+	_, err = dockerClient.InspectContainerWithOptions(docker.InspectContainerOptions{ID: untrackedNomadContainer.ID})
+	must.ErrorContains(t, err, NoSuchContainerError)
+}
+
+var (
+	dockerNetRe = regexp.MustCompile(`/var/run/docker/netns/[[:xdigit:]]`)
+)
+
+func TestDanglingContainerRemoval_network(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+	testutil.RequireLinux(t) // bridge implies linux
+
+	dd := dockerDriverHarness(t, nil).Impl().(*Driver)
+	reconciler := newReconciler(dd)
+
+	// create a pause container
+	allocID := uuid.Generate()
+	spec, created, err := dd.CreateNetwork(allocID, &drivers.NetworkCreateRequest{
+		Hostname: "hello",
+	})
+	must.NoError(t, err)
+	must.True(t, created)
+	must.RegexMatch(t, dockerNetRe, spec.Path)
+	id := spec.Labels[dockerNetSpecLabelKey]
+
+	// execute reconciliation
+	err = reconciler.removeDanglingContainersIteration()
+	must.NoError(t, err)
+
+	dockerClient := newTestDockerClient(t)
+	c, iErr := dockerClient.InspectContainerWithOptions(docker.InspectContainerOptions{ID: id})
+	must.NoError(t, iErr)
+	must.Eq(t, "running", c.State.Status)
+	fmt.Println("state", c.State)
+
+	// cleanup pause container
+	err = dd.DestroyNetwork(allocID, spec)
+	must.NoError(t, err)
 }
 
 // TestDanglingContainerRemoval_Stopped asserts stopped containers without
@@ -166,8 +208,8 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 
 	_, cfg, _ := dockerTask(t)
 
-	client := newTestDockerClient(t)
-	container, err := client.CreateContainer(docker.CreateContainerOptions{
+	dockerClient := newTestDockerClient(t)
+	container, err := dockerClient.CreateContainer(docker.CreateContainerOptions{
 		Name: "mytest-image-" + uuid.Generate(),
 		Config: &docker.Config{
 			Image: cfg.Image,
@@ -177,33 +219,35 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 			},
 		},
 	})
-	require.NoError(t, err)
-	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    container.ID,
-		Force: true,
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		_ = dockerClient.RemoveContainer(docker.RemoveContainerOptions{
+			ID:    container.ID,
+			Force: true,
+		})
 	})
 
-	err = client.StartContainer(container.ID, nil)
-	require.NoError(t, err)
+	err = dockerClient.StartContainer(container.ID, nil)
+	must.NoError(t, err)
 
-	err = client.StopContainer(container.ID, 60)
-	require.NoError(t, err)
+	err = dockerClient.StopContainer(container.ID, 60)
+	must.NoError(t, err)
 
 	dd := dockerDriverHarness(t, nil).Impl().(*Driver)
 	reconciler := newReconciler(dd)
 
 	// assert nomad container is tracked, and we ignore stopped one
-	tf := reconciler.trackedContainers()
-	require.NotContains(t, tf, container.ID)
+	tracked := reconciler.trackedContainers()
+	must.NotContains[string](t, container.ID, tracked)
 
-	untracked, err := reconciler.untrackedContainers(map[string]bool{}, time.Now())
-	require.NoError(t, err)
-	require.NotContains(t, untracked, container.ID)
+	untracked, err := reconciler.untrackedContainers(set.New[string](0), time.Now())
+	must.NoError(t, err)
+	must.NotContains[string](t, container.ID, untracked)
 
 	// if we start container again, it'll be marked as untracked
-	require.NoError(t, client.StartContainer(container.ID, nil))
+	must.NoError(t, dockerClient.StartContainer(container.ID, nil))
 
-	untracked, err = reconciler.untrackedContainers(map[string]bool{}, time.Now())
-	require.NoError(t, err)
-	require.Contains(t, untracked, container.ID)
+	untracked, err = reconciler.untrackedContainers(set.New[string](0), time.Now())
+	must.NoError(t, err)
+	must.Contains[string](t, container.ID, untracked)
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where the `-json` and `-t` flags were not respected on the `acl binding-rule info` command
+```

@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -41,11 +40,11 @@ Init Options:
 
   -template
     Specifies a predefined template to initialize. Must be a Nomad Variable that
-		lives at nomad/job-templates/<template>
+    lives at nomad/job-templates/<template>
 
   -list-templates
     Display a list of possible job templates to pass to -template. Reads from
-		all variables pathed at nomad/job-templates/<template>
+    all variables pathed at nomad/job-templates/<template>
 `
 	return strings.TrimSpace(helpText)
 }
@@ -182,7 +181,7 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	// Write out the example
-	err = ioutil.WriteFile(filename, jobSpec, 0660)
+	err = os.WriteFile(filename, jobSpec, 0660)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to write '%s': %v", filename, err))
 		return 1

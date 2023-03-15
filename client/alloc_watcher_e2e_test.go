@@ -3,7 +3,7 @@ package client_test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -102,7 +102,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	// Save a file into alloc dir
 	contents := []byte("123\n456")
 	allocFn := filepath.Join(client1.DataDir, "alloc", origAlloc, "alloc", "data", "bar")
-	require.NoError(ioutil.WriteFile(allocFn, contents, 0666))
+	require.NoError(os.WriteFile(allocFn, contents, 0666))
 	t.Logf("[TEST] Wrote initial file: %s", allocFn)
 
 	// Migrate alloc to other node
@@ -141,7 +141,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	allocFn2 := filepath.Join(client2.DataDir, "alloc", newAlloc.ID, "alloc", "data", "bar")
 	t.Logf("[TEST] Comparing against file: %s", allocFn2)
 	testutil.WaitForResult(func() (bool, error) {
-		found, err := ioutil.ReadFile(allocFn2)
+		found, err := os.ReadFile(allocFn2)
 		if err != nil {
 			return false, err
 		}

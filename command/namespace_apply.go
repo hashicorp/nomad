@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -120,13 +120,13 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		}
 
 		if file == "-" {
-			rawNamespace, err = ioutil.ReadAll(os.Stdin)
+			rawNamespace, err = io.ReadAll(os.Stdin)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Failed to read stdin: %v", err))
 				return 1
 			}
 		} else {
-			rawNamespace, err = ioutil.ReadFile(file)
+			rawNamespace, err = os.ReadFile(file)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Failed to read file: %v", err))
 				return 1

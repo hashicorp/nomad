@@ -32,8 +32,12 @@ Usage: nomad job scale [options] <job> [<group>] <count>
   onto nodes. The monitor will end once job placement is done. It
   is safe to exit the monitor early using ctrl+c.
 
-  When ACLs are enabled, this command requires a token with the 'scale-job'
-  capability for the job's namespace.
+  When ACLs are enabled, this command requires a token with the
+  'read-job-scaling' and either the 'scale-job' or 'submit-job' capabilities
+  for the job's namespace. The 'list-jobs' capability is required to run the
+  command with a job prefix instead of the exact job ID. The 'read-job'
+  capability is required to monitor the resulting evaluation when -detach is
+  not used.
 
 General Options:
 

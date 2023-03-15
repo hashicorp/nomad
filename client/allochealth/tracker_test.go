@@ -14,8 +14,10 @@ import (
 	regmock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -23,6 +25,171 @@ import (
 	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 )
+
+func TestTracker_ConsulChecks_Interpolation(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+
+	// Generate services at multiple levels that reference runtime variables.
+	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	tg.Services = []*structs.Service{
+		{
+			Name:      "group-${TASKGROUP}-service-${NOMAD_DC}",
+			PortLabel: "http",
+			Checks: []*structs.ServiceCheck{
+				{
+					Type:     structs.ServiceCheckTCP,
+					Interval: 30 * time.Second,
+					Timeout:  5 * time.Second,
+				},
+				{
+					Name:     "group-${NOMAD_GROUP_NAME}-check",
+					Type:     structs.ServiceCheckTCP,
+					Interval: 30 * time.Second,
+					Timeout:  5 * time.Second,
+				},
+			},
+		},
+	}
+	tg.Tasks[0].Name = "server"
+	tg.Tasks[0].Services = []*structs.Service{
+		{
+			Name:      "task-${TASK}-service-${NOMAD_REGION}",
+			TaskName:  "server",
+			PortLabel: "http",
+			Checks: []*structs.ServiceCheck{
+				{
+					Type:     structs.ServiceCheckTCP,
+					Interval: 30 * time.Second,
+					Timeout:  5 * time.Second,
+				},
+				{
+					Name:     "task-${NOMAD_TASK_NAME}-check-${NOMAD_REGION}",
+					Type:     structs.ServiceCheckTCP,
+					Interval: 30 * time.Second,
+					Timeout:  5 * time.Second,
+				},
+			},
+		},
+	}
+
+	// Add another task to make sure each task gets its own environment.
+	tg.Tasks = append(tg.Tasks, tg.Tasks[0].Copy())
+	tg.Tasks[1].Name = "proxy"
+	tg.Tasks[1].Services[0].TaskName = "proxy"
+
+	// Canonicalize allocation to re-interpolate some of the variables.
+	alloc.Canonicalize()
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		tg.Tasks[0].Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+		tg.Tasks[1].Name: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+	}
+
+	// Make Consul response
+	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
+		"group-web": {
+			Services: map[string]*serviceregistration.ServiceRegistration{
+				"group-web-service-dc1": {
+					Service: &consulapi.AgentService{
+						ID:      uuid.Generate(),
+						Service: "group-web-service-dc1",
+					},
+					Checks: []*consulapi.AgentCheck{
+						{
+							Name:   `service: "group-web-service-dc1" check`,
+							Status: consulapi.HealthPassing,
+						},
+						{
+							Name:   "group-web-check",
+							Status: consulapi.HealthPassing,
+						},
+					},
+				},
+			},
+		},
+		"server": {
+			Services: map[string]*serviceregistration.ServiceRegistration{
+				"task-server-service-global": {
+					Service: &consulapi.AgentService{
+						ID:      uuid.Generate(),
+						Service: "task-server-service-global",
+					},
+					Checks: []*consulapi.AgentCheck{
+						{
+							Name:   `service: "task-server-service-global" check`,
+							Status: consulapi.HealthPassing,
+						},
+						{
+							Name:   "task-server-check-global",
+							Status: consulapi.HealthPassing,
+						},
+					},
+				},
+			},
+		},
+		"proxy": {
+			Services: map[string]*serviceregistration.ServiceRegistration{
+				"task-proxy-service-global": {
+					Service: &consulapi.AgentService{
+						ID:      uuid.Generate(),
+						Service: "task-proxy-service-global",
+					},
+					Checks: []*consulapi.AgentCheck{
+						{
+							Name:   `service: "task-proxy-service-global" check`,
+							Status: consulapi.HealthPassing,
+						},
+						{
+							Name:   "task-proxy-check-global",
+							Status: consulapi.HealthPassing,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	// Inject Consul response.
+	consul := regmock.NewServiceRegistrationHandler(logger)
+	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
+		return &serviceregistration.AllocRegistration{
+			Tasks: taskRegs,
+		}, nil
+	}
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	checkInterval := 10 * time.Millisecond
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker.checkLookupInterval = checkInterval
+	tracker.Start()
+
+	select {
+	case <-time.After(4 * checkInterval):
+		require.Fail(t, "timed out while waiting for health")
+	case h := <-tracker.HealthyCh():
+		require.True(t, h)
+	}
+}
 
 func TestTracker_ConsulChecks_Healthy(t *testing.T) {
 	ci.Parallel(t)
@@ -83,7 +250,9 @@ func TestTracker_ConsulChecks_Healthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -134,7 +303,9 @@ func TestTracker_NomadChecks_Healthy(t *testing.T) {
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -201,7 +372,9 @@ func TestTracker_NomadChecks_Unhealthy(t *testing.T) {
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -260,7 +433,9 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -301,7 +476,9 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -380,7 +557,9 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -459,7 +638,9 @@ func TestTracker_ConsulChecks_HealthyToUnhealthy(t *testing.T) {
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
 	minHealthyTime := 2 * time.Second
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, minHealthyTime, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, minHealthyTime, true)
 	tracker.checkLookupInterval = checkInterval
 
 	assertChecksHealth := func(exp bool) {
@@ -548,7 +729,9 @@ func TestTracker_ConsulChecks_SlowCheckRegistration(t *testing.T) {
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 
 	assertChecksHealth := func(exp bool) {
@@ -599,7 +782,8 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	tracker := NewTracker(ctx, logger, alloc, nil, nil, nil, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	tracker := NewTracker(ctx, logger, alloc, nil, taskEnvBuilder, nil, nil, time.Millisecond, true)
 
 	assertNoHealth := func() {
 		require.NoError(t, tracker.ctx.Err())
@@ -708,7 +892,9 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -853,7 +1039,9 @@ func TestTracker_ConsulChecks_OnUpdate(t *testing.T) {
 
 			checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 			checkInterval := 10 * time.Millisecond
-			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, time.Millisecond, true)
+			taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
 			tracker.checkLookupInterval = checkInterval
 			tracker.Start()
 
@@ -971,7 +1159,9 @@ func TestTracker_NomadChecks_OnUpdate(t *testing.T) {
 
 			consul := regmock.NewServiceRegistrationHandler(logger)
 			minHealthyTime := 1 * time.Millisecond
-			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul, checks, minHealthyTime, true)
+			taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, minHealthyTime, true)
 			tracker.checkLookupInterval = 10 * time.Millisecond
 			tracker.Start()
 
@@ -1277,7 +1467,7 @@ func TestTracker_evaluateConsulChecks(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := evaluateConsulChecks(tc.tg, tc.registrations)
+			result := evaluateConsulChecks(tc.tg.ConsulServices(), tc.registrations)
 			must.Eq(t, tc.exp, result)
 		})
 	}

@@ -28,10 +28,6 @@ export default class NotificationsService extends FlashService {
       notificationObject.type = notificationObject.color || 'neutral';
     }
 
-    if (!('sticky' in notificationObject)) {
-      notificationObject.sticky = true;
-    }
-
     if (!('destroyOnClick' in notificationObject)) {
       notificationObject.destroyOnClick = false;
     }

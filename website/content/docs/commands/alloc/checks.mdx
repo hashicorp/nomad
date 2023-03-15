@@ -1,0 +1,86 @@
+---
+layout: docs
+page_title: 'Commands: alloc checks'
+description: |
+  Outputs service health check status information.
+---
+
+# Command: alloc checks
+
+
+The `alloc checks` command outputs the latest health check status information for checks in the allocation.
+
+## Usage
+
+```plaintext
+nomad alloc checks [options] <allocation>
+```
+
+Outputs the latest health check status information for services in the allocation
+using the Nomad service discovery provider. This command accepts an allocation
+ID or prefix as the sole argument.
+
+When ACLs are enabled, this command requires a token with the 'read-job' capability 
+for the allocation's namespace. The 'list-jobs' capability is required to run the 
+command with an allocation ID prefix instead of the exact allocation ID.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Checks Options
+
+- `-verbose`: Display verbose output.
+
+- `-json`: Output the allocation in its JSON format.
+
+- `-t`: Format and display the health checks status using a Go template.
+
+## Examples
+
+Show checks of an alloc health check using its short ID:
+
+```shell-session
+$ nomad alloc checks e0fdbd85
+
+Status of 1 Nomad Service Checks
+
+ID         =  9f4e18fd0867cebb19a8fac3d7a1cf27
+Name       =  alive
+Group      =  example.cache[0]
+Task       =  (group)
+Service    =  redis-cache
+Status     =  success
+Mode       =  healthiness
+Timestamp  =  2023-03-09T16:10:23+01:00
+Output     =  nomad: tcp ok
+```
+
+The `-json` flag can be used to get the health checks status in json format:
+
+```shell-session
+nomad alloc checks -json 54fde4f8
+
+{
+    "9810e90177a4c21ce3bfe04dc7da6131": {
+        "Check": "alive",
+        "Group": "example.cache[0]",
+        "ID": "9810e90177a4c21ce3bfe04dc7da6131",
+        "Mode": "healthiness",
+        "Output": "nomad: tcp ok",
+        "Service": "redis-cache",
+        "Status": "success",
+        "StatusCode": 0,
+        "Task": "",
+        "Timestamp": 1678444309
+    }
+}
+```
+
+Or use the `-t` flag to format and display the health checks using a Go template:
+
+```shell-session
+$ nomad alloc checks -t '{{range .}}{{ printf "%s: %s\n" .ID  .Status }}{{end}}' 54
+
+9810e90177a4c21ce3bfe04dc7da6131: success
+```

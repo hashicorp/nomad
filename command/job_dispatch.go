@@ -2,7 +2,7 @@ package command
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -33,7 +33,10 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   detach flag.
 
   When ACLs are enabled, this command requires a token with the 'dispatch-job'
-  capability for the job's namespace.
+  capability for the job's namespace. The 'list-jobs' capability is required to
+  run the command with a job prefix instead of the exact job ID. The 'read-job'
+  capability is required to monitor the resulting evaluation when -detach is
+  not used.
 
 General Options:
 
@@ -145,9 +148,9 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	if len(args) == 2 {
 		switch args[1] {
 		case "-":
-			payload, readErr = ioutil.ReadAll(os.Stdin)
+			payload, readErr = io.ReadAll(os.Stdin)
 		default:
-			payload, readErr = ioutil.ReadFile(args[1])
+			payload, readErr = os.ReadFile(args[1])
 		}
 		if readErr != nil {
 			c.Ui.Error(fmt.Sprintf("Error reading input data: %v", readErr))

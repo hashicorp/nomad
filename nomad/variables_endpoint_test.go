@@ -86,11 +86,13 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	must.NoError(t, err)
 
 	policy := mock.ACLPolicy()
-	policy.Rules = `namespace "nondefault-namespace" {
+	policy.Rules = fmt.Sprintf(`namespace "nondefault-namespace" {
 		variables {
 		    path "nomad/jobs/*" { capabilities = ["list"] }
+		    path "nomad/jobs/%s/web" { capabilities = ["deny"] }
+		    path "nomad/jobs/%s" { capabilities = ["write"] }
 		    path "other/path" { capabilities = ["read"] }
-		}}`
+		}}`, jobID, jobID)
 	policy.JobACL = &structs.JobACL{
 		Namespace: ns,
 		JobID:     jobID,
@@ -144,68 +146,85 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name:        "valid claim for path with task secret",
+			name:        "WI with policy no override can read task secret",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for path with group secret",
+			name:        "WI with policy no override can list task secret",
 			token:       idToken,
-			cap:         acl.PolicyRead,
+			cap:         acl.PolicyList,
+			path:        fmt.Sprintf("nomad/jobs/%s/web/web", jobID),
+			expectedErr: nil,
+		},
+		{
+			name:        "WI with policy override denies list group secret",
+			token:       idToken,
+			cap:         acl.PolicyList,
 			path:        fmt.Sprintf("nomad/jobs/%s/web", jobID),
-			expectedErr: nil,
+			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			name:        "valid claim for path with job secret",
+			name:        "WI with policy override can write job secret",
 			token:       idToken,
-			cap:         acl.PolicyRead,
+			cap:         acl.PolicyWrite,
 			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for path with dispatch job secret",
-			token:       idDispatchToken,
-			cap:         acl.PolicyRead,
-			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
-			expectedErr: nil,
-		},
-		{
-			name:        "valid claim for path with namespace secret",
+			name:        "WI with policy override for write-only job secret",
 			token:       idToken,
 			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
+			expectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			name:        "WI with policy no override can list namespace secret",
+			token:       idToken,
+			cap:         acl.PolicyList,
 			path:        "nomad/jobs",
 			expectedErr: nil,
 		},
+
 		{
-			name:        "valid claim for job-attached policy",
+			name:        "WI with policy can read other path",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        "other/path",
 			expectedErr: nil,
 		},
 		{
-			name:        "valid claim for job-attached policy path denied",
+			name:        "WI with policy cannot read other path not explicitly allowed",
 			token:       idToken,
 			cap:         acl.PolicyRead,
 			path:        "other/not-allowed",
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			name:        "valid claim for job-attached policy capability denied",
+			name:        "WI with policy has no write cap for other path",
 			token:       idToken,
 			cap:         acl.PolicyWrite,
 			path:        "other/path",
 			expectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			name:        "valid claim for job-attached policy capability with cross-job access",
+			name:        "WI with policy can read cross-job path",
 			token:       idToken,
 			cap:         acl.PolicyList,
 			path:        "nomad/jobs/some-other",
 			expectedErr: nil,
 		},
+
+		{
+			name:        "WI for dispatch job can read parent secret",
+			token:       idDispatchToken,
+			cap:         acl.PolicyRead,
+			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
+			expectedErr: nil,
+		},
+
 		{
 			name:        "valid claim with no permissions denied by path",
 			token:       noPermissionsToken,
@@ -622,6 +641,31 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	expect := []string{
 		"nomad/jobs/job1",
 		"nomad/jobs/job1/group",
+		"nomad/jobs/job1/group/web",
+	}
+	must.Eq(t, expect, found)
+
+	// Associate a policy with the identity's job to deny partial access.
+	policy := &structs.ACLPolicy{
+		Name: "policy-for-identity",
+		Rules: mock.NamespacePolicyWithVariables(ns, "read", []string{},
+			map[string][]string{"nomad/jobs/job1/group": []string{"deny"}}),
+		JobACL: &structs.JobACL{
+			Namespace: ns,
+			JobID:     "job1",
+		},
+	}
+	policy.SetHash()
+	must.NoError(t, store.UpsertACLPolicies(structs.MsgTypeTestSetup, 16,
+		[]*structs.ACLPolicy{policy}))
+
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.List", req, &resp))
+	found = []string{}
+	for _, variable := range resp.Data {
+		found = append(found, variable.Path)
+	}
+	expect = []string{
+		"nomad/jobs/job1",
 		"nomad/jobs/job1/group/web",
 	}
 	must.Eq(t, expect, found)

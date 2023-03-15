@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/rpc"
 	"os"
@@ -1361,7 +1360,7 @@ func (s *Server) setupRaft() error {
 		if err := s.checkRaftVersionFile(raftVersionFilePath); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
+		if err := os.WriteFile(raftVersionFilePath, []byte(raftVersionFileContent), 0644); err != nil {
 			return fmt.Errorf("failed to write Raft version file: %v", err)
 		}
 
@@ -1411,7 +1410,7 @@ func (s *Server) setupRaft() error {
 		peersFile := filepath.Join(path, "peers.json")
 		peersInfoFile := filepath.Join(path, "peers.info")
 		if _, err := os.Stat(peersInfoFile); os.IsNotExist(err) {
-			if err := ioutil.WriteFile(peersInfoFile, []byte(peersInfoContent), 0644); err != nil {
+			if err := os.WriteFile(peersInfoFile, []byte(peersInfoContent), 0644); err != nil {
 				return fmt.Errorf("failed to write peers.info file: %v", err)
 			}
 
@@ -1497,7 +1496,7 @@ func (s *Server) checkRaftVersionFile(path string) error {
 		return nil
 	}
 
-	v, err := ioutil.ReadFile(path)
+	v, err := os.ReadFile(path)
 	if err != nil {
 		s.logger.Warn(fmt.Sprintf("unable to read Raft version file, %s", baseWarning), "error", err)
 		return nil

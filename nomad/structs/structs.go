@@ -2311,8 +2311,13 @@ func (n *Node) ComparableResources() *ComparableResources {
 	}
 }
 
-func (n *Node) IsInDC(dc string) bool {
-	return glob.Glob(dc, n.Datacenter)
+func (n *Node) IsInAnyDC(datacenters []string) bool {
+	for _, dc := range datacenters {
+		if glob.Glob(dc, n.Datacenter) {
+			return true
+		}
+	}
+	return false
 }
 
 // Stub returns a summarized version of the node
@@ -2698,7 +2703,39 @@ type AllocatedPortMapping struct {
 	HostIP string
 }
 
+func (m *AllocatedPortMapping) Copy() *AllocatedPortMapping {
+	return &AllocatedPortMapping{
+		Label:  m.Label,
+		Value:  m.Value,
+		To:     m.To,
+		HostIP: m.HostIP,
+	}
+}
+
+func (m *AllocatedPortMapping) Equal(o *AllocatedPortMapping) bool {
+	if m == nil || o == nil {
+		return m == o
+	}
+	switch {
+	case m.Label != o.Label:
+		return false
+	case m.Value != o.Value:
+		return false
+	case m.To != o.To:
+		return false
+	case m.HostIP != o.HostIP:
+		return false
+	}
+	return true
+}
+
 type AllocatedPorts []AllocatedPortMapping
+
+func (p AllocatedPorts) Equal(o AllocatedPorts) bool {
+	return slices.EqualFunc(p, o, func(a, b AllocatedPortMapping) bool {
+		return a.Equal(&b)
+	})
+}
 
 func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
 	for _, port := range p {
@@ -2735,18 +2772,32 @@ type DNSConfig struct {
 	Options  []string
 }
 
+func (d *DNSConfig) Equal(o *DNSConfig) bool {
+	if d == nil || o == nil {
+		return d == o
+	}
+
+	switch {
+	case !slices.Equal(d.Servers, o.Servers):
+		return false
+	case !slices.Equal(d.Searches, o.Searches):
+		return false
+	case !slices.Equal(d.Options, o.Options):
+		return false
+	}
+
+	return true
+}
+
 func (d *DNSConfig) Copy() *DNSConfig {
 	if d == nil {
 		return nil
 	}
-	newD := new(DNSConfig)
-	newD.Servers = make([]string, len(d.Servers))
-	copy(newD.Servers, d.Servers)
-	newD.Searches = make([]string, len(d.Searches))
-	copy(newD.Searches, d.Searches)
-	newD.Options = make([]string, len(d.Options))
-	copy(newD.Options, d.Options)
-	return newD
+	return &DNSConfig{
+		Servers:  slices.Clone(d.Servers),
+		Searches: slices.Clone(d.Searches),
+		Options:  slices.Clone(d.Options),
+	}
 }
 
 // NetworkResource is used to represent available network
@@ -6436,6 +6487,10 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
+	if job.Type == JobTypeSystem && tg.Count == 0 {
+		tg.Count = 1
+	}
+
 	if tg.Scaling != nil {
 		tg.Scaling.Canonicalize()
 	}
@@ -7924,6 +7979,47 @@ func DefaultTemplate() *Template {
 	}
 }
 
+func (t *Template) Equal(o *Template) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
+	switch {
+	case t.SourcePath != o.SourcePath:
+		return false
+	case t.DestPath != o.DestPath:
+		return false
+	case t.EmbeddedTmpl != o.EmbeddedTmpl:
+		return false
+	case t.ChangeMode != o.ChangeMode:
+		return false
+	case t.ChangeSignal != o.ChangeSignal:
+		return false
+	case !t.ChangeScript.Equal(o.ChangeScript):
+		return false
+	case t.Splay != o.Splay:
+		return false
+	case t.Perms != o.Perms:
+		return false
+	case !pointer.Eq(t.Uid, o.Uid):
+		return false
+	case !pointer.Eq(t.Gid, o.Gid):
+		return false
+	case t.LeftDelim != o.LeftDelim:
+		return false
+	case t.RightDelim != o.RightDelim:
+		return false
+	case t.Envvars != o.Envvars:
+		return false
+	case t.VaultGrace != o.VaultGrace:
+		return false
+	case !t.Wait.Equal(o.Wait):
+		return false
+	case t.ErrMissingKey != o.ErrMissingKey:
+		return false
+	}
+	return true
+}
+
 func (t *Template) Copy() *Template {
 	if t == nil {
 		return nil
@@ -8035,18 +8131,33 @@ type ChangeScript struct {
 	FailOnError bool
 }
 
+func (cs *ChangeScript) Equal(o *ChangeScript) bool {
+	if cs == nil || o == nil {
+		return cs == o
+	}
+	switch {
+	case cs.Command != o.Command:
+		return false
+	case !slices.Equal(cs.Args, o.Args):
+		return false
+	case cs.Timeout != o.Timeout:
+		return false
+	case cs.FailOnError != o.FailOnError:
+		return false
+	}
+	return true
+}
+
 func (cs *ChangeScript) Copy() *ChangeScript {
 	if cs == nil {
 		return nil
 	}
-
-	ncs := new(ChangeScript)
-	*ncs = *cs
-
-	// args is a slice!
-	ncs.Args = slices.Clone(cs.Args)
-
-	return ncs
+	return &ChangeScript{
+		Command:     cs.Command,
+		Args:        slices.Clone(cs.Args),
+		Timeout:     cs.Timeout,
+		FailOnError: cs.FailOnError,
+	}
 }
 
 // Validate makes sure all the required fields of ChangeScript are present
@@ -8090,22 +8201,15 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 func (wc *WaitConfig) Equal(o *WaitConfig) bool {
-	if wc.Min == nil && o.Min != nil {
+	if wc == nil || o == nil {
+		return wc == o
+	}
+	switch {
+	case !pointer.Eq(wc.Min, o.Min):
+		return false
+	case !pointer.Eq(wc.Max, o.Max):
 		return false
 	}
-
-	if wc.Max == nil && o.Max != nil {
-		return false
-	}
-
-	if wc.Min != nil && (o.Min == nil || *wc.Min != *o.Min) {
-		return false
-	}
-
-	if wc.Max != nil && (o.Max == nil || *wc.Max != *o.Max) {
-		return false
-	}
-
 	return true
 }
 
@@ -8772,6 +8876,25 @@ type TaskArtifact struct {
 	RelativeDest string
 }
 
+func (ta *TaskArtifact) Equal(o *TaskArtifact) bool {
+	if ta == nil || o == nil {
+		return ta == o
+	}
+	switch {
+	case ta.GetterSource != o.GetterSource:
+		return false
+	case !maps.Equal(ta.GetterOptions, o.GetterOptions):
+		return false
+	case !maps.Equal(ta.GetterHeaders, o.GetterHeaders):
+		return false
+	case ta.GetterMode != o.GetterMode:
+		return false
+	case ta.RelativeDest != o.RelativeDest:
+		return false
+	}
+	return true
+}
+
 func (ta *TaskArtifact) Copy() *TaskArtifact {
 	if ta == nil {
 		return nil
@@ -9046,11 +9169,20 @@ type Affinity struct {
 
 // Equal checks if two affinities are equal.
 func (a *Affinity) Equal(o *Affinity) bool {
-	return a == o ||
-		a.LTarget == o.LTarget &&
-			a.RTarget == o.RTarget &&
-			a.Operand == o.Operand &&
-			a.Weight == o.Weight
+	if a == nil || o == nil {
+		return a == o
+	}
+	switch {
+	case a.LTarget != o.LTarget:
+		return false
+	case a.RTarget != o.RTarget:
+		return false
+	case a.Operand != o.Operand:
+		return false
+	case a.Weight != o.Weight:
+		return false
+	}
+	return true
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -9132,6 +9264,21 @@ type Spread struct {
 
 	// Memoized string representation
 	str string
+}
+
+func (s *Spread) Equal(o *Spread) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+	switch {
+	case s.Attribute != o.Attribute:
+		return false
+	case s.Weight != o.Weight:
+		return false
+	case !slices.EqualFunc(s.SpreadTarget, o.SpreadTarget, func(a, b *SpreadTarget) bool { return a.Equal(b) }):
+		return false
+	}
+	return true
 }
 
 type Affinities []*Affinity
@@ -9238,6 +9385,19 @@ func (s *SpreadTarget) String() string {
 	return s.str
 }
 
+func (s *SpreadTarget) Equal(o *SpreadTarget) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+	switch {
+	case s.Value != o.Value:
+		return false
+	case s.Percent != o.Percent:
+		return false
+	}
+	return true
+}
+
 // EphemeralDisk is an ephemeral disk object
 type EphemeralDisk struct {
 	// Sticky indicates whether the allocation is sticky to a node
@@ -9256,6 +9416,21 @@ func DefaultEphemeralDisk() *EphemeralDisk {
 	return &EphemeralDisk{
 		SizeMB: 300,
 	}
+}
+
+func (d *EphemeralDisk) Equal(o *EphemeralDisk) bool {
+	if d == nil || o == nil {
+		return d == o
+	}
+	switch {
+	case d.Sticky != o.Sticky:
+		return false
+	case d.SizeMB != o.SizeMB:
+		return false
+	case d.Migrate != o.Migrate:
+		return false
+	}
+	return true
 }
 
 // Validate validates EphemeralDisk
@@ -9316,6 +9491,25 @@ func DefaultVaultBlock() *Vault {
 		Env:        true,
 		ChangeMode: VaultChangeModeRestart,
 	}
+}
+
+func (v *Vault) Equal(o *Vault) bool {
+	if v == nil || o == nil {
+		return v == o
+	}
+	switch {
+	case !slices.Equal(v.Policies, o.Policies):
+		return false
+	case v.Namespace != o.Namespace:
+		return false
+	case v.Env != o.Env:
+		return false
+	case v.ChangeMode != o.ChangeMode:
+		return false
+	case v.ChangeSignal != o.ChangeSignal:
+		return false
+	}
+	return true
 }
 
 // Copy returns a copy of this Vault block.
