@@ -23,14 +23,22 @@ Usage: nomad sentinel list [options]
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
-
+  
+ListOptions:
+-json
+	Output the latest quota information in a JSON format.
+-t
+	Format and display quota information using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *SentinelListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-t":    complete.PredictAnything,
+			"-json": complete.PredictNothing,
+		})
 }
 
 func (c *SentinelListCommand) AutocompleteArgs() complete.Predictor {
@@ -44,8 +52,14 @@ func (c *SentinelListCommand) Synopsis() string {
 func (c *SentinelListCommand) Name() string { return "sentinel list" }
 
 func (c *SentinelListCommand) Run(args []string) int {
+	var json bool
+	var tmpl string
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -70,6 +84,17 @@ func (c *SentinelListCommand) Run(args []string) int {
 
 	if len(policies) == 0 {
 		c.Ui.Output("No policies found")
+		return 0
+	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, policies)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
 		return 0
 	}
 
