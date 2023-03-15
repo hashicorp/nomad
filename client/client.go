@@ -2950,12 +2950,12 @@ DISCOLOOP:
 
 			// Query the client-advertise RPC addresses from the region that
 			// Consul gave us
-			var members []string
-			if err := c.connPool.RPC(region, addr, "Status.RPCServers", rpcargs, &members); err != nil {
+			var resp *structs.RPCServersResponse
+			if err := c.connPool.RPC(region, addr, "Status.RPCServers", rpcargs, &resp); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
-			for _, member := range members {
+			for _, member := range resp.Addresses {
 				addr, err := net.ResolveTCPAddr("tcp", member)
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
