@@ -101,6 +101,9 @@ type JobRestartCommand struct {
 	// canceled is set to true when the user gives a negative answer to any of
 	// the questions.
 	canceled bool
+
+	// sigsCh is used to subscribe to signals from the operating system.
+	sigsCh chan os.Signal
 }
 
 func (c *JobRestartCommand) Help() string {
@@ -333,9 +336,11 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// prevent new work from starting while the user is deciding if they want
 	// to cancel the command or not.
 	activeCh := make(chan any)
-	sigsCh := make(chan os.Signal, 1)
-	signal.Notify(sigsCh, syscall.SIGINT)
-	go c.handleSignal(sigsCh, activeCh)
+	c.sigsCh = make(chan os.Signal, 1)
+	signal.Notify(c.sigsCh, syscall.SIGINT)
+	defer signal.Stop(c.sigsCh)
+
+	go c.handleSignal(c.sigsCh, activeCh)
 
 	// restartErr accumulates the errors that happen in each batch.
 	var restartErr *multierror.Error
@@ -765,6 +770,12 @@ Allocations not restarted yet will not be restarted. [y/N]`
 func (c *JobRestartCommand) askQuestion(question string, onError bool, cb func(string) (bool, error)) bool {
 	prefix := fmt.Sprintf("==> %s: ", formatTime(time.Now()))
 	prefixedQuestion := fmt.Sprintf("[bold]%s%s[reset]", prefix, question)
+
+	// Let ui.Ask() handle interrupt signals.
+	signal.Stop(c.sigsCh)
+	defer func() {
+		signal.Notify(c.sigsCh, syscall.SIGINT)
+	}()
 
 	for {
 		answer, err := c.Ui.Ask(c.Colorize().Color(prefixedQuestion))
