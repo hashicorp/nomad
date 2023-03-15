@@ -1,6 +1,5 @@
 // @ts-check
 import Component from '@glimmer/component';
-import { tracked } from '@glimmer/tracking';
 
 export default class JobStatusPanelComponent extends Component {
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
@@ -51,11 +50,6 @@ export default class JobStatusPanelComponent extends Component {
     }
     return allocationsOfShowableType;
   }
-
-  /**
-   * @type {('current'|'historical')}
-   */
-  @tracked mode = 'current'; // can be either "current" or "historical"
 
   // TODO: eventually we will want this from a new property on a job.
   get totalAllocs() {
