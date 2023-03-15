@@ -33,8 +33,8 @@ General Options:
 
 Inspect Options:
 
--json
-	Output the latest quota information in a JSON format.
+  -json
+    Output the latest quota information in a JSON format.
 
   -t
     Format and display quota information using a Go template.
