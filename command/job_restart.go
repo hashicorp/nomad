@@ -143,7 +143,9 @@ Usage: nomad job restart [options] <job>
   allocation per batch.
 
   When ACLs are enabled, this command requires a token with the
-  'alloc-lifecycle' and 'read-job' capabilities for the job's namespace.
+  'alloc-lifecycle' and 'read-job' capabilities for the job's namespace. The
+  'list-jobs' capability is required to run the command with a job prefix
+  instead of the exact job ID.
 
 General Options:
 

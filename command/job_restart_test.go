@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	neturl "net/url"
-	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -24,10 +23,6 @@ import (
 
 	"github.com/shoenig/test/must"
 )
-
-// nonAlphaNum is used to create a valid ACL policy name based on the test
-// case name.
-var nonAlphaNum = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 func TestJobRestartCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
@@ -859,14 +854,15 @@ func TestJobRestartCommand_ACL(t *testing.T) {
 	waitForJobAllocsStatus(t, client, jobID, api.AllocClientStatusRunning, srv.RootToken.SecretID)
 
 	testCases := []struct {
-		name      string
-		aclPolicy string
-		allowed   bool
+		name        string
+		jobPrefix   bool
+		aclPolicy   string
+		expectedErr string
 	}{
 		{
-			name:      "no token",
-			aclPolicy: "",
-			allowed:   false,
+			name:        "no token",
+			aclPolicy:   "",
+			expectedErr: api.PermissionDeniedErrorContent,
 		},
 		{
 			name: "alloc-lifecycle not enough",
@@ -875,7 +871,7 @@ namespace "default" {
 	capabilities = ["alloc-lifecycle"]
 }
 `,
-			allowed: false,
+			expectedErr: api.PermissionDeniedErrorContent,
 		},
 		{
 			name: "read-job not enough",
@@ -884,7 +880,7 @@ namespace "default" {
 	capabilities = ["read-job"]
 }
 `,
-			allowed: false,
+			expectedErr: api.PermissionDeniedErrorContent,
 		},
 		{
 			name: "alloc-lifecycle and read-job allowed",
@@ -893,7 +889,25 @@ namespace "default" {
 	capabilities = ["alloc-lifecycle", "read-job"]
 }
 `,
-			allowed: true,
+		},
+		{
+			name: "job prefix requires list-jobs",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["alloc-lifecycle", "read-job"]
+}
+`,
+			jobPrefix:   true,
+			expectedErr: "job not found",
+		},
+		{
+			name: "job prefix works with list-jobs",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["list-jobs", "alloc-lifecycle", "read-job"]
+}
+`,
+			jobPrefix: true,
 		},
 	}
 
@@ -926,15 +940,20 @@ namespace "default" {
 				args = append(args, "-token", token.SecretID)
 			}
 
-			// Run command to restart job.
-			args = append(args, jobID)
-			code := cmd.Run(args)
+			// Add job ID or job ID prefix to the command.
+			if tc.jobPrefix {
+				args = append(args, jobID[0:3])
+			} else {
+				args = append(args, jobID)
+			}
 
-			if tc.allowed {
+			// Run command.
+			code := cmd.Run(args)
+			if tc.expectedErr == "" {
 				must.Zero(t, code)
 			} else {
 				must.One(t, code)
-				must.StrContains(t, ui.ErrorWriter.String(), api.PermissionDeniedErrorContent)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
 			}
 		})
 	}
