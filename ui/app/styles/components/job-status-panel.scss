@@ -36,6 +36,8 @@
     gap: 10px;
     grid-auto-flow: column;
     grid-auto-columns: minmax(1px, 32px);
+    margin-bottom: 1rem;
+
     & > .represented-allocation {
       width: auto;
     }
@@ -45,6 +47,7 @@
     display: flex;
     height: 32px;
     gap: 1.5rem;
+    margin-bottom: 1rem;
 
     .allocation-status-block {
       display: grid;
@@ -122,10 +125,6 @@
       background: transparent;
       border: 2px solid $grey-lighter;
     }
-  }
-
-  & > .boxed-section-body > .alloc-status-summaries {
-    margin-bottom: 1rem;
   }
 
   & > .boxed-section-body > footer {
