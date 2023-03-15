@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug in the login command that did not checked if there was a default ACL Auth Method
+```
