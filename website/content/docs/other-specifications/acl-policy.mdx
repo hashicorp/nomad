@@ -384,7 +384,9 @@ The `policy` field for the plugin rule can have one of the following values:
 
 ## Configuring ACLs for the web UI
 
-Since the Nomad UI provides a much richer user experience than the CLI, additional API endpoints `/v1/agent` `/v1/node` are used when rendering pages.  Adding the rules below to your ACL when utilizing the Nomad UI is recommended.
+The Nomad web UI uses the API endpoints `/v1/agent` and `/v1/node` for nearly
+every page. ACL policies for users who will use the Nomad UI should include the
+following rules.
 
 ```hcl
 node {
