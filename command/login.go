@@ -48,8 +48,8 @@ Login Options:
     has configured a default, this flag is optional.
 
   -type
-	Type of the auth method to login to. If the cluster administrator has
-	configured a default, this flag is optional.
+    Type of the auth method to login to. If the cluster administrator has
+    configured a default, this flag is optional.
 
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
