@@ -153,6 +153,14 @@ func (l *LoginCommand) Run(args []string) int {
 	// reusable and generic handling of errors and outputs.
 	var authFn func(context.Context, *api.Client) (*api.ACLToken, error)
 
+	switch methodType {
+	case api.ACLAuthMethodTypeOIDC:
+		authFn = l.loginOIDC
+	default:
+		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", methodType))
+		return 1
+	}
+
 	ctx, cancel := contextWithInterrupt()
 	defer cancel()
 
