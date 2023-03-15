@@ -58,6 +58,7 @@ import (
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -2906,14 +2907,8 @@ func (c *Client) consulDiscoveryImpl() error {
 		dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
 	}
 
-	// Query for servers in this client's region only. Note this has to be an
-	// unauthenticated request because we haven't registered yet.
+	// Query for servers in this client's region only
 	region := c.Region()
-	rpcargs := structs.GenericRequest{
-		QueryOptions: structs.QueryOptions{
-			Region: region,
-		},
-	}
 
 	serviceName := c.GetConfig().ConsulConfig.ServerServiceName
 	var mErr multierror.Error
@@ -2934,41 +2929,27 @@ DISCOLOOP:
 		}
 
 		for _, s := range consulServices {
-			port := strconv.Itoa(s.ServicePort)
-			addrstr := s.ServiceAddress
-			if addrstr == "" {
-				addrstr = s.Address
-			}
-			addr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(addrstr, port))
-			if err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-				continue
-			}
-
-			srv := &servers.Server{Addr: addr}
-			nomadServers = append(nomadServers, srv)
-
-			// Query the client-advertise RPC addresses from the region that
-			// Consul gave us
-			var resp *structs.RPCServersResponse
-			if err := c.connPool.RPC(region, addr, "Status.RPCServers", rpcargs, &resp); err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-				continue
-			}
-			for _, member := range resp.Addresses {
-				addr, err := net.ResolveTCPAddr("tcp", member)
+			if slices.Contains(s.ServiceTags, region) {
+				port := strconv.Itoa(s.ServicePort)
+				addrstr := s.ServiceAddress
+				if addrstr == "" {
+					addrstr = s.Address
+				}
+				addr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(addrstr, port))
 				if err != nil {
 					mErr.Errors = append(mErr.Errors, err)
 					continue
 				}
+
 				srv := &servers.Server{Addr: addr}
 				nomadServers = append(nomadServers, srv)
 			}
-
-			if len(nomadServers) > 0 {
-				break DISCOLOOP
-			}
 		}
+
+		if len(nomadServers) > 0 {
+			break DISCOLOOP
+		}
+
 	}
 	if len(nomadServers) == 0 {
 		if len(mErr.Errors) > 0 {

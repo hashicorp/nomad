@@ -891,7 +891,8 @@ func (a *Agent) setupServer() error {
 		rpcServ := &structs.Service{
 			Name:      a.config.Consul.ServerServiceName,
 			PortLabel: a.config.AdvertiseAddrs.RPC,
-			Tags:      append([]string{consul.ServiceTagRPC}, a.config.Consul.Tags...),
+			Tags: append([]string{consul.ServiceTagRPC, a.config.Region},
+				a.config.Consul.Tags...),
 			Checks: []*structs.ServiceCheck{
 				{
 					Name:      a.config.Consul.ServerRPCCheckName,
