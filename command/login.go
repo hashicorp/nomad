@@ -104,6 +104,59 @@ func (l *LoginCommand) Run(args []string) int {
 		return 1
 	}
 
+	client, err := l.Meta.Client()
+	if err != nil {
+		l.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 1
+	}
+
+	// is there a default method available? Useful for further checks.
+	var defaultMethod *api.ACLAuthMethodListStub
+
+	authMethodList, _, err := client.ACLAuthMethods().List(nil)
+	if err != nil {
+		l.Ui.Error(fmt.Sprintf("Error listing ACL auth methods: %s", err))
+		return 1
+	}
+
+	for _, authMethod := range authMethodList {
+		if authMethod.Default {
+			defaultMethod = authMethod
+		}
+	}
+
+	defaultMethodAvailable := defaultMethod != nil
+
+	// If the caller did not supply an auth method name or type, attempt to
+	// lookup the default. This ensures a nice UX as clusters are expected to
+	// only have one method, and this avoids having to type the name during
+	// each login.
+	if l.authMethodName == "" {
+		if defaultMethodAvailable {
+			l.authMethodName = defaultMethod.Name
+		} else {
+			l.Ui.Error("Must specify an auth method name, no default found")
+			return 1
+		}
+	}
+
+	if l.authMethodType == "" {
+		if defaultMethodAvailable {
+			l.authMethodType = defaultMethod.Type
+		} else {
+			l.Ui.Error("Must specify an auth method type, no default found")
+			return 1
+		}
+	}
+
+	if l.authMethodType != defaultMethod.Type {
+		l.Ui.Error(fmt.Sprintf(
+			"Specified type: %s does not match the type of the default method: %s",
+			l.authMethodType, defaultMethod.Type,
+		))
+		return 1
+	}
+
 	// Auth method types are particular with their naming, so ensure we forgive
 	// any case mistakes here from the user.
 	l.authMethodType = strings.ToUpper(l.authMethodType)
@@ -117,46 +170,6 @@ func (l *LoginCommand) Run(args []string) int {
 	default:
 		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", l.authMethodType))
 		return 1
-	}
-
-	client, err := l.Meta.Client()
-	if err != nil {
-		l.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
-		return 1
-	}
-
-	// If the caller did not supply an auth method name or type, attempt to
-	// lookup the default. This ensures a nice UX as clusters are expected to
-	// only have one method, and this avoids having to type the name during
-	// each login.
-	if l.authMethodName == "" {
-
-		authMethodList, _, err := client.ACLAuthMethods().List(nil)
-		if err != nil {
-			l.Ui.Error(fmt.Sprintf("Error listing ACL auth methods: %s", err))
-			return 1
-		}
-
-		for _, authMethod := range authMethodList {
-			if authMethod.Default {
-				l.authMethodName = authMethod.Name
-				if l.authMethodType == "" {
-					l.authMethodType = authMethod.Type
-				}
-				if l.authMethodType != authMethod.Type {
-					l.Ui.Error(fmt.Sprintf(
-						"Specified type: %s does not match the type of the default method: %s",
-						l.authMethodType, authMethod.Type,
-					))
-					return 1
-				}
-			}
-		}
-
-		if l.authMethodName == "" || l.authMethodType == "" {
-			l.Ui.Error("Must specify an auth method name and type, no default found")
-			return 1
-		}
 	}
 
 	// Each login type should implement a function which matches this signature
