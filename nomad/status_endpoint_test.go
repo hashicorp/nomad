@@ -106,20 +106,22 @@ func TestStatus_RPCServers(t *testing.T) {
 		arg := &structs.GenericRequest{
 			QueryOptions: structs.QueryOptions{Region: "region1"},
 		}
-		var members []string
-		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Status.RPCServers", arg, &members))
-		must.Len(t, 1, members)
-		must.Eq(t, advAddr1, members[0])
+		var resp *structs.RPCServersResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Status.RPCServers", arg, &resp))
+		must.NotNil(t, resp)
+		must.Len(t, 1, resp.Addresses)
+		must.Eq(t, advAddr1, resp.Addresses[0])
 	})
 
 	t.Run("other region", func(t *testing.T) {
 		arg := &structs.GenericRequest{
 			QueryOptions: structs.QueryOptions{Region: "region2"},
 		}
-		var members []string
-		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Status.RPCServers", arg, &members))
-		must.Len(t, 1, members)
-		must.Eq(t, s2.clientRpcAdvertise.String(), members[0])
+		var resp *structs.RPCServersResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Status.RPCServers", arg, &resp))
+		must.NotNil(t, resp)
+		must.Len(t, 1, resp.Addresses)
+		must.Eq(t, s2.clientRpcAdvertise.String(), resp.Addresses[0])
 	})
 }
 
