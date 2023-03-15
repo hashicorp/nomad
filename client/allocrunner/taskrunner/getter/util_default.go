@@ -7,23 +7,19 @@ import (
 	"syscall"
 )
 
-// attributes returns the system process attributes to run
-// the sandbox process with
+// attributes is not implemented by default
 func attributes() *syscall.SysProcAttr {
-	uid, gid := credentials()
-	return &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uid,
-			Gid: gid,
-		},
-	}
+	return nil
 }
 
-// credentials returns the credentials of the user Nomad is running as
+// credentials is not implemented by default
 func credentials() (uint32, uint32) {
-	uid := syscall.Getuid()
-	gid := syscall.Getgid()
-	return uint32(uid), uint32(gid)
+	return 0, 0
+}
+
+// lockdown is not implemented by default
+func lockdown(string, string) error {
+	return nil
 }
 
 // defaultEnvironment is the default minimal environment variables for Unix-like
@@ -34,9 +30,4 @@ func defaultEnvironment(taskDir string) map[string]string {
 		"PATH":   "/usr/local/bin:/usr/bin:/bin",
 		"TMPDIR": tmpDir,
 	}
-}
-
-// lockdown applies only to Linux
-func lockdown(string, string) error {
-	return nil
 }

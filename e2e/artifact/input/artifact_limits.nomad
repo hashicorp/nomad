@@ -22,7 +22,7 @@ job "linux" {
 
     task "zip_bomb" {
       artifact {
-        source      = "https://github.com/hashicorp/go-getter/raw/main/testdata/decompress-zip/bomb.zip"
+        source      = "https://github.com/hashicorp/go-getter/blob/v1.7.0/testdata/decompress-zip/bomb.zip"
         destination = "local/"
       }
 

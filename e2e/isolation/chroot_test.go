@@ -28,9 +28,13 @@ func testExecUsesChroot(t *testing.T) {
 	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
 
 	// start job
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_exec.nomad", jobID, "")
-	must.Len(t, 1, allocs)
-	allocID := allocs[0].ID
+	e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_exec.nomad", jobID, "")
+
+	// get allocation
+	allocations, err := e2eutil.AllocsForJob(jobID, "")
+	must.NoError(t, err)
+	must.Len(t, 1, allocations)
+	allocID := allocations[0]["ID"]
 
 	// wait for allocation stopped
 	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})
@@ -52,9 +56,13 @@ func testImageUsesChroot(t *testing.T) {
 	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
 
 	// start job
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_docker.nomad", jobID, "")
-	must.Len(t, 1, allocs)
-	allocID := allocs[0].ID
+	e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_docker.nomad", jobID, "")
+
+	// get allocation
+	allocations, err := e2eutil.AllocsForJob(jobID, "")
+	must.NoError(t, err)
+	must.Len(t, 1, allocations)
+	allocID := allocations[0]["ID"]
 
 	// wait for allocation stopped
 	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})
@@ -76,9 +84,13 @@ func testDownloadChrootExec(t *testing.T) {
 	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
 
 	// start job
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_dl_exec.nomad", jobID, "")
-	must.Len(t, 1, allocs)
-	allocID := allocs[0].ID
+	e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/chroot_dl_exec.nomad", jobID, "")
+
+	// get allocation
+	allocations, err := e2eutil.AllocsForJob(jobID, "")
+	must.NoError(t, err)
+	must.Len(t, 1, allocations)
+	allocID := allocations[0]["ID"]
 
 	// wait for allocation stopped
 	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})

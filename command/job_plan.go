@@ -262,10 +262,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
 	}
 
-	if c.namespace != "" {
-		runArgs.WriteString(fmt.Sprintf("-namespace=%q ", c.namespace))
-	}
-
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, runArgs.String(), path)))
 	return exitCode

@@ -4,7 +4,7 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 
 export default class PolicyEditorComponent extends Component {
-  @service notifications;
+  @service flashMessages;
   @service router;
   @service store;
 
@@ -41,19 +41,22 @@ export default class PolicyEditorComponent extends Component {
 
       await this.policy.save();
 
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Policy Saved',
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
 
       if (shouldRedirectAfterSave) {
         this.router.transitionTo('policies.policy', this.policy.id);
       }
     } catch (error) {
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Error creating Policy ${this.policy.name}`,
         message: error,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }
