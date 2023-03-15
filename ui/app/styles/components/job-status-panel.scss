@@ -124,10 +124,13 @@
     }
   }
 
+  & > .boxed-section-body > .alloc-status-summaries {
+    margin-bottom: 1rem;
+  }
+
   & > .boxed-section-body > footer {
     display: grid;
     gap: 0.5rem;
-    padding-top: 2rem;
     grid-template-columns: 50% 50%;
 
     legend {
