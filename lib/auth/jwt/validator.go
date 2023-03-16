@@ -98,7 +98,7 @@ func usingStaticKeys(keys []string) (jwt.KeySet, error) {
 
 func usingJWKS(ctx context.Context, jwksurl, jwkscapem string) (jwt.KeySet, error) {
 	// Measure the JWKS endpoint performance.
-	defer metrics.MeasureSince([]string{"nomad", "acl", "jwks"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "acl", "jwt", "jwks"}, time.Now())
 
 	keySet, err := jwt.NewJSONWebKeySet(ctx, jwksurl, jwkscapem)
 	if err != nil {
@@ -109,7 +109,7 @@ func usingJWKS(ctx context.Context, jwksurl, jwkscapem string) (jwt.KeySet, erro
 
 func usingOIDC(ctx context.Context, oidcurl string, oidccapem []string) (jwt.KeySet, error) {
 	// Measure the OIDC endpoint performance.
-	defer metrics.MeasureSince([]string{"nomad", "acl", "oidc_jwt"}, time.Now())
+	defer metrics.MeasureSince([]string{"nomad", "acl", "jwt", "oidc_jwt"}, time.Now())
 
 	// TODO why do we have DiscoverCaPem as an array but JWKSCaPem as a single string?
 	pem := ""
