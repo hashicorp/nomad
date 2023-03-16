@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/shoenig/go-landlock"
 	"golang.org/x/sys/unix"
 )
@@ -51,7 +52,7 @@ func findHomeDir() string {
 	// environment variable set, and os.UserHomeDir will return an error.
 
 	// if home is set, just use that
-	if home, err := os.UserHomeDir(); err == nil {
+	if home, err := homedir.Dir(); err == nil {
 		return home
 	}
 

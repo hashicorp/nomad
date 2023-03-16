@@ -7,16 +7,24 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/shoenig/go-landlock"
 	"github.com/shoenig/test/must"
 )
 
 func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
+	// not parallel
+
 	const filePerm = 0o644
 	const dirPerm = 0o755
 
 	fakeEtc := t.TempDir()
 	fakeHome := t.TempDir()
+
+	homedir.DisableCache = true
+	t.Cleanup(func() {
+		homedir.DisableCache = false
+	})
 
 	t.Setenv("HOME", fakeHome)
 
