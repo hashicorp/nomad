@@ -61,7 +61,7 @@ func findHomeDir() string {
 	}
 
 	// nothing safe to do
-	return "/dev/null"
+	return "/nonexistent"
 }
 
 // defaultEnvironment is the default minimal environment variables for Linux.
