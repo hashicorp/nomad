@@ -1,17 +1,25 @@
 <div class="deployment-history">
-  <h4 class="title is-5">Deployment History</h4>
-  <ul>
+  <h4 class="title is-5">Deployment History
+    {{!-- Re-fetch history button --}}
+    <button
+      type="button"
+      class="button is-small is-text"
+      {{on "click" (fn this.fetchDeploymentHistory)}}
+    >
+      Re-fetch
+    </button>
+  </h4>
+  <ol class="timeline">
     {{#each this.history as |deployment-log|}}
-      <li>
-        {{log "depllog: " deployment-log}}
-        <strong>{{deployment-log.type}}:</strong> {{deployment-log.message}} at <span class="time">{{deployment-log.time}}</span>
+      <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
+        <div class="boxed-section-head is-light">
+          <LinkTo class="pull-left" @route="allocations.allocation" @model={{deployment-log.state.allocation}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
+          <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
+          <span class="pull-right">
+            {{format-ts deployment-log.time}}
+          </span>
+        </div>
       </li>
     {{/each}}
-    {{!-- {{#each-in this.deploymentHistory as |deploymentId deployment|}}
-      <li>
-        <Hds::Badge @text={{deployment.shortId}} />
-        <Hds::BadgeCount @text={{deployment.allocs.length}} @type="inverted" />
-      </li>
-    {{/each-in}} --}}
-  </ul>
+  </ol>
 </div>

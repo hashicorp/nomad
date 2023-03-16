@@ -1,11 +1,13 @@
 // @ts-check
 import Component from '@glimmer/component';
+import { action } from '@ember/object';
 
 export default class JobStatusDeploymentHistoryComponent extends Component {
   get history() {
-    console.log('well lets start from the top, what can I know about the deplo allocs', this.args.deployment);
-    console.log('lets gooooooo', this.args.deployment.get('allocations').map(a => a.get('states').map((s) => s.events.content).flat()).flat())
+    return this.args.deployment.get('allocations').map(a => a.get('states').map((s) => s.events.content).flat()).flat().sort((a, b) => a.get('time') - b.get('time')).reverse();
+  }
 
-    return this.args.deployment.get('allocations').map(a => a.get('states').map((s) => s.events.content).flat()).flat();
+  @action fetchDeploymentHistory() {
+    this.args.deployment.get('allocations');
   }
 }
