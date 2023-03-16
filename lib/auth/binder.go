@@ -1,4 +1,4 @@
-package oidc
+package auth
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/hil"
 	"github.com/hashicorp/hil/ast"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
