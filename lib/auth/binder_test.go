@@ -1,4 +1,4 @@
-package oidc
+package auth
 
 import (
 	"testing"
@@ -19,7 +19,7 @@ func TestBinder_Bind(t *testing.T) {
 	testBind := NewBinder(testStore)
 
 	// create an authMethod method and insert into the state store
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	must.NoError(t, testStore.UpsertACLAuthMethods(0, []*structs.ACLAuthMethod{authMethod}))
 
 	// create some roles and insert into the state store
