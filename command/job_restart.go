@@ -24,12 +24,15 @@ import (
 )
 
 const (
+	// jobRestartTimestampPrefixLength is the number of characters in the
+	// "==> [timestamp]: " string that prefixes most of the outputs of this
+	// command.
+	jobRestartTimestampPrefixLength = 31
+
 	// jobRestartBatchWaitAsk is the special token used to indicate that the
 	// command should ask user for confirmation between batches.
 	jobRestartBatchWaitAsk = "ask"
-)
 
-const (
 	// jobRestartOnErrorFail is the special token used to indicate that the
 	// command should exit when a batch has errors.
 	jobRestartOnErrorFail = "fail"
@@ -48,23 +51,17 @@ var (
 	jobRestartBatchSizeValueRegex = regexp.MustCompile(`^(\d+)%?$`)
 )
 
-// ErrInvalidJobRestartAnswer is an error that indicates the user provided an
-// invalid answer to a question.
-type ErrInvalidJobRestartAnswer struct {
-	Answer string
-}
-
-func (e ErrInvalidJobRestartAnswer) Error() string {
-	return fmt.Sprintf("Invalid answer %q", e.Answer)
-}
-
 // ErrJobRestartPlacementFailure is an error that indicates a placement failure
 type ErrJobRestartPlacementFailure struct {
-	Failures *api.AllocationMetric
+	EvalID    string
+	TaskGroup string
+	Failures  *api.AllocationMetric
 }
 
 func (e ErrJobRestartPlacementFailure) Error() string {
-	return fmt.Sprintf("Failed to place new allocation:\n%s",
+	return fmt.Sprintf("Evaluation %q has placement failures for group %q:\n%s",
+		e.EvalID,
+		e.TaskGroup,
 		formatAllocMetrics(e.Failures, false, strings.Repeat(" ", 4)),
 	)
 }
@@ -320,13 +317,11 @@ func (c *JobRestartCommand) Run(args []string) int {
 	}
 
 	// Calculate absolute batch size based on the number of eligible
-	// allocations if the value provided is a percentage.
-	// Round values up to increase parallelism.
+	// allocations. Round values up to increase parallelism.
 	if c.batchSizePercent {
 		c.batchSize = int(math.Ceil(float64(len(restartAllocs)*c.batchSize) / 100))
 	}
 
-	// Restart allocations in batches.
 	c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 		"[bold]==> %s: Restarting %s[reset]",
 		formatTime(time.Now()),
@@ -347,6 +342,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// restartErr accumulates the errors that happen in each batch.
 	var restartErr *multierror.Error
 
+	// Restart allocations in batches.
 	batch := multierror.Group{}
 	for restartCount, alloc := range restartAllocs {
 		// Block and wait before each iteration if the command is handling an
@@ -354,7 +350,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 		<-activeCh
 
 		// Print new batch header every time we restart a multiple of the batch
-		// size which indicate we're starting a new batch.
+		// size which indicates that we're starting a new batch.
 		// Skip batch header if batch size is one because it's redundant.
 		if restartCount%c.batchSize == 0 && c.batchSize > 1 {
 			batchNumber := restartCount/c.batchSize + 1
@@ -383,10 +379,18 @@ func (c *JobRestartCommand) Run(args []string) int {
 		restartComplete := restartCount+1 == len(restartAllocs)
 		if batchComplete || restartComplete {
 
-			// Block and wait for the batch to finish and for the command to
-			// handle an interrupt signal.
-			batchErr := batch.Wait()
-			restartErr = multierror.Append(restartErr, batchErr)
+			// Block and wait for the batch to finish. Handle the
+			// *mutierror.Error response to add the custom formatting and to
+			// convert it to an error to avoid problems where an empty
+			// *multierror.Error is not considered a nil error.
+			var batchErr error
+			if batchMerr := batch.Wait(); batchMerr != nil {
+				restartErr = multierror.Append(restartErr, batchMerr)
+				batchMerr.ErrorFormat = c.errorFormat(jobRestartTimestampPrefixLength)
+				batchErr = batchMerr.ErrorOrNil()
+			}
+
+			// Block if the command is handling an interrupt signal.
 			<-activeCh
 
 			// Exit loop before sleeping or asking for user input if we just
@@ -414,39 +418,29 @@ func (c *JobRestartCommand) Run(args []string) int {
 					)))
 					break
 				}
-
-				// Ask user how to handle error if -yes is not set.
-				if !c.autoYes {
-					// Print errors indented to align with the rest of the
-					// output messages.
-					prefix := fmt.Sprintf("==> %s: ", formatTime(time.Now()))
-					batchErr.ErrorFormat = c.errorFormat(len(prefix))
-					c.Ui.Warn(c.Colorize().Color(fmt.Sprintf(
-						"[bold]%s%s[reset]", prefix, batchErr.Error(),
-					)))
-
-					// Don't ask here if -batch-wait is 'ask' because we're
-					// going to ask a similar question below.
-					if !c.batchWaitAsk && !c.shouldProceedAfterError(err) {
-						c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
-							"[bold]==> %s: Job restart canceled[reset]",
-							formatTime(time.Now()),
-						)))
-						c.canceled = true
-						break
-					}
-				}
 			}
 
-			// Exit early if -batch-wait is 'ask' and user provides a negative
-			// answer.
-			if c.batchWaitAsk && !c.autoYes && !c.shouldProceed() {
-				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
-					"[bold]==> %s: Job restart canceled[reset]",
-					formatTime(time.Now()),
-				)))
-				c.canceled = true
-				break
+			// Check if we need to ask the user how to proceed. This is needed
+			// in case -yes is not set and -batch-wait is 'ask' or an error
+			// happened and -on-error is 'ask'.
+			askUser := !c.autoYes && (c.batchWaitAsk || c.onError == jobRestartOnErrorAsk && batchErr != nil)
+			if askUser {
+				if batchErr != nil {
+					// Print errors so user can decide what to below.
+					c.Ui.Warn(c.Colorize().Color(fmt.Sprintf(
+						"[bold]==> %s: %s[reset]", formatTime(time.Now()), batchErr,
+					)))
+				}
+
+				// Exit early if user provides a negative answer.
+				if !c.shouldProceed(batchErr) {
+					c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
+						"[bold]==> %s: Job restart canceled[reset]",
+						formatTime(time.Now()),
+					)))
+					c.canceled = true
+					break
+				}
 			}
 
 			// Sleep if -batch-wait is set or if -batch-wait is 'ask' and user
@@ -691,57 +685,70 @@ func (c *JobRestartCommand) shouldRestartMultiregion() bool {
 			case "y", "yes":
 				return true, nil
 			default:
-				return false, ErrInvalidJobRestartAnswer{Answer: answer}
+				return false, fmt.Errorf("Invalid answer %q", answer)
 			}
 		})
 }
 
-// shouldProceed blocks and waits for the user to provide a valid input.
-// Returns true if the answer is positive.
-func (c *JobRestartCommand) shouldProceed() bool {
+// shouldProceed blocks and waits for the user to provide a valid input on how
+// to proceed. Returns true if the answer is positive.
+//
+// The flags -batch-wait and -on-error have an 'ask' option. This function
+// handles both to prevent asking the user twice in case they are both set to
+// 'ask' and an error happens.
+func (c *JobRestartCommand) shouldProceed(err error) bool {
+	var question, options string
+
+	if err == nil {
+		question = "Proceed with the next batch?"
+		options = "Y/n"
+	} else {
+		question = "Ignore the errors above and proceed with the next batch?"
+		options = "y/N" // Defaults to 'no' if an error happens.
+
+		if !c.isErrorRecoverable(err) {
+			question = `The errors above are likely to happen again.
+Ignore them anyway and proceed with the next batch?`
+		}
+	}
+
+	// If -batch-wait is 'ask' the user can provide a new wait duration.
+	if c.batchWaitAsk {
+		options += "/<wait duration>"
+	}
+
 	return c.askQuestion(
-		"Proceed with next batch? [Y/n/<wait duration>]",
+		fmt.Sprintf("%s [%s]", question, options),
 		false,
 		func(answer string) (bool, error) {
-			switch strings.TrimSpace(strings.ToLower(answer)) {
-			case "", "y", "yes":
+			switch strings.ToLower(answer) {
+			case "":
+				// Proceed by default only if there is no error.
+				return err == nil, nil
+			case "y", "yes":
 				return true, nil
 			case "n", "no":
 				return false, nil
 			default:
-				// Check if user passed a time duration and configure the command
-				// to use that moving forward.
-				batchWait, err := time.ParseDuration(answer)
-				if err != nil {
-					return false, ErrInvalidJobRestartAnswer{Answer: answer}
+				if c.batchWaitAsk {
+					// Check if user passed a time duration and adjust the
+					// command to use that moving forward.
+					batchWait, err := time.ParseDuration(answer)
+					if err != nil {
+						return false, fmt.Errorf("Invalid answer %q", answer)
+					}
+
+					c.batchWaitAsk = false
+					c.batchWait = batchWait
+					c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
+						"[bold]==> %s: Proceeding restarts with new wait time of %s[reset]",
+						formatTime(time.Now()),
+						c.batchWait,
+					)))
+					return true, nil
+				} else {
+					return false, fmt.Errorf("Invalid answer %q", answer)
 				}
-
-				c.batchWaitAsk = false
-				c.batchWait = batchWait
-				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
-					"[bold]==> %s: Proceeding restarts with new wait time of %s[reset]",
-					formatTime(time.Now()),
-					c.batchWait,
-				)))
-				return true, nil
-			}
-		})
-}
-
-// shouldProceedAfterError blocks and waits for the user to provide a valid
-// input. Returns true if the answer is positive.
-func (c *JobRestartCommand) shouldProceedAfterError(err error) bool {
-	return c.askQuestion(
-		"Proceed with next batch? [y/N]",
-		false,
-		func(answer string) (bool, error) {
-			switch strings.TrimSpace(strings.ToLower(answer)) {
-			case "", "n", "no":
-				return false, nil
-			case "y", "yes":
-				return true, nil
-			default:
-				return false, ErrInvalidJobRestartAnswer{Answer: answer}
 			}
 		})
 }
@@ -749,29 +756,31 @@ func (c *JobRestartCommand) shouldProceedAfterError(err error) bool {
 // shouldExit blocks and waits for the user for confirmation if they would like
 // to interrupt the command. Returns true if the answer is positive.
 func (c *JobRestartCommand) shouldExit() bool {
-	question := `
-Are you sure you want to stop the restart process?
-Allocations not restarted yet will not be restarted. [y/N]`
+	question := `Restart interrupted, no more allocations will be restarted.
+Are you sure you want to stop the restart process? [y/N]`
 
 	return c.askQuestion(
 		question,
 		true,
 		func(answer string) (bool, error) {
-			switch strings.TrimSpace(strings.ToLower(answer)) {
+			switch strings.ToLower(answer) {
 			case "n", "no", "":
 				return false, nil
 			case "y", "yes":
 				return true, nil
 			default:
-				return false, ErrInvalidJobRestartAnswer{Answer: answer}
+				return false, fmt.Errorf("Invalid answer %q", answer)
 			}
 		})
 }
 
 // askQuestion asks question to user until they provide a valid response.
 func (c *JobRestartCommand) askQuestion(question string, onError bool, cb func(string) (bool, error)) bool {
-	prefix := fmt.Sprintf("==> %s: ", formatTime(time.Now()))
-	prefixedQuestion := fmt.Sprintf("[bold]%s%s[reset]", prefix, question)
+	prefixedQuestion := fmt.Sprintf(
+		"[bold]==> %s: %s[reset]",
+		formatTime(time.Now()),
+		indentString(question, jobRestartTimestampPrefixLength),
+	)
 
 	// Let ui.Ask() handle interrupt signals.
 	signal.Stop(c.sigsCh)
@@ -788,9 +797,9 @@ func (c *JobRestartCommand) askQuestion(question string, onError bool, cb func(s
 			return onError
 		}
 
-		exit, err := cb(answer)
+		exit, err := cb(strings.TrimSpace(answer))
 		if err != nil {
-			c.Ui.Output(fmt.Sprintf("%s%s", strings.Repeat(" ", len(prefix)), err))
+			c.Ui.Output(fmt.Sprintf("%s%s", strings.Repeat(" ", jobRestartTimestampPrefixLength), err))
 			continue
 		}
 		return exit
@@ -914,9 +923,23 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	go c.monitorPlacementFailures(ctx, alloc, resp.LastIndex, errCh)
 	go c.monitorReplacementAlloc(ctx, alloc, resp.LastIndex, errCh)
 
-	// If we receive an error and nil it's safe to ignore the error since the
-	// nil result is what we are looking for.
-	return <-errCh
+	// This process may take a while, so ping user from time to time to
+	// indicate the command is still alive.
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			c.Ui.Output(fmt.Sprintf(
+				"    %s: Still waiting for allocation %q to be replaced",
+				formatTime(time.Now()),
+				shortAllocID,
+			))
+		case err := <-errCh:
+			return err
+		}
+	}
 }
 
 // monitorPlacementFailures searches for evaluations of the allocation job that
@@ -924,7 +947,12 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 //
 // Returns an error in errCh if anything goes wrong or if there are placement
 // failures for the allocation task group.
-func (c *JobRestartCommand) monitorPlacementFailures(ctx context.Context, alloc AllocationListStubWithJob, index uint64, errCh chan<- error) {
+func (c *JobRestartCommand) monitorPlacementFailures(
+	ctx context.Context,
+	alloc AllocationListStubWithJob,
+	index uint64,
+	errCh chan<- error,
+) {
 	q := &api.QueryOptions{WaitIndex: index}
 	for {
 		select {
@@ -946,14 +974,19 @@ func (c *JobRestartCommand) monitorPlacementFailures(ctx context.Context, alloc 
 			default:
 			}
 
-			// Skip evaluations created before the allocation was stopped.
-			if eval.CreateIndex < index {
+			// Skip evaluations created before the allocation was stopped or
+			// that are not blocked.
+			if eval.CreateIndex < index || eval.Status != api.EvalStatusBlocked {
 				continue
 			}
 
 			failures := eval.FailedTGAllocs[alloc.TaskGroup]
 			if failures != nil {
-				errCh <- ErrJobRestartPlacementFailure{Failures: failures}
+				errCh <- ErrJobRestartPlacementFailure{
+					EvalID:    limit(eval.ID, c.length),
+					TaskGroup: alloc.TaskGroup,
+					Failures:  failures,
+				}
 				return
 			}
 		}
@@ -966,7 +999,12 @@ func (c *JobRestartCommand) monitorPlacementFailures(ctx context.Context, alloc 
 //
 // Returns an error in errCh if anything goes wrong or nil when the new
 // allocation is running.
-func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc AllocationListStubWithJob, index uint64, errCh chan<- error) {
+func (c *JobRestartCommand) monitorReplacementAlloc(
+	ctx context.Context,
+	alloc AllocationListStubWithJob,
+	index uint64,
+	errCh chan<- error,
+) {
 	q := &api.QueryOptions{WaitIndex: index}
 	var nextAllocID string
 	for {
@@ -988,6 +1026,13 @@ func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc A
 		q.WaitIndex = qm.LastIndex
 	}
 
+	c.Ui.Output(fmt.Sprintf(
+		"    %s: Allocation %q replaced by %[3]q, waiting for %[3]q to start running",
+		formatTime(time.Now()),
+		limit(alloc.ID, c.length),
+		limit(nextAllocID, c.length),
+	))
+
 	// Reset the blocking query to the initial index because old allocation
 	// update may happen after the new allocation transitioned to "running".
 	q = &api.QueryOptions{WaitIndex: index}
@@ -1003,9 +1048,27 @@ func (c *JobRestartCommand) monitorReplacementAlloc(ctx context.Context, alloc A
 			errCh <- fmt.Errorf("Failed to retrieve replacement allocation %q: %w", limit(nextAllocID, c.length), err)
 			return
 		}
-		if newAlloc.ClientStatus == api.AllocClientStatusRunning {
+
+		switch newAlloc.ClientStatus {
+		case api.AllocClientStatusRunning:
+			c.Ui.Output(fmt.Sprintf(
+				"    %s: Allocation %q is %q",
+				formatTime(time.Now()),
+				limit(newAlloc.ID, c.length),
+				newAlloc.ClientStatus,
+			))
 			errCh <- nil
 			return
+
+		default:
+			if c.verbose {
+				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
+					"[dark_gray]    %s: Allocation %q is %q[reset]",
+					formatTime(time.Now()),
+					limit(newAlloc.ID, c.length),
+					newAlloc.ClientStatus,
+				)))
+			}
 		}
 		q.WaitIndex = qm.LastIndex
 	}
@@ -1038,6 +1101,10 @@ func (c *JobRestartCommand) handleSignal(sigsCh chan os.Signal, activeCh chan an
 // isErrorRecoverable returns true when the error is likely to impact all
 // restarts and so there is not reason to keep going.
 func (c *JobRestartCommand) isErrorRecoverable(err error) bool {
+	if err == nil {
+		return true
+	}
+
 	if errors.Is(err, ErrJobRestartPlacementFailure{}) {
 		return false
 	}
@@ -1053,20 +1120,18 @@ func (c *JobRestartCommand) isErrorRecoverable(err error) bool {
 // except for the first one, of the resulting error string with the given
 // number of spaces.
 func (c *JobRestartCommand) errorFormat(indent int) func([]error) string {
-	prefix := strings.Repeat(" ", indent)
-
 	return func(es []error) string {
 		points := make([]string, len(es))
 		for i, err := range es {
 			points[i] = fmt.Sprintf("* %s", strings.TrimSpace(err.Error()))
 		}
 
-		str := fmt.Sprintf(
+		out := fmt.Sprintf(
 			"%s occurred while restarting job:\n%s",
 			english.Plural(len(es), "error", "errors"),
 			strings.Join(points, "\n"),
 		)
-		return strings.Join(strings.Split(str, "\n"), fmt.Sprintf("\n%s", prefix))
+		return indentString(out, indent)
 	}
 }
 

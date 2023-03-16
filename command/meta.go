@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -177,12 +178,33 @@ func (m *Meta) allNamespaces() bool {
 
 func (m *Meta) Colorize() *colorstring.Colorize {
 	ui := m.Ui
+	coloredUi := false
 
-	if cUi, ok := ui.(*cli.ConcurrentUi); ok {
-		ui = cUi.Ui
+	// Meta.Ui may wrap other cli.Ui instances, so unwrap them until we find a
+	// *cli.ColoredUi or there is nothing left to unwrap.
+	for {
+		_, coloredUi = ui.(*cli.ColoredUi)
+		if coloredUi {
+			break
+		}
+
+		v := reflect.ValueOf(ui)
+		if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).CanInterface() {
+				continue
+			}
+			ui, _ = v.Field(i).Interface().(cli.Ui)
+			if ui != nil {
+				break
+			}
+		}
+		if ui == nil {
+			break
+		}
 	}
-
-	_, coloredUi := ui.(*cli.ColoredUi)
 
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,

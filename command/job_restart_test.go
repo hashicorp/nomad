@@ -152,6 +152,11 @@ func TestJobRestartCommand_parseAndValidate(t *testing.T) {
 			},
 		},
 		{
+			name:        "on error invalid",
+			args:        []string{"-on-error", "invalid", "my-job"},
+			expectedErr: "Invalid -on-error value",
+		},
+		{
 			name: "no shutdown delay",
 			args: []string{"-no-shutdown-delay", "my-job"},
 			expectedCmd: &JobRestartCommand{
@@ -1056,7 +1061,9 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 					if tc.shutdownDelay {
 						must.GreaterEq(t, shutdownDelay, time.Duration(diff))
 					} else {
-						must.Less(t, shutdownDelay, time.Duration(diff))
+						// Add a bit of slack to account for the actual
+						// shutdown time of the task.
+						must.Between(t, shutdownDelay, time.Duration(diff), shutdownDelay+time.Second)
 					}
 				}
 			}
