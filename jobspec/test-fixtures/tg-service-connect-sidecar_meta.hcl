@@ -1,4 +1,4 @@
-job "sidecar_disablecheck" {
+job "sidecar_meta" {
   type = "service"
 
   group "group" {
