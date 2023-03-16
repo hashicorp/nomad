@@ -443,7 +443,21 @@ func (a *ACLBindingRules) Get(bindingRuleID string, q *QueryOptions) (*ACLBindin
 	return &resp, qm, nil
 }
 
-// ACLAuth is used to query the ACL OIDC endpoints.
+// ACLOIDC is used to query the ACL OIDC endpoints.
+//
+// Deprecated: ACLOIDC is deprecated, use ACLAuth instead.
+type ACLOIDC struct {
+	ACLAuth
+}
+
+// ACLOIDC returns a new handle on the ACL auth-methods API client.
+//
+// Deprecated: c.ACLOIDC() is deprecated, use c.ACLAuth() instead.
+func (c *Client) ACLOIDC() *ACLAuth {
+	return &ACLAuth{client: c}
+}
+
+// ACLAuth is used to query the ACL auth endpoints.
 type ACLAuth struct {
 	client *Client
 }
