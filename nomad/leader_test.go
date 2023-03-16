@@ -1301,10 +1301,10 @@ func Test_diffACLAuthMethods(t *testing.T) {
 	stateStore := state.TestStateStore(t)
 
 	// Build an initial baseline of ACL auth-methods.
-	aclAuthMethod0 := mock.ACLAuthMethod()
-	aclAuthMethod1 := mock.ACLAuthMethod()
-	aclAuthMethod2 := mock.ACLAuthMethod()
-	aclAuthMethod3 := mock.ACLAuthMethod()
+	aclAuthMethod0 := mock.ACLOIDCAuthMethod()
+	aclAuthMethod1 := mock.ACLOIDCAuthMethod()
+	aclAuthMethod2 := mock.ACLOIDCAuthMethod()
+	aclAuthMethod3 := mock.ACLOIDCAuthMethod()
 
 	// Upsert these into our local state. Use copies, so we can alter the
 	// auth-methods directly and use within the diff func.
@@ -1318,7 +1318,7 @@ func Test_diffACLAuthMethods(t *testing.T) {
 	aclAuthMethod2.ModifyIndex = 50
 	aclAuthMethod3.ModifyIndex = 200
 	aclAuthMethod3.Hash = []byte{0, 1, 2, 3}
-	aclAuthMethod4 := mock.ACLAuthMethod()
+	aclAuthMethod4 := mock.ACLOIDCAuthMethod()
 
 	// Run the diff function and test the output.
 	toDelete, toUpdate := diffACLAuthMethods(stateStore, 50, []*structs.ACLAuthMethodStub{

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -2686,10 +2687,10 @@ func TestACLEndpoint_GetAuthMethod(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod}))
 
-	anonymousAuthMethod := mock.ACLAuthMethod()
+	anonymousAuthMethod := mock.ACLOIDCAuthMethod()
 	anonymousAuthMethod.Name = "anonymous"
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1001, []*structs.ACLAuthMethod{anonymousAuthMethod}))
 
@@ -2723,8 +2724,8 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the authMethods
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	// First create an unrelated authMethod
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -2782,8 +2783,8 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	authMethod := mock.ACLAuthMethod()
-	authMethod2 := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
+	authMethod2 := mock.ACLOIDCAuthMethod()
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{authMethod, authMethod2}))
 
 	// Lookup the authMethod
@@ -2819,8 +2820,8 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the authMethods
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	// First create an unrelated authMethod
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -2878,8 +2879,8 @@ func TestACLEndpoint_ListAuthMethods(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	am1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	am2.Name = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
@@ -2927,7 +2928,7 @@ func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the authMethod
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 
 	// Upsert auth method triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -2978,7 +2979,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
-	am1 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
 	must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1}))
 
 	// Lookup the authMethods
@@ -3019,7 +3020,7 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	s1.config.ACLTokenMaxExpirationTTL = maxTTL
 
 	// Create the register request
-	am1 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
 	am1.Default = true // make sure it's going to be a default method
 	am1.SetHash()
 
@@ -3043,7 +3044,7 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	must.True(t, am1.Equal(resp.AuthMethods[0]))
 
 	// Try to insert another default authMethod
-	am2 := mock.ACLAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 	am2.Default = true
 	req = &structs.ACLAuthMethodUpsertRequest{
 		AuthMethods: []*structs.ACLAuthMethod{am2},
@@ -3107,7 +3108,7 @@ func TestACL_UpsertBindingRules(t *testing.T) {
 	must.EqError(t, err, "RPC Error:: 400,ACL auth method auth0 not found")
 
 	// Create the policies our ACL roles wants to link to.
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	authMethod.Name = aclBindingRule1.AuthMethod
 
 	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))
@@ -3524,7 +3525,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 
 	// Generate and upsert an ACL auth method for use. Certain values must be
 	// taken from the cap OIDC provider just like real world use.
-	mockedAuthMethod := mock.ACLAuthMethod()
+	mockedAuthMethod := mock.ACLOIDCAuthMethod()
 	mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 	mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
 	mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
@@ -3579,7 +3580,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp1 structs.ACLOIDCCompleteAuthResponse
+	var completeAuthResp1 structs.ACLLoginResponse
 	err := msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq1, &completeAuthResp1)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3598,7 +3599,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp2 structs.ACLOIDCCompleteAuthResponse
+	var completeAuthResp2 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq2, &completeAuthResp2)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3607,7 +3608,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	// Generate and upsert an ACL auth method for use. Certain values must be
 	// taken from the cap OIDC provider and these are validated. Others must
 	// match data we use later, such as the claims.
-	mockedAuthMethod := mock.ACLAuthMethod()
+	mockedAuthMethod := mock.ACLOIDCAuthMethod()
 	mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
 	mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 	mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
@@ -3646,7 +3647,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp3 structs.ACLOIDCCompleteAuthResponse
+	var completeAuthResp3 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3689,7 +3690,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp4 structs.ACLOIDCCompleteAuthResponse
+	var completeAuthResp4 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq4, &completeAuthResp4)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp4.ACLToken)
@@ -3722,8 +3723,163 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
-	var completeAuthResp5 structs.ACLOIDCCompleteAuthResponse
+	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq5, &completeAuthResp5)
+	must.NoError(t, err)
+	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
+	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
+	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
+}
+
+func TestACL_Login(t *testing.T) {
+	t.Parallel()
+
+	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// create a sample JWT and a pub key for verification
+	iat := time.Now().Unix()
+	nbf := time.Now().Unix()
+	exp := time.Now().Add(time.Hour).Unix()
+	testToken, testPubKey, err := mock.SampleJWTokenWithKeys(jwt.MapClaims{
+		"http://nomad.internal/policies": []string{"engineering"},
+		"http://nomad.internal/roles":    []string{"engineering"},
+		"iat":                            iat,
+		"nbf":                            nbf,
+		"exp":                            exp,
+		"iss":                            "nomad test suite",
+		"aud":                            []string{"sales", "engineering"},
+	}, nil)
+	must.Nil(t, err)
+
+	// send empty req to test validation
+	loginReq1 := structs.ACLLoginRequest{
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp1 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq1, &completeAuthResp1)
+	must.ErrorContains(t, err, "missing auth method name")
+	must.ErrorContains(t, err, "missing login token")
+
+	// Send a request that passes initial validation. The auth method does not
+	// exist meaning it will fail.
+	loginReq2 := structs.ACLLoginRequest{
+		AuthMethodName: "test-oidc-auth-method",
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp2 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq2, &completeAuthResp2)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "400")
+	must.ErrorContains(t, err, "auth-method \"test-oidc-auth-method\" not found")
+
+	// Generate and upsert a JWT ACL auth method for use.
+	mockedAuthMethod := mock.ACLJWTAuthMethod()
+	mockedAuthMethod.Config.BoundAudiences = []string{"engineering"}
+	mockedAuthMethod.Config.JWTValidationPubKeys = []string{testPubKey}
+	mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}
+	mockedAuthMethod.Config.ExpirationLeeway = time.Duration(3600)
+	mockedAuthMethod.Config.ClockSkewLeeway = time.Duration(3600)
+	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
+		"http://nomad.internal/roles":    "roles",
+		"http://nomad.internal/policies": "policies",
+	}
+
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+	// We should now be able to authenticate, however, we do not have any rule
+	// bindings that will match.
+	loginReq3 := structs.ACLLoginRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp3 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq3, &completeAuthResp3)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "400")
+	must.ErrorContains(t, err, "no role or policy bindings matched")
+
+	// Upsert an ACL policy and role, so that we can reference this within our
+	// JWT claims.
+	mockACLPolicy := mock.ACLPolicy()
+	must.NoError(t, testServer.fsm.State().UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 20, []*structs.ACLPolicy{mockACLPolicy}))
+
+	mockACLRole := mock.ACLRole()
+	mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: mockACLPolicy.Name}}
+	must.NoError(t, testServer.fsm.State().UpsertACLRoles(
+		structs.MsgTypeTestSetup, 30, []*structs.ACLRole{mockACLRole}, true))
+
+	// Generate and upsert two binding rules, so we can test both ACL Policy
+	// and Role claim mapping.
+	mockBindingRule1 := mock.ACLBindingRule()
+	mockBindingRule1.AuthMethod = mockedAuthMethod.Name
+	mockBindingRule1.BindType = structs.ACLBindingRuleBindTypePolicy
+	mockBindingRule1.Selector = "engineering in list.policies"
+	mockBindingRule1.BindName = mockACLPolicy.Name
+
+	mockBindingRule2 := mock.ACLBindingRule()
+	mockBindingRule2.AuthMethod = mockedAuthMethod.Name
+	mockBindingRule2.BindName = mockACLRole.Name
+
+	must.NoError(t, testServer.fsm.State().UpsertACLBindingRules(
+		40, []*structs.ACLBindingRule{mockBindingRule1, mockBindingRule2}, true))
+
+	loginReq4 := structs.ACLLoginRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp4 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq4, &completeAuthResp4)
+	must.NoError(t, err)
+	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.Len(t, 1, completeAuthResp4.ACLToken.Policies)
+	must.Eq(t, mockACLPolicy.Name, completeAuthResp4.ACLToken.Policies[0])
+	must.Len(t, 1, completeAuthResp4.ACLToken.Roles)
+	must.Eq(t, mockACLRole.Name, completeAuthResp4.ACLToken.Roles[0].Name)
+	must.Eq(t, mockACLRole.ID, completeAuthResp4.ACLToken.Roles[0].ID)
+
+	// Create a binding rule which generates management tokens. This should
+	// override the other rules, giving us a management token when we next
+	// log in.
+	mockBindingRule3 := mock.ACLBindingRule()
+	mockBindingRule3.AuthMethod = mockedAuthMethod.Name
+	mockBindingRule3.BindType = structs.ACLBindingRuleBindTypeManagement
+	mockBindingRule3.Selector = "engineering in list.policies"
+	mockBindingRule3.BindName = ""
+
+	must.NoError(t, testServer.fsm.State().UpsertACLBindingRules(
+		50, []*structs.ACLBindingRule{mockBindingRule3}, true))
+
+	loginReq5 := structs.ACLLoginRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp5 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq5, &completeAuthResp5)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp4.ACLToken)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
