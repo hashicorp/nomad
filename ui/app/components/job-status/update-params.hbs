@@ -1,0 +1,14 @@
+<div class="update-parameters" {{did-insert (action this.fetchJobDefinition)}}>
+  <h4 class="title is-5">Update Params</h4>
+  {{!-- <pre><code>{{stringify-object this.updateParams}}</code></pre> --}}
+  <code>
+  <ul>
+    {{#each-in this.updateParams as |k v|}}
+      <li>
+        <span class="key">{{k}}</span>
+        <span class="value">{{v}}</span>
+      </li>
+    {{/each-in}}
+  </ul>
+  </code>
+</div>

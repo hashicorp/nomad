@@ -171,7 +171,7 @@
 
   .active-deployment-info-panels {
     display: grid;
-    grid-template-columns: 75% 25%;
+    grid-template-columns: 70% auto;
     gap: 1rem;
     margin-top: 1rem; // TODO: grid-ify the deployment panel generally and just use gap for this
   }
@@ -192,8 +192,33 @@
       & > div {
         gap: 0.5rem;
       }
-      &.error {
-        border: 2px solid $danger;
+      &.error > div {
+        border: 1px solid $danger;
+        background: rgba($danger, 0.1);
+      }
+    }
+  }
+
+  .update-parameters {
+    ul {
+      background: #1A2633;
+      padding: 1rem;
+      .key {
+        color: #1CAEFF;
+        &:after {
+          content: '=';
+          color: white;
+          margin-left: 0.5rem;
+        }
+      }
+      .value {
+        color: #06D092;
+        &:before {
+          content: '"';
+        }
+        &:after {
+          content: '"';
+        }
       }
     }
   }
