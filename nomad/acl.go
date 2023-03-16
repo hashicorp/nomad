@@ -161,13 +161,8 @@ func (s *Server) remoteIPFromRPCContext(ctx *RPCContext) (net.IP, error) {
 // for the identity they intend the operation to be performed with.
 func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	identity := args.GetIdentity()
-	if !s.config.ACLEnabled {
+	if !s.config.ACLEnabled || identity == nil {
 		return nil, nil
-	}
-	if identity == nil {
-		// Server.Authenticate should never return a nil identity unless there's
-		// an authentication error, but enforce that invariant here
-		return nil, structs.ErrPermissionDenied
 	}
 	aclToken := identity.GetACLToken()
 	if aclToken != nil {
@@ -177,10 +172,7 @@ func (s *Server) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) 
 	if claims != nil {
 		return s.ResolveClaims(claims)
 	}
-
-	// return an error here so that we enforce the invariant that we check for
-	// Identity.ClientID before trying to resolve ACLs
-	return nil, structs.ErrPermissionDenied
+	return nil, nil
 }
 
 // ResolveACLForToken resolves an ACL from a token only. It should be used only
