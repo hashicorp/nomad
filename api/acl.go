@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -887,6 +888,8 @@ func (c *ACLAuthMethodConfig) UnmarshalJSON(data []byte) error {
 			}
 		case float64:
 			c.ExpirationLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ExpirationLeeway type: %v", v)
 		}
 	}
 	if aux.NotBeforeLeeway != nil {
@@ -899,6 +902,8 @@ func (c *ACLAuthMethodConfig) UnmarshalJSON(data []byte) error {
 			}
 		case float64:
 			c.NotBeforeLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected NotBeforeLeeway type: %v", v)
 		}
 	}
 	if aux.ClockSkewLeeway != nil {
@@ -911,6 +916,8 @@ func (c *ACLAuthMethodConfig) UnmarshalJSON(data []byte) error {
 			}
 		case float64:
 			c.ClockSkewLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ClockSkewLeeway type: %v", v)
 		}
 	}
 	return nil

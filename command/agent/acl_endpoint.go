@@ -876,7 +876,7 @@ func (s *HTTPServer) ACLOIDCCompleteAuthRequest(resp http.ResponseWriter, req *h
 }
 
 // ACLLoginRequest performs a non-interactive authentication request
-func (s *HTTPServer) ACLLoginRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLLoginRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// The endpoint only supports PUT or POST requests.
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
