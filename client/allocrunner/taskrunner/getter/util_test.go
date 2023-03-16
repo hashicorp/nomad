@@ -2,12 +2,14 @@ package getter
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/go-homedir"
 	"github.com/shoenig/test/must"
 )
 
@@ -142,21 +144,31 @@ func TestUtil_getTaskDir(t *testing.T) {
 
 func TestUtil_environment(t *testing.T) {
 	// not parallel
+
 	testutil.RequireLinux(t)
 
+	homedir.DisableCache = true
+	t.Cleanup(func() {
+		homedir.DisableCache = false
+	})
+
 	t.Run("default", func(t *testing.T) {
+		t.Setenv("HOME", "/test")
 		result := environment("/a/b/c", "")
 		must.Eq(t, []string{
+			"HOME=/test",
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
 	})
 
 	t.Run("append", func(t *testing.T) {
+		t.Setenv("HOME", "/test")
 		t.Setenv("ONE", "1")
 		t.Setenv("TWO", "2")
 		result := environment("/a/b/c", "ONE,TWO")
 		must.Eq(t, []string{
+			"HOME=/test",
 			"ONE=1",
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
@@ -165,19 +177,61 @@ func TestUtil_environment(t *testing.T) {
 	})
 
 	t.Run("override", func(t *testing.T) {
+		t.Setenv("HOME", "/test")
 		t.Setenv("PATH", "/opt/bin")
 		t.Setenv("TMPDIR", "/scratch")
 		result := environment("/a/b/c", "PATH,TMPDIR")
 		must.Eq(t, []string{
+			"HOME=/test",
 			"PATH=/opt/bin",
 			"TMPDIR=/scratch",
 		}, result)
 	})
 
 	t.Run("missing", func(t *testing.T) {
+		t.Setenv("HOME", "/test")
 		result := environment("/a/b/c", "DOES_NOT_EXIST")
 		must.Eq(t, []string{
 			"DOES_NOT_EXIST=",
+			"HOME=/test",
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/a/b/c/tmp",
+		}, result)
+	})
+
+	t.Run("homeless non-root", func(t *testing.T) {
+		testutil.RequireNonRoot(t)
+
+		// assert we fallback via go-homdir ...
+		userHome, err := homedir.Dir()
+		must.NoError(t, err)
+
+		// ... when HOME env var is not set, as is the case in some systemd setups
+		t.Setenv("HOME", "")
+
+		result := environment("/a/b/c", "")
+		must.Eq(t, []string{
+			fmt.Sprintf("HOME=%s", userHome),
+			"PATH=/usr/local/bin:/usr/bin:/bin",
+			"TMPDIR=/a/b/c/tmp",
+		}, result)
+	})
+
+	t.Run("homeless root", func(t *testing.T) {
+		testutil.RequireRoot(t)
+
+		t.Setenv("HOME", "/root") // fake running as full root
+
+		// assert we fallback via go-homdir ...
+		userHome, err := homedir.Dir()
+		must.NoError(t, err)
+
+		// ... when HOME env var is not set, as is the case in some systemd setups
+		t.Setenv("HOME", "")
+
+		result := environment("/a/b/c", "")
+		must.Eq(t, []string{
+			fmt.Sprintf("HOME=%s", userHome),
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
