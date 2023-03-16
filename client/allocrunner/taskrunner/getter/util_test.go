@@ -220,6 +220,8 @@ func TestUtil_environment(t *testing.T) {
 	t.Run("homeless root", func(t *testing.T) {
 		testutil.RequireRoot(t)
 
+		t.Setenv("HOME", "/root") // fake running as full root
+
 		// assert we fallback via go-homdir ...
 		userHome, err := homedir.Dir()
 		must.NoError(t, err)
