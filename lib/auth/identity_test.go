@@ -1,8 +1,9 @@
-package oidc
+package auth
 
 import (
-	"github.com/shoenig/test/must"
 	"testing"
+
+	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"

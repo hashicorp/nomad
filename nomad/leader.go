@@ -57,6 +57,14 @@ var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
 // meet before the feature can be used.
 var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
 
+// minACLJWTAuthMethodVersion is the Nomad version at which the ACL JWT auth method type
+// was introduced. It forms the minimum version all federated servers must
+// meet before the feature can be used.
+//
+// TODO: version constraint will be updated for until we reach 1.5.2, otherwise
+// it's hard to test the functionality
+var minACLJWTAuthMethodVersion = version.Must(version.NewVersion("1.4.4-dev"))
+
 // minACLBindingRuleVersion is the Nomad version at which the ACL binding rules
 // table was introduced. It forms the minimum version all federated servers
 // must meet before the feature can be used.
