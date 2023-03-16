@@ -2046,11 +2046,8 @@ func (c *Client) updateNodeStatus() error {
 		return fmt.Errorf("heartbeat response returned no valid servers")
 	}
 
-	// Begin polling Consul if there is no Nomad leader.  We could be
-	// heartbeating to a Nomad server that is in the minority of a
-	// partition of the Nomad server quorum, but this Nomad Agent still
-	// has connectivity to the existing majority of Nomad Servers, but
-	// only if it queries Consul.
+	// If there's no Leader in the response we may be talking to a partitioned
+	// server. Redo discovery to ensure our server list is up to date.
 	if resp.LeaderRPCAddr == "" {
 		c.triggerDiscovery()
 	}
