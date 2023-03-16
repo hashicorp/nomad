@@ -127,7 +127,7 @@
     }
   }
 
-  & > .boxed-section-body > footer {
+  & > .boxed-section-body > .sub-panels {
     display: grid;
     gap: 0.5rem;
     grid-template-columns: 50% 50%;
@@ -167,5 +167,12 @@
         }
       }
     }
+  }
+
+  .active-deployment-info-panels {
+    display: grid;
+    grid-template-columns: 75% 25%;
+    gap: 1rem;
+    margin-top: 1rem; // TODO: grid-ify the deployment panel generally and just use gap for this
   }
 }

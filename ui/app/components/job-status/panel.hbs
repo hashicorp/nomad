@@ -72,7 +72,7 @@
       {{/if}}
 
 
-      <footer>
+      <div class="sub-panels">
           {{#if this.isActivelyDeploying}}
             <legend>
                 {{#each this.allocTypes as |type|}}
@@ -104,11 +104,17 @@
               </ul>
             </section>
           {{/if}}
-      </footer>
+      </div>
 
-
-
-
+      {{#if this.isActivelyDeploying}}
+        <div class="active-deployment-info-panels">
+          <JobStatus::DeploymentHistory @deployment={{@job.latestDeployment}} />
+          <div class="update-parameters">
+            <h4 class="title is-5">Update Params</h4>
+            <p>(TODO)</p>
+          </div>
+        </div>
+      {{/if}}
     {{/if}}
   </div>
 </div>
