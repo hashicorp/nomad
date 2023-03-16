@@ -8,17 +8,17 @@ import (
 	"syscall"
 )
 
-// attributes returns the system process attributes to run
-// the sandbox process with
+// attributes is not implemented on Windows
 func attributes() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{}
+	return nil
 }
 
+// credentials is not implemented on Windows
 func credentials() (uint32, uint32) {
 	return 0, 0
 }
 
-// lockdown has no effect on windows
+// lockdown is not implemented on Windows
 func lockdown(string, string) error {
 	return nil
 }
