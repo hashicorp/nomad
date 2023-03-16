@@ -2,8 +2,6 @@ package agent
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -1944,10 +1942,8 @@ func TestHTTPServer_ACLLoginRequest(t *testing.T) {
 					"http://nomad.internal/policies": []string{"engineering"},
 					"http://nomad.internal/roles":    []string{"engineering"},
 				}
-				rsaKey, err := rsa.GenerateKey(rand.Reader, 4096)
-				must.NoError(t, err)
 
-				token, pubKey, err := mock.SampleJWTokenWithKeys(claims, rsaKey)
+				token, pubKey, err := mock.SampleJWTokenWithKeys(claims, nil)
 				must.NoError(t, err)
 
 				// Generate and upsert a JWT ACL auth method for use.
