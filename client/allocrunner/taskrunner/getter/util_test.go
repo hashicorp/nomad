@@ -3,7 +3,6 @@ package getter
 import (
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
@@ -204,7 +203,7 @@ func TestUtil_environment(t *testing.T) {
 		testutil.RequireNonRoot(t)
 
 		// assert we fallback via go-homdir ...
-		userHome, err := os.UserHomeDir()
+		userHome, err := homedir.Dir()
 		must.NoError(t, err)
 
 		// ... when HOME env var is not set, as is the case in some systemd setups
@@ -222,7 +221,7 @@ func TestUtil_environment(t *testing.T) {
 		testutil.RequireRoot(t)
 
 		// assert we fallback via go-homdir ...
-		userHome, err := os.UserHomeDir()
+		userHome, err := homedir.Dir()
 		must.NoError(t, err)
 
 		// ... when HOME env var is not set, as is the case in some systemd setups
