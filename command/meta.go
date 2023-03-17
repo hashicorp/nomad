@@ -183,6 +183,10 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 	// Meta.Ui may wrap other cli.Ui instances, so unwrap them until we find a
 	// *cli.ColoredUi or there is nothing left to unwrap.
 	for {
+		if ui == nil {
+			break
+		}
+
 		_, coloredUi = ui.(*cli.ColoredUi)
 		if coloredUi {
 			break
@@ -200,9 +204,6 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 			if ui != nil {
 				break
 			}
-		}
-		if ui == nil {
-			break
 		}
 	}
 
