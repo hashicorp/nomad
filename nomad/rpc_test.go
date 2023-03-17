@@ -1367,10 +1367,10 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 
 	// Generate CA certificate and write it to disk.
 	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Generate servers and their certificate.
 	h.serverCert = h.newCert(t, "server.global.nomad")
@@ -1396,8 +1396,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 		}
 	})
 	TestJoin(t, h.mtlsServer1, h.mtlsServer2)
-	testutil.WaitForLeader(t, h.mtlsServer1.RPC)
-	testutil.WaitForLeader(t, h.mtlsServer2.RPC)
+	testutil.WaitForLeaders(t, h.mtlsServer1.RPC, h.mtlsServer2.RPC)
 
 	h.nonVerifyServer, h.nonVerifyServerCleanup = TestServer(t, func(c *Config) {
 		c.TLSConfig = &config.TLSConfig{
@@ -1408,7 +1407,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 			KeyFile:              h.serverCert + ".key",
 		}
 	})
-	testutil.WaitForLeader(t, h.nonVerifyServer.RPC)
+	testutil.WaitForLeaders(t, h.nonVerifyServer.RPC)
 
 	return h
 }
@@ -1417,7 +1416,6 @@ func (h tlsTestHelper) cleanup() {
 	h.mtlsServer1Cleanup()
 	h.mtlsServer2Cleanup()
 	h.nonVerifyServerCleanup()
-	os.RemoveAll(h.dir)
 }
 
 func (h tlsTestHelper) newCert(t *testing.T, name string) string {
