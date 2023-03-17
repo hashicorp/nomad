@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -14,7 +15,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 var (
@@ -38,7 +39,7 @@ func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, 
 
 func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
-	require.NoError(t, err, "failed to start test server")
+	must.NoError(t, err, must.Sprint("failed to start test server"))
 	return s, c
 }
 
@@ -122,7 +123,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 					defer close(ch)
 
 					// Shutdown server
-					err := server.Shutdown()
+					err = server.Shutdown()
 					if err != nil {
 						ch <- fmt.Errorf("failed to shutdown server: %w", err)
 					}
@@ -137,9 +138,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 					t.Fatal("timed out while shutting down server")
 				}
 			}, nil
-		} else if i == 0 {
-			return nil, nil, err
-		} else {
+		} else if i > 0 {
 			if server != nil {
 				_ = server.Shutdown()
 			}
@@ -148,7 +147,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 		}
 	}
 
-	return nil, nil, nil
+	return nil, nil, errors.New("unable to acquire ports for test server")
 }
 
 func TestJoin(t *testing.T, servers ...*Server) {
