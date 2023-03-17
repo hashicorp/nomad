@@ -4,7 +4,7 @@
     <button
       type="button"
       class="button is-small is-text"
-      {{on "click" (fn this.fetchDeploymentHistory)}}
+      {{on "click" this.fetchDeploymentHistory}}
     >
       Re-fetch
     </button>
@@ -13,7 +13,7 @@
     {{#each this.history as |deployment-log|}}
       <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
         <div class="boxed-section-head is-light">
-          <LinkTo class="pull-left" @route="allocations.allocation" @model={{deployment-log.state.allocation}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
+          <LinkTo @route="allocations.allocation" @model={{deployment-log.state.allocation}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
           <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
           <span class="pull-right">
             {{format-ts deployment-log.time}}
