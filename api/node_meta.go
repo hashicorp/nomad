@@ -30,9 +30,9 @@ func (n *Nodes) Meta() *NodeMeta {
 
 // Apply dynamic Node metadata updates to a Node. If NodeID is unset then Node
 // receiving the request is modified.
-func (n *NodeMeta) Apply(meta *NodeMetaApplyRequest, qo *WriteOptions) (*NodeMetaResponse, error) {
+func (n *NodeMeta) Apply(meta *NodeMetaApplyRequest, qo *QueryOptions) (*NodeMetaResponse, error) {
 	var out NodeMetaResponse
-	_, err := n.client.post("/v1/client/metadata", meta, &out, qo)
+	_, err := n.client.postQuery("/v1/client/metadata", meta, &out, qo)
 	if err != nil {
 		return nil, err
 	}
