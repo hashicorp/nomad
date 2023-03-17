@@ -127,7 +127,7 @@ func (l *LoginCommand) Run(args []string) int {
 		}
 	}
 
-	// If there is a default method available, and the called did not pass method
+	// If there is a default method available, and the caller did not pass method
 	// name, fill it in. In case there is no default method, error and quit.
 	if l.authMethodName == "" {
 		if defaultMethod != nil {
