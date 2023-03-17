@@ -348,6 +348,14 @@ func (c *JobRestartCommand) Run(args []string) int {
 		// interrupt signal.
 		<-activeCh
 
+		// Make sure there are not active deployments to prevent the restart
+		// process from interfering with it.
+		err := c.ensureNoActiveDeployment()
+		if err != nil {
+			restartErr = multierror.Append(restartErr, err)
+			break
+		}
+
 		// Print new batch header every time we restart a multiple of the batch
 		// size which indicates that we're starting a new batch.
 		// Skip batch header if batch size is one because it's redundant.
@@ -663,6 +671,26 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 	}
 
 	return result
+}
+
+// ensureNoActiveDeployment returns an error if the job has an active
+// deployment.
+func (c *JobRestartCommand) ensureNoActiveDeployment() error {
+	deployments, _, err := c.client.Jobs().Deployments(c.jobID, true, nil)
+	if err != nil {
+		return fmt.Errorf("Error retrieving deployments for job %q: %v", c.jobID, err)
+
+	}
+
+	for _, d := range deployments {
+		switch d.Status {
+		case api.DeploymentStatusFailed, api.DeploymentStatusSuccessful, api.DeploymentStatusCancelled:
+			// Deployment is terminal so it's safe to proceed.
+		default:
+			return fmt.Errorf("Deployment %q is %q", limit(d.ID, c.length), d.Status)
+		}
+	}
+	return nil
 }
 
 // shouldRestartMultiregion blocks and waits for the user to confirm if the

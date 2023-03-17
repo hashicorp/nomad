@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	neturl "net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -851,7 +852,7 @@ func TestJobRestartCommand_monitorReplacementAlloc(t *testing.T) {
 	// Register test job and update it twice so we end up with three
 	// allocations, one replacing the next one.
 	jobID := "test_job_restart_monitor_replacement"
-	job := testNomadServiceJob(jobID)
+	job := testJob(jobID)
 
 	for i := 1; i <= 3; i++ {
 		job.TaskGroups[0].Tasks[0].Config["run_for"] = fmt.Sprintf("%ds", i)
@@ -898,6 +899,59 @@ func TestJobRestartCommand_monitorReplacementAlloc(t *testing.T) {
 	must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("%q replaced by %q", allocs[0].ID, allocs[1].ID))
 	must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("%q replaced by %q", allocs[1].ID, allocs[2].ID))
 	must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("%q is %q", allocs[2].ID, api.AllocClientStatusRunning))
+}
+
+func TestJobRestartCommand_activeDeployment(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	waitForNodes(t, client)
+
+	// Register test job and update it once to trigger a deployment.
+	jobID := "test_job_restart_deployment"
+	job := testJob(jobID)
+	job.Type = pointer.Of(api.JobTypeService)
+	job.Update = &api.UpdateStrategy{
+		Canary:      pointer.Of(1),
+		AutoPromote: pointer.Of(false),
+	}
+
+	_, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	_, _, err = client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	// Wait for a deployment to be running.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			deployments, _, err := client.Jobs().Deployments(jobID, true, nil)
+			if err != nil {
+				return err
+			}
+			for _, d := range deployments {
+				if d.Status == api.DeploymentStatusRunning {
+					return nil
+				}
+			}
+			return fmt.Errorf("no running deployments")
+		}),
+		wait.Timeout(time.Duration(testutil.TestMultiplier()*3)*time.Second),
+	))
+
+	// Run job restart command and expect it to fail.
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{
+		"-address", url,
+		"-on-error", jobRestartOnErrorFail,
+		"-verbose",
+		jobID,
+	})
+	must.One(t, code)
+	must.RegexMatch(t, regexp.MustCompile(`Deployment .+ is "running"`), ui.ErrorWriter.String())
 }
 
 func TestJobRestartCommand_ACL(t *testing.T) {
