@@ -28,10 +28,6 @@ requested auth method for a newly minted Nomad ACL token.
 - `-method`: The name of the ACL auth method to log in via. If the cluster
   administrator has configured a default, this flag is optional.
 
-- `-type`: Type of the auth method to log in via. If the cluster administrator
-  has configured a default, this flag is optional. Currently only supports
-  "OIDC".
-
 - `-oidc-callback-addr`: The address to use for the local OIDC callback server.
   This should be given in the form of `<IP>:<PORT>` and defaults to
   `localhost:4649`.
@@ -45,7 +41,7 @@ requested auth method for a newly minted Nomad ACL token.
 Login using an OIDC provider:
 
 ```shell-session
-$ nomad login -type=OIDC -method=auth0
+$ nomad login -method=auth0
 Successfully logged in via OIDC and auth0
 
 Accessor ID  = 68123fee-1e8b-7ecc-5b34-505ecd2dcb80
