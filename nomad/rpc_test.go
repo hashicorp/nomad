@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-sockaddr"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -1346,9 +1347,9 @@ type tlsTestHelper struct {
 	nodeID int
 
 	mtlsServer1            *Server
-	mtlsServer1Cleanup     func()
+	mtlsServerCleanup1     func()
 	mtlsServer2            *Server
-	mtlsServer2Cleanup     func()
+	mtlsServerCleanup2     func()
 	nonVerifyServer        *Server
 	nonVerifyServerCleanup func()
 
@@ -1367,57 +1368,41 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 
 	// Generate CA certificate and write it to disk.
 	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Generate servers and their certificate.
 	h.serverCert = h.newCert(t, "server.global.nomad")
 
-	h.mtlsServer1, h.mtlsServer1Cleanup = TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               filepath.Join(h.dir, "ca.pem"),
-			CertFile:             h.serverCert + ".pem",
-			KeyFile:              h.serverCert + ".key",
-		}
-	})
-	h.mtlsServer2, h.mtlsServer2Cleanup = TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 2
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: true,
-			CAFile:               filepath.Join(h.dir, "ca.pem"),
-			CertFile:             h.serverCert + ".pem",
-			KeyFile:              h.serverCert + ".key",
-		}
-	})
-	TestJoin(t, h.mtlsServer1, h.mtlsServer2)
-	testutil.WaitForLeader(t, h.mtlsServer1.RPC)
-	testutil.WaitForLeader(t, h.mtlsServer2.RPC)
+	makeServer := func(bootstrapExpect int, verifyServerHostname bool) (*Server, func()) {
+		return TestServer(t, func(c *Config) {
+			c.Logger.SetLevel(hclog.Off)
+			c.BootstrapExpect = bootstrapExpect
+			c.TLSConfig = &config.TLSConfig{
+				EnableRPC:            true,
+				VerifyServerHostname: verifyServerHostname,
+				CAFile:               filepath.Join(h.dir, "ca.pem"),
+				CertFile:             h.serverCert + ".pem",
+				KeyFile:              h.serverCert + ".key",
+			}
+		})
+	}
 
-	h.nonVerifyServer, h.nonVerifyServerCleanup = TestServer(t, func(c *Config) {
-		c.TLSConfig = &config.TLSConfig{
-			EnableRPC:            true,
-			VerifyServerHostname: false,
-			CAFile:               filepath.Join(h.dir, "ca.pem"),
-			CertFile:             h.serverCert + ".pem",
-			KeyFile:              h.serverCert + ".key",
-		}
-	})
-	testutil.WaitForLeader(t, h.nonVerifyServer.RPC)
+	h.mtlsServer1, h.mtlsServerCleanup1 = makeServer(3, true)
+	h.mtlsServer2, h.mtlsServerCleanup2 = makeServer(3, true)
+	h.nonVerifyServer, h.nonVerifyServerCleanup = makeServer(3, false)
 
+	TestJoin(t, h.mtlsServer1, h.mtlsServer2, h.nonVerifyServer)
+	testutil.WaitForLeaders(t, h.mtlsServer1.RPC, h.mtlsServer2.RPC, h.nonVerifyServer.RPC)
 	return h
 }
 
 func (h tlsTestHelper) cleanup() {
-	h.mtlsServer1Cleanup()
-	h.mtlsServer2Cleanup()
+	h.mtlsServerCleanup1()
+	h.mtlsServerCleanup2()
 	h.nonVerifyServerCleanup()
-	os.RemoveAll(h.dir)
 }
 
 func (h tlsTestHelper) newCert(t *testing.T, name string) string {
