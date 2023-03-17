@@ -447,14 +447,15 @@ func (a *ACLBindingRules) Get(bindingRuleID string, q *QueryOptions) (*ACLBindin
 //
 // Deprecated: ACLOIDC is deprecated, use ACLAuth instead.
 type ACLOIDC struct {
+	client *Client
 	ACLAuth
 }
 
 // ACLOIDC returns a new handle on the ACL auth-methods API client.
 //
 // Deprecated: c.ACLOIDC() is deprecated, use c.ACLAuth() instead.
-func (c *Client) ACLOIDC() *ACLAuth {
-	return &ACLAuth{client: c}
+func (c *Client) ACLOIDC() *ACLOIDC {
+	return &ACLOIDC{client: c}
 }
 
 // ACLAuth is used to query the ACL auth endpoints.
