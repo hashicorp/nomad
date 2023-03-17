@@ -1,6 +1,7 @@
 ```release-note:breaking-change
-cli: Changed the behavior of nomad login command. It no longer requires a
-"type" flag, since auth method names are globally unique. This also fixes the
-reported bug where nomad login would disregard existence of the default auth
-method if no method name or type was provided.
+cli: nomad login no longer requires -type flag, since auth method names are globally unique.
+```
+
+```release-note:bug
+cli: nomad login no longer ignores default auth method if they are present.
 ```
