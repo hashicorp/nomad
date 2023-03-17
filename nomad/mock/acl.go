@@ -274,8 +274,8 @@ func ACLJWTAuthMethod() *structs.ACLAuthMethod {
 		CreateIndex: 10,
 		ModifyIndex: 10,
 	}
-	method.SetHash()
 	method.Canonicalize()
+	method.SetHash()
 	return &method
 }
 
