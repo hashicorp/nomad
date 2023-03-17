@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -334,7 +333,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	// to cancel the command or not.
 	activeCh := make(chan any)
 	c.sigsCh = make(chan os.Signal, 1)
-	signal.Notify(c.sigsCh, syscall.SIGINT)
+	signal.Notify(c.sigsCh, os.Interrupt)
 	defer signal.Stop(c.sigsCh)
 
 	go c.handleSignal(c.sigsCh, activeCh)
@@ -785,7 +784,7 @@ func (c *JobRestartCommand) askQuestion(question string, onError bool, cb func(s
 	// Let ui.Ask() handle interrupt signals.
 	signal.Stop(c.sigsCh)
 	defer func() {
-		signal.Notify(c.sigsCh, syscall.SIGINT)
+		signal.Notify(c.sigsCh, os.Interrupt)
 	}()
 
 	for {
