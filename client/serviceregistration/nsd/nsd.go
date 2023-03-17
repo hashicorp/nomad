@@ -145,6 +145,8 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 	workload *serviceregistration.WorkloadServices, serviceSpec *structs.Service) {
 
 	// Stop check watcher
+	//
+	// todo(shoenig) - shouldn't we only unwatch checks for the given serviceSpec ?
 	for _, service := range workload.Services {
 		for _, check := range service.Checks {
 			checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
