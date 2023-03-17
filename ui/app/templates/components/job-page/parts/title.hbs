@@ -27,7 +27,7 @@
         {{keyboard-shortcut 
           label="Stop"
           pattern=(array "s" "t" "o" "p")
-          action=(perform this.stopJob)
+          action=(perform this.stopJob true)
         }} />
     {{else}}
       <TwoStepButton
@@ -57,7 +57,7 @@
         {{keyboard-shortcut 
           label="Start"
           pattern=(array "s" "t" "a" "r" "t")
-          action=(perform this.startJob)
+          action=(perform this.startJob true)
         }}
         />
     {{/if}}

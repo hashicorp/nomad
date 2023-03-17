@@ -1,3 +1,4 @@
+// @ts-check
 import Component from '@ember/component';
 import { task } from 'ember-concurrency';
 import { inject as service } from '@ember/service';
@@ -15,12 +16,22 @@ export default class Title extends Component {
 
   handleError() {}
 
-  @task(function* () {
+  /**
+   * @param {boolean} withNNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
+   */
+  @task(function* (withNNotifications = false) {
     try {
       const job = this.job;
       yield job.stop();
       // Eagerly update the job status to avoid flickering
       this.job.set('status', 'dead');
+      if (withNNotifications) {
+        this.notifications.add({
+          title: 'Job Stopped',
+          message: `${this.job.name} has been stopped`,
+          color: 'success',
+        });
+      }
     } catch (err) {
       this.handleError({
         title: 'Could Not Stop Job',
@@ -51,7 +62,10 @@ export default class Title extends Component {
   })
   purgeJob;
 
-  @task(function* () {
+  /**
+   * @param {boolean} withNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
+   */
+  @task(function* (withNotifications = false) {
     const job = this.job;
     const definition = yield job.fetchRawDefinition();
 
@@ -63,6 +77,13 @@ export default class Title extends Component {
       yield job.update();
       // Eagerly update the job status to avoid flickering
       job.set('status', 'running');
+      if (withNotifications) {
+        this.notifications.add({
+          title: 'Job Started',
+          message: `${this.job.name} has started`,
+          color: 'success',
+        });
+      }
     } catch (err) {
       this.handleError({
         title: 'Could Not Start Job',
