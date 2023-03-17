@@ -22,6 +22,7 @@ var _ cli.Command = &LoginCommand{}
 type LoginCommand struct {
 	Meta
 
+	authMethodType string // deprecated in 1.5.2, left for backwards compat
 	authMethodName string
 	callbackAddr   string
 
@@ -84,6 +85,7 @@ func (l *LoginCommand) Run(args []string) int {
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&l.authMethodName, "method", "", "")
+	flags.StringVar(&l.authMethodType, "type", "", "")
 	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "localhost:4649", "")
 	flags.BoolVar(&l.json, "json", false, "")
 	flags.StringVar(&l.template, "t", "", "")
@@ -108,6 +110,10 @@ func (l *LoginCommand) Run(args []string) int {
 		defaultMethod *api.ACLAuthMethodListStub
 		methodType    string
 	)
+
+	if l.authMethodType != "" {
+		l.Ui.Warn("warning: '-type' flag has been deprecated for nomad login command and will be ignored.")
+	}
 
 	authMethodList, _, err := client.ACLAuthMethods().List(nil)
 	if err != nil {
