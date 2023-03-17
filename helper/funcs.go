@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -476,4 +477,11 @@ OUTER:
 		return false
 	}
 	return true
+}
+
+// WithLock executes a function while holding a lock.
+func WithLock(lock sync.Locker, f func()) {
+	lock.Lock()
+	defer lock.Unlock()
+	f()
 }

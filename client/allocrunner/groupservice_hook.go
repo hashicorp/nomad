@@ -5,12 +5,13 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -42,7 +43,7 @@ type groupServiceHook struct {
 	// and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
 
-	logger log.Logger
+	logger hclog.Logger
 
 	// The following fields may be updated
 	canary         bool
@@ -59,11 +60,11 @@ type groupServiceHook struct {
 
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
-	restarter           agentconsul.WorkloadRestarter
+	restarter           serviceregistration.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
 	shutdownDelayCtx    context.Context
-	logger              log.Logger
+	logger              hclog.Logger
 
 	// namespace is the Nomad or Consul namespace in which service
 	// registrations will be made.
@@ -120,23 +121,26 @@ func (h *groupServiceHook) Prerun() error {
 		h.prerun = true
 		h.mu.Unlock()
 	}()
-	return h.prerunLocked()
+	return h.preRunLocked()
 }
 
-func (h *groupServiceHook) prerunLocked() error {
+// caller must hold h.lock
+func (h *groupServiceHook) preRunLocked() error {
 	if len(h.services) == 0 {
 		return nil
 	}
 
-	services := h.getWorkloadServices()
+	services := h.getWorkloadServicesLocked()
 	return h.serviceRegWrapper.RegisterWorkload(services)
 }
 
+// Update is run when a job submitter modifies service(s) (but not much else -
+// otherwise a full alloc replacement would occur).
 func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	oldWorkloadServices := h.getWorkloadServices()
+	oldWorkloadServices := h.getWorkloadServicesLocked()
 
 	// Store new updated values out of request
 	canary := false
@@ -168,7 +172,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.namespace = req.Alloc.ServiceProviderNamespace()
 
 	// Create new task services struct with those new values
-	newWorkloadServices := h.getWorkloadServices()
+	newWorkloadServices := h.getWorkloadServicesLocked()
 
 	if !h.prerun {
 		// Update called before Prerun. Update alloc and exit to allow
@@ -188,21 +192,20 @@ func (h *groupServiceHook) PreTaskRestart() error {
 	}()
 
 	h.preKillLocked()
-	return h.prerunLocked()
+	return h.preRunLocked()
 }
 
 func (h *groupServiceHook) PreKill() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.preKillLocked()
+	helper.WithLock(&h.mu, h.preKillLocked)
 }
 
-// implements the PreKill hook but requires the caller hold the lock
+// implements the PreKill hook
+//
+// caller must hold h.lock
 func (h *groupServiceHook) preKillLocked() {
 	// If we have a shutdown delay deregister group services and then wait
 	// before continuing to kill tasks.
-	h.deregister()
-	h.deregistered = true
+	h.deregisterLocked()
 
 	if h.delay == 0 {
 		return
@@ -219,24 +222,31 @@ func (h *groupServiceHook) preKillLocked() {
 }
 
 func (h *groupServiceHook) Postrun() error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if !h.deregistered {
-		h.deregister()
-	}
+	helper.WithLock(&h.mu, h.deregisterLocked)
 	return nil
 }
 
-// deregister services from Consul.
-func (h *groupServiceHook) deregister() {
+// deregisterLocked will deregister services from Consul/Nomad service provider.
+//
+// caller must hold h.lock
+func (h *groupServiceHook) deregisterLocked() {
+	if h.deregistered {
+		return
+	}
+
 	if len(h.services) > 0 {
-		workloadServices := h.getWorkloadServices()
+		workloadServices := h.getWorkloadServicesLocked()
 		h.serviceRegWrapper.RemoveWorkload(workloadServices)
 	}
+
+	h.deregistered = true
 }
 
-func (h *groupServiceHook) getWorkloadServices() *serviceregistration.WorkloadServices {
+// getWorkloadServicesLocked returns the set of workload services currently
+// on the hook.
+//
+// caller must hold h.lock
+func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
 
