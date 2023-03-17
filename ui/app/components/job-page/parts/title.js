@@ -18,18 +18,18 @@ export default class Title extends Component {
   handleError() {}
 
   /**
-   * @param {boolean} withNNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
+   * @param {boolean} withNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
    */
-  @task(function* (withNNotifications = false) {
+  @task(function* (withNotifications = false) {
     try {
       const job = this.job;
       yield job.stop();
       // Eagerly update the job status to avoid flickering
-      this.job.set('status', 'dead');
-      if (withNNotifications) {
+      job.set('status', 'dead');
+      if (withNotifications) {
         this.notifications.add({
           title: 'Job Stopped',
-          message: `${this.job.name} has been stopped`,
+          message: `${job.name} has been stopped`,
           color: 'success',
         });
       }
@@ -48,7 +48,7 @@ export default class Title extends Component {
       yield job.purge();
       this.notifications.add({
         title: 'Job Purged',
-        message: `You have purged ${this.job.name}`,
+        message: `You have purged ${job.name}`,
         color: 'success',
       });
       this.router.transitionTo('jobs');
@@ -79,7 +79,7 @@ export default class Title extends Component {
       if (withNotifications) {
         this.notifications.add({
           title: 'Job Started',
-          message: `${this.job.name} has started`,
+          message: `${job.name} has started`,
           color: 'success',
         });
       }
