@@ -357,7 +357,7 @@ func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 
 // NodeMetaApplyRequest is used to update Node metadata on Client agents.
 type NodeMetaApplyRequest struct {
-	WriteRequest
+	QueryOptions // Client RPCs must use QueryOptions to set AllowStale=true
 
 	// NodeID is the node being targeted by this request (or the node
 	// receiving this request if NodeID is empty).
