@@ -25,6 +25,7 @@ type LoginCommand struct {
 	authMethodType string // deprecated in 1.5.2, left for backwards compat
 	authMethodName string
 	callbackAddr   string
+	loginToken     string
 
 	template string
 	json     bool
@@ -50,7 +51,12 @@ Login Options:
 
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
-    in the form of <IP>:<PORT> and defaults to "localhost:4649".
+    in the form of <IP>:<PORT> and defaults to "localhost:4649". It is only
+    required if using OIDC auth method type. 
+
+  -login-token
+    Login token used for authentication that will be exchanged for a Nomad ACL
+    Token. It is only required if using auth method type other than OIDC. 
 
   -json
     Output the ACL token in JSON format.
@@ -71,6 +77,7 @@ func (l *LoginCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-method":             complete.PredictAnything,
 			"-oidc-callback-addr": complete.PredictAnything,
+			"-login-token":        complete.PredictNothing,
 			"-json":               complete.PredictNothing,
 			"-t":                  complete.PredictAnything,
 		})
@@ -86,6 +93,7 @@ func (l *LoginCommand) Run(args []string) int {
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.StringVar(&l.authMethodName, "method", "", "")
 	flags.StringVar(&l.authMethodType, "type", "", "")
+	flags.StringVar(&l.loginToken, "login-token", "", "")
 	flags.StringVar(&l.callbackAddr, "oidc-callback-addr", "localhost:4649", "")
 	flags.BoolVar(&l.json, "json", false, "")
 	flags.StringVar(&l.template, "t", "", "")
@@ -154,6 +162,12 @@ func (l *LoginCommand) Run(args []string) int {
 		}
 	}
 
+	// Make sure we got the login token if we're not using OIDC
+	if methodType != api.ACLAuthMethodTypeOIDC && l.loginToken == "" {
+		l.Ui.Error("You need to provide a login token.")
+		return 1
+	}
+
 	// Each login type should implement a function which matches this signature
 	// for the specific login implementation. This allows the command to have
 	// reusable and generic handling of errors and outputs.
@@ -162,6 +176,8 @@ func (l *LoginCommand) Run(args []string) int {
 	switch methodType {
 	case api.ACLAuthMethodTypeOIDC:
 		authFn = l.loginOIDC
+	case api.ACLAuthMethodTypeJWT:
+		authFn = l.loginJWT
 	default:
 		l.Ui.Error(fmt.Sprintf("Unsupported authentication type %q", methodType))
 		return 1
@@ -241,6 +257,15 @@ func (l *LoginCommand) loginOIDC(ctx context.Context, client *api.Client) (*api.
 	}
 
 	token, _, err := client.ACLAuth().CompleteAuth(&cbArgs, nil)
+	return token, err
+}
+
+func (l *LoginCommand) loginJWT(ctx context.Context, client *api.Client) (*api.ACLToken, error) {
+	authArgs := api.ACLLoginRequest{
+		AuthMethodName: l.authMethodName,
+		LoginToken:     l.loginToken,
+	}
+	token, _, err := client.ACLAuth().Login(&authArgs, nil)
 	return token, err
 }
 
