@@ -425,9 +425,10 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/binding-rule", s.wrap(s.ACLBindingRuleRequest))
 	s.mux.HandleFunc("/v1/acl/binding-rule/", s.wrap(s.ACLBindingRuleSpecificRequest))
 
-	// Register out ACL OIDC SSO provider handlers.
+	// Register out ACL OIDC SSO and auth handlers.
 	s.mux.HandleFunc("/v1/acl/oidc/auth-url", s.wrap(s.ACLOIDCAuthURLRequest))
 	s.mux.HandleFunc("/v1/acl/oidc/complete-auth", s.wrap(s.ACLOIDCCompleteAuthRequest))
+	s.mux.HandleFunc("/v1/acl/login", s.wrap(s.ACLLoginRequest))
 
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))

@@ -205,7 +205,7 @@ func (l *LoginCommand) loginOIDC(ctx context.Context, client *api.Client) (*api.
 		ClientNonce:    callbackServer.Nonce(),
 	}
 
-	getAuthURLResp, _, err := client.ACLOIDC().GetAuthURL(&getAuthArgs, nil)
+	getAuthURLResp, _, err := client.ACLAuth().GetAuthURL(&getAuthArgs, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +240,7 @@ func (l *LoginCommand) loginOIDC(ctx context.Context, client *api.Client) (*api.
 		State:          req.State,
 	}
 
-	token, _, err := client.ACLOIDC().CompleteAuth(&cbArgs, nil)
+	token, _, err := client.ACLAuth().CompleteAuth(&cbArgs, nil)
 	return token, err
 }
 
