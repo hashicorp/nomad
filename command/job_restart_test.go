@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -22,6 +23,7 @@ import (
 	"github.com/mitchellh/cli"
 
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func TestJobRestartCommand_Implements(t *testing.T) {
@@ -834,6 +836,68 @@ func TestJobRestartCommand_rescheduleFail(t *testing.T) {
 	})
 	must.One(t, code)
 	must.StrContains(t, ui.ErrorWriter.String(), "No nodes were eligible for evaluation")
+}
+
+func TestJobRestartCommand_monitorReplacementAlloc(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	srv, client, _ := testServer(t, true, nil)
+	defer srv.Shutdown()
+	waitForNodes(t, client)
+
+	// Register test job and update it twice so we end up with three
+	// allocations, one replacing the next one.
+	jobID := "test_job_restart_monitor_replacement"
+	job := testNomadServiceJob(jobID)
+
+	for i := 1; i <= 3; i++ {
+		job.TaskGroups[0].Tasks[0].Config["run_for"] = fmt.Sprintf("%ds", i)
+		resp, _, err := client.Jobs().Register(job, nil)
+		must.NoError(t, err)
+
+		code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+		must.Zero(t, code)
+	}
+	ui.OutputWriter.Reset()
+
+	// Prepare the command internals. We want to run a specific function and
+	// target a specific allocation, so we can't run the full command.
+	cmd.client = client
+	cmd.verbose = true
+	cmd.length = fullId
+
+	// Fetch, sort, and monitor the oldest allocation.
+	allocs, _, err := client.Jobs().Allocations(jobID, true, nil)
+	must.NoError(t, err)
+	sort.Slice(allocs, func(i, j int) bool {
+		return allocs[i].CreateIndex < allocs[j].CreateIndex
+	})
+
+	errCh := make(chan error)
+	go cmd.monitorReplacementAlloc(context.Background(), AllocationListStubWithJob{
+		AllocationListStub: allocs[0],
+		Job:                job,
+	}, errCh)
+
+	// Make sure the command doesn't get stuck and that we traverse the
+	// follow-up allocations properly.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			select {
+			case err := <-errCh:
+				return err
+			default:
+				return fmt.Errorf("waiting for response")
+			}
+		}),
+		wait.Timeout(time.Duration(testutil.TestMultiplier()*3)*time.Second),
+	))
+	must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("%q replaced by %q", allocs[0].ID, allocs[1].ID))
+	must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("%q replaced by %q", allocs[1].ID, allocs[2].ID))
+	must.StrContains(t, ui.OutputWriter.String(), fmt.Sprintf("%q is %q", allocs[2].ID, api.AllocClientStatusRunning))
 }
 
 func TestJobRestartCommand_ACL(t *testing.T) {

@@ -920,7 +920,7 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	// Pass the LastIndex from the Stop() call to only monitor data that was
 	// created after the Stop() call.
 	go c.monitorPlacementFailures(ctx, alloc, resp.LastIndex, errCh)
-	go c.monitorReplacementAlloc(ctx, alloc, resp.LastIndex, errCh)
+	go c.monitorReplacementAlloc(ctx, alloc, errCh)
 
 	// This process may take a while, so ping user from time to time to
 	// indicate the command is still alive.
@@ -1000,12 +1000,11 @@ func (c *JobRestartCommand) monitorPlacementFailures(
 // allocation is running.
 func (c *JobRestartCommand) monitorReplacementAlloc(
 	ctx context.Context,
-	alloc AllocationListStubWithJob,
-	index uint64,
+	allocStub AllocationListStubWithJob,
 	errCh chan<- error,
 ) {
-	q := &api.QueryOptions{WaitIndex: index}
-	var nextAllocID string
+	currentAllocID := allocStub.ID
+	q := &api.QueryOptions{WaitIndex: 1}
 	for {
 		select {
 		case <-ctx.Done():
@@ -1013,62 +1012,56 @@ func (c *JobRestartCommand) monitorReplacementAlloc(
 		default:
 		}
 
-		oldAlloc, qm, err := c.client.Allocations().Info(alloc.ID, q)
+		alloc, qm, err := c.client.Allocations().Info(currentAllocID, q)
 		if err != nil {
 			errCh <- fmt.Errorf("Failed to retrieve allocation %q: %w", limit(alloc.ID, c.length), err)
 			return
 		}
-		if oldAlloc.NextAllocation != "" {
-			nextAllocID = oldAlloc.NextAllocation
-			break
-		}
-		q.WaitIndex = qm.LastIndex
-	}
 
-	c.Ui.Output(fmt.Sprintf(
-		"    %s: Allocation %q replaced by %[3]q, waiting for %[3]q to start running",
-		formatTime(time.Now()),
-		limit(alloc.ID, c.length),
-		limit(nextAllocID, c.length),
-	))
-
-	// Reset the blocking query to the initial index because old allocation
-	// update may happen after the new allocation transitioned to "running".
-	q = &api.QueryOptions{WaitIndex: index}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		newAlloc, qm, err := c.client.Allocations().Info(nextAllocID, q)
-		if err != nil {
-			errCh <- fmt.Errorf("Failed to retrieve replacement allocation %q: %w", limit(nextAllocID, c.length), err)
-			return
-		}
-
-		switch newAlloc.ClientStatus {
-		case api.AllocClientStatusRunning:
+		// Follow replacement allocations. We expect the original allocation to
+		// be replaced, but the replacements may be themselves replaced in
+		// cases such as the allocation failing.
+		if alloc.NextAllocation != "" {
 			c.Ui.Output(fmt.Sprintf(
-				"    %s: Allocation %q is %q",
+				"    %s: Allocation %q replaced by %[3]q, waiting for %[3]q to start running",
 				formatTime(time.Now()),
-				limit(newAlloc.ID, c.length),
-				newAlloc.ClientStatus,
+				limit(alloc.ID, c.length),
+				limit(alloc.NextAllocation, c.length),
 			))
-			errCh <- nil
-			return
+			currentAllocID = alloc.NextAllocation
+
+			// Reset the blocking query so the Info() API call returns the new
+			// allocation immediately.
+			q.WaitIndex = 1
+			continue
+		}
+
+		switch alloc.ClientStatus {
+		case api.AllocClientStatusRunning:
+			// Make sure the running allocation we found is a replacement, not
+			// the original one.
+			if alloc.ID != allocStub.ID {
+				c.Ui.Output(fmt.Sprintf(
+					"    %s: Allocation %q is %q",
+					formatTime(time.Now()),
+					limit(alloc.ID, c.length),
+					alloc.ClientStatus,
+				))
+				errCh <- nil
+				return
+			}
 
 		default:
 			if c.verbose {
 				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
 					"[dark_gray]    %s: Allocation %q is %q[reset]",
 					formatTime(time.Now()),
-					limit(newAlloc.ID, c.length),
-					newAlloc.ClientStatus,
+					limit(alloc.ID, c.length),
+					alloc.ClientStatus,
 				)))
 			}
 		}
+
 		q.WaitIndex = qm.LastIndex
 	}
 }
