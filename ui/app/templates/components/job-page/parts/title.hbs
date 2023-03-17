@@ -25,7 +25,7 @@
         @awaitingConfirmation={{this.stopJob.isRunning}}
         @onConfirm={{perform this.stopJob}}
         {{keyboard-shortcut 
-          label="Exec"
+          label="Stop"
           pattern=(array "s" "t" "o" "p")
           action=(perform this.stopJob)
         }} />
@@ -40,7 +40,7 @@
         @awaitingConfirmation={{this.purgeJob.isRunning}}
         @onConfirm={{perform this.purgeJob}}
         {{keyboard-shortcut 
-          label="Exec"
+          label="Purge"
           pattern=(array "p" "u" "r" "g" "e")
           action=(perform this.purgeJob)
         }}
@@ -55,7 +55,7 @@
         @awaitingConfirmation={{this.startJob.isRunning}}
         @onConfirm={{perform this.startJob}}
         {{keyboard-shortcut 
-          label="Exec"
+          label="Start"
           pattern=(array "s" "t" "a" "r" "t")
           action=(perform this.startJob)
         }}
