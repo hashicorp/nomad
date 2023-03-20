@@ -51,8 +51,7 @@ Login Options:
 
   -oidc-callback-addr
     The address to use for the local OIDC callback server. This should be given
-    in the form of <IP>:<PORT> and defaults to "localhost:4649". It is only
-    required if using OIDC auth method type. 
+    in the form of <IP>:<PORT> and defaults to "localhost:4649".
 
   -login-token
     Login token used for authentication that will be exchanged for a Nomad ACL
@@ -77,7 +76,7 @@ func (l *LoginCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-method":             complete.PredictAnything,
 			"-oidc-callback-addr": complete.PredictAnything,
-			"-login-token":        complete.PredictNothing,
+			"-login-token":        complete.PredictAnything,
 			"-json":               complete.PredictNothing,
 			"-t":                  complete.PredictAnything,
 		})

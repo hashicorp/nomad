@@ -46,8 +46,7 @@ General Options:
 ACL Auth Method Update Options:
 
   -type
-    Updates the type of the auth method. Currently the only supported types are
-    'OIDC' and 'JWT'.
+    Updates the type of the auth method. Supported types are 'OIDC' and 'JWT'.
 
   -max-token-ttl
     Updates the duration of time all tokens created by this auth method should be

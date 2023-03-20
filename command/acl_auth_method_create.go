@@ -50,8 +50,7 @@ ACL Auth Method Create Options:
     between 1-128 characters and is a required parameter.
 
   -type
-    Sets the type of the auth method. Currently the only supported types are
-    'OIDC' and 'JWT'.
+    Sets the type of the auth method. Supported types are 'OIDC' and 'JWT'.
 
   -max-token-ttl
     Sets the duration of time all tokens created by this auth method should be
