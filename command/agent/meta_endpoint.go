@@ -59,7 +59,7 @@ func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) 
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	s.parseWriteRequest(req, &args.WriteRequest)
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 	parseNode(req, &args.NodeID)
 
 	// Determine the handler to use

@@ -937,9 +937,8 @@ func (c *Client) query(endpoint string, out any, q *QueryOptions) (*QueryMeta, e
 	return qm, nil
 }
 
-// putQuery is used to do a PUT request when doing a read against an endpoint
-// and deserialize the response into an interface using standard Nomad
-// conventions.
+// putQuery is used to do a PUT request when doing a "write" to a Client RPC.
+// Client RPCs must use QueryOptions to allow setting AllowStale=true.
 func (c *Client) putQuery(endpoint string, in, out any, q *QueryOptions) (*QueryMeta, error) {
 	r, err := c.newRequest("PUT", endpoint)
 	if err != nil {
@@ -967,6 +966,31 @@ func (c *Client) putQuery(endpoint string, in, out any, q *QueryOptions) (*Query
 // serialize/deserialized using the standard Nomad conventions.
 func (c *Client) put(endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error) {
 	return c.write(http.MethodPut, endpoint, in, out, q)
+}
+
+// postQuery is used to do a POST request when doing a "write" to a Client RPC.
+// Client RPCs must use QueryOptions to allow setting AllowStale=true.
+func (c *Client) postQuery(endpoint string, in, out any, q *QueryOptions) (*QueryMeta, error) {
+	r, err := c.newRequest("POST", endpoint)
+	if err != nil {
+		return nil, err
+	}
+	r.setQueryOptions(q)
+	r.obj = in
+	rtt, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
+	if err := decodeBody(resp, out); err != nil {
+		return nil, err
+	}
+	return qm, nil
 }
 
 // post is used to do a POST request against an endpoint and
