@@ -17,12 +17,40 @@ export default class JobEditor extends Component {
 
   @tracked error = null;
   @tracked planOutput = null;
+  @tracked isEditing;
+  @tracked view;
 
-  get stage() {
-    return this.planOutput ? 'plan' : 'editor';
+  constructor() {
+    super(...arguments);
+    this.isEditing = !!(this.args.context === 'new');
+    this.view = this.args.specification ? 'job-spec' : 'full-definition';
   }
 
-  @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
+  toggleEdit(bool) {
+    this.isEditing = bool || !this.isEditing;
+  }
+
+  @action
+  edit() {
+    this.args.job.set(
+      '_newDefinition',
+      JSON.stringify(this.args.definition, null, 2)
+    );
+    this.toggleEdit(true);
+  }
+
+  @action
+  onCancel() {
+    this.toggleEdit(false);
+  }
+
+  get stage() {
+    if (this.planOutput) return 'review';
+    if (this.isEditing) return 'edit';
+    else return 'read';
+  }
+
+  @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
 
   @(task(function* () {
     this.reset();
@@ -99,5 +127,45 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
+  }
+
+  @action
+  toggleView() {
+    const opposite = this.view === 'job-spec' ? 'full-definition' : 'job-spec';
+    this.view = opposite;
+  }
+
+  get definition() {
+    if (this.view === 'full-definition') {
+      return this.args.definition;
+    } else {
+      return this.args.specification;
+    }
+  }
+
+  get data() {
+    return {
+      cancelable: this.args.cancelable,
+      definition: this.definition,
+      hasSpecification: !!this.args.specification,
+      job: this.args.job,
+      planOutput: this.planOutput,
+      shouldShowPlanMessage: this.shouldShowPlanMessage,
+      view: this.view,
+    };
+  }
+
+  get fns() {
+    return {
+      onCancel: this.onCancel,
+      onEdit: this.edit,
+      onPlan: this.plan,
+      onReset: this.reset,
+      onSaveAs: this.args.handleSaveAsTemplate,
+      onSubmit: this.submit,
+      onToggle: this.toggleView,
+      onUpdate: this.updateCode,
+      onUpload: this.uploadJobSpec,
+    };
   }
 }
