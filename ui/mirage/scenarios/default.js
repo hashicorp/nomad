@@ -255,6 +255,10 @@ function smallCluster(server) {
         }
       }
     }`,
+      Variables: {
+        datacenters: ['west'],
+        external_port: 4000,
+      },
     },
   });
   server.createList('allocFile', 5);
