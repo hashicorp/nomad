@@ -84,14 +84,21 @@ func formatAuthMethod(authMethod *api.ACLAuthMethod) string {
 
 func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
 	out := []string{
+		fmt.Sprintf("JWT Validation Public Keys|%s", strings.Join(config.JWTValidationPubKeys, ",")),
+		fmt.Sprintf("JWKS URL|%s", config.JWKSURL),
 		fmt.Sprintf("OIDC Discovery URL|%s", config.OIDCDiscoveryURL),
 		fmt.Sprintf("OIDC Client ID|%s", config.OIDCClientID),
 		fmt.Sprintf("OIDC Client Secret|%s", config.OIDCClientSecret),
 		fmt.Sprintf("OIDC Scopes|%s", strings.Join(config.OIDCScopes, ",")),
 		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),
+		fmt.Sprintf("Bound issuer|%s", strings.Join(config.BoundIssuer, ",")),
 		fmt.Sprintf("Allowed redirects URIs|%s", strings.Join(config.AllowedRedirectURIs, ",")),
 		fmt.Sprintf("Discovery CA pem|%s", strings.Join(config.DiscoveryCaPem, ",")),
+		fmt.Sprintf("JWKS CA cert|%s", config.JWKSCACert),
 		fmt.Sprintf("Signing algorithms|%s", strings.Join(config.SigningAlgs, ",")),
+		fmt.Sprintf("Expiration Leeway|%s", config.ExpirationLeeway.String()),
+		fmt.Sprintf("NotBefore Leeway|%s", config.NotBeforeLeeway.String()),
+		fmt.Sprintf("ClockSkew Leeway|%s", config.ClockSkewLeeway.String()),
 		fmt.Sprintf("Claim mappings|%s", strings.Join(formatMap(config.ClaimMappings), "; ")),
 		fmt.Sprintf("List claim mappings|%s", strings.Join(formatMap(config.ListClaimMappings), "; ")),
 	}
