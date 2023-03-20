@@ -3,12 +3,19 @@
   {{!-- <pre><code>{{stringify-object this.updateParams}}</code></pre> --}}
   <code>
   <ul>
-    {{#each-in this.updateParams as |k v|}}
+    {{#each this.updateParams as |group|}}
       <li>
-        <span class="key">{{k}}</span>
-        <span class="value">{{v}}</span>
+        <span class="group">Group "{{group.name}}"</span>
+        <ul>
+          {{#each-in group.update as |k v|}}
+            <li>
+              <span class="key">{{k}}</span>
+              <span class="value">{{v}}</span>
+            </li>
+          {{/each-in}}
+        </ul>
       </li>
-    {{/each-in}}
+    {{/each}}
   </ul>
   </code>
 </div>

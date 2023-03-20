@@ -200,11 +200,19 @@
   }
 
   .update-parameters {
+    & > code {
+      max-height: 300px;
+      overflow-y: auto;
+      display: block;
+    }
     ul {
-      background: #1A2633;
+      background: #1a2633;
       padding: 1rem;
+      .group {
+        color: white;
+      }
       .key {
-        color: #1CAEFF;
+        color: #1caeff;
         &:after {
           content: '=';
           color: white;
@@ -212,7 +220,7 @@
         }
       }
       .value {
-        color: #06D092;
+        color: #06d092;
         &:before {
           content: '"';
         }
