@@ -143,9 +143,11 @@ export default class JobEditor extends Component {
       cancelable: this.args.cancelable,
       definition: this.definition,
       hasSpecification: !!this.args.specification,
+      hasVariables: !!this.args.variables,
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
+      variables: this.args.variables,
       view: this.view,
     };
   }
