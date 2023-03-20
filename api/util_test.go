@@ -102,7 +102,7 @@ func testNamespace() *Namespace {
 
 func testQuotaSpec() *QuotaSpec {
 	return &QuotaSpec{
-		Name:        "test-namespace",
+		Name:        "test-quota",
 		Description: "Testing namespaces",
 		Limits: []*QuotaLimit{
 			{
