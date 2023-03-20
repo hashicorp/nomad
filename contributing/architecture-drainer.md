@@ -151,7 +151,8 @@ And the third is when nodes pass their deadline. The `NodeWatcher` is
 responsible for adding and removing the watch in the `DeadlineNotifier`. The
 `DeadlineNotifier` is responsible for watching the timer. If the node isn't
 removed before the deadline, the `DeadlineNotifier` tells the `NodeDrainer` and
-the `NodeDrainer` updates the state via the `NodesDrainComplete` shim.
+the `NodeDrainer` updates the state via the `NodesDrainComplete` shim. At this
+point the remaining allocs will be forced to shutdown immediately.
 
 ```mermaid
 flowchart TD
