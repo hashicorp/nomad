@@ -8,15 +8,21 @@ export default class DefinitionRoute extends Route {
     const definition = await job.fetchRawDefinition();
 
     const hasSpecification = !!definition?.Specification;
+    const hasHCLVariables = !!definition?.Specification?.Variables;
 
     const specification = hasSpecification
       ? await new Blob([definition?.Specification?.Definition]).text()
+      : null;
+
+    const variables = hasHCLVariables
+      ? definition?.Specification?.Variables
       : null;
 
     return {
       job,
       definition,
       specification,
+      variables,
     };
   }
 
