@@ -1,12 +1,13 @@
 package command
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
@@ -19,29 +20,38 @@ func TestSentinelListCommand_Implements(t *testing.T) {
 
 func TestSentinelListCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	srv, _, url := testServer(t, false, func(c *agent.Config) {
+
+	srv, cl, url := testServer(t, true, func(c *agent.Config) {
 		c.ACL.Enabled = true
 	})
 	defer srv.Shutdown()
 
-	state := srv.Agent.Server().State()
-
 	// Wait for the server to start fully and ensure we have a bootstrap token.
 	testutil.WaitForLeader(t, srv.Agent.RPC)
+
 	rootACLToken := srv.RootToken
 	must.NotNil(t, rootACLToken)
 
 	ui := cli.NewMockUi()
-	//cmd := &SentinelListCommand{Meta: Meta{Ui: ui}}
 
-	// Create a test ACLPolicy
-	policy := &structs.ACLPolicy{
-		Name:  "testPolicy",
-		Rules: acl.PolicyWrite,
+	apHandle := cl.SentinelPolicies()
+
+	uuid1 := uuid.Generate()
+	sp1 := &api.SentinelPolicy{
+		Name:        fmt.Sprintf("sent-policy-%s", uuid1),
+		Description: "Super cool policy!",
 	}
 
-	policy.SetHash()
-	err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy})
+	_, err := apHandle.Upsert(sp1, nil)
+	must.NoError(t, err)
+
+	uuid2 := uuid.Generate()
+	sp2 := &api.SentinelPolicy{
+		Name:        fmt.Sprintf("sent-policy-%s", uuid2),
+		Description: "Super cool policy!",
+	}
+
+	_, err = apHandle.Upsert(sp2, nil)
 	must.NoError(t, err)
 
 	cmd := &SentinelListCommand{Meta: Meta{Ui: ui}}
@@ -49,8 +59,9 @@ func TestSentinelListCommand_Run(t *testing.T) {
 	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	must.StrContains(t, out, `Name         Scope       Enforcement Level  Description`)
-	must.StrContains(t, out, "testPolicy")
+	must.StrContains(t, out, "Super cool policy")
+	must.StrContains(t, out, fmt.Sprintf("sent-policy-%s", uuid1))
+	must.StrContains(t, out, fmt.Sprintf("sent-policy-%s", uuid2))
 
 	ui.OutputWriter.Reset()
 }
