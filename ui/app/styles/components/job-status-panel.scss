@@ -182,13 +182,6 @@
       overflow-y: auto;
     }
     & > ol > li {
-      // padding: 0.5rem;
-      // box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-      // margin-bottom: 0.5rem;
-      // border-radius: 4px;
-      // &:last-child {
-      //   margin-bottom: 0;
-      // }
       & > div {
         gap: 0.5rem;
       }
@@ -221,12 +214,6 @@
       }
       .value {
         color: #06d092;
-        &:before {
-          content: '"';
-        }
-        &:after {
-          content: '"';
-        }
       }
     }
   }

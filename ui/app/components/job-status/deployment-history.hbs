@@ -1,14 +1,7 @@
-<div class="deployment-history">
-  <h4 class="title is-5">Deployment History
-    {{!-- Re-fetch history button --}}
-    <button
-      type="button"
-      class="button is-small is-text"
-      {{on "click" this.fetchDeploymentHistory}}
-    >
-      Re-fetch
-    </button>
-  </h4>
+<div class="deployment-history"
+  {{did-insert (action this.watchDeploymentHistory)}}
+>
+  <h4 class="title is-5">Deployment History</h4>
   <ol class="timeline">
     {{#each this.history as |deployment-log|}}
       <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">

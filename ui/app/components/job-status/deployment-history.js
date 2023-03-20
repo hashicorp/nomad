@@ -1,8 +1,21 @@
 // @ts-check
 import Component from '@glimmer/component';
-import { action } from '@ember/object';
+import { watchRelationship } from 'nomad-ui/utils/properties/watch';
+import { inject as service } from '@ember/service';
 
 export default class JobStatusDeploymentHistoryComponent extends Component {
+  @service store;
+
+  async watchDeploymentHistory() {
+    const deployment = await this.args.deployment;
+    this.watch.perform(deployment, 10000);
+  }
+
+  willDestroy() {
+    super.willDestroy(...arguments);
+    this.watch.cancelAll();
+  }
+
   get history() {
     return this.args.deployment
       .get('allocations')
@@ -17,7 +30,5 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
       .reverse();
   }
 
-  @action fetchDeploymentHistory() {
-    this.args.deployment.get('allocations');
-  }
+  @watchRelationship('allocations', true) watch;
 }
