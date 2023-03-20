@@ -47,4 +47,16 @@
         <JsonViewer data-test-definition-view @json={{@data.definition}} />
     {{/if}}
     </div>
+    {{#if (and @data.hasVariables (eq @data.view "job-spec"))}}
+        <h1 class="title is-3">HCL Variables:  current version</h1>
+        <div 
+            data-test-job-variables
+            {{code-mirror
+            content=(stringify-object @data.variables)
+            readOnly=true
+            screenReaderLabel="Job specification variables"          
+            theme="hashi-read-only"
+            }} 
+        />
+    {{/if}}
 </div>

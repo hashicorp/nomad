@@ -429,9 +429,9 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderEditJob(this, job);
     await click('[data-test-edit-job]');
-    await Editor.cancelEditing();
+    await click('[data-test-cancel-editing]');
     assert
-      .dom('[data-test-job-spec-view]')
+      .dom('[data-test-json-viewer]')
       .exists('We reset state to be in read only mode after hitting cancel.');
   });
 });
