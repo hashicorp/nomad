@@ -85,7 +85,7 @@ func (s *StateStore) AutopilotCASConfig(index, cidx uint64, config *structs.Auto
 	return err == nil, err
 }
 
-func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx *txn, config *structs.AutopilotConfig) error {
+func (s *StateStore) autopilotSetConfigTxn(idx uint64, tx Txn, config *structs.AutopilotConfig) error {
 	// Check for an existing config
 	existing, err := tx.First("autopilot-config", "id")
 	if err != nil {

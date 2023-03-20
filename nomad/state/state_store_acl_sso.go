@@ -50,7 +50,7 @@ func (s *StateStore) UpsertACLAuthMethods(index uint64, aclAuthMethods []*struct
 // upsertACLAuthMethodTxn inserts a single ACL auth method into the state store
 // using the provided write transaction. It is the responsibility of the caller
 // to update the index table.
-func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn *txn, method *structs.ACLAuthMethod) (bool, error) {
+func (s *StateStore) upsertACLAuthMethodTxn(index uint64, txn Txn, method *structs.ACLAuthMethod) (bool, error) {
 
 	// Ensure the method hash is not zero to provide defense in depth. This
 	// should be done outside the state store, so we do not spend time here and
@@ -134,7 +134,7 @@ func (s *StateStore) DeleteACLAuthMethods(index uint64, authMethodNames []string
 // deleteACLAuthMethodTxn deletes a single ACL method name from the state store
 // using the provided write transaction. It is the responsibility of the caller
 // to update the index table.
-func (s *StateStore) deleteACLAuthMethodTxn(txn *txn, methodName string) error {
+func (s *StateStore) deleteACLAuthMethodTxn(txn Txn, methodName string) error {
 	existing, err := txn.First(TableACLAuthMethods, indexID, methodName)
 	if err != nil {
 		return fmt.Errorf("ACL auth method lookup failed: %v", err)

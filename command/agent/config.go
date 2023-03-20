@@ -654,6 +654,10 @@ type ServerConfig struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority *int `hcl:"job_max_priority"`
+
+	// EnableDebugChecksumming is used to enable or disable state store checksumming.
+	// WARNING: this should not be enabled in production!
+	EnableDebugChecksumming bool `hcl:"enable_debug_checksumming"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -1306,6 +1310,7 @@ func DefaultConfig() *Config {
 				LimitResults:  100,
 				MinTermLength: 2,
 			},
+			EnableDebugChecksumming: false,
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -2019,6 +2024,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	result.RetryJoin = make([]string, 0, len(s.RetryJoin)+len(b.RetryJoin))
 	result.RetryJoin = append(result.RetryJoin, s.RetryJoin...)
 	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
+
+	if b.EnableDebugChecksumming {
+		result.EnableDebugChecksumming = true
+	}
 
 	return &result
 }
