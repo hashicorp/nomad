@@ -143,15 +143,16 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 	})
 }
 
-// WaitForLeaders blocks until each serverRPC knows the leader.
-func WaitForLeaders(t testing.TB, serverRPCs ...rpcFn) {
+// WaitForLeaders blocks until each rpcs knows the leader.
+func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
 	t.Helper()
 
-	for i := 0; i < len(serverRPCs); i++ {
+	var leader string
+	for i := 0; i < len(rpcs); i++ {
 		ok := func() (bool, error) {
+			leader = ""
 			args := &structs.GenericRequest{}
-			var leader string
-			err := serverRPCs[i]("Status.Leader", args, &leader)
+			err := rpcs[i]("Status.Leader", args, &leader)
 			return leader != "", err
 		}
 		must.Wait(t, wait.InitialSuccess(
@@ -160,6 +161,8 @@ func WaitForLeaders(t testing.TB, serverRPCs ...rpcFn) {
 			wait.Gap(1*time.Second),
 		))
 	}
+
+	return leader
 }
 
 // WaitForClient blocks until the client can be found
