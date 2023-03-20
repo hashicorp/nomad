@@ -18,6 +18,8 @@ export default class JobEditor extends Component {
 
   @tracked error = null;
   @tracked planOutput = null;
+  @tracked isEditing;
+  @tracked view;
 
   constructor() {
     super(...arguments);
