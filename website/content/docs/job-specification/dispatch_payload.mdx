@@ -3,7 +3,6 @@ layout: docs
 page_title: dispatch_payload Block - Job Specification
 description: |-
   The "dispatch_payload" block allows a task to access dispatch payloads.
-  to
 ---
 
 # `dispatch_payload` Block
@@ -34,12 +33,7 @@ job "docs" {
   dispatch payload to. The file is written relative to the [task's local
   directory][localdir].
 
-## `dispatch_payload` Examples
-
-The following examples only show the `dispatch_payload` blocks. Remember that the
-`dispatch_payload` block is only valid in the placements listed above.
-
-### Write Payload to a File
+## `dispatch_payload` Example
 
 This example shows a `dispatch_payload` block in a parameterized job that writes
 the payload to a `config.json` file.
