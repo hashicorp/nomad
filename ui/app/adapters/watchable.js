@@ -111,33 +111,49 @@ export default class Watchable extends ApplicationAdapter {
     return this.ajax(urlPath, 'GET', {
       signal,
       data: params,
-    }).then((payload) => {
-      const adapter = store.adapterFor(type.modelName);
+    })
+      .then((payload) => {
+        const adapter = store.adapterFor(type.modelName);
 
-      // Query params may not necessarily map one-to-one to attribute names.
-      // Adapters are responsible for declaring param mappings.
-      const queryParamsToAttrs = Object.keys(
-        adapter.queryParamsToAttrs || {}
-      ).map((key) => ({
-        queryParam: key,
-        attr: adapter.queryParamsToAttrs[key],
-      }));
+        // Query params may not necessarily map one-to-one to attribute names.
+        // Adapters are responsible for declaring param mappings.
+        const queryParamsToAttrs = Object.keys(
+          adapter.queryParamsToAttrs || {}
+        ).map((key) => ({
+          queryParam: key,
+          attr: adapter.queryParamsToAttrs[key],
+        }));
 
-      // Remove existing records that match this query. This way if server-side
-      // deletes have occurred, the store won't have stale records.
-      store
-        .peekAll(type.modelName)
-        .filter((record) =>
-          queryParamsToAttrs.some(
-            (mapping) => get(record, mapping.attr) === query[mapping.queryParam]
-          )
-        )
-        .forEach((record) => {
-          removeRecord(store, record);
+        // Remove existing records that match this query. This way if server-side
+        // deletes have occurred, the store won't have stale records.
+        const matchingRecords = store.peekAll(type.modelName).filter((record) =>
+          queryParamsToAttrs.some((mapping) => {
+            if (mapping.queryParam === 'namespace') {
+              if (query.namespace === '*') {
+                return true;
+              } else if (mapping.attr === 'namespace') {
+                return (
+                  record.belongsTo('namespace').id() ===
+                  query[mapping.queryParam]
+                );
+              }
+            }
+            return get(record, mapping.attr) === query[mapping.queryParam];
+          })
+        );
+
+        matchingRecords.forEach((record) => {
+          const IDValue = record.get('plainId') || record.get('id');
+          const storedRecordNotFoundInPayload =
+            IDValue && !payload.find((r) => r.ID === IDValue);
+          if (storedRecordNotFoundInPayload) {
+            removeRecord(store, record);
+          }
         });
 
-      return payload;
-    });
+        return payload;
+      })
+      .finally(() => this.watchList.notifyController());
   }
 
   reloadRelationship(

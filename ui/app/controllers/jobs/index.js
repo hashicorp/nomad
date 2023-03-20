@@ -18,8 +18,10 @@ export default class IndexController extends Controller.extend(
   Sortable,
   Searchable
 ) {
+  @service store;
   @service system;
   @service userSettings;
+  @service watchList;
 
   isForbidden = false;
 
@@ -187,15 +189,31 @@ export default class IndexController extends Controller.extend(
     return availableNamespaces;
   }
 
+  @computed('watchList.jobUpdateCount')
+  get currentCount() {
+    return this.watchList.jobUpdateCount;
+  }
+
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.jobs.@each.parent')
+  @computed('currentCount', 'model.jobs.@each.parent', 'qpNamespace')
   get visibleJobs() {
-    if (!this.model || !this.model.jobs) return [];
-    return this.model.jobs
+    let jobs = null;
+    if (this.currentCount) {
+      jobs = this.store.peekAll('job');
+    } else {
+      jobs = this.model.jobs;
+    }
+
+    if (!jobs) return [];
+    return jobs
       .compact()
+      .filter((job) => {
+        if (this.qpNamespace === '*') return true;
+        return job.get('namespace.id') === this.qpNamespace;
+      })
       .filter((job) => !job.isNew)
       .filter((job) => !job.get('parent.content'));
   }

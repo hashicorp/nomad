@@ -1,11 +1,16 @@
-import { computed } from '@ember/object';
+import { computed, set } from '@ember/object';
 import { readOnly } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
 import { copy } from 'ember-copy';
 import Service from '@ember/service';
 
 let list = {};
 
 export default class WatchListService extends Service {
+  @service store;
+
+  jobUpdateCount = 0;
+
   @computed
   get _list() {
     return copy(list, true);
@@ -24,5 +29,9 @@ export default class WatchListService extends Service {
 
   setIndexFor(url, value) {
     list[url] = +value;
+  }
+
+  notifyController() {
+    set(this, 'jobUpdateCount', this.jobUpdateCount + 1);
   }
 }

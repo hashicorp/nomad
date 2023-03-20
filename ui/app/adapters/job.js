@@ -9,6 +9,10 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     summary: '/summary',
   };
 
+  queryParamsToAttrs = {
+    namespace: 'namespace',
+  };
+
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'GET');
