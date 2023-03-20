@@ -1,3 +1,4 @@
+// @ts-check
 import Component from '@ember/component';
 import { task } from 'ember-concurrency';
 import { inject as service } from '@ember/service';
@@ -16,12 +17,22 @@ export default class Title extends Component {
 
   handleError() {}
 
-  @task(function* () {
+  /**
+   * @param {boolean} withNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
+   */
+  @task(function* (withNotifications = false) {
     try {
       const job = this.job;
       yield job.stop();
       // Eagerly update the job status to avoid flickering
-      this.job.set('status', 'dead');
+      job.set('status', 'dead');
+      if (withNotifications) {
+        this.notifications.add({
+          title: 'Job Stopped',
+          message: `${job.name} has been stopped`,
+          color: 'success',
+        });
+      }
     } catch (err) {
       this.handleError({
         title: 'Could Not Stop Job',
@@ -37,7 +48,7 @@ export default class Title extends Component {
       yield job.purge();
       this.notifications.add({
         title: 'Job Purged',
-        message: `You have purged ${this.job.name}`,
+        message: `You have purged ${job.name}`,
         color: 'success',
       });
       this.router.transitionTo('jobs');
@@ -50,7 +61,10 @@ export default class Title extends Component {
   })
   purgeJob;
 
-  @task(function* () {
+  /**
+   * @param {boolean} withNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
+   */
+  @task(function* (withNotifications = false) {
     const job = this.job;
     const definition = yield job.fetchRawDefinition();
 
@@ -62,6 +76,13 @@ export default class Title extends Component {
       yield job.update();
       // Eagerly update the job status to avoid flickering
       job.set('status', 'running');
+      if (withNotifications) {
+        this.notifications.add({
+          title: 'Job Started',
+          message: `${job.name} has started`,
+          color: 'success',
+        });
+      }
     } catch (err) {
       this.handleError({
         title: 'Could Not Start Job',
