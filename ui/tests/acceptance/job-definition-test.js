@@ -33,7 +33,7 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('the job definition page starts in read-only view', async function (assert) {
-    assert.dom('[data-test-job-spec-view]').exists('Read-only Editor appears.');
+    assert.dom('[data-test-json-viewer]').exists('Read-only Editor appears.');
   });
 
   test('the job definition page requests the job to display in an unmutated form', async function (assert) {
@@ -66,7 +66,7 @@ module('Acceptance | job definition', function (hooks) {
     await Definition.edit();
 
     await Definition.editor.cancelEditing();
-    assert.dom('[data-test-job-spec-view]').exists('Read-only Editor appears.');
+    assert.dom('[data-test-json-viewer]').exists('Read-only Editor appears.');
     assert.dom('[data-test-job-editor]').doesNotExist('The editor is gone');
   });
 
@@ -154,18 +154,14 @@ module('display and edit using full specification', function (hooks) {
       'Shows the full definition as written by the user'
     );
 
-    // TODO -- ADD FEATURE
     assert
       .dom('[data-test-job-variables]')
       .exists('A table showing job variables appears');
 
     await click('[data-test-toggle-full]');
-    let code = { ...JOB_JSON };
-    delete code.Specification;
     codeMirror = getCodeMirrorInstance('[data-test-editor]');
-    assert.propContains(codeMirror.getValue(), JSON.parse(code));
+    assert.propContains(JSON.parse(codeMirror.getValue()), JOB_JSON);
 
-    // TODO -- ADD FEATURE
     assert
       .dom('[data-test-job-variables]')
       .doesNotExist('A table showing job variables appears');
