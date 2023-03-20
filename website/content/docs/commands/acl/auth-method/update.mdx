@@ -37,8 +37,7 @@ The `acl auth-method update` command requires an existing method's name.
   to the command. Instead, overwrite all fields with the exception of the role
   ID which is immutable.
 
-- `-type`: Updates the type of the auth method. Currently the only supported
-  type is `OIDC`.
+- `-type`: Updates the type of the auth method. Supported types are `OIDC` and `JWT`.
 
 - `-max-token-ttl`: Updates the duration of time all tokens created by this auth
   method should be valid for.
