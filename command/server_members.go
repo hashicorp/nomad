@@ -35,6 +35,12 @@ Server Members Options:
   -verbose
     Show detailed information about each member. This dumps a raw set of tags
     which shows more information than the default output format.
+
+ -json
+    Output the latest information about each member in a JSON format.
+
+  -t
+    Format and display latest information about each member using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,6 +49,9 @@ func (c *ServerMembersCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-detailed": complete.PredictNothing,
+			"-verbose":  complete.PredictNothing,
+			"-json":     complete.PredictNothing,
+			"-t":        complete.PredictAnything,
 		})
 }
 
@@ -57,12 +66,15 @@ func (c *ServerMembersCommand) Synopsis() string {
 func (c *ServerMembersCommand) Name() string { return "server members" }
 
 func (c *ServerMembersCommand) Run(args []string) int {
-	var detailed, verbose bool
+	var detailed, verbose, json bool
+	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detailed, "detailed", false, "Show detailed output")
 	flags.BoolVar(&verbose, "verbose", false, "Show detailed output")
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -102,6 +114,17 @@ func (c *ServerMembersCommand) Run(args []string) int {
 
 	// Sort the members
 	sort.Sort(api.AgentMembersNameSort(srvMembers.Members))
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, srvMembers.Members)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
+	}
 
 	// Determine the leaders per region.
 	leaders, leaderErr := regionLeaders(client, srvMembers.Members)

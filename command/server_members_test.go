@@ -1,13 +1,16 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 )
 
 func TestServerMembersCommand_Implements(t *testing.T) {
@@ -25,30 +28,46 @@ func TestServerMembersCommand_Run(t *testing.T) {
 
 	// Get our own node name
 	name, err := client.Agent().NodeName()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	// Query the members
-	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code := cmd.Run([]string{"-address=" + url})
+
 	if out := ui.OutputWriter.String(); !strings.Contains(out, name) {
 		t.Fatalf("expected %q in output, got: %s", name, out)
 	}
 	ui.OutputWriter.Reset()
 
 	// Query members with verbose output
-	if code := cmd.Run([]string{"-address=" + url, "-verbose"}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-address=" + url, "-verbose"})
+	must.Zero(t, code)
+
 	// Still support previous detailed flag
-	if code := cmd.Run([]string{"-address=" + url, "-detailed"}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	if out := ui.OutputWriter.String(); !strings.Contains(out, "Tags") {
-		t.Fatalf("expected tags in output, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=" + url, "-detailed"})
+	must.Zero(t, code)
+
+	must.StrContains(t, ui.OutputWriter.String(), "Tags")
+
+	ui.OutputWriter.Reset()
+
+	// List json
+	code = cmd.Run([]string{"-address=" + url, "-json"})
+	must.Zero(t, code)
+
+	outJson := []api.AgentMember{}
+	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
+	must.NoError(t, err)
+
+	ui.OutputWriter.Reset()
+
+	// Go template to format the output
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Status }}{{end}}"})
+	must.Zero(t, code)
+
+	out := ui.OutputWriter.String()
+	must.StrContains(t, out, "alive")
+
+	ui.ErrorWriter.Reset()
 }
 
 func TestMembersCommand_Fails(t *testing.T) {
@@ -57,21 +76,17 @@ func TestMembersCommand_Fails(t *testing.T) {
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	// Fails on connection failure
-	if code := cmd.Run([]string{"-address=nope"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying servers") {
-		t.Fatalf("expected failed query error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope"})
+	must.One(t, code)
+
+	must.StrContains(t, ui.ErrorWriter.String(), "Error querying servers")
 }
 
 // Tests that a single server region that left should still
@@ -99,35 +114,29 @@ func TestServerMembersCommand_MultiRegion_Leave(t *testing.T) {
 	addr := fmt.Sprintf("127.0.0.1:%d",
 		srv1.Agent.Server().GetConfig().SerfConfig.MemberlistConfig.BindPort)
 
-	if _, err := srv2.Agent.Server().Join([]string{addr}); err != nil {
-		t.Fatalf("Join err: %v", err)
-	}
+	_, err := srv2.Agent.Server().Join([]string{addr})
+	must.NoError(t, err)
+
 	ui := cli.NewMockUi()
 	cmd := &ServerMembersCommand{Meta: Meta{Ui: ui}}
 
 	// Get our own node name
 	name, err := client1.Agent().NodeName()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	must.NoError(t, err)
 
 	// Query the members
-	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	if out := ui.OutputWriter.String(); !strings.Contains(out, name) {
-		t.Fatalf("expected %q in output, got: %s", name, out)
-	}
+	code := cmd.Run([]string{"-address=" + url})
+	must.Zero(t, code)
+
+	must.StrContains(t, ui.OutputWriter.String(), name)
 	ui.OutputWriter.Reset()
 
 	// Make one of the servers leave
 	srv2.Agent.Leave()
 
 	// Query again, should still contain expected output
-	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d", code)
-	}
-	if out := ui.OutputWriter.String(); !strings.Contains(out, name) {
-		t.Fatalf("expected %q in output, got: %s", name, out)
-	}
+	code = cmd.Run([]string{"-address=" + url})
+	must.Zero(t, code)
+
+	must.StrContains(t, ui.OutputWriter.String(), name)
 }
