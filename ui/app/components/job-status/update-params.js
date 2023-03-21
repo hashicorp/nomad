@@ -2,6 +2,7 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { inject as service } from '@ember/service';
 
 /**
  * @typedef {Object} DefinitionUpdateStrategy
@@ -31,12 +32,19 @@ import { tracked } from '@glimmer/tracking';
  */
 
 export default class JobStatusUpdateParamsComponent extends Component {
+  @service notifications;
+
   /**
    * @type {JobDefinition}
    */
   @tracked rawDefinition = null;
 
-  get updateParams() {
+  /**
+   * @type {Error}
+   */
+  @tracked errorState = null;
+
+  get updateParamGroups() {
     if (this.rawDefinition) {
       return this.rawDefinition.TaskGroups.map((tg) => {
         return {
@@ -50,6 +58,15 @@ export default class JobStatusUpdateParamsComponent extends Component {
   }
 
   @action async fetchJobDefinition() {
-    this.rawDefinition = await this.args.job.fetchRawDefinition();
+    try {
+      this.rawDefinition = await this.args.job.fetchRawDefinition();
+    } catch (e) {
+      this.notifications.add({
+        title: 'Could not fetch job definition',
+        message: e,
+        color: 'critical',
+      });
+      this.errorState = e;
+    }
   }
 }

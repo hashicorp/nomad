@@ -1,9 +1,8 @@
 <div class="update-parameters" {{did-insert (action this.fetchJobDefinition)}}>
   <h4 class="title is-5">Update Params</h4>
-  {{!-- <pre><code>{{stringify-object this.updateParams}}</code></pre> --}}
   <code>
   <ul>
-    {{#each this.updateParams as |group|}}
+    {{#each this.updateParamGroups as |group|}}
       <li>
         <span class="group">Group "{{group.name}}"</span>
         <ul>
@@ -15,6 +14,16 @@
           {{/each-in}}
         </ul>
       </li>
+    {{else}}
+      {{#if this.errorState}}
+        <li>
+          <span class="group">Error loading parameters</span>
+        </li>
+      {{else}}
+        <li>
+          <span class="group">Loading parameters</span>
+        </li>
+      {{/if}}
     {{/each}}
   </ul>
   </code>

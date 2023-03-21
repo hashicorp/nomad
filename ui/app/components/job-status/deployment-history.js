@@ -1,34 +1,74 @@
 // @ts-check
 import Component from '@glimmer/component';
-import { watchRelationship } from 'nomad-ui/utils/properties/watch';
+import { alias } from '@ember/object/computed';
+import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
+import { action } from '@ember/object';
 
 export default class JobStatusDeploymentHistoryComponent extends Component {
-  @service store;
+  @service notifications;
 
-  async watchDeploymentHistory() {
-    const deployment = await this.args.deployment;
-    this.watch.perform(deployment, 10000);
+  /**
+   * @type { Error }
+   */
+  @tracked errorState = null;
+
+  /**
+   * @type { import('../../models/job').default }
+   */
+  @alias('args.deployment.job') job;
+
+  /**
+   * @type { number }
+   */
+  @alias('args.deployment.versionNumber') deploymentVersion;
+
+  /**
+   * Get all allocations for the job
+   * @type { import('../../models/allocation').default[] }
+   */
+  get jobAllocations() {
+    return this.job.get('allocations');
   }
 
-  willDestroy() {
-    super.willDestroy(...arguments);
-    this.watch.cancelAll();
+  /**
+   * Filter the job's allocations to only those that are part of the deployment
+   * @type { import('../../models/allocation').default[] }
+   */
+  get deploymentAllocations() {
+    return this.jobAllocations.filter(
+      (alloc) => alloc.jobVersion === this.deploymentVersion
+    );
   }
 
+  /**
+   * Map the deployment's allocations to their task events, in reverse-chronological order
+   * @type { import('../../models/task-event').default[] }
+   */
   get history() {
-    return this.args.deployment
-      .get('allocations')
-      .map((a) =>
-        a
-          .get('states')
-          .map((s) => s.events.content)
-          .flat()
-      )
-      .flat()
-      .sort((a, b) => a.get('time') - b.get('time'))
-      .reverse();
+    try {
+      return this.deploymentAllocations
+        .map((a) =>
+          a
+            .get('states')
+            .map((s) => s.events.content)
+            .flat()
+        )
+        .flat()
+        .sort((a, b) => a.get('time') - b.get('time'))
+        .reverse();
+    } catch (e) {
+      this.triggerError(e);
+      return [];
+    }
   }
 
-  @watchRelationship('allocations', true) watch;
+  @action triggerError(error) {
+    this.errorState = error;
+    this.notifications.add({
+      title: 'Could not fetch deployment history',
+      message: error,
+      color: 'critical',
+    });
+  }
 }

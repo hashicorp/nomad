@@ -1,6 +1,4 @@
-<div class="deployment-history"
-  {{did-insert (action this.watchDeploymentHistory)}}
->
+<div class="deployment-history">
   <h4 class="title is-5">Deployment History</h4>
   <ol class="timeline">
     {{#each this.history as |deployment-log|}}
@@ -13,6 +11,28 @@
           </span>
         </div>
       </li>
+    {{else}}
+      {{#if this.errorState}}
+        <li class="timeline-object">
+          <div class="boxed-section-head is-light">
+            <span>Error loading deployment history</span>
+          </div>
+        </li>
+      {{else}}
+        {{#if this.deploymentAllocations}}
+          <li class="timeline-object">
+            <div class="boxed-section-head is-light">
+              <span>No deployment events yet</span>
+            </div>
+          </li>
+        {{else}}
+          <li class="timeline-object">
+            <div class="boxed-section-head is-light">
+              <span>Loading deployment events</span>
+            </div>
+          </li>
+        {{/if}}
+      {{/if}}
     {{/each}}
   </ol>
 </div>
