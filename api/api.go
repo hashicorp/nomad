@@ -915,7 +915,7 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 // query is used to do a GET request against an endpoint
 // and deserialize the response into an interface using
 // standard Nomad conventions.
-func (c *Client) query(endpoint string, out any, q *QueryOptions) (*QueryMeta, error) {
+func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
 	r, err := c.newRequest("GET", endpoint)
 	if err != nil {
 		return nil, err
@@ -937,9 +937,10 @@ func (c *Client) query(endpoint string, out any, q *QueryOptions) (*QueryMeta, e
 	return qm, nil
 }
 
-// putQuery is used to do a PUT request when doing a "write" to a Client RPC.
-// Client RPCs must use QueryOptions to allow setting AllowStale=true.
-func (c *Client) putQuery(endpoint string, in, out any, q *QueryOptions) (*QueryMeta, error) {
+// putQuery is used to do a PUT request when doing a read against an endpoint
+// and deserialize the response into an interface using standard Nomad
+// conventions.
+func (c *Client) putQuery(endpoint string, in, out interface{}, q *QueryOptions) (*QueryMeta, error) {
 	r, err := c.newRequest("PUT", endpoint)
 	if err != nil {
 		return nil, err
@@ -962,49 +963,10 @@ func (c *Client) putQuery(endpoint string, in, out any, q *QueryOptions) (*Query
 	return qm, nil
 }
 
-// put is used to do a PUT request against an endpoint and
-// serialize/deserialized using the standard Nomad conventions.
-func (c *Client) put(endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error) {
-	return c.write(http.MethodPut, endpoint, in, out, q)
-}
-
-// postQuery is used to do a POST request when doing a "write" to a Client RPC.
-// Client RPCs must use QueryOptions to allow setting AllowStale=true.
-func (c *Client) postQuery(endpoint string, in, out any, q *QueryOptions) (*QueryMeta, error) {
-	r, err := c.newRequest("POST", endpoint)
-	if err != nil {
-		return nil, err
-	}
-	r.setQueryOptions(q)
-	r.obj = in
-	rtt, resp, err := requireOK(c.doRequest(r))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	qm := &QueryMeta{}
-	parseQueryMeta(resp, qm)
-	qm.RequestTime = rtt
-
-	if err := decodeBody(resp, out); err != nil {
-		return nil, err
-	}
-	return qm, nil
-}
-
-// post is used to do a POST request against an endpoint and
-// serialize/deserialized using the standard Nomad conventions.
-func (c *Client) post(endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error) {
-	return c.write(http.MethodPost, endpoint, in, out, q)
-}
-
-// write is used to do a write request against an endpoint and
-// serialize/deserialized using the standard Nomad conventions.
-//
-// You probably want the delete, post, or put methods.
-func (c *Client) write(verb, endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error) {
-	r, err := c.newRequest(verb, endpoint)
+// write is used to do a PUT request against an endpoint
+// and serialize/deserialized using the standard Nomad conventions.
+func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+	r, err := c.newRequest("PUT", endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -1029,7 +991,7 @@ func (c *Client) write(verb, endpoint string, in, out any, q *WriteOptions) (*Wr
 
 // delete is used to do a DELETE request against an endpoint and
 // serialize/deserialized using the standard Nomad conventions.
-func (c *Client) delete(endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error) {
+func (c *Client) delete(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
 	r, err := c.newRequest("DELETE", endpoint)
 	if err != nil {
 		return nil, err

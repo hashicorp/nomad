@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: redirect users to Sign In should their tokens ever come back expired or not-found
-```

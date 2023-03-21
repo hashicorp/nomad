@@ -205,12 +205,8 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     await planJob(spec);
-    assert
-      .dom('[data-test-error="plan"]')
-      .doesNotExist('Plan error is not shown');
-    assert
-      .dom('[data-test-error="run"]')
-      .doesNotExist('Run error is not shown');
+    assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
+    assert.notOk(Editor.runError.isPresent, 'Run error is not shown');
 
     assert.ok(Editor.parseError.isPresent, 'Parse error is shown');
     assert.equal(
@@ -237,12 +233,8 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     await planJob(spec);
-    assert
-      .dom('[data-test-error="parse"]')
-      .doesNotExist('Parse error is not shown');
-    assert
-      .dom('[data-test-error="run"]')
-      .doesNotExist('Run error is not shown');
+    assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
+    assert.notOk(Editor.runError.isPresent, 'Run error is not shown');
 
     assert.ok(Editor.planError.isPresent, 'Plan error is shown');
     assert.equal(
@@ -266,12 +258,8 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
     await planJob(spec);
     await Editor.run();
-    assert
-      .dom('[data-test-error="plan"]')
-      .doesNotExist('Plan error is not shown');
-    assert
-      .dom('[data-test-error="parse"]')
-      .doesNotExist('Parse error is not shown');
+    assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
+    assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
 
     assert.ok(Editor.runError.isPresent, 'Run error is shown');
     assert.equal(

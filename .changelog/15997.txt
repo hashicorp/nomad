@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: we now recommend .nomad.hcl extension for job files, so `job init` creates example.nomad.hcl
-```

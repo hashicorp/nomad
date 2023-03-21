@@ -148,7 +148,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 	}
 }
 
-func TestCommand_InvalidCharInDatacenter(t *testing.T) {
+func TestCommand_NullCharInDatacenter(t *testing.T) {
 	ci.Parallel(t)
 
 	tmpDir := t.TempDir()
@@ -157,9 +157,6 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 		"char-\\000-in-the-middle",
 		"ends-with-\\000",
 		"\\000-at-the-beginning",
-		"char-*-in-the-middle",
-		"ends-with-*",
-		"*-at-the-beginning",
 	}
 	for _, tc := range tcases {
 		configFile := filepath.Join(tmpDir, "conf1.hcl")
@@ -191,7 +188,7 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 		}
 
 		out := ui.ErrorWriter.String()
-		exp := "Datacenter contains invalid characters (null or '*')"
+		exp := "Datacenter contains invalid characters"
 		if !strings.Contains(out, exp) {
 			t.Fatalf("expect to find %q\n\n%s", exp, out)
 		}

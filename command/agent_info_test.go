@@ -16,7 +16,7 @@ func TestAgentInfoCommand_Implements(t *testing.T) {
 func TestAgentInfoCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
@@ -28,7 +28,7 @@ func TestAgentInfoCommand_Run(t *testing.T) {
 func TestAgentInfoCommand_Run_JSON(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}
@@ -43,7 +43,7 @@ func TestAgentInfoCommand_Run_JSON(t *testing.T) {
 func TestAgentInfoCommand_Run_Gotemplate(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AgentInfoCommand{Meta: Meta{Ui: ui}}

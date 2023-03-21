@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: `job plan` help text for running the plan now includes the `-namespace` flag
-```

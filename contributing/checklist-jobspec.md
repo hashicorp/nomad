@@ -8,11 +8,8 @@
   * New fields should be added to existing Canonicalize, Copy methods
   * Test the structs/fields via methods mentioned above
 * [ ] Add structs/fields to `nomad/structs` package
-  * `structs/` structs usually have Copy, Equal, and Validate methods
-    * `Validate` methods in this package _must_ be implemented
-    * `Equal` methods are used when comparing one job to another (e.g. did this thing get updated?)
-    * `Copy` methods ensure modifications do not modify the copy of a job in the state store
-      * Use `slices.CloneFunc` and `maps.CloneFunc` to ensure creation of deep copies
+  * `structs/` structs usually have Copy, Equals, and Validate methods
+  * Validation happens in this package and _must_ be implemented
   * Note that analogous struct field names should match with `api/` package
   * Test the structs/fields via methods mentioned above
   * Implement and test other logical methods

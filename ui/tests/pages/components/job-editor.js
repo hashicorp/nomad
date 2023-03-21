@@ -4,11 +4,13 @@ import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 import error from 'nomad-ui/tests/pages/components/error';
 
 export default () => ({
+  scope: '[data-test-job-editor]',
+
   isPresent: isPresent(),
 
-  planError: error('data-test-error'),
-  parseError: error('data-test-error'),
-  runError: error('data-test-error'),
+  planError: error('data-test-plan-error'),
+  parseError: error('data-test-parse-error'),
+  runError: error('data-test-run-error'),
 
   plan: clickable('[data-test-plan]'),
   cancel: clickable('[data-test-cancel]'),

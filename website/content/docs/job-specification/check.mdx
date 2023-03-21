@@ -112,12 +112,12 @@ job "example" {
 - `path` `(string: <varies>)` - Specifies the path of the HTTP endpoint which
   will be queried to observe the health of a service. Nomad will automatically
   add the IP of the service and the port, so this is just the relative URL to
-  the health check endpoint. This is required for HTTP-based health checks.
+  the health check endpoint. This is required for http-based health checks.
 
-- `expose` `(bool: false)` - Specifies whether an [Expose Path](/nomad/docs/job-specification/expose#path-parameters)
+- `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
   should be automatically generated for this check. Only compatible with
   Connect-enabled task-group services using the default Connect proxy. If set, check
-  [`type`](#type) must be `http` or `grpc`, and check `name` must be set.
+  [`type`][type] must be `http` or `grpc`, and check `name` must be set.
   Only supported in the Consul service provider.
 
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
@@ -131,14 +131,14 @@ job "example" {
   ports by default. In Nomad 0.7.1 or later numeric ports may be used if
   `address_mode="driver"` is set on the check.
 
-- `protocol` `(string: "http")` - Specifies the protocol for the HTTP-based
+- `protocol` `(string: "http")` - Specifies the protocol for the http-based
   health checks. Valid options are `http` and `https`.
 
 - `task` `(string: "")` - Specifies the task associated with this
   check. Scripts are executed within the task's environment, and
   `check_restart` blocks will apply to the specified task. Inherits
   the [`service.task`][service_task] value if not set. Must be unset
-  or equivalent to `service.task` in task-level services.
+  or equivelent to `service.task` in task-level services.
 
 - `timeout` `(string: <required>)` - Specifies how long to wait for a health check
   query to succeed. This is specified using a label suffix like "30s" or "1h". This
@@ -328,7 +328,7 @@ check {
 }
 ```
 
-### Healthiness versus Readiness Checks
+### Healthiness vs. Readiness Checks
 
 Multiple checks for a service can be composed to create healthiness and readiness
 checks by configuring [`on_update`][on_update] for the check.
@@ -369,13 +369,11 @@ For checks registered into the Nomad service provider, the status information of
 checks can be viewed per-allocation. The `alloc status` command now includes
 summary information for Nomad service checks.
 
-```shell-session
-$ nomad alloc status <allocation-id>
+```
+➜ nomad alloc status <allocation-id>
 ```
 
-<CodeBlockConfig hideClipboard>
-
-```plaintext
+```
 Nomad Service Checks:
 Service   Task     Name          Mode         Status
 database  task     db_tcp_probe  readiness    success
@@ -383,18 +381,14 @@ web       (group)  healthz       healthiness  failure
 web       (group)  index-page    healthiness  success
 ```
 
-</CodeBlockConfig>
-
 The `alloc checks` command can be used for viewing complete check status information
 for all checks in an allocation.
 
-```shell-session
-$ nomad alloc checks <allocation-id>
+```
+➜ noamd alloc checks <allocation-id>
 ```
 
-<CodeBlockConfig hideClipboard>
-
-```plaintext
+```
 Status of 3 Nomad Service Checks
 
 ID         =  d8651d93a50b9e28375a7beb9418c418
@@ -429,8 +423,6 @@ Timestamp  =  2022-08-22T10:41:23-05:00
 Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection refused
 ```
 
-</CodeBlockConfig>
-
 ---
 
 <sup>
@@ -442,9 +434,9 @@ Output     =  nomad: Get "http://:9999/": dial tcp :9999: connect: connection re
   does not have access to the file system of a task for that driver.
 </small>
 
-[check_restart_block]: /nomad/docs/job-specification/check_restart
-[consul_passfail]: /consul/docs/discovery/checks#success-failures-before-passing-critical
-[network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'
-[service]: /nomad/docs/job-specification/service
-[service_task]: /nomad/docs/job-specification/service#task-1
-[on_update]: /nomad/docs/job-specification/service#on_update
+[check_restart_block]: /docs/job-specification/check_restart
+[consul_passfail]: https://developer.hashicorp.com/consul/docs/discovery/checks#success-failures-before-passing-critical
+[network]: /docs/job-specification/network 'Nomad network Job Specification'
+[service]: /docs/job-specification/service
+[service_task]: /docs/job-specification/service#task-1
+[on_update]: /docs/job-specification/service#on_update

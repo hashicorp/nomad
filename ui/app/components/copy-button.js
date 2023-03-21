@@ -1,11 +1,10 @@
 import Component from '@ember/component';
 import { task, timeout } from 'ember-concurrency';
-import { classNames, classNameBindings } from '@ember-decorators/component';
+import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 @classic
 @classNames('copy-button')
-@classNameBindings('inset')
 export default class CopyButton extends Component {
   clipboardText = null;
   state = null;

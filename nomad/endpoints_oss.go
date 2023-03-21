@@ -10,7 +10,7 @@ type EnterpriseEndpoints struct{}
 
 // NewEnterpriseEndpoints returns a stub of the enterprise endpoints since there
 // are none in oss
-func NewEnterpriseEndpoints(s *Server, ctx *RPCContext) *EnterpriseEndpoints {
+func NewEnterpriseEndpoints(s *Server) *EnterpriseEndpoints {
 	return &EnterpriseEndpoints{}
 }
 

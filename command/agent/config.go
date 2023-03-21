@@ -227,12 +227,6 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
-	// DiskTotalMB is used to override any detected or default total disk space.
-	DiskTotalMB int `hcl:"disk_total_mb"`
-
-	// DiskFreeMB is used to override any detected or default free disk space.
-	DiskFreeMB int `hcl:"disk_free_mb"`
-
 	// ReservableCores is used to override detected reservable cpu cores.
 	ReserveableCores string `hcl:"reservable_cores"`
 
@@ -314,10 +308,6 @@ type ClientConfig struct {
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
-
-	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
-	// internal bridge network
-	BridgeNetworkHairpinMode bool `hcl:"bridge_network_hairpin_mode"`
 
 	// HostNetworks describes the different host networks available to the host
 	// if the host uses multiple interfaces
@@ -490,10 +480,6 @@ type ServerConfig struct {
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
 
-	// CSIVolumeClaimGCInterval is how often we dispatch a job to GC
-	// volume claims.
-	CSIVolumeClaimGCInterval string `hcl:"csi_volume_claim_gc_interval"`
-
 	// CSIVolumeClaimGCThreshold controls how "old" a CSI volume must be to
 	// have its claims collected by GC.	Age is not the only requirement for
 	// a volume to be GCed but the threshold can be used to filter by age.
@@ -566,7 +552,7 @@ type ServerConfig struct {
 	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
-	// When set to false (default), a leave causes Nomad to not rejoin
+	// When set to false (default), a leave causes Consul to not rejoin
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `hcl:"rejoin_after_leave"`
@@ -629,31 +615,6 @@ type ServerConfig struct {
 
 	// RaftBoltConfig configures boltdb as used by raft.
 	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
-
-	// RaftSnapshotThreshold controls how many outstanding logs there must be
-	// before we perform a snapshot. This is to prevent excessive snapshotting by
-	// replaying a small set of logs instead. The value passed here is the initial
-	// setting used. This can be tuned during operation with a hot reload.
-	RaftSnapshotThreshold *int `hcl:"raft_snapshot_threshold"`
-
-	// RaftSnapshotInterval controls how often we check if we should perform a
-	// snapshot. We randomly stagger between this value and 2x this value to avoid
-	// the entire cluster from performing a snapshot at once. The value passed
-	// here is the initial setting used. This can be tuned during operation with a
-	// hot reload.
-	RaftSnapshotInterval *string `hcl:"raft_snapshot_interval"`
-
-	// RaftTrailingLogs controls how many logs are left after a snapshot. This is
-	// used so that we can quickly replay logs on a follower instead of being
-	// forced to send an entire snapshot. The value passed here is the initial
-	// setting used. This can be tuned during operation using a hot reload.
-	RaftTrailingLogs *int `hcl:"raft_trailing_logs"`
-
-	// JobDefaultPriority is the default Job priority if not specified.
-	JobDefaultPriority *int `hcl:"job_default_priority"`
-
-	// JobMaxPriority is an upper bound on the Job priority.
-	JobMaxPriority *int `hcl:"job_max_priority"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -676,11 +637,6 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
 	ns.RaftBoltConfig = s.RaftBoltConfig.Copy()
-	ns.RaftSnapshotInterval = pointer.Copy(s.RaftSnapshotInterval)
-	ns.RaftSnapshotThreshold = pointer.Copy(s.RaftSnapshotThreshold)
-	ns.RaftTrailingLogs = pointer.Copy(s.RaftTrailingLogs)
-	ns.JobDefaultPriority = pointer.Copy(s.JobDefaultPriority)
-	ns.JobMaxPriority = pointer.Copy(s.JobMaxPriority)
 	return &ns
 }
 
@@ -904,12 +860,6 @@ type Telemetry struct {
 	// high numbers of single count dispatch jobs as the metrics for each take up
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `hcl:"disable_dispatched_job_summary_metrics"`
-
-	// DisableRPCRateMetricsLabels drops the label for the identity of the
-	// requester when publishing metrics on RPC rate on the server. This may be
-	// useful to control metrics collection costs in environments where request
-	// rate is well-controlled but cardinality of requesters is high.
-	DisableRPCRateMetricsLabels bool `hcl:"disable_rpc_rate_metrics_labels"`
 
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
@@ -1879,12 +1829,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold
 	}
-	if b.JobDefaultPriority != nil {
-		result.JobDefaultPriority = pointer.Of(*b.JobDefaultPriority)
-	}
-	if b.JobMaxPriority != nil {
-		result.JobMaxPriority = pointer.Of(*b.JobMaxPriority)
-	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
 	}
@@ -1893,9 +1837,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
-	}
-	if b.CSIVolumeClaimGCInterval != "" {
-		result.CSIVolumeClaimGCInterval = b.CSIVolumeClaimGCInterval
 	}
 	if b.CSIVolumeClaimGCThreshold != "" {
 		result.CSIVolumeClaimGCThreshold = b.CSIVolumeClaimGCThreshold
@@ -2051,12 +1992,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.MemoryMB != 0 {
 		result.MemoryMB = b.MemoryMB
 	}
-	if b.DiskTotalMB != 0 {
-		result.DiskTotalMB = b.DiskTotalMB
-	}
-	if b.DiskFreeMB != 0 {
-		result.DiskFreeMB = b.DiskFreeMB
-	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout
 	}
@@ -2160,10 +2095,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
-	}
-
-	if b.BridgeNetworkHairpinMode {
-		result.BridgeNetworkHairpinMode = true
 	}
 
 	result.HostNetworks = a.HostNetworks
@@ -2279,9 +2210,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.DisableDispatchedJobSummaryMetrics {
 		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
-	}
-	if b.DisableRPCRateMetricsLabels {
-		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels
 	}
 
 	return &result

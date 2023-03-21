@@ -77,7 +77,7 @@ export default class KeyboardService extends Service {
     'Go to Clients': ['g', 'c'],
     'Go to Topology': ['g', 't'],
     'Go to Evaluations': ['g', 'e'],
-    'Go to Profile': ['g', 'p'],
+    'Go to ACL Tokens': ['g', 'a'],
     'Next Subnav': ['Shift+ArrowRight'],
     'Previous Subnav': ['Shift+ArrowLeft'],
     'Previous Main Section': ['Shift+ArrowUp'],
@@ -126,7 +126,7 @@ export default class KeyboardService extends Service {
         rebindable: true,
       },
       {
-        label: 'Go to Profile',
+        label: 'Go to ACL Tokens',
         action: () => this.router.transitionTo('settings.tokens'),
         rebindable: true,
       },
@@ -342,7 +342,7 @@ export default class KeyboardService extends Service {
           this.displayHints = true;
         } else {
           if (!DISALLOWED_KEYS.includes(key)) {
-            this.addKeyToBuffer.perform(key, shifted, event);
+            this.addKeyToBuffer.perform(key, shifted);
           }
         }
       } else if (type === 'release') {
@@ -382,7 +382,7 @@ export default class KeyboardService extends Service {
    * @param {string} key
    * @param {boolean} shifted
    */
-  @restartableTask *addKeyToBuffer(key, shifted, event) {
+  @restartableTask *addKeyToBuffer(key, shifted) {
     // Replace key with its unshifted equivalent if it's a number key
     if (shifted && key in DIGIT_MAP) {
       key = DIGIT_MAP[key];
@@ -411,7 +411,6 @@ export default class KeyboardService extends Service {
             command.label === 'Show Keyboard Shortcuts' ||
             command.label === 'Hide Keyboard Shortcuts'
           ) {
-            event.preventDefault();
             command.action();
           }
         });

@@ -7,10 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -82,19 +80,10 @@ func (d *Driver) handleFingerprint(ctx context.Context, ch chan *drivers.Fingerp
 
 func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 	fp := &drivers.Fingerprint{
-		Attributes:        make(map[string]*pstructs.Attribute, 8),
+		Attributes:        map[string]*pstructs.Attribute{},
 		Health:            drivers.HealthStateHealthy,
 		HealthDescription: drivers.DriverHealthy,
 	}
-
-	// disable if cgv2 && non-root
-	if cgutil.UseV2 && !utils.IsUnixRoot() {
-		fp.Health = drivers.HealthStateUndetected
-		fp.HealthDescription = drivers.DriverRequiresRootMessage
-		d.setFingerprintFailure()
-		return fp
-	}
-
 	client, _, err := d.dockerClients()
 	if err != nil {
 		if d.fingerprintSuccessful() {

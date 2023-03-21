@@ -78,7 +78,7 @@ func TestValidateCommand_hcl1_hcl2_strict(t *testing.T) {
 		got := cmd.Run([]string{
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
-			"asset/example-short.nomad.hcl",
+			"assets/example-short.nomad",
 		})
 		require.Equal(t, 0, got, ui.ErrorWriter.String())
 	})

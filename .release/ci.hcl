@@ -37,7 +37,7 @@ event "prepare" {
   }
 
   notification {
-    on = "always"
+    on = "fail"
   }
 }
 

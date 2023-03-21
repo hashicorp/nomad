@@ -27,10 +27,7 @@ placement information for the forced evaluation. The monitor will exit after
 scheduling has finished or failed.
 
 When ACLs are enabled, this command requires a token with the `submit-job`
-capability for the job's namespace. The `list-jobs` capability is required to
-run the command with a job prefix instead of the exact job ID. The `read-job`
-capability is required to monitor the resulting evaluation when `-detach` is
-not used.
+and `list-jobs` capabilities for the job's namespace.
 
 ## General Options
 
@@ -66,6 +63,6 @@ Force periodic successful
 Evaluation ID: 0865fbf3-30de-5f53-0811-821e73e63178
 ```
 
-[eval status]: /nomad/docs/commands/eval/status
-[force the evaluation]: /nomad/api-docs/jobs#force-new-periodic-instance
-[periodic job]: /nomad/docs/job-specification/periodic
+[eval status]: /docs/commands/eval/status
+[force the evaluation]: /api-docs/jobs#force-new-periodic-instance
+[periodic job]: /docs/job-specification/periodic

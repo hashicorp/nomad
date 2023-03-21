@@ -21,7 +21,7 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 	}
 
 	srv, _, url := testServer(t, true, config)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	// Bootstrap an initial ACL token
 	token := srv.RootToken

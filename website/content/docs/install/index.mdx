@@ -10,12 +10,12 @@ Nomad is available as a pre-compiled binary or as a package for several
 operating systems. You can also [build Nomad from source](#from-source).
 
 -> If you are interested in trialing Nomad without installing it locally, see the
-[Quickstart](/nomad/docs/install/quickstart) for options to get started with Nomad.
+[Quickstart](/docs/install/quickstart) for options to get started with Nomad.
 
 <Tabs>
 <Tab heading="Manual installation" group="manual">
 
-You can download a [precompiled binary](/nomad/downloads) and
+You can download a [precompiled binary](/downloads) and
 run it on your machine locally. You can also verify the binary using the
 available SHA-256 sums. After downloading Nomad, unzip the package. Make sure
 that the `nomad` binary is available on your `PATH` before continuing with the
@@ -159,8 +159,8 @@ $ sudo yum -y install nomad
 </Tabs>
 
 -> **TIP:** Now that you have added the HashiCorp repository, you can install
-[Consul](/consul/tutorials) and
-[Vault](/vault/tutorials) with the same command.
+[Consul](https://learn.hashicorp.com/consul) and
+[Vault](https://learn.hashicorp.com/vault) with the same command.
 
 </Tab>
 </Tabs>
@@ -325,42 +325,29 @@ Common commands:
     agent       Runs a Nomad agent
 
 Other commands:
-    acl                 Interact with ACL policies and tokens
-    agent-info          Display status information about the local agent
-    config              Interact with configurations
-    deployment          Interact with deployments
-    eval                Interact with evaluations
-    exec                Execute commands in task
-    fmt                 Rewrites Nomad config and job files to canonical format
-    license             Interact with Nomad Enterprise License
-    login               Login to Nomad using an auth method
-    monitor             Stream logs from a Nomad agent
-    namespace           Interact with namespaces
-    operator            Provides cluster-level tools for Nomad operators
-    plugin              Inspect plugins
-    quota               Interact with quotas
-    recommendation      Interact with the Nomad recommendation endpoint
-    scaling             Interact with the Nomad scaling endpoint
-    sentinel            Interact with Sentinel policies
-    server              Interact with servers
-    service             Interact with registered services
-    system              Interact with the system API
-    tls                 Generate Self Signed TLS Certificates for Nomad
-    ui                  Open the Nomad Web UI
-    var                 Interact with variables
-    version             Prints the Nomad version
-    volume              Interact with volumes
+    acl             Interact with ACL policies and tokens
+    agent-info      Display status information about the local agent
+    deployment      Interact with deployments
+    eval            Interact with evaluations
+    exec            Execute commands in task
+    monitor         Stream logs from a Nomad agent
+    namespace       Interact with namespaces
+    operator        Provides cluster-level tools for Nomad operators
+    quota           Interact with quotas
+    sentinel        Interact with Sentinel policies
+    server          Interact with servers
+    system          Interact with the system API
+    ui              Open the Nomad Web UI
+    version         Prints the Nomad version
 ```
 
 ---
 
 ## Compiling from Source ((#from-source))
 
-To compile from source, you will need [Go](https://golang.org) installed at the
-version described by the [.go-version][go-version] file. You should properly
-configure your Go environment, including setting a `GOPATH` environment variable
-and ensuring `GOPATH/bin` is within your `PATH`. A copy of
-[`git`](https://www.git-scm.com/) is also needed in your `PATH`.
+To compile from source, you will need [Go](https://golang.org) installed and
+configured properly (including a `GOPATH` environment variable set), as well
+as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
 
 1. Clone the Nomad repository from GitHub into your `GOPATH`:
 
@@ -386,13 +373,12 @@ and ensuring `GOPATH/bin` is within your `PATH`. A copy of
    $ make dev
    ```
 
-[consul-dev]: /consul/tutorials/certification-associate-tutorials/get-started-agent#start-the-agent
+[consul-dev]: https://learn.hashicorp.com/consul/getting-started/agent#starting-the-agent
 
-[consul-download]: /consul/downloads
+[consul-download]: https://developer.hashicorp.com/consul/downloads
 
-[destroy]: /vagrant/docs/cli/destroy
+[destroy]: https://www.vagrantup.com/docs/cli/destroy
 
 [gh-7865]: https://github.com/hashicorp/nomad/issues/7865
 
 [gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
-[go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version

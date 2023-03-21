@@ -14,7 +14,7 @@ job "operator_scheduler" {
 
       config {
         command = "bash"
-        args    = ["-c", "sleep 30"]
+        args    = ["-c", "sleep 1"]
       }
     }
   }

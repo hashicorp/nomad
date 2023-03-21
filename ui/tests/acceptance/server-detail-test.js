@@ -25,7 +25,7 @@ module('Acceptance | server detail', function (hooks) {
 
   test('visiting /servers/:server_name', async function (assert) {
     assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
-    assert.equal(document.title, `Server ${agent.name} - Mirage - Nomad`);
+    assert.equal(document.title, `Server ${agent.name} - Nomad`);
   });
 
   test('when the server is the leader, the title shows a leader badge', async function (assert) {

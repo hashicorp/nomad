@@ -2,8 +2,6 @@ package api
 
 import (
 	"time"
-
-	"golang.org/x/exp/maps"
 )
 
 // Consul represents configuration related to consul.
@@ -206,7 +204,6 @@ type ConsulUpstream struct {
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
 	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
 	MeshGateway          *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
-	Config               map[string]any     `mapstructure:"config" hcl:"config,block"`
 }
 
 func (cu *ConsulUpstream) Copy() *ConsulUpstream {
@@ -220,7 +217,6 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 		Datacenter:           cu.Datacenter,
 		LocalBindAddress:     cu.LocalBindAddress,
 		MeshGateway:          cu.MeshGateway.Copy(),
-		Config:               maps.Clone(cu.Config),
 	}
 }
 
@@ -229,9 +225,6 @@ func (cu *ConsulUpstream) Canonicalize() {
 		return
 	}
 	cu.MeshGateway.Canonicalize()
-	if len(cu.Config) == 0 {
-		cu.Config = nil
-	}
 }
 
 type ConsulExposeConfig struct {

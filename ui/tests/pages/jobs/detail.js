@@ -37,7 +37,6 @@ export default create({
 
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),
-  purge: twoStepButton('[data-test-purge]'),
 
   packTag: isPresent('[data-test-pack-tag]'),
   metaTable: isPresent('[data-test-meta]'),

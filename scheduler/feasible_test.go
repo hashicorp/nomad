@@ -103,9 +103,8 @@ func TestHostVolumeChecker(t *testing.T) {
 	}
 	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
 	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
-		"foo":              {},
-		"bar":              {},
-		"unique-volume[0]": {},
+		"foo": {},
+		"bar": {},
 	}
 	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"foo": {},
@@ -130,11 +129,6 @@ func TestHostVolumeChecker(t *testing.T) {
 		"baz": {
 			Type:   "nothost",
 			Source: "baz",
-		},
-		"unique": {
-			Type:     "host",
-			Source:   "unique-volume[0]",
-			PerAlloc: true,
 		},
 	}
 
@@ -171,11 +165,8 @@ func TestHostVolumeChecker(t *testing.T) {
 		},
 	}
 
-	alloc := mock.Alloc()
-	alloc.NodeID = nodes[2].ID
-
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -244,12 +235,8 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
-
-	alloc := mock.Alloc()
-	alloc.NodeID = nodes[1].ID
-
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}

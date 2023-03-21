@@ -11,11 +11,6 @@ export default class Token extends Model {
   @attr('string') type;
   @hasMany('policy') policies;
   @attr() policyNames;
-  @attr('date') expirationTime;
 
   @alias('id') accessor;
-
-  get isExpired() {
-    return this.expirationTime && this.expirationTime < new Date();
-  }
 }

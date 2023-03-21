@@ -12,7 +12,7 @@ import (
 func TestAgentCheckCommand_ServerHealth(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AgentCheckCommand{Meta: Meta{Ui: ui}}

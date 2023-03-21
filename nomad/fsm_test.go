@@ -13,7 +13,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -2683,62 +2682,6 @@ func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
 	require.ElementsMatch(t, restoredACLRoles, aclRoles)
 }
 
-func TestFSM_SnapshotRestore_ACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create our initial FSM which will be snapshotted.
-	fsm := testFSM(t)
-	testState := fsm.State()
-
-	// Generate and upsert some ACL auth methods.
-	authMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
-	must.NoError(t, testState.UpsertACLAuthMethods(10, authMethods))
-
-	// Perform a snapshot restore.
-	restoredFSM := testSnapshotRestore(t, fsm)
-	restoredState := restoredFSM.State()
-
-	// List the ACL auth methods from restored state and ensure everything is as
-	// expected.
-	iter, err := restoredState.GetACLAuthMethods(memdb.NewWatchSet())
-	must.NoError(t, err)
-
-	var restoredACLAuthMethods []*structs.ACLAuthMethod
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLAuthMethods = append(restoredACLAuthMethods, raw.(*structs.ACLAuthMethod))
-	}
-	must.SliceContainsAll(t, restoredACLAuthMethods, authMethods)
-}
-
-func TestFSM_SnapshotRestore_ACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create our initial FSM which will be snapshotted.
-	fsm := testFSM(t)
-	testState := fsm.State()
-
-	// Generate a some mocked ACL binding rules for testing and upsert these
-	// straight into state.
-	mockedACLBindingRoles := []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}
-	must.NoError(t, testState.UpsertACLBindingRules(10, mockedACLBindingRoles, true))
-
-	// Perform a snapshot restore.
-	restoredFSM := testSnapshotRestore(t, fsm)
-	restoredState := restoredFSM.State()
-
-	// List the ACL binding rules from restored state and ensure everything is
-	// as expected.
-	iter, err := restoredState.GetACLBindingRules(memdb.NewWatchSet())
-	must.NoError(t, err)
-
-	var restoredACLBindingRules []*structs.ACLBindingRule
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLBindingRules = append(restoredACLBindingRules, raw.(*structs.ACLBindingRule))
-	}
-	must.SliceContainsAll(t, restoredACLBindingRules, mockedACLBindingRoles)
-}
-
 func TestFSM_ReconcileSummaries(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state
@@ -3534,112 +3477,4 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 
 	require.Len(t, events, 1)
 	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
-}
-
-func TestFSM_UpsertACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
-	req := structs.ACLAuthMethodUpsertRequest{
-		AuthMethods: []*structs.ACLAuthMethod{am1, am2},
-	}
-	buf, err := structs.Encode(structs.ACLAuthMethodsUpsertRequestType, req)
-	must.Nil(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
-	must.Nil(t, err)
-	must.NotNil(t, out)
-
-	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
-	must.Nil(t, err)
-	must.NotNil(t, out)
-}
-
-func TestFSM_DeleteACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
-	must.Nil(t, fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
-
-	req := structs.ACLAuthMethodDeleteRequest{
-		Names: []string{am1.Name, am2.Name},
-	}
-	buf, err := structs.Encode(structs.ACLAuthMethodsDeleteRequestType, req)
-	must.Nil(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Verify we are NOT registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
-	must.Nil(t, err)
-	must.Nil(t, out)
-
-	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
-	must.Nil(t, err)
-	must.Nil(t, out)
-}
-
-func TestFSM_UpsertACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	// Create an auth method and upsert so the binding rules can link to this.
-	authMethod := mock.ACLAuthMethod()
-	must.NoError(t, fsm.state.UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))
-
-	aclBindingRule1 := mock.ACLBindingRule()
-	aclBindingRule1.AuthMethod = authMethod.Name
-	aclBindingRule2 := mock.ACLBindingRule()
-	aclBindingRule2.AuthMethod = authMethod.Name
-
-	req := structs.ACLBindingRulesUpsertRequest{
-		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule1, aclBindingRule2},
-	}
-	buf, err := structs.Encode(structs.ACLBindingRulesUpsertRequestType, req)
-	must.NoError(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Ensure the ACL binding rules have been upserted correctly.
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLBindingRule(ws, aclBindingRule1.ID)
-	must.Nil(t, err)
-	must.Eq(t, aclBindingRule1, out)
-
-	out, err = fsm.State().GetACLBindingRule(ws, aclBindingRule2.ID)
-	must.Nil(t, err)
-	must.Eq(t, aclBindingRule2, out)
-}
-
-func TestFSM_DeleteACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	aclBindingRule1 := mock.ACLBindingRule()
-	aclBindingRule2 := mock.ACLBindingRule()
-	must.NoError(t, fsm.State().UpsertACLBindingRules(
-		10, []*structs.ACLBindingRule{aclBindingRule1, aclBindingRule2}, true))
-
-	req := structs.ACLBindingRulesDeleteRequest{
-		ACLBindingRuleIDs: []string{aclBindingRule1.ID, aclBindingRule2.ID},
-	}
-	buf, err := structs.Encode(structs.ACLBindingRulesDeleteRequestType, req)
-	must.NoError(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Ensure neither ACL binding rule is now found.
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLBindingRule(ws, aclBindingRule1.ID)
-	must.NoError(t, err)
-	must.Nil(t, out)
-
-	out, err = fsm.State().GetACLBindingRule(ws, aclBindingRule2.ID)
-	must.NoError(t, err)
-	must.Nil(t, out)
 }

@@ -8,7 +8,7 @@ description: |
 # Command: version
 
 The `version` command displays build information about the running binary,
-including the release version, build date, and the exact revision.
+including the release version and the exact revision.
 
 ## Usage
 
@@ -18,18 +18,13 @@ nomad version
 
 ## Output
 
-This command prints the version number and info about the git commit that was
-used to build the binary. `BuildDate` is when the commit was made,
-and `Revision` is the exact commit SHA.
-
-The SHA may also have the string `+CHANGES` appended to the end,
-indicating that local, uncommitted changes were detected at build time.
+This command prints both the version number as well as the exact commit SHA used
+during the build. The SHA may also have the string `+CHANGES` appended to the
+end, indicating that local, uncommitted changes were detected at build time.
 
 ## Examples
 
 ```shell-session
 $ nomad version
-Nomad v1.5.0
-BuildDate 2023-02-17T19:29:26Z
-Revision a536284ebcfb4ff26065955abae446d81cc92b87+CHANGES
+Nomad v0.0.0-615-gcf3c6aa-dev (cf3c6aa8a75a689987b689d75ae2ba73458465cb+CHANGES)
 ```
