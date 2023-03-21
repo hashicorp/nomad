@@ -18,12 +18,12 @@ job "deployment_auto.nomad" {
 
     network {
       port "db" {
-        static = 9000
+        to = 1234
       }
     }
 
     task "one" {
-      driver = "raw_exec"
+      driver = "docker"
 
       env {
         version = "1"
@@ -32,10 +32,8 @@ job "deployment_auto.nomad" {
       config {
         image   = "busybox:1"
         command = "nc"
-
-        # change args to update the job, the only changes
-        args  = ["-ll", "-p", "1234", "-e", "/bin/cat"]
-        ports = ["db"]
+        args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
+        ports   = ["db"]
       }
 
       resources {
