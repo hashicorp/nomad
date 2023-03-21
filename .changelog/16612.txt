@@ -1,0 +1,3 @@
+```release-note:bug
+drainer: Fixed a bug where draining nodes that become lost or disconnected were still tracked by the drainer
+```
