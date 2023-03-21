@@ -248,6 +248,7 @@ export default class Job extends Model {
 
   parse() {
     const definition = this._newDefinition;
+    const variables = this._newDefinitionVariables;
     let promise;
 
     try {
@@ -264,9 +265,18 @@ export default class Job extends Model {
     } catch (err) {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
       // in anyway, the parse endpoint will throw an error.
+
+      // Check first if variables is valid JSON before dispatching network req
+      if (variables) {
+        try {
+          JSON.parse(variables);
+        } catch (e) {
+          throw new Error(e);
+        }
+      }
       promise = this.store
         .adapterFor('job')
-        .parse(this._newDefinition)
+        .parse(this._newDefinition, variables)
         .then((response) => {
           this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
@@ -328,6 +338,10 @@ export default class Job extends Model {
   // An arbitrary HCL or JSON string that is used by the serializer to plan
   // and run this job. Used for both new job models and saved job models.
   @attr('string') _newDefinition;
+
+  // An arbitrary JSON string that is used by the adapter to plan
+  // and run this job. Used for both new job models and saved job models.
+  @attr('string') _newDefinitionVariables;
 
   // The new definition may be HCL, in which case the API will need to parse the
   // spec first. In order to preserve both the original HCL and the parsed response
