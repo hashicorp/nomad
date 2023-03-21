@@ -6,11 +6,11 @@ play-by-play from the user's perspective, see [node drain tutorial][]. This
 document describes the internals of the drainer for Nomad developers.
 
 The high-level workflow is that:
-* The user sets the drain state of the client ("node") in the state store.
+* The user sets the drain state of the Client ("Node") in the state store.
 * Allocations are migrated according to their `migrate` block.
-* The drainer creates a watcher for the node to fire an event when the work is
+* The drainer creates a watcher for the Node to fire an event when the work is
   done or the drain's deadline is reached.
-* The drainer creates watchers for each job's allocs on the node, to fire
+* The drainer creates watchers for each job's allocs on the Node, to fire
   progress events.
 
 Effectively the drainer marks allocations for migration and emits an eval, and
@@ -26,9 +26,9 @@ There are four major components of the drainer:
 
 - **`DrainingNodeWatcher`**: A watcher interface implemented by the
   `nodeDrainWatcher` struct in [`watch_nodes.go`][]. Runs a loop that watches
-  for changes to nodes. If a node change transitions a node to draining, the
-  `DrainingNodeWatcher` adds the node to its tracker. It queries the state store
-  to get the jobs that have allocations running on that node, and registers
+  for changes to Nodes. If a Node change transitions a Node to draining, the
+  `DrainingNodeWatcher` adds the Node to its tracker. It queries the state store
+  to get the jobs that have allocations running on that Node, and registers
   those jobs with the `DrainingJobWatcher`.
 
 - **`DrainingJobWatcher`**: A watcher interface implemented by the
@@ -49,8 +49,8 @@ There are four major components of the drainer:
 
 - **`DrainDeadlineNotifier`**: A watcher interface implemented by the
   `deadlineHeap` struct in [`drain_heap.go`][]. Runs a loop that tracks the
-  nodes being drained against their deadline timers. The `NodeDrainer` can watch
-  the channel returned by the `NextBatch` method to get slices of nodes that
+  Nodes being drained against their deadline timers. The `NodeDrainer` can watch
+  the channel returned by the `NextBatch` method to get slices of Nodes that
   have failed to complete their migrations by the deadline.
 
 There is also a collection of other minor components important to understanding
@@ -65,11 +65,11 @@ the workflow:
   - `AllocUpdateDesiredTransition` includes allocation desired status changes
     and the evaluations that will need to be processed.
 
-  - `NodesDrainComplete` includes updates for the drained node.
+  - `NodesDrainComplete` includes updates for the drained Node.
 
-- **`drainingNode`**: This struct represents the state of a single node whose
+- **`drainingNode`**: This struct represents the state of a single Node whose
   drain is being tracked. Created by the `DrainingNodeWatcher` whenever a
-  node is marked for draining in the state store.
+  Node is marked for draining in the state store.
 
 - **`DrainRequest`**: This struct represents a set of allocations that should be
   marked for drain. Created by `DrainingJobWatcher` whenever it receives a job
@@ -87,7 +87,7 @@ this limited case.
 ## Events
 
 The components combine into three high-level flow of events. The first is the
-flow of a newly draining node. The `NodeWatcher` gets the node from a blocking
+flow of a newly draining Node. The `NodeWatcher` gets the Node from a blocking
 query. It registers the job with the `JobWatcher`. The `JobWatcher` determines
 which allocations need draining. These are polled from the `Drain()` channel by
 `NodeDrainer` and written to raft via the `AllocUpdateDesiredTransition`
@@ -124,7 +124,7 @@ The second is when allocation migrations are complete. The clients update the
 state of the migrated allocs. The `JobWatcher` has a blocking query that detects
 these changes. Allocs that are done migrating get sent on the `Migrated()`
 channel that's polled by the `NodeDrainer`. The `NodeDrainer` determines whether
-the node is done being drained, and writes an update via the
+the Node is done being drained, and writes an update via the
 `NodesDrainComplete` raft shim.
 
 ```mermaid
@@ -147,9 +147,9 @@ flowchart TD
     NodeDrainer -- "4. NodesDrainComplete\n(raft shim)" --> StateStore
 ```
 
-And the third is when nodes pass their deadline. The `NodeWatcher` is
+And the third is when Nodes pass their deadline. The `NodeWatcher` is
 responsible for adding and removing the watch in the `DeadlineNotifier`. The
-`DeadlineNotifier` is responsible for watching the timer. If the node isn't
+`DeadlineNotifier` is responsible for watching the timer. If the Node isn't
 removed before the deadline, the `DeadlineNotifier` tells the `NodeDrainer` and
 the `NodeDrainer` updates the state via the `NodesDrainComplete` shim. At this
 point the remaining allocs will be forced to shutdown immediately.
