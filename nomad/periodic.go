@@ -274,8 +274,9 @@ func (p *PeriodicDispatch) removeLocked(jobID structs.NamespacedID) error {
 	return nil
 }
 
+// ForceRunIfNotRunning causes the periodic job to be evaluated only if there are
+// no overlap constrains in the definition and there are no jobs running already
 func (p *PeriodicDispatch) ForceRunIfNotRunning(job *structs.Job) (*structs.Evaluation, error) {
-
 	if job.Periodic.ProhibitOverlap {
 		running, err := p.dispatcher.RunningChildren(job)
 		if err != nil {
