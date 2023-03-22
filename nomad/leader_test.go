@@ -651,9 +651,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
 	}
 	must.MapContainsKey(t, s1.periodicDispatcher.tracked, tuple, must.Sprint("periodic job not restored"))
 
-	if md.forceEvalCalled != false {
-		t.Fatalf("evaluation forced with job already running")
-	}
+	must.False(t, md.forceEvalCalled, must.Sprint("evaluation forced with job already running"))
 }
 
 func TestLeader_PeriodicDispatch(t *testing.T) {
