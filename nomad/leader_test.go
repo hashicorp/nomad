@@ -595,7 +595,6 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 	}
 
 	must.True(t, md.forceEvalCalled, must.Sprint("failed to force job evaluation"))
-	t.Fail()
 }
 
 func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {

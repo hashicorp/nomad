@@ -799,7 +799,6 @@ func (s *Server) restorePeriodicDispatcher() error {
 // instances of the job running in order to determine if a new evaluation needs to
 // be created upon periodic dispatcher restore
 func (s *Server) cronJobOverlapAllowed(job *structs.Job) (bool, error) {
-
 	if job.Periodic.ProhibitOverlap {
 		running, err := s.periodicDispatcher.dispatcher.RunningChildren(job)
 		if err != nil {

@@ -278,10 +278,10 @@ func (p *PeriodicDispatch) removeLocked(jobID structs.NamespacedID) error {
 // subsequent eval.
 func (p *PeriodicDispatch) ForceEval(namespace, jobID string) (*structs.Evaluation, error) {
 	p.l.Lock()
-	defer p.l.Unlock()
 
 	// Do nothing if not enabled
 	if !p.enabled {
+		p.l.Unlock()
 		return nil, fmt.Errorf("periodic dispatch disabled")
 	}
 
@@ -291,9 +291,11 @@ func (p *PeriodicDispatch) ForceEval(namespace, jobID string) (*structs.Evaluati
 	}
 	job, tracked := p.tracked[tuple]
 	if !tracked {
+		p.l.Unlock()
 		return nil, fmt.Errorf("can't force run non-tracked job %q (%s)", jobID, namespace)
 	}
 
+	p.l.Unlock()
 	return p.createEval(job, time.Now().In(job.Periodic.GetLocation()))
 }
 
