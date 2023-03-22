@@ -5713,7 +5713,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 							nextReplacement := replacement.Copy()
 							nextReplacement.ID = uuid.Generate()
 							nextReplacement.ClientStatus = structs.AllocClientStatusRunning
-							nextReplacement.DesiredStatus = structs.AllocClientStatusRunning
+							nextReplacement.DesiredStatus = structs.AllocDesiredStatusRun
 							nextReplacement.PreviousAllocation = replacement.ID
 
 							replacement.NextAllocation = nextReplacement.ID
