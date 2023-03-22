@@ -2,6 +2,7 @@
   <header>
     <h4 class="title is-5">Deployment History</h4>
     <SearchBox
+      data-test-history-search
       @searchTerm={{mut this.searchTerm}}
       @placeholder="Search events..."
     />
@@ -27,9 +28,9 @@
       {{else}}
         {{#if this.deploymentAllocations.length}}
           {{#if this.searchTerm}}
-            <li class="timeline-object">
+            <li class="timeline-object" data-test-history-search-no-match>
               <div class="boxed-section-head is-light">
-                <span>No events march {{this.searchTerm}}</span>
+                <span>No events match {{this.searchTerm}}</span>
               </div>
             </li>
           {{else}}

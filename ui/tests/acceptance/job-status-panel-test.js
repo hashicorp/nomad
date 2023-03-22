@@ -2,7 +2,14 @@
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
-import { click, visit, find, triggerEvent } from '@ember/test-helpers';
+import {
+  click,
+  visit,
+  find,
+  findAll,
+  fillIn,
+  triggerEvent,
+} from '@ember/test-helpers';
 
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
@@ -399,5 +406,66 @@ module('Acceptance | job status panel', function (hooks) {
         '25',
         'Summary block has the correct number of grouped running allocs'
       );
+  });
+
+  module('deployment history', function () {
+    test('Deployment history can be searched', async function (assert) {
+      faker.seed(1);
+
+      let groupTaskCount = 10;
+
+      let job = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'service',
+        resourceSpec: ['M: 256, C: 500'], // a single group
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 1,
+          failed: 0,
+          unknown: 0,
+          lost: 0,
+        },
+        groupTaskCount,
+        shallow: true,
+        activeDeployment: true,
+      });
+
+      let state = server.create('task-state');
+      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+
+      server.schema.allocations
+        .where({ jobId: job.id })
+        .update({ taskStateIds: [state.id] });
+
+      await visit(`/jobs/${job.id}`);
+      assert.dom('.job-status-panel').exists();
+
+      const serverEvents = server.schema.taskEvents.where({
+        taskStateId: state.id,
+      });
+      const shownEvents = findAll('.timeline-object');
+      const jobAllocations = server.db.allocations.where({ jobId: job.id });
+      assert.equal(
+        shownEvents.length,
+        serverEvents.length * jobAllocations.length,
+        'All events are shown'
+      );
+
+      await fillIn(
+        '[data-test-history-search] input',
+        serverEvents.models[0].message
+      );
+      assert.equal(
+        findAll('.timeline-object').length,
+        jobAllocations.length,
+        'Only events matching the search are shown'
+      );
+
+      await fillIn('[data-test-history-search] input', 'foo bar baz');
+      assert
+        .dom('[data-test-history-search-no-match]')
+        .exists('No match message is shown');
+    });
   });
 });
