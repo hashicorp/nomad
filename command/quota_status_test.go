@@ -4,13 +4,15 @@
 package command
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestQuotaStatusCommand_Implements(t *testing.T) {
@@ -80,7 +82,7 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Go template to format the output
-	code = cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Name }}{{end}}", allocID})
+	code := cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Name }}{{end}}", qs.Name})
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
@@ -91,7 +93,6 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 
 func TestQuotaStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -102,7 +103,7 @@ func TestQuotaStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a quota
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	must.NoError(err)
+	must.NoError(t, err)
 
 	args := complete.Args{Last: "t"}
 	predictor := cmd.AutocompleteArgs()
