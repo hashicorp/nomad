@@ -776,11 +776,11 @@ func (s *Server) restorePeriodicDispatcher() error {
 
 		// We skip if the job doesn't allow overlap and there are already
 		// instances running
-		needed, err := s.isNewEvalNeeded(job)
+		allowed, err := s.cronJobOverlapAllowed(job)
 		if err != nil {
 			return fmt.Errorf("failed to get job status: %v", err)
 		}
-		if !needed {
+		if !allowed {
 			continue
 		}
 
@@ -795,10 +795,10 @@ func (s *Server) restorePeriodicDispatcher() error {
 	return nil
 }
 
-// isNewEvalNeeded checks if the job allows for overlap and if there are already
+// cronJobOverlapAllowed checks if the job allows for overlap and if there are already
 // instances of the job running in order to determine if a new evaluation needs to
 // be created upon periodic dispatcher restore
-func (s *Server) isNewEvalNeeded(job *structs.Job) (bool, error) {
+func (s *Server) cronJobOverlapAllowed(job *structs.Job) (bool, error) {
 
 	if job.Periodic.ProhibitOverlap {
 		running, err := s.periodicDispatcher.dispatcher.RunningChildren(job)

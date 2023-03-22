@@ -487,7 +487,8 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	}
 
 	// Create an eval for the past launch.
-	eval, _ := s1.periodicDispatcher.createEval(job, past)
+	eval, err := s1.periodicDispatcher.createEval(job, past)
+	must.NoError(t, err)
 
 	md := &mockJobEvalDispatcher{
 		children:          false,
@@ -556,7 +557,8 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 	must.NoError(t, err)
 
 	// Create an eval for the past launch.
-	eval, _ := s1.periodicDispatcher.createEval(job, past)
+	eval, err := s1.periodicDispatcher.createEval(job, past)
+	must.NoError(t, err)
 
 	md := &mockJobEvalDispatcher{
 		children:     false,
@@ -625,7 +627,8 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
 	}
 
 	// Create an eval for the past launch.
-	eval, _ := s1.periodicDispatcher.createEval(job, past)
+	eval, err := s1.periodicDispatcher.createEval(job, past)
+	must.NoError(t, err)
 
 	md := &mockJobEvalDispatcher{
 		children:     true,
