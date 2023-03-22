@@ -553,9 +553,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 		},
 	}
 	_, _, err := s1.raftApply(structs.JobRegisterRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Create an eval for the past launch.
 	eval, _ := s1.periodicDispatcher.createEval(job, past)
