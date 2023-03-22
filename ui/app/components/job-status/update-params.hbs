@@ -1,30 +1,36 @@
-<div class="update-parameters" {{did-insert (action this.fetchJobDefinition)}}>
-  <h4 class="title is-5">Update Params</h4>
-  <code>
-  <ul>
-    {{#each this.updateParamGroups as |group|}}
-      <li>
-        <span class="group">Group "{{group.name}}"</span>
+<Trigger @onError={{action this.onError}} @do={{this.fetchJobDefinition}} as |trigger|>
+  {{did-insert trigger.fns.do}}
+
+  <div class="update-parameters">
+    <h4 class="title is-5">Update Params</h4>
+    <code>
+
+      {{#if (and trigger.data.isSuccess (not trigger.data.isError))}}
         <ul>
-          {{#each-in group.update as |k v|}}
+          {{#each this.updateParamGroups as |group|}}
             <li>
-              <span class="key">{{k}}</span>
-              <span class="value">{{v}}</span>
+              <span class="group">Group "{{group.name}}"</span>
+              <ul>
+                {{#each-in group.update as |k v|}}
+                  <li>
+                    <span class="key">{{k}}</span>
+                    <span class="value">{{v}}</span>
+                  </li>
+                {{/each-in}}
+              </ul>
             </li>
-          {{/each-in}}
+          {{/each}}
         </ul>
-      </li>
-    {{else}}
-      {{#if this.errorState}}
-        <li>
-          <span class="group">Error loading parameters</span>
-        </li>
-      {{else}}
-        <li>
-          <span class="group">Loading parameters</span>
-        </li>
       {{/if}}
-    {{/each}}
-  </ul>
-  </code>
-</div>
+
+      {{#if trigger.data.isBusy}}
+        <span class="notification">Loading Parameters</span>
+      {{/if}}
+
+      {{#if trigger.data.isError}}
+        <span class="notification">Error loading parameters</span>
+      {{/if}}
+
+    </code>
+  </div>
+</Trigger>

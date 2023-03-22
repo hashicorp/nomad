@@ -39,11 +39,6 @@ export default class JobStatusUpdateParamsComponent extends Component {
    */
   @tracked rawDefinition = null;
 
-  /**
-   * @type {Error}
-   */
-  @tracked errorState = null;
-
   get updateParamGroups() {
     if (this.rawDefinition) {
       return this.rawDefinition.TaskGroups.map((tg) => {
@@ -57,16 +52,16 @@ export default class JobStatusUpdateParamsComponent extends Component {
     }
   }
 
+  @action onError({ Error }) {
+    const error = Error.errors[0].title || 'Error fetching job parameters';
+    this.notifications.add({
+      title: 'Could not fetch job definition',
+      message: error,
+      color: 'critical',
+    });
+  }
+
   @action async fetchJobDefinition() {
-    try {
-      this.rawDefinition = await this.args.job.fetchRawDefinition();
-    } catch (e) {
-      this.notifications.add({
-        title: 'Could not fetch job definition',
-        message: e,
-        color: 'critical',
-      });
-      this.errorState = e;
-    }
+    this.rawDefinition = await this.args.job.fetchRawDefinition();
   }
 }

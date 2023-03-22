@@ -198,12 +198,12 @@
       overflow-y: auto;
       display: block;
     }
-    ul {
+    ul,
+    span.notification {
+      display: block;
       background: #1a2633;
       padding: 1rem;
-      .group {
-        color: white;
-      }
+      color: white;
       .key {
         color: #1caeff;
         &:after {
