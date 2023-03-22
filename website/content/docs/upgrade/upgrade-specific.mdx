@@ -25,6 +25,17 @@ called this endpoint or used this command using tokens with just the `read-job`
 capability or the `read` policy must update their tokens to use the
 `submit-job` capability or the `write` policy.
 
+## Nomad 1.6.0 Enterprise
+
+#### Enterprise Licenses
+
+Nomad Enterprise 1.6 now compares license `ExpirationTime` with the Nomad binary's `BuildDate`,
+rather than comparing the sometimes more lenient license `TerminationTime` with `time.Now()`.
+See the [licensing FAQ](/nomad/docs/v1.6.x/enterprise/license/faq) for more info,
+but most relevant here is that you should run the new
+[`nomad license inspect`](/nomad/docs/commands/license/inspect) command
+before trying to upgrade your Enterprise servers to v1.6.
+
 ## Nomad 1.5.1
 
 #### Artifact Download Regression Fix
