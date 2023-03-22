@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shoenig/netlog"
+
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
@@ -503,11 +505,19 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			jobStruct = &eitherJob.Job
 		}
 	default:
+		// we are parsing HCL2, whether from a file or stdio
 		var buf bytes.Buffer
 		_, err = io.Copy(&buf, jobfile)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
 		}
+
+		// copy buf as string of hcl?
+		vars := j.Vars
+
+		// parse vars, they are in key=val form here
+		netlog.Yellow("Get()", "vars", vars)
+
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
 			Body:     buf.Bytes(),
