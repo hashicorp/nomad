@@ -595,9 +595,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 		t.Fatalf("restorePeriodicDispatcher did not force launch")
 	}
 
-	if md.forceEvalCalled != true {
-		t.Fatalf("failed to force job evaluation")
-	}
+	must.True(t, md.forceEvalCalled, must.Sprint("failed to force job evaluation"))
 	t.Fail()
 }
 
