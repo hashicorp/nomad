@@ -333,7 +333,6 @@ func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
 // based on the passed launch time.
 func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	p.l.Lock()
-	defer p.l.Unlock()
 
 	nextLaunch, err := job.Periodic.Next(launchTime)
 	if err != nil {
@@ -348,16 +347,19 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 		running, err := p.dispatcher.RunningChildren(job)
 		if err != nil {
 			p.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
+			p.l.Unlock()
 			return
 		}
 
 		if running {
 			p.logger.Debug("skipping launch of periodic job because job prohibits overlap", "job", job.NamespacedID())
+			p.l.Unlock()
 			return
 		}
 	}
 
 	p.logger.Debug(" launching job", "job", job.NamespacedID(), "launch_time", launchTime)
+	p.l.Unlock()
 	p.createEval(job, launchTime)
 }
 

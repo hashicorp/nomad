@@ -439,12 +439,13 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 }
 
 type mockJobEvalDispatcher struct {
-	called, children bool
-	evalToReturn     *structs.Evaluation
+	forceEvalCalled, children bool
+	evalToReturn              *structs.Evaluation
+	JobEvalDispatcher
 }
 
 func (mjed *mockJobEvalDispatcher) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
-	mjed.called = true
+	mjed.forceEvalCalled = true
 	return mjed.evalToReturn, nil
 }
 
@@ -452,7 +453,7 @@ func (mjed *mockJobEvalDispatcher) RunningChildren(job *structs.Job) (bool, erro
 	return mjed.children, nil
 }
 
-func testPeriodicJobWithOverlapEnabled(times ...time.Time) *structs.Job {
+func testPeriodicJob_OverlapEnabled(times ...time.Time) *structs.Job {
 	job := testPeriodicJob(times...)
 	job.Periodic.ProhibitOverlap = true
 	return job
@@ -489,8 +490,9 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 	eval, _ := s1.periodicDispatcher.createEval(job, past)
 
 	md := &mockJobEvalDispatcher{
-		children:     false,
-		evalToReturn: eval,
+		children:          false,
+		evalToReturn:      eval,
+		JobEvalDispatcher: s1,
 	}
 
 	s1.periodicDispatcher.dispatcher = md
@@ -525,7 +527,7 @@ func TestLeader_PeriodicDispatcher_Restore_Evals(t *testing.T) {
 		t.Fatalf("restorePeriodicDispatcher did not force launch")
 	}
 
-	if md.called != true {
+	if md.forceEvalCalled != true {
 		t.Fatalf("failed to force job evaluation")
 	}
 }
@@ -545,7 +547,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 	past := now.Add(-1 * time.Second)
 	future := now.Add(10 * time.Second)
 
-	job := testPeriodicJobWithOverlapEnabled(past, now, future)
+	job := testPeriodicJob_OverlapEnabled(past, now, future)
 	req := structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -571,7 +573,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 	s1.periodicDispatcher.SetEnabled(false)
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
@@ -597,9 +599,10 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 		t.Fatalf("restorePeriodicDispatcher did not force launch")
 	}
 
-	if md.called != true {
+	if md.forceEvalCalled != true {
 		t.Fatalf("failed to force job evaluation")
 	}
+	t.Fail()
 }
 
 func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
@@ -611,23 +614,15 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	md := &mockJobEvalDispatcher{
-		children:     true,
-		evalToReturn: nil,
-	}
-
-	s1.periodicDispatcher.dispatcher = md
-
 	// Inject a periodic job that triggered once in the past, should trigger now
 	// and once in the future.
 	now := time.Now()
 	past := now.Add(-1 * time.Second)
 	future := now.Add(10 * time.Second)
-	job := testPeriodicJob(past, now, future)
 
+	job := testPeriodicJob_OverlapEnabled(past, now, future)
 	req := structs.JobRegisterRequest{
-		Job:            job,
-		PolicyOverride: true,
+		Job: job,
 		WriteRequest: structs.WriteRequest{
 			Namespace: job.Namespace,
 		},
@@ -638,13 +633,20 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
 	}
 
 	// Create an eval for the past launch.
-	s1.periodicDispatcher.createEval(job, past)
+	eval, _ := s1.periodicDispatcher.createEval(job, past)
+
+	md := &mockJobEvalDispatcher{
+		children:     true,
+		evalToReturn: eval,
+	}
+
+	s1.periodicDispatcher.dispatcher = md
 
 	// Flush the periodic dispatcher, ensuring that no evals will be created.
 	s1.periodicDispatcher.SetEnabled(false)
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
@@ -659,19 +661,8 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
 		t.Fatalf("periodic job not restored")
 	}
 
-	// Check that an eval was made.
-	ws := memdb.NewWatchSet()
-	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
-	if err != nil || last == nil {
-		t.Fatalf("failed to get periodic launch time: %v", err)
-	}
-
-	if last.Launch == past {
-		t.Fatalf("restorePeriodicDispatcher did not force launch")
-	}
-
-	if md.called != false {
-		t.Fatalf("job evaluation forced when job is already running")
+	if md.forceEvalCalled != false {
+		t.Fatalf("evaluation forced with job already running")
 	}
 }
 
