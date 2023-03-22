@@ -4,9 +4,11 @@
 package command
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
@@ -24,7 +26,7 @@ func TestQuotaInspectCommand_Fails(t *testing.T) {
 	cmd := &QuotaInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	code = cmd.Run([]string{"some", "bad", "args"})
+	code := cmd.Run([]string{"some", "bad", "args"})
 	must.One(t, code)
 
 	must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
@@ -62,16 +64,16 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 	}
 
 	// List json
-	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", allocID}))
+	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", qs.Name}))
 
-	outJson := *api.Quotas{}
+	outJson := api.QuotaSpec{}
 	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
 	must.NoError(t, err)
 
 	ui.OutputWriter.Reset()
 
 	// Go template to format the output
-	code = cmd.Run([]string{"-address=" + url, "-t", "{{ .Name }}", allocID})
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{ .Name }}", qs.Name})
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
@@ -82,7 +84,6 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 
 func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
