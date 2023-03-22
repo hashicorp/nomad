@@ -428,15 +428,24 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	untainted, migrate, lost, disconnecting, reconnecting, ignore := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	desiredChanges.Ignore += uint64(len(ignore))
 
-	// If there are allocations reconnecting we need to reconcile its
-	// replacements first because there are specific business logic when
-	// deciding which one to keep.
+	// If there are allocations reconnecting we need to reconcile them and
+	// their replacements first because there is specific logic when deciding
+	// which ones to keep that can only be applied when the client reconnects.
 	if len(reconnecting) > 0 {
+		// Pass all allocations becasue the replacements we need to find may be
+		// in any state, including themselves being reconnected.
 		reconnect, stop := a.reconcileReconnecting(reconnecting, all)
 
-		// Stop the reconnecting allocations that we don't need anymore.
+		// Stop the reconciled allocations and remove them from the other sets
+		// since they have been already handled.
 		desiredChanges.Stop += uint64(len(stop))
+
 		untainted = untainted.difference(stop)
+		migrate = migrate.difference(stop)
+		lost = lost.difference(stop)
+		disconnecting = disconnecting.difference(stop)
+		reconnecting = reconnecting.difference(stop)
+		ignore = ignore.difference(stop)
 
 		// Validate and add reconnecting allocations to the plan so they are
 		// logged.
@@ -1056,10 +1065,11 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 // and all other allocations for the same group and determines which ones to
 // reconnect which ones or stop.
 //
-//   - Every reconnecting allocation MUST be present in either returned set.
+//   - Every reconnecting allocation MUST be present in one, and only one, of
+//     the returned set.
 //   - Every replacement allocation that is not preferred MUST be returned in
 //     the stop set.
-//   - Only reconnecting allocations are allowed to be returned in the
+//   - Only reconnecting allocations are allowed to be present in the returned
 //     reconnect set.
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
@@ -1094,33 +1104,39 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 		}
 
 		// By default, prefer stopping the replacement allocation, so assume
-		// all non-terminal reconnecting allocations will reconnect.
+		// all non-terminal reconnecting allocations will reconnect and ajust
+		// later when this is not the case.
 		reconnect[reconnectingAlloc.ID] = reconnectingAlloc
 
 		// Find replacement allocations and decide which one to stop. A
 		// reconnecting allocation may have multiple replacements.
 		for _, replacementAlloc := range others {
-			// spiderman_meme.jpg
+			// Skip the reconnecting allocation itself.
+			// Since a replacement may itslef be reconnecting, the set of all
+			// other allocations contains the reconnecting allocations as well.
 			if reconnectingAlloc.ID == replacementAlloc.ID {
 				continue
 			}
 
-			// Replacement allocations have the same name as the original so
-			// skip the ones that don't.
+			// Skip allocations that don't have the same name.
+			// Replacement allocations have the same name as the original.
 			if reconnectingAlloc.Name != replacementAlloc.Name {
 				continue
 			}
 
-			// Skip allocations that are server terminal since they are
-			// already set to stop.
+			// Skip allocations that are server terminal.
+			// We don't want to replace a reconnecting allocation with one that
+			// is or will terminate and we don't need to stop them since they
+			// are marked as terminal by the servers.
 			if replacementAlloc.ServerTerminalStatus() {
 				continue
 			}
 
+			// Pick which allocation we want to keep.
 			keepAlloc := pickReconnectingAlloc(reconnectingAlloc, replacementAlloc)
 			if keepAlloc == replacementAlloc {
 				// The replacement allocation is preferred, so stop the one
-				// that is reconnecting if not stopped yet.
+				// reconnecting if not stopped yet.
 				if _, ok := stop[reconnectingAlloc.ID]; !ok {
 					stop[reconnectingAlloc.ID] = reconnectingAlloc
 					a.result.stop = append(a.result.stop, allocStopResult{
@@ -1129,9 +1145,9 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 					})
 				}
 
-				// Our assumption that all non-terminal reconnecting
-				// allocations will reconnect was wrong, so remove it from the
-				// reconnect set.
+				// Our assumption that all reconnecting allocations will
+				// reconnect was wrong, so remove this one from the reconnect
+				// set.
 				delete(reconnect, reconnectingAlloc.ID)
 			} else {
 				// The reconnecting allocation is preferred, so stop this
