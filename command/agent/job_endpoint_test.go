@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
@@ -384,31 +386,45 @@ func TestHTTP_JobsParse(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
 		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
 		respW := httptest.NewRecorder()
 
 		obj, err := s.Server.JobsParseRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		if obj == nil {
-			t.Fatal("response should not be nil")
-		}
+		must.NoError(t, err)
+		must.NotNil(t, obj)
 
 		job := obj.(*api.Job)
 		expected := mock.Job()
-		if job.Name == nil || *job.Name != expected.Name {
-			t.Fatalf("job name is '%s', expected '%s'", *job.Name, expected.Name)
-		}
+		must.Eq(t, expected.Name, *job.Name)
+		must.Eq(t, expected.Datacenters[0], job.Datacenters[0])
+	})
+}
 
-		if job.Datacenters == nil ||
-			job.Datacenters[0] != expected.Datacenters[0] {
-			t.Fatalf("job datacenters is '%s', expected '%s'",
-				job.Datacenters[0], expected.Datacenters[0])
-		}
+func TestHTTP_JobsParse_HCLVar(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		hclJob, hclVar := mock.HCLVar()
+		buf := encodeReq(api.JobsParseRequest{
+			JobHCL:    hclJob,
+			Variables: hclVar,
+		})
+		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+		must.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.JobsParseRequest(respW, req)
+		must.NoError(t, err)
+		must.NotNil(t, obj)
+
+		job := obj.(*api.Job)
+
+		must.Eq(t, "var-job", *job.Name)
+		must.Eq(t, map[string]any{
+			"command": "echo",
+			"args":    []any{"S is stringy, N is 42, B is true"},
+		}, job.TaskGroups[0].Tasks[0].Config)
 	})
 }
 
@@ -595,7 +611,7 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
 			t.Fatalf("Failed to upsert job: %v", err)
 		}
 
@@ -1605,6 +1621,49 @@ func TestHTTP_JobVersions(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobSubmission(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+			Submission: &structs.JobSubmission{
+				Source: mock.HCL(),
+				Format: "hcl2",
+			},
+		}
+		var resp structs.JobRegisterResponse
+		must.NoError(t, s.Agent.RPC("Job.Register", &args, &resp))
+
+		respW := httptest.NewRecorder()
+
+		// make request for job submission @ v0
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/submission?version=0", nil)
+		must.NoError(t, err)
+		submission, err := s.Server.jobSubmissionCRUD(respW, req, job.ID)
+		must.NoError(t, err)
+		must.Eq(t, "hcl2", submission.Format)
+		must.StrContains(t, submission.Source, `job "my-job" {`)
+
+		// make request for job submission @v1 (does not exist)
+		req, err = http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/submission?version=1", nil)
+		must.NoError(t, err)
+		_, err = s.Server.jobSubmissionCRUD(respW, req, job.ID)
+		must.ErrorContains(t, err, "job source not found")
+
+		// make POST request (invalid method)
+		req, err = http.NewRequest(http.MethodPost, "/v1/job/"+job.ID+"/submission?version=0", nil)
+		must.NoError(t, err)
+		_, err = s.Server.jobSubmissionCRUD(respW, req, job.ID)
+		must.ErrorContains(t, err, "Invalid method")
+	})
+}
+
 func TestHTTP_PeriodicForce(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
@@ -2264,7 +2323,7 @@ func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
 
 				// Generate a job and upsert this.
 				job := mock.Job()
-				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 
 				// Generate a service registration, assigned the jobID to the
 				// mocked jobID, and upsert this.
@@ -2298,7 +2357,7 @@ func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
 
 				// Generate a job and upsert this.
 				job := mock.Job()
-				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 
 				// Build the HTTP request.
 				path := fmt.Sprintf("/v1/job/%s/services", job.ID)
@@ -3632,6 +3691,40 @@ func TestConversion_apiResourcesToStructs(t *testing.T) {
 	}
 }
 
+func TestConversion_apiJobSubmissionToStructs(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		result := apiJobSubmissionToStructs(nil, 0)
+		must.Nil(t, result)
+	})
+
+	t.Run("over max size", func(t *testing.T) {
+		result := apiJobSubmissionToStructs(&api.JobSubmission{
+			Source:        "source",
+			Format:        "hcl2",
+			VariableFlags: map[string]string{"foo": "bar"},
+			Variables:     "variable",
+		}, 1)
+		must.Nil(t, result)
+	})
+
+	t.Run("under max size", func(t *testing.T) {
+		result := apiJobSubmissionToStructs(&api.JobSubmission{
+			Source:        "source",
+			Format:        "hcl2",
+			VariableFlags: map[string]string{"foo": "bar"},
+			Variables:     "variable",
+		}, 1024)
+		must.Eq(t, &structs.JobSubmission{
+			Source:        "source",
+			Format:        "hcl2",
+			VariableFlags: map[string]string{"foo": "bar"},
+			Variables:     "variable",
+		}, result)
+	})
+}
+
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	ci.Parallel(t)
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
@@ -3939,5 +4032,32 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		}, ApiConsulConnectToStructs(&api.ConsulConnect{
 			Native: true,
 		}))
+	})
+}
+
+func TestSubmission_writeVariablesFile(t *testing.T) {
+	// no parallel
+
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+
+	t.Run("no content", func(t *testing.T) {
+		files, cleanup, err := writeVariablesFile("")
+		must.NoError(t, err)
+		must.Nil(t, files)
+		cleanup() // noop
+	})
+
+	t.Run("with content", func(t *testing.T) {
+		files, cleanup, err := writeVariablesFile("key = value")
+		must.NoError(t, err)
+		fmt.Println("files", files, "tmpDir", tmpDir)
+		must.Eq(t, tmpDir, filepath.Dir(files[0]))
+		must.NotNil(t, cleanup)
+		must.FileContains(t, files[0], "key = value")
+		cleanup()
+		// todo: must.FileNotExist is broken
+		_, err = os.Stat(files[0])
+		must.ErrorContains(t, err, "no such file")
 	})
 }

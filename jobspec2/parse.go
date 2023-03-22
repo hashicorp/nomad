@@ -56,7 +56,7 @@ type ParseConfig struct {
 	// Body is the HCL body
 	Body []byte
 
-	// AllowFS enables HCL functions that require file system accecss
+	// AllowFS enables HCL functions that require file system access
 	AllowFS bool
 
 	// ArgVars is the CLI -var arguments

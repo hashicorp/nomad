@@ -63,7 +63,7 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 	// Create a job without an allocation
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
 	// Should display no match if the job doesn't have allocations
 	code := cmd.Run([]string{"-address=" + url, job.ID})
@@ -106,7 +106,7 @@ func TestJobAllocsCommand_Template(t *testing.T) {
 	// Create a job
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
 	// Inject a running allocation
 	a := mock.Alloc()
@@ -165,7 +165,7 @@ func TestJobAllocsCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -188,7 +188,7 @@ func TestJobAllocsCommand_ACL(t *testing.T) {
 	// Create a job with an alloc.
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
 	must.NoError(t, err)
 
 	a := mock.Alloc()

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -66,6 +66,7 @@ func init() {
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
+		jobSubmissionSchema,
 		deploymentSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
@@ -269,6 +270,52 @@ func jobVersionSchema() *memdb.TableSchema {
 
 						&memdb.UintFieldIndex{
 							Field: "Version",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// jobSubmissionSchema returns the memdb table schema of job submissions
+// which contain the original source material of each job, per version.
+// Unique index by Namespace, JobID, and Version.
+func jobSubmissionSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "job_submission",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "JobID",
+							Lowercase: true,
+						},
+						&memdb.UintFieldIndex{
+							Field: "Version",
+						},
+					},
+				},
+			},
+			"by_jobID": {
+				Name:         "by_jobID",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "JobID",
+							Lowercase: true,
 						},
 					},
 				},

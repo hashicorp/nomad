@@ -1631,10 +1631,10 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 }
 
 // UpsertJob is used to register a job or update a job definition
-func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, job *structs.Job) error {
+func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, sub *structs.JobSubmission, job *structs.Job) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
-	if err := s.upsertJobImpl(index, job, false, txn); err != nil {
+	if err := s.upsertJobImpl(index, sub, job, false, txn); err != nil {
 		return err
 	}
 	return txn.Commit()
@@ -1642,12 +1642,12 @@ func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, job *s
 
 // UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
 // but in a transaction.  Useful for when making multiple modifications atomically
-func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error {
-	return s.upsertJobImpl(index, job, false, txn)
+func (s *StateStore) UpsertJobTxn(index uint64, sub *structs.JobSubmission, job *structs.Job, txn Txn) error {
+	return s.upsertJobImpl(index, sub, job, false, txn)
 }
 
 // upsertJobImpl is the implementation for registering a job or updating a job definition
-func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *txn) error {
+func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job *structs.Job, keepVersion bool, txn *txn) error {
 	// Assert the namespace exists
 	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
 		return err
@@ -1722,6 +1722,10 @@ func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion b
 
 	if err := s.updateJobCSIPlugins(index, job, existingJob, txn); err != nil {
 		return fmt.Errorf("unable to update job csi plugins: %v", err)
+	}
+
+	if err := s.updateJobSubmission(index, sub, job.Namespace, job.ID, job.Version, txn); err != nil {
+		return fmt.Errorf("unable to update job submission: %v", err)
 	}
 
 	// Insert the job
@@ -1832,6 +1836,11 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Delete the job submission
+	if err := s.deleteJobSubmission(job, txn); err != nil {
+		return fmt.Errorf("deleting job submission failed: %v", err)
+	}
+
 	// Delete any remaining job scaling policies
 	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
@@ -1884,6 +1893,11 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 		}
 	}
 	return nil
+}
+
+func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
+	_, err := txn.DeleteAll("job_submission", "by_jobID", job.Namespace, job.ID)
+	return err
 }
 
 // deleteJobVersions deletes all versions of the given job.
@@ -1972,6 +1986,27 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	}
 
 	return nil
+}
+
+// JobSubmission returns the original HCL/Variables context of a job, if available.
+//
+// Note: it is a normal case for the submission context to be unavailable, in which case
+// nil is returned with no error.
+func (s *StateStore) JobSubmission(ws memdb.WatchSet, namespace, jobName string, version uint64) (*structs.JobSubmission, error) {
+	txn := s.db.ReadTxn()
+	return s.jobSubmission(ws, namespace, jobName, version, txn)
+}
+
+func (s *StateStore) jobSubmission(ws memdb.WatchSet, namespace, jobName string, version uint64, txn Txn) (*structs.JobSubmission, error) {
+	watchCh, existing, err := txn.FirstWatch("job_submission", "id", namespace, jobName, version)
+	if err != nil {
+		return nil, fmt.Errorf("job submission lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+	if existing != nil {
+		return existing.(*structs.JobSubmission), nil
+	}
+	return nil, nil
 }
 
 // JobByID is used to lookup a job by its ID. JobByID returns the current/latest job
@@ -4490,7 +4525,7 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 
 	// Upsert the job if necessary
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, req.Job, false, txn); err != nil {
+		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
@@ -4577,7 +4612,7 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 
 	copy := job.Copy()
 	copy.Stable = stable
-	return s.upsertJobImpl(index, copy, true, txn)
+	return s.upsertJobImpl(index, nil, copy, true, txn)
 }
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and
@@ -4806,7 +4841,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 
 	// Upsert the job if necessary
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, req.Job, false, txn); err != nil {
+		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
@@ -5313,6 +5348,20 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 	}
 
 	return nil
+}
+
+// updateJobSubmission stores the original job source and variables associated that the
+// job structure originates from. It is up to the job submitter to include the source
+// material, and as such sub may be nil, in which case nothing is stored.
+func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobID string, version uint64, txn *txn) error {
+	if sub == nil || namespace == "" || jobID == "" {
+		return nil
+	}
+	sub.Namespace = namespace
+	sub.JobID = jobID
+	sub.JobIndex = index
+	sub.Version = version
+	return txn.Insert("job_submission", sub)
 }
 
 // updateJobCSIPlugins runs on job update, and indexes the job in the plugin
