@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Added copy-to-clipboard buttons to server and client pages
+```

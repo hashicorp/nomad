@@ -42,6 +42,10 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     box-shadow: none;
   }
 
+  &.is-inset {
+    background-color: transparent;
+  }
+
   &.is-disabled {
     opacity: 0.7;
     box-shadow: none;
