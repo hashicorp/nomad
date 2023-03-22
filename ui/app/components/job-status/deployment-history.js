@@ -55,6 +55,7 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
             .flat()
         )
         .flat()
+        .filter((a) => this.filterOnSearchTerm(a))
         .sort((a, b) => a.get('time') - b.get('time'))
         .reverse();
     } catch (e) {
@@ -71,4 +72,25 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
       color: 'critical',
     });
   }
+
+  // #region search
+
+  /**
+   * @type { string }
+   */
+  @tracked searchTerm = '';
+
+  /**
+   * @param { import('../../models/task-event').default } taskEvent
+   * @returns { boolean }
+   */
+  filterOnSearchTerm(taskEvent) {
+    return (
+      taskEvent.message.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+      taskEvent.type.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+      taskEvent.state.allocation.shortId.includes(this.searchTerm.toLowerCase())
+    );
+  }
+
+  // #endregion search
 }

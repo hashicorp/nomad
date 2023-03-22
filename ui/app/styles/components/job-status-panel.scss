@@ -173,10 +173,20 @@
     display: grid;
     grid-template-columns: 70% auto;
     gap: 1rem;
-    margin-top: 1rem; // TODO: grid-ify the deployment panel generally and just use gap for this
+    margin-top: 2rem; // TODO: grid-ify the deployment panel generally and just use gap for this
   }
 
   .deployment-history {
+    & > header {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: end;
+      & > .search-box {
+        max-width: unset;
+      }
+    }
     & > ol {
       max-height: 300px;
       overflow-y: auto;
