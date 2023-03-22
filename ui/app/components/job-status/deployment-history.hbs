@@ -25,12 +25,20 @@
           </div>
         </li>
       {{else}}
-        {{#if this.deploymentAllocations}}
-          <li class="timeline-object">
-            <div class="boxed-section-head is-light">
-              <span>No deployment events yet</span>
-            </div>
-          </li>
+        {{#if this.deploymentAllocations.length}}
+          {{#if this.searchTerm}}
+            <li class="timeline-object">
+              <div class="boxed-section-head is-light">
+                <span>No events march {{this.searchTerm}}</span>
+              </div>
+            </li>
+          {{else}}
+            <li class="timeline-object">
+              <div class="boxed-section-head is-light">
+                <span>No deployment events yet</span>
+              </div>
+            </li>
+          {{/if}}
         {{else}}
           <li class="timeline-object">
             <div class="boxed-section-head is-light">

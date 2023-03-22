@@ -192,6 +192,22 @@
       overflow-y: auto;
     }
     & > ol > li {
+      @for $i from 1 through 50 {
+        &:nth-child(#{$i}) {
+          animation-name: historyItemSlide;
+          animation-duration: 0.2s;
+          animation-fill-mode: both;
+          animation-delay: 0.1s + (0.05 * $i);
+        }
+
+        &:nth-child(#{$i}) > div {
+          animation-name: historyItemShine;
+          animation-duration: 1s;
+          animation-fill-mode: both;
+          animation-delay: 0.1s + (0.05 * $i);
+        }
+      }
+
       & > div {
         gap: 0.5rem;
       }
@@ -226,5 +242,25 @@
         color: #06d092;
       }
     }
+  }
+}
+
+@keyframes historyItemSlide {
+  from {
+    opacity: 0;
+    top: 40px;
+  }
+  to {
+    opacity: 1;
+    top: 0px;
+  }
+}
+
+@keyframes historyItemShine {
+  from {
+    box-shadow: inset 0 0 0 100px rgba(255, 200, 0, 0.2);
+  }
+  to {
+    box-shadow: inset 0 0 0 100px rgba(255, 200, 0, 0);
   }
 }
