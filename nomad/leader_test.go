@@ -449,7 +449,7 @@ func (mjed *mockJobEvalDispatcher) DispatchJob(_ *structs.Job) (*structs.Evaluat
 	return mjed.evalToReturn, nil
 }
 
-func (mjed *mockJobEvalDispatcher) RunningChildren(job *structs.Job) (bool, error) {
+func (mjed *mockJobEvalDispatcher) RunningChildren(_ *structs.Job) (bool, error) {
 	return mjed.children, nil
 }
 
