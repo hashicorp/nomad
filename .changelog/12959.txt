@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: add nomad environment variables to envoy bootstrap
-```

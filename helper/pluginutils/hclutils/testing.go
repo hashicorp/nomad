@@ -40,8 +40,12 @@ func (b *HCLParser) WithVars(vars map[string]cty.Value) *HCLParser {
 // out parameter should be a golang reference to a driver specific TaskConfig reference.
 // The function terminates and reports errors if any is found during conversion.
 //
-//	var tc *TaskConfig
-//	hclutils.NewConfigParser(spec).ParseJson(t, configString, &tc)
+// # Sample invocation would be
+//
+// ```
+// var tc *TaskConfig
+// hclutils.NewConfigParser(spec).ParseJson(t, configString, &tc)
+// ```
 func (b *HCLParser) ParseJson(t *testing.T, configStr string, out interface{}) {
 	config := JsonConfigToInterface(t, configStr)
 	b.parse(t, config, out)

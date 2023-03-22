@@ -1,3 +1,0 @@
-```release-note:bug
-ui: fixed outbound link to outage recovery on error page
-```

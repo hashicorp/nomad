@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +31,7 @@ func TestJob_Validate(t *testing.T) {
 		"job region",
 		"job type",
 		"namespace",
+		"priority",
 		"task groups",
 	)
 
@@ -57,8 +58,8 @@ func TestJob_Validate(t *testing.T) {
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
-		Priority:    JobDefaultPriority,
-		Datacenters: []string{"*"},
+		Priority:    50,
+		Datacenters: []string{"dc1"},
 		TaskGroups: []*TaskGroup{
 			{
 				Name: "web",
@@ -91,7 +92,7 @@ func TestJob_Validate(t *testing.T) {
 		"group 3 missing name",
 		"Task group web validation failed",
 	)
-	// test for invalid datacenters
+	// test for empty datacenters
 	j = &Job{
 		Datacenters: []string{""},
 	}
@@ -370,9 +371,9 @@ func testJob() *Job {
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
-		Priority:    JobDefaultPriority,
+		Priority:    50,
 		AllAtOnce:   false,
-		Datacenters: []string{"*"},
+		Datacenters: []string{"dc1"},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",
@@ -428,10 +429,6 @@ func testJob() *Job {
 							{
 								GetterSource: "http://foo.com",
 							},
-						},
-						Identity: &WorkloadIdentity{
-							Env:  true,
-							File: true,
 						},
 						Resources: &Resources{
 							CPU:      500,
@@ -867,12 +864,12 @@ func TestJob_PartEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	ns := &Networks{}
-	require.True(t, ns.Equal(&Networks{}))
+	require.True(t, ns.Equals(&Networks{}))
 
 	ns = &Networks{
 		&NetworkResource{Device: "eth0"},
 	}
-	require.True(t, ns.Equal(&Networks{
+	require.True(t, ns.Equals(&Networks{
 		&NetworkResource{Device: "eth0"},
 	}))
 
@@ -881,7 +878,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&NetworkResource{Device: "eth1"},
 		&NetworkResource{Device: "eth2"},
 	}
-	require.True(t, ns.Equal(&Networks{
+	require.True(t, ns.Equals(&Networks{
 		&NetworkResource{Device: "eth2"},
 		&NetworkResource{Device: "eth0"},
 		&NetworkResource{Device: "eth1"},
@@ -892,7 +889,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Constraint{"left1", "right1", "="},
 		&Constraint{"left2", "right2", "="},
 	}
-	require.True(t, cs.Equal(&Constraints{
+	require.True(t, cs.Equals(&Constraints{
 		&Constraint{"left0", "right0", "="},
 		&Constraint{"left2", "right2", "="},
 		&Constraint{"left1", "right1", "="},
@@ -903,7 +900,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Affinity{"left1", "right1", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 	}
-	require.True(t, as.Equal(&Affinities{
+	require.True(t, as.Equals(&Affinities{
 		&Affinity{"left0", "right0", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 		&Affinity{"left1", "right1", "=", 0},
@@ -1280,6 +1277,9 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	err = tg.Validate(&Job{})
 	expected = `Check check-a invalid: refers to non-existent task task-b`
+	require.Contains(t, err.Error(), expected)
+
+	expected = `Check check-a invalid: only script and gRPC checks should have tasks`
 	require.Contains(t, err.Error(), expected)
 
 	tg = &TaskGroup{
@@ -2029,7 +2029,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Interval: 10 * time.Second,
 	}
 
-	err := invalidCheck.validateConsul()
+	err := invalidCheck.validate()
 	if err == nil || !strings.Contains(err.Error(), "Timeout cannot be less") {
 		t.Fatalf("expected a timeout validation error but received: %q", err)
 	}
@@ -2041,12 +2041,12 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Timeout:  2 * time.Second,
 	}
 
-	if err := check1.validateConsul(); err != nil {
+	if err := check1.validate(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = "foo"
-	err = check1.validateConsul()
+	err = check1.validate()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2056,19 +2056,19 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 	}
 
 	check1.InitialStatus = api.HealthCritical
-	err = check1.validateConsul()
+	err = check1.validate()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = api.HealthPassing
-	err = check1.validateConsul()
+	err = check1.validate()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check1.InitialStatus = ""
-	err = check1.validateConsul()
+	err = check1.validate()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2081,22 +2081,22 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 		Path:     "/foo/bar",
 	}
 
-	err = check2.validateConsul()
+	err = check2.validate()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = ""
-	err = check2.validateConsul()
+	err = check2.validate()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if !strings.Contains(err.Error(), "http type must have http path") {
+	if !strings.Contains(err.Error(), "valid http path") {
 		t.Fatalf("err: %v", err)
 	}
 
 	check2.Path = "http://www.example.com"
-	err = check2.validateConsul()
+	err = check2.validate()
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
@@ -2112,7 +2112,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Timeout:  1 * time.Second,
 				Path:     "/health",
 				Expose:   true,
-			}).validateConsul())
+			}).validate())
 		})
 		t.Run("type tcp", func(t *testing.T) {
 			require.EqualError(t, (&ServiceCheck{
@@ -2120,7 +2120,7 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 				Interval: 1 * time.Second,
 				Timeout:  1 * time.Second,
 				Expose:   true,
-			}).validateConsul(), "expose may only be set on HTTP or gRPC checks")
+			}).validate(), "expose may only be set on HTTP or gRPC checks")
 		})
 	})
 }
@@ -2488,31 +2488,31 @@ func TestLogConfig_Equals(t *testing.T) {
 	t.Run("both nil", func(t *testing.T) {
 		a := (*LogConfig)(nil)
 		b := (*LogConfig)(nil)
-		require.True(t, a.Equal(b))
+		require.True(t, a.Equals(b))
 	})
 
 	t.Run("one nil", func(t *testing.T) {
 		a := new(LogConfig)
 		b := (*LogConfig)(nil)
-		require.False(t, a.Equal(b))
+		require.False(t, a.Equals(b))
 	})
 
 	t.Run("max files", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
-		require.False(t, a.Equal(b))
+		require.False(t, a.Equals(b))
 	})
 
 	t.Run("max file size", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.False(t, a.Equal(b))
+		require.False(t, a.Equals(b))
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.True(t, a.Equal(b))
+		require.True(t, a.Equals(b))
 	})
 }
 
@@ -2848,74 +2848,49 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name string
-		wc1  *WaitConfig
-		wc2  *WaitConfig
-		exp  bool
+		name     string
+		config   *WaitConfig
+		expected *WaitConfig
 	}{
 		{
 			name: "all-fields",
-			wc1: &WaitConfig{
+			config: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
-			wc2: &WaitConfig{
+			expected: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
-			exp: true,
 		},
 		{
-			name: "no-fields",
-			wc1:  &WaitConfig{},
-			wc2:  &WaitConfig{},
-			exp:  true,
+			name:     "no-fields",
+			config:   &WaitConfig{},
+			expected: &WaitConfig{},
 		},
 		{
 			name: "min-only",
-			wc1: &WaitConfig{
+			config: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
-			wc2: &WaitConfig{
+			expected: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
-			exp: true,
 		},
 		{
 			name: "max-only",
-			wc1: &WaitConfig{
+			config: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
-			wc2: &WaitConfig{
+			expected: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
-			exp: true,
-		},
-		{
-			name: "min-nil-vs-set",
-			wc1: &WaitConfig{
-				Min: pointer.Of(1 * time.Second),
-			},
-			wc2: &WaitConfig{
-				Min: nil,
-			},
-			exp: false,
-		},
-		{
-			name: "max-nil-vs-set",
-			wc1: &WaitConfig{
-				Max: pointer.Of(1 * time.Second),
-			},
-			wc2: &WaitConfig{
-				Max: nil,
-			},
-			exp: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			must.Eq(t, tc.exp, tc.wc1.Equal(tc.wc2))
+			require.True(t, tc.config.Equals(tc.expected))
 		})
 	}
 }
@@ -3576,7 +3551,6 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "redis-db",
 				Provider:  "consul",
 				Namespace: "default",
-				TaskName:  "redis",
 			},
 			name: "interpolate task in name",
 		},
@@ -3592,7 +3566,6 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "consul",
 				Namespace: "default",
-				TaskName:  "redis",
 			},
 			name: "no interpolation in name",
 		},
@@ -3608,7 +3581,6 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
-				TaskName:  "redis",
 			},
 			name: "interpolate job, taskgroup and task in name",
 		},
@@ -3624,7 +3596,6 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "example-cache-redis-db",
 				Provider:  "consul",
 				Namespace: "default",
-				TaskName:  "redis",
 			},
 			name: "interpolate base in name",
 		},
@@ -3641,7 +3612,6 @@ func TestService_Canonicalize(t *testing.T) {
 				Name:      "db",
 				Provider:  "nomad",
 				Namespace: "platform",
-				TaskName:  "redis",
 			},
 			name: "nomad provider",
 		},
@@ -4471,6 +4441,7 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 		err := tc.Input.Validate()
 		if (err != nil) != tc.Err {
 			t.Fatalf("case %d: %v", i, err)
+			continue
 		}
 	}
 }
@@ -6103,6 +6074,80 @@ func TestIsRecoverable(t *testing.T) {
 	}
 }
 
+func TestACLTokenValidate(t *testing.T) {
+	ci.Parallel(t)
+
+	tk := &ACLToken{}
+
+	// Missing a type
+	err := tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "client or management") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Missing policies
+	tk.Type = ACLClientToken
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "missing policies") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Invalid policies
+	tk.Type = ACLManagementToken
+	tk.Policies = []string{"foo"}
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "associated with policies") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Name too long policies
+	tk.Name = ""
+	for i := 0; i < 8; i++ {
+		tk.Name += uuid.Generate()
+	}
+	tk.Policies = nil
+	err = tk.Validate()
+	assert.NotNil(t, err)
+	if !strings.Contains(err.Error(), "too long") {
+		t.Fatalf("bad: %v", err)
+	}
+
+	// Make it valid
+	tk.Name = "foo"
+	err = tk.Validate()
+	assert.Nil(t, err)
+}
+
+func TestACLTokenPolicySubset(t *testing.T) {
+	ci.Parallel(t)
+
+	tk := &ACLToken{
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar", "baz"},
+	}
+
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{}))
+	assert.Equal(t, false, tk.PolicySubset([]string{"foo", "bar", "new"}))
+	assert.Equal(t, false, tk.PolicySubset([]string{"new"}))
+
+	tk = &ACLToken{
+		Type: ACLManagementToken,
+	}
+
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "baz"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"foo", "bar", "new"}))
+	assert.Equal(t, true, tk.PolicySubset([]string{"new"}))
+}
+
 func TestACLTokenSetHash(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6359,7 +6404,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 	for _, testCase := range networkResourcesTest {
 		first := testCase.input[0]
 		second := testCase.input[1]
-		require.Equal(testCase.expected, first.Equal(second), testCase.errorMsg)
+		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
 	}
 }
 
@@ -6704,6 +6749,7 @@ func TestNodeReservedNetworkResources_ParseReserved(t *testing.T) {
 		out, err := r.ParseReservedHostPorts()
 		if (err != nil) != tc.Err {
 			t.Fatalf("test case %d: %v", i, err)
+			continue
 		}
 
 		require.Equal(out, tc.Parsed)
@@ -6849,32 +6895,6 @@ func TestNodeResources_Merge(t *testing.T) {
 			},
 		},
 	}, res)
-}
-
-func TestAllocatedPortMapping_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*AllocatedPortMapping](t, nil, nil)
-	must.NotEqual[*AllocatedPortMapping](t, nil, new(AllocatedPortMapping))
-
-	must.StructEqual(t, &AllocatedPortMapping{
-		Label:  "http",
-		Value:  80,
-		To:     9000,
-		HostIP: "10.0.0.1",
-	}, []must.Tweak[*AllocatedPortMapping]{{
-		Field: "Label",
-		Apply: func(m *AllocatedPortMapping) { m.Label = "https" },
-	}, {
-		Field: "Value",
-		Apply: func(m *AllocatedPortMapping) { m.Value = 443 },
-	}, {
-		Field: "To",
-		Apply: func(m *AllocatedPortMapping) { m.To = 9999 },
-	}, {
-		Field: "HostIP",
-		Apply: func(m *AllocatedPortMapping) { m.HostIP = "10.1.1.1" },
-	}})
 }
 
 func TestAllocatedResources_Canonicalize(t *testing.T) {
@@ -7171,315 +7191,4 @@ func requireErrors(t *testing.T, err error, expected ...string) {
 	}
 
 	require.Equal(t, expected, found)
-}
-
-func TestEphemeralDisk_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*EphemeralDisk](t, nil, nil)
-	must.NotEqual[*EphemeralDisk](t, nil, new(EphemeralDisk))
-
-	must.StructEqual(t, &EphemeralDisk{
-		Sticky:  true,
-		SizeMB:  42,
-		Migrate: true,
-	}, []must.Tweak[*EphemeralDisk]{{
-		Field: "Sticky",
-		Apply: func(e *EphemeralDisk) { e.Sticky = false },
-	}, {
-		Field: "SizeMB",
-		Apply: func(e *EphemeralDisk) { e.SizeMB = 10 },
-	}, {
-		Field: "Migrate",
-		Apply: func(e *EphemeralDisk) { e.Migrate = false },
-	}})
-}
-
-func TestDNSConfig_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*DNSConfig](t, nil, nil)
-	must.NotEqual[*DNSConfig](t, nil, new(DNSConfig))
-
-	must.StructEqual(t, &DNSConfig{
-		Servers:  []string{"8.8.8.8", "8.8.4.4"},
-		Searches: []string{"org", "local"},
-		Options:  []string{"opt1"},
-	}, []must.Tweak[*DNSConfig]{{
-		Field: "Servers",
-		Apply: func(c *DNSConfig) { c.Servers = []string{"1.1.1.1"} },
-	}, {
-		Field: "Searches",
-		Apply: func(c *DNSConfig) { c.Searches = []string{"localhost"} },
-	}, {
-		Field: "Options",
-		Apply: func(c *DNSConfig) { c.Options = []string{"opt2"} },
-	}})
-}
-
-func TestChangeScript_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*ChangeScript](t, nil, nil)
-	must.NotEqual[*ChangeScript](t, nil, new(ChangeScript))
-
-	must.StructEqual(t, &ChangeScript{
-		Command:     "/bin/sleep",
-		Args:        []string{"infinity"},
-		Timeout:     1 * time.Second,
-		FailOnError: true,
-	}, []must.Tweak[*ChangeScript]{{
-		Field: "Command",
-		Apply: func(c *ChangeScript) { c.Command = "/bin/false" },
-	}, {
-		Field: "Args",
-		Apply: func(c *ChangeScript) { c.Args = []string{"1s"} },
-	}, {
-		Field: "Timeout",
-		Apply: func(c *ChangeScript) { c.Timeout = 2 * time.Second },
-	}, {
-		Field: "FailOnError",
-		Apply: func(c *ChangeScript) { c.FailOnError = false },
-	}})
-}
-
-func TestWaitConfig_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*WaitConfig](t, nil, nil)
-	must.NotEqual[*WaitConfig](t, nil, new(WaitConfig))
-
-	must.StructEqual(t, &WaitConfig{
-		Min: pointer.Of[time.Duration](100),
-		Max: pointer.Of[time.Duration](200),
-	}, []must.Tweak[*WaitConfig]{{
-		Field: "Min",
-		Apply: func(c *WaitConfig) { c.Min = pointer.Of[time.Duration](111) },
-	}, {
-		Field: "Max",
-		Apply: func(c *WaitConfig) { c.Max = pointer.Of[time.Duration](222) },
-	}})
-}
-
-func TestTaskArtifact_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*TaskArtifact](t, nil, nil)
-	must.NotEqual[*TaskArtifact](t, nil, new(TaskArtifact))
-
-	must.StructEqual(t, &TaskArtifact{
-		GetterSource:  "source",
-		GetterOptions: map[string]string{"a": "A"},
-		GetterHeaders: map[string]string{"b": "B"},
-		GetterMode:    "file",
-		RelativeDest:  "./local",
-	}, []must.Tweak[*TaskArtifact]{{
-		Field: "GetterSource",
-		Apply: func(ta *TaskArtifact) { ta.GetterSource = "other" },
-	}, {
-		Field: "GetterOptions",
-		Apply: func(ta *TaskArtifact) { ta.GetterOptions = nil },
-	}, {
-		Field: "GetterHeaders",
-		Apply: func(ta *TaskArtifact) { ta.GetterHeaders = nil },
-	}, {
-		Field: "GetterMode",
-		Apply: func(ta *TaskArtifact) { ta.GetterMode = "directory" },
-	}, {
-		Field: "RelativeDest",
-		Apply: func(ta *TaskArtifact) { ta.RelativeDest = "./alloc" },
-	}})
-}
-
-func TestVault_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Vault](t, nil, nil)
-	must.NotEqual[*Vault](t, nil, new(Vault))
-
-	must.StructEqual(t, &Vault{
-		Policies:     []string{"one"},
-		Namespace:    "global",
-		Env:          true,
-		ChangeMode:   "signal",
-		ChangeSignal: "SIGILL",
-	}, []must.Tweak[*Vault]{{
-		Field: "Policies",
-		Apply: func(v *Vault) { v.Policies = []string{"two"} },
-	}, {
-		Field: "Namespace",
-		Apply: func(v *Vault) { v.Namespace = "regional" },
-	}, {
-		Field: "Env",
-		Apply: func(v *Vault) { v.Env = false },
-	}, {
-		Field: "ChangeMode",
-		Apply: func(v *Vault) { v.ChangeMode = "restart" },
-	}, {
-		Field: "ChangeSignal",
-		Apply: func(v *Vault) { v.ChangeSignal = "SIGTERM" },
-	}})
-}
-
-func TestTemplate_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Template](t, nil, nil)
-	must.NotEqual[*Template](t, nil, new(Template))
-
-	must.StructEqual(t, &Template{
-		SourcePath:   "source",
-		DestPath:     "destination",
-		EmbeddedTmpl: "tmpl",
-		ChangeMode:   "mode",
-		ChangeSignal: "signal",
-		ChangeScript: &ChangeScript{
-			Command:     "/bin/sleep",
-			Args:        []string{"infinity"},
-			Timeout:     1 * time.Second,
-			FailOnError: true,
-		},
-		Splay:      1,
-		Perms:      "perms",
-		Uid:        pointer.Of(1000),
-		Gid:        pointer.Of(1000),
-		LeftDelim:  "{",
-		RightDelim: "}",
-		Envvars:    true,
-		VaultGrace: 1 * time.Second,
-		Wait: &WaitConfig{
-			Min: pointer.Of[time.Duration](1),
-			Max: pointer.Of[time.Duration](2),
-		},
-		ErrMissingKey: true,
-	}, []must.Tweak[*Template]{{
-		Field: "SourcePath",
-		Apply: func(t *Template) { t.SourcePath = "source2" },
-	}, {
-		Field: "DestPath",
-		Apply: func(t *Template) { t.DestPath = "destination2" },
-	}, {
-		Field: "EmbeddedTmpl",
-		Apply: func(t *Template) { t.EmbeddedTmpl = "tmpl2" },
-	}, {
-		Field: "ChangeMode",
-		Apply: func(t *Template) { t.ChangeMode = "mode2" },
-	}, {
-		Field: "ChangeSignal",
-		Apply: func(t *Template) { t.ChangeSignal = "signal2" },
-	}, {
-		Field: "ChangeScript",
-		Apply: func(t *Template) {
-			t.ChangeScript = &ChangeScript{
-				Command:     "/bin/sleep",
-				Args:        []string{"infinity", "plus", "one"},
-				Timeout:     1 * time.Second,
-				FailOnError: true,
-			}
-		},
-	}, {
-		Field: "Splay",
-		Apply: func(t *Template) { t.Splay = 2 },
-	}, {
-		Field: "Perms",
-		Apply: func(t *Template) { t.Perms = "perms2" },
-	}, {
-		Field: "Uid",
-		Apply: func(t *Template) { t.Uid = pointer.Of(0) },
-	}, {
-		Field: "Gid",
-		Apply: func(t *Template) { t.Gid = pointer.Of(0) },
-	}, {
-		Field: "LeftDelim",
-		Apply: func(t *Template) { t.LeftDelim = "[" },
-	}, {
-		Field: "RightDelim",
-		Apply: func(t *Template) { t.RightDelim = "]" },
-	}, {
-		Field: "Envvars",
-		Apply: func(t *Template) { t.Envvars = false },
-	}, {
-		Field: "VaultGrace",
-		Apply: func(t *Template) { t.VaultGrace = 2 * time.Second },
-	}, {
-		Field: "Wait",
-		Apply: func(t *Template) {
-			t.Wait = &WaitConfig{
-				Min: pointer.Of[time.Duration](1),
-				Max: nil,
-			}
-		},
-	}, {
-		Field: "ErrMissingKey",
-		Apply: func(t *Template) { t.ErrMissingKey = false },
-	}})
-}
-
-func TestAffinity_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Affinity](t, nil, nil)
-	must.NotEqual[*Affinity](t, nil, new(Affinity))
-
-	must.StructEqual(t, &Affinity{
-		LTarget: "left",
-		RTarget: "right",
-		Operand: "op",
-		Weight:  100,
-	}, []must.Tweak[*Affinity]{{
-		Field: "LTarget",
-		Apply: func(a *Affinity) { a.LTarget = "left2" },
-	}, {
-		Field: "RTarget",
-		Apply: func(a *Affinity) { a.RTarget = "right2" },
-	}, {
-		Field: "Operand",
-		Apply: func(a *Affinity) { a.Operand = "op2" },
-	}, {
-		Field: "Weight",
-		Apply: func(a *Affinity) { a.Weight = 50 },
-	}})
-}
-
-func TestSpreadTarget_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*SpreadTarget](t, nil, nil)
-	must.NotEqual[*SpreadTarget](t, nil, new(SpreadTarget))
-
-	must.StructEqual(t, &SpreadTarget{
-		Value:   "dc1",
-		Percent: 99,
-	}, []must.Tweak[*SpreadTarget]{{
-		Field: "Value",
-		Apply: func(st *SpreadTarget) { st.Value = "dc2" },
-	}, {
-		Field: "Percent",
-		Apply: func(st *SpreadTarget) { st.Percent = 98 },
-	}})
-}
-
-func TestSpread_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Spread](t, nil, nil)
-	must.NotEqual[*Spread](t, nil, new(Spread))
-
-	must.StructEqual(t, &Spread{
-		Attribute: "attr",
-		Weight:    100,
-		SpreadTarget: []*SpreadTarget{{
-			Value:   "dc1",
-			Percent: 99,
-		}},
-	}, []must.Tweak[*Spread]{{
-		Field: "Attribute",
-		Apply: func(s *Spread) { s.Attribute = "attr2" },
-	}, {
-		Field: "Weight",
-		Apply: func(s *Spread) { s.Weight = 50 },
-	}, {
-		Field: "SpreadTarget",
-		Apply: func(s *Spread) { s.SpreadTarget = nil },
-	}})
 }

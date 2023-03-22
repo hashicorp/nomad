@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestGCEFingerprint_nonGCE(t *testing.T) {
+	ci.Parallel(t)
 
-	t.Setenv("GCE_ENV_URL", "http://127.0.0.1/computeMetadata/v1/instance/")
+	os.Setenv("GCE_ENV_URL", "http://127.0.0.1/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -89,7 +92,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		}
 	}))
 	defer ts.Close()
-	t.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
+	os.Setenv("GCE_ENV_URL", ts.URL+"/computeMetadata/v1/instance/")
 	f := NewEnvGCEFingerprint(testlog.HCLogger(t))
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
@@ -207,9 +210,13 @@ const GCE_routes = `
 `
 
 func TestFingerprint_GCEWithExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_GCE(t, true)
 }
 
 func TestFingerprint_GCEWithoutExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_GCE(t, false)
 }

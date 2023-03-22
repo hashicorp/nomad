@@ -7,8 +7,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
 import percySnapshot from '@percy/ember';
-import faker from 'nomad-ui/mirage/faker';
-
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
   volume.allocations.add(alloc);
@@ -26,7 +24,6 @@ module('Acceptance | volumes list', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    faker.seed(1);
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     window.localStorage.clear();

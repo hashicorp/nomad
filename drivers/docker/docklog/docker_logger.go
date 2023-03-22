@@ -1,7 +1,6 @@
 package docklog
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -10,10 +9,10 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-multierror"
-
+	hclog "github.com/hashicorp/go-hclog"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/lib/fifo"
+	"golang.org/x/net/context"
 )
 
 // DockerLogger is a small utility to forward logs from a docker container to a target

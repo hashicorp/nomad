@@ -101,4 +101,3 @@ linters:
     # - errorlint (todo)
     - exportloopref
   fast: false
-

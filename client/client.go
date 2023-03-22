@@ -35,7 +35,6 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
@@ -168,7 +167,7 @@ type AllocRunner interface {
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
-// are expected to register as a schedule-able node to the servers, and to
+// are expected to register as a schedulable node to the servers, and to
 // run allocations as determined by the servers.
 type Client struct {
 	start time.Time
@@ -185,14 +184,8 @@ type Client struct {
 	// 	// <mutate newConfig>
 	// 	c.config = newConfig
 	// 	c.configLock.Unlock()
-	configLock  sync.Mutex
-	config      *config.Config
-	metaDynamic map[string]*string // dynamic node metadata
-
-	// metaStatic are the Node's static metadata set via the agent configuration
-	// and defaults during client initialization. Since this map is never updated
-	// at runtime it may be accessed outside of locks.
-	metaStatic map[string]string
+	config     *config.Config
+	configLock sync.Mutex
 
 	logger    hclog.InterceptLogger
 	rpcLogger hclog.Logger
@@ -252,10 +245,6 @@ type Client struct {
 	// registrations.
 	nomadService serviceregistration.Handler
 
-	// checkStore is used to store group and task checks and their current pass/fail
-	// status.
-	checkStore checkstore.Shim
-
 	// serviceRegWrapper wraps the consulService and nomadService
 	// implementations so that the alloc and task runner service hooks can call
 	// this without needing to identify which backend provider should be used.
@@ -302,9 +291,6 @@ type Client struct {
 	rpcServer     *rpc.Server
 	endpoints     rpcEndpoints
 	streamingRpcs *structs.StreamingRpcRegistry
-
-	// fingerprintManager is the FingerprintManager registered by the client
-	fingerprintManager *FingerprintManager
 
 	// pluginManagers is the set of PluginManagers registered by the client
 	pluginManagers *pluginmanager.PluginGroup
@@ -404,7 +390,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
 		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
-		getter:               getter.New(cfg.Artifact, logger),
+		getter:               getter.NewGetter(logger.Named("artifact_getter"), cfg.Artifact),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -440,21 +426,23 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.setupClientRpc(rpcs)
 
 	// Initialize the ACL state
-	c.clientACLResolver.init()
+	if err := c.clientACLResolver.init(); err != nil {
+		return nil, fmt.Errorf("failed to initialize ACL state: %v", err)
+	}
 
 	// Setup the node
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	c.fingerprintManager = NewFingerprintManager(
+	fingerprintManager := NewFingerprintManager(
 		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
 		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
 
 	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
-	if err := c.fingerprintManager.Run(); err != nil {
+	if err := fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
@@ -698,9 +686,6 @@ func (c *Client) init() error {
 	// startup the CPUSet manager
 	c.cpusetManager.Init()
 
-	// setup the nsd check store
-	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
-
 	return nil
 }
 
@@ -736,7 +721,7 @@ func (c *Client) reloadTLSConnections(newConfig *nconfig.TLSConfig) error {
 	return nil
 }
 
-// Reload allows a client to reload parts of its configuration on the fly
+// Reload allows a client to reload its configuration on the fly
 func (c *Client) Reload(newConfig *config.Config) error {
 	existing := c.GetConfig()
 	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(existing.TLSConfig, newConfig.TLSConfig)
@@ -746,12 +731,8 @@ func (c *Client) Reload(newConfig *config.Config) error {
 	}
 
 	if shouldReloadTLS {
-		if err := c.reloadTLSConnections(newConfig.TLSConfig); err != nil {
-			return err
-		}
+		return c.reloadTLSConnections(newConfig.TLSConfig)
 	}
-
-	c.fingerprintManager.Reload()
 
 	return nil
 }
@@ -786,30 +767,6 @@ func (c *Client) UpdateConfig(cb func(*config.Config)) *config.Config {
 	c.config = newConfig
 
 	return newConfig
-}
-
-// UpdateNode allows mutating just the Node portion of the client
-// configuration. The updated Node is returned.
-//
-// This is similar to UpdateConfig but avoids deep copying the entier Config
-// struct when only the Node is updated.
-func (c *Client) UpdateNode(cb func(*structs.Node)) *structs.Node {
-	c.configLock.Lock()
-	defer c.configLock.Unlock()
-
-	// Create a new copy of Node for updating
-	newNode := c.config.Node.Copy()
-
-	// newNode is now a fresh unshared copy, mutate away!
-	cb(newNode)
-
-	// Shallow copy config before mutating Node pointer which might have
-	// concurrent readers
-	newConfig := *c.config
-	newConfig.Node = newNode
-	c.config = &newConfig
-
-	return newNode
 }
 
 // Datacenter returns the datacenter for the given client
@@ -1241,7 +1198,6 @@ func (c *Client) restoreState() error {
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
 			ServiceRegWrapper:   c.serviceRegWrapper,
-			CheckStore:          c.checkStore,
 			RPCClient:           c,
 			Getter:              c.getter,
 		}
@@ -1536,7 +1492,7 @@ func (c *Client) setupNode() error {
 	}
 	node.Status = structs.NodeStatusInit
 
-	// Setup default static meta
+	// Setup default meta
 	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
 		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat
 	}
@@ -1548,43 +1504,6 @@ func (c *Client) setupNode() error {
 	}
 	if _, ok := node.Meta["connect.proxy_concurrency"]; !ok {
 		node.Meta["connect.proxy_concurrency"] = defaultConnectProxyConcurrency
-	}
-
-	// Since node.Meta will get dynamic metadata merged in, save static metadata
-	// here.
-	c.metaStatic = maps.Clone(node.Meta)
-
-	// Merge dynamic node metadata
-	c.metaDynamic, err = c.stateDB.GetNodeMeta()
-	if err != nil {
-		return fmt.Errorf("error reading dynamic node metadata: %w", err)
-	}
-
-	if c.metaDynamic == nil {
-		c.metaDynamic = map[string]*string{}
-	}
-
-	for dk, dv := range c.metaDynamic {
-		if dv == nil {
-			_, ok := node.Meta[dk]
-			if ok {
-				// Unset static node metadata
-				delete(node.Meta, dk)
-			} else {
-				// Forget dynamic node metadata tombstone as there's no
-				// static value to erase.
-				delete(c.metaDynamic, dk)
-			}
-			continue
-		}
-
-		node.Meta[dk] = *dv
-	}
-
-	// Write back dynamic node metadata as tombstones may have been removed
-	// above
-	if err := c.stateDB.PutNodeMeta(c.metaDynamic); err != nil {
-		return fmt.Errorf("error syncing dynamic node metadata: %w", err)
 	}
 
 	c.config = newConfig
@@ -1637,7 +1556,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.Resources.Networks = updateNetworks(
 			response.Resources.Networks,
 			newConfig)
-		if !newConfig.Node.Resources.Equal(response.Resources) {
+		if !newConfig.Node.Resources.Equals(response.Resources) {
 			newConfig.Node.Resources.Merge(response.Resources)
 			nodeHasChanged = true
 		}
@@ -1649,7 +1568,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		response.NodeResources.Networks = updateNetworks(
 			response.NodeResources.Networks,
 			newConfig)
-		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
+		if !newConfig.Node.NodeResources.Equals(response.NodeResources) {
 			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}
@@ -2563,7 +2482,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {
-			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "error", err)
+			c.logger.Error("error reconnecting alloc", "alloc_id", update.ID, "alloc_modify_index", update.AllocModifyIndex, "err", err)
 		}
 		return
 	}
@@ -2635,7 +2554,6 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 		ServiceRegWrapper:   c.serviceRegWrapper,
-		CheckStore:          c.checkStore,
 		RPCClient:           c,
 		Getter:              c.getter,
 	}
@@ -2693,9 +2611,6 @@ func (c *Client) setupNomadServiceRegistrationHandler() {
 		NodeSecret: c.secretNodeID(),
 		Region:     c.Region(),
 		RPCFn:      c.RPC,
-		CheckWatcher: serviceregistration.NewCheckWatcher(
-			c.logger, nsd.NewStatusGetter(c.checkStore),
-		),
 	}
 	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
 }

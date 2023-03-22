@@ -1,15 +1,7 @@
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
-import {
-  currentURL,
-  waitUntil,
-  settled,
-  click,
-  fillIn,
-  triggerEvent,
-  findAll,
-} from '@ember/test-helpers';
+import { currentURL, waitUntil, settled } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -70,7 +62,7 @@ module('Acceptance | client detail', function (hooks) {
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    assert.equal(document.title, `Client ${node.name} - Mirage - Nomad`);
+    assert.equal(document.title, `Client ${node.name} - Nomad`);
 
     assert.equal(
       Layout.breadcrumbFor('clients.index').text,
@@ -411,119 +403,6 @@ module('Acceptance | client detail', function (hooks) {
       node.meta[firstMetaKey],
       'Meta attributes for the node are bound to the attributes table'
     );
-  });
-
-  test('node metadata is uneditable by default', async function (assert) {
-    window.localStorage.nomadTokenSecret = clientToken.secretId;
-    node = server.create('node', 'forceIPv4', 'withMeta');
-    await ClientDetail.visit({ id: node.id });
-
-    assert.dom('.edit-existing-metadata-button').exists({ count: 0 });
-    assert.dom('.add-dynamic-metadata').doesNotExist();
-  });
-
-  test('node metadata is editable by managers', async function (assert) {
-    window.localStorage.nomadTokenSecret = managementToken.secretId;
-    node = server.create('node', 'forceIPv4', 'withMeta');
-    await ClientDetail.visit({ id: node.id });
-
-    const numberOfExistingMetaKeys = Object.keys(node.meta).length;
-    assert
-      .dom('.edit-existing-metadata-button')
-      .exists({ count: numberOfExistingMetaKeys });
-    assert.dom('.add-dynamic-metadata').exists();
-  });
-
-  test('metadata can be added and removed', async function (assert) {
-    window.localStorage.nomadTokenSecret = managementToken.secretId;
-    node = server.create('node', 'forceIPv4', 'withMeta');
-    await ClientDetail.visit({ id: node.id });
-
-    const numberOfExistingMetaKeys = Object.keys(node.meta).length;
-    assert
-      .dom('.edit-existing-metadata-button')
-      .exists({ count: numberOfExistingMetaKeys });
-    assert.dom('.add-dynamic-metadata').exists();
-    await click('.add-dynamic-metadata button');
-    assert.dom('[data-test-new-metadata-button]').isDisabled();
-    await fillIn('#new-meta-key', 'newKey');
-    await fillIn('[data-test-metadata-editor-value]', 'newValue');
-    assert.dom('[data-test-new-metadata-button]').isNotDisabled();
-    await click('[data-test-new-metadata-button]');
-    assert
-      .dom('.edit-existing-metadata-button')
-      .exists(
-        { count: numberOfExistingMetaKeys + 1 },
-        'newly added item appears'
-      );
-
-    // find the newly added one and edit it
-    assert.dom('.metadata-editor').doesNotExist();
-    const newMetaRow = [...findAll('[data-test-attributes-section]')].filter(
-      (a) => a.textContent.includes('newKey')
-    )[0];
-
-    await click(newMetaRow.querySelector('.edit-existing-metadata-button'));
-    assert.dom('.metadata-editor').exists();
-    assert.dom('.constant-key').exists('existing key shown but uneditable');
-    await click('[data-test-delete-metadata]');
-    assert
-      .dom('.edit-existing-metadata-button')
-      .exists({ count: numberOfExistingMetaKeys }, 'newly added item is gone');
-  });
-
-  test('metadata can be edited', async function (assert) {
-    window.localStorage.nomadTokenSecret = managementToken.secretId;
-    node = server.create(
-      'node',
-      {
-        meta: {
-          existingKey: 'existingValue',
-          'existing.nested.foo': '1',
-          'existing.nested.bar': '2',
-        },
-      },
-      'forceIPv4',
-      'withMeta'
-    );
-    await ClientDetail.visit({ id: node.id });
-
-    const numberOfExistingMetaKeys = Object.keys(node.meta).length;
-    assert
-      .dom('.edit-existing-metadata-button')
-      .exists({ count: numberOfExistingMetaKeys });
-
-    const topLevelMetaRow = [
-      ...findAll('[data-test-attributes-section]'),
-    ].filter((a) => a.textContent.includes('existingKey'))[0];
-
-    await click(
-      topLevelMetaRow.querySelector('.edit-existing-metadata-button')
-    );
-    assert.dom('.metadata-editor').exists();
-    assert.dom('.constant-key').exists('existing key shown but uneditable');
-    assert.dom('[data-test-metadata-editor-value]').hasValue('existingValue');
-    await fillIn('[data-test-metadata-editor-value]', 'newValue');
-    await click('[data-test-update-metadata]');
-    assert.dom('.metadata-editor').doesNotExist();
-    const editedRow = [...findAll('[data-test-attributes-section]')].filter(
-      (a) => a.textContent.includes('existingKey')
-    )[0];
-    assert.dom(editedRow).containsText('newValue', 'value updated');
-
-    // Cancellable by click
-    await click(editedRow.querySelector('.edit-existing-metadata-button'));
-    assert.dom('.metadata-editor').exists();
-    await click('[data-test-cancel-metadata]');
-    assert.dom('.metadata-editor').doesNotExist();
-
-    // Cancellable by typing escape
-    await click(editedRow.querySelector('.edit-existing-metadata-button'));
-    assert.dom('.metadata-editor').exists();
-    await triggerEvent('[data-test-metadata-editor-value]', 'keyup', {
-      key: 'Escape',
-    });
-    assert.dom('.metadata-editor').doesNotExist();
   });
 
   test('/clients/:id shows an empty message when there is no meta data', async function (assert) {

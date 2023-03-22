@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update go.etcd.io/bbolt to v1.3.6
-```

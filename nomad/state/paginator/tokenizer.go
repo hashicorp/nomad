@@ -34,27 +34,27 @@ type CreateIndexGetter interface {
 //
 // These are some of the common use cases:
 //
-// Structs that can be uniquely identified with only its own ID:
+//   - Structs that can be uniquely identified with only its own ID:
 //
-//	StructsTokenizerOptions {
-//	    WithID: true,
-//	}
+//     StructsTokenizerOptions {
+//     WithID: true,
+//     }
 //
-// Structs that are only unique within their namespace:
+//   - Structs that are only unique within their namespace:
 //
-//	StructsTokenizerOptions {
-//	    WithID:        true,
-//	    WithNamespace: true,
-//	}
+//     StructsTokenizerOptions {
+//     WithID:        true,
+//     WithNamespace: true,
+//     }
 //
-// Structs that can be sorted by their create index should also set
-// `WithCreateIndex` to `true` along with the other options:
+//   - Structs that can be sorted by their create index should also set
+//     `WithCreateIndex` to `true` along with the other options:
 //
-//	StructsTokenizerOptions {
-//	    WithID:          true,
-//	    WithNamespace:   true,
-//	    WithCreateIndex: true,
-//	}
+//     StructsTokenizerOptions {
+//     WithID:          true,
+//     WithNamespace:   true,
+//     WithCreateIndex: true,
+//     }
 type StructsTokenizerOptions struct {
 	WithCreateIndex bool
 	WithNamespace   bool

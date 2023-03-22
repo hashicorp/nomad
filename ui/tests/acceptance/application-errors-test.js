@@ -6,15 +6,12 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
-import percySnapshot from '@percy/ember';
-import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | application errors ', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    faker.seed(1);
     server.create('agent');
     server.create('node');
     server.create('job');
@@ -26,7 +23,6 @@ module('Acceptance | application errors ', function (hooks) {
     server.pretender.get('/v1/nodes', () => [500, {}, null]);
     await ClientsList.visit();
     await a11yAudit(assert);
-    await percySnapshot(assert);
   });
 
   test('transitioning away from an error page resets the global error', async function (assert) {
@@ -43,7 +39,6 @@ module('Acceptance | application errors ', function (hooks) {
   });
 
   test('the 403 error page links to the ACL tokens page', async function (assert) {
-    assert.expect(3);
     const job = server.db.jobs[0];
 
     server.pretender.get(`/v1/job/${job.id}`, () => [403, {}, null]);
@@ -52,7 +47,6 @@ module('Acceptance | application errors ', function (hooks) {
 
     assert.ok(Job.error.isPresent, 'Error message is shown');
     assert.equal(Job.error.title, 'Not Authorized', 'Error message is for 403');
-    await percySnapshot(assert);
 
     await Job.error.seekHelp();
     assert.equal(
@@ -63,7 +57,6 @@ module('Acceptance | application errors ', function (hooks) {
   });
 
   test('the no leader error state gets its own error message', async function (assert) {
-    assert.expect(2);
     server.pretender.get('/v1/jobs', () => [500, {}, 'No cluster leader']);
 
     await JobsList.visit();
@@ -74,7 +67,6 @@ module('Acceptance | application errors ', function (hooks) {
       'No Cluster Leader',
       'The error is specifically for the lack of a cluster leader'
     );
-    await percySnapshot(assert);
   });
 
   test('error pages include links to the jobs and clients pages', async function (assert) {

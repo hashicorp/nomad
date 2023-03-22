@@ -16,21 +16,19 @@ Nomad with Access Control guide][secure-guide].
 
 ```hcl
 acl {
-  enabled    = true
-  token_ttl  = "30s"
+  enabled = true
+  token_ttl = "30s"
   policy_ttl = "60s"
-  role_ttl   = "60s"
 }
 ```
 
 ## `acl` Parameters
 
 - `enabled` `(bool: false)` - Specifies if ACL enforcement is enabled. All other
-  ACL configuration options depend on this value. All agents should have the
-  same value for this parameter. For example the Nomad command line will
-  send requests for client endpoints such as `alloc exec` directly to Nomad
-  clients whenever they are accessible. In this scenario, the client will
-  enforce ACLs, so both servers and clients should have ACLs enabled.
+  ACL configuration options depend on this value. Note that the Nomad command
+  line client will send requests for client endpoints such as `alloc exec`
+  directly to Nomad clients whenever they are accessible. In this scenario, the
+  client will enforce ACLs, so both servers and clients should have ACLs enabled.
 
 - `token_ttl` `(string: "30s")` - Specifies the maximum time-to-live (TTL) for
   cached ACL tokens. This does not affect servers, since they do not cache tokens.
@@ -44,23 +42,9 @@ acl {
   the request load against servers. If a client cannot reach a server, for example
   because of an outage, the TTL will be ignored and the cached value used.
 
-- `role_ttl` `(string: "30s")` - Specifies the maximum time-to-live (TTL) for
-  cached ACL roles. This does not affect servers, since they do not cache roles.
-  Setting this value lower reduces how stale a role can be, but increases the
-  request load against servers. If a client cannot reach a server, for example
-  because of an outage, the TTL will be ignored and the cached value used.
-
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
   to use for replicating policies and tokens. This is used by servers in non-authoritative
   region to mirror the policies and tokens into the local region from [authoritative_region][authoritative-region].
 
-- `token_min_expiration_ttl` `(string: "1m")` - Specifies the lowest acceptable
-  TTL value for an ACL token when setting expiration. This is used by the Nomad
-  servers to validate ACL tokens.
-
-- `token_max_expiration_ttl` `(string: "24h")` - Specifies the highest acceptable
-  TTL value for an ACL token when setting expiration. This is used by the Nomad
-  servers to validate ACL tokens.
-
-[secure-guide]: /nomad/tutorials/access-control
-[authoritative-region]: /nomad/docs/configuration/server#authoritative_region
+[secure-guide]: https://learn.hashicorp.com/collections/nomad/access-control
+[authoritative-region]: /docs/configuration/server#authoritative_region

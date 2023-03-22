@@ -3,11 +3,10 @@ package consul
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func NoopRestarter() serviceregistration.WorkloadRestarter {
+func NoopRestarter() WorkloadRestarter {
 	return noopRestarter{}
 }
 

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: re-enable nss-based user lookups
-```

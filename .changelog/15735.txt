@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Add a button for expanding the Task sidebar to full width
-```

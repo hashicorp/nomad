@@ -96,7 +96,9 @@ func ConfigureBasicCgroups(config *lcc.Config) error {
 	if err = os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
-	config.Cgroups.Path = path
+	config.Cgroups.Paths = map[string]string{
+		subsystem: path,
+	}
 	return nil
 }
 

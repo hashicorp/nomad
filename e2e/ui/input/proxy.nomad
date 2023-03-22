@@ -2,11 +2,6 @@ job "nomad-proxy" {
   datacenters = ["dc1", "dc2"]
   namespace   = "proxy"
 
-  constraint {
-    attribute = "${attr.kernel.name}"
-    value     = "linux"
-  }
-
   group "proxy" {
 
     network {

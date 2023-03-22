@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -33,7 +32,6 @@ var (
 		"constraint",
 		"affinity",
 		"dispatch_payload",
-		"identity",
 		"lifecycle",
 		"leader",
 		"restart",
@@ -105,7 +103,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	delete(m, "dispatch_payload")
 	delete(m, "lifecycle")
 	delete(m, "env")
-	delete(m, "identity")
 	delete(m, "logs")
 	delete(m, "meta")
 	delete(m, "resources")
@@ -281,15 +278,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		if err := parseArtifacts(&t.Artifacts, o); err != nil {
 			return nil, multierror.Prefix(err, "artifact ->")
 		}
-	}
-
-	// Parse identity
-	if o := listVal.Filter("identity"); len(o.Items) > 0 {
-		v := &api.WorkloadIdentity{}
-		if err := parseIdentity(v, o); err != nil {
-			return nil, multierror.Prefix(err, "identity ->")
-		}
-		t.Identity = v
 	}
 
 	// Parse templates
@@ -470,8 +458,6 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"splay",
 			"env",
 			"vault_grace", //COMPAT(0.12) not used; emits warning in 0.11.
-			"wait",
-			"error_on_missing_key",
 		}
 		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
@@ -484,12 +470,9 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		delete(m, "change_script") // change_script is its own object
 
 		templ := &api.Template{
-			ChangeMode:    stringToPtr("restart"),
-			Splay:         timeToPtr(5 * time.Second),
-			Perms:         stringToPtr("0644"),
-			Uid:           pointer.Of(-1),
-			Gid:           pointer.Of(-1),
-			ErrMissingKey: pointer.Of(false),
+			ChangeMode: stringToPtr("restart"),
+			Splay:      timeToPtr(5 * time.Second),
+			Perms:      stringToPtr("0644"),
 		}
 
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -751,43 +734,5 @@ func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
 	}
 
 	*out = mounts
-	return nil
-}
-
-func parseIdentity(out *api.WorkloadIdentity, list *ast.ObjectList) error {
-	list = list.Elem()
-	if len(list.Items) == 0 {
-		return nil
-	}
-	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'identity' block allowed per task")
-	}
-
-	o := list.Items[0]
-	var listVal *ast.ObjectList
-	if ot, ok := o.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return fmt.Errorf("identity: should be an object")
-	}
-
-	valid := []string{
-		"env",
-		"file",
-	}
-
-	if err := checkHCLKeys(listVal, valid); err != nil {
-		return multierror.Prefix(err, "identity ->")
-	}
-
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, o.Val); err != nil {
-		return err
-	}
-
-	if err := mapstructure.WeakDecode(m, out); err != nil {
-		return err
-	}
-
 	return nil
 }

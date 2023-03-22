@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Adds a "Pack" tag and logo on the jobs list index when appropriate
-```

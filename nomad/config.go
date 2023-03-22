@@ -11,6 +11,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -33,6 +34,11 @@ func DefaultRPCAddr() *net.TCPAddr {
 
 // Config is used to parameterize the server
 type Config struct {
+	// Bootstrapped indicates if Server has bootstrapped or not.
+	// Its value must be 0 (not bootstrapped) or 1 (bootstrapped).
+	// All operations on Bootstrapped must be handled via `atomic.*Int32()` calls
+	Bootstrapped int32
+
 	// BootstrapExpect mode is used to automatically bring up a
 	// collection of Nomad servers. This can be used to automatically
 	// bring up a collection of nodes.
@@ -127,13 +133,6 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
-	// BuildDate is the time of the git commit used to build the program.
-	BuildDate time.Time
-
-	// Revision is a string that carries the version.GitCommit of Nomad that
-	// was compiled.
-	Revision string
-
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -206,30 +205,6 @@ type Config struct {
 	// one-time tokens.
 	OneTimeTokenGCInterval time.Duration
 
-	// ACLTokenExpirationGCInterval is how often we dispatch a job to GC
-	// expired ACL tokens.
-	ACLTokenExpirationGCInterval time.Duration
-
-	// ACLTokenExpirationGCThreshold controls how "old" an expired ACL token
-	// must be to be collected by GC.
-	ACLTokenExpirationGCThreshold time.Duration
-
-	// RootKeyGCInterval is how often we dispatch a job to GC
-	// encryption key metadata
-	RootKeyGCInterval time.Duration
-
-	// RootKeyGCThreshold is how "old" encryption key metadata must be
-	// to be eligible for GC.
-	RootKeyGCThreshold time.Duration
-
-	// RootKeyRotationThreshold is how "old" an active key can be
-	// before it's rotated
-	RootKeyRotationThreshold time.Duration
-
-	// VariablesRekeyInterval is how often we dispatch a job to
-	// rekey any variables associated with a key in the Rekeying state
-	VariablesRekeyInterval time.Duration
-
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -260,12 +235,6 @@ type Config struct {
 	// EvalFailedFollowupBaselineDelay is the minimum time waited before
 	// retrying a failed evaluation.
 	EvalFailedFollowupBaselineDelay time.Duration
-
-	// EvalReapCancelableInterval is the interval for the periodic reaping of
-	// cancelable evaluations. Cancelable evaluations are canceled whenever any
-	// eval is ack'd but this sweeps up on quiescent clusters. This config value
-	// exists only for testing.
-	EvalReapCancelableInterval time.Duration
 
 	// EvalFailedFollowupDelayRange defines the range of additional time from
 	// the baseline in which to wait before retrying a failed evaluation. The
@@ -329,14 +298,6 @@ type Config struct {
 	// the Authoritative Region.
 	ReplicationToken string
 
-	// TokenMinExpirationTTL is used to enforce the lowest acceptable value for
-	// ACL token expiration.
-	ACLTokenMinExpirationTTL time.Duration
-
-	// TokenMaxExpirationTTL is used to enforce the highest acceptable value
-	// for ACL token expiration.
-	ACLTokenMaxExpirationTTL time.Duration
-
 	// SentinelGCInterval is the interval that we GC unused policies.
 	SentinelGCInterval time.Duration
 
@@ -350,12 +311,6 @@ type Config struct {
 	// DisableDispatchedJobSummaryMetrics allows for ignore dispatched jobs when
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
-
-	// DisableRPCRateMetricsLabels drops the label for the identity of the
-	// requester when publishing metrics on RPC rate on the server. This may be
-	// useful to control metrics collection costs in environments where request
-	// rate is well-controlled but cardinality of requesters is high.
-	DisableRPCRateMetricsLabels bool
 
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
@@ -374,6 +329,13 @@ type Config struct {
 	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API)
 	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
+
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
 
 	// RPCHandshakeTimeout is the deadline by which RPC handshakes must
 	// complete. The RPC handshake includes the first byte read as well as
@@ -407,12 +369,6 @@ type Config struct {
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64
-
-	// JobDefaultPriority is the default Job priority if not specified.
-	JobDefaultPriority int
-
-	// JobMaxPriority is an upper bound on the Job priority.
-	JobMaxPriority int
 }
 
 func (c *Config) Copy() *Config {
@@ -480,19 +436,12 @@ func DefaultConfig() *Config {
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
 		CSIVolumeClaimGCThreshold:        5 * time.Minute,
 		OneTimeTokenGCInterval:           10 * time.Minute,
-		ACLTokenExpirationGCInterval:     5 * time.Minute,
-		ACLTokenExpirationGCThreshold:    1 * time.Hour,
-		RootKeyGCInterval:                10 * time.Minute,
-		RootKeyGCThreshold:               1 * time.Hour,
-		RootKeyRotationThreshold:         720 * time.Hour, // 30 days
-		VariablesRekeyInterval:           10 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,
 		EvalNackSubsequentReenqueueDelay: 20 * time.Second,
 		EvalFailedFollowupBaselineDelay:  1 * time.Minute,
 		EvalFailedFollowupDelayRange:     5 * time.Minute,
-		EvalReapCancelableInterval:       5 * time.Second,
 		MinHeartbeatTTL:                  10 * time.Second,
 		MaxHeartbeatsPerSecond:           50.0,
 		HeartbeatGrace:                   10 * time.Second,
@@ -510,8 +459,6 @@ func DefaultConfig() *Config {
 		LicenseConfig:                    &LicenseConfig{},
 		EnableEventBroker:                true,
 		EventBufferSize:                  100,
-		ACLTokenMinExpirationTTL:         1 * time.Minute,
-		ACLTokenMaxExpirationTTL:         24 * time.Hour,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
@@ -530,8 +477,6 @@ func DefaultConfig() *Config {
 			},
 		},
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
-		JobDefaultPriority:       structs.JobDefaultPriority,
-		JobMaxPriority:           structs.JobDefaultMaxPriority,
 	}
 
 	// Enable all known schedulers by default

@@ -45,13 +45,7 @@ exhaustion, etc), then the exit code will be 2. Any other errors, including
 client connection issues or internal errors, are indicated by exit code 1.
 
 When ACLs are enabled, this command requires a token with the `dispatch-job`
-capability for the job's namespace. The `list-jobs` capability is required to
-run the command with a job prefix instead of the exact job ID. The `read-job`
-capability is required to monitor the resulting evaluation when `-detach` is
-not used.
-
-See the [multiregion] documentation for additional considerations when
-dispatching parameterized jobs.
+capability for the job's namespace.
 
 ## General Options
 
@@ -71,9 +65,6 @@ dispatching parameterized jobs.
 
 - `-idempotency-token`: Optional identifier used to prevent more than one
   instance of the job from being dispatched.
-
-
-- `-id-prefix-template`: Optional prefix template for dispatched job IDs.
 
 - `-verbose`: Show full information.
 
@@ -147,21 +138,5 @@ $ nomad job dispatch -idempotency-token=prod video-encode video-config.json
 Job "video-encode/dispatch-1485379325-cb38d00d" already dispatched with idempotency token "prod".
 ```
 
-Dispatch with an id prefix:
-
-```shell-session
-$ nomad job dispatch -id-prefix-template=config1 video-encode video-config1.json
-Jb
-Dispatched Job ID = video-encode/dispatch-config1-1485379325-cb38d00d
-Evaluation ID     = 31199841
-
-==> Monitoring evaluation "31199841"
-    Evaluation triggered by job "example/dispatch-config1-1485379325-cb38d00d"
-    Allocation "8254b85f" created: node "82ff9c50", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "31199841" finished with status "complete"
-```
-
-[eval status]: /nomad/docs/commands/eval/status
-[parameterized job]: /nomad/docs/job-specification/parameterized 'Nomad parameterized Job Specification'
-[multiregion]: /nomad/docs/job-specification/multiregion#parameterized-dispatch
+[eval status]: /docs/commands/eval-status
+[parameterized job]: /docs/job-specification/parameterized 'Nomad parameterized Job Specification'

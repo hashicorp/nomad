@@ -35,9 +35,6 @@ export default Factory.extend({
   // Directive used to control whether the task group should have services.
   withServices: false,
 
-  // Whether the tasks themselves should have services.
-  withTaskServices: false,
-
   // Directive used to control whether dynamic application sizing recommendations
   // should be created.
   createRecommendations: false,
@@ -91,9 +88,8 @@ export default Factory.extend({
           maybeResources.originalResources = generateResources(resources[idx]);
         }
         return server.create('task', {
-          taskGroupID: group.id,
+          taskGroup: group,
           ...maybeResources,
-          withServices: group.withTaskServices,
           volumeMounts: mounts.map((mount) => ({
             Volume: mount,
             Destination: `/${faker.internet.userName()}/${faker.internet.domainWord()}/${faker.internet.color()}`,
@@ -136,38 +132,13 @@ export default Factory.extend({
     }
 
     if (group.withServices) {
-      const services = server.createList('service-fragment', 5, {
-        taskGroupId: group.id,
-        taskGroup: group,
-        provider: 'nomad',
-      });
-
-      services.push(
-        server.create('service-fragment', {
-          taskGroupId: group.id,
-          taskGroup: group,
-          provider: 'consul',
-        })
-      );
-
-      services.forEach((fragment) => {
-        server.create('service', {
-          serviceName: fragment.name,
-          id: `${faker.internet.domainWord()}-group-${fragment.name}`,
+      Array(faker.random.number({ min: 1, max: 3 }))
+        .fill(null)
+        .forEach(() => {
+          server.create('service', {
+            taskGroup: group,
+          });
         });
-        server.create('service', {
-          serviceName: fragment.name,
-          id: `${faker.internet.domainWord()}-group-${fragment.name}`,
-        });
-        server.create('service', {
-          serviceName: fragment.name,
-          id: `${faker.internet.domainWord()}-group-${fragment.name}`,
-        });
-      });
-
-      group.update({
-        services,
-      });
     }
   },
 });

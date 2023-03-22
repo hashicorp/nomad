@@ -1,65 +1,10 @@
 [
   {
-    "title": "Overview",
-    "path": "index"
-  },
-  {
     "title": "Autoscaling",
     "routes": [
       {
         "title": "Overview",
         "path": "autoscaling"
-      },
-      {
-        "title": "Concepts",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "autoscaling/concepts"
-          },
-          {
-            "title": "Policy Evaluation",
-            "routes": [
-              {
-                "title": "Overview",
-                "path": "autoscaling/concepts/policy-eval"
-              },
-              {
-                "title": "Checks",
-                "path": "autoscaling/concepts/policy-eval/checks"
-              },
-              {
-                "title": "Node Selector Strategy",
-                "path": "autoscaling/concepts/policy-eval/node-selector-strategy"
-              }
-            ]
-          },
-          {
-            "title": "Plugins",
-            "routes": [
-              {
-                "title": "Overview",
-                "path": "autoscaling/concepts/plugins"
-              },
-              {
-                "title": "Base",
-                "path": "autoscaling/concepts/plugins/base"
-              },
-              {
-                "title": "APM",
-                "path": "autoscaling/concepts/plugins/apm"
-              },
-              {
-                "title": "Strategy",
-                "path": "autoscaling/concepts/plugins/strategy"
-              },
-              {
-                "title": "Target",
-                "path": "autoscaling/concepts/plugins/target"
-              }
-            ]
-          }
-        ]
       },
       {
         "title": "Agent",
@@ -91,6 +36,10 @@
           {
             "title": "policy_eval",
             "path": "autoscaling/agent/policy_eval"
+          },
+          {
+            "title": "source",
+            "path": "autoscaling/agent/source"
           },
           {
             "title": "strategy",
@@ -219,6 +168,48 @@
           {
             "title": "Community",
             "path": "autoscaling/plugins/external"
+          }
+        ]
+      },
+      {
+        "title": "Internals",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "autoscaling/internals"
+          },
+          {
+            "title": "Checks",
+            "path": "autoscaling/internals/checks"
+          },
+          {
+            "title": "Node Selector Strategy",
+            "path": "autoscaling/internals/node-selector-strategy"
+          },
+          {
+            "title": "Plugins",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "autoscaling/internals/plugins"
+              },
+              {
+                "title": "Base",
+                "path": "autoscaling/internals/plugins/base"
+              },
+              {
+                "title": "APM",
+                "path": "autoscaling/internals/plugins/apm"
+              },
+              {
+                "title": "Strategy",
+                "path": "autoscaling/internals/plugins/strategy"
+              },
+              {
+                "title": "Target",
+                "path": "autoscaling/internals/plugins/target"
+              }
+            ]
           }
         ]
       }

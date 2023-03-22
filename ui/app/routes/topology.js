@@ -12,6 +12,7 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
 
   model() {
     return RSVP.hash({
+      jobs: this.store.findAll('job'),
       allocations: this.store.query('allocation', {
         resources: true,
         task_states: false,
@@ -25,6 +26,7 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
     // When the model throws, make sure the interface expected by the controller is consistent.
     if (!model) {
       controller.model = {
+        jobs: [],
         allocations: [],
         nodes: [],
       };

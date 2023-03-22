@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/hashicorp/go-hclog"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -32,7 +32,7 @@ type AllocBroadcaster struct {
 	// nextId is the next id to assign in listener map
 	nextId int
 
-	// closed is true if broadcaster is closed.
+	// closed is true if broadcsater is closed
 	closed bool
 
 	// last alloc sent to prime new listeners

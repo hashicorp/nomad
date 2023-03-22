@@ -65,7 +65,7 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.equal(Task.lifecycle, lifecycleName);
 
-    assert.equal(document.title, `Task ${task.name} - Mirage - Nomad`);
+    assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {

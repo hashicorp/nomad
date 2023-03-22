@@ -1,3 +1,0 @@
-```release-note:bug
-cli: corrected typos in ACL role create/delete CLI commands
-```

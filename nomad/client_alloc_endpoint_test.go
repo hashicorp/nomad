@@ -162,7 +162,7 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node.Copy()))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	req := &nstructs.NodeSpecificRequest{
 		NodeID:       node.ID,
@@ -546,7 +546,7 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node.Copy()))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID

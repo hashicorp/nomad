@@ -105,20 +105,51 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   const planJob = async (spec) => {
-    const cm = getCodeMirrorInstance(['data-test-editor']);
-    cm.setValue(spec);
+    await Editor.editor.fillIn(spec);
     await Editor.plan();
   };
 
   test('the default state is an editor with an explanation popup', async function (assert) {
-    assert.expect(2);
+    assert.expect(3);
 
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
+    assert.ok(
+      Editor.editorHelp.isPresent,
+      'Editor explanation popup is present'
+    );
     assert.ok(Editor.editor.isPresent, 'Editor is present');
 
     await componentA11yAudit(this.element, assert);
+  });
+
+  test('the explanation popup can be dismissed', async function (assert) {
+    const job = await this.store.createRecord('job');
+
+    await renderNewJob(this, job);
+    await Editor.editorHelp.dismiss();
+    assert.notOk(
+      Editor.editorHelp.isPresent,
+      'Editor explanation popup is gone'
+    );
+    assert.equal(
+      window.localStorage.nomadMessageJobEditor,
+      'false',
+      'Dismissal is persisted in localStorage'
+    );
+  });
+
+  test('the explanation popup is not shown once the dismissal state is set in localStorage', async function (assert) {
+    window.localStorage.nomadMessageJobEditor = 'false';
+
+    const job = await this.store.createRecord('job');
+
+    await renderNewJob(this, job);
+    assert.notOk(
+      Editor.editorHelp.isPresent,
+      'Editor explanation popup is gone'
+    );
   });
 
   test('submitting a json job skips the parse endpoint', async function (assert) {
@@ -127,7 +158,6 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     await planJob(spec);
-    console.log('wait');
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.notOk(
       requests.includes('/v1/jobs/parse'),
@@ -205,12 +235,8 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     await planJob(spec);
-    assert
-      .dom('[data-test-error="plan"]')
-      .doesNotExist('Plan error is not shown');
-    assert
-      .dom('[data-test-error="run"]')
-      .doesNotExist('Run error is not shown');
+    assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
+    assert.notOk(Editor.runError.isPresent, 'Run error is not shown');
 
     assert.ok(Editor.parseError.isPresent, 'Parse error is shown');
     assert.equal(
@@ -237,12 +263,8 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     await planJob(spec);
-    assert
-      .dom('[data-test-error="parse"]')
-      .doesNotExist('Parse error is not shown');
-    assert
-      .dom('[data-test-error="run"]')
-      .doesNotExist('Run error is not shown');
+    assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
+    assert.notOk(Editor.runError.isPresent, 'Run error is not shown');
 
     assert.ok(Editor.planError.isPresent, 'Plan error is shown');
     assert.equal(
@@ -266,12 +288,8 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
     await planJob(spec);
     await Editor.run();
-    assert
-      .dom('[data-test-error="plan"]')
-      .doesNotExist('Plan error is not shown');
-    assert
-      .dom('[data-test-error="parse"]')
-      .doesNotExist('Parse error is not shown');
+    assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
+    assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
 
     assert.ok(Editor.runError.isPresent, 'Run error is shown');
     assert.equal(

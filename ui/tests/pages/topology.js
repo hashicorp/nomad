@@ -8,7 +8,6 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
-import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 import TopoViz from 'nomad-ui/tests/pages/components/topo-viz';
 import notification from 'nomad-ui/tests/pages/components/notification';
 
@@ -19,13 +18,6 @@ export default create({
   filteredNodesWarning: notification('[data-test-filtered-nodes-warning]'),
 
   viz: TopoViz('[data-test-topo-viz]'),
-
-  facets: {
-    datacenter: multiFacet('[data-test-datacenter-facet]'),
-    class: multiFacet('[data-test-class-facet]'),
-    state: multiFacet('[data-test-state-facet]'),
-    version: multiFacet('[data-test-version-facet]'),
-  },
 
   clusterInfoPanel: {
     scope: '[data-test-info-panel]',

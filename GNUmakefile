@@ -3,17 +3,10 @@ PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
 THIS_ARCH := $(shell uname -m)
 
-GO_MODULE = github.com/hashicorp/nomad
-
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
-GIT_COMMIT_FLAG = $(GO_MODULE)/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
 
-# build date is based on most recent commit, in RFC3339 format
-BUILD_DATE ?= $(shell TZ=UTC0 git show -s --format=%cd --date=format-local:'%Y-%m-%dT%H:%M:%SZ' HEAD)
-BUILD_DATE_FLAG = $(GO_MODULE)/version.BuildDate=$(BUILD_DATE)
-
-GO_LDFLAGS = -X $(GIT_COMMIT_FLAG) -X $(BUILD_DATE_FLAG)
+GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
 ifneq (MSYS_NT,$(THIS_OS))
 # GOPATH supports PATH style multi-paths; assume the first entry is favorable.
@@ -28,7 +21,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS := $(GO_TAGS)
+GO_TAGS ?= osusergo
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
@@ -39,17 +32,12 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-#GOTEST_GROUP is set in CI pipelines. We have to set it for local run.
-ifndef GOTEST_GROUP
-GOTEST_GROUP := nomad client command drivers quick
-endif
-
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.5.2
+LAST_RELEASE ?= v1.3.12
 
 default: help
 
@@ -98,7 +86,7 @@ endif
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
-		go build -trimpath -ldflags "$(GO_LDFLAGS)" -tags "$(GO_TAGS)" -o $(GO_OUT)
+		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
 ifneq (armv7l,$(THIS_ARCH))
 pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
@@ -213,18 +201,24 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto ## Generate structs, protobufs
+generate-all: generate-structs proto generate-examples ## Generate structs, protobufs, examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
-	@echo "==> Running go generate..."
+	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
 
 .PHONY: proto
 proto: ## Generate protobuf bindings
-	@echo "==> Generating proto bindings..."
+	@echo "--> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
+
+.PHONY: generate-examples
+generate-examples: command/job_init.bindata_assetfs.go
+
+command/job_init.bindata_assetfs.go: command/assets/*
+	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
 changelog: ## Generate changelog from entries
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
@@ -234,7 +228,7 @@ changelog: ## Generate changelog from entries
 ## that do not successfully compile without rendering
 .PHONY: hclfmt
 hclfmt: ## Format HCL files with hclfmt
-	@echo "==> Formatting HCL"
+	@echo "--> Formatting HCL"
 	@find . -name '.terraform' -prune \
 	        -o -name 'upstart.nomad' -prune \
 	        -o -name '.git' -prune \
@@ -242,16 +236,15 @@ hclfmt: ## Format HCL files with hclfmt
 	        -o -name '.next' -prune \
 	        -o -path './ui/dist' -prune \
 	        -o -path './website/out' -prune \
-	        -o -path './command/testdata' -prune \
 	        -o \( -name '*.nomad' -o -name '*.hcl' -o -name '*.tf' \) \
 	      -print0 | xargs -0 hclfmt -w
 
 .PHONY: tidy
 tidy: ## Tidy up the go mod files
-	@echo "==> Tidy up submodules"
+	@echo "--> Tidy up submodules"
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
-	@echo "==> Tidy nomad module"
+	@echo "--> Tidy nomad module"
 	@go mod tidy
 
 .PHONY: dev
@@ -283,7 +276,7 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: test-nomad
-test-nomad: GOTEST_PKGS=$(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
+test-nomad: GOTEST_PKGS=$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(GOTEST_GROUP))
 test-nomad: # dev ## Run Nomad unit tests
 	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
 	@echo "==> with packages $(GOTEST_PKGS)"
@@ -346,24 +339,24 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 
 .PHONY: static-assets
 static-assets: ## Compile the static routes to serve alongside the API
-	@echo "==> Generating static assets"
+	@echo "--> Generating static assets"
 	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
 	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
-	@echo "==> Installing JavaScript assets"
+	@echo "--> Installing JavaScript assets"
 	@cd ui && npm rebuild node-sass
 	@cd ui && yarn install
-	@echo "==> Running ember tests"
+	@echo "--> Running ember tests"
 	@cd ui && npm test
 
 .PHONY: ember-dist
 ember-dist: ## Build the static UI assets from source
-	@echo "==> Installing JavaScript assets"
+	@echo "--> Installing JavaScript assets"
 	@cd ui && yarn install --silent --network-timeout 300000
 	@cd ui && npm rebuild node-sass
-	@echo "==> Building Ember application"
+	@echo "--> Building Ember application"
 	@cd ui && npm run build
 
 .PHONY: dev-ui
@@ -416,19 +409,3 @@ missing: ## Check for packages not being tested
 ec2info: ## Generate AWS EC2 CPU specification table
 	@echo "==> Generating AWS EC2 specifications ..."
 	@go run -modfile tools/go.mod tools/ec2info/main.go
-
-.PHONY: cl
-cl: ## Create a new Changelog entry
-	@go run -modfile tools/go.mod tools/cl-entry/main.go
-
-.PHONY: test
-test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
-test: ## Use this target as a smoke test
-	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
-	@echo "==> with packages: $(GOTEST_PKGS)"
-	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
-		-cover \
-		-timeout=20m \
-		-count=1 \
-		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS)

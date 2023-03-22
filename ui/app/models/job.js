@@ -138,10 +138,8 @@ export default class Job extends Model {
   @hasMany('allocations') allocations;
   @hasMany('deployments') deployments;
   @hasMany('evaluations') evaluations;
-  @hasMany('variables') variables;
   @belongsTo('namespace') namespace;
   @belongsTo('job-scale') scaleState;
-  @hasMany('services') services;
 
   @hasMany('recommendation-summary') recommendationSummaries;
 
@@ -225,10 +223,6 @@ export default class Job extends Model {
 
   stop() {
     return this.store.adapterFor('job').stop(this);
-  }
-
-  purge() {
-    return this.store.adapterFor('job').purge(this);
   }
 
   plan() {
@@ -333,16 +327,4 @@ export default class Job extends Model {
   // spec first. In order to preserve both the original HCL and the parsed response
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
-
-  @computed('variables', 'parent', 'plainId')
-  get pathLinkedVariable() {
-    if (this.parent.get('id')) {
-      return this.variables?.findBy(
-        'path',
-        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
-      );
-    } else {
-      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
-    }
-  }
 }

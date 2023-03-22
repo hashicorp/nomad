@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
@@ -87,9 +86,6 @@ type Config struct {
 	// ServiceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	ServiceRegWrapper *wrapper.HandlerWrapper
-
-	// CheckStore contains check result information.
-	CheckStore checkstore.Shim
 
 	// Getter is an interface for retrieving artifacts.
 	Getter interfaces.ArtifactGetter

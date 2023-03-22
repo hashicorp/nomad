@@ -2792,7 +2792,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											LocalBindPort:        8000,
 											Datacenter:           "dc2",
 											LocalBindAddress:     "127.0.0.2",
-											MeshGateway: ConsulMeshGateway{
+											MeshGateway: &ConsulMeshGateway{
 												Mode: "remote",
 											},
 										},
@@ -7070,7 +7070,6 @@ func TestTaskDiff(t *testing.T) {
 							Min: pointer.Of(5 * time.Second),
 							Max: pointer.Of(5 * time.Second),
 						},
-						ErrMissingKey: false,
 					},
 					{
 						SourcePath:   "foo2",
@@ -7114,7 +7113,6 @@ func TestTaskDiff(t *testing.T) {
 							Min: pointer.Of(5 * time.Second),
 							Max: pointer.Of(10 * time.Second),
 						},
-						ErrMissingKey: true,
 					},
 					{
 						SourcePath:   "foo3",
@@ -7136,7 +7134,6 @@ func TestTaskDiff(t *testing.T) {
 							Min: pointer.Of(5 * time.Second),
 							Max: pointer.Of(10 * time.Second),
 						},
-						ErrMissingKey: true,
 					},
 				},
 			},
@@ -7152,12 +7149,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EmbeddedTmpl",
 								Old:  "baz",
 								New:  "baz new",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "ErrMissingKey",
-								Old:  "false",
-								New:  "true",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -7208,12 +7199,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Envvars",
 								Old:  "",
 								New:  "false",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "ErrMissingKey",
-								Old:  "",
-								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -7343,12 +7328,6 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Envvars",
 								Old:  "true",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "ErrMissingKey",
-								Old:  "false",
 								New:  "",
 							},
 							{
@@ -7540,99 +7519,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "File",
 								Old:  "foo",
 								New:  "bar",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: "Identity added",
-			Old:  &Task{},
-			New: &Task{
-				Identity: &WorkloadIdentity{
-					Env: true,
-				},
-			},
-			Expected: &TaskDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "Identity",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeAdded,
-								Name: "Env",
-								Old:  "",
-								New:  "true",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "File",
-								Old:  "",
-								New:  "false",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: "Identity removed",
-			Old: &Task{
-				Identity: &WorkloadIdentity{
-					Env: true,
-				},
-			},
-			New: &Task{},
-			Expected: &TaskDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "Identity",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeDeleted,
-								Name: "Env",
-								Old:  "true",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "File",
-								Old:  "false",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: "Identity modified",
-			Old: &Task{
-				Identity: &WorkloadIdentity{
-					Env: true,
-				},
-			},
-			New: &Task{
-				Identity: &WorkloadIdentity{
-					Env:  true,
-					File: true,
-				},
-			},
-			Expected: &TaskDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Identity",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "File",
-								Old:  "false",
-								New:  "true",
 							},
 						},
 					},

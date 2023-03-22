@@ -1,3 +1,0 @@
-```release-note:breaking-change
-core: remove support for raft protocol version 2
-```

@@ -81,7 +81,6 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"slice":           stdlib.SliceFunc,
 		"sort":            stdlib.SortFunc,
 		"split":           stdlib.SplitFunc,
-		"strlen":          stdlib.StrlenFunc,
 		"strrev":          stdlib.ReverseFunc,
 		"substr":          stdlib.SubstrFunc,
 		"timeadd":         stdlib.TimeAddFunc,

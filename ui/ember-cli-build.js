@@ -17,7 +17,7 @@ module.exports = function (defaults) {
       },
     },
     codemirror: {
-      modes: ['javascript', 'ruby'],
+      modes: ['javascript'],
     },
     babel: {
       include: ['proposal-optional-chaining'],
@@ -31,12 +31,6 @@ module.exports = function (defaults) {
     },
     hinting: isTest,
     tests: isTest,
-    sassOptions: {
-      precision: 4,
-      includePaths: [
-        './node_modules/@hashicorp/design-system-tokens/dist/products/css',
-      ],
-    },
   });
 
   // Use `app.import` to add additional libraries to the generated
@@ -53,9 +47,6 @@ module.exports = function (defaults) {
   // along with the exports of each module as its value.
 
   app.import('node_modules/xterm/css/xterm.css');
-  app.import('node_modules/jsonlint/lib/jsonlint.js');
-  app.import('node_modules/codemirror/addon/lint/lint.css');
-  app.import('node_modules/codemirror/lib/codemirror.css');
 
   return app.toTree();
 };

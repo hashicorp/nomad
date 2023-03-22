@@ -196,7 +196,7 @@ func (i *instanceManager) dispense() (plugin drivers.DriverPlugin, err error) {
 
 		// If reattachment fails, get a new plugin instance
 		if err != nil {
-			i.logger.Warn("failed to reattach to plugin, starting new instance", "error", err)
+			i.logger.Warn("failed to reattach to plugin, starting new instance", "err", err)
 			pluginInstance, err = dispenseFn()
 		}
 	} else {

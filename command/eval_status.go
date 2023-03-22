@@ -105,6 +105,24 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// If args not specified but output format is specified, format and output the evaluations data list
+	if len(args) == 0 && (json || len(tmpl) > 0) {
+		evals, _, err := client.Evaluations().List(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying evaluations: %v", err))
+			return 1
+		}
+
+		out, err := Format(json, tmpl, evals)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
+	}
+
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument")
 		c.Ui.Error(commandErrorText(c))
@@ -122,11 +140,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	// Query the allocation info
 	if len(evalID) == 1 {
 		c.Ui.Error("Identifier must contain at least two characters.")
-		return 1
-	}
-
-	if json && len(tmpl) > 0 {
-		c.Ui.Error("Both json and template formatting are not allowed")
 		return 1
 	}
 

@@ -2,7 +2,7 @@
     "Job": {
         "Region": null,
         "Namespace": null,
-        "ID": "bad example",
+        "ID": "example",
         "Name": "example",
         "Type": null,
         "Priority": null,

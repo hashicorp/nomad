@@ -1,3 +1,0 @@
-```release-note:bug
-core: Fixed a bug where Dynamic Node Metadata requests could crash servers
-```

@@ -1,3 +1,0 @@
-```release-note:improvement
-users: Added a cache for OS user lookups
-```

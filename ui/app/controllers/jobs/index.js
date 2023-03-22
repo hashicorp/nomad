@@ -2,7 +2,7 @@
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
-import { computed, action } from '@ember/object';
+import { computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
@@ -20,7 +20,6 @@ export default class IndexController extends Controller.extend(
 ) {
   @service system;
   @service userSettings;
-  @service router;
 
   isForbidden = false;
 
@@ -246,18 +245,13 @@ export default class IndexController extends Controller.extend(
     });
   }
 
-  @alias('filteredJobs') listToSearch;
-  @alias('listSearched') listToSort;
-  @alias('listSorted') sortedJobs;
+  @alias('filteredJobs') listToSort;
+  @alias('listSorted') listToSearch;
+  @alias('listSearched') sortedJobs;
 
   isShowingDeploymentDetails = false;
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
-  }
-
-  @action
-  goToRun() {
-    this.router.transitionTo('jobs.run');
   }
 }

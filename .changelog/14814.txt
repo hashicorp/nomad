@@ -1,3 +1,0 @@
-```release-note:bug
-ui: Fixed line charts to update x-axis (time) where relevant
-```

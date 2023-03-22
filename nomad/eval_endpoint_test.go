@@ -8,7 +8,6 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
@@ -17,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -719,240 +717,346 @@ func TestEvalEndpoint_Reap(t *testing.T) {
 func TestEvalEndpoint_Delete(t *testing.T) {
 	ci.Parallel(t)
 
-	setup := func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-		t.Helper()
-		testServer, rootToken, cleanupFn := TestACLServer(t, func(c *Config) {
-			c.NumSchedulers = 0
-		})
-		testutil.WaitForLeader(t, testServer.RPC)
-		return testServer, rootToken, cleanupFn
+	testCases := []struct {
+		testFn func()
+		name   string
+	}{
+		{
+			testFn: func() {
+
+				testServer, testServerCleanup := TestServer(t, nil)
+				defer testServerCleanup()
+
+				codec := rpcClient(t, testServer)
+				testutil.WaitForLeader(t, testServer.RPC)
+
+				// Create and upsert an evaluation.
+				mockEval := mock.Eval()
+				require.NoError(t, testServer.fsm.State().UpsertEvals(
+					structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
+
+				// Attempt to delete the eval, which should fail because the
+				// eval broker is not paused.
+				get := &structs.EvalDeleteRequest{
+					EvalIDs:      []string{mockEval.ID},
+					WriteRequest: structs.WriteRequest{Region: "global"},
+				}
+				var resp structs.EvalDeleteResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
+				require.Contains(t, err.Error(), "eval broker is enabled")
+			},
+			name: "unsuccessful delete broker enabled",
+		},
+		{
+			testFn: func() {
+
+				testServer, testServerCleanup := TestServer(t, func(c *Config) {
+					c.NumSchedulers = 0
+				})
+				defer testServerCleanup()
+
+				codec := rpcClient(t, testServer)
+				testutil.WaitForLeader(t, testServer.RPC)
+
+				// Pause the eval broker and update the scheduler config.
+				testServer.evalBroker.SetEnabled(false)
+
+				_, schedulerConfig, err := testServer.fsm.State().SchedulerConfig()
+				require.NoError(t, err)
+				require.NotNil(t, schedulerConfig)
+
+				schedulerConfig.PauseEvalBroker = true
+				require.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
+
+				// Create and upsert an evaluation.
+				mockEval := mock.Eval()
+				require.NoError(t, testServer.fsm.State().UpsertEvals(
+					structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
+
+				// Attempt to delete the eval, which should succeed as the eval
+				// broker is disabled.
+				get := &structs.EvalDeleteRequest{
+					EvalIDs:      []string{mockEval.ID},
+					WriteRequest: structs.WriteRequest{Region: "global"},
+				}
+				var resp structs.EvalDeleteResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
+
+				// Attempt to read the eval from state; this should not be found.
+				ws := memdb.NewWatchSet()
+				respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
+				require.Nil(t, err)
+				require.Nil(t, respEval)
+			},
+			name: "successful delete without ACLs",
+		},
+		{
+			testFn: func() {
+
+				testServer, rootToken, testServerCleanup := TestACLServer(t, func(c *Config) {
+					c.NumSchedulers = 0
+				})
+				defer testServerCleanup()
+
+				codec := rpcClient(t, testServer)
+				testutil.WaitForLeader(t, testServer.RPC)
+
+				// Pause the eval broker and update the scheduler config.
+				testServer.evalBroker.SetEnabled(false)
+
+				_, schedulerConfig, err := testServer.fsm.State().SchedulerConfig()
+				require.NoError(t, err)
+				require.NotNil(t, schedulerConfig)
+
+				schedulerConfig.PauseEvalBroker = true
+				require.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
+
+				// Create and upsert an evaluation.
+				mockEval := mock.Eval()
+				require.NoError(t, testServer.fsm.State().UpsertEvals(
+					structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval}))
+
+				// Attempt to delete the eval, which should succeed as the eval
+				// broker is disabled, and we are using a management token.
+				get := &structs.EvalDeleteRequest{
+					EvalIDs: []string{mockEval.ID},
+					WriteRequest: structs.WriteRequest{
+						AuthToken: rootToken.SecretID,
+						Region:    "global",
+					},
+				}
+				var resp structs.EvalDeleteResponse
+				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
+
+				// Attempt to read the eval from state; this should not be found.
+				ws := memdb.NewWatchSet()
+				respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
+				require.Nil(t, err)
+				require.Nil(t, respEval)
+			},
+			name: "successful delete with ACLs",
+		},
+		{
+			testFn: func() {
+
+				testServer, _, testServerCleanup := TestACLServer(t, func(c *Config) {
+					c.NumSchedulers = 0
+				})
+				defer testServerCleanup()
+
+				codec := rpcClient(t, testServer)
+				testutil.WaitForLeader(t, testServer.RPC)
+
+				// Pause the eval broker.
+				testServer.evalBroker.SetEnabled(false)
+
+				// Create and upsert an evaluation.
+				mockEval := mock.Eval()
+				require.NoError(t, testServer.fsm.State().UpsertEvals(
+					structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
+
+				nonMgntToken := mock.CreatePolicyAndToken(t, testServer.State(), 20, "test-valid",
+					mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
+
+				// Attempt to delete the eval, which should not succeed as we
+				// are using a non-management token.
+				get := &structs.EvalDeleteRequest{
+					EvalIDs: []string{mockEval.ID},
+					WriteRequest: structs.WriteRequest{
+						AuthToken: nonMgntToken.SecretID,
+						Region:    "global",
+					},
+				}
+				var resp structs.EvalDeleteResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
+				require.Contains(t, err.Error(), structs.ErrPermissionDenied.Error())
+			},
+			name: "unsuccessful delete with ACLs incorrect token permissions",
+		},
 	}
 
-	// Set the expected eval broker state and scheduler config
-	setBrokerEnabled := func(t *testing.T, testServer *Server, enabled bool) {
-		t.Helper()
-		testServer.evalBroker.SetEnabled(enabled)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.testFn()
+		})
+	}
+}
 
-		_, schedulerConfig, err := testServer.fsm.State().SchedulerConfig()
-		must.NoError(t, err)
-		must.NotNil(t, schedulerConfig)
+func Test_evalDeleteSafe(t *testing.T) {
+	ci.Parallel(t)
 
-		schedulerConfig.PauseEvalBroker = !enabled
-		must.NoError(t, testServer.fsm.State().SchedulerSetConfig(10, schedulerConfig))
+	testCases := []struct {
+		inputAllocs    []*structs.Allocation
+		inputJob       *structs.Job
+		expectedResult bool
+		name           string
+	}{
+		{
+			inputAllocs:    nil,
+			inputJob:       nil,
+			expectedResult: true,
+			name:           "job not in state",
+		},
+		{
+			inputAllocs:    nil,
+			inputJob:       &structs.Job{Status: structs.JobStatusDead},
+			expectedResult: true,
+			name:           "job stopped",
+		},
+		{
+			inputAllocs:    nil,
+			inputJob:       &structs.Job{Stop: true},
+			expectedResult: true,
+			name:           "job dead",
+		},
+		{
+			inputAllocs:    []*structs.Allocation{},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: true,
+			name:           "no allocs for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{ClientStatus: structs.AllocClientStatusComplete},
+				{ClientStatus: structs.AllocClientStatusRunning},
+			},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: false,
+			name:           "running alloc for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{ClientStatus: structs.AllocClientStatusComplete},
+				{ClientStatus: structs.AllocClientStatusUnknown},
+			},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: false,
+			name:           "unknown alloc for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{ClientStatus: structs.AllocClientStatusComplete},
+				{ClientStatus: structs.AllocClientStatusLost},
+			},
+			inputJob:       &structs.Job{Status: structs.JobStatusRunning},
+			expectedResult: true,
+			name:           "complete and lost allocs for eval",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name:             "test",
+						ReschedulePolicy: nil,
+					},
+				},
+			},
+			expectedResult: true,
+			name:           "failed alloc job without reschedule",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: false,
+							Attempts:  0,
+						},
+					},
+				},
+			},
+			expectedResult: true,
+			name:           "failed alloc job reschedule disabled",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: false,
+							Attempts:  3,
+						},
+					},
+				},
+			},
+			expectedResult: false,
+			name:           "failed alloc next alloc not set",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus:   structs.AllocClientStatusFailed,
+					TaskGroup:      "test",
+					NextAllocation: "4aa4930a-8749-c95b-9c67-5ef29b0fc653",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: false,
+							Attempts:  3,
+						},
+					},
+				},
+			},
+			expectedResult: false,
+			name:           "failed alloc next alloc set",
+		},
+		{
+			inputAllocs: []*structs.Allocation{
+				{
+					ClientStatus: structs.AllocClientStatusFailed,
+					TaskGroup:    "test",
+				},
+			},
+			inputJob: &structs.Job{
+				Status: structs.JobStatusPending,
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "test",
+						ReschedulePolicy: &structs.ReschedulePolicy{
+							Unlimited: true,
+						},
+					},
+				},
+			},
+			expectedResult: false,
+			name:           "failed alloc job reschedule unlimited",
+		},
 	}
 
-	t.Run("unsuccessful delete broker enabled", func(t *testing.T) {
-
-		testServer, rootToken, cleanup := setup(t)
-		defer cleanup()
-		codec := rpcClient(t, testServer)
-
-		// Ensure broker is enabled
-		setBrokerEnabled(t, testServer, true)
-
-		// Create and upsert an evaluation.
-		mockEval := mock.Eval()
-		must.NoError(t, testServer.fsm.State().UpsertEvals(
-			structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval}))
-
-		// Attempt to delete the eval, which should fail because the
-		// eval broker is not paused.
-		get := &structs.EvalDeleteRequest{
-			EvalIDs: []string{mockEval.ID},
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				AuthToken: rootToken.SecretID},
-		}
-		var resp structs.EvalDeleteResponse
-		err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
-		must.EqError(t, err, "eval broker is enabled; eval broker must be paused to delete evals")
-	})
-
-	t.Run("successful delete without ACLs", func(t *testing.T) {
-		testServer, testServerCleanup := TestServer(t, func(c *Config) {
-			c.NumSchedulers = 0
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualResult := evalDeleteSafe(tc.inputAllocs, tc.inputJob)
+			require.Equal(t, tc.expectedResult, actualResult)
 		})
-		defer testServerCleanup()
-
-		codec := rpcClient(t, testServer)
-		testutil.WaitForLeader(t, testServer.RPC)
-
-		// Ensure broker is disabled
-		setBrokerEnabled(t, testServer, false)
-
-		// Create and upsert an evaluation.
-		mockEval := mock.Eval()
-		must.NoError(t, testServer.fsm.State().UpsertEvals(
-			structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
-
-		// Attempt to delete the eval, which should succeed as the eval
-		// broker is disabled.
-		get := &structs.EvalDeleteRequest{
-			EvalIDs:      []string{mockEval.ID},
-			WriteRequest: structs.WriteRequest{Region: "global"},
-		}
-		var resp structs.EvalDeleteResponse
-		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
-
-		// Attempt to read the eval from state; this should not be found.
-		ws := memdb.NewWatchSet()
-		respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
-		must.Nil(t, err)
-		must.Nil(t, respEval)
-	})
-
-	t.Run("successful delete with ACLs", func(t *testing.T) {
-
-		testServer, rootToken, cleanup := setup(t)
-		defer cleanup()
-		codec := rpcClient(t, testServer)
-
-		// Ensure broker is disabled
-		setBrokerEnabled(t, testServer, false)
-
-		// Create and upsert an evaluation.
-		mockEval := mock.Eval()
-		must.NoError(t, testServer.fsm.State().UpsertEvals(
-			structs.MsgTypeTestSetup, 20, []*structs.Evaluation{mockEval}))
-
-		// Attempt to delete the eval, which should succeed as the eval
-		// broker is disabled, and we are using a management token.
-		get := &structs.EvalDeleteRequest{
-			EvalIDs: []string{mockEval.ID},
-			WriteRequest: structs.WriteRequest{
-				AuthToken: rootToken.SecretID,
-				Region:    "global",
-			},
-		}
-		var resp structs.EvalDeleteResponse
-		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
-
-		// Attempt to read the eval from state; this should not be found.
-		ws := memdb.NewWatchSet()
-		respEval, err := testServer.fsm.State().EvalByID(ws, mockEval.ID)
-		must.Nil(t, err)
-		must.Nil(t, respEval)
-	})
-
-	t.Run("unsuccessful delete with ACLs incorrect token permissions", func(t *testing.T) {
-
-		testServer, _, cleanup := setup(t)
-		defer cleanup()
-		codec := rpcClient(t, testServer)
-
-		// Ensure broker is disabled
-		setBrokerEnabled(t, testServer, false)
-
-		// Create and upsert an evaluation.
-		mockEval := mock.Eval()
-		must.NoError(t, testServer.fsm.State().UpsertEvals(
-			structs.MsgTypeTestSetup, 10, []*structs.Evaluation{mockEval}))
-
-		nonMgntToken := mock.CreatePolicyAndToken(t, testServer.State(), 20, "test-valid",
-			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
-
-		// Attempt to delete the eval, which should not succeed as we
-		// are using a non-management token.
-		get := &structs.EvalDeleteRequest{
-			EvalIDs: []string{mockEval.ID},
-			WriteRequest: structs.WriteRequest{
-				AuthToken: nonMgntToken.SecretID,
-				Region:    "global",
-			},
-		}
-		var resp structs.EvalDeleteResponse
-		err := msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp)
-		must.EqError(t, err, structs.ErrPermissionDenied.Error())
-	})
-
-	t.Run("successful delete by filter", func(t *testing.T) {
-
-		testServer, rootToken, cleanup := setup(t)
-		defer cleanup()
-		codec := rpcClient(t, testServer)
-
-		// Ensure broker is disabled
-		setBrokerEnabled(t, testServer, false)
-
-		evalCount := 10000
-		index := uint64(100)
-
-		store := testServer.fsm.State()
-
-		// Create a large set of pending evaluations
-
-		evals := []*structs.Evaluation{}
-		for i := 0; i < evalCount; i++ {
-			mockEval := mock.Eval()
-			evals = append(evals, mockEval)
-		}
-		must.NoError(t, store.UpsertEvals(
-			structs.MsgTypeTestSetup, index, evals))
-
-		// Create some evaluations we don't want to delete
-
-		evalsToKeep := []*structs.Evaluation{}
-		for i := 0; i < 3; i++ {
-			mockEval := mock.Eval()
-			mockEval.JobID = "keepme"
-			evalsToKeep = append(evalsToKeep, mockEval)
-		}
-		index++
-		must.NoError(t, store.UpsertEvals(
-			structs.MsgTypeTestSetup, index, evalsToKeep))
-
-		// Create a job with running allocs and evaluations those allocs reference
-
-		job := mock.Job()
-		job.ID = "notsafetodelete"
-		job.Status = structs.JobStatusRunning
-		index++
-		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, job))
-
-		evalsNotSafeToDelete := []*structs.Evaluation{}
-		for i := 0; i < 3; i++ {
-			mockEval := mock.Eval()
-			mockEval.JobID = job.ID
-			evalsNotSafeToDelete = append(evalsNotSafeToDelete, mockEval)
-		}
-		index++
-		must.NoError(t, store.UpsertEvals(
-			structs.MsgTypeTestSetup, index, evalsNotSafeToDelete))
-
-		allocs := []*structs.Allocation{}
-		for i := 0; i < 3; i++ {
-			alloc := mock.Alloc()
-			alloc.ClientStatus = structs.AllocClientStatusRunning
-			alloc.EvalID = evalsNotSafeToDelete[i].ID
-			allocs = append(allocs, alloc)
-		}
-		index++
-		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs))
-
-		// Delete all the unwanted evals
-
-		get := &structs.EvalDeleteRequest{
-			Filter:       "JobID != \"keepme\"",
-			WriteRequest: structs.WriteRequest{AuthToken: rootToken.SecretID, Region: "global"},
-		}
-		var resp structs.EvalDeleteResponse
-		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.EvalDeleteRPCMethod, get, &resp))
-		must.Eq(t, resp.Count, evalCount)
-
-		// Assert we didn't delete the filtered evals
-		gotKeptEvals, err := store.EvalsByJob(nil, job.Namespace, "keepme")
-		must.NoError(t, err)
-		must.Len(t, 3, gotKeptEvals)
-		must.Eq(t, set.From(evalsToKeep), set.From(gotKeptEvals))
-
-		// Assert we didn't delete the evals that were not safe to delete
-		gotNotSafeEvals, err := store.EvalsByJob(nil, job.Namespace, "notsafetodelete")
-		must.NoError(t, err)
-		must.Len(t, 3, gotNotSafeEvals)
-		must.Eq(t, set.From(evalsNotSafeToDelete), set.From(gotNotSafeEvals))
-
-	})
-
+	}
 }
 
 func TestEvalEndpoint_List(t *testing.T) {
@@ -1637,124 +1741,6 @@ func TestEvalEndpoint_List_PaginationFiltering(t *testing.T) {
 			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
 		})
 	}
-
-}
-
-func TestEvalEndpoint_Count(t *testing.T) {
-	ci.Parallel(t)
-	s1, _, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	index := uint64(100)
-	testutil.WaitForLeader(t, s1.RPC)
-	store := s1.fsm.State()
-
-	// Create non-default namespace
-	nondefaultNS := mock.Namespace()
-	nondefaultNS.Name = "non-default"
-	err := store.UpsertNamespaces(index, []*structs.Namespace{nondefaultNS})
-	must.NoError(t, err)
-
-	// create a set of evals and field values to filter on.
-	mocks := []struct {
-		namespace string
-		status    string
-	}{
-		{namespace: structs.DefaultNamespace, status: structs.EvalStatusPending},
-		{namespace: structs.DefaultNamespace, status: structs.EvalStatusPending},
-		{namespace: structs.DefaultNamespace, status: structs.EvalStatusPending},
-		{namespace: nondefaultNS.Name, status: structs.EvalStatusPending},
-		{namespace: structs.DefaultNamespace, status: structs.EvalStatusComplete},
-		{namespace: nondefaultNS.Name, status: structs.EvalStatusComplete},
-	}
-
-	evals := []*structs.Evaluation{}
-	for i, m := range mocks {
-		eval := mock.Eval()
-		eval.ID = fmt.Sprintf("%d", i) + uuid.Generate()[1:] // sorted for prefix count tests
-		eval.Namespace = m.namespace
-		eval.Status = m.status
-		evals = append(evals, eval)
-	}
-
-	index++
-	require.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, index, evals))
-
-	index++
-	aclToken := mock.CreatePolicyAndToken(t, store, index, "test-read-any",
-		mock.NamespacePolicy("*", "read", nil)).SecretID
-
-	limitedACLToken := mock.CreatePolicyAndToken(t, store, index, "test-read-limited",
-		mock.NamespacePolicy("default", "read", nil)).SecretID
-
-	cases := []struct {
-		name          string
-		namespace     string
-		prefix        string
-		filter        string
-		token         string
-		expectedCount int
-	}{
-		{
-			name:          "count wildcard namespace with read-any ACL",
-			namespace:     "*",
-			token:         aclToken,
-			expectedCount: 6,
-		},
-		{
-			name:          "count wildcard namespace with limited-read ACL",
-			namespace:     "*",
-			token:         limitedACLToken,
-			expectedCount: 4,
-		},
-		{
-			name:          "count wildcard namespace with prefix",
-			namespace:     "*",
-			prefix:        evals[2].ID[:2],
-			token:         aclToken,
-			expectedCount: 1,
-		},
-		{
-			name:          "count default namespace with filter",
-			namespace:     structs.DefaultNamespace,
-			filter:        "Status == \"pending\"",
-			token:         aclToken,
-			expectedCount: 3,
-		},
-		{
-			name:          "count nondefault namespace with filter",
-			namespace:     "non-default",
-			filter:        "Status == \"complete\"",
-			token:         aclToken,
-			expectedCount: 1,
-		},
-		{
-			name:          "count no results",
-			namespace:     "non-default",
-			filter:        "Status == \"never\"",
-			token:         aclToken,
-			expectedCount: 0,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := &structs.EvalCountRequest{
-				QueryOptions: structs.QueryOptions{
-					Region:    "global",
-					Namespace: tc.namespace,
-					Prefix:    tc.prefix,
-					Filter:    tc.filter,
-				},
-			}
-			req.AuthToken = tc.token
-			var resp structs.EvalCountResponse
-			err := msgpackrpc.CallWithCodec(codec, "Eval.Count", req, &resp)
-			must.NoError(t, err)
-			must.Eq(t, tc.expectedCount, resp.Count)
-		})
-	}
-
 }
 
 func TestEvalEndpoint_Allocations(t *testing.T) {

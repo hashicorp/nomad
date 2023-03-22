@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Added a Policy Editor interface for management tokens
-```

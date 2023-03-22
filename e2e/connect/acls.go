@@ -186,7 +186,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framew
 	t.Log("test register Connect job w/ ACLs enabled w/ operator token")
 
 	policyID := tc.createConsulPolicy(consulPolicy{
-		Name:  "nomad-operator-policy-" + uuid.Short(),
+		Name:  "nomad-operator-policy",
 		Rules: `service "count-api" { policy = "write" } service "count-dashboard" { policy = "write" }`,
 	}, f)
 	t.Log("created operator policy:", policyID)
@@ -220,7 +220,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 
 	// create a policy allowing writes of services "count-api" and "count-dashboard"
 	policyID := tc.createConsulPolicy(consulPolicy{
-		Name:  "nomad-operator-policy-" + uuid.Short(),
+		Name:  "nomad-operator-policy",
 		Rules: `service "count-api" { policy = "write" } service "count-dashboard" { policy = "write" }`,
 	}, f)
 	t.Log("created operator policy:", policyID)
@@ -256,7 +256,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectNativeDemo(f *framework.F) {
 
 	// create a policy allowing writes of services "uuid-fe" and "uuid-api"
 	policyID := tc.createConsulPolicy(consulPolicy{
-		Name:  "nomad-operator-policy-" + uuid.Short(),
+		Name:  "nomad-operator-policy",
 		Rules: `service "uuid-fe" { policy = "write" } service "uuid-api" { policy = "write" }`,
 	}, f)
 	t.Log("created operator policy:", policyID)
@@ -289,7 +289,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectIngressGatewayDemo(f *framew
 	// setup ACL policy and mint operator token
 
 	policyID := tc.createConsulPolicy(consulPolicy{
-		Name:  "nomad-operator-policy-" + uuid.Short(),
+		Name:  "nomad-operator-policy",
 		Rules: `service "my-ingress-service" { policy = "write" } service "uuid-api" { policy = "write" }`,
 	}, f)
 	operatorToken := tc.createOperatorToken(policyID, f)
@@ -318,7 +318,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectTerminatingGatewayDemo(f *fr
 	// setup ACL policy and mint operator token
 
 	policyID := tc.createConsulPolicy(consulPolicy{
-		Name:  "nomad-operator-policy-" + uuid.Short(),
+		Name:  "nomad-operator-policy",
 		Rules: `service "api-gateway" { policy = "write" } service "count-dashboard" { policy = "write" }`,
 	}, f)
 	operatorToken := tc.createOperatorToken(policyID, f)

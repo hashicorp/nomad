@@ -253,6 +253,17 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 		}
 	}
 
+	// verify token has service identity permission for connect services
+	for _, kind := range usage.Kinds {
+		service := kind.Value()
+		allowable, err := c.canWriteService(namespace, service, token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return fmt.Errorf("insufficient Consul ACL permissions to write Connect service %q", service)
+		}
+	}
+
 	return nil
 }
 

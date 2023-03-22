@@ -41,7 +41,6 @@ export default class AllocationsController extends Controller.extend(
     {
       qpTaskGroup: 'taskGroup',
     },
-    'activeTask',
   ];
 
   qpStatus = '';
@@ -49,7 +48,6 @@ export default class AllocationsController extends Controller.extend(
   qpTaskGroup = '';
   currentPage = 1;
   pageSize = 25;
-  activeTask = null;
 
   sortProperty = 'modifyIndex';
   sortDescending = true;
@@ -160,14 +158,5 @@ export default class AllocationsController extends Controller.extend(
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
-  }
-
-  @action
-  setActiveTaskQueryParam(task) {
-    if (task) {
-      this.set('activeTask', `${task.allocation.id}-${task.name}`);
-    } else {
-      this.set('activeTask', null);
-    }
   }
 }

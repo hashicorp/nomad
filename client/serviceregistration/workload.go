@@ -9,15 +9,27 @@ import (
 // WorkloadServices describes services defined in either a Task or TaskGroup
 // that need to be syncronized with a service registration provider.
 type WorkloadServices struct {
-	AllocInfo structs.AllocInfo
+	AllocID string
+
+	// Group in which the service belongs for a group-level service, or the
+	// group in which task belongs for a task-level service.
+	Group string
+
+	// Task in which the service belongs for task-level service. Will be empty
+	// for a group-level service.
+	Task string
+
+	// JobID provides additional context for providers regarding which job
+	// caused this registration.
+	JobID string
 
 	// Canary indicates whether, or not the allocation is a canary. This is
 	// used to build the correct tags mapping.
 	Canary bool
 
-	// ProviderNamespace is the provider namespace in which services will be
+	// Namespace is the provider namespace in which services will be
 	// registered, if the provider supports this functionality.
-	ProviderNamespace string
+	Namespace string
 
 	// Restarter allows restarting the task or task group depending on the
 	// check_restart blocks.
@@ -76,8 +88,8 @@ func (ws *WorkloadServices) Copy() *WorkloadServices {
 }
 
 func (ws *WorkloadServices) Name() string {
-	if ws.AllocInfo.Task != "" {
-		return ws.AllocInfo.Task
+	if ws.Task != "" {
+		return ws.Task
 	}
-	return "group-" + ws.AllocInfo.Group
+	return "group-" + ws.Group
 }

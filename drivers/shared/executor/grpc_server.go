@@ -1,19 +1,18 @@
 package executor
 
 import (
-	"context"
 	"fmt"
 	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type grpcExecutorServer struct {

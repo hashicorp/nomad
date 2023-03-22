@@ -1,3 +1,0 @@
-```release-note:breaking-change
-cli: `eval status -json` no longer supports listing all evals in JSON. Use `eval list -json`.
-```

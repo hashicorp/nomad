@@ -177,7 +177,7 @@ func Test_serviceHook_Nomad(t *testing.T) {
 	h := newServiceHook(serviceHookConfig{
 		alloc:             alloc,
 		task:              alloc.LookupTask("web"),
-		providerNamespace: "default",
+		namespace:         "default",
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,

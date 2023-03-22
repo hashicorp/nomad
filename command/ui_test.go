@@ -5,11 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCommand_Ui(t *testing.T) {
+	ci.Parallel(t)
 
 	type testCaseSetupFn func(*testing.T)
 

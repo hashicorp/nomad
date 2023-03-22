@@ -5,7 +5,7 @@
     {{#if this.isForbidden}}
       <ForbiddenMessage />
     {{else}}
-      {{#if this.pre09Nodes}}
+      {{#if this.filteredNodes}}
         <div class="notification is-warning">
           <div data-test-filtered-nodes-warning class="columns">
             <div class="column">
@@ -13,10 +13,10 @@
                 Some Clients Were Filtered
               </h3>
               <p data-test-message>
-                {{this.pre09Nodes.length}}
-                {{if (eq this.pre09Nodes.length 1) "client was" "clients were"}}
+                {{this.filteredNodes.length}}
+                {{if (eq this.filteredNodes.length 1) "client was" "clients were"}}
                 filtered from the topology visualization. This is most likely due to the
-                {{pluralize "client" this.pre09Nodes.length}}
+                {{pluralize "client" this.filteredNodes.length}}
                 running a version of Nomad
               </p>
             </div>
@@ -24,7 +24,7 @@
               <button
                 data-test-dismiss
                 class="button is-warning"
-                onclick={{action (mut this.pre09Nodes) null}}
+                onclick={{action (mut this.filteredNodes) null}}
                 type="button"
               >
                 Okay
@@ -462,60 +462,12 @@
           </div>
         </div>
         <div class="column">
-          <div class="toolbar">
-            <div class="toolbar-item">
-              {{#if this.model.nodes.length}}
-                <SearchBox
-                  @inputClass="node-search"
-                  @searchTerm={{mut this.searchTerm}}
-                  @placeholder="Search clients..."
-                />
-              {{/if}}
-            </div>
-            <div class="toolbar-item is-right-aligned is-mobile-full-width">
-              <div class="button-bar">
-                <MultiSelectDropdown
-                  data-test-datacenter-facet
-                  @label="Datacenter"
-                  @options={{this.optionsDatacenter}}
-                  @selection={{this.selectionDatacenter}}
-                  @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
-                />
-                <MultiSelectDropdown
-                  data-test-class-facet
-                  @label="Class"
-                  @options={{this.optionsClass}}
-                  @selection={{this.selectionClass}}
-                  @onSelect={{action this.setFacetQueryParam "qpClass"}}
-                />
-                <MultiSelectDropdown
-                  data-test-state-facet
-                  @label="State"
-                  @options={{this.optionsState}}
-                  @selection={{this.selectionState}}
-                  @onSelect={{action this.setFacetQueryParam "qpState"}}
-                />
-                <MultiSelectDropdown
-                  data-test-version-facet
-                  @label="Version"
-                  @options={{this.optionsVersion}}
-                  @selection={{this.selectionVersion}}
-                  @onSelect={{action this.setFacetQueryParam "qpVersion"}}
-                />
-              </div>
-            </div>
-          </div>
           <TopoViz
-            @nodes={{this.filteredNodes}}
+            @nodes={{this.model.nodes}}
             @allocations={{this.model.allocations}}
             @onAllocationSelect={{action this.setAllocation}}
             @onNodeSelect={{action this.setNode}}
             @onDataError={{action this.handleTopoVizDataError}}
-            @filters={{hash
-              search=this.searchTerm
-              clientState=this.selectionState
-              clientVersion=this.selectionVersion
-            }}
           />
         </div>
       </div>

@@ -1,3 +1,0 @@
-```release-note:improvement
-fingerprint: Consul and Vault attributes are no longer cleared on fingerprinting failure
-```

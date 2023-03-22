@@ -1,3 +1,0 @@
-```release-note:bug
-services: Fixed a regression where check task validation stopped allowing some configurations
-```

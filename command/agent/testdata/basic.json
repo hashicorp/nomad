@@ -4,10 +4,7 @@
       "enabled": true,
       "policy_ttl": "60s",
       "replication_token": "foobar",
-      "token_ttl": "60s",
-      "role_ttl": "60s",
-      "token_min_expiration_ttl": "1h",
-      "token_max_expiration_ttl": "100h"
+      "token_ttl": "60s"
     }
   ],
   "audit": {
@@ -258,7 +255,6 @@
   ],
   "server": [
     {
-      "acl_token_gc_threshold": "12h",
       "authoritative_region": "foobar",
       "bootstrap_expect": 5,
       "csi_plugin_gc_threshold": "12h",
@@ -273,7 +269,6 @@
       ],
       "encrypt": "abc",
       "eval_gc_threshold": "12h",
-      "csi_volume_claim_gc_interval": "3m",
       "heartbeat_grace": "30s",
       "job_gc_interval": "3m",
       "job_gc_threshold": "12h",
@@ -321,9 +316,7 @@
         }]
       }],
       "upgrade_version": "0.8.0",
-      "license_path": "/tmp/nomad.hclic",
-      "job_default_priority": 100,
-      "job_max_priority": 200
+      "license_path": "/tmp/nomad.hclic"
     }
   ],
   "syslog_facility": "LOCAL1",

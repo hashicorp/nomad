@@ -3,7 +3,6 @@ package testutil
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"testing"
 	"time"
 
@@ -12,39 +11,11 @@ import (
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/require"
 )
 
 type testFn func() (bool, error)
 type errorFn func(error)
-
-func Wait(t *testing.T, test testFn) {
-	t.Helper()
-	retries := 500 * TestMultiplier()
-	warn := int64(float64(retries) * 0.75)
-	for tries := retries; tries > 0; {
-		time.Sleep(10 * time.Millisecond)
-		tries--
-
-		success, err := test()
-		if success {
-			return
-		}
-
-		switch tries {
-		case 0:
-			if err == nil {
-				t.Fatalf("timeout waiting for test function to succeed (you should probably return a helpful error instead of nil!)")
-			} else {
-				t.Fatalf("timeout: %v", err)
-			}
-		case warn:
-			pc, _, _, _ := runtime.Caller(1)
-			f := runtime.FuncForPC(pc)
-			t.Logf("%d/%d retries reached for %s (err=%v)", warn, retries, f.Name(), err)
-		}
-
-	}
-}
 
 func WaitForResult(test testFn, error errorFn) {
 	WaitForResultRetries(500*TestMultiplier(), test, error)
@@ -143,16 +114,15 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 	})
 }
 
-// WaitForLeaders blocks until each rpcs knows the leader.
-func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
+// WaitForLeaders blocks until each serverRPC knows the leader.
+func WaitForLeaders(t testing.TB, serverRPCs ...rpcFn) {
 	t.Helper()
 
-	var leader string
-	for i := 0; i < len(rpcs); i++ {
+	for i := 0; i < len(serverRPCs); i++ {
 		ok := func() (bool, error) {
-			leader = ""
 			args := &structs.GenericRequest{}
-			err := rpcs[i]("Status.Leader", args, &leader)
+			var leader string
+			err := serverRPCs[i]("Status.Leader", args, &leader)
 			return leader != "", err
 		}
 		must.Wait(t, wait.InitialSuccess(
@@ -161,8 +131,6 @@ func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
 			wait.Gap(1*time.Second),
 		))
 	}
-
-	return leader
 }
 
 // WaitForClient blocks until the client can be found
@@ -278,7 +246,7 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 
 		if len(resp.Allocations) == 0 {
 			evals := structs.JobEvaluationsResponse{}
-			must.NoError(t, rpc("Job.Evaluations", args, &evals), must.Sprintf("error looking up evals"))
+			require.NoError(t, rpc("Job.Evaluations", args, &evals), "error looking up evals")
 			return false, fmt.Errorf("0 allocations; evals: %s", pretty.Sprint(evals.Evaluations))
 		}
 
@@ -291,7 +259,7 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 
 		return true, nil
 	}, func(err error) {
-		must.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	return resp.Allocations
@@ -311,10 +279,9 @@ func WaitForJobAllocStatus(t testing.TB, rpc rpcFn, job *structs.Job, allocStatu
 
 // WaitForJobAllocStatusWithToken behaves the same way as WaitForJobAllocStatus
 // but is used for clusters with ACL enabled.
-func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int, token string) []*structs.AllocListStub {
+func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, allocStatus map[string]int, token string) {
 	t.Helper()
 
-	var allocs []*structs.AllocListStub
 	WaitForResultRetries(2000*TestMultiplier(), func() (bool, error) {
 		args := &structs.JobSpecificRequest{
 			JobID: job.ID,
@@ -333,11 +300,9 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 
 		if len(resp.Allocations) == 0 {
 			evals := structs.JobEvaluationsResponse{}
-			must.NoError(t, rpc("Job.Evaluations", args, &evals), must.Sprintf("error looking up evals"))
+			require.NoError(t, rpc("Job.Evaluations", args, &evals), "error looking up evals")
 			return false, fmt.Errorf("0 allocations; evals: %s", pretty.Sprint(evals.Evaluations))
 		}
-
-		allocs = resp.Allocations
 
 		got := map[string]int{}
 		for _, alloc := range resp.Allocations {
@@ -350,8 +315,6 @@ func WaitForJobAllocStatusWithToken(t testing.TB, rpc rpcFn, job *structs.Job, a
 	}, func(err error) {
 		must.NoError(t, err)
 	})
-
-	return allocs
 }
 
 // WaitForFiles blocks until all the files in the slice are present

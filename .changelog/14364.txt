@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Updated `github.com/hashicorp/go-version` to `v1.6.0`
-```

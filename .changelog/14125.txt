@@ -1,3 +1,0 @@
-```release-note:improvement
-server: Log when a node's eligibility changes
-```

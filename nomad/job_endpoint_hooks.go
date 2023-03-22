@@ -3,23 +3,23 @@ package nomad
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
-	attrVaultVersion      = `${attr.vault.version}`
-	attrConsulVersion     = `${attr.consul.version}`
-	attrNomadVersion      = `${attr.nomad.version}`
-	attrNomadServiceDisco = `${attr.nomad.service_discovery}`
+	// vaultConstraintLTarget is the lefthand side of the Vault constraint
+	// injected when Vault policies are used. If an existing constraint
+	// with this target exists it overrides the injected constraint.
+	vaultConstraintLTarget = "${attr.vault.version}"
 )
 
 var (
 	// vaultConstraint is the implicit constraint added to jobs requesting a
 	// Vault token
 	vaultConstraint = &structs.Constraint{
-		LTarget: attrVaultVersion,
+		LTarget: vaultConstraintLTarget,
 		RTarget: ">= 0.6.1",
 		Operand: structs.ConstraintSemver,
 	}
@@ -29,7 +29,7 @@ var (
 	// Consul version is pinned to a minimum of that which introduced the
 	// namespace feature.
 	consulServiceDiscoveryConstraint = &structs.Constraint{
-		LTarget: attrConsulVersion,
+		LTarget: "${attr.consul.version}",
 		RTarget: ">= 1.7.0",
 		Operand: structs.ConstraintSemver,
 	}
@@ -40,20 +40,9 @@ var (
 	// we need to ensure task groups are placed where they can run
 	// successfully.
 	nativeServiceDiscoveryConstraint = &structs.Constraint{
-		LTarget: attrNomadServiceDisco,
+		LTarget: "${attr.nomad.service_discovery}",
 		RTarget: "true",
 		Operand: "=",
-	}
-
-	// nativeServiceDiscoveryChecksConstraint is the constraint injected into task
-	// groups that utilize Nomad's native service discovery checks feature. This
-	// is needed, as operators can have versions of Nomad pre-v1.4 mixed into a
-	// cluster with v1.4 servers, causing jobs to be placed on incompatible
-	// clients.
-	nativeServiceDiscoveryChecksConstraint = &structs.Constraint{
-		LTarget: attrNomadVersion,
-		RTarget: ">= 1.4.0",
-		Operand: structs.ConstraintSemver,
 	}
 )
 
@@ -126,22 +115,14 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
 // fields) and returns any errors as warnings.
-type jobCanonicalizer struct {
-	srv *Server
-}
+type jobCanonicalizer struct{}
 
-func (c *jobCanonicalizer) Name() string {
+func (jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (c *jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	job.Canonicalize()
-
-	// If the job priority is not set, we fallback on the defaults specified in the server config
-	if job.Priority == 0 {
-		job.Priority = c.srv.GetConfig().JobDefaultPriority
-	}
-
 	return job, nil, nil
 }
 
@@ -168,7 +149,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 	// Hot path
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
-		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 {
+		len(nativeServiceDisco) == 0 && len(consulServiceDisco) == 0 {
 		return j, nil, nil
 	}
 
@@ -192,13 +173,8 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		}
 
 		// If the task group utilises Nomad service discovery, run the mutator.
-		if nativeServiceDisco.Basic.Contains(tg.Name) {
+		if ok := nativeServiceDisco[tg.Name]; ok {
 			mutateConstraint(constraintMatcherFull, tg, nativeServiceDiscoveryConstraint)
-		}
-
-		// If the task group utilizes NSD checks, run the mutator.
-		if nativeServiceDisco.Checks.Contains(tg.Name) {
-			mutateConstraint(constraintMatcherFull, tg, nativeServiceDiscoveryChecksConstraint)
 		}
 
 		// If the task group utilises Consul service discovery, run the mutator.
@@ -217,7 +193,7 @@ type constraintMatcher uint
 const (
 	// constraintMatcherFull ensures that a constraint is only considered found
 	// when they match totally. This check is performed using the
-	// structs.Constraint Equal function.
+	// structs.Constraint Equals function.
 	constraintMatcherFull constraintMatcher = iota
 
 	// constraintMatcherLeft ensure that a constraint is considered found if
@@ -238,7 +214,7 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	switch matcher {
 	case constraintMatcherFull:
 		for _, c := range taskGroup.Constraints {
-			if c.Equal(constraint) {
+			if c.Equals(constraint) {
 				found = true
 				break
 			}
@@ -261,15 +237,13 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 // jobValidate validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-type jobValidate struct {
-	srv *Server
-}
+type jobValidate struct{}
 
-func (*jobValidate) Name() string {
+func (jobValidate) Name() string {
 	return "validate"
 }
 
-func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
@@ -295,10 +269,6 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	if len(job.Payload) != 0 {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
-	}
-
-	if job.Priority < structs.JobMinPriority || job.Priority > v.srv.config.JobMaxPriority {
-		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
 	return warnings, validationErrors.ErrorOrNil()

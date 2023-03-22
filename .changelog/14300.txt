@@ -1,3 +1,0 @@
-```release-note:improvement
-scheduler: Allow jobs not requiring network resources even when no network is fingerprinted
-```

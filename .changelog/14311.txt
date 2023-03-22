@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: add namespace, job, and group to Envoy stats
-```

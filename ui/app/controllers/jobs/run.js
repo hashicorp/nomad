@@ -1,12 +1,9 @@
 import Controller from '@ember/controller';
-import { action } from '@ember/object';
-import { tracked } from '@glimmer/tracking';
+import { inject as service } from '@ember/service';
 
-export default class JobsRunController extends Controller {
-  @tracked jsonTemplate = null;
-
-  @action
-  setTemplate(template) {
-    this.jsonTemplate = template;
+export default class RunController extends Controller {
+  @service router;
+  onSubmit(id, namespace) {
+    this.router.transitionTo('jobs.job', `${id}@${namespace || 'default'}`);
   }
 }

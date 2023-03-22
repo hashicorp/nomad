@@ -14,11 +14,6 @@
       <span class="term">Version</span>
       {{@job.version}}
     </span>
-    {{#if (and (can "list variables") @job.pathLinkedVariable)}}
-      <span class="pair" data-test-job-stat="variables">
-        <LinkTo @route="variables.variable" @model={{@job.pathLinkedVariable.id}}>Variables</LinkTo>
-      </span>
-    {{/if}}
     {{yield to="before-namespace"}}
     {{#if (and @job.namespace this.system.shouldShowNamespaces)}}
       <span class="pair" data-test-job-stat="namespace">

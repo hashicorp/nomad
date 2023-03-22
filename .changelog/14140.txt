@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: `acl policy info` output format has changed to improve readability with large policy documents
-```

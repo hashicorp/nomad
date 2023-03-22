@@ -20,7 +20,6 @@ func TestConsul_Connect(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
-		c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = io.Discard
@@ -125,7 +124,7 @@ func TestConsul_Connect(t *testing.T) {
 		require.Equal(t, connectService.Proxy.Config, map[string]interface{}{
 			"bind_address":     "0.0.0.0",
 			"bind_port":        float64(9998),
-			"envoy_stats_tags": []interface{}{"nomad.alloc_id=" + alloc.ID, "nomad.group=" + alloc.TaskGroup},
+			"envoy_stats_tags": []interface{}{"nomad.alloc_id=" + alloc.ID},
 		})
 		require.Equal(t, alloc.ID, agentService.Meta["alloc_id"])
 

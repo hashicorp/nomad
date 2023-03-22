@@ -1,40 +1,19 @@
-$topNavOffset: 112px;
-$subNavOffset: 49px;
-
 .sidebar {
   position: fixed;
   background: #ffffff;
   width: 750px;
   padding: 24px;
   right: 0%;
-  overflow: visible;
+  overflow-y: auto;
   bottom: 0;
-  top: $topNavOffset;
+  top: 112px;
   transform: translateX(100%);
   transition-duration: 150ms;
   transition-timing-function: ease;
+  box-shadow: 6px 6px rgba(0, 0, 0, 0.06), 0px 12px 16px rgba(0, 0, 0, 0.2);
   z-index: $z-modal;
   &.open {
     transform: translateX(0%);
-    box-shadow: 6px 6px rgba(0, 0, 0, 0.06), 0px 12px 16px rgba(0, 0, 0, 0.2);
-  }
-  &.has-subnav {
-    top: calc($topNavOffset + $subNavOffset);
-  }
-
-  &.wide {
-    width: calc(100vw - $gutter-width - 1rem);
-  }
-
-  .button.widener {
-    position: absolute;
-    left: 0;
-    top: calc(50% - 16px);
-    width: 32px;
-    height: 32px;
-    left: -16px;
-    box-shadow: -5px 0 10px -5px rgb(0 0 0 / 20%);
-    border-radius: 16px;
   }
 }
 
@@ -70,81 +49,4 @@ $subNavOffset: 49px;
   outline: 1px solid #d9dee6;
   padding: 10px;
   width: 100px;
-}
-
-.task-context-sidebar {
-  display: grid;
-  gap: 1rem;
-  grid-template-rows: auto 1fr;
-
-  &.has-events {
-    grid-template-rows: auto minmax(auto, 25%) 1fr;
-  }
-  header {
-    display: grid;
-    justify-content: left;
-    grid-template-columns: 1fr auto auto;
-    gap: 2rem;
-    border-bottom: 1px solid $grey-blue;
-    padding-bottom: 1rem;
-    margin-bottom: 24px;
-    height: 50px;
-
-    .title {
-      margin-bottom: unset;
-    }
-
-    .link {
-      align-self: center;
-    }
-
-    .state {
-      font-size: 1rem;
-      font-weight: normal;
-      margin-left: 1rem;
-      text-transform: capitalize;
-
-      &:before {
-        content: '';
-        display: inline-block;
-        height: 1rem;
-        width: 1rem;
-        margin-right: 5px;
-        border-radius: 4px;
-        position: relative;
-        top: 2px;
-      }
-
-      &.running:before {
-        background-color: $green;
-      }
-      &.dead:before {
-        background-color: $red;
-      }
-      &.pending:before {
-        background-color: $grey-lighter;
-      }
-    }
-  }
-
-  & > .task-events,
-  & > .task-log {
-    overflow: hidden;
-  }
-
-  .task-events,
-  .task-log {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    .boxed-section-body {
-      overflow: auto;
-    }
-    .notification {
-      grid-row: -1;
-    }
-  }
-
-  .cli-window {
-    height: 100%;
-  }
 }

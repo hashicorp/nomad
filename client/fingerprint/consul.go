@@ -85,6 +85,14 @@ func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
+// clearConsulAttributes removes consul attributes and links from the passed Node.
+func (f *ConsulFingerprint) clearConsulAttributes(r *FingerprintResponse) {
+	for attr := range f.extractors {
+		r.RemoveAttribute(attr)
+	}
+	r.RemoveLink("consul")
+}
+
 func (f *ConsulFingerprint) initialize(req *FingerprintRequest) error {
 	// Only create the Consul client once to avoid creating many connections
 	if f.client == nil {
@@ -120,6 +128,8 @@ func (f *ConsulFingerprint) query(resp *FingerprintResponse) agentconsul.Self {
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := f.client.Agent().Self()
 	if err != nil {
+		f.clearConsulAttributes(resp)
+
 		// indicate consul no longer available
 		if f.lastState == consulAvailable {
 			f.logger.Info("consul agent is unavailable")

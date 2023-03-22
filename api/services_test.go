@@ -27,9 +27,7 @@ func TestService_Canonicalize(t *testing.T) {
 	j := &Job{Name: pointerOf("job")}
 	tg := &TaskGroup{Name: pointerOf("group")}
 	task := &Task{Name: "task"}
-	s := &Service{
-		TaggedAddresses: make(map[string]string),
-	}
+	s := &Service{}
 
 	s.Canonicalize(task, tg, j)
 
@@ -39,7 +37,6 @@ func TestService_Canonicalize(t *testing.T) {
 	must.Eq(t, ServiceProviderConsul, s.Provider)
 	must.Nil(t, s.Meta)
 	must.Nil(t, s.CanaryMeta)
-	must.Nil(t, s.TaggedAddresses)
 }
 
 func TestServiceCheck_Canonicalize(t *testing.T) {

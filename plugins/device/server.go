@@ -1,14 +1,13 @@
 package device
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/hashicorp/go-plugin"
-
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/device/proto"
+	context "golang.org/x/net/context"
 )
 
 // devicePluginServer wraps a device plugin and exposes it via gRPC.

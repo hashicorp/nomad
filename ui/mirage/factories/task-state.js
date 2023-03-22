@@ -5,8 +5,7 @@ const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
 const REF_TIME = new Date();
 
 export default Factory.extend({
-  name: () =>
-    '!!!this should be set by the allocation that owns this task state!!!',
+  name: () => '!!!this should be set by the allocation that owns this task state!!!',
   state: () => faker.helpers.randomize(TASK_STATUSES),
   kind: null,
   startedAt: () => faker.date.past(2 / 365, REF_TIME),

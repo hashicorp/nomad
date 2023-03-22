@@ -9,8 +9,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -176,23 +174,17 @@ type fakeACLTokenProvider struct {
 	policyErr error
 	token     *structs.ACLToken
 	tokenErr  error
-	role      *structs.ACLRole
-	roleErr   error
 }
 
-func (p *fakeACLTokenProvider) ACLTokenBySecretID(_ memdb.WatchSet, _ string) (*structs.ACLToken, error) {
+func (p *fakeACLTokenProvider) ACLTokenBySecretID(ws memdb.WatchSet, secretID string) (*structs.ACLToken, error) {
 	return p.token, p.tokenErr
 }
 
-func (p *fakeACLTokenProvider) ACLPolicyByName(_ memdb.WatchSet, _ string) (*structs.ACLPolicy, error) {
+func (p *fakeACLTokenProvider) ACLPolicyByName(ws memdb.WatchSet, policyName string) (*structs.ACLPolicy, error) {
 	return p.policy, p.policyErr
 }
 
-func (p *fakeACLTokenProvider) GetACLRoleByID(_ memdb.WatchSet, _ string) (*structs.ACLRole, error) {
-	return p.role, p.roleErr
-}
-
-func TestEventBroker_handleACLUpdates_policyUpdated(t *testing.T) {
+func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 	ci.Parallel(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -514,14 +506,13 @@ func TestEventBroker_handleACLUpdates_policyUpdated(t *testing.T) {
 				ns = structs.DefaultNamespace
 			}
 
-			sub, expiryTime, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
+			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{
 					tc.event.Topic: {"*"},
 				},
 				Namespace: ns,
 				Token:     secretID,
 			})
-			require.Nil(t, expiryTime)
 
 			if tc.initialSubErr {
 				require.Error(t, err)
@@ -581,405 +572,6 @@ func TestEventBroker_handleACLUpdates_policyUpdated(t *testing.T) {
 			if tc.shouldUnsubscribe {
 				require.Equal(t, ErrSubscriptionClosed, err)
 			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestEventBroker_handleACLUpdates_roleUpdated(t *testing.T) {
-	ci.Parallel(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	// Generate a UUID to use in all tests for the token secret ID and the role
-	// ID.
-	tokenSecretID := uuid.Generate()
-	roleID := uuid.Generate()
-
-	cases := []struct {
-		name                  string
-		aclPolicy             *structs.ACLPolicy
-		roleBeforePolicyLinks []*structs.ACLRolePolicyLink
-		roleAfterPolicyLinks  []*structs.ACLRolePolicyLink
-		topics                map[structs.Topic][]string
-		event                 structs.Event
-		policyEvent           structs.Event
-		shouldUnsubscribe     bool
-		initialSubErr         bool
-	}{
-		{
-			name: "deployments access policy link removed",
-			aclPolicy: &structs.ACLPolicy{
-				Name: "test-event-broker-acl-policy",
-				Rules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{
-					acl.NamespaceCapabilityReadJob},
-				),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{},
-			shouldUnsubscribe:     true,
-			event: structs.Event{
-				Topic:   structs.TopicDeployment,
-				Type:    structs.TypeDeploymentUpdate,
-				Payload: structs.DeploymentEvent{Deployment: &structs.Deployment{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "evaluations access policy link removed",
-			aclPolicy: &structs.ACLPolicy{
-				Name: "test-event-broker-acl-policy",
-				Rules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{
-					acl.NamespaceCapabilityReadJob},
-				),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{},
-			shouldUnsubscribe:     true,
-			event: structs.Event{
-				Topic:   structs.TopicEvaluation,
-				Type:    structs.TypeEvalUpdated,
-				Payload: structs.EvaluationEvent{Evaluation: &structs.Evaluation{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "allocations access policy link removed",
-			aclPolicy: &structs.ACLPolicy{
-				Name: "test-event-broker-acl-policy",
-				Rules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{
-					acl.NamespaceCapabilityReadJob},
-				),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{},
-			shouldUnsubscribe:     true,
-			event: structs.Event{
-				Topic:   structs.TopicAllocation,
-				Type:    structs.TypeAllocationUpdated,
-				Payload: structs.AllocationEvent{Allocation: &structs.Allocation{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "nodes access policy link removed",
-			aclPolicy: &structs.ACLPolicy{
-				Name:  "test-event-broker-acl-policy",
-				Rules: mock.NodePolicy(acl.PolicyRead),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{},
-			shouldUnsubscribe:     true,
-			event: structs.Event{
-				Topic:   structs.TopicNode,
-				Type:    structs.TypeNodeRegistration,
-				Payload: structs.NodeStreamEvent{Node: &structs.Node{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "deployment access no change",
-			aclPolicy: &structs.ACLPolicy{
-				Name: "test-event-broker-acl-policy",
-				Rules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{
-					acl.NamespaceCapabilityReadJob},
-				),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			shouldUnsubscribe:     false,
-			event: structs.Event{
-				Topic:   structs.TopicDeployment,
-				Type:    structs.TypeDeploymentUpdate,
-				Payload: structs.DeploymentEvent{Deployment: &structs.Deployment{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "evaluations access no change",
-			aclPolicy: &structs.ACLPolicy{
-				Name: "test-event-broker-acl-policy",
-				Rules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{
-					acl.NamespaceCapabilityReadJob},
-				),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			shouldUnsubscribe:     false,
-			event: structs.Event{
-				Topic:   structs.TopicEvaluation,
-				Type:    structs.TypeEvalUpdated,
-				Payload: structs.EvaluationEvent{Evaluation: &structs.Evaluation{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "allocations access no change",
-			aclPolicy: &structs.ACLPolicy{
-				Name: "test-event-broker-acl-policy",
-				Rules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{
-					acl.NamespaceCapabilityReadJob},
-				),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			shouldUnsubscribe:     false,
-			event: structs.Event{
-				Topic:   structs.TopicAllocation,
-				Type:    structs.TypeAllocationUpdated,
-				Payload: structs.AllocationEvent{Allocation: &structs.Allocation{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-		{
-			name: "nodes access no change",
-			aclPolicy: &structs.ACLPolicy{
-				Name:  "test-event-broker-acl-policy",
-				Rules: mock.NodePolicy(acl.PolicyRead),
-			},
-			roleBeforePolicyLinks: []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			roleAfterPolicyLinks:  []*structs.ACLRolePolicyLink{{Name: "test-event-broker-acl-policy"}},
-			shouldUnsubscribe:     false,
-			event: structs.Event{
-				Topic:   structs.TopicNode,
-				Type:    structs.TypeNodeRegistration,
-				Payload: structs.NodeStreamEvent{Node: &structs.Node{}},
-			},
-			policyEvent: structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tokenSecretID}),
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			// Build our fake token provider containing the relevant state
-			// objects and add this to our new delegate. Keeping the token
-			// provider setup separate means we can easily update its state.
-			tokenProvider := &fakeACLTokenProvider{
-				policy: tc.aclPolicy,
-				token: &structs.ACLToken{
-					SecretID: tokenSecretID,
-					Roles:    []*structs.ACLTokenRoleLink{{ID: roleID}},
-				},
-				role: &structs.ACLRole{
-					ID: uuid.Short(),
-					Policies: []*structs.ACLRolePolicyLink{
-						{Name: tc.aclPolicy.Name},
-					},
-				},
-			}
-			aclDelegate := &fakeACLDelegate{tokenProvider: tokenProvider}
-
-			publisher, err := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
-			require.NoError(t, err)
-
-			ns := structs.DefaultNamespace
-			if tc.event.Namespace != "" {
-				ns = tc.event.Namespace
-			}
-
-			sub, expiryTime, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
-				Topics:    map[structs.Topic][]string{tc.event.Topic: {"*"}},
-				Namespace: ns,
-				Token:     tokenSecretID,
-			})
-			require.Nil(t, expiryTime)
-
-			if tc.initialSubErr {
-				require.Error(t, err)
-				require.Nil(t, sub)
-				return
-			}
-
-			require.NoError(t, err)
-			publisher.Publish(&structs.Events{Index: 100, Events: []structs.Event{tc.event}})
-
-			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
-			defer cancel()
-			_, err = sub.Next(ctx)
-			require.NoError(t, err)
-
-			// Overwrite the ACL role policy links with the updated version
-			// which is expected to cause a change in the subscription.
-			tokenProvider.role.Policies = tc.roleAfterPolicyLinks
-
-			// Publish ACL event triggering subscription re-evaluation
-			publisher.Publish(&structs.Events{Index: 101, Events: []structs.Event{tc.policyEvent}})
-			publisher.Publish(&structs.Events{Index: 102, Events: []structs.Event{tc.event}})
-
-			// If we are expecting to unsubscribe consume the subscription
-			// until the expected error occurs.
-			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
-			defer cancel()
-			if tc.shouldUnsubscribe {
-				for {
-					_, err = sub.Next(ctx)
-					if err != nil {
-						if err == context.DeadlineExceeded {
-							require.Fail(t, err.Error())
-						}
-						if err == ErrSubscriptionClosed {
-							break
-						}
-					}
-				}
-			} else {
-				_, err = sub.Next(ctx)
-				require.NoError(t, err)
-			}
-
-			publisher.Publish(&structs.Events{Index: 103, Events: []structs.Event{tc.event}})
-
-			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
-			defer cancel()
-			_, err = sub.Next(ctx)
-			if tc.shouldUnsubscribe {
-				require.Equal(t, ErrSubscriptionClosed, err)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestEventBroker_handleACLUpdates_tokenExpiry(t *testing.T) {
-	ci.Parallel(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	cases := []struct {
-		name         string
-		inputToken   *structs.ACLToken
-		shouldExpire bool
-	}{
-		{
-			name: "token does not expire",
-			inputToken: &structs.ACLToken{
-				AccessorID:     uuid.Generate(),
-				SecretID:       uuid.Generate(),
-				ExpirationTime: pointer.Of(time.Now().Add(100000 * time.Hour).UTC()),
-				Type:           structs.ACLManagementToken,
-			},
-			shouldExpire: false,
-		},
-		{
-			name: "token does expire",
-			inputToken: &structs.ACLToken{
-				AccessorID:     uuid.Generate(),
-				SecretID:       uuid.Generate(),
-				ExpirationTime: pointer.Of(time.Now().Add(100000 * time.Hour).UTC()),
-				Type:           structs.ACLManagementToken,
-			},
-			shouldExpire: true,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-
-			// Build our fake token provider containing the relevant state
-			// objects and add this to our new delegate. Keeping the token
-			// provider setup separate means we can easily update its state.
-			tokenProvider := &fakeACLTokenProvider{token: tc.inputToken}
-			aclDelegate := &fakeACLDelegate{tokenProvider: tokenProvider}
-
-			publisher, err := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
-			require.NoError(t, err)
-
-			fakeNodeEvent := structs.Event{
-				Topic:   structs.TopicNode,
-				Type:    structs.TypeNodeRegistration,
-				Payload: structs.NodeStreamEvent{Node: &structs.Node{}},
-			}
-
-			fakeTokenEvent := structs.Event{
-				Topic:   structs.TopicACLToken,
-				Type:    structs.TypeACLTokenUpserted,
-				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: tc.inputToken.SecretID}),
-			}
-
-			sub, expiryTime, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
-				Topics: map[structs.Topic][]string{structs.TopicAll: {"*"}},
-				Token:  tc.inputToken.SecretID,
-			})
-			require.NoError(t, err)
-			require.NotNil(t, sub)
-			require.NotNil(t, expiryTime)
-
-			// Publish an event and check that there is a new item in the
-			// subscription queue.
-			publisher.Publish(&structs.Events{Index: 100, Events: []structs.Event{fakeNodeEvent}})
-
-			ctx, cancel := context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
-			defer cancel()
-			_, err = sub.Next(ctx)
-			require.NoError(t, err)
-
-			// If the test states the token should expire, set the expiration
-			// time to a previous time.
-			if tc.shouldExpire {
-				tokenProvider.token.ExpirationTime = pointer.Of(
-					time.Date(1987, time.April, 13, 8, 3, 0, 0, time.UTC),
-				)
-			}
-
-			// Publish some events to trigger re-evaluation of the subscription.
-			publisher.Publish(&structs.Events{Index: 101, Events: []structs.Event{fakeTokenEvent}})
-			publisher.Publish(&structs.Events{Index: 102, Events: []structs.Event{fakeNodeEvent}})
-
-			// If we are expecting to unsubscribe consume the subscription
-			// until the expected error occurs.
-			ctx, cancel = context.WithDeadline(ctx, time.Now().Add(100*time.Millisecond))
-			defer cancel()
-
-			if tc.shouldExpire {
-				for {
-					if _, err = sub.Next(ctx); err != nil {
-						if err == context.DeadlineExceeded {
-							require.Fail(t, err.Error())
-						}
-						if err == ErrSubscriptionClosed {
-							break
-						}
-					}
-				}
-			} else {
-				_, err = sub.Next(ctx)
 				require.NoError(t, err)
 			}
 		})

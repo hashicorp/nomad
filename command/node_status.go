@@ -399,7 +399,7 @@ func nodeCSINodeNames(n *api.Node) []string {
 	return names
 }
 
-func nodeCSIVolumeNames(allocs []*api.Allocation) []string {
+func nodeCSIVolumeNames(n *api.Node, allocs []*api.Allocation) []string {
 	var names []string
 	for _, alloc := range allocs {
 		tg := alloc.GetTaskGroup()
@@ -489,7 +489,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	if c.short {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("Host Networks|%s", strings.Join(nodeNetworkNames(node), ",")))
-		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(runningAllocs), ",")))
+		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
@@ -518,7 +518,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	if !c.verbose {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("Host Networks|%s", strings.Join(nodeNetworkNames(node), ",")))
-		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(runningAllocs), ",")))
+		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
 		basic = append(basic, driverStatus)
 	}
@@ -821,7 +821,7 @@ func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
 		}
 
 		if first {
-			c.Ui.Output("\n[bold]Device Group Attributes[reset]")
+			c.Ui.Output("\nDevice Group Attributes")
 			first = false
 		} else {
 			c.Ui.Output("")
@@ -831,8 +831,21 @@ func (c *NodeStatusCommand) formatDeviceAttributes(node *api.Node) {
 }
 
 func (c *NodeStatusCommand) formatMeta(node *api.Node) {
+	// Print the meta
+	keys := make([]string, 0, len(node.Meta))
+	for k := range node.Meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var meta []string
+	for _, k := range keys {
+		if k != "" {
+			meta = append(meta, fmt.Sprintf("%s|%s", k, node.Meta[k]))
+		}
+	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Meta[reset]"))
-	c.Ui.Output(formatNodeMeta(node.Meta))
+	c.Ui.Output(formatKV(meta))
 }
 
 func (c *NodeStatusCommand) printCpuStats(hostStats *api.HostStats) {

@@ -38,7 +38,7 @@
         @source={{p.list}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot" as |t|
+        @class="with-foot {{if this.keyboard.displayHints "display-hints"}}" as |t|
       >
         <t.head>
           <t.sort-by @prop="name">
@@ -77,15 +77,13 @@
                 action=(action "gotoVolume" row.model)
               }}
             >
-              <Tooltip @text={{row.model.plainId}}>
-                <LinkTo
-                  @route="csi.volumes.volume"
-                  @model={{row.model.idWithNamespace}}
-                  class="is-primary"
-                >
-                  {{row.model.name}}
-                </LinkTo>
-              </Tooltip>
+              <LinkTo
+                @route="csi.volumes.volume"
+                @model={{row.model.idWithNamespace}}
+                class="is-primary"
+              >
+                {{row.model.name}}
+              </LinkTo>
             </td>
             {{#if this.system.shouldShowNamespaces}}
               <td data-test-volume-namespace>

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
@@ -57,9 +58,7 @@ Eval Delete Options:
   -filter
     Specifies an expression used to filter evaluations by for deletion. When
     using this flag, it is advisable to ensure the syntax is correct using the
-    eval list command first. Note that deleting evals by filter is imprecise:
-    for sets of evals larger than a single raft log batch, evals can be inserted
-    behind the cursor and therefore be missed.
+    eval list command first.
 
   -yes
     Bypass the confirmation prompt if an evaluation ID was not provided.
@@ -149,7 +148,32 @@ func (e *EvalDeleteCommand) Run(args []string) int {
 		e.deleteByArg = true
 		exitCode, err = e.handleEvalArgDelete(args[0])
 	default:
-		exitCode, err = e.handleDeleteByFilter(e.filter)
+
+		// Track the next token, so we can iterate all pages that match the
+		// passed filter.
+		var nextToken string
+
+		// It is possible the filter matches a large number of evaluations
+		// which means we need to run a number of batch deletes. Perform
+		// iteration here rather than recursion in later function, so we avoid
+		// any potential issues with stack size limits.
+		for {
+			exitCode, nextToken, err = e.handleFlagFilterDelete(nextToken)
+
+			// If there is another page of evaluations matching the filter,
+			// iterate the loop and delete the next batch of evals. We pause
+			// for a 500ms rather than just run as fast as the code and machine
+			// possibly can. This means deleting 13million evals will take
+			// roughly 13-15 mins, which seems reasonable. It is worth noting,
+			// we do not expect operators to delete this many evals in a single
+			// run and expect more careful filtering options to be used.
+			if nextToken != "" {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			} else {
+				break
+			}
+		}
 	}
 
 	// Do not exit if we got an error as it's possible this was on the
@@ -202,6 +226,93 @@ func (e *EvalDeleteCommand) handleEvalArgDelete(evalID string) (int, error) {
 	// we don't need to understand the boolean response.
 	code, _, err := e.batchDelete([]*api.Evaluation{evalInfo})
 	return code, err
+}
+
+// handleFlagFilterDelete handles deletion of evaluations discovered using
+// the filter. It is unknown how many will match the operator criteria so
+// this function batches lookup and delete requests into sensible numbers.
+func (e *EvalDeleteCommand) handleFlagFilterDelete(nt string) (int, string, error) {
+
+	evalsToDelete, nextToken, err := e.batchLookupEvals(nt)
+	if err != nil {
+		return 1, "", err
+	}
+
+	numEvalsToDelete := len(evalsToDelete)
+
+	// The filter flags are operator controlled, therefore ensure we
+	// actually found some evals to delete. Otherwise, inform the operator
+	// their flags are potentially incorrect.
+	if numEvalsToDelete == 0 {
+		if e.numDeleted > 0 {
+			return 0, "", nil
+		} else {
+			return 1, "", errors.New("failed to find any evals that matched filter criteria")
+		}
+	}
+
+	if code, actioned, err := e.batchDelete(evalsToDelete); err != nil {
+		return code, "", err
+	} else if !actioned {
+		return code, "", nil
+	}
+
+	e.Ui.Info(fmt.Sprintf("Successfully deleted batch of %v %s",
+		numEvalsToDelete, correctGrammar("evaluation", numEvalsToDelete)))
+
+	return 0, nextToken, nil
+}
+
+// batchLookupEvals handles batched lookup of evaluations using the operator
+// provided filter. The lookup is performed a maximum number of 3 times to
+// ensure their size is limited and the number of evals to delete doesn't exceed
+// the total allowable in a single call.
+//
+// The JSON serialized evaluation API object is 350-380B in size.
+// 2426 * 380B (3.8e-4 MB) = 0.92MB. We may want to make this configurable
+// in the future, but this is counteracted by the CLI logic which will loop
+// until the user tells it to exit, or all evals matching the filter are
+// deleted. 2426 * 3 falls below the maximum limit for eval IDs in a single
+// delete request (set by MaxEvalIDsPerDeleteRequest).
+func (e *EvalDeleteCommand) batchLookupEvals(nextToken string) ([]*api.Evaluation, string, error) {
+
+	var evalsToDelete []*api.Evaluation
+	currentNextToken := nextToken
+
+	// Call List 3 times to accumulate the maximum number if eval IDs supported
+	// in a single Delete request. See math above.
+	for i := 0; i < 3; i++ {
+
+		// Generate the query options using the passed next token and filter. The
+		// per page value is less than the total number we can include in a single
+		// delete request. This keeps the maximum size of the return object at a
+		// reasonable size.
+		opts := api.QueryOptions{
+			Filter:    e.filter,
+			PerPage:   2426,
+			NextToken: currentNextToken,
+		}
+
+		evalList, meta, err := e.client.Evaluations().List(&opts)
+		if err != nil {
+			return nil, "", err
+		}
+
+		if len(evalList) > 0 {
+			evalsToDelete = append(evalsToDelete, evalList...)
+		}
+
+		// Store the next token no matter if it is empty or populated.
+		currentNextToken = meta.NextToken
+
+		// If there is no next token, ensure we exit and avoid any new loops
+		// which will result in duplicate IDs.
+		if currentNextToken == "" {
+			break
+		}
+	}
+
+	return evalsToDelete, currentNextToken, nil
 }
 
 // batchDelete is responsible for deleting the passed evaluations and asking
@@ -292,39 +403,4 @@ func correctGrammar(word string, num int) string {
 		return word + "s"
 	}
 	return word
-}
-
-func (e *EvalDeleteCommand) handleDeleteByFilter(filterExpr string) (int, error) {
-
-	// If the user did not wish to bypass the confirmation step, ask this now
-	// and handle the response.
-	if !e.yes && !e.deleteByArg {
-
-		resp, _, err := e.client.Evaluations().Count(&api.QueryOptions{
-			Filter: filterExpr,
-		})
-		if err != nil {
-			return 1, err
-		}
-
-		code, deleteEvals := e.askQuestion(fmt.Sprintf(
-			"Are you sure you want to delete %d evals? [y/N]",
-			resp.Count), "Cancelling eval deletion")
-		e.Ui.Output("")
-
-		if !deleteEvals {
-			return code, nil
-		}
-	}
-
-	resp, _, err := e.client.Evaluations().DeleteOpts(&api.EvalDeleteRequest{
-		Filter: filterExpr,
-	}, nil)
-	if err != nil {
-		return 1, err
-	}
-	e.numDeleted = resp.Count
-
-	return 0, nil
-
 }

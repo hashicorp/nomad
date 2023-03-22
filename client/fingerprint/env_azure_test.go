@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestAzureFingerprint_nonAzure(t *testing.T) {
+	ci.Parallel(t)
 
-	t.Setenv("AZURE_ENV_URL", "http://127.0.0.1/metadata/instance/")
+	os.Setenv("AZURE_ENV_URL", "http://127.0.0.1/metadata/instance/")
 	f := NewEnvAzureFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -92,7 +95,7 @@ func testFingerprint_Azure(t *testing.T, withExternalIp bool) {
 		}
 	}))
 	defer ts.Close()
-	t.Setenv("AZURE_ENV_URL", ts.URL+"/metadata/instance/")
+	os.Setenv("AZURE_ENV_URL", ts.URL+"/metadata/instance/")
 	f := NewEnvAzureFingerprint(testlog.HCLogger(t))
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
@@ -205,15 +208,19 @@ const AZURE_routes = `
 		"uri": "/metadata/instance/network/interface/0/macAddress",
 		"content-type": "text/plain",
 		"body": "000D3AF806EC"
-	}
+	}       
   ]
 }
 `
 
 func TestFingerprint_AzureWithExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_Azure(t, true)
 }
 
 func TestFingerprint_AzureWithoutExternalIp(t *testing.T) {
+	ci.Parallel(t)
+
 	testFingerprint_Azure(t, false)
 }

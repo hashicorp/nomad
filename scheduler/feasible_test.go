@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +34,8 @@ func TestStaticIterator_Reset(t *testing.T) {
 
 		out := collectFeasible(static)
 		if len(out) != len(nodes) {
-			t.Fatalf("out: %#v missing nodes %d %#v", out, i, static)
+			t.Fatalf("out: %#v", out)
+			t.Fatalf("missing nodes %d %#v", i, static)
 		}
 
 		ids := make(map[string]struct{})
@@ -103,9 +103,8 @@ func TestHostVolumeChecker(t *testing.T) {
 	}
 	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
 	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
-		"foo":              {},
-		"bar":              {},
-		"unique-volume[0]": {},
+		"foo": {},
+		"bar": {},
 	}
 	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"foo": {},
@@ -130,11 +129,6 @@ func TestHostVolumeChecker(t *testing.T) {
 		"baz": {
 			Type:   "nothost",
 			Source: "baz",
-		},
-		"unique": {
-			Type:     "host",
-			Source:   "unique-volume[0]",
-			PerAlloc: true,
 		},
 	}
 
@@ -171,11 +165,8 @@ func TestHostVolumeChecker(t *testing.T) {
 		},
 	}
 
-	alloc := mock.Alloc()
-	alloc.NodeID = nodes[2].ID
-
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -244,12 +235,8 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
-
-	alloc := mock.Alloc()
-	alloc.NodeID = nodes[1].ID
-
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -1142,65 +1129,45 @@ func TestCheckConstraint(t *testing.T) {
 	}
 }
 
-func TestCheckOrder(t *testing.T) {
+func TestCheckLexicalOrder(t *testing.T) {
 	ci.Parallel(t)
 
-	cases := []struct {
+	type tcase struct {
 		op         string
-		lVal, rVal any
-		exp        bool
-	}{
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
 		{
 			op:   "<",
 			lVal: "bar", rVal: "foo",
-			exp: true,
+			result: true,
 		},
 		{
 			op:   "<=",
 			lVal: "foo", rVal: "foo",
-			exp: true,
+			result: true,
 		},
 		{
 			op:   ">",
 			lVal: "bar", rVal: "foo",
-			exp: false,
+			result: false,
 		},
 		{
 			op:   ">=",
 			lVal: "bar", rVal: "bar",
-			exp: true,
+			result: true,
 		},
 		{
 			op:   ">",
-			lVal: "1", rVal: "foo",
-			exp: false,
-		},
-		{
-			op:   "<",
-			lVal: "10", rVal: "1",
-			exp: false,
-		},
-		{
-			op:   "<",
-			lVal: "1", rVal: "10",
-			exp: true,
-		},
-		{
-			op:   "<",
-			lVal: "10.5", rVal: "1.5",
-			exp: false,
-		},
-		{
-			op:   "<",
-			lVal: "1.5", rVal: "10.5",
-			exp: true,
+			lVal: 1, rVal: "foo",
+			result: false,
 		},
 	}
 	for _, tc := range cases {
-		name := fmt.Sprintf("%v %s %v", tc.lVal, tc.op, tc.rVal)
-		t.Run(name, func(t *testing.T) {
-			must.Eq(t, tc.exp, checkOrder(tc.op, tc.lVal, tc.rVal))
-		})
+		if res := checkLexicalOrder(tc.op, tc.lVal, tc.rVal); res != tc.result {
+			t.Fatalf("TC: %#v, Result: %v", tc, res)
+		}
 	}
 }
 
@@ -2695,11 +2662,6 @@ func TestDeviceChecker(t *testing.T) {
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
 						},
-						{
-							Operand: "set_contains",
-							LTarget: "${device.ids}",
-							RTarget: nvidia.Instances[0].ID,
-						},
 					},
 				},
 			},
@@ -2732,11 +2694,6 @@ func TestDeviceChecker(t *testing.T) {
 							Operand: "=",
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
-						},
-						{
-							Operand: "set_contains",
-							LTarget: "${device.ids}",
-							RTarget: fmt.Sprintf("%s,%s", nvidia.Instances[1].ID, nvidia.Instances[0].ID),
 						},
 					},
 				},
@@ -2836,24 +2793,6 @@ func TestDeviceChecker(t *testing.T) {
 							Operand: "=",
 							LTarget: "${device.attr.cores_clock}",
 							RTarget: "800MHz",
-						},
-					},
-				},
-			},
-		},
-		{
-			Name:        "does not meet ID constraint",
-			Result:      false,
-			NodeDevices: []*structs.NodeDeviceResource{nvidia},
-			RequestedDevices: []*structs.RequestedDevice{
-				{
-					Name:  "nvidia/gpu",
-					Count: 1,
-					Constraints: []*structs.Constraint{
-						{
-							Operand: "set_contains",
-							LTarget: "${device.ids}",
-							RTarget: "not_valid",
 						},
 					},
 				},

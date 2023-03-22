@@ -34,20 +34,20 @@ job "docs" {
 
 Nomad utilizes [Go template][gt] and a tool called [Consul Template][ct], which
 adds a set of new functions that can be used to retrieve data from Consul and
-Vault. Nomad templates can reference [Nomad's runtime
-environment variables][env], [node attributes and metadata][nodevars],
-[Nomad service registrations][ct_api_nsvc], and [Nomad variables][nvars].
-Templates can also be used to provide environment variables to your workload.
+Vault. Since Nomad v0.5.3, the template can reference [Nomad's runtime
+environment variables][env], and since Nomad v0.5.6, the template can reference
+[Node attributes and metadata][nodevars]. Since Nomad v0.6.0, templates can be
+read as environment variables.
 
 For a full list of the API template functions, please refer to the [Consul
 Template documentation][ct_api]. For a an introduction to Go templates, please
-refer to the [Learn Go Template Syntax][gt_learn] guide.
+refer to the [Learn Go Template Syntax][gt_learn] Learn guide.
 
 ## `template` Parameters
 
 - `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
   if the rendered template changes. Nomad will always write the new contents of
-  the template to the specified destination. The following possible values describe
+  the template to the specified destination. The possible values below describe
   Nomad's action after writing the template to disk.
 
   - `"noop"` - take no action (continue running the task)
@@ -59,7 +59,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
   `change_mode` is `signal`.
 
-- `change_script` <code>([`ChangeScript`][]: nil)</code> - Configures the script
+- `change_script` <code>([ChangeScript][]: nil)</code> - Configures the script
   triggered on template change. This option is required if the `change_mode` is
   `script`.
 
@@ -78,21 +78,11 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   can't be used as self-executing scripts.
 
 - `env` `(bool: false)` - Specifies the template should be read back in as
-  environment variables for the task ([example](#environment-variables)). To
+  environment variables for the task ([see below](#environment-variables)). To
   update the environment on changes, you must set `change_mode` to
   `restart`. Setting `env` when the `change_mode` is `signal` will return a
   validation error. Setting `env` when the `change_mode` is `noop` is
   permitted but will not update the environment variables in the task.
-
-- `error_on_missing_key` `(bool: false)` - Specifies how the template behaves
-  when attempting to index a map key that does not exist in the map.
-
-  - When `true`, the template engine will return an error, which will cause the
-    task to fail.
-
-  - When `false`, the template engine will do nothing and continue executing the
-    template.	If printed, the result of the index operation is the string
-	  "<no value\>".
 
 - `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
   template. The default is "{{" for some templates, it may be easier to use a
@@ -102,7 +92,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   File permissions are given as octal of the Unix file permissions `rwxrwxrwx`.
 
 - `uid` `(int: nil)` - Specifies the rendered template owner's user ID. If
-  negative or not specified (`nil`) the ID of the Nomad agent user will be used.
+  negative or not specified (`nil`) the ID of the Nomad agent user wil be used.
 
   ~> **Caveat:** Works only on Unix-based systems. Be careful when using
   containerized drivers, such as `docker` or `podman`, as groups and users
@@ -126,7 +116,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   One of `source` or `data` must be specified, but not both. This source can
   optionally be fetched using an [`artifact`][artifact] resource. This template
   must exist on the machine prior to starting the task; it is not possible to
-  reference a template that's source is inside a Docker container, for example.
+  reference a template inside a Docker container, for example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
   0 ms and the given splay value before invoking the change mode. This is
@@ -141,8 +131,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   can be overridden by the [`client.template.wait_bounds`]. If the template
   configuration has a `min` lower than `client.template.wait_bounds.min` or a `max`
   greater than `client.template.wait_bounds.max`, the client's bounds will be enforced,
-  and the template `wait` will be adjusted before being sent to the template
-  engine.
+  and the template `wait` will be adjusted before being sent to `consul-template`.
 
   ```hcl
   wait {
@@ -203,27 +192,9 @@ template {
 }
 ```
 
-### Task `meta` values
-
-To render values from a task's `meta` config, use the environment variable form
-of the meta variable name.
-
-```hcl
-meta {
-  mykey = "some_value"
-}
-
-template {
-  data = <<EOH
-  {{ env "NOMAD_META_mykey" }}
-EOH
-}
-```
-
 ### Node Variables
 
-Use the `env` function to access the Node's attributes and metadata inside a
-template. Note the `meta.` syntax here applies only to node meta fields.
+As of Nomad v0.5.6 it is possible to access the Node's attributes and metadata.
 
 ```hcl
 template {
@@ -240,10 +211,10 @@ template {
 
 ### Environment Variables
 
-Templates may be used to create environment variables for tasks. These templates
-work exactly like other templates except once the templates are written, they
-are parsed as `KEY=value` pairs. Those key value pairs are included in the
-task's environment.
+Since v0.6.0 templates may be used to create environment variables for tasks.
+Env templates work exactly like other templates except once the templates are
+written, they are parsed as `KEY=value` pairs. Those key value pairs are
+included in the task's environment.
 
 For example the following template block:
 
@@ -265,13 +236,13 @@ EOH
 The task's environment would then have environment variables like the
 following:
 
-```text
+```
 LOG_LEVEL=DEBUG
 API_KEY=12345678-1234-1234-1234-1234-123456789abc
 ```
 
 This allows [12factor app](https://12factor.net/config) style environment
-variable based configuration while keeping all the familiar features and
+variable based configuration while keeping all of the familiar features and
 semantics of Nomad templates.
 
 Secrets or certificates may contain a wide variety of characters such as
@@ -279,19 +250,19 @@ newlines, quotes, and backslashes which may be difficult to quote or escape
 properly.
 
 Whenever a templated variable may include special characters, use the `toJSON`
-function to ensure special characters are properly parsed by Nomad.
+function to ensure special characters are properly parsed by Nomad:
 
-```hcl
+```
 CERT_PEM={{ file "path/to/cert.pem" | toJSON }}
 ```
 
 The parser will read the JSON string, so the `$CERT_PEM` environment variable
 will be identical to the contents of the file.
 
-Likewise, when evaluating a password that may contain quotes or `#`, use the
-`toJSON` function to ensure Nomad passes the password to the task unchanged.
+Likewise when evaluating a password that may contain quotes or `#`, use the
+`toJSON` function to ensure Nomad passes the password to task unchanged:
 
-```hcl
+```
 # Passwords may contain any character including special characters like:
 #   \"'#
 # Use toJSON to ensure Nomad passes them to the environment unchanged.
@@ -309,7 +280,7 @@ filesystem isolation (such as `raw_exec`) or drivers that build a chroot in
 the task working directory (such as `exec`) can have templates rendered to
 arbitrary paths in the task. But task drivers such as `docker` can only access
 templates rendered into the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or
-`NOMAD_SECRETS_DIR`. To work around this restriction, you can create a mount
+`NOMAD_SECRETS_DIR`. To workaround this restriction, you can create a mount
 from the template `destination` to another location in the task.
 
 ```hcl
@@ -396,179 +367,6 @@ EOH
 }
 ```
 
-### Nomad Variables
-
-Nomad [variables] can be queried using the `nomadVar`, `nomadVarList`,
-`nomadVarListSafe`, and `nomadVarExists` functions.
-
-#### `nomadVarList` and `nomadVarListSafe`
-
-These functions can be used to list the paths of Nomad variables available to
-the task based on its [workload identity]. You can provide an optional prefix to
-filter the path list by as a parameter.
-
-The list functions return a slice of `NomadVarMeta` type:
-
-```golang
-type NomadVarMeta struct {
-  Namespace, Path          string
-  CreateIndex, ModifyIndex uint64
-  CreateTime, ModifyTime   nanoTime
-}
-```
-
-The `nanoTime` type contains Unix nanoseconds since the epoch. Its string method
-prints it out as a formatted date/time value. It also has a `Time` method that
-can be used to retrieve a Go [`time.Time`] for further manipulation.
-
-`NomadVarMeta` objects print their `Path` value when used as a string. For
-example, these two template blocks produce identical output.
-
-```hcl
-template {
-  data        = <<EOH
-{{ range nomadVarList }}
-  {{ . }}
-{{ end }}
-}
-EOH
-}
-
-template {
-  data        = <<EOH
-{{ range nomadVarList }}
-  {{ .Path }}
-{{ end }}
-}
-EOH
-}
-```
-
-You can provide a prefix to filter the path list as an optional parameter to the
-`nomadVarList` function.
-
-```hcl
-template {
-  data        = <<EOH
-{{ range nomadVarList "path/to/filter" }}
-  {{ . }}
-{{ end }}
-}
-EOH
-}
-```
-
-By default, the `nomadVarList` will list variables in the same namespace as the
-task. The path filter can change the namespace by adding a suffix separated by
-the `@` character:
-
-```hcl
-template {
-  data        = <<EOH
-{{ range nomadVarList "path/to/filter@example_namespace" }}
-  {{ . }}
-{{ end }}
-}
-EOH
-}
-```
-
-The `nomadVarListSafe` function works identically to `nomadVarList`, but refuses
-to render the template if the variable list query returns blank/empty data.
-
-#### `nomadVar`
-
-These functions can be used to a read Nomad variable, assuming the task has
-access rights to the variable based on the task's [workload identity]. If the
-path does not exist or the caller does not have access to it, the `template`
-renderer will block until the path is available. To avoid blocking, wrap
-`nomadVar` calls with [`nomadVarExists`](#nomadvarexists).
-
-The `nomadVar` function returns a map of `string` to `NomadVarItems`
-structs. Each member of the map corresponds to a member of the variable's
-`Items` collection.
-
-For example, given a variable exists at the path `nomad/jobs/redis`, with a
-single key/value pair in its Items collection—`maxconns`:`15`
-
-```hcl
-template {
-  data        = <<EOH
-{{ with nomadVar "nomad/jobs/redis" }}{{ .maxconns }}{{ end }}
-EOH
-}
-```
-
-renders
-
-```text
-15
-```
-
-Each map value also contains helper methods to get the variable metadata and a
-link to the parent variable:
-
-- `Keys`: produces a sorted list of keys to this `NomadVarItems` map.
-
-- `Values`: produces a key-sorted list.
-
-- `Tuples`: produces a key-sorted list of K,V tuple structs.
-
-- `Metadata`: returns this collection's parent metadata as a `NomadVarMeta`
-
-- `Parent`: returns a parent object that has a Metadata field referring to the
-  `NomadVarMeta` and an Items field that refers to this `NomadVarItems` object.
-
-For example, given a variable exists at the path `nomad/jobs/redis`, you could
-render some of its metadata as follows:
-
-```hcl
-template {
-  data        = <<EOH
-{{ with nomadVar "nomad/jobs/redis" }}
-Path:       {{ .Metadata.Path }}
-Namespace:  {{ .Metadata.Namespace }}
-CreateTime: {{ .Metadata.CreateTime }}
-ModifyTime: {{ .Metadata.ModifyTime }}
-{{ end }}
-EOH
-}
-```
-
-By default, the `nomadVar` function reads a variable in the same namespace as
-the task. The path filter can change the namespace by adding a suffix separated
-by the `@` character.
-
-```hcl
-template {
-  data        = <<EOH
-{{ with nomadVar "nomad/jobs/redis@example_namespace" }}{{ .maxconns }}{{ end }}
-EOH
-}
-```
-
-#### `nomadVarExists`
-
-This function can be used to check if a Nomad variable exists at the provided
-path, assuming the task has access rights to the variable based on the task's
-[workload identity]. If a variable exists, this will return true, false
-otherwise. Unlike [`nomadVar`](#nomadvar), this function will not block if the
-variable does not exist, which can be useful for controlling flow.
-
-For example:
-
-```hcl
-template {
-  data        = <<EOH
-{{ if nomadVarExists "app/beta_active" }}
-  # ...
-{{ else }}
-  # ...
-{{ end }}
-EOH
-}
-```
-
 ## Consul Integration
 
 ### Consul KV
@@ -636,11 +434,11 @@ When generating PKI certificates with Vault, the certificate, private key, and
 any intermediate certs are all returned as part of the same API call. Most
 software requires these files be placed in separate files on the system.
 
-~> **Note**: `generate_lease` must be set to `true` (non-default) on the Vault
-PKI role.<br /><br /> Failure to do so will cause the template to frequently
-render a new certificate, approximately every minute. This creates a significant
-number of certificates to be expired in Vault and could ultimately lead to Vault
-performance impacts and failures.
+~> **Note**: `generate_lease` must be set to `true` (non-default) on the Vault PKI
+role.<br /><br /> Failure to do so will cause the template to frequently render a new
+certificate, approximately every minute. This creates a significant number of
+certificates to be expired in Vault and could ultimately lead to Vault performance
+impacts and failures.
 
 #### As individual files
 
@@ -745,9 +543,8 @@ Additionally, when using the Vault v2 API, the Vault policies applied to your
 Nomad jobs will need to grant permissions to `read` under `secret/data/...`
 rather than `secret/...`.
 
-Like KV API v1, if the name of a secret includes the `-` character, you must
-access it by index. This secret was set using
-`vault kv put secret/app db-password=somepassword`.
+Similar to KV API v1, if the name of a secret includes the `-` character, you
+must access it by index. This secret was set using `vault kv put secret/app db-password=somepassword`.
 
 ```hcl
   template {
@@ -760,18 +557,18 @@ access it by index. This secret was set using
 ## Client Configuration
 
 The `template` block has the following [client configuration
-options](/nomad/docs/configuration/client#options):
+options](/docs/configuration/client#options):
 
 - `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
-  rendering functions that should be disallowed in job specs. By default, the
+  rendering functions that should be disallowed in job specs. By default the
   `plugin` function is disallowed as it allows running arbitrary commands on
   the host as root (unless Nomad is configured to run as a non-root user).
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
-  files on the client host via the `file` function. By default, templates can
+  files on the client host via the `file` function. By default templates can
   access files only within the [task working directory].
 
-[`changescript`]: /nomad/docs/job-specification/change_script 'Nomad change_script Job Specification'
+[changescript]: /docs/job-specification/change_script 'Nomad change_script Job Specification'
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [ct_api]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md 'Consul Template API by HashiCorp'
 [ct_api_connect]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#connect 'Consul Template API by HashiCorp - connect'
@@ -779,19 +576,14 @@ options](/nomad/docs/configuration/client#options):
 [ct_api_ls]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#ls 'Consul Template API by HashiCorp - ls'
 [ct_api_service]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#service 'Consul Template API by HashiCorp - service'
 [ct_api_services]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#services 'Consul Template API by HashiCorp - services'
-[ct_api_nsvc]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#nomadService 'Consul Template API by HashiCorp - nomadService'
-[nvars]: /nomad/docs/concepts/variables 'Nomad Variables'
 [ct_api_tree]: https://github.com/hashicorp/consul-template/blob/master/docs/templating-language.md#tree 'Consul Template API by HashiCorp - tree'
 [gt]: https://pkg.go.dev/text/template 'Go template package'
-[gt_learn]: /nomad/tutorials/templates/go-template-syntax
-[artifact]: /nomad/docs/job-specification/artifact 'Nomad artifact Job Specification'
-[env]: /nomad/docs/runtime/environment 'Nomad Runtime Environment'
-[nodevars]: /nomad/docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
+[gt_learn]: https://learn.hashicorp.com/tutorials/nomad/go-template-syntax
+[artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
+[env]: /docs/runtime/environment 'Nomad Runtime Environment'
+[nodevars]: /docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
 [go-envparse]: https://github.com/hashicorp/go-envparse#readme 'The go-envparse Readme'
-[task working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
-[filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
-[`client.template.wait_bounds`]: /nomad/docs/configuration/client#wait_bounds
+[task working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[filesystem internals]: /docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
+[`client.template.wait_bounds`]: /docs/configuration/client#wait_bounds
 [rhash]: https://en.wikipedia.org/wiki/Rendezvous_hashing
-[variables]: /nomad/docs/concepts/variables
-[workload identity]: /nomad/docs/concepts/workload-identity
-[`time.Time`]: https://pkg.go.dev/time#Time

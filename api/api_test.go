@@ -92,7 +92,7 @@ func TestRequestTime(t *testing.T) {
 		t.Errorf("bad request time: %d", qm.RequestTime)
 	}
 
-	wm, err := client.put("/", struct{ S string }{"input"}, &out, nil)
+	wm, err := client.write("/", struct{ S string }{"input"}, &out, nil)
 	if err != nil {
 		t.Fatalf("write err: %v", err)
 	}
@@ -110,6 +110,7 @@ func TestRequestTime(t *testing.T) {
 }
 
 func TestDefaultConfig_env(t *testing.T) {
+	// no parallel
 
 	testURL := "http://1.2.3.4:5678"
 	auth := []string{"nomaduser", "12345"}

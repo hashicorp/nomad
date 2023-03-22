@@ -15,14 +15,6 @@ func RequireRoot(t *testing.T) {
 	}
 }
 
-// RequireNonRoot skips tests unless:
-// - running as non-root
-func RequireNonRoot(t *testing.T) {
-	if syscall.Geteuid() == 0 {
-		t.Skip("Test requires non-root")
-	}
-}
-
 // RequireConsul skips tests unless:
 // - "consul" executable is detected on $PATH
 func RequireConsul(t *testing.T) {

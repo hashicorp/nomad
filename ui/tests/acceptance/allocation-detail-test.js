@@ -1,14 +1,7 @@
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
-import AdapterError from '@ember-data/adapter/error';
 import { run } from '@ember/runloop';
-import {
-  currentURL,
-  click,
-  visit,
-  triggerEvent,
-  waitFor,
-} from '@ember/test-helpers';
+import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -78,10 +71,7 @@ module('Acceptance | allocation detail', function (hooks) {
     );
     assert.ok(Allocation.execButton.isPresent);
 
-    assert.equal(
-      document.title,
-      `Allocation ${allocation.name} - Mirage - Nomad`
-    );
+    assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
 
     await Allocation.details.visitJob();
     assert.equal(
@@ -334,7 +324,22 @@ module('Acceptance | allocation detail', function (hooks) {
 
       assert.equal(renderedService.name, serverService.name);
       assert.equal(renderedService.port, serverService.portLabel);
-      assert.equal(renderedService.tags, (serverService.tags || []).join(' '));
+      assert.equal(renderedService.onUpdate, serverService.onUpdate);
+      assert.equal(renderedService.tags, (serverService.tags || []).join(', '));
+
+      assert.equal(
+        renderedService.connect,
+        serverService.Connect ? 'Yes' : 'No'
+      );
+
+      const upstreams = serverService.Connect.SidecarService.Proxy.Upstreams;
+      const serverUpstreamsString = upstreams
+        .map(
+          (upstream) => `${upstream.DestinationName}:${upstream.LocalBindPort}`
+        )
+        .join(' ');
+
+      assert.equal(renderedService.upstreams, serverUpstreamsString);
     });
   });
 
@@ -435,44 +440,6 @@ module('Acceptance | allocation detail', function (hooks) {
       Allocation.inlineError.isShown,
       'Inline error is no longer shown'
     );
-  });
-
-  test('when navigating to an allocation, if the allocation no longer exists it does a redirect to previous page', async function (assert) {
-    await click('[data-test-breadcrumb="jobs.job.index"]');
-    await click('[data-test-tab="allocations"] > a');
-
-    const component = this.owner.lookup('component:allocation-row');
-    const router = this.owner.lookup('service:router');
-    const allocRoute = this.owner.lookup('route:allocations.allocation');
-    const originalMethod = allocRoute.goBackToReferrer;
-    allocRoute.goBackToReferrer = () => {
-      assert.step('Transition dispatched.');
-      router.transitionTo('jobs.job.allocations');
-    };
-
-    component.onClick = () =>
-      router.transitionTo('allocations.allocation', 'aaa');
-
-    server.get('/allocation/:id', function () {
-      return new AdapterError([
-        {
-          detail: `alloc not found`,
-          status: 404,
-        },
-      ]);
-    });
-
-    component.onClick();
-
-    await waitFor('.flash-message.alert-critical');
-
-    assert.verifySteps(['Transition dispatched.']);
-    assert
-      .dom('.flash-message.alert-critical')
-      .exists('A toast error message pops up.');
-
-    // Clean-up
-    allocRoute.goBackToReferrer = originalMethod;
   });
 });
 
@@ -663,97 +630,5 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
       'The allocations this allocation preempted are shown'
     );
     assert.ok(Allocation.wasPreempted, 'Preempted allocation section is shown');
-  });
-});
-
-module('Acceptance | allocation detail (services)', function (hooks) {
-  setupApplicationTest(hooks);
-  setupMirage(hooks);
-
-  hooks.beforeEach(async function () {
-    server.create('feature', { name: 'Dynamic Application Sizing' });
-    server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
-    server.createList('node', 5);
-    server.createList('job', 1, { createRecommendations: true });
-    const job = server.create('job', {
-      withGroupServices: true,
-      withTaskServices: true,
-      name: 'Service-haver',
-      id: 'service-haver',
-      namespaceId: 'default',
-    });
-
-    const currentAlloc = server.db.allocations.findBy({ jobId: job.id });
-    const otherAlloc = server.db.allocations.reject((j) => j.jobId !== job.id);
-
-    server.db.serviceFragments.update({
-      healthChecks: [
-        {
-          Status: 'success',
-          Check: 'check1',
-          Timestamp: 99,
-          Alloc: currentAlloc.id,
-        },
-        {
-          Status: 'failure',
-          Check: 'check2',
-          Output: 'One',
-          propThatDoesntMatter:
-            'this object will be ignored, since it shared a Check name with a later one.',
-          Timestamp: 98,
-          Alloc: currentAlloc.id,
-        },
-        {
-          Status: 'success',
-          Check: 'check2',
-          Output: 'Two',
-          Timestamp: 99,
-          Alloc: currentAlloc.id,
-        },
-        {
-          Status: 'failure',
-          Check: 'check3',
-          Output: 'Oh no!',
-          Timestamp: 99,
-          Alloc: currentAlloc.id,
-        },
-        {
-          Status: 'success',
-          Check: 'check3',
-          Output: 'Wont be seen',
-          propThatDoesntMatter:
-            'this object will be ignored, in spite of its later timestamp, since it exists on a different alloc',
-          Timestamp: 100,
-          Alloc: otherAlloc.id,
-        },
-      ],
-    });
-  });
-
-  test('Allocation has a list of services with active checks', async function (assert) {
-    await visit('jobs/service-haver@default');
-    await click('.allocation-row');
-    assert.dom('[data-test-service]').exists();
-    assert.dom('.service-sidebar').exists();
-    assert.dom('.service-sidebar').doesNotHaveClass('open');
-    assert
-      .dom('[data-test-service-status-bar]')
-      .exists('At least one allocation has service health');
-    await click('[data-test-service-status-bar]');
-    assert.dom('.service-sidebar').hasClass('open');
-    assert
-      .dom('table.health-checks tr[data-service-health="success"]')
-      .exists({ count: 2 }, 'Two successful health checks');
-    assert
-      .dom('table.health-checks tr[data-service-health="failure"]')
-      .exists({ count: 1 }, 'One failing health check');
-    assert
-      .dom(
-        'table.health-checks tr[data-service-health="failure"] td.service-output'
-      )
-      .containsText('Oh no!');
-
-    await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
-    assert.dom('.service-sidebar').doesNotHaveClass('open');
   });
 });

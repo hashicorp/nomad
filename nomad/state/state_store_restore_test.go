@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -573,104 +572,4 @@ func TestStateStore_ServiceRegistrationRestore(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, serviceRegs[i], out)
 	}
-}
-
-func TestStateStore_VariablesRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test variables and index.
-	expectedIndex := uint64(13)
-	svs := mock.VariablesEncrypted(5, 5)
-
-	restore, err := testState.Restore()
-	require.NoError(t, err)
-
-	// Iterate the variables, restore, and commit. Set the indexes
-	// on the objects, so we can check these.
-	for i := range svs {
-		svs[i].ModifyIndex = expectedIndex
-		svs[i].CreateIndex = expectedIndex
-		require.NoError(t, restore.VariablesRestore(svs[i]))
-	}
-	require.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored variables.
-	ws := memdb.NewWatchSet()
-
-	for i := range svs {
-		out, err := testState.GetVariable(ws, svs[i].Namespace, svs[i].Path)
-		require.NoError(t, err)
-		require.Equal(t, svs[i], out)
-	}
-}
-
-func TestStateStore_ACLRoleRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test registrations and index.
-	expectedIndex := uint64(13)
-	aclRole := mock.ACLRole()
-	aclRole.CreateIndex = expectedIndex
-	aclRole.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	require.NoError(t, err)
-	require.NoError(t, restore.ACLRoleRestore(aclRole))
-	require.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored registrations.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLRoleByName(ws, aclRole.Name)
-	require.NoError(t, err)
-	require.Equal(t, aclRole, out)
-}
-
-func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test registrations and index.
-	expectedIndex := uint64(13)
-	authMethod := mock.ACLAuthMethod()
-	authMethod.CreateIndex = expectedIndex
-	authMethod.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	require.NoError(t, err)
-	require.NoError(t, restore.ACLAuthMethodRestore(authMethod))
-	require.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored registrations.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLAuthMethodByName(ws, authMethod.Name)
-	require.NoError(t, err)
-	require.Equal(t, authMethod, out)
-}
-
-func TestStateStore_ACLBindingRuleRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test ACL binding rule and index.
-	expectedIndex := uint64(13)
-	aclBindingRule := mock.ACLBindingRule()
-	aclBindingRule.CreateIndex = expectedIndex
-	aclBindingRule.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	must.NoError(t, err)
-	must.NoError(t, restore.ACLBindingRuleRestore(aclBindingRule))
-	must.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored ACL binding rule.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLBindingRule(ws, aclBindingRule.ID)
-	must.NoError(t, err)
-	must.Eq(t, aclBindingRule, out)
 }

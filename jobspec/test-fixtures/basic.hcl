@@ -305,14 +305,13 @@ job "binstore-storagelocker" {
       }
 
       template {
-        source               = "foo"
-        destination          = "foo"
-        change_mode          = "foo"
-        change_signal        = "foo"
-        splay                = "10s"
-        env                  = true
-        vault_grace          = "33s"
-        error_on_missing_key = true
+        source        = "foo"
+        destination   = "foo"
+        change_mode   = "foo"
+        change_signal = "foo"
+        splay         = "10s"
+        env           = true
+        vault_grace   = "33s"
       }
 
       template {

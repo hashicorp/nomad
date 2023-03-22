@@ -6,7 +6,6 @@ import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
-import faker from 'nomad-ui/mirage/faker';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
@@ -443,27 +442,6 @@ export default function () {
     return JSON.stringify(findLeader(schema));
   });
 
-  this.get('/acl/tokens', function ({ tokens }, req) {
-    return this.serialize(tokens.all());
-  });
-
-  this.delete('/acl/token/:id', function (schema, request) {
-    const { id } = request.params;
-    server.db.tokens.remove(id);
-    return '';
-  });
-
-  this.post('/acl/token', function (schema, request) {
-    const { Name, Policies, Type } = JSON.parse(request.requestBody);
-    return server.create('token', {
-      name: Name,
-      policyIds: Policies,
-      type: Type,
-      id: faker.random.uuid(),
-      createTime: new Date().toISOString(),
-    });
-  });
-
   this.get('/acl/token/self', function ({ tokens }, req) {
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
@@ -515,7 +493,7 @@ export default function () {
   );
 
   this.get('/acl/policy/:id', function ({ policies, tokens }, req) {
-    const policy = policies.findBy({ name: req.params.id });
+    const policy = policies.find(req.params.id);
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
@@ -540,37 +518,6 @@ export default function () {
 
     // Return not authorized otherwise
     return new Response(403, {}, null);
-  });
-
-  this.get('/acl/policies', function ({ policies }, req) {
-    return this.serialize(policies.all());
-  });
-
-  this.delete('/acl/policy/:id', function (schema, request) {
-    const { id } = request.params;
-    schema.tokens
-      .all()
-      .models.filter((token) => token.policyIds.includes(id))
-      .forEach((token) => {
-        token.update({
-          policyIds: token.policyIds.filter((pid) => pid !== id),
-        });
-      });
-    server.db.policies.remove(id);
-    return '';
-  });
-
-  this.put('/acl/policy/:id', function (schema, request) {
-    return new Response(200, {}, {});
-  });
-
-  this.post('/acl/policy/:id', function (schema, request) {
-    const { Name, Description, Rules } = JSON.parse(request.requestBody);
-    return server.create('policy', {
-      name: Name,
-      description: Description,
-      rules: Rules,
-    });
   });
 
   this.get('/regions', function ({ regions }) {
@@ -725,22 +672,6 @@ export default function () {
       return new Response(500, {}, null);
     }
   });
-
-  // Metadata
-  this.post(
-    '/client/metadata',
-    function (schema, { queryParams: { node_id }, requestBody }) {
-      const attrs = JSON.parse(requestBody);
-      const node = schema.nodes.find(node_id);
-      Object.entries(attrs.Meta).forEach(([key, value]) => {
-        if (value === null) {
-          delete node.meta[key];
-          delete attrs.Meta[key];
-        }
-      });
-      return { Meta: { ...node.meta, ...attrs.Meta } };
-    }
-  );
 
   // TODO: in the future, this hack may be replaceable with dynamic host name
   // support in pretender: https://github.com/pretenderjs/pretender/issues/210
@@ -904,139 +835,6 @@ export default function () {
       return {};
     }
   );
-
-  //#region Variables
-
-  this.get('/vars', function (schema, { queryParams: { namespace, prefix } }) {
-    if (prefix === 'nomad/job-templates') {
-      return schema.variables
-        .all()
-        .filter((v) => v.path.includes('nomad/job-templates'));
-    }
-    if (namespace && namespace !== '*') {
-      return schema.variables.all().filter((v) => v.namespace === namespace);
-    } else {
-      return schema.variables.all();
-    }
-  });
-
-  this.get('/var/:id', function ({ variables }, { params }) {
-    return variables.find(params.id);
-  });
-
-  this.put('/var/:id', function (schema, request) {
-    const { Path, Namespace, Items } = JSON.parse(request.requestBody);
-    if (request.url.includes('cas=') && Path === 'Auto-conflicting Variable') {
-      return new Response(
-        409,
-        {},
-        {
-          CreateIndex: 65,
-          CreateTime: faker.date.recent(14) * 1000000, // in the past couple weeks
-          Items: { edited_by: 'your_remote_pal' },
-          ModifyIndex: 2118,
-          ModifyTime: faker.date.recent(0.01) * 1000000, // a few minutes ago
-          Namespace: Namespace,
-          Path: Path,
-        }
-      );
-    } else {
-      return server.create('variable', {
-        path: Path,
-        namespace: Namespace,
-        items: Items,
-        id: Path,
-      });
-    }
-  });
-
-  this.delete('/var/:id', function (schema, request) {
-    const { id } = request.params;
-    server.db.variables.remove(id);
-    return '';
-  });
-
-  //#endregion Variables
-
-  //#region Services
-
-  const allocationServiceChecksHandler = function (schema) {
-    let disasters = [
-      "Moon's haunted",
-      'reticulating splines',
-      'The operation completed unexpectedly',
-      'Ran out of sriracha :(',
-      '¯\\_(ツ)_/¯',
-      '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"\n        "http://www.w3.org/TR/html4/strict.dtd">\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">\n        <title>Error response</title>\n    </head>\n    <body>\n        <h1>Error response</h1>\n        <p>Error code: 404</p>\n        <p>Message: File not found.</p>\n        <p>Error code explanation: HTTPStatus.NOT_FOUND - Nothing matches the given URI.</p>\n    </body>\n</html>\n',
-    ];
-    let fakeChecks = [];
-    schema.serviceFragments.all().models.forEach((frag, iter) => {
-      [...Array(iter)].forEach((check, checkIter) => {
-        const checkOK = faker.random.boolean();
-        fakeChecks.push({
-          Check: `check-${checkIter}`,
-          Group: `job-name.${frag.taskGroup?.name}[1]`,
-          Output: checkOK
-            ? 'nomad: http ok'
-            : disasters[Math.floor(Math.random() * disasters.length)],
-          Service: frag.name,
-          Status: checkOK ? 'success' : 'failure',
-          StatusCode: checkOK ? 200 : 400,
-          Task: frag.task?.name,
-          Timestamp: new Date().getTime(),
-        });
-      });
-    });
-    return fakeChecks;
-  };
-
-  this.get('/job/:id/services', function (schema, { params }) {
-    const { services } = schema;
-    return this.serialize(services.where({ jobId: params.id }));
-  });
-
-  this.get('/client/allocation/:id/checks', allocationServiceChecksHandler);
-
-  //#endregion Services
-
-  //#region SSO
-  this.get('/acl/auth-methods', function (schema, request) {
-    return schema.authMethods.all();
-  });
-  this.post('/acl/oidc/auth-url', (schema, req) => {
-    const { AuthMethodName, ClientNonce, RedirectUri, Meta } = JSON.parse(
-      req.requestBody
-    );
-    return new Response(
-      200,
-      {},
-      {
-        AuthURL: `/ui/oidc-mock?auth_method=${AuthMethodName}&client_nonce=${ClientNonce}&redirect_uri=${RedirectUri}&meta=${Meta}`,
-      }
-    );
-  });
-
-  // Simulate an OIDC callback by assuming the code passed is the secret of an existing token, and return that token.
-  this.post(
-    '/acl/oidc/complete-auth',
-    function (schema, req) {
-      const code = JSON.parse(req.requestBody).Code;
-      const token = schema.tokens.findBy({
-        id: code,
-      });
-
-      return new Response(
-        200,
-        {},
-        {
-          SecretID: token.secretId,
-        }
-      );
-    },
-    { timing: 1000 }
-  );
-
-  //#endregion SSO
 }
 
 function filterKeys(object, ...keys) {

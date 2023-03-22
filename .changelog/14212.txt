@@ -1,3 +1,0 @@
-```release-note:breaking-change
-audit (Enterprise): fixed inconsistency in event filter logic
-```

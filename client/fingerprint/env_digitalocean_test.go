@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -15,8 +17,9 @@ import (
 )
 
 func TestDigitalOceanFingerprint_nonDigitalOcean(t *testing.T) {
+	ci.Parallel(t)
 
-	t.Setenv("DO_ENV_URL", "http://127.0.0.1/metadata/v1/")
+	os.Setenv("DO_ENV_URL", "http://127.0.0.1/metadata/v1/")
 	f := NewEnvDigitalOceanFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -39,6 +42,7 @@ func TestDigitalOceanFingerprint_nonDigitalOcean(t *testing.T) {
 }
 
 func TestFingerprint_DigitalOcean(t *testing.T) {
+	ci.Parallel(t)
 
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -78,7 +82,7 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	t.Setenv("DO_ENV_URL", ts.URL+"/metadata/v1/")
+	os.Setenv("DO_ENV_URL", ts.URL+"/metadata/v1/")
 	f := NewEnvDigitalOceanFingerprint(testlog.HCLogger(t))
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}

@@ -691,13 +691,13 @@ func generateUnevenRacks(t *testing.T, nodes int, rackCount int) map[string]int 
 
 	// print this so that any future test flakes can be more easily
 	// reproduced
-	seed := time.Now().Unix()
-	random := rand.NewSource(seed)
+	seed := time.Now().UnixNano()
+	rand.Seed(seed)
 	t.Logf("nodes=%d racks=%d seed=%d\n", nodes, rackCount, seed)
 
 	racks := map[string]int{}
 	for i := 0; i < nodes; i++ {
-		idx := int(random.Int63()) % len(rackNames)
+		idx := rand.Intn(len(rackNames))
 		racks[rackNames[idx]]++
 	}
 	return racks

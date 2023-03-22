@@ -87,7 +87,7 @@ func (cf *cpusetFixer) fix(c coordinate) {
 	source := c.NomadCgroup()
 	destination := c.DockerCgroup()
 	if err := cgutil.CopyCpuset(source, destination); err != nil {
-		cf.logger.Debug("failed to copy cpuset", "error", err)
+		cf.logger.Debug("failed to copy cpuset", "err", err)
 	}
 }
 

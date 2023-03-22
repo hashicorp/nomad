@@ -173,7 +173,7 @@ func (e *EvalContext) Reset() {
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
 	// Get the existing allocations that are non-terminal
 	ws := memdb.NewWatchSet()
-	proposed, err := e.state.AllocsByNode(ws, nodeID)
+	proposed, err := e.state.AllocsByNodeTerminal(ws, nodeID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -194,10 +194,6 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 	// update occurs, we do not double count and we override the old allocation.
 	proposedIDs := make(map[string]*structs.Allocation, len(proposed))
 	for _, alloc := range proposed {
-		if alloc.ClientTerminalStatus() {
-			continue
-		}
-
 		proposedIDs[alloc.ID] = alloc
 	}
 	for _, alloc := range e.plan.NodeAllocation[nodeID] {

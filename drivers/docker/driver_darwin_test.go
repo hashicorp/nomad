@@ -18,7 +18,7 @@ import (
 func TestMain(m *testing.M) {
 	tmpdir := fmt.Sprintf("/tmp/nomad-docker-tests-%d", time.Now().Unix())
 
-	os.Setenv("TMPDIR", os.Getenv("TMPDIR"))
+	defer os.Setenv("TMPDIR", os.Getenv("TMPDIR"))
 	os.Setenv("TMPDIR", tmpdir)
 
 	os.MkdirAll(tmpdir, 0700)

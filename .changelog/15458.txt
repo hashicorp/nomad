@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: The web UI will now show canary_tags of services anyplace we would normally show tags.
-```

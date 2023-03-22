@@ -15,13 +15,11 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/mapstructure"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -624,120 +622,6 @@ OUTER:
 			// Success
 			require.Contains(t, err.Error(), stream.ErrSubscriptionClosed.Error())
 			break OUTER
-		}
-	}
-}
-
-// TestEventStream_ACLTokenExpiry ensure a subscription does not receive events
-// and is closed once the token has expired.
-func TestEventStream_ACLTokenExpiry(t *testing.T) {
-	ci.Parallel(t)
-
-	// Start our test server and wait until we have a leader.
-	testServer, _, testServerCleanup := TestACLServer(t, nil)
-	defer testServerCleanup()
-	testutil.WaitForLeader(t, testServer.RPC)
-
-	// Create and upsert and ACL token which has a short expiry set.
-	aclTokenWithExpiry := mock.ACLManagementToken()
-	aclTokenWithExpiry.ExpirationTime = pointer.Of(time.Now().Add(2 * time.Second))
-
-	must.NoError(t, testServer.fsm.State().UpsertACLTokens(
-		structs.MsgTypeTestSetup, 10, []*structs.ACLToken{aclTokenWithExpiry}))
-
-	req := structs.EventStreamRequest{
-		Topics: map[structs.Topic][]string{"Job": {"*"}},
-		QueryOptions: structs.QueryOptions{
-			Region:    testServer.Region(),
-			Namespace: structs.DefaultNamespace,
-			AuthToken: aclTokenWithExpiry.SecretID,
-		},
-	}
-
-	handler, err := testServer.StreamingRpcHandler("Event.Stream")
-	must.NoError(t, err)
-
-	p1, p2 := net.Pipe()
-	defer p1.Close()
-	defer p2.Close()
-
-	errCh := make(chan error)
-	streamMsg := make(chan *structs.EventStreamWrapper)
-
-	go handler(p2)
-
-	go func() {
-		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
-		for {
-			var msg structs.EventStreamWrapper
-			if err := decoder.Decode(&msg); err != nil {
-				if err == io.EOF || strings.Contains(err.Error(), "closed") {
-					return
-				}
-				errCh <- fmt.Errorf("error decoding: %w", err)
-			}
-
-			streamMsg <- &msg
-		}
-	}()
-
-	publisher, err := testServer.State().EventBroker()
-	must.NoError(t, err)
-
-	jobEvent := structs.JobEvent{
-		Job: mock.Job(),
-	}
-
-	// send req
-	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-	must.Nil(t, encoder.Encode(req))
-
-	// publish some events
-	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
-	publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
-
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(4*time.Second))
-	defer cancel()
-
-	errChStream := make(chan error, 1)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				errChStream <- ctx.Err()
-				return
-			case err := <-errCh:
-				errChStream <- err
-				return
-			case msg := <-streamMsg:
-				if msg.Error == nil {
-					continue
-				}
-
-				errChStream <- msg.Error
-				return
-			}
-		}
-	}()
-
-	// Generate a timeout for the test and for the expiry. The expiry timeout
-	// is used to trigger an update which will close the subscription as the
-	// event stream only reacts to change in state.
-	testTimeout := time.After(4 * time.Second)
-	expiryTimeout := time.After(time.Until(*aclTokenWithExpiry.ExpirationTime))
-
-	for {
-		select {
-		case <-testTimeout:
-			t.Fatal("timeout waiting for event stream to close")
-		case err := <-errCh:
-			t.Fatal(err)
-		case <-expiryTimeout:
-			publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
-		case err := <-errChStream:
-			// Success
-			must.StrContains(t, err.Error(), "ACL token expired")
-			return
 		}
 	}
 }

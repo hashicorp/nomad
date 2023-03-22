@@ -5,16 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/raft"
-	autopilot "github.com/hashicorp/raft-autopilot"
-	"github.com/hashicorp/serf/serf"
-	"github.com/shoenig/test/must"
-
+	"github.com/hashicorp/consul/agent/consul/autopilot"
+	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
+	"github.com/hashicorp/serf/serf"
 )
-
-var _ autopilot.ApplicationIntegration = (*AutopilotDelegate)(nil)
 
 // wantPeers determines whether the server has the given
 // number of voting raft peers.
@@ -24,26 +21,61 @@ func wantPeers(s *Server, peers int) error {
 		return err
 	}
 
-	var n int
-	for _, server := range future.Configuration().Servers {
-		if server.Suffrage == raft.Voter {
-			n++
-		}
-	}
-
+	n := autopilot.NumPeers(future.Configuration())
 	if got, want := n, peers; got != want {
 		return fmt.Errorf("server %v: got %d peers want %d\n\tservers: %#+v", s.config.NodeName, got, want, future.Configuration().Servers)
 	}
 	return nil
 }
 
+// wantRaft determines if the servers have all of each other in their
+// Raft configurations,
+func wantRaft(servers []*Server) error {
+	// Make sure all the servers are represented in the Raft config,
+	// and that there are no extras.
+	verifyRaft := func(c raft.Configuration) error {
+		want := make(map[raft.ServerID]bool)
+		for _, s := range servers {
+			want[s.config.RaftConfig.LocalID] = true
+		}
+
+		found := make([]raft.ServerID, 0, len(c.Servers))
+		for _, s := range c.Servers {
+			found = append(found, s.ID)
+			if !want[s.ID] {
+				return fmt.Errorf("don't want %q", s.ID)
+			}
+			delete(want, s.ID)
+		}
+
+		if len(want) > 0 {
+			return fmt.Errorf("didn't find %v in %#+v", want, found)
+		}
+		return nil
+	}
+
+	for _, s := range servers {
+		future := s.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			return err
+		}
+		if err := verifyRaft(future.Configuration()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TestAutopilot_CleanupDeadServer(t *testing.T) {
 	ci.Parallel(t)
+	t.Run("raft_v2", func(t *testing.T) { testCleanupDeadServer(t, 2) })
+	t.Run("raft_v3", func(t *testing.T) { testCleanupDeadServer(t, 3) })
+}
 
+func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	conf := func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
 		c.BootstrapExpect = 3
-		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(3)
+		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(raftVersion)
 	}
 
 	s1, cleanupS1 := TestServer(t, conf)
@@ -56,11 +88,16 @@ func TestAutopilot_CleanupDeadServer(t *testing.T) {
 	defer cleanupS3()
 
 	servers := []*Server{s1, s2, s3}
+
+	// Try to join
 	TestJoin(t, servers...)
 
-	t.Logf("waiting for initial stable cluster")
-	waitForStableLeadership(t, servers)
+	for _, s := range servers {
+		testutil.WaitForLeader(t, s.RPC)
+		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
+	}
 
+	// Bring up a new server
 	s4, cleanupS4 := TestServer(t, conf)
 	defer cleanupS4()
 
@@ -69,14 +106,12 @@ func TestAutopilot_CleanupDeadServer(t *testing.T) {
 	for i, s := range servers {
 		if !s.IsLeader() {
 			killedIdx = i
-			t.Logf("killing a server (index %d)", killedIdx)
 			s.Shutdown()
 			break
 		}
 	}
 
-	t.Logf("waiting for server loss to be detected")
-	testutil.WaitForResultUntil(10*time.Second, func() (bool, error) {
+	retry.Run(t, func(r *retry.R) {
 		for i, s := range servers {
 			alive := 0
 			if i == killedIdx {
@@ -90,26 +125,27 @@ func TestAutopilot_CleanupDeadServer(t *testing.T) {
 			}
 
 			if alive != 2 {
-				return false, fmt.Errorf("expected 2 alive servers but found %v", alive)
+				r.Fatalf("expected 2 alive servers but found %v", alive)
 			}
 		}
-		return true, nil
-	}, func(err error) { must.NoError(t, err) })
+	})
 
 	// Join the new server
 	servers[killedIdx] = s4
-	t.Logf("adding server s4")
 	TestJoin(t, servers...)
 
-	t.Logf("waiting for dead server to be removed")
 	waitForStableLeadership(t, servers)
+
+	// Make sure the dead server is removed and we're back to 3 total peers
+	for _, s := range servers {
+		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
+	}
 }
 
 func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	ci.Parallel(t)
 
 	conf := func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
 		c.BootstrapExpect = 5
 	}
 
@@ -129,27 +165,37 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	defer cleanupS5()
 
 	servers := []*Server{s1, s2, s3, s4, s5}
+
+	// Join the servers to s1, and wait until they are all promoted to
+	// voters.
 	TestJoin(t, servers...)
+	retry.Run(t, func(r *retry.R) {
+		r.Check(wantRaft(servers))
+		for _, s := range servers {
+			r.Check(wantPeers(s, 5))
+		}
+	})
 
-	t.Logf("waiting for initial stable cluster")
-	waitForStableLeadership(t, servers)
-
-	t.Logf("killing a non-leader server")
+	// Kill a non-leader server
 	if leader := waitForStableLeadership(t, servers); leader == s4 {
 		s1, s4 = s4, s1
 	}
 	s4.Shutdown()
 
-	t.Logf("waiting for dead peer to be removed")
+	// Should be removed from the peers automatically
 	servers = []*Server{s1, s2, s3, s5}
-	waitForStableLeadership(t, servers)
+	retry.Run(t, func(r *retry.R) {
+		r.Check(wantRaft(servers))
+		for _, s := range servers {
+			r.Check(wantPeers(s, 4))
+		}
+	})
 }
 
 func TestAutopilot_RollingUpdate(t *testing.T) {
 	ci.Parallel(t)
 
 	conf := func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
 		c.BootstrapExpect = 3
 		c.RaftConfig.ProtocolVersion = 3
 	}
@@ -163,11 +209,16 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	s3, cleanupS3 := TestServer(t, conf)
 	defer cleanupS3()
 
+	// Join the servers to s1, and wait until they are all promoted to
+	// voters.
 	servers := []*Server{s1, s2, s3}
 	TestJoin(t, s1, s2, s3)
-
-	t.Logf("waiting for initial stable cluster")
-	waitForStableLeadership(t, servers)
+	retry.Run(t, func(r *retry.R) {
+		r.Check(wantRaft(servers))
+		for _, s := range servers {
+			r.Check(wantPeers(s, 3))
+		}
+	})
 
 	// Add one more server like we are doing a rolling update.
 	t.Logf("adding server s4")
@@ -175,62 +226,53 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	defer cleanupS4()
 	TestJoin(t, s1, s4)
 
-	// Wait for s4 to stabilize and get promoted to a voter
-	t.Logf("waiting for s4 to stabilize and be promoted")
 	servers = append(servers, s4)
-	waitForStableLeadership(t, servers)
+	retry.Run(t, func(r *retry.R) {
+		r.Check(wantRaft(servers))
+		for _, s := range servers {
+			r.Check(wantPeers(s, 4))
+		}
+	})
 
 	// Now kill one of the "old" nodes like we are doing a rolling update.
 	t.Logf("shutting down server s3")
 	s3.Shutdown()
 
-	// Wait for s3 to be removed and the cluster to stablize.
-	t.Logf("waiting for cluster to stabilize")
-	servers = []*Server{s1, s2, s4}
-	waitForStableLeadership(t, servers)
-}
-
-func TestAutopilot_MultiRegion(t *testing.T) {
-	ci.Parallel(t)
-
-	conf := func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
-		c.BootstrapExpect = 3
+	isVoter := func() bool {
+		future := s1.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		for _, s := range future.Configuration().Servers {
+			if string(s.ID) == string(s4.config.NodeID) {
+				return s.Suffrage == raft.Voter
+			}
+		}
+		t.Fatalf("didn't find s4")
+		return false
 	}
-	s1, cleanupS1 := TestServer(t, conf)
-	defer cleanupS1()
 
-	s2, cleanupS2 := TestServer(t, conf)
-	defer cleanupS2()
+	t.Logf("waiting for s4 to stabalize and be promoted")
 
-	s3, cleanupS3 := TestServer(t, conf)
-	defer cleanupS3()
-
-	// federated regions should not be considered raft peers or show up in the
-	// known servers list
-	s4, cleanupS4 := TestServer(t, func(c *Config) {
-		c.BootstrapExpect = 0
-		c.Region = "other"
+	// Wait for s4 to stabilize, get promoted to a voter, and for s3 to be
+	// removed.
+	servers = []*Server{s1, s2, s4}
+	retry.Run(t, func(r *retry.R) {
+		r.Check(wantRaft(servers))
+		for _, s := range servers {
+			r.Check(wantPeers(s, 3))
+		}
+		if !isVoter() {
+			r.Fatalf("should be a voter")
+		}
 	})
-	defer cleanupS4()
-
-	servers := []*Server{s1, s2, s3}
-	TestJoin(t, s1, s2, s3, s4)
-
-	t.Logf("waiting for initial stable cluster")
-	waitForStableLeadership(t, servers)
-
-	apDelegate := &AutopilotDelegate{s3}
-	known := apDelegate.KnownServers()
-	must.Eq(t, 3, len(known))
-
 }
 
 func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
+	t.Skip("TestAutopilot_CleanupDeadServer is very flaky, removing it for now")
 	ci.Parallel(t)
 
 	conf := func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
 		c.BootstrapExpect = 3
 	}
 	s1, cleanupS1 := TestServer(t, conf)
@@ -248,27 +290,38 @@ func TestAutopilot_CleanupStaleRaftServer(t *testing.T) {
 	defer cleanupS4()
 
 	servers := []*Server{s1, s2, s3}
+
+	// Join the servers to s1
 	TestJoin(t, s1, s2, s3)
 
-	t.Logf("waiting for initial stable cluster")
 	leader := waitForStableLeadership(t, servers)
 
-	t.Logf("adding server s4 to peers directly")
+	// Add s4 to peers directly
 	addr := fmt.Sprintf("127.0.0.1:%d", s4.config.RPCAddr.Port)
 	future := leader.raft.AddVoter(raft.ServerID(s4.config.NodeID), raft.ServerAddress(addr), 0, 0)
 	if err := future.Error(); err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("waiting for 4th server to be removed")
-	waitForStableLeadership(t, servers)
+	// Verify we have 4 peers
+	peers, err := s1.numPeers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if peers != 4 {
+		t.Fatalf("bad: %v", peers)
+	}
+
+	// Wait for s4 to be removed
+	for _, s := range []*Server{s1, s2, s3} {
+		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 3)) })
+	}
 }
 
 func TestAutopilot_PromoteNonVoter(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS1()
@@ -277,31 +330,52 @@ func TestAutopilot_PromoteNonVoter(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // reduces test log noise
 		c.BootstrapExpect = 0
 		c.RaftConfig.ProtocolVersion = 3
 	})
 	defer cleanupS2()
 	TestJoin(t, s1, s2)
 
-	// Note: we can't reliably detect that the server is initially a non-voter,
-	// because it can transition too quickly for the test setup to detect,
-	// especially in low-resource environments like CI. We'll assume that
-	// happens correctly here and only test that it transitions to become a
-	// voter.
-	testutil.WaitForResultUntil(10*time.Second, func() (bool, error) {
+	// Make sure we see it as a nonvoter initially. We wait until half
+	// the stabilization period has passed.
+	retry.Run(t, func(r *retry.R) {
 		future := s1.raft.GetConfiguration()
 		if err := future.Error(); err != nil {
-			return false, err
+			r.Fatal(err)
 		}
+
 		servers := future.Configuration().Servers
 		if len(servers) != 2 {
-			return false, fmt.Errorf("expected 2 servers, got: %v", servers)
+			r.Fatalf("bad: %v", servers)
+		}
+		if servers[1].Suffrage != raft.Nonvoter {
+			r.Fatalf("bad: %v", servers)
+		}
+		health := s1.autopilot.GetServerHealth(string(servers[1].ID))
+		if health == nil {
+			r.Fatalf("nil health, %v", s1.autopilot.GetClusterHealth())
+		}
+		if !health.Healthy {
+			r.Fatalf("bad: %v", health)
+		}
+		if time.Since(health.StableSince) < s1.config.AutopilotConfig.ServerStabilizationTime/2 {
+			r.Fatal("stable period not elapsed")
+		}
+	})
+
+	// Make sure it ends up as a voter.
+	retry.Run(t, func(r *retry.R) {
+		future := s1.raft.GetConfiguration()
+		if err := future.Error(); err != nil {
+			r.Fatal(err)
+		}
+
+		servers := future.Configuration().Servers
+		if len(servers) != 2 {
+			r.Fatalf("bad: %v", servers)
 		}
 		if servers[1].Suffrage != raft.Voter {
-			return false, fmt.Errorf("expected server to be voter: %v", servers)
+			r.Fatalf("bad: %v", servers)
 		}
-		return true, nil
-	}, func(err error) { must.NoError(t, err) })
-
+	})
 }

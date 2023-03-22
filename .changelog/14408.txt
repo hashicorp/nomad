@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: add service discovery, along with health checks, to job and allocation routes
-```

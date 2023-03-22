@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: `operator debug` now writes newline-delimited JSON files for large collections
-```

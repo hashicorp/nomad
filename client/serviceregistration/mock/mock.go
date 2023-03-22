@@ -42,10 +42,10 @@ func (h *ServiceRegistrationHandler) RegisterWorkload(services *serviceregistrat
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.log.Trace("RegisterWorkload", "alloc_id", services.AllocInfo.AllocID,
+	h.log.Trace("RegisterWorkload", "alloc_id", services.AllocID,
 		"name", services.Name(), "services", len(services.Services))
 
-	h.ops = append(h.ops, newOperation("add", services.AllocInfo.AllocID, services.Name()))
+	h.ops = append(h.ops, newOperation("add", services.AllocID, services.Name()))
 	return nil
 }
 
@@ -53,20 +53,20 @@ func (h *ServiceRegistrationHandler) RemoveWorkload(services *serviceregistratio
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.log.Trace("RemoveWorkload", "alloc_id", services.AllocInfo.AllocID,
+	h.log.Trace("RemoveWorkload", "alloc_id", services.AllocID,
 		"name", services.Name(), "services", len(services.Services))
 
-	h.ops = append(h.ops, newOperation("remove", services.AllocInfo.AllocID, services.Name()))
+	h.ops = append(h.ops, newOperation("remove", services.AllocID, services.Name()))
 }
 
 func (h *ServiceRegistrationHandler) UpdateWorkload(old, newServices *serviceregistration.WorkloadServices) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.log.Trace("UpdateWorkload", "alloc_id", newServices.AllocInfo.AllocID, "name", newServices.Name(),
+	h.log.Trace("UpdateWorkload", "alloc_id", newServices.AllocID, "name", newServices.Name(),
 		"old_services", len(old.Services), "new_services", len(newServices.Services))
 
-	h.ops = append(h.ops, newOperation("update", newServices.AllocInfo.AllocID, newServices.Name()))
+	h.ops = append(h.ops, newOperation("update", newServices.AllocID, newServices.Name()))
 	return nil
 }
 

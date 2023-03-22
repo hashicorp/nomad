@@ -24,7 +24,7 @@ client {
 
 - `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
   for allocation data. By default, this is the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
+  [data_dir](/docs/configuration#data_dir) suffixed with
   "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
@@ -65,15 +65,6 @@ client {
 - `memory_total_mb` `(int:0)` - Specifies an override for the total memory. If set,
   this value overrides any detected memory.
 
-- `disk_total_mb` `(int:0)` - Specifies an override for the total disk space
-  fingerprint attribute. This value is not used by the scheduler unless you have
-  constraints set on the attribute `unique.storage.bytestotal`. The actual total
-  disk space can be determined via the [Read Stats API](https://github.com/api-docs/client#read-stats)
-
-- `disk_free_mb` `(int:0)` - Specifies the disk space free for scheduling
-  allocations. If set, this value overrides any detected free disk space. This
-  value can be seen in `nomad node status` under Allocated Resources.
-
 - `min_dynamic_port` `(int:20000)` - Specifies the minimum dynamic port to be
   assigned. Individual ports and ranges of ports may be excluded from dynamic
   port assignment via [`reserved`](#reserved-parameters) parameters.
@@ -110,7 +101,7 @@ client {
 
 - `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
   to store client state. By default, this is - the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
+  [data_dir](/docs/configuration#data_dir) suffixed with
   "client", like `"/opt/nomad/client"`. This must be an absolute path.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
@@ -142,29 +133,22 @@ client {
 
 - `cni_config_dir` `(string: "/opt/cni/config")` - Sets the directory where CNI
   network configuration is located. The client will use this path when fingerprinting
-  CNI networks. Filenames should use the `.conflist` extension. Filenames with
-  the `.conf` or `.json` extensions are loaded as individual plugin
-  configuration.
+  CNI networks. Filenames should use the `.conflist` extension.
 
 - `bridge_network_name` `(string: "nomad")` - Sets the name of the bridge to be
-  created by Nomad for allocations running with bridge networking mode on the
+  created by nomad for allocations running with bridge networking mode on the
   client.
 
 - `bridge_network_subnet` `(string: "172.26.64.0/20")` - Specifies the subnet
   which the client will use to allocate IP addresses from.
 
-- `bridge_network_hairpin_mode` `(bool: false)` - Specifies if hairpin mode
-  is enabled on the network bridge created by Nomad for allocations running
-  with bridge networking mode on this client. You may use the corresponding
-  node attribute `nomad.bridge.hairpin_mode` in constraints.
-
 - `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
   Specifies controls on the behavior of task
-  [`artifact`](/nomad/docs/job-specification/artifact) blocks.
+  [`artifact`](/docs/job-specification/artifact) blocks.
 
 - `template` <code>([Template](#template-parameters): nil)</code> - Specifies
   controls on the behavior of task
-  [`template`](/nomad/docs/job-specification/template) blocks.
+  [`template`](/docs/job-specification/template) blocks.
 
 - `host_volume` <code>([host_volume](#host_volume-block): nil)</code> - Exposes
   paths from the host as volumes that can be mounted into jobs.
@@ -178,7 +162,7 @@ client {
 
 ### `chroot_env` Parameters
 
-Drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file
+Drivers based on [isolated fork/exec](/docs/drivers/exec) implement file
 system isolation using chroot on Linux. The `chroot_env` map allows the chroot
 environment to be configured using source paths on the host operating system.
 The mapping format is:
@@ -206,7 +190,7 @@ client {
 
 When `chroot_env` is unspecified, the `exec` driver will use a default chroot
 environment with the most commonly used parts of the operating system. Please
-see the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
+see the [Nomad `exec` driver documentation](/docs/drivers/exec#chroot) for
 the full list.
 
 As of Nomad 1.2, Nomad will never attempt to embed the `alloc_dir` in the
@@ -219,7 +203,7 @@ See the [plugin block][plugin-block] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver, please
-see the [drivers documentation](/nomad/docs/drivers).
+see the [drivers documentation](/docs/drivers).
 
 - `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
   allowlisted drivers . If specified, drivers not in the allowlist will be
@@ -394,22 +378,13 @@ see the [drivers documentation](/nomad/docs/drivers).
   S3 operation must complete before it is canceled. Set to `0` to not enforce a
   limit.
 
-- `decompression_size_limit` `(string: "100GB")` - Specifies the maximum amount
-  of data that will be decompressed before triggering an error and cancelling the
-  operation. Set to `"0"` to not enforce a limit.
+- `decompression_size_limit` `(string: nil)` - Specifies the maximum amount of
+  data that will be decompressed before triggering an error and cancelling the
+  operation. E.g. "10GB". By default this value is not set and no limit is enforced.
 
-- `decompression_file_count_limit` `(int: 4096)` - Specifies the maximum number
-  of files that will be decompressed before triggering an error and cancelling the
-  operation. Set to `0` to not enforce a limit.
-
-- `disable_filesystem_isolation` `(bool: false)` - Specifies whether filesystem
-  isolation should be disabled for artifact downloads. Applies only to systems
-  where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
-
-- `set_environment_variables` `(string:"")` - Specifies a comma separated list
-  of environment variables that should be inherited by the artifact sandbox from
-  the Nomad client's environment. By default a minimal environment is set including
-  a `PATH` appropriate for the operating system.
+- `decompression_file_count_limit` `(int: nil)` - Specifies the maximum number
+  of files that will be decompressed before triggering an error and cancelling
+  the operation. By default this value is not set and no limit is enforced.
 
 ### `template` Parameters
 
@@ -550,7 +525,7 @@ see the [drivers documentation](/nomad/docs/drivers).
 The `host_volume` block is used to make volumes available to jobs.
 
 The key of the block corresponds to the name of the volume for use in the
-`source` parameter of a `"host"` type [`volume`](/nomad/docs/job-specification/volume)
+`source` parameter of a `"host"` type [`volume`](/docs/job-specification/volume)
 and ACLs.
 
 ```hcl
@@ -577,7 +552,7 @@ The `host_network` block is used to register additional host networks with
 the node that can be used when port mapping.
 
 The key of the block corresponds to the name of the network used in the
-[`host_network`](/nomad/docs/job-specification/network#host-networks).
+[`host_network`](/docs/job-specification/network#host-networks).
 
 ```hcl
 client {
@@ -660,9 +635,8 @@ client {
 ```
 
 [plugin-options]: #plugin-options
-[plugin-block]: /nomad/docs/configuration/plugin
-[server-join]: /nomad/docs/configuration/server_join 'Server Join'
-[metadata_constraint]: /nomad/docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
-[task working directory]: /nomad/docs/runtime/environment#task-directories 'Task directories'
+[plugin-block]: /docs/configuration/plugin
+[server-join]: /docs/configuration/server_join 'Server Join'
+[metadata_constraint]: /docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
+[task working directory]: /docs/runtime/environment#task-directories 'Task directories'
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
-[landlock]: https://docs.kernel.org/userspace-api/landlock.html

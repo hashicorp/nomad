@@ -1,11 +1,9 @@
 package nsd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -16,10 +14,6 @@ import (
 type ServiceRegistrationHandler struct {
 	log hclog.Logger
 	cfg *ServiceRegistrationHandlerCfg
-
-	// checkWatcher watches checks of services in the Nomad service provider,
-	// and restarts associated tasks in accordance with their check_restart block.
-	checkWatcher serviceregistration.CheckWatcher
 
 	// registrationEnabled tracks whether this handler is enabled for
 	// registrations. This is needed as it's possible a client has its config
@@ -55,27 +49,23 @@ type ServiceRegistrationHandlerCfg struct {
 	// server service registration RPC calls. This RPC function has basic retry
 	// functionality.
 	RPCFn func(method string, args, resp interface{}) error
-
-	// CheckWatcher watches checks of services in the Nomad service provider,
-	// and restarts associated tasks in accordance with their check_restart block.
-	CheckWatcher serviceregistration.CheckWatcher
 }
 
 // NewServiceRegistrationHandler returns a ready to use
 // ServiceRegistrationHandler which implements the serviceregistration.Handler
 // interface.
-func NewServiceRegistrationHandler(log hclog.Logger, cfg *ServiceRegistrationHandlerCfg) serviceregistration.Handler {
-	go cfg.CheckWatcher.Run(context.TODO())
+func NewServiceRegistrationHandler(
+	log hclog.Logger, cfg *ServiceRegistrationHandlerCfg) serviceregistration.Handler {
 	return &ServiceRegistrationHandler{
 		cfg:                 cfg,
 		log:                 log.Named("service_registration.nomad"),
 		registrationEnabled: cfg.Enabled,
-		checkWatcher:        cfg.CheckWatcher,
 		shutDownCh:          make(chan struct{}),
 	}
 }
 
 func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
+
 	// Check whether we are enabled or not first. Hitting this likely means
 	// there is a bug within the implicit constraint, or process using it, as
 	// that should guard ever placing an allocation on this client.
@@ -105,18 +95,6 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 		return err
 	}
 
-	// Service registrations look ok; startup check watchers as specified. The
-	// astute observer may notice the services are not actually registered yet -
-	// this is the same as the Consul flow so hopefully things just work out.
-	for _, service := range workload.Services {
-		for _, check := range service.Checks {
-			if check.TriggersRestarts() {
-				checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
-				s.checkWatcher.Watch(workload.AllocInfo.AllocID, workload.Name(), checkID, check, workload.Restarter)
-			}
-		}
-	}
-
 	args := structs.ServiceRegistrationUpsertRequest{
 		Services: registrations,
 		WriteRequest: structs.WriteRequest{
@@ -137,43 +115,22 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 // enabled. This covers situations where the feature is disabled, yet still has
 // allocations which, when stopped need their registrations removed.
 func (s *ServiceRegistrationHandler) RemoveWorkload(workload *serviceregistration.WorkloadServices) {
-	wg := new(sync.WaitGroup)
-	wg.Add(len(workload.Services))
-
 	for _, serviceSpec := range workload.Services {
-		go s.removeWorkload(wg, workload, serviceSpec)
+		go s.removeWorkload(workload, serviceSpec)
 	}
-
-	// wait for all workload removals to complete
-	wg.Wait()
 }
 
 func (s *ServiceRegistrationHandler) removeWorkload(
-	wg *sync.WaitGroup,
-	workload *serviceregistration.WorkloadServices,
-	serviceSpec *structs.Service,
-) {
-	// unblock wait group when we are done
-	defer wg.Done()
-
-	// Stop check watcher
-	//
-	// todo(shoenig) - shouldn't we only unwatch checks for the given serviceSpec ?
-	for _, service := range workload.Services {
-		for _, check := range service.Checks {
-			checkID := string(structs.NomadCheckID(workload.AllocInfo.AllocID, workload.AllocInfo.Group, check))
-			s.checkWatcher.Unwatch(checkID)
-		}
-	}
+	workload *serviceregistration.WorkloadServices, serviceSpec *structs.Service) {
 
 	// Generate the consistent ID for this service, so we know what to remove.
-	id := serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), serviceSpec)
+	id := serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), serviceSpec)
 
 	deleteArgs := structs.ServiceRegistrationDeleteByIDRequest{
 		ID: id,
 		WriteRequest: structs.WriteRequest{
 			Region:    s.cfg.Region,
-			Namespace: workload.ProviderNamespace,
+			Namespace: workload.Namespace,
 			AuthToken: s.cfg.NodeSecret,
 		},
 	}
@@ -192,14 +149,14 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 	// while ensuring the operator can see.
 	if strings.Contains(err.Error(), "service registration not found") {
 		s.log.Info("attempted to delete non-existent service registration",
-			"service_id", id, "namespace", workload.ProviderNamespace)
+			"service_id", id, "namespace", workload.Namespace)
 		return
 	}
 
 	// Log the error as there is nothing left to do, so the operator can see it
 	// and identify any problems.
 	s.log.Error("failed to delete service registration",
-		"error", err, "service_id", id, "namespace", workload.ProviderNamespace)
+		"error", err, "service_id", id, "namespace", workload.Namespace)
 }
 
 func (s *ServiceRegistrationHandler) UpdateWorkload(old, new *serviceregistration.WorkloadServices) error {
@@ -245,7 +202,7 @@ func (s *ServiceRegistrationHandler) dedupUpdatedWorkload(
 	newIDs := make(map[string]*structs.Service, len(newWork.Services))
 
 	for _, s := range newWork.Services {
-		newIDs[serviceregistration.MakeAllocServiceID(newWork.AllocInfo.AllocID, newWork.Name(), s)] = s
+		newIDs[serviceregistration.MakeAllocServiceID(newWork.AllocID, newWork.Name(), s)] = s
 	}
 
 	// Iterate through the old services in order to identify whether they can
@@ -254,7 +211,7 @@ func (s *ServiceRegistrationHandler) dedupUpdatedWorkload(
 
 		// Generate the service ID of the old service. If this is not found
 		// within the new mapping then we need to remove it.
-		oldID := serviceregistration.MakeAllocServiceID(oldWork.AllocInfo.AllocID, oldWork.Name(), oldService)
+		oldID := serviceregistration.MakeAllocServiceID(oldWork.AllocID, oldWork.Name(), oldService)
 		newSvc, ok := newIDs[oldID]
 		if !ok {
 			oldCopy.Services = append(oldCopy.Services, oldService)
@@ -333,12 +290,12 @@ func (s *ServiceRegistrationHandler) generateNomadServiceRegistration(
 	}
 
 	return &structs.ServiceRegistration{
-		ID:          serviceregistration.MakeAllocServiceID(workload.AllocInfo.AllocID, workload.Name(), serviceSpec),
+		ID:          serviceregistration.MakeAllocServiceID(workload.AllocID, workload.Name(), serviceSpec),
 		ServiceName: serviceSpec.Name,
 		NodeID:      s.cfg.NodeID,
-		JobID:       workload.AllocInfo.JobID,
-		AllocID:     workload.AllocInfo.AllocID,
-		Namespace:   workload.ProviderNamespace,
+		JobID:       workload.JobID,
+		AllocID:     workload.AllocID,
+		Namespace:   workload.Namespace,
 		Datacenter:  s.cfg.Datacenter,
 		Tags:        tags,
 		Address:     ip,

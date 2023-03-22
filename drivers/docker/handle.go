@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -13,12 +12,12 @@ import (
 	"github.com/armon/circbuf"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/consul-template/signals"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"golang.org/x/net/context"
 )
 
 type taskHandle struct {

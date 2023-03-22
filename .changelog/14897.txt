@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update google.golang.org/grpc from 1.48.0 to 1.50.1
-```

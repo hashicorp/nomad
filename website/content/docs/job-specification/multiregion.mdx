@@ -13,9 +13,9 @@ description: |-
 <EnterpriseAlert />
 
 The `multiregion` block specifies that a job will be deployed to multiple
-[federated regions]. If omitted, the job will be deployed to a single region—the
-one specified by the `region` field or the `-region` command line flag to
-`nomad job run`.
+[federated regions]. If omitted, the job will be deployed to a single region
+— the one specified by the `region` field or the `-region` command line
+flag to `nomad job run`.
 
 Federated Nomad clusters are members of the same gossip cluster but not the
 same raft cluster; they don't share their data stores. Each region in a
@@ -67,23 +67,6 @@ a time. When each region completes its local deployment, it enters a `blocked`
 state where it waits until the last region has completed the deployment. The
 final region will unblock the regions to mark them as `successful`.
 
-## Parameterized Dispatch
-
-Job dispatching is region specific. While a [parameterized job] can be
-registered in multiple [federated regions] like any other job, a parameterized
-job operates much like a function definition that takes variable input.
-Operators are expected to invoke the job by invoking [`job dispatch`]
-from the CLI or the [HTTP API] and provide the appropriate dispatch options
-for that region.
-
-## Periodic Time Zones
-
-Multiregion periodic jobs share [time zone] configuration, with UTC being the
-default. Operators should be mindful of this when registering multiregion jobs.
-For example, a periodic configuration that specifies the job should run every
-night at midnight New York time, may result in an undesirable execution time
-if one of the target regions is set to Tokyo time.
-
 ## `multiregion` Parameters
 
 - `strategy` <code>([Strategy](#strategy-parameters): nil)</code> - Specifies
@@ -130,7 +113,7 @@ multiregion deployments are considered GA.
     that led to the failure and resubmit the job.
 
 ~> For `system` jobs, only [`max_parallel`](#max_parallel) is enforced. The
-`system` scheduler will be updated to support `on_failure` when the
+`system` scheduler will be updated to support `on_failure` when the the
 [`update` block] is fully supported for system jobs in a future release.
 
 ### `region` Parameters
@@ -275,13 +258,9 @@ group "worker" {
 }
 ```
 
-[federated regions]: /nomad/tutorials/manage-clusters/federation
-[`update` block]: /nomad/docs/job-specification/update
-[update-auto-revert]: /nomad/docs/job-specification/update#auto_revert
+[federated regions]: https://learn.hashicorp.com/tutorials/nomad/federation
+[`update` block]: /docs/job-specification/update
+[update-auto-revert]: /docs/job-specification/update#auto_revert
 [examples]: #multiregion-examples
-[upgrade strategies]: /nomad/tutorials/job-updates
-[`nomad deployment unblock`]: /nomad/docs/commands/deployment/unblock
-[parameterized job]: /nomad/docs/job-specification/parameterized
-[`job dispatch`]: /nomad/docs/commands/job/dispatch
-[HTTP API]: /nomad/api-docs/jobs#dispatch-job
-[time zone]: /nomad/docs/job-specification/periodic#time_zone
+[upgrade strategies]: https://learn.hashicorp.com/collections/nomad/job-updates
+[`nomad deployment unblock`]: /docs/commands/deployment/unblock

@@ -47,7 +47,7 @@ type Conn struct {
 
 	addr     net.Addr
 	session  *yamux.Session
-	lastUsed atomic.Pointer[time.Time]
+	lastUsed time.Time
 
 	pool *ConnPool
 
@@ -58,8 +58,7 @@ type Conn struct {
 // markForUse does all the bookkeeping required to ready a connection for use,
 // and ensure that active connections don't get reaped.
 func (c *Conn) markForUse() {
-	now := time.Now()
-	c.lastUsed.Store(&now)
+	c.lastUsed = time.Now()
 	atomic.AddInt32(&c.refCount, 1)
 }
 
@@ -403,12 +402,9 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 		addr:     addr,
 		session:  session,
 		clients:  list.New(),
-		lastUsed: atomic.Pointer[time.Time]{},
+		lastUsed: time.Now(),
 		pool:     p,
 	}
-
-	now := time.Now()
-	c.lastUsed.Store(&now)
 	return c, nil
 }
 
@@ -530,7 +526,7 @@ func (p *ConnPool) reap() {
 		now := time.Now()
 		for host, conn := range p.pool {
 			// Skip recently used connections
-			if now.Sub(*conn.lastUsed.Load()) < p.maxTime {
+			if now.Sub(conn.lastUsed) < p.maxTime {
 				continue
 			}
 

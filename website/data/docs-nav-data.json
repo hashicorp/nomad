@@ -82,10 +82,6 @@
         "path": "concepts"
       },
       {
-        "title": "ACL",
-        "path": "concepts/acl"
-      },
-      {
         "title": "Architecture",
         "path": "concepts/architecture"
       },
@@ -111,10 +107,6 @@
           {
             "title": "Storage",
             "path": "concepts/plugins/csi"
-          },
-          {
-            "title": "Networking",
-            "path": "concepts/plugins/cni"
           }
         ]
       },
@@ -150,14 +142,6 @@
       {
         "title": "Security Model",
         "path": "concepts/security"
-      },
-      {
-        "title": "Workload Identity",
-        "path": "concepts/workload-identity"
-      },
-      {
-        "title": "Variables",
-        "path": "concepts/variables"
       }
     ]
   },
@@ -245,129 +229,44 @@
             "path": "commands/acl/bootstrap"
           },
           {
-            "title": "auth-method",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/auth-method/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/auth-method/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/auth-method/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/auth-method/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/auth-method/update"
-              }
-            ]
+            "title": "policy apply",
+            "path": "commands/acl/policy-apply"
           },
           {
-            "title": "binding-rule",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/binding-rule/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/binding-rule/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/binding-rule/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/binding-rule/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/binding-rule/update"
-              }
-            ]
+            "title": "policy delete",
+            "path": "commands/acl/policy-delete"
           },
           {
-            "title": "policy",
-            "routes": [
-              {
-                "title": "apply",
-                "path": "commands/acl/policy/apply"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/policy/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/policy/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/policy/list"
-              }
-            ]
+            "title": "policy info",
+            "path": "commands/acl/policy-info"
           },
           {
-            "title": "role",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/role/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/role/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/role/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/role/list"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/role/update"
-              }
-            ]
+            "title": "policy list",
+            "path": "commands/acl/policy-list"
           },
           {
-            "title": "token",
-            "routes": [
-              {
-                "title": "create",
-                "path": "commands/acl/token/create"
-              },
-              {
-                "title": "delete",
-                "path": "commands/acl/token/delete"
-              },
-              {
-                "title": "info",
-                "path": "commands/acl/token/info"
-              },
-              {
-                "title": "list",
-                "path": "commands/acl/token/list"
-              },
-              {
-                "title": "self",
-                "path": "commands/acl/token/self"
-              },
-              {
-                "title": "update",
-                "path": "commands/acl/token/update"
-              }
-            ]
+            "title": "token create",
+            "path": "commands/acl/token-create"
+          },
+          {
+            "title": "token delete",
+            "path": "commands/acl/token-delete"
+          },
+          {
+            "title": "token info",
+            "path": "commands/acl/token-info"
+          },
+          {
+            "title": "token list",
+            "path": "commands/acl/token-list"
+          },
+          {
+            "title": "token self",
+            "path": "commands/acl/token-self"
+          },
+          {
+            "title": "token update",
+            "path": "commands/acl/token-update"
           }
         ]
       },
@@ -385,10 +284,6 @@
           {
             "title": "Overview",
             "path": "commands/alloc"
-          },
-          {
-            "title": "checks",
-            "path": "commands/alloc/checks"
           },
           {
             "title": "exec",
@@ -492,10 +387,6 @@
         ]
       },
       {
-        "title": "fmt",
-        "path": "commands/fmt"
-      },
-      {
         "title": "job",
         "routes": [
           {
@@ -543,10 +434,6 @@
             "path": "commands/job/promote"
           },
           {
-            "title": "restart",
-            "path": "commands/job/restart"
-          },
-          {
             "title": "revert",
             "path": "commands/job/revert"
           },
@@ -588,10 +475,6 @@
             "path": "commands/license/get"
           }
         ]
-      },
-      {
-        "title": "login",
-        "path": "commands/login"
       },
       {
         "title": "monitor",
@@ -676,37 +559,16 @@
             ]
           },
           {
-            "title": "client-state",
-            "path": "commands/operator/client-state"
-          },
-          {
             "title": "debug",
             "path": "commands/operator/debug"
           },
           {
-            "title": "gossip",
-            "routes": [
-              {
-                "title": "keyring generate",
-                "path": "commands/operator/gossip/keyring-generate"
-              },
-              {
-                "title": "keyring install",
-                "path": "commands/operator/gossip/keyring-install"
-              },
-              {
-                "title": "keyring list",
-                "path": "commands/operator/gossip/keyring-list"
-              },
-              {
-                "title": "keyring remove",
-                "path": "commands/operator/gossip/keyring-remove"
-              },
-              {
-                "title": "keyring use",
-                "path": "commands/operator/gossip/keyring-use"
-              }
-            ]
+            "title": "keygen",
+            "path": "commands/operator/keygen"
+          },
+          {
+            "title": "keyring",
+            "path": "commands/operator/keyring"
           },
           {
             "title": "metrics",
@@ -734,23 +596,6 @@
               {
                 "title": "state",
                 "path": "commands/operator/raft/state"
-              }
-            ]
-          },
-          {
-            "title": "root",
-            "routes": [
-              {
-                "title": "keyring list",
-                "path": "commands/operator/root/keyring-list"
-              },
-              {
-                "title": "keyring remove",
-                "path": "commands/operator/root/keyring-remove"
-              },
-              {
-                "title": "keyring rotate",
-                "path": "commands/operator/root/keyring-rotate"
               }
             ]
           },
@@ -971,62 +816,8 @@
         ]
       },
       {
-        "title": "tls",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/tls"
-          },
-          {
-            "title": "ca create",
-            "path": "commands/tls/ca-create"
-          },
-          {
-            "title": "ca info",
-            "path": "commands/tls/ca-info"
-          },
-          {
-            "title": "cert create",
-            "path": "commands/tls/cert-create"
-          },
-          {
-            "title": "cert info",
-            "path": "commands/tls/cert-info"
-          }
-        ]
-      },
-      {
         "title": "ui",
         "path": "commands/ui"
-      },
-      {
-        "title": "var",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/var"
-          },
-          {
-            "title": "get",
-            "path": "commands/var/get"
-          },
-          {
-            "title": "init",
-            "path": "commands/var/init"
-          },
-          {
-            "title": "list",
-            "path": "commands/var/list"
-          },
-          {
-            "title": "put",
-            "path": "commands/var/put"
-          },
-          {
-            "title": "purge",
-            "path": "commands/var/purge"
-          }
-        ]
       },
       {
         "title": "version",
@@ -1443,10 +1234,6 @@
                     "path": "job-specification/hcl2/functions/string/split"
                   },
                   {
-                    "title": "strlen",
-                    "path": "job-specification/hcl2/functions/string/strlen"
-                  },
-                  {
                     "title": "strrev",
                     "path": "job-specification/hcl2/functions/string/strrev"
                   },
@@ -1570,10 +1357,6 @@
         "path": "job-specification/group"
       },
       {
-        "title": "identity",
-        "path": "job-specification/identity"
-      },
-      {
         "title": "job",
         "path": "job-specification/job"
       },
@@ -1687,10 +1470,6 @@
         "path": "other-specifications/acl-policy"
       },
       {
-        "title": "Variables",
-        "path": "other-specifications/variables"
-      },
-      {
         "title": "Volume",
         "routes": [
           {
@@ -1776,12 +1555,7 @@
             "href": "/plugins/drivers/community/pot"
           },
           {
-            "title": "Rkt",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            },
+            "title": "Rkt <sup>Deprecated</sup> ",
             "href": "/plugins/drivers/community/rkt"
           },
           {
@@ -1836,12 +1610,7 @@
             "href": "/plugins/devices/nvidia"
           },
           {
-            "title": "USB",
-            "badge": {
-              "text": "Beta",
-              "type": "outlined",
-              "color": "neutral"
-            },
+            "title": "USB <sup>Beta</sup>",
             "href": "/plugins/devices/community/usb"
           }
         ]
@@ -1866,27 +1635,6 @@
       {
         "title": "Variable Interpolation",
         "path": "runtime/interpolation"
-      }
-    ]
-  },
-  {
-    "title": "Networking",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "networking"
-      },
-      {
-        "title": "Service Discovery",
-        "path": "networking/service-discovery"
-      },
-      {
-        "title": "Service Mesh",
-        "path": "networking/service-mesh"
-      },
-      {
-        "title": "CNI",
-        "path": "networking/cni"
       }
     ]
   },
@@ -2136,10 +1884,6 @@
       {
         "title": "Access Control",
         "href": "https://learn.hashicorp.com/collections/nomad/access-control"
-      },
-      {
-        "title": "Key Management",
-        "path": "operations/key-management"
       }
     ]
   },

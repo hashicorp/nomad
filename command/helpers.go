@@ -62,13 +62,6 @@ func limit(s string, length int) string {
 	return s[:length]
 }
 
-// indentString returns the string s padded with the given number of empty
-// spaces before each line except for the first one.
-func indentString(s string, pad int) string {
-	prefix := strings.Repeat(" ", pad)
-	return strings.Join(strings.Split(s, "\n"), fmt.Sprintf("\n%s", prefix))
-}
-
 // wrapAtLengthWithPadding wraps the given text at the maxLineLength, taking
 // into account any provided left padding.
 func wrapAtLengthWithPadding(s string, pad int) string {
@@ -561,7 +554,7 @@ func sanitizeUUIDPrefix(prefix string) string {
 	return prefix[:len(prefix)-remainder]
 }
 
-// commandErrorText is used to easily render the same messaging across commands
+// commandErrorText is used to easily render the same messaging across commads
 // when an error is printed.
 func commandErrorText(cmd NamedCommand) string {
 	return fmt.Sprintf("For additional help try 'nomad %s -help'", cmd.Name())
@@ -606,44 +599,4 @@ func (w *uiErrorWriter) Close() error {
 		w.buf.Reset()
 	}
 	return nil
-}
-
-func loadDataSource(data string, testStdin io.Reader) (string, error) {
-	// Handle empty quoted shell parameters
-	if len(data) == 0 {
-		return "", nil
-	}
-
-	switch data[0] {
-	case '@':
-		return loadFromFile(data[1:])
-	case '-':
-		if len(data) > 1 {
-			return data, nil
-		}
-		return loadFromStdin(testStdin)
-	default:
-		return data, nil
-	}
-}
-
-func loadFromFile(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("Failed to read file: %v", err)
-	}
-	return string(data), nil
-}
-
-func loadFromStdin(testStdin io.Reader) (string, error) {
-	var stdin io.Reader = os.Stdin
-	if testStdin != nil {
-		stdin = testStdin
-	}
-
-	var b bytes.Buffer
-	if _, err := io.Copy(&b, stdin); err != nil {
-		return "", fmt.Errorf("Failed to read stdin: %v", err)
-	}
-	return b.String(), nil
 }

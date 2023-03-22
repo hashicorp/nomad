@@ -11,17 +11,12 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 )
 
 const (
-	jobNomadProvider    = "./input/nomad_provider.nomad"
-	jobConsulProvider   = "./input/consul_provider.nomad"
-	jobMultiProvider    = "./input/multi_provider.nomad"
-	jobSimpleLBReplicas = "./input/simple_lb_replicas.nomad"
-	jobSimpleLBClients  = "./input/simple_lb_clients.nomad"
-	jobChecksHappy      = "./input/checks_happy.nomad"
-	jobChecksSad        = "./input/checks_sad.nomad"
+	jobNomadProvider  = "./input/nomad_provider.nomad"
+	jobConsulProvider = "./input/consul_provider.nomad"
+	jobMultiProvider  = "./input/multi_provider.nomad"
 )
 
 const (
@@ -42,10 +37,6 @@ func TestServiceDiscovery(t *testing.T) {
 	// Run our test cases.
 	t.Run("TestServiceDiscovery_MultiProvider", testMultiProvider)
 	t.Run("TestServiceDiscovery_UpdateProvider", testUpdateProvider)
-	t.Run("TestServiceDiscovery_SimpleLoadBalancing", testSimpleLoadBalancing)
-	t.Run("TestServiceDiscovery_ChecksHappy", testChecksHappy)
-	t.Run("TestServiceDiscovery_ChecksSad", testChecksSad)
-	t.Run("TestServiceDiscovery_ServiceRegisterAfterCheckRestart", testChecksServiceReRegisterAfterCheckRestart)
 }
 
 // testMultiProvider tests service discovery where multi providers are used
@@ -56,7 +47,7 @@ func testMultiProvider(t *testing.T) {
 	consulClient := e2eutil.ConsulClient(t)
 
 	// Generate our job ID which will be used for the entire test.
-	jobID := "service-discovery-multi-provider-" + uuid.Short()
+	jobID := "service-discovery-multi-provider-" + uuid.Generate()[:8]
 	jobIDs := []string{jobID}
 
 	// Defer a cleanup function to remove the job. This will trigger if the
@@ -101,7 +92,7 @@ func testMultiProvider(t *testing.T) {
 		AllocID:     nomadProviderAllocID,
 		Tags:        []string{"foo", "bar"},
 	}
-	requireEventuallyNomadService(t, &expectedNomadService, "")
+	requireEventuallyNomadService(t, &expectedNomadService)
 
 	// Lookup the service registration in Consul and assert this matches what
 	// we expected.
@@ -214,7 +205,7 @@ func testUpdateProvider(t *testing.T) {
 	const serviceName = "http-api"
 
 	// Generate our job ID which will be used for the entire test.
-	jobID := "service-discovery-update-provider-" + uuid.Short()
+	jobID := "service-discovery-update-provider-" + uuid.Generate()[:8]
 	jobIDs := []string{jobID}
 
 	// Defer a cleanup function to remove the job. This will trigger if the
@@ -250,7 +241,7 @@ func testUpdateProvider(t *testing.T) {
 			AllocID:     nomadProviderAllocID,
 			Tags:        []string{"foo", "bar"},
 		}
-		requireEventuallyNomadService(t, &expectedNomadService, "")
+		requireEventuallyNomadService(t, &expectedNomadService)
 	}
 	nomadServiceTestFn()
 
@@ -329,25 +320,17 @@ func testUpdateProvider(t *testing.T) {
 // against Nomad for a single service. Test cases which expect more than a
 // single response should implement their own assertion, to handle ordering
 // problems.
-func requireEventuallyNomadService(t *testing.T, expected *api.ServiceRegistration, filter string) {
-	opts := (*api.QueryOptions)(nil)
-	if filter != "" {
-		opts = &api.QueryOptions{
-			Filter: filter,
-		}
-	}
-
+func requireEventuallyNomadService(t *testing.T, expected *api.ServiceRegistration) {
 	require.Eventually(t, func() bool {
-		services, _, err := e2eutil.NomadClient(t).Services().Get(expected.ServiceName, opts)
+		services, _, err := e2eutil.NomadClient(t).Services().Get(expected.ServiceName, nil)
 		if err != nil {
 			return false
 		}
 
+		// Perform the checks.
 		if len(services) != 1 {
 			return false
 		}
-
-		// ensure each matching service meets expectations
 		if services[0].ServiceName != expected.ServiceName {
 			return false
 		}
@@ -363,11 +346,6 @@ func requireEventuallyNomadService(t *testing.T, expected *api.ServiceRegistrati
 		if services[0].AllocID != expected.AllocID {
 			return false
 		}
-		if !slices.Equal(services[0].Tags, expected.Tags) {
-			return false
-		}
-
-		return true
-
+		return reflect.DeepEqual(services[0].Tags, expected.Tags)
 	}, defaultWaitForTime, defaultTickTime)
 }

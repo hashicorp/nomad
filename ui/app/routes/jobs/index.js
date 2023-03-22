@@ -22,7 +22,7 @@ export default class IndexRoute extends Route.extend(
   model(params) {
     return RSVP.hash({
       jobs: this.store
-        .query('job', { namespace: params.qpNamespace, meta: true })
+        .query('job', { namespace: params.qpNamespace })
         .catch(notifyForbidden(this)),
       namespaces: this.store.findAll('namespace'),
     });
@@ -32,7 +32,7 @@ export default class IndexRoute extends Route.extend(
     controller.set('namespacesWatch', this.watchNamespaces.perform());
     controller.set(
       'modelWatch',
-      this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
+      this.watchJobs.perform({ namespace: controller.qpNamesapce })
     );
   }
 

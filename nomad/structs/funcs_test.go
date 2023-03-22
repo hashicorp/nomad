@@ -2,10 +2,11 @@ package structs
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/acl"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/assert"
@@ -266,7 +267,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
-	a2.ClientStatus = AllocClientStatusComplete
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
@@ -494,182 +494,11 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
-	a2.ClientStatus = AllocClientStatusComplete
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit, dim)
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
-}
-
-// TestAllocsFit_ClientTerminalAlloc asserts that allocs which have a terminal
-// ClientStatus *do not* have their resources counted as in-use.
-func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
-	ci.Parallel(t)
-
-	n := &Node{
-		ID: "test-node",
-		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 2000,
-			},
-			Memory: NodeMemoryResources{
-				MemoryMB: 2048,
-			},
-			Disk: NodeDiskResources{
-				DiskMB: 10000,
-			},
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					IP:     "10.0.0.1",
-					MBits:  100,
-				},
-			},
-		},
-		ReservedResources: &NodeReservedResources{
-			Cpu: NodeReservedCpuResources{
-				CpuShares: 1000,
-			},
-			Memory: NodeReservedMemoryResources{
-				MemoryMB: 1024,
-			},
-			Disk: NodeReservedDiskResources{
-				DiskMB: 5000,
-			},
-			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: "80",
-			},
-		},
-	}
-
-	liveAlloc := &Allocation{
-		ID:            "test-alloc-live",
-		ClientStatus:  AllocClientStatusPending,
-		DesiredStatus: AllocDesiredStatusRun,
-		AllocatedResources: &AllocatedResources{
-			Tasks: map[string]*AllocatedTaskResources{
-				"web": {
-					Cpu: AllocatedCpuResources{
-						CpuShares: 1000,
-					},
-					Memory: AllocatedMemoryResources{
-						MemoryMB: 1024,
-					},
-					Networks: []*NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "10.0.0.1",
-							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
-						},
-					},
-				},
-			},
-			Shared: AllocatedSharedResources{
-				DiskMB: 5000,
-			},
-		},
-	}
-
-	deadAlloc := liveAlloc.Copy()
-	deadAlloc.ID = "test-alloc-dead"
-	deadAlloc.ClientStatus = AllocClientStatusFailed
-	deadAlloc.DesiredStatus = AllocDesiredStatusRun
-
-	// *Should* fit both allocations since deadAlloc is not running on the
-	// client
-	fit, _, used, err := AllocsFit(n, []*Allocation{liveAlloc, deadAlloc}, nil, false)
-	require.NoError(t, err)
-	require.True(t, fit)
-	require.EqualValues(t, 1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 1024, used.Flattened.Memory.MemoryMB)
-}
-
-// TestAllocsFit_ServerTerminalAlloc asserts that allocs which have a terminal
-// DesiredStatus but are still running on clients *do* have their resources
-// counted as in-use.
-func TestAllocsFit_ServerTerminalAlloc(t *testing.T) {
-	ci.Parallel(t)
-
-	n := &Node{
-		ID: "test-node",
-		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 2000,
-			},
-			Memory: NodeMemoryResources{
-				MemoryMB: 2048,
-			},
-			Disk: NodeDiskResources{
-				DiskMB: 10000,
-			},
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					IP:     "10.0.0.1",
-					MBits:  100,
-				},
-			},
-		},
-		ReservedResources: &NodeReservedResources{
-			Cpu: NodeReservedCpuResources{
-				CpuShares: 1000,
-			},
-			Memory: NodeReservedMemoryResources{
-				MemoryMB: 1024,
-			},
-			Disk: NodeReservedDiskResources{
-				DiskMB: 5000,
-			},
-			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: "80",
-			},
-		},
-	}
-
-	liveAlloc := &Allocation{
-		ID:            "test-alloc-live",
-		ClientStatus:  AllocClientStatusPending,
-		DesiredStatus: AllocDesiredStatusRun,
-		AllocatedResources: &AllocatedResources{
-			Tasks: map[string]*AllocatedTaskResources{
-				"web": {
-					Cpu: AllocatedCpuResources{
-						CpuShares: 1000,
-					},
-					Memory: AllocatedMemoryResources{
-						MemoryMB: 1024,
-					},
-					Networks: []*NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "10.0.0.1",
-							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
-						},
-					},
-				},
-			},
-			Shared: AllocatedSharedResources{
-				DiskMB: 5000,
-			},
-		},
-	}
-
-	deadAlloc := liveAlloc.Copy()
-	deadAlloc.ID = "test-alloc-dead"
-	deadAlloc.ClientStatus = AllocClientStatusRunning
-	deadAlloc.DesiredStatus = AllocDesiredStatusStop
-
-	// Should *not* fit both allocations since deadAlloc is still running
-	fit, _, used, err := AllocsFit(n, []*Allocation{liveAlloc, deadAlloc}, nil, false)
-	require.NoError(t, err)
-	require.False(t, fit)
-	require.EqualValues(t, 2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 2048, used.Flattened.Memory.MemoryMB)
 }
 
 // Tests that AllocsFit detects device collisions
@@ -1006,7 +835,8 @@ func TestCompileACLObject(t *testing.T) {
 	p2.Name = fmt.Sprintf("policy-%s", uuid.Generate())
 
 	// Create a small cache
-	cache := NewACLCache[*acl.ACL](10)
+	cache, err := lru.New2Q(16)
+	assert.Nil(t, err)
 
 	// Test compilation
 	aclObj, err := CompileACLObject(cache, []*ACLPolicy{p1})
@@ -1059,6 +889,27 @@ func TestGenerateMigrateToken(t *testing.T) {
 	assert.Nil(err)
 	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
 	assert.True(CompareMigrateToken("x", nodeSecret, token2))
+}
+
+func TestMergeMultierrorWarnings(t *testing.T) {
+	ci.Parallel(t)
+
+	var errs []error
+
+	// empty
+	str := MergeMultierrorWarnings(errs...)
+	require.Equal(t, "", str)
+
+	// non-empty
+	errs = []error{
+		errors.New("foo"),
+		nil,
+		errors.New("bar"),
+	}
+
+	str = MergeMultierrorWarnings(errs...)
+
+	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }
 
 func TestVaultPoliciesSet(t *testing.T) {

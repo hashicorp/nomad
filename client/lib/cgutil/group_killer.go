@@ -59,7 +59,7 @@ func (d *killer) v1(cgroup *configs.Cgroup) error {
 	}
 
 	// the actual path to our tasks freezer cgroup
-	path := cgroup.Path
+	path := cgroup.Paths[freezer]
 
 	d.logger.Trace("killing processes", "cgroup_path", path, "cgroup_version", "v1", "executor_pid", d.pid)
 

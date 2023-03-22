@@ -1,5 +1,5 @@
 /* eslint-disable qunit/require-expect */
-import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
+import { currentURL, find, visit } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -10,15 +10,12 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import percySnapshot from '@percy/ember';
-import faker from 'nomad-ui/mirage/faker';
-import moment from 'moment';
-import { run } from '@ember/runloop';
-import { allScenarios } from '../../mirage/scenarios/default';
 
 let job;
 let node;
 let managementToken;
 let clientToken;
+
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
@@ -26,7 +23,6 @@ module('Acceptance | tokens', function (hooks) {
   hooks.beforeEach(function () {
     window.localStorage.clear();
     window.sessionStorage.clear();
-    faker.seed(1);
 
     server.create('agent');
     node = server.create('node');
@@ -51,7 +47,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.equal(document.title, 'Authorization - Mirage - Nomad');
+    assert.equal(document.title, 'Tokens - Nomad');
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -184,153 +180,6 @@ module('Acceptance | tokens', function (hooks) {
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
 
-  test('it handles expiring tokens', async function (assert) {
-    // Soon-expiring token
-    const expiringToken = server.create('token', {
-      name: "Time's a-tickin",
-      expirationTime: moment().add(1, 'm').toDate(),
-    });
-
-    await Tokens.visit();
-
-    // Token with no TTL
-    await Tokens.secret(clientToken.secretId).submit();
-    assert
-      .dom('[data-test-token-expiry]')
-      .doesNotExist('No expiry shown for regular token');
-
-    await Tokens.clear();
-
-    // https://ember-concurrency.com/docs/testing-debugging/
-    setTimeout(() => run.cancelTimers(), 500);
-
-    // Token with TTL
-    await Tokens.secret(expiringToken.secretId).submit();
-    assert
-      .dom('[data-test-token-expiry]')
-      .exists('Expiry shown for TTL-having token');
-
-    // TTL Action
-    await Jobs.visit();
-    assert
-      .dom('.flash-message.alert-warning button')
-      .exists('A global alert exists and has a clickable button');
-
-    await click('.flash-message.alert-warning button');
-    assert.equal(
-      currentURL(),
-      '/settings/tokens',
-      'Redirected to tokens page on notification action'
-    );
-  });
-
-  test('it handles expired tokens', async function (assert) {
-    const expiredToken = server.create('token', {
-      name: 'Well past due',
-      expirationTime: moment().add(-5, 'm').toDate(),
-    });
-
-    // GC'd or non-existent token, from localStorage or otherwise
-    window.localStorage.nomadTokenSecret = expiredToken.secretId;
-    await Tokens.visit();
-    assert
-      .dom('[data-test-token-expired]')
-      .exists('Warning banner shown for expired token');
-  });
-
-  test('it forces redirect on an expired token', async function (assert) {
-    const expiredToken = server.create('token', {
-      name: 'Well past due',
-      expirationTime: moment().add(-5, 'm').toDate(),
-    });
-
-    window.localStorage.nomadTokenSecret = expiredToken.secretId;
-    const expiredServerError = {
-      errors: [
-        {
-          detail: 'ACL token expired',
-        },
-      ],
-    };
-    server.pretender.get('/v1/jobs', function () {
-      return [500, {}, JSON.stringify(expiredServerError)];
-    });
-
-    await Jobs.visit();
-    assert.equal(
-      currentURL(),
-      '/settings/tokens',
-      'Redirected to tokens page due to an expired token'
-    );
-  });
-
-  test('it forces redirect on a not-found token', async function (assert) {
-    const longDeadToken = server.create('token', {
-      name: 'dead and gone',
-      expirationTime: moment().add(-5, 'h').toDate(),
-    });
-
-    window.localStorage.nomadTokenSecret = longDeadToken.secretId;
-    const notFoundServerError = {
-      errors: [
-        {
-          detail: 'ACL token not found',
-        },
-      ],
-    };
-    server.pretender.get('/v1/jobs', function () {
-      return [500, {}, JSON.stringify(notFoundServerError)];
-    });
-
-    await Jobs.visit();
-    assert.equal(
-      currentURL(),
-      '/settings/tokens',
-      'Redirected to tokens page due to a token not being found'
-    );
-  });
-
-  test('it notifies you when your token has 10 minutes remaining', async function (assert) {
-    let notificationRendered = assert.async();
-    let notificationNotRendered = assert.async();
-    window.localStorage.clear();
-    assert.equal(
-      window.localStorage.nomadTokenSecret,
-      null,
-      'No token secret set'
-    );
-    assert.timeout(6000);
-    const nearlyExpiringToken = server.create('token', {
-      name: 'Not quite dead yet',
-      expirationTime: moment().add(10, 'm').add(5, 's').toDate(),
-    });
-
-    await Tokens.visit();
-
-    // Ember Concurrency makes testing iterations convoluted: https://ember-concurrency.com/docs/testing-debugging/
-    // Waiting for half a second to validate that there's no warning;
-    // then a further 5 seconds to validate that there is a warning, and to explicitly cancelAllTimers(),
-    // short-circuiting our Ember Concurrency loop.
-    setTimeout(() => {
-      assert
-        .dom('.flash-message.alert-warning')
-        .doesNotExist('No notification yet for a token with 10m5s left');
-      notificationNotRendered();
-      setTimeout(async () => {
-        await percySnapshot(assert, {
-          percyCSS: '[data-test-expiration-timestamp] { display: none; }',
-        });
-
-        assert
-          .dom('.flash-message.alert-warning')
-          .exists('Notification is rendered at the 10m mark');
-        notificationRendered();
-        run.cancelTimers();
-      }, 5000);
-    }, 500);
-    await Tokens.secret(nearlyExpiringToken.secretId).submit();
-  });
-
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function (assert) {
     const { oneTimeSecret, secretId } = managementToken;
 
@@ -350,70 +199,6 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
-  test('SSO Sign-in flow: Manager', async function (assert) {
-    server.create('auth-method', { name: 'vault' });
-    server.create('auth-method', { name: 'cognito' });
-    server.create('token', { name: 'Thelonious' });
-
-    await Tokens.visit();
-    assert.dom('[data-test-auth-method]').exists({ count: 2 });
-    await click('button[data-test-auth-method]');
-    assert.ok(currentURL().startsWith('/oidc-mock'));
-    let managerButton = [...findAll('button')].filter((btn) =>
-      btn.textContent.includes('Sign In as Manager')
-    )[0];
-
-    assert.dom(managerButton).exists();
-    await click(managerButton);
-
-    await percySnapshot(assert);
-
-    assert.ok(currentURL().startsWith('/settings/tokens'));
-    assert.dom('[data-test-token-name]').includesText('Token: Manager');
-  });
-
-  test('SSO Sign-in flow: Regular User', async function (assert) {
-    server.create('auth-method', { name: 'vault' });
-    server.create('token', { name: 'Thelonious' });
-
-    await Tokens.visit();
-    assert.dom('[data-test-auth-method]').exists({ count: 1 });
-    await click('button[data-test-auth-method]');
-    assert.ok(currentURL().startsWith('/oidc-mock'));
-    let newTokenButton = [...findAll('button')].filter((btn) =>
-      btn.textContent.includes('Sign In as Thelonious')
-    )[0];
-    assert.dom(newTokenButton).exists();
-    await click(newTokenButton);
-
-    assert.ok(currentURL().startsWith('/settings/tokens'));
-    assert.dom('[data-test-token-name]').includesText('Token: Thelonious');
-  });
-
-  test('It shows an error on failed SSO', async function (assert) {
-    server.create('auth-method', { name: 'vault' });
-    await visit('/settings/tokens?state=failure');
-    assert.ok(Tokens.ssoErrorMessage);
-    await Tokens.clearSSOError();
-    assert.equal(currentURL(), '/settings/tokens', 'State query param cleared');
-    assert.notOk(Tokens.ssoErrorMessage);
-
-    await click('button[data-test-auth-method]');
-    assert.ok(currentURL().startsWith('/oidc-mock'));
-
-    let failureButton = find('.button.error');
-    assert.dom(failureButton).exists();
-    await click(failureButton);
-    assert.equal(
-      currentURL(),
-      '/settings/tokens?state=failure',
-      'Redirected with failure state'
-    );
-
-    await percySnapshot(assert);
-    assert.ok(Tokens.ssoErrorMessage);
-  });
-
   test('when the ott exchange fails an error is shown', async function (assert) {
     await visit('/?ott=fake');
 
@@ -423,123 +208,6 @@ module('Acceptance | tokens', function (hooks) {
       Layout.error.message,
       'Failed to exchange the one-time token.'
     );
-  });
-
-  test('Tokens are shown on the policies index page', async function (assert) {
-    allScenarios.policiesTestCluster(server);
-    // Create an expired token
-    server.create('token', {
-      name: 'Expired Token',
-      id: 'just-expired',
-      policyIds: [server.db.policies[0].name],
-      expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
-    });
-
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-    assert.dom('[data-test-policy-token-count]').exists();
-    const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
-      return token.policyIds.includes(server.db.policies[0].name);
-    });
-    assert
-      .dom('[data-test-policy-total-tokens]')
-      .hasText(expectedFirstPolicyTokens.length.toString());
-    assert.dom('[data-test-policy-expired-tokens]').hasText('(1 expired)');
-    window.localStorage.nomadTokenSecret = null;
-  });
-
-  test('Tokens are shown on a policy page', async function (assert) {
-    allScenarios.policiesTestCluster(server);
-    // Create an expired token
-    server.create('token', {
-      name: 'Expired Token',
-      id: 'just-expired',
-      policyIds: [server.db.policies[0].name],
-      expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
-    });
-
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
-
-    const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
-      return token.policyIds.includes(server.db.policies[0].name);
-    });
-
-    assert
-      .dom('[data-test-policy-token-row]')
-      .exists(
-        { count: expectedFirstPolicyTokens.length },
-        'Expected number of tokens are shown'
-      );
-    assert.dom('[data-test-token-expiration-time]').hasText('10 minutes ago');
-
-    window.localStorage.nomadTokenSecret = null;
-  });
-
-  test('Tokens Deletion', async function (assert) {
-    allScenarios.policiesTestCluster(server);
-    // Create an expired token
-    server.create('token', {
-      name: 'Doomed Token',
-      id: 'enjoying-my-day-here',
-      policyIds: [server.db.policies[0].name],
-    });
-
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
-
-    assert
-      .dom('[data-test-policy-token-row]')
-      .exists({ count: 3 }, 'Expected number of tokens are shown');
-
-    const doomedTokenRow = [...findAll('[data-test-policy-token-row]')].find(
-      (a) => a.textContent.includes('Doomed Token')
-    );
-
-    assert.dom(doomedTokenRow).exists();
-
-    await click(doomedTokenRow.querySelector('button'));
-    assert
-      .dom(doomedTokenRow.querySelector('[data-test-confirm-button]'))
-      .exists();
-    await click(doomedTokenRow.querySelector('[data-test-confirm-button]'));
-    assert.dom('.flash-message.alert-success').exists();
-    assert
-      .dom('[data-test-policy-token-row]')
-      .exists({ count: 2 }, 'One fewer token after deletion');
-    await percySnapshot(assert);
-    window.localStorage.nomadTokenSecret = null;
-  });
-
-  test('Test Token Creation', async function (assert) {
-    allScenarios.policiesTestCluster(server);
-
-    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
-
-    assert
-      .dom('[data-test-policy-token-row]')
-      .exists({ count: 2 }, 'Expected number of tokens are shown');
-
-    await click('[data-test-create-test-token]');
-    assert.dom('.flash-message.alert-success').exists();
-    assert
-      .dom('[data-test-policy-token-row]')
-      .exists({ count: 3 }, 'One more token after test token creation');
-    assert
-      .dom('[data-test-policy-token-row]:last-child [data-test-token-name]')
-      .hasText(`Example Token for ${server.db.policies[0].name}`);
-    await percySnapshot(assert);
-    window.localStorage.nomadTokenSecret = null;
   });
 
   function getHeader({ requestHeaders }, name) {

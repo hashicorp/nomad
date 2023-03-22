@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2067,11 +2066,11 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 			}
 
 			sJob, sWriteReq := srv.apiJobAndRequestToStructs(job, req, apiReq)
-			must.Eq(t, tc.expectedJobRegion, sJob.Region)
-			must.Eq(t, tc.expectedNamespace, sJob.Namespace)
-			must.Eq(t, tc.expectedNamespace, sWriteReq.Namespace)
-			must.Eq(t, tc.expectedRequestRegion, sWriteReq.Region)
-			must.Eq(t, tc.expectedToken, sWriteReq.AuthToken)
+			require.Equal(t, tc.expectedJobRegion, sJob.Region)
+			require.Equal(t, tc.expectedNamespace, sJob.Namespace)
+			require.Equal(t, tc.expectedNamespace, sWriteReq.Namespace)
+			require.Equal(t, tc.expectedRequestRegion, sWriteReq.Region)
+			require.Equal(t, tc.expectedToken, sWriteReq.AuthToken)
 		})
 	}
 }
@@ -2518,9 +2517,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
-						TaggedAddresses: map[string]string{
-							"wan": "1.2.3.4",
-						},
 						CheckRestart: &api.CheckRestart{
 							Limit: 4,
 							Grace: pointer.Of(11 * time.Second),
@@ -2748,7 +2744,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: pointer.Of(5 * time.Second),
 									Max: pointer.Of(10 * time.Second),
 								},
-								ErrMissingKey: pointer.Of(true),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -2927,10 +2922,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
-						TaggedAddresses: map[string]string{
-							"wan": "1.2.3.4",
-						},
-						OnUpdate: structs.OnUpdateRequireHealthy,
+						OnUpdate: "require_healthy",
 						Checks: []*structs.ServiceCheck{
 							{
 								Name:          "bar",
@@ -2954,7 +2946,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName:               "task1",
-								OnUpdate:               structs.OnUpdateRequireHealthy,
+								OnUpdate:               "require_healthy",
 								SuccessBeforePassing:   2,
 								FailuresBeforeCritical: 3,
 							},
@@ -3024,7 +3016,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
-								OnUpdate: structs.OnUpdateRequireHealthy,
+								OnUpdate: "require_healthy",
 								Checks: []*structs.ServiceCheck{
 									{
 										Name:                   "bar",
@@ -3047,7 +3039,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Grace:          11 * time.Second,
 											IgnoreWarnings: true,
 										},
-										OnUpdate: structs.OnUpdateRequireHealthy,
+										OnUpdate: "require_healthy",
 									},
 									{
 										Name:      "check2",
@@ -3059,7 +3051,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Limit: 4,
 											Grace: 11 * time.Second,
 										},
-										OnUpdate: structs.OnUpdateRequireHealthy,
+										OnUpdate: "require_healthy",
 									},
 								},
 							},
@@ -3162,7 +3154,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Min: pointer.Of(5 * time.Second),
 									Max: pointer.Of(10 * time.Second),
 								},
-								ErrMissingKey: true,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
@@ -3547,17 +3538,16 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT", "/v1/validate/job", buf)
-		must.NoError(t, err)
+		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.ValidateJobRequest(respW, req)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		// Check the response
 		resp := obj.(structs.JobValidateResponse)
-		must.StrContains(t, resp.Error, `Job type "system" does not allow migrate block`)
-		must.Len(t, 1, resp.ValidationErrors)
+		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
 	})
 }
 
@@ -3710,7 +3700,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		LocalBindPort:        8000,
 		Datacenter:           "dc2",
 		LocalBindAddress:     "127.0.0.2",
-		MeshGateway:          structs.ConsulMeshGateway{Mode: "local"},
+		MeshGateway:          &structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
@@ -3723,8 +3713,8 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 
 func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Equal(t, structs.ConsulMeshGateway{}, apiMeshGatewayToStructs(nil))
-	require.Equal(t, structs.ConsulMeshGateway{Mode: "remote"},
+	require.Nil(t, apiMeshGatewayToStructs(nil))
+	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
 		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 

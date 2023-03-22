@@ -87,7 +87,7 @@ export default function browseFilesystem({
         `${pathWithLeadingSlash} - ${getTitleComponent({
           allocation: this.allocation,
           task: this.task,
-        })} - Mirage - Nomad`
+        })} - Nomad`
       );
       assert.equal(
         FS.breadcrumbsText,

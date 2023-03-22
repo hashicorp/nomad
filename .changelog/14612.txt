@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: adds a sidebar to show in-page logs for a given task, accessible via job, client, or task group routes
-```

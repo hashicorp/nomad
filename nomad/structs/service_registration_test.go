@@ -21,7 +21,7 @@ func TestServiceRegistration_Copy(t *testing.T) {
 		Port:        23813,
 	}
 	newSR := sr.Copy()
-	require.True(t, sr.Equal(newSR))
+	require.True(t, sr.Equals(newSR))
 }
 
 func TestServiceRegistration_Equal(t *testing.T) {
@@ -377,7 +377,7 @@ func TestServiceRegistration_Equal(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualOutput := tc.serviceReg1.Equal(tc.serviceReg2)
+			actualOutput := tc.serviceReg1.Equals(tc.serviceReg2)
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}

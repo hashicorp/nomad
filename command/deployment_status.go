@@ -48,10 +48,6 @@ Status Options:
   -monitor
     Enter monitor mode to poll for updates to the deployment status.
 
-  -wait
-    How long to wait before polling an update, used in conjunction with monitor
-    mode. Defaults to 2s.
-
   -t
     Format and display deployment using a Go template.
 `
@@ -91,7 +87,6 @@ func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {
 	var json, verbose, monitor bool
-	var wait time.Duration
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -100,7 +95,6 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	flags.BoolVar(&json, "json", false, "")
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-	flags.DurationVar(&wait, "wait", 2*time.Second, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -178,7 +172,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 
 		c.Ui.Output(fmt.Sprintf("%s: Monitoring deployment %q",
 			formatTime(time.Now()), limit(deploy.ID, length)))
-		c.monitor(client, deploy.ID, meta.LastIndex, wait, verbose)
+		c.monitor(client, deploy.ID, meta.LastIndex, verbose)
 
 		return 0
 	}
@@ -186,11 +180,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, wait time.Duration, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
 	if isStdoutTerminal() {
-		return c.ttyMonitor(client, deployID, index, wait, verbose)
+		return c.ttyMonitor(client, deployID, index, verbose)
 	} else {
-		return c.defaultMonitor(client, deployID, index, wait, verbose)
+		return c.defaultMonitor(client, deployID, index, verbose)
 	}
 }
 
@@ -213,7 +207,7 @@ func isStdoutTerminal() bool {
 // but only used for tty and non-Windows machines since glint doesn't work with
 // cmd/PowerShell and non-interactive interfaces
 // Margins are used to match the text alignment from job run
-func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, wait time.Duration, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
 	var length int
 	if verbose {
 		length = fullId
@@ -239,7 +233,7 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	q := api.QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
-		WaitTime:   wait,
+		WaitTime:   2 * time.Second,
 	}
 
 	var statusComponent *glint.LayoutComponent
@@ -337,7 +331,7 @@ UPDATE:
 				}
 
 				d.Close()
-				c.ttyMonitor(client, rollback.ID, index, wait, verbose)
+				c.ttyMonitor(client, rollback.ID, index, verbose)
 				return
 			} else {
 				endSpinner = glint.Layout(
@@ -367,7 +361,7 @@ UPDATE:
 }
 
 // Used for Windows and non-tty
-func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, wait time.Duration, verbose bool) (status string, err error) {
+func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, verbose bool) (status string, err error) {
 	writer := uilive.New()
 	writer.Start()
 	defer writer.Stop()
@@ -382,7 +376,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 	q := api.QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
-		WaitTime:   wait,
+		WaitTime:   2 * time.Second,
 	}
 
 	for {
@@ -444,7 +438,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 				if rollback == nil || rollback.ID == deploy.ID {
 					return
 				}
-				c.defaultMonitor(client, rollback.ID, index, wait, verbose)
+				c.defaultMonitor(client, rollback.ID, index, verbose)
 			}
 			return
 
@@ -484,10 +478,11 @@ func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, 
 		return nil, nil, err
 	}
 
-	switch len(deploys) {
-	case 0:
+	l := len(deploys)
+	switch {
+	case l == 0:
 		return nil, nil, fmt.Errorf("Deployment ID %q matched no deployments", dID)
-	case 1:
+	case l == 1:
 		return deploys[0], nil, nil
 	default:
 		return nil, deploys, nil
@@ -513,8 +508,7 @@ func formatDeployment(c *api.Client, d *api.Deployment, uuidLength int) string {
 	if d.IsMultiregion {
 		regions, err := fetchMultiRegionDeployments(c, d)
 		if err != nil {
-			base += "\n\nError fetching multiregion deployment\n\n"
-			base += fmt.Sprintf("%v\n\n", err)
+			base += "\n\nError fetching Multiregion deployments\n\n"
 		} else if len(regions) > 0 {
 			base += "\n\n[bold]Multiregion Deployment[reset]\n"
 			base += formatMultiregionDeployment(regions, uuidLength)
@@ -540,7 +534,7 @@ func fetchMultiRegionDeployments(c *api.Client, d *api.Deployment) (map[string]*
 
 	job, _, err := c.Jobs().Info(d.JobID, &api.QueryOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching job: %v", err)
+		return nil, err
 	}
 
 	requests := make(chan regionResult, len(job.Multiregion.Regions))
@@ -572,7 +566,7 @@ func fetchRegionDeployment(c *api.Client, d *api.Deployment, region *api.Multire
 	opts := &api.QueryOptions{Region: region.Name}
 	deploys, _, err := c.Jobs().Deployments(d.JobID, false, opts)
 	if err != nil {
-		return nil, fmt.Errorf("Error fetching deployments for job %s: %v", d.JobID, err)
+		return nil, err
 	}
 	for _, dep := range deploys {
 		if dep.JobVersion == d.JobVersion {

@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update gopsutil for improvements in fingerprinting on non-Linux platforms
-```

@@ -2,7 +2,6 @@ package docklog
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -10,12 +9,12 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	ctu "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
 
 func testContainerDetails() (image string, imageName string, imageTag string) {

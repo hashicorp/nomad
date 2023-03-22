@@ -114,10 +114,8 @@ server {
   job_gc_threshold              = "12h"
   eval_gc_threshold             = "12h"
   deployment_gc_threshold       = "12h"
-  csi_volume_claim_gc_interval  = "3m"
   csi_volume_claim_gc_threshold = "12h"
   csi_plugin_gc_threshold       = "12h"
-  acl_token_gc_threshold        = "12h"
   heartbeat_grace               = "30s"
   min_heartbeat_ttl             = "33s"
   max_heartbeats_per_second     = 11.0
@@ -134,8 +132,6 @@ server {
   raft_multiplier               = 4
   enable_event_broker           = false
   event_buffer_size             = 200
-  job_default_priority          = 100
-  job_max_priority              = 200
 
   plan_rejection_tracker {
     enabled        = true
@@ -163,13 +159,10 @@ server {
 }
 
 acl {
-  enabled                  = true
-  token_ttl                = "60s"
-  policy_ttl               = "60s"
-  role_ttl                 = "60s"
-  token_min_expiration_ttl = "1h"
-  token_max_expiration_ttl = "100h"
-  replication_token        = "foobar"
+  enabled           = true
+  token_ttl         = "60s"
+  policy_ttl        = "60s"
+  replication_token = "foobar"
 }
 
 audit {

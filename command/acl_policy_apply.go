@@ -32,21 +32,6 @@ Apply Options:
   -description
     Specifies a human readable description for the policy.
 
-  -job
-    Attaches the policy to the specified job. Requires that -namespace is
-    also set.
-
-  -namespace
-    Attaches the policy to the specified namespace. Requires that -job is
-    also set.
-
-  -group
-    Attaches the policy to the specified task group. Requires that -namespace
-    and -job are also set.
-
-  -task
-    Attaches the policy to the specified task. Requires that -namespace, -job
-    and -group are also set.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -68,16 +53,9 @@ func (c *ACLPolicyApplyCommand) Name() string { return "acl policy apply" }
 
 func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	var description string
-	var jobID, group, task string // namespace is included in default flagset
-
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
-
-	flags.StringVar(&jobID, "job", "", "attach policy to job")
-	flags.StringVar(&group, "group", "", "attach policy to group")
-	flags.StringVar(&task, "task", "", "attach policy to task")
-
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -111,35 +89,11 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 		}
 	}
 
-	f := flags.Lookup("namespace")
-	namespace := f.Value.String()
-
-	if jobID != "" && namespace == "" {
-		c.Ui.Error("-namespace is required if -job is set")
-		return 1
-	}
-	if group != "" && jobID == "" {
-		c.Ui.Error("-job is required if -group is set")
-		return 1
-	}
-	if task != "" && group == "" {
-		c.Ui.Error("-group is required if -task is set")
-		return 1
-	}
-
 	// Construct the policy
 	ap := &api.ACLPolicy{
 		Name:        policyName,
 		Description: description,
 		Rules:       string(rawPolicy),
-	}
-	if namespace != "" {
-		ap.JobACL = &api.JobACL{
-			Namespace: namespace,
-			JobID:     jobID,
-			Group:     group,
-			Task:      task,
-		}
 	}
 
 	// Get the HTTP client

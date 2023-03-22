@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -88,7 +89,7 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 -----END CERTIFICATE-----
 `
 
-	tmpCAFile, err := os.CreateTemp("/tmp", "test_ca_file")
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
 	require.NoError(err)
 	defer os.Remove(tmpCAFile.Name())
 
@@ -166,7 +167,7 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 ...outside of -----XXX----- blocks?
 `
 
-	tmpCAFile, err := os.CreateTemp("/tmp", "test_ca_file_extra")
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file_extra")
 	require.NoError(err)
 	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
@@ -209,7 +210,7 @@ Ln2ZUe8CIDsQswBQS7URbqnKYDye2Y4befJkr4fmhhmMQb2ex9A4
 Invalid
 -----END CERTIFICATE-----`
 
-	tmpCAFile, err := os.CreateTemp("/tmp", "test_ca_file")
+	tmpCAFile, err := ioutil.TempFile("/tmp", "test_ca_file")
 	require.NoError(err)
 	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
@@ -241,7 +242,7 @@ func TestConfig_AppendCA_Invalid(t *testing.T) {
 	}
 
 	{
-		tmpFile, err := os.CreateTemp("/tmp", "test_ca_file")
+		tmpFile, err := ioutil.TempFile("/tmp", "test_ca_file")
 		require.Nil(err)
 		defer os.Remove(tmpFile.Name())
 		_, err = tmpFile.Write([]byte("Invalid CA Content!"))
@@ -492,7 +493,7 @@ func startTLSServer(config *Config) (net.Conn, chan error) {
 		// server read any data from the client until error or
 		// EOF, which will allow the client to Close(), and
 		// *then* we Close() the server.
-		io.Copy(io.Discard, tlsServer)
+		io.Copy(ioutil.Discard, tlsServer)
 		tlsServer.Close()
 	}()
 	return clientConn, errc

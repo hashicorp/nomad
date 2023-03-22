@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Made task rows in Allocation tables look more aligned with their parent
-```

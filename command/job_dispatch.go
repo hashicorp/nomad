@@ -33,10 +33,7 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   detach flag.
 
   When ACLs are enabled, this command requires a token with the 'dispatch-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  capability for the job's namespace.
 
 General Options:
 
@@ -59,9 +56,6 @@ Dispatch Options:
   -idempotency-token
     Optional identifier used to prevent more than one instance of the job from
     being dispatched.
-
-  -id-prefix-template
-    Optional prefix template for dispatched job IDs.
 
   -verbose
     Display full information.
@@ -113,7 +107,6 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	var detach, verbose bool
 	var idempotencyToken string
 	var meta []string
-	var idPrefixTemplate string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -121,7 +114,6 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&idempotencyToken, "idempotency-token", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
-	flags.StringVar(&idPrefixTemplate, "id-prefix-template", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -141,6 +133,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
+	job := args[0]
 	var payload []byte
 	var readErr error
 
@@ -177,22 +170,11 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if the job exists
-	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
-		return j.ParameterizedJob
-	})
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-
 	// Dispatch the job
 	w := &api.WriteOptions{
 		IdempotencyToken: idempotencyToken,
-		Namespace:        namespace,
 	}
-	resp, _, err := client.Jobs().Dispatch(jobID, metaMap, payload, idPrefixTemplate, w)
+	resp, _, err := client.Jobs().Dispatch(job, metaMap, payload, w)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1
