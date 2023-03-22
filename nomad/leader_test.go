@@ -580,9 +580,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 		ID:        job.ID,
 		Namespace: job.Namespace,
 	}
-	if _, tracked := s1.periodicDispatcher.tracked[tuple]; !tracked {
-		t.Fatalf("periodic job not restored")
-	}
+	must.MapContainsKey(t, s1.periodicDispatcher.tracked, tuple, must.Sprint("periodic job not restored"))
 
 	// Check that an eval was made.
 	ws := memdb.NewWatchSet()
