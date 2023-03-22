@@ -1,3 +1,0 @@
-```release-note:breaking-change
-acl: Job evaluate endpoit now requires `submit-job` instead of `read-job` capability
-```
