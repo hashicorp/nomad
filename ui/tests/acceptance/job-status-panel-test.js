@@ -429,14 +429,16 @@ module('Acceptance | job status panel', function (hooks) {
         groupTaskCount,
         shallow: true,
         activeDeployment: true,
+        version: 0,
       });
 
       let state = server.create('task-state');
       state.events = server.schema.taskEvents.where({ taskStateId: state.id });
 
-      server.schema.allocations
-        .where({ jobId: job.id })
-        .update({ taskStateIds: [state.id] });
+      server.schema.allocations.where({ jobId: job.id }).update({
+        taskStateIds: [state.id],
+        jobVersion: 0,
+      });
 
       await visit(`/jobs/${job.id}`);
       assert.dom('.job-status-panel').exists();

@@ -12,7 +12,5 @@ export default Factory.extend({
   exitCode: () => null,
   time: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
 
-  // TODO: I think this is probably an archaic property name. See if tests collapse with this removal and decide to remove then.
-  // displayMessage: () => faker.lorem.sentence(),
   message: () => faker.lorem.sentence(),
 });

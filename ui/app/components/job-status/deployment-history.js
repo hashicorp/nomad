@@ -55,7 +55,7 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
             .flat()
         )
         .flat()
-        .filter((a) => this.filterOnSearchTerm(a))
+        .filter((a) => this.containsSearchTerm(a))
         .sort((a, b) => a.get('time') - b.get('time'))
         .reverse();
     } catch (e) {
@@ -84,7 +84,7 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
    * @param { import('../../models/task-event').default } taskEvent
    * @returns { boolean }
    */
-  filterOnSearchTerm(taskEvent) {
+  containsSearchTerm(taskEvent) {
     return (
       taskEvent.message.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
       taskEvent.type.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
