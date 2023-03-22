@@ -422,19 +422,11 @@ func (j *JobGetter) Validate() error {
 }
 
 // ApiJob returns the Job struct from jobfile.
-func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
-	return j.ApiJobWithArgs(jpath, nil, nil, true)
-}
-
-func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string, strict bool) (*api.Job, error) {
-	j.Vars = vars
-	j.VarFiles = varfiles
-	j.Strict = strict
-
+func (j *JobGetter) ApiJob(jpath string) (*api.JobSubmission, *api.Job, error) {
 	return j.Get(jpath)
 }
 
-func (j *JobGetter) Get(jpath string) (*api.Job, error) {
+func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -447,23 +439,23 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		pathName = "stdin"
 	default:
 		if len(jpath) == 0 {
-			return nil, fmt.Errorf("Error jobfile path has to be specified.")
+			return nil, nil, fmt.Errorf("Error jobfile path has to be specified.")
 		}
 
 		jobFile, err := os.CreateTemp("", "jobfile")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		defer os.Remove(jobFile.Name())
 
 		if err := jobFile.Close(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// Get the pwd
 		pwd, err := os.Getwd()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		client := &gg.Client{
@@ -476,11 +468,11 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		}
 
 		if err := client.Get(); err != nil {
-			return nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
+			return nil, nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
 		} else {
 			file, err := os.Open(jobFile.Name())
 			if err != nil {
-				return nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
+				return nil, nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
 			}
 			defer file.Close()
 			jobfile = file
@@ -502,7 +494,7 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		}{}
 
 		if err := json.NewDecoder(jobfile).Decode(&eitherJob); err != nil {
-			return nil, fmt.Errorf("Failed to parse JSON job: %w", err)
+			return nil, nil, fmt.Errorf("Failed to parse JSON job: %w", err)
 		}
 
 		if eitherJob.NestedJob != nil {
@@ -514,7 +506,7 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		var buf bytes.Buffer
 		_, err = io.Copy(&buf, jobfile)
 		if err != nil {
-			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+			return nil, nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
 		}
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
@@ -528,16 +520,16 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 
 		if err != nil {
 			if _, merr := jobspec.Parse(&buf); merr == nil {
-				return nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
+				return nil, nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
 			}
 		}
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
+		return nil, nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
 
-	return jobStruct, nil
+	return nil, jobStruct, nil
 }
 
 // mergeAutocompleteFlags is used to join multiple flag completion sets.

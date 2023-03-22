@@ -366,7 +366,13 @@ job "example" {
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, true)
+	jg := &JobGetter{
+		Vars:     cliArgs,
+		VarFiles: []string{vf.Name()},
+		Strict:   true,
+	}
+
+	_, j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -415,7 +421,13 @@ unsedVar2 = "from-varfile"
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, false)
+	jg := &JobGetter{
+		Vars:     cliArgs,
+		VarFiles: []string{vf.Name()},
+		Strict:   false,
+	}
+
+	_, j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)

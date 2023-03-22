@@ -863,6 +863,16 @@ type ParameterizedJobConfig struct {
 	MetaOptional []string `mapstructure:"meta_optional" hcl:"meta_optional,optional"`
 }
 
+// JobSubmission is used to hold information about the original content of a job
+// specification being submitted to Nomad.
+//
+// A JobSubmission may be nil, indicating no information is known about the job
+// submission.
+type JobSubmission struct {
+	HCL       string
+	Variables map[string]string
+}
+
 // Job is used to serialize a job.
 type Job struct {
 	/* Fields parsed from HCL config */
