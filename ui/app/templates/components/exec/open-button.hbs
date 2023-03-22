@@ -5,7 +5,12 @@
     class="button exec-button is-outline is-small {{if cannotExec "tooltip"}}"
     disabled={{if cannotExec 'disabled'}}
     aria-label={{if cannotExec "You don’t have permission to exec"}}
-    {{action "open"}}>
+    {{action "open"}}
+    {{keyboard-shortcut 
+      label="Exec"
+      pattern=(array "e" "x" "e" "c")
+      action=(action "open")
+    }}>
     {{x-icon "console"}}
     <span>Exec</span>
   </button>
