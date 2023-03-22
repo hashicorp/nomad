@@ -780,7 +780,6 @@ func (s *Server) restorePeriodicDispatcher() error {
 		if err != nil {
 			return fmt.Errorf("failed to get job status: %v", err)
 		}
-
 		if !needed {
 			continue
 		}
