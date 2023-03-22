@@ -411,7 +411,7 @@ func TestLeader_PeriodicDispatcher_Restore_NoEvals(t *testing.T) {
 	now := time.Now()
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
@@ -571,7 +571,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 	s1.periodicDispatcher.SetEnabled(false)
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)
@@ -644,7 +644,7 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_Running_Job(t *testing.T) {
 	s1.periodicDispatcher.SetEnabled(false)
 
 	// Sleep till after the job should have been launched.
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// Restore the periodic dispatcher.
 	s1.periodicDispatcher.SetEnabled(true)

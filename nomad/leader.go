@@ -774,18 +774,44 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		eval, err := s.periodicDispatcher.ForceRunIfNotRunning(job)
+		// We skip if the job doesn't allow overlap and there are already
+		// instances running
+		needed, err := s.isNewEvalNeeded(job)
 		if err != nil {
+			return fmt.Errorf("failed to get job status: %v", err)
+		}
+
+		if !needed {
+			continue
+		}
+
+		if _, err := s.periodicDispatcher.ForceRun(job.Namespace, job.ID); err != nil {
 			logger.Error("force run of periodic job failed", "job", job.NamespacedID(), "error", err)
 			return fmt.Errorf("force run of periodic job %q failed: %v", job.NamespacedID(), err)
 		}
 
-		if eval != nil {
-			logger.Debug("periodic job force ran during leadership establishment", "job", job.NamespacedID())
-		}
+		logger.Debug("periodic job force runned during leadership establishment", "job", job.NamespacedID())
 	}
 
 	return nil
+}
+
+// isNewEvalNeeded checks if the job allows for overlap and if there are already
+// instances of the job running in order to determine if a new evaluation needs to
+// be created upon periodic dispatcher restore
+func (s *Server) isNewEvalNeeded(job *structs.Job) (bool, error) {
+	if job.Periodic.ProhibitOverlap {
+		running, err := s.RunningChildren(job)
+		if err != nil {
+			return false, fmt.Errorf("failed to determine if periodic job has running children %q error %q", job.NamespacedID(), err)
+		}
+
+		if running {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // schedulePeriodic is used to do periodic job dispatch while we are leader
