@@ -444,7 +444,7 @@ type mockJobEvalDispatcher struct {
 	JobEvalDispatcher
 }
 
-func (mjed *mockJobEvalDispatcher) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
+func (mjed *mockJobEvalDispatcher) DispatchJob(_ *structs.Job) (*structs.Evaluation, error) {
 	mjed.forceEvalCalled = true
 	return mjed.evalToReturn, nil
 }
