@@ -111,8 +111,11 @@ module(
       //   deployment.get('statusDescription'),
       //   'Status description is in the metrics block'
       // );
-
-      await componentA11yAudit(this.element, assert);
+      await componentA11yAudit(
+        this.element,
+        assert,
+        'scrollable-region-focusable'
+      ); //keyframe animation fades from opacity 0
     });
 
     test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function (assert) {
