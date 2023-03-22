@@ -31,10 +31,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
         this.watchLatestDeployment.perform(model),
       list:
         model.get('hasChildren') &&
-        this.watchAllJobs.perform({
-          namespace: model.namespace.get('name'),
-          meta: true,
-        }),
+        this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),
       nodes:
         model.get('hasClientStatus') &&
         this.can.can('read client') &&

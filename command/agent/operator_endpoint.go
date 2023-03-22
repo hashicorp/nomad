@@ -2,20 +2,21 @@ package agent
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
+
+	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/raft"
-
 	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/raft"
 )
 
 // OperatorRequest is used route operator/raft API requests to the implementing
@@ -183,7 +184,7 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 		return nil, nil
 	}
 
-	var reply structs.OperatorHealthReply
+	var reply autopilot.OperatorHealthReply
 	if err := s.agent.RPC("Operator.ServerHealth", &args, &reply); err != nil {
 		return nil, err
 	}

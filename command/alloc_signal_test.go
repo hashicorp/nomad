@@ -19,7 +19,7 @@ func TestAllocSignalCommand_Implements(t *testing.T) {
 func TestAllocSignalCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
@@ -74,7 +74,7 @@ func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -98,7 +98,7 @@ func TestAllocSignalCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	// Wait for a node to be ready
 	waitForNodes(t, client)
@@ -114,12 +114,20 @@ func TestAllocSignalCommand_Run(t *testing.T) {
 	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
 	must.Zero(t, code)
 
-	// Get an alloc id
-	allocID := getAllocFromJob(t, client, jobID)
+	// get an alloc id
+	allocID := ""
+	if allocs, _, err := client.Jobs().Allocations(jobID, false, nil); err == nil {
+		if len(allocs) > 0 {
+			allocID = allocs[0].ID
+		}
+	}
+	must.NotEq(t, "", allocID)
 
 	// Wait for alloc to be running
 	waitForAllocRunning(t, client, allocID)
 
 	code = cmd.Run([]string{"-address=" + url, allocID})
 	must.Zero(t, code)
+
+	ui.OutputWriter.Reset()
 }

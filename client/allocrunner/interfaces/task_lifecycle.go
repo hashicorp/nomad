@@ -33,6 +33,8 @@ import (
                                   +-----------+
                                      *Kill
                                 (forces terminal)
+
+Link: http://stable.ascii-flow.appspot.com/#Draw4489375405966393064/1824429135
 */
 
 // TaskHook is a lifecycle hook into the life cycle of a task runner.
@@ -54,17 +56,11 @@ type TaskPrestartRequest struct {
 	// Vault token may optionally be set if a Vault token is available
 	VaultToken string
 
-	// NomadToken token may optionally be set if a Nomad token is available
-	NomadToken string
-
 	// TaskDir contains the task's directory tree on the host
 	TaskDir *allocdir.TaskDir
 
 	// TaskEnv is the task's environment
 	TaskEnv *taskenv.TaskEnv
-
-	// Alloc is the current version of the allocation
-	Alloc *structs.Allocation
 }
 
 type TaskPrestartResponse struct {
@@ -157,8 +153,6 @@ type TaskExitedHook interface {
 type TaskUpdateRequest struct {
 	VaultToken string
 
-	NomadToken string
-
 	// Alloc is the current version of the allocation (may have been
 	// updated since the hook was created)
 	Alloc *structs.Allocation
@@ -184,9 +178,6 @@ type TaskStopRequest struct {
 	// ExistingState is previously set hook data and should only be
 	// read. Stop hooks cannot alter state.
 	ExistingState map[string]string
-
-	// TaskDir contains the task's directory tree on the host
-	TaskDir *allocdir.TaskDir
 }
 
 type TaskStopResponse struct{}

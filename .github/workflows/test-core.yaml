@@ -10,7 +10,6 @@ on:
       - 'demo/**'
       - 'dev/**'
       - 'e2e/terraform/**'
-      - 'e2e/ui/**'
       - 'integrations/**'
       - 'pkg/**'
       - 'scripts/**'
@@ -41,8 +40,8 @@ on:
 env:
   VERBOSE: 1
   GOTESTARCH: amd64
-  CONSUL_VERSION: 1.14.4
-  VAULT_VERSION: 1.12.2
+  CONSUL_VERSION: 1.12.6
+  VAULT_VERSION: 1.12.0
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
 jobs:
@@ -88,7 +87,7 @@ jobs:
   tests-api:
     needs: [mods]
     runs-on: [custom, xl, 22.04]
-    timeout-minutes: 8
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
       - uses: hashicorp/setup-golang@v1

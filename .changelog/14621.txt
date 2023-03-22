@@ -1,3 +1,0 @@
-```release-note:improvement
-scheduler: when multiple evaluations are pending for the same job, evaluate the latest and cancel the intermediaries on success
-```

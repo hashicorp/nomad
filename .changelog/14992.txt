@@ -1,3 +1,0 @@
-```release-note:bug
-cli: prevent a panic when the Nomad API returns an error while collecting a debug bundle
-```

@@ -1,8 +1,6 @@
 package nomad
 
 import (
-	"time"
-
 	"github.com/hashicorp/go-hclog"
 	"golang.org/x/exp/slices"
 )
@@ -10,9 +8,6 @@ import (
 // LicenseConfig allows for tunable licensing config
 // primarily used for enterprise testing
 type LicenseConfig struct {
-	// BuildDate is the time of the git commit used to build the program.
-	BuildDate time.Time
-
 	// LicenseEnvBytes is the license bytes to use for the server's license
 	LicenseEnvBytes string
 

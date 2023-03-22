@@ -53,8 +53,7 @@ func TestEvalStatusCommand_Fails(t *testing.T) {
 	ui.ErrorWriter.Reset()
 
 	// Failed on both -json and -t options are specified
-	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}",
-		"12345678-abcd-efab-cdef-123456789abc"}); code != 1 {
+	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
 		t.Fatalf("expected exit 1, got: %d", code)
 	}
 	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {

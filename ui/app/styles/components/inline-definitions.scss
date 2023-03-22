@@ -17,14 +17,6 @@
     margin-right: 2em;
     white-space: nowrap;
 
-    &.is-wrappable {
-      white-space: normal;
-      display: block;
-      .tag {
-        vertical-align: middle;
-      }
-    }
-
     .term {
       font-weight: $weight-semibold;
       margin-right: 0.5em;

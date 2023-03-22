@@ -5,10 +5,8 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -128,94 +126,45 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	}
 
 	// Format the output
-	outputACLToken(c.Ui, token)
+	c.Ui.Output(formatKVACLToken(token))
 	return 0
 }
 
-// formatACLPolicy returns formatted policy
-func formatACLPolicy(policy *api.ACLPolicy) string {
+// formatKVPolicy returns a K/V formatted policy
+func formatKVPolicy(policy *api.ACLPolicy) string {
 	output := []string{
 		fmt.Sprintf("Name|%s", policy.Name),
 		fmt.Sprintf("Description|%s", policy.Description),
+		fmt.Sprintf("Rules|%s", policy.Rules),
 		fmt.Sprintf("CreateIndex|%v", policy.CreateIndex),
 		fmt.Sprintf("ModifyIndex|%v", policy.ModifyIndex),
 	}
-
-	formattedOut := formatKV(output)
-
-	if policy.JobACL != nil {
-		output := []string{
-			fmt.Sprintf("Namespace|%v", policy.JobACL.Namespace),
-			fmt.Sprintf("JobID|%v", policy.JobACL.JobID),
-			fmt.Sprintf("Group|%v", policy.JobACL.Group),
-			fmt.Sprintf("Task|%v", policy.JobACL.Task),
-		}
-		formattedOut += "\n\n[bold]Associated Workload[reset]\n"
-		formattedOut += formatKV(output)
-	}
-
-	// these are potentially large blobs so leave till the end
-	formattedOut += "\n\n[bold]Rules[reset]\n\n"
-	formattedOut += policy.Rules
-
-	return formattedOut
+	return formatKV(output)
 }
 
-// outputACLToken formats and outputs the ACL token via the UI in the correct
-// format.
-func outputACLToken(ui cli.Ui, token *api.ACLToken) {
-
-	// Build the initial KV output which is always the same not matter whether
-	// the token is a management or client type.
-	kvOutput := []string{
+// formatKVACLToken returns a K/V formatted ACL token
+func formatKVACLToken(token *api.ACLToken) string {
+	// Add the fixed preamble
+	output := []string{
 		fmt.Sprintf("Accessor ID|%s", token.AccessorID),
 		fmt.Sprintf("Secret ID|%s", token.SecretID),
 		fmt.Sprintf("Name|%s", token.Name),
 		fmt.Sprintf("Type|%s", token.Type),
 		fmt.Sprintf("Global|%v", token.Global),
+	}
+
+	// Special case the policy output
+	if token.Type == "management" {
+		output = append(output, "Policies|n/a")
+	} else {
+		output = append(output, fmt.Sprintf("Policies|%v", token.Policies))
+	}
+
+	// Add the generic output
+	output = append(output,
 		fmt.Sprintf("Create Time|%v", token.CreateTime),
-		fmt.Sprintf("Expiry Time |%s", expiryTimeString(token.ExpirationTime)),
 		fmt.Sprintf("Create Index|%d", token.CreateIndex),
 		fmt.Sprintf("Modify Index|%d", token.ModifyIndex),
-	}
-
-	// If the token is a management type, make it obvious that it is not
-	// possible to have policies or roles assigned to it and just output the
-	// KV data.
-	if token.Type == "management" {
-		kvOutput = append(kvOutput, "Policies|n/a", "Roles|n/a")
-		ui.Output(formatKV(kvOutput))
-	} else {
-
-		// Policies are only currently referenced by name, so keep the previous
-		// format. When/if policies gain an ID alongside name like roles, this
-		// output should follow that of the roles.
-		kvOutput = append(kvOutput, fmt.Sprintf("Policies|%v", token.Policies))
-
-		var roleOutput []string
-
-		// If we have linked roles, add the ID and name in a list format to the
-		// output. Otherwise, make it clear there are no linked roles.
-		if len(token.Roles) > 0 {
-			roleOutput = append(roleOutput, "ID|Name")
-			for _, roleLink := range token.Roles {
-				roleOutput = append(roleOutput, roleLink.ID+"|"+roleLink.Name)
-			}
-		} else {
-			roleOutput = append(roleOutput, "<none>")
-		}
-
-		// Output the mixed formats of data, ensuring there is a space between
-		// the KV and list data.
-		ui.Output(formatKV(kvOutput))
-		ui.Output("")
-		ui.Output(fmt.Sprintf("Roles\n%s", formatList(roleOutput)))
-	}
-}
-
-func expiryTimeString(t *time.Time) string {
-	if t == nil || t.IsZero() {
-		return "<none>"
-	}
-	return t.String()
+	)
+	return formatKV(output)
 }

@@ -42,12 +42,7 @@
             "path": "drivers/community/pot"
           },
           {
-            "title": "Rkt",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            },
+            "title": "Rkt <sup>Deprecated</sup> ",
             "path": "drivers/community/rkt"
           },
           {
@@ -102,12 +97,7 @@
             "path": "devices/community"
           },
           {
-            "title": "USB",
-            "badge": {
-              "text": "Beta",
-              "type": "outlined",
-              "color": "neutral"
-            },
+            "title": "USB <sup>Beta</sup>",
             "path": "devices/community/usb"
           }
         ]

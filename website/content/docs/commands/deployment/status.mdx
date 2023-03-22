@@ -20,8 +20,8 @@ nomad deployment status [options] <deployment id>
 The `deployment status` command requires a single argument, a deployment ID or
 prefix.
 
-A `-monitor` flag can be used to update the current deployment status until completion.
-When combined with `-verbose`, it will also display the allocations for the given
+A `-monitor` flag can be used to update the current deployment status until completion. 
+When combined with `-verbose`, it will also display the allocations for the given 
 deployment. If the deployment fails and [`auto_revert`] is set to `true`, it will monitor
 the entire process, showing the failure and then monitoring the deployment of the rollback.
 
@@ -38,8 +38,6 @@ capability for the deployment's namespace.
 - `-t` : Format and display the deployment using a Go template.
 - `-verbose`: Show full information.
 - `-monitor`: Enter monitor mode to poll for updates to the deployment status.
-- `-wait`: How long to wait before polling an update, used in conjunction with monitor
-    mode. Defaults to 2s.
 
 ## Examples
 
@@ -139,4 +137,4 @@ $ nomad deployment status -monitor e45
 Windows compatible so there may be some formatting differences (different margins, no spinner 
 indicating deployment is in progress).
 
-[`auto_revert`]: /nomad/docs/job-specification/update#auto_revert
+[`auto_revert`]: /docs/job-specification/update#auto_revert

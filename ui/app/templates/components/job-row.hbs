@@ -10,14 +10,6 @@
     class="is-primary"
   >
     {{this.job.name}}
-
-    {{#if this.job.meta.structured.pack}}
-      <span data-test-pack-tag class="tag is-pack">
-        {{x-icon "box" class= "test"}}
-        <span>Pack</span>
-      </span>
-    {{/if}}
-
   </LinkTo>
 </td>
 {{#if this.system.shouldShowNamespaces}}

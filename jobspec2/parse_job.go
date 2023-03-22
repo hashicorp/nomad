@@ -111,9 +111,6 @@ func normalizeTemplates(templates []*api.Template) {
 		if t.Splay == nil {
 			t.Splay = pointer.Of(5 * time.Second)
 		}
-		if t.ErrMissingKey == nil {
-			t.ErrMissingKey = pointer.Of(false)
-		}
 		normalizeChangeScript(t.ChangeScript)
 	}
 }

@@ -127,6 +127,6 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 	}
 
 	// Format the output
-	outputACLToken(c.Ui, updatedToken)
+	c.Ui.Output(formatKVACLToken(updatedToken))
 	return 0
 }

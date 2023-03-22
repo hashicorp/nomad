@@ -68,34 +68,8 @@
     vertical-align: 2px;
   }
 
-  &.is-pack {
-    position: relative;
-    top: 3px;
-  }
-
-  &.is-service {
-    text-transform: none;
-  }
-
   .icon {
     height: 1rem;
     width: 1rem;
-  }
-
-  
-  $tagPadding: 0.75em;
-
-  &.canary {
-    overflow: hidden;
-    &:before {
-      content: "Canary";
-      background-color: $blue-light;
-      color: $black;
-      line-height: 1.5em;
-      margin-left: -$tagPadding;
-      margin-right: $tagPadding;
-      padding: 0 $tagPadding;
-      align-self: normal;
-    }
   }
 }

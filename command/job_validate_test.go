@@ -17,6 +17,7 @@ func TestValidateCommand_Implements(t *testing.T) {
 }
 
 func TestValidateCommand_Files(t *testing.T) {
+	ci.Parallel(t)
 
 	// Create a Vault server
 	v := testutil.NewTestVault(t)
@@ -78,7 +79,7 @@ func TestValidateCommand_hcl1_hcl2_strict(t *testing.T) {
 		got := cmd.Run([]string{
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
-			"asset/example-short.nomad.hcl",
+			"assets/example-short.nomad",
 		})
 		require.Equal(t, 0, got, ui.ErrorWriter.String())
 	})

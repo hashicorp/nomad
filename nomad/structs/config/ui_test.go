@@ -18,11 +18,6 @@ func TestUIConfig_Merge(t *testing.T) {
 		Vault: &VaultUIConfig{
 			BaseUIURL: "http://vault.example.com:8200",
 		},
-		Label: &LabelUIConfig{
-			Text:            "Example Cluster",
-			BackgroundColor: "blue",
-			TextColor:       "#fff",
-		},
 	}
 
 	testCases := []struct {
@@ -69,7 +64,6 @@ func TestUIConfig_Merge(t *testing.T) {
 					BaseUIURL: "http://consul-other.example.com:8500",
 				},
 				Vault: &VaultUIConfig{},
-				Label: &LabelUIConfig{},
 			},
 		},
 	}

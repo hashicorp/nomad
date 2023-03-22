@@ -1,3 +1,0 @@
-```release-note:bug
-keyring: Fixed a bug where replication would stop after snapshot restores
-```

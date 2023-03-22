@@ -1,8 +1,10 @@
 package host
 
 import (
+	"os"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,11 +19,16 @@ func TestHostUtils(t *testing.T) {
 }
 
 func TestMakeHostData(t *testing.T) {
+	ci.Parallel(t)
 
-	t.Setenv("VAULT_TOKEN", "foo")
-	t.Setenv("BOGUS_TOKEN", "foo")
-	t.Setenv("BOGUS_SECRET", "foo")
-	t.Setenv("ryanSECRETS", "foo")
+	// setenv variables that should be redacted
+	prev := os.Getenv("VAULT_TOKEN")
+	os.Setenv("VAULT_TOKEN", "foo")
+	defer os.Setenv("VAULT_TOKEN", prev)
+
+	os.Setenv("BOGUS_TOKEN", "foo")
+	os.Setenv("BOGUS_SECRET", "foo")
+	os.Setenv("ryanSECRETS", "foo")
 
 	host, err := MakeHostData()
 	require.NoError(t, err)

@@ -120,7 +120,6 @@ limit {
     memory     = 1000
     memory_max = 1000
   }
-  variables_limit = 1000
 }
 `)
 
@@ -135,8 +134,7 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 				"CPU": 2500,
 				"MemoryMB": 1000,
 				"MemoryMaxMB": 1000
-			},
-			"VariablesLimit": 1000
+			}
 		}
 	]
 }

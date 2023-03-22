@@ -88,7 +88,6 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
-	ci.SkipTestWithoutRootAccess(t)
 	ci.Parallel(t)
 
 	ctx, cancel := context.WithCancel(context.Background())

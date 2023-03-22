@@ -35,7 +35,6 @@ var (
 		structs.Plugins,
 		structs.Volumes,
 		structs.ScalingPolicies,
-		structs.Variables,
 		structs.Namespaces,
 	}
 )
@@ -43,12 +42,7 @@ var (
 // Search endpoint is used to look up matches for a given prefix and context
 type Search struct {
 	srv    *Server
-	ctx    *RPCContext
 	logger hclog.Logger
-}
-
-func NewSearchEndpoint(srv *Server, ctx *RPCContext) *Search {
-	return &Search{srv: srv, ctx: ctx, logger: srv.logger.Named("search")}
 }
 
 // getPrefixMatches extracts matches for an iterator, and returns a list of ids for
@@ -82,8 +76,6 @@ func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]s
 			id = t.ID
 		case *structs.Namespace:
 			id = t.Name
-		case *structs.VariableEncrypted:
-			id = t.Path
 		default:
 			matchID, ok := getEnterpriseMatch(raw)
 			if !ok {
@@ -223,10 +215,6 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 	case *structs.CSIPlugin:
 		name = t.ID
 		ctx = structs.Plugins
-	case *structs.VariableEncrypted:
-		name = t.Path
-		scope = []string{t.Namespace, t.Path}
-		ctx = structs.Variables
 	}
 
 	if idx := fuzzyIndex(name, text); idx >= 0 {
@@ -395,15 +383,6 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
-	case structs.Variables:
-		iter, err := store.GetVariablesByPrefix(ws, prefix)
-		if err != nil {
-			return nil, err
-		}
-		if aclObj == nil {
-			return iter, nil
-		}
-		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
 	default:
 		return getEnterpriseResourceIter(context, aclObj, namespace, prefix, ws, store)
 	}
@@ -431,13 +410,6 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 			return nsCapIterFilter(iter, err, aclObj)
 		}
 		return store.AllocsByNamespace(ws, namespace)
-
-	case structs.Variables:
-		if wildcard(namespace) {
-			iter, err := store.Variables(ws)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.GetVariablesByNamespace(ws, namespace)
 
 	case structs.Nodes:
 		if wildcard(namespace) {
@@ -485,9 +457,6 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 
 		case *structs.Allocation:
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
-
-		case *structs.VariableEncrypted:
-			return !aclObj.AllowVariableSearch(t.Namespace)
 
 		case *structs.Namespace:
 			return !aclObj.AllowNamespace(t.Name)
@@ -548,25 +517,19 @@ func (*Search) silenceError(err error) bool {
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
 func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
-
-	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward("Search.PrefixSearch", args, args, reply); done {
 		return err
 	}
-	s.srv.MeasureRPCRate("search", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 	defer metrics.MeasureSince([]string{"nomad", "search", "prefix_search"}, time.Now())
 
-	aclObj, err := s.srv.ResolveACL(args)
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
+
 	namespace := args.RequestNamespace()
 
-	// Require read permissions for the context, ex. node:read or
-	// namespace:read-job
+	// Require either node:read or namespace:read-job
 	if !sufficientSearchPerms(aclObj, namespace, args.Context) {
 		return structs.ErrPermissionDenied
 	}
@@ -620,46 +583,6 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	return s.srv.blockingRPC(&opts)
 }
 
-// sufficientSearchPerms returns true if the provided ACL has access to any
-// capabilities required for prefix searching.
-//
-// Returns true if aclObj is nil or is for a management token
-func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
-	if aclObj == nil || aclObj.IsManagement() {
-		return true
-	}
-
-	nodeRead := aclObj.AllowNodeRead()
-	allowNS := aclObj.AllowNamespace(namespace)
-	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
-	allowEnt := sufficientSearchPermsEnt(aclObj)
-
-	if !nodeRead && !allowNS && !allowEnt && !jobRead {
-		return false
-	}
-
-	// Reject requests that explicitly specify a disallowed context. This
-	// should give the user better feedback than simply filtering out all
-	// results and returning an empty list.
-	switch context {
-	case structs.Nodes:
-		return nodeRead
-	case structs.Namespaces:
-		return allowNS
-	case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
-		return jobRead
-	case structs.Volumes:
-		return acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
-			acl.NamespaceCapabilityCSIReadVolume,
-			acl.NamespaceCapabilityListJobs,
-			acl.NamespaceCapabilityReadJob)(aclObj, namespace)
-	case structs.Variables:
-		return aclObj.AllowVariableSearch(namespace)
-	}
-
-	return true
-}
-
 // FuzzySearch is used to list fuzzy or prefix matches for a given text argument and Context.
 // If the Context is "all", all searchable contexts are searched. If ACLs are enabled,
 // results are limited to policies of the provided ACL token.
@@ -682,18 +605,12 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 //
 // The results are in descending order starting with strongest match, per Context type.
 func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.FuzzySearchResponse) error {
-
-	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward("Search.FuzzySearch", args, args, reply); done {
 		return err
 	}
-	s.srv.MeasureRPCRate("search", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 	defer metrics.MeasureSince([]string{"nomad", "search", "fuzzy_search"}, time.Now())
 
-	aclObj, err := s.srv.ResolveACL(args)
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -840,65 +757,6 @@ func sufficientFuzzySearchPerms(aclObj *acl.ACL, namespace string, context struc
 		return true
 	}
 	return sufficientSearchPerms(aclObj, namespace, context)
-}
-
-// filteredSearchContexts returns the expanded set of contexts, filtered down
-// to the subset of contexts the aclObj is valid for.
-//
-// If aclObj is nil, no contexts are filtered out.
-func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
-	desired := expandContext(context)
-
-	// If ACLs aren't enabled return all contexts
-	if aclObj == nil {
-		return desired
-	}
-	if aclObj.IsManagement() {
-		return desired
-	}
-	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
-	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
-		acl.NamespaceCapabilityCSIReadVolume,
-		acl.NamespaceCapabilityListJobs,
-		acl.NamespaceCapabilityReadJob)
-	volRead := allowVolume(aclObj, namespace)
-	policyRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListScalingPolicies)
-
-	// Filter contexts down to those the ACL grants access to
-	available := make([]structs.Context, 0, len(desired))
-	for _, c := range desired {
-		switch c {
-		case structs.Allocs, structs.Jobs, structs.Evals, structs.Deployments:
-			if jobRead {
-				available = append(available, c)
-			}
-		case structs.ScalingPolicies:
-			if policyRead || jobRead {
-				available = append(available, c)
-			}
-		case structs.Namespaces:
-			if aclObj.AllowNamespace(namespace) {
-				available = append(available, c)
-			}
-		case structs.Variables:
-			if jobRead {
-				available = append(available, c)
-			}
-		case structs.Nodes:
-			if aclObj.AllowNodeRead() {
-				available = append(available, c)
-			}
-		case structs.Volumes:
-			if volRead {
-				available = append(available, c)
-			}
-		default:
-			if ok := filteredSearchContextsEnt(aclObj, namespace, c); ok {
-				available = append(available, c)
-			}
-		}
-	}
-	return available
 }
 
 // filterFuzzySearchContexts returns every context asked for if the searched namespace

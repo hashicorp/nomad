@@ -240,13 +240,6 @@ func AllocLogs(allocID string, logStream LogStream) (string, error) {
 	return Command(cmd[0], cmd[1:]...)
 }
 
-// AllocChecks returns the CLI output from 'nomad alloc checks' on the given
-// alloc ID.
-func AllocChecks(allocID string) (string, error) {
-	cmd := []string{"nomad", "alloc", "checks", allocID}
-	return Command(cmd[0], cmd[1:]...)
-}
-
 func AllocTaskLogs(allocID, task string, logStream LogStream) (string, error) {
 	cmd := []string{"nomad", "alloc", "logs"}
 	if logStream == LogsStdErr {

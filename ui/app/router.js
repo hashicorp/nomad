@@ -14,13 +14,7 @@ Router.map(function () {
   });
 
   this.route('jobs', function () {
-    this.route('run', function () {
-      this.route('templates', function () {
-        this.route('new');
-        this.route('manage');
-        this.route('template', { path: '/:name' });
-      });
-    });
+    this.route('run');
     this.route('job', { path: '/:job_name' }, function () {
       this.route('task-group', { path: '/:name' });
       this.route('definition');
@@ -30,9 +24,6 @@ Router.map(function () {
       this.route('evaluations');
       this.route('allocations');
       this.route('clients');
-      this.route('services', function () {
-        this.route('service', { path: '/:name' });
-      });
     });
   });
 
@@ -87,33 +78,4 @@ Router.map(function () {
   this.route('evaluations', function () {});
 
   this.route('not-found', { path: '/*' });
-  this.route('variables', function () {
-    this.route('new');
-
-    this.route(
-      'variable',
-      {
-        path: '/var/*id',
-      },
-      function () {
-        this.route('edit');
-      }
-    );
-
-    this.route('path', {
-      path: '/path/*absolutePath',
-    });
-  });
-
-  this.route('policies', function () {
-    this.route('new');
-
-    this.route('policy', {
-      path: '/:name',
-    });
-  });
-  // Mirage-only route for testing OIDC flow
-  if (config['ember-cli-mirage']) {
-    this.route('oidc-mock');
-  }
 });

@@ -4,7 +4,6 @@ import { equal, none } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import isEqual from 'lodash.isequal';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import classic from 'ember-classic-decorator';
@@ -21,7 +20,6 @@ const STATUS_ORDER = {
 @classic
 export default class Allocation extends Model {
   @service token;
-  @service store;
 
   @shortUUIDProperty('id') shortId;
   @belongsTo('job') job;
@@ -41,17 +39,6 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
-
-  @attr healthChecks;
-
-  async getServiceHealth() {
-    const data = await this.store.adapterFor('allocation').check(this);
-
-    // Compare Results
-    if (!isEqual(this.healthChecks, data)) {
-      this.set('healthChecks', data);
-    }
-  }
 
   @computed('')
   get plainJobId() {

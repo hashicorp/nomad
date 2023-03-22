@@ -6,10 +6,6 @@ import (
 	"fmt"
 )
 
-const (
-	cgroupAvailable = "available"
-)
-
 // Fingerprint tries to find a valid cgroup mount point and the version of cgroups
 // if a mount-point is present.
 func (f *CGroupFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {

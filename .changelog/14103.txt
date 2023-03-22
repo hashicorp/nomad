@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update google.golang.org/grpc to v1.48.0
-```

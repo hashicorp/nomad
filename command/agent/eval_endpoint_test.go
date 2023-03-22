@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -12,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,7 +136,7 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 					// Make the request and check the response.
 					obj, err := s.Server.EvalsRequest(respW, req)
 					require.Equal(t,
-						CodedError(http.StatusBadRequest, "evals must be deleted by either ID or filter"), err)
+						CodedError(http.StatusBadRequest, "request does not include any evaluation IDs"), err)
 					require.Nil(t, obj)
 				})
 			},
@@ -169,7 +167,7 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 					obj, err := s.Server.EvalsRequest(respW, req)
 					require.Equal(t,
 						CodedError(http.StatusBadRequest,
-							"request includes 8000 evaluation IDs, must be 7281 or fewer"), err)
+							"request includes 8000 evaluations IDs, must be 7281 or fewer"), err)
 					require.Nil(t, obj)
 				})
 			},
@@ -223,10 +221,8 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 
 					// Make the request and check the response.
 					obj, err := s.Server.EvalsRequest(respW, req)
-					require.NoError(t, err)
-					require.NotNil(t, obj)
-					deleteResp := obj.(structs.EvalDeleteResponse)
-					require.Equal(t, deleteResp.Count, 1)
+					require.Nil(t, err)
+					require.Nil(t, obj)
 
 					// Ensure the eval is not found.
 					readEval, err := s.Agent.server.State().EvalByID(nil, mockEval.ID)
@@ -374,47 +370,5 @@ func TestHTTP_EvalQueryWithRelated(t *testing.T) {
 			eval2.Stub(),
 		}
 		require.Equal(t, expected, e.RelatedEvals)
-	})
-}
-
-func TestHTTP_EvalCount(t *testing.T) {
-	ci.Parallel(t)
-	httpTest(t, nil, func(s *TestAgent) {
-		// Directly manipulate the state
-		state := s.Agent.server.State()
-		eval1 := mock.Eval()
-		eval2 := mock.Eval()
-		err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1, eval2})
-		must.NoError(t, err)
-
-		// simple count request
-		req, err := http.NewRequest("GET", "/v1/evaluations/count", nil)
-		must.NoError(t, err)
-		respW := httptest.NewRecorder()
-		obj, err := s.Server.EvalsCountRequest(respW, req)
-		must.NoError(t, err)
-
-		// check headers and response body
-		must.NotEq(t, "", respW.Result().Header.Get("X-Nomad-Index"),
-			must.Sprint("missing index"))
-		must.Eq(t, "true", respW.Result().Header.Get("X-Nomad-KnownLeader"),
-			must.Sprint("missing known leader"))
-		must.NotEq(t, "", respW.Result().Header.Get("X-Nomad-LastContact"),
-			must.Sprint("missing last contact"))
-
-		resp := obj.(*structs.EvalCountResponse)
-		must.Eq(t, resp.Count, 2)
-
-		// filtered count request
-		v := url.Values{}
-		v.Add("filter", fmt.Sprintf("JobID==\"%s\"", eval2.JobID))
-		req, err = http.NewRequest("GET", "/v1/evaluations/count?"+v.Encode(), nil)
-		must.NoError(t, err)
-		respW = httptest.NewRecorder()
-		obj, err = s.Server.EvalsCountRequest(respW, req)
-		must.NoError(t, err)
-		resp = obj.(*structs.EvalCountResponse)
-		must.Eq(t, resp.Count, 1)
-
 	})
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -42,7 +41,6 @@ type allocRunner struct {
 	// Logger is the logger for the alloc runner.
 	logger log.Logger
 
-	// clientConfig is the client configuration block.
 	clientConfig *config.Config
 
 	// stateUpdater is used to emit updated alloc state
@@ -125,7 +123,7 @@ type allocRunner struct {
 	allocDir *allocdir.AllocDir
 
 	// runnerHooks are alloc runner lifecycle hooks that should be run on state
-	// transitions.
+	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
 	// hookState is the output of allocrunner hooks
@@ -187,9 +185,6 @@ type allocRunner struct {
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
 
-	// checkStore contains check status information
-	checkStore checkstore.Shim
-
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
 }
@@ -236,7 +231,6 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		serversContactedCh:       config.ServersContactedCh,
 		rpcClient:                config.RPCClient,
 		serviceRegWrapper:        config.ServiceRegWrapper,
-		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
 	}
 
@@ -546,9 +540,7 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			}
 		}
 
-		// kill remaining live tasks
 		if len(liveRunners) > 0 {
-
 			// if all live runners are sidecars - kill alloc
 			onlySidecarsRemaining := hasSidecars && !hasNonSidecarTasks(liveRunners)
 			if killEvent == nil && onlySidecarsRemaining {
@@ -588,14 +580,6 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			}
 		} else {
-			// there are no live runners left
-
-			// run AR pre-kill hooks if this alloc is done, but not if it's because
-			// the agent is shutting down.
-			if !ar.isShuttingDown() && done {
-				ar.preKillHooks()
-			}
-
 			// If there are no live runners left kill all non-poststop task
 			// runners to unblock them from the alloc restart loop.
 			for _, tr := range ar.tasks {

@@ -19,7 +19,7 @@
         "job-page/parts/latest-deployment" job=@job handleError=this.handleError
       )
       TaskGroups=(component "job-page/parts/task-groups" job=@job)
-      RecentAllocations=(component "job-page/parts/recent-allocations" job=@job activeTask=@activeTask setActiveTaskQueryParam=@setActiveTaskQueryParam)
+      RecentAllocations=(component "job-page/parts/recent-allocations" job=@job)
       Meta=(component "job-page/parts/meta" job=@job)
       DasRecommendations=(component
         "job-page/parts/das-recommendations" job=@job

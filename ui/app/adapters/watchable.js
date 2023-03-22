@@ -143,9 +143,9 @@ export default class Watchable extends ApplicationAdapter {
   reloadRelationship(
     model,
     relationshipName,
-    options = { watch: false, abortController: null, replace: false }
+    options = { watch: false, abortController: null }
   ) {
-    const { watch, abortController, replace } = options;
+    const { watch, abortController } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
       throw new Error(
@@ -185,9 +185,6 @@ export default class Watchable extends ApplicationAdapter {
             modelClass,
             json
           );
-          if (replace) {
-            store.unloadAll(relationship.type);
-          }
           store.push(normalizedData);
         },
         (error) => {

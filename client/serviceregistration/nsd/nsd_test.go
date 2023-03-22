@@ -1,7 +1,6 @@
 package nsd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -11,73 +10,35 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type mockCheckWatcher struct {
-	lock sync.Mutex
-
-	watchCalls   int
-	unWatchCalls int
-}
-
-func (cw *mockCheckWatcher) Run(_ context.Context) {
-	// Run runs async; just assume it ran
-}
-
-func (cw *mockCheckWatcher) Watch(_, _, _ string, _ *structs.ServiceCheck, _ serviceregistration.WorkloadRestarter) {
-	cw.lock.Lock()
-	defer cw.lock.Unlock()
-	cw.watchCalls++
-}
-
-func (cw *mockCheckWatcher) Unwatch(_ string) {
-	cw.lock.Lock()
-	defer cw.lock.Unlock()
-	cw.unWatchCalls++
-}
-
-func (cw *mockCheckWatcher) assert(t *testing.T, watchCalls, unWatchCalls int) {
-	cw.lock.Lock()
-	defer cw.lock.Unlock()
-	test.Eq(t, watchCalls, cw.watchCalls, test.Sprintf("expected %d Watch() calls but got %d", watchCalls, cw.watchCalls))
-	test.Eq(t, unWatchCalls, cw.unWatchCalls, test.Sprintf("expected %d Unwatch() calls but got %d", unWatchCalls, cw.unWatchCalls))
-}
-
 func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		inputCfg             *ServiceRegistrationHandlerCfg
-		inputWorkload        *serviceregistration.WorkloadServices
-		expectedRPCs         map[string]int
-		expectedError        error
-		expWatch, expUnWatch int
+		inputCfg      *ServiceRegistrationHandlerCfg
+		inputWorkload *serviceregistration.WorkloadServices
+		expectedRPCs  map[string]int
+		expectedError error
+		name          string
 	}{
 		{
-			name: "registration disabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled:      false,
-				CheckWatcher: new(mockCheckWatcher),
+				Enabled: false,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{},
 			expectedError: errors.New(`service registration provider "nomad" not enabled`),
-			expWatch:      0,
-			expUnWatch:    0,
+			name:          "registration disabled",
 		},
 		{
-			name: "registration enabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled:      true,
-				CheckWatcher: new(mockCheckWatcher),
+				Enabled: true,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationUpsertRPCMethod: 1},
 			expectedError: nil,
-			expWatch:      1,
-			expUnWatch:    0,
+			name:          "registration enabled",
 		},
 	}
 
@@ -97,43 +58,35 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 			actualErr := h.RegisterWorkload(tc.inputWorkload)
 			require.Equal(t, tc.expectedError, actualErr)
 			require.Equal(t, tc.expectedRPCs, mockRPC.calls())
-			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 }
 
 func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		inputCfg             *ServiceRegistrationHandlerCfg
-		inputWorkload        *serviceregistration.WorkloadServices
-		expectedRPCs         map[string]int
-		expectedError        error
-		expWatch, expUnWatch int
+		inputCfg      *ServiceRegistrationHandlerCfg
+		inputWorkload *serviceregistration.WorkloadServices
+		expectedRPCs  map[string]int
+		expectedError error
+		name          string
 	}{
 		{
-			name: "registration disabled multiple services",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled:      false,
-				CheckWatcher: new(mockCheckWatcher),
+				Enabled: false,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
-			expWatch:      0,
-			expUnWatch:    2, // RemoveWorkload works regardless if provider is enabled
+			name:          "registration disabled multiple services",
 		},
 		{
-			name: "registration enabled multiple services",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled:      true,
-				CheckWatcher: new(mockCheckWatcher),
+				Enabled: true,
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
-			expWatch:      0,
-			expUnWatch:    2,
+			name:          "registration enabled multiple services",
 		},
 	}
 
@@ -155,54 +108,41 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			require.Eventually(t, func() bool {
 				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
 			}, 100*time.Millisecond, 10*time.Millisecond)
-			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 }
 
 func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		inputCfg             *ServiceRegistrationHandlerCfg
-		inputOldWorkload     *serviceregistration.WorkloadServices
-		inputNewWorkload     *serviceregistration.WorkloadServices
-		expectedRPCs         map[string]int
-		expectedError        error
-		expWatch, expUnWatch int
+		inputCfg         *ServiceRegistrationHandlerCfg
+		inputOldWorkload *serviceregistration.WorkloadServices
+		inputNewWorkload *serviceregistration.WorkloadServices
+		expectedRPCs     map[string]int
+		expectedError    error
+		name             string
 	}{
 		{
-			name: "delete and upsert",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled:      true,
-				CheckWatcher: new(mockCheckWatcher),
+				Enabled: true,
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "changed-redis-db",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "db",
-						Checks: []*structs.ServiceCheck{
-							{
-								Name:         "changed-check-redis-db",
-								CheckRestart: &structs.CheckRestart{Limit: 1},
-							},
-						},
 					},
 					{
 						Name:        "changed-redis-http",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "http",
-						// No check restart this time
 					},
 				},
 				Ports: []structs.AllocatedPortMapping{
@@ -223,57 +163,32 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 				structs.ServiceRegistrationDeleteByIDRPCMethod: 2,
 			},
 			expectedError: nil,
-			expWatch:      1,
-			expUnWatch:    2,
+			name:          "delete and upsert",
 		},
 		{
-			name: "upsert only",
 			inputCfg: &ServiceRegistrationHandlerCfg{
-				Enabled:      true,
-				CheckWatcher: new(mockCheckWatcher),
+				Enabled: true,
 			},
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "db",
 						Tags:        []string{"foo"},
-						Checks: []*structs.ServiceCheck{
-							{
-								Name:         "redis-db-check-1",
-								CheckRestart: &structs.CheckRestart{Limit: 1},
-							},
-							{
-								Name: "redis-db-check-2",
-								// No check restart on this one
-							},
-						},
 					},
 					{
 						Name:        "redis-http",
 						AddressMode: structs.AddressModeHost,
 						PortLabel:   "http",
 						Tags:        []string{"bar"},
-						Checks: []*structs.ServiceCheck{
-							{
-								Name:         "redis-http-check-1",
-								CheckRestart: &structs.CheckRestart{Limit: 1},
-							},
-							{
-								Name:         "redis-http-check-2",
-								CheckRestart: &structs.CheckRestart{Limit: 1},
-							},
-						},
 					},
 				},
 				Ports: []structs.AllocatedPortMapping{
@@ -293,8 +208,7 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 				structs.ServiceRegistrationUpsertRPCMethod: 1,
 			},
 			expectedError: nil,
-			expWatch:      3,
-			expUnWatch:    0,
+			name:          "upsert only",
 		},
 	}
 
@@ -316,7 +230,6 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 			require.Eventually(t, func() bool {
 				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
 			}, 100*time.Millisecond, 10*time.Millisecond)
-			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 
@@ -333,14 +246,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 		{
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "changed-redis-db",
@@ -368,14 +279,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 			},
 			expectedOldOutput: mockWorkload(),
 			expectedNewOutput: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "changed-redis-db",
@@ -406,14 +315,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 		{
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -442,15 +349,13 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 				},
 			},
 			expectedOldOutput: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
-				Services:          []*structs.Service{},
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
+				Services:  []*structs.Service{},
 				Ports: []structs.AllocatedPortMapping{
 					{
 						Label:  "db",
@@ -465,14 +370,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 				},
 			},
 			expectedNewOutput: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -505,14 +408,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 		{
 			inputOldWorkload: mockWorkload(),
 			inputNewWorkload: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -540,14 +441,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 			},
 			expectedOldOutput: mockWorkload(),
 			expectedNewOutput: &serviceregistration.WorkloadServices{
-				AllocInfo: structs.AllocInfo{
-					AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-					Task:    "redis",
-					Group:   "cache",
-					JobID:   "example",
-				},
-				Canary:            false,
-				ProviderNamespace: "default",
+				AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+				Task:      "redis",
+				Group:     "cache",
+				JobID:     "example",
+				Canary:    false,
+				Namespace: "default",
 				Services: []*structs.Service{
 					{
 						Name:        "redis-db",
@@ -590,14 +489,12 @@ func TestServiceRegistrationHandler_dedupUpdatedWorkload(t *testing.T) {
 
 func mockWorkload() *serviceregistration.WorkloadServices {
 	return &serviceregistration.WorkloadServices{
-		AllocInfo: structs.AllocInfo{
-			AllocID: "98ea220b-7ebe-4662-6d74-9868e797717c",
-			Task:    "redis",
-			Group:   "cache",
-			JobID:   "example",
-		},
-		Canary:            false,
-		ProviderNamespace: "default",
+		AllocID:   "98ea220b-7ebe-4662-6d74-9868e797717c",
+		Task:      "redis",
+		Group:     "cache",
+		JobID:     "example",
+		Canary:    false,
+		Namespace: "default",
 		Services: []*structs.Service{
 			{
 				Name:        "redis-db",
@@ -608,18 +505,6 @@ func mockWorkload() *serviceregistration.WorkloadServices {
 				Name:        "redis-http",
 				AddressMode: structs.AddressModeHost,
 				PortLabel:   "http",
-				Checks: []*structs.ServiceCheck{
-					{
-						Name:     "check1",
-						Type:     "http",
-						Interval: 5 * time.Second,
-						Timeout:  1 * time.Second,
-						CheckRestart: &structs.CheckRestart{
-							Limit: 1,
-							Grace: 1,
-						},
-					},
-				},
 			},
 		},
 		Ports: []structs.AllocatedPortMapping{

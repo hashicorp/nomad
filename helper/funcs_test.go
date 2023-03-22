@@ -459,7 +459,7 @@ type employee struct {
 	name string
 }
 
-func (e *employee) Equal(o *employee) bool {
+func (e *employee) Equals(o *employee) bool {
 	return e.id == o.id // name can be different
 }
 
@@ -467,62 +467,28 @@ func Test_ElementsEquals(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		a := []*employee(nil)
 		var b []*employee
-		must.True(t, ElementsEqual(a, b))
-		must.True(t, ElementsEqual(b, a))
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
 	})
 
 	t.Run("different sizes", func(t *testing.T) {
 		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
 		b := []*employee{{1, "mitchell"}, {2, "armon"}}
-		must.False(t, ElementsEqual(a, b))
-		must.False(t, ElementsEqual(b, a))
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
 	})
 
 	t.Run("equal", func(t *testing.T) {
 		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
 		b := []*employee{{1, "M.H."}, {2, "A.D."}, {3, "J.P."}}
-		must.True(t, ElementsEqual(a, b))
-		must.True(t, ElementsEqual(b, a))
+		must.True(t, ElementsEquals(a, b))
+		must.True(t, ElementsEquals(b, a))
 	})
 
 	t.Run("different", func(t *testing.T) {
 		a := []*employee{{1, "mitchell"}, {2, "armon"}, {3, "jack"}}
 		b := []*employee{{0, "mitchell."}, {2, "armon"}, {3, "jack"}}
-		must.False(t, ElementsEqual(a, b))
-		must.False(t, ElementsEqual(b, a))
-	})
-}
-
-func Test_SliceSetEq(t *testing.T) {
-	t.Run("empty", func(t *testing.T) {
-		a := make([]int, 0)
-		b := make([]int, 0)
-		must.True(t, SliceSetEq(a, b))
-	})
-
-	t.Run("subset small", func(t *testing.T) {
-		a := []int{1, 2, 3, 4, 5}
-		b := []int{1, 2, 3}
-		must.False(t, SliceSetEq(a, b))
-		must.False(t, SliceSetEq(b, a))
-	})
-
-	t.Run("subset large", func(t *testing.T) {
-		a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-		b := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
-		must.False(t, SliceSetEq(a, b))
-		must.False(t, SliceSetEq(b, a))
-	})
-
-	t.Run("same small", func(t *testing.T) {
-		a := []int{1, 2, 3, 4, 5}
-		b := []int{1, 2, 3, 4, 5}
-		must.True(t, SliceSetEq(a, b))
-	})
-
-	t.Run("same large", func(t *testing.T) {
-		a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-		b := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-		must.True(t, SliceSetEq(a, b))
+		must.False(t, ElementsEquals(a, b))
+		must.False(t, ElementsEquals(b, a))
 	})
 }

@@ -1,3 +1,0 @@
-```release-note:bug
-services: Fixed a bug where check_restart on nomad services on tasks failed with incorrect CheckIDs
-```

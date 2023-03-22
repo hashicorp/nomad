@@ -1,7 +1,0 @@
-```release-note:breaking-change
-config: the `datacenter` field for agent configuration no longer accepts the `*` character as part of the datacenter name
-```
-
-```release-note:improvement
-jobspec: the `datacenters` field now accepts wildcards
-```

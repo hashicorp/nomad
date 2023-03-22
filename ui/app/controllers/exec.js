@@ -17,7 +17,7 @@ export default class ExecController extends Controller {
   @service system;
   @service token;
 
-  queryParams = ['allocation', 'namespace'];
+  queryParams = ['allocation'];
 
   @localStorageProperty('nomadExecCommand', '/bin/bash') command;
   socketOpen = false;

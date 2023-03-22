@@ -55,12 +55,6 @@ const (
 	ScalingEventsSnapshot                SnapshotType = 19
 	EventSinkSnapshot                    SnapshotType = 20
 	ServiceRegistrationSnapshot          SnapshotType = 21
-	VariablesSnapshot                    SnapshotType = 22
-	VariablesQuotaSnapshot               SnapshotType = 23
-	RootKeyMetaSnapshot                  SnapshotType = 24
-	ACLRoleSnapshot                      SnapshotType = 25
-	ACLAuthMethodSnapshot                SnapshotType = 26
-	ACLBindingRuleSnapshot               SnapshotType = 27
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -320,24 +314,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyDeleteServiceRegistrationByID(msgType, buf[1:], log.Index)
 	case structs.ServiceRegistrationDeleteByNodeIDRequestType:
 		return n.applyDeleteServiceRegistrationByNodeID(msgType, buf[1:], log.Index)
-	case structs.VarApplyStateRequestType:
-		return n.applyVariableOperation(msgType, buf[1:], log.Index)
-	case structs.RootKeyMetaUpsertRequestType:
-		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
-	case structs.RootKeyMetaDeleteRequestType:
-		return n.applyRootKeyMetaDelete(msgType, buf[1:], log.Index)
-	case structs.ACLRolesUpsertRequestType:
-		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
-	case structs.ACLRolesDeleteByIDRequestType:
-		return n.applyACLRolesDeleteByID(msgType, buf[1:], log.Index)
-	case structs.ACLAuthMethodsUpsertRequestType:
-		return n.applyACLAuthMethodsUpsert(buf[1:], log.Index)
-	case structs.ACLAuthMethodsDeleteRequestType:
-		return n.applyACLAuthMethodsDelete(buf[1:], log.Index)
-	case structs.ACLBindingRulesUpsertRequestType:
-		return n.applyACLBindingRulesUpsert(buf[1:], log.Index)
-	case structs.ACLBindingRulesDeleteRequestType:
-		return n.applyACLBindingRulesDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -844,14 +820,6 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if req.Filter != "" {
-		if err := n.state.DeleteEvalsByFilter(index, req.Filter, req.NextToken, req.PerPage); err != nil {
-			n.logger.Error("DeleteEvalsByFilter failed", "error", err)
-			return err
-		}
-		return nil
-	}
-
 	if err := n.state.DeleteEval(index, req.Evals, req.Allocs, req.UserInitiated); err != nil {
 		n.logger.Error("DeleteEval failed", "error", err)
 		return err
@@ -859,10 +827,41 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-// DEPRECATED: AllocUpdateRequestType was removed in Nomad 0.6.0 when we built
-// Deployments. This handler remains so that older raft logs can be read without
-// panicking.
-func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update"}, time.Now())
+	var req structs.AllocUpdateRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	// Attach the job to all the allocations. It is pulled out in the
+	// payload to avoid the redundancy of encoding, but should be denormalized
+	// prior to being inserted into MemDB.
+	structs.DenormalizeAllocationJobs(req.Job, req.Alloc)
+
+	for _, alloc := range req.Alloc {
+		// COMPAT(0.11): Remove in 0.11
+		// Calculate the total resources of allocations. It is pulled out in the
+		// payload to avoid encoding something that can be computed, but should be
+		// denormalized prior to being inserted into MemDB.
+		if alloc.Resources == nil {
+			alloc.Resources = new(structs.Resources)
+			for _, task := range alloc.TaskResources {
+				alloc.Resources.Add(task)
+			}
+
+			// Add the shared resources
+			alloc.Resources.Add(alloc.SharedResources)
+		}
+
+		// Handle upgrade path
+		alloc.Canonicalize()
+	}
+
+	if err := n.state.UpsertAllocs(msgType, index, req.Alloc); err != nil {
+		n.logger.Error("UpsertAllocs failed", "error", err)
+		return err
+	}
 	return nil
 }
 
@@ -1742,73 +1741,6 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				}
 			}
 
-		case VariablesSnapshot:
-			variable := new(structs.VariableEncrypted)
-			if err := dec.Decode(variable); err != nil {
-				return err
-			}
-
-			if err := restore.VariablesRestore(variable); err != nil {
-				return err
-			}
-
-		case VariablesQuotaSnapshot:
-			quota := new(structs.VariablesQuota)
-			if err := dec.Decode(quota); err != nil {
-				return err
-			}
-
-			if err := restore.VariablesQuotaRestore(quota); err != nil {
-				return err
-			}
-
-		case RootKeyMetaSnapshot:
-			keyMeta := new(structs.RootKeyMeta)
-			if err := dec.Decode(keyMeta); err != nil {
-				return err
-			}
-
-			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
-				return err
-			}
-		case ACLRoleSnapshot:
-
-			// Create a new ACLRole object, so we can decode the message into
-			// it.
-			aclRole := new(structs.ACLRole)
-
-			if err := dec.Decode(aclRole); err != nil {
-				return err
-			}
-
-			// Perform the restoration.
-			if err := restore.ACLRoleRestore(aclRole); err != nil {
-				return err
-			}
-		case ACLAuthMethodSnapshot:
-			authMethod := new(structs.ACLAuthMethod)
-
-			if err := dec.Decode(authMethod); err != nil {
-				return err
-			}
-
-			// Perform the restoration.
-			if err := restore.ACLAuthMethodRestore(authMethod); err != nil {
-				return err
-			}
-
-		case ACLBindingRuleSnapshot:
-			bindingRule := new(structs.ACLBindingRule)
-
-			if err := dec.Decode(bindingRule); err != nil {
-				return err
-			}
-
-			// Perform the restoration.
-			if err := restore.ACLBindingRuleRestore(bindingRule); err != nil {
-				return err
-			}
-
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -2068,96 +2000,6 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.Messag
 	return nil
 }
 
-func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_upsert"}, time.Now())
-	var req structs.ACLRolesUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertACLRoles(msgType, index, req.ACLRoles, req.AllowMissingPolicies); err != nil {
-		n.logger.Error("UpsertACLRoles failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_delete_by_id"}, time.Now())
-	var req structs.ACLRolesDeleteByIDRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteACLRolesByID(msgType, index, req.ACLRoleIDs); err != nil {
-		n.logger.Error("DeleteACLRolesByID failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_upsert"}, time.Now())
-	var req structs.ACLAuthMethodUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertACLAuthMethods(index, req.AuthMethods); err != nil {
-		n.logger.Error("UpsertACLAuthMethods failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete"}, time.Now())
-	var req structs.ACLAuthMethodDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteACLAuthMethods(index, req.Names); err != nil {
-		n.logger.Error("DeleteACLAuthMethods failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLBindingRulesUpsert(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_binding_rule_upsert"}, time.Now())
-	var req structs.ACLBindingRulesUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertACLBindingRules(index, req.ACLBindingRules, false); err != nil {
-		n.logger.Error("UpsertACLBindingRules failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_binding_rule_delete"}, time.Now())
-	var req structs.ACLBindingRulesDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteACLBindingRules(index, req.ACLBindingRuleIDs); err != nil {
-		n.logger.Error("DeleteACLBindingRules failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
 type FSMFilter struct {
 	evaluator *bexpr.Evaluator
 }
@@ -2182,61 +2024,6 @@ func (f *FSMFilter) Include(item interface{}) bool {
 		return false
 	}
 	return true
-}
-
-func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	var req structs.VarApplyStateRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSinceWithLabels([]string{"nomad", "fsm", "apply_sv_operation"}, time.Now(),
-		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-	switch req.Op {
-	case structs.VarOpSet:
-		return n.state.VarSet(index, &req)
-	case structs.VarOpDelete:
-		return n.state.VarDelete(index, &req)
-	case structs.VarOpDeleteCAS:
-		return n.state.VarDeleteCAS(index, &req)
-	case structs.VarOpCAS:
-		return n.state.VarSetCAS(index, &req)
-	default:
-		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
-		n.logger.Warn("Invalid variable operation", "operation", req.Op)
-		return err
-	}
-}
-
-func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_root_key_meta_upsert"}, time.Now())
-
-	var req structs.KeyringUpdateRootKeyMetaRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertRootKeyMeta(index, req.RootKeyMeta, req.Rekey); err != nil {
-		n.logger.Error("UpsertRootKeyMeta failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyRootKeyMetaDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_root_key_meta_delete"}, time.Now())
-
-	var req structs.KeyringDeleteRootKeyRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteRootKeyMeta(index, req.KeyID); err != nil {
-		n.logger.Error("DeleteRootKeyMeta failed", "error", err)
-		return err
-	}
-
-	return nil
 }
 
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
@@ -2344,30 +2131,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistServiceRegistrations(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistVariables(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistVariablesQuotas(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistRootKeyMeta(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLRoles(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLAuthMethods(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLBindingRules(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2927,143 +2690,6 @@ func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
 		}
 		return nil
 	}
-}
-
-func (s *nomadSnapshot) persistVariables(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	ws := memdb.NewWatchSet()
-	variables, err := s.snap.Variables(ws)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := variables.Next()
-		if raw == nil {
-			break
-		}
-		variable := raw.(*structs.VariableEncrypted)
-		sink.Write([]byte{byte(VariablesSnapshot)})
-		if err := encoder.Encode(variable); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistVariablesQuotas(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	ws := memdb.NewWatchSet()
-	quotas, err := s.snap.VariablesQuotas(ws)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := quotas.Next()
-		if raw == nil {
-			break
-		}
-		dirEntry := raw.(*structs.VariablesQuota)
-		sink.Write([]byte{byte(VariablesQuotaSnapshot)})
-		if err := encoder.Encode(dirEntry); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	ws := memdb.NewWatchSet()
-	keys, err := s.snap.RootKeyMetas(ws)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := keys.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKeyMeta)
-		sink.Write([]byte{byte(RootKeyMetaSnapshot)})
-		if err := encoder.Encode(key); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	// Get all the ACL roles.
-	ws := memdb.NewWatchSet()
-	aclRolesIter, err := s.snap.GetACLRoles(ws)
-	if err != nil {
-		return err
-	}
-
-	// Get the next item.
-	for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
-
-		// Prepare the request struct.
-		role := raw.(*structs.ACLRole)
-
-		// Write out an ACL role snapshot.
-		sink.Write([]byte{byte(ACLRoleSnapshot)})
-		if err := encoder.Encode(role); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistACLAuthMethods(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	// Get all the ACL Auth methods.
-	ws := memdb.NewWatchSet()
-	aclAuthMethodsIter, err := s.snap.GetACLAuthMethods(ws)
-	if err != nil {
-		return err
-	}
-
-	for raw := aclAuthMethodsIter.Next(); raw != nil; raw = aclAuthMethodsIter.Next() {
-		method := raw.(*structs.ACLAuthMethod)
-
-		// write the snapshot
-		sink.Write([]byte{byte(ACLAuthMethodSnapshot)})
-		if err := encoder.Encode(method); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *codec.Encoder) error {
-
-	// Get all the ACL binding rules.
-	ws := memdb.NewWatchSet()
-	aclBindingRulesIter, err := s.snap.GetACLBindingRules(ws)
-	if err != nil {
-		return err
-	}
-
-	for raw := aclBindingRulesIter.Next(); raw != nil; raw = aclBindingRulesIter.Next() {
-		bindingRule := raw.(*structs.ACLBindingRule)
-
-		// write the snapshot
-		sink.Write([]byte{byte(ACLBindingRuleSnapshot)})
-		if err := encoder.Encode(bindingRule); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer

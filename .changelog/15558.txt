@@ -1,3 +1,0 @@
-```release-note:improvement
-api: improved error returned from AllocFS.Logs when response is not JSON
-```

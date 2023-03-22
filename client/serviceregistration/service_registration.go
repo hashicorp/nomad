@@ -71,32 +71,34 @@ func (a *AllocRegistration) Copy() *AllocRegistration {
 	return c
 }
 
-// NumServices returns the number of registered task AND group services.
-// Group services are prefixed with "group-".
+// NumServices returns the number of registered services.
 func (a *AllocRegistration) NumServices() int {
 	if a == nil {
 		return 0
 	}
 
 	total := 0
-	for _, task := range a.Tasks {
-		total += len(task.Services)
+	for _, treg := range a.Tasks {
+		for _, sreg := range treg.Services {
+			if sreg.Service != nil {
+				total++
+			}
+		}
 	}
 
 	return total
 }
 
-// NumChecks returns the number of registered checks from both task AND group
-// services. Group services are prefixed with "group-".
+// NumChecks returns the number of registered checks.
 func (a *AllocRegistration) NumChecks() int {
 	if a == nil {
 		return 0
 	}
 
 	total := 0
-	for _, task := range a.Tasks {
-		for _, service := range task.Services {
-			total += len(service.Checks)
+	for _, treg := range a.Tasks {
+		for _, sreg := range treg.Services {
+			total += len(sreg.Checks)
 		}
 	}
 
@@ -106,7 +108,6 @@ func (a *AllocRegistration) NumChecks() int {
 // ServiceRegistrations holds the status of services registered for a
 // particular task or task group.
 type ServiceRegistrations struct {
-	// Services maps service_id -> service registration
 	Services map[string]*ServiceRegistration
 }
 

@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added `-json` and `-t` flag to `alloc checks` command
-```

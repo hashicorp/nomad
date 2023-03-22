@@ -473,9 +473,20 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
-	require.NoError(t, err2)         // does not return error
-	require.Nil(t, resp2.Attributes) // attributes unset so they don't change
-	require.True(t, resp.Detected)   // never downgrade
+	require.NoError(t, err2)            // does not return error
+	require.Equal(t, map[string]string{ // attributes set empty
+		"consul.datacenter":    "",
+		"consul.revision":      "",
+		"consul.segment":       "",
+		"consul.server":        "",
+		"consul.sku":           "",
+		"consul.version":       "",
+		"unique.consul.name":   "",
+		"consul.connect":       "",
+		"consul.grpc":          "",
+		"consul.ft.namespaces": "",
+	}, resp2.Attributes)
+	require.True(t, resp.Detected) // never downgrade
 
 	// consul no longer available
 	require.Equal(t, consulUnavailable, cf.lastState)
@@ -552,9 +563,20 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
-	require.NoError(t, err2)         // does not return error
-	require.Nil(t, resp2.Attributes) // attributes unset so they don't change
-	require.True(t, resp.Detected)   // never downgrade
+	require.NoError(t, err2)            // does not return error
+	require.Equal(t, map[string]string{ // attributes set empty
+		"consul.datacenter":    "",
+		"consul.revision":      "",
+		"consul.segment":       "",
+		"consul.server":        "",
+		"consul.sku":           "",
+		"consul.version":       "",
+		"consul.ft.namespaces": "",
+		"consul.connect":       "",
+		"consul.grpc":          "",
+		"unique.consul.name":   "",
+	}, resp2.Attributes)
+	require.True(t, resp.Detected) // never downgrade
 
 	// consul no longer available
 	require.Equal(t, consulUnavailable, cf.lastState)

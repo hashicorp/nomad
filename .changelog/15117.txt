@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Improved performance of eval delete with large filter sets
-```

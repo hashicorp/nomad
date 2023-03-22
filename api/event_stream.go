@@ -31,10 +31,6 @@ type Events struct {
 // Topic is an event Topic
 type Topic string
 
-// String is a convenience function which returns the topic as a string type
-// representation.
-func (t Topic) String() string { return string(t) }
-
 // Event holds information related to an event that occurred in Nomad.
 // The Payload is a hydrated object related to the Topic
 type Event struct {

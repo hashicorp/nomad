@@ -72,19 +72,15 @@ func (a *Allocations) Info(allocID string, q *QueryOptions) (*Allocation, *Query
 // the task environment.
 //
 // The parameters are:
-//   - ctx: context to set deadlines or timeout
-//   - allocation: the allocation to execute command inside
-//   - task: the task's name to execute command in
-//   - tty: indicates whether to start a pseudo-tty for the command
-//   - stdin, stdout, stderr: the std io to pass to command.
-//     If tty is true, then streams need to point to a tty that's alive for the whole process
-//   - terminalSizeCh: A channel to send new tty terminal sizes
+// * ctx: context to set deadlines or timeout
+// * allocation: the allocation to execute command inside
+// * task: the task's name to execute command in
+// * tty: indicates whether to start a pseudo-tty for the command
+// * stdin, stdout, stderr: the std io to pass to command.
+//      If tty is true, then streams need to point to a tty that's alive for the whole process
+// * terminalSizeCh: A channel to send new tty terminal sizes
 //
 // The call blocks until command terminates (or an error occurs), and returns the exit code.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
 func (a *Allocations) Exec(ctx context.Context,
 	alloc *Allocation, task string, tty bool, command []string,
 	stdin io.Reader, stdout, stderr io.Writer,
@@ -108,33 +104,12 @@ func (a *Allocations) Exec(ctx context.Context,
 	return s.run(ctx)
 }
 
-// Stats gets allocation resource usage statistics about an allocation.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	var resp AllocResourceUsage
 	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/stats", &resp, q)
 	return &resp, err
 }
 
-// Checks gets status information for nomad service checks that exist in the allocation.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
-func (a *Allocations) Checks(allocID string, q *QueryOptions) (AllocCheckStatuses, error) {
-	var resp AllocCheckStatuses
-	_, err := a.client.query("/v1/client/allocation/"+allocID+"/checks", &resp, q)
-	return resp, err
-}
-
-// GC forces a garbage collection of client state for an allocation.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
 func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 	var resp struct{}
 	_, err := a.client.query("/v1/client/allocation/"+alloc.ID+"/gc", &resp, nil)
@@ -144,10 +119,6 @@ func (a *Allocations) GC(alloc *Allocation, q *QueryOptions) error {
 // Restart restarts the tasks that are currently running or a specific task if
 // taskName is provided. An error is returned if the task to be restarted is
 // not running.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
 func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOptions) error {
 	req := AllocationRestartRequest{
 		TaskName: taskName,
@@ -160,12 +131,6 @@ func (a *Allocations) Restart(alloc *Allocation, taskName string, q *QueryOption
 
 // RestartAllTasks restarts all tasks in the allocation, regardless of
 // lifecycle type or state. Tasks will restart following their lifecycle order.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
-//
-// DEPRECATED: This method will be removed in 1.6.0
 func (a *Allocations) RestartAllTasks(alloc *Allocation, q *QueryOptions) error {
 	req := AllocationRestartRequest{
 		AllTasks: true,
@@ -176,34 +141,9 @@ func (a *Allocations) RestartAllTasks(alloc *Allocation, q *QueryOptions) error 
 	return err
 }
 
-// Stop stops an allocation.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
-//
-// BREAKING: This method will have the following signature in 1.6.0
-// func (a *Allocations) Stop(allocID string, w *WriteOptions) (*AllocStopResponse, error) {
 func (a *Allocations) Stop(alloc *Allocation, q *QueryOptions) (*AllocStopResponse, error) {
-	// COMPAT: Remove in 1.6.0
-	var w *WriteOptions
-	if q != nil {
-		w = &WriteOptions{
-			Region:    q.Region,
-			Namespace: q.Namespace,
-			AuthToken: q.AuthToken,
-			Headers:   q.Headers,
-			ctx:       q.ctx,
-		}
-	}
-
 	var resp AllocStopResponse
-	wm, err := a.client.put("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, w)
-	if wm != nil {
-		resp.LastIndex = wm.LastIndex
-		resp.RequestTime = wm.RequestTime
-	}
-
+	_, err := a.client.putQuery("/v1/allocation/"+alloc.ID+"/stop", nil, &resp, q)
 	return &resp, err
 }
 
@@ -215,11 +155,6 @@ type AllocStopResponse struct {
 	WriteMeta
 }
 
-// Signal sends a signal to the allocation.
-//
-// Note: for cluster topologies where API consumers don't have network access to
-// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
-// long pauses on this API call.
 func (a *Allocations) Signal(alloc *Allocation, q *QueryOptions, task, signal string) error {
 	req := AllocSignalRequest{
 		Signal: signal,
@@ -558,12 +493,12 @@ type ExecStreamingInput struct {
 	TTYSize *TerminalSize             `json:"tty_size,omitempty"`
 }
 
-// ExecStreamingExitResult captures the exit code of just completed nomad exec command
+// ExecStreamingExitResults captures the exit code of just completed nomad exec command
 type ExecStreamingExitResult struct {
 	ExitCode int `json:"exit_code"`
 }
 
-// ExecStreamingOutput represents an output streaming entity, e.g. stdout/stderr update or termination
+// ExecStreamingInput represents an output streaming entity, e.g. stdout/stderr update or termination
 //
 // At most one of these fields should be set: `Stdout`, `Stderr`, or `Result`.
 // If `Exited` is true, then `Result` is non-nil, and other fields are nil.

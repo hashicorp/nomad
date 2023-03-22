@@ -24,7 +24,7 @@ func TestAllocStatusCommand_Implements(t *testing.T) {
 func TestAllocStatusCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -86,7 +86,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -134,7 +134,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 func TestAllocStatusCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -194,15 +194,12 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 
 	out = ui.OutputWriter.String()
 	must.StrContains(t, out, allocID)
-
-	// make sure nsd checks status output is elided if none exist
-	must.StrNotContains(t, out, `Nomad Service Checks:`)
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -236,7 +233,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -285,7 +282,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -320,7 +317,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 			},
 		}
 	})
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	state := srv.Agent.Server().State()
 
@@ -372,7 +369,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	state := srv.Agent.Server().State()
 
@@ -443,41 +440,4 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	must.StrContains(t, out, "CSI Volumes")
 	must.StrContains(t, out, fmt.Sprintf("%s  minnie", vol0))
 	must.StrNotContains(t, out, "Host Volumes")
-}
-
-func TestAllocStatusCommand_NSD_Checks(t *testing.T) {
-	ci.Parallel(t)
-	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
-
-	// wait for nodes
-	waitForNodes(t, client)
-
-	jobID := "job1_checks"
-	job1 := testNomadServiceJob(jobID)
-
-	resp, _, err := client.Jobs().Register(job1, nil)
-	must.NoError(t, err)
-
-	// wait for registration success
-	ui := cli.NewMockUi()
-	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-	must.Zero(t, code)
-
-	// Get an alloc id
-	allocID := getAllocFromJob(t, client, jobID)
-
-	// wait for the check to be marked failure
-	waitForCheckStatus(t, client, allocID, "failure")
-
-	// Run command
-	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
-	code = cmd.Run([]string{"-address=" + url, allocID})
-	must.Zero(t, code)
-
-	// check output
-	out := ui.OutputWriter.String()
-	must.StrContains(t, out, `Nomad Service Checks:`)
-	must.RegexMatch(t, regexp.MustCompile(`Service\s+Task\s+Name\s+Mode\s+Status`), out)
-	must.RegexMatch(t, regexp.MustCompile(`service1\s+\(group\)\s+check1\s+healthiness\s+(pending|failure)`), out)
 }

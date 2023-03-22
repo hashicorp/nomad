@@ -85,7 +85,7 @@ Job validation errors:
 Validate a job that has a configuration that causes warnings:
 
 ```shell-session
-$ nomad job validate example.nomad.hcl
+$ nomad job validate example.nomad
 Job Warnings:
 1 warning(s):
 
@@ -97,6 +97,6 @@ Job validation successful
 ```
 
 [`go-getter`]: https://github.com/hashicorp/go-getter
-[job specification]: /nomad/docs/job-specification
-[`vault` block `allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
-[`vault_token`]: /nomad/docs/job-specification/job#vault_token
+[job specification]: /docs/job-specification
+[`vault` block `allow_unauthenticated`]: /docs/configuration/vault#allow_unauthenticated
+[`vault_token`]: /docs/job-specification/job#vault_token

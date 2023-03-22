@@ -123,7 +123,7 @@ module('Acceptance | task group detail', function (hooks) {
 
     assert.equal(
       document.title,
-      `Task group ${taskGroup.name} - Job ${job.name} - Mirage - Nomad`
+      `Task group ${taskGroup.name} - Job ${job.name} - Nomad`
     );
   });
 

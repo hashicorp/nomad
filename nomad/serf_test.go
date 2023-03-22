@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -430,7 +431,7 @@ func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
 	s1.maybeBootstrap()
 	time.Sleep(100 * time.Millisecond)
 
-	bootstrapped := s1.bootstrapped.Load()
+	bootstrapped := atomic.LoadInt32(&s1.config.Bootstrapped)
 	require.Zero(t, bootstrapped, "expecting non-bootstrapped servers")
 
 	p, _ := s1.numPeers()

@@ -1,3 +1,0 @@
-```release-note:improvement
-consul: Enable setting custom tagged_addresses field
-```

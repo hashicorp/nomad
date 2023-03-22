@@ -71,10 +71,6 @@ export default class JobSerializer extends ApplicationSerializer {
       .buildURL(modelName, hash.ID, hash, 'findRecord')
       .split('?');
 
-    const variableLookup = hash.ParentID
-      ? JSON.parse(hash.ParentID)[0]
-      : hash.PlainId;
-
     return assign(super.extractRelationships(...arguments), {
       allocations: {
         links: {
@@ -99,19 +95,6 @@ export default class JobSerializer extends ApplicationSerializer {
       evaluations: {
         links: {
           related: buildURL(`${jobURL}/evaluations`, { namespace }),
-        },
-      },
-      services: {
-        links: {
-          related: buildURL(`${jobURL}/services`, { namespace }),
-        },
-      },
-      variables: {
-        links: {
-          related: buildURL(`/${apiNamespace}/vars`, {
-            prefix: `nomad/jobs/${variableLookup}`,
-            namespace,
-          }),
         },
       },
       scaleState: {

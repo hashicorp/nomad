@@ -7,13 +7,6 @@
   border-collapse: separate;
   width: 100%;
 
-  &:not(.no-mobile-condense) {
-    @media #{$mq-table-overflow} {
-      display: block;
-      overflow-x: auto;
-    }
-  }
-
   &.is-fixed {
     table-layout: fixed;
 
@@ -46,10 +39,6 @@
     .is-selectable a {
       padding: 0.75em;
     }
-  }
-
-  &.with-collapsed-borders {
-    border-collapse: collapse;
   }
 
   &.is-darkened {
@@ -139,6 +128,7 @@
 
       &.is-primary {
         color: $text;
+        text-decoration: none;
         font-weight: $weight-semibold;
       }
     }

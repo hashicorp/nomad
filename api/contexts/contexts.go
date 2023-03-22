@@ -17,7 +17,6 @@ const (
 	Recommendations Context = "recommendations"
 	ScalingPolicies Context = "scaling_policy"
 	Plugins         Context = "plugins"
-	Variables       Context = "vars"
 	Volumes         Context = "volumes"
 
 	// These Context types are used to associate a search result from a lower

@@ -1,13 +1,6 @@
 <div class="boxed-section">
   <div class="boxed-section-head">
     Recent Allocations
-    <span class="pull-right is-padded">
-      <Toggle
-        @isActive={{this.showSubTasks}}
-        @onToggle={{this.toggleShowSubTasks}}
-        title="Show tasks of allocations"
-      >Show Tasks</Toggle>
-    </span>
   </div>
   <div
     class="boxed-section-body
@@ -18,7 +11,7 @@
         @source={{this.sortedAllocations}}
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
-        @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
+        @class="with-foot" as |t|
       >
         <t.head>
           <th class="is-narrow"></th>
@@ -59,18 +52,11 @@
             @allocation={{row.model}}
             @context="job"
             @onClick={{action "gotoAllocation" row.model}}
-            @showSubTasks={{this.showSubTasks}}
             {{keyboard-shortcut
               enumerated=true
               action=(action "gotoAllocation" row.model)
             }}
           />
-
-          {{#if this.showSubTasks}}
-            {{#each row.model.states as |task|}}
-              <TaskSubRow @namespan="9" @taskState={{task}} @active={{eq @activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{@setActiveTaskQueryParam}} />
-            {{/each}}
-          {{/if}}
         </t.body>
       </ListTable>
     {{else}}

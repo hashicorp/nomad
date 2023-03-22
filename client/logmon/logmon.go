@@ -195,7 +195,7 @@ func (l *logRotatorWrapper) isRunning() bool {
 // newLogRotatorWrapper takes a rotator and returns a wrapper that has the
 // processOutWriter to attach to the stdout or stderr of a process.
 func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteCloser) (*logRotatorWrapper, error) {
-	logger.Debug("opening fifo", "path", path)
+	logger.Info("opening fifo", "path", path)
 
 	var openFn func() (io.ReadCloser, error)
 	var err error
@@ -280,7 +280,7 @@ func (l *logRotatorWrapper) Close() {
 		if l.processOutReader != nil {
 			err := l.processOutReader.Close()
 			if err != nil && !strings.Contains(err.Error(), "file already closed") {
-				l.logger.Warn("error closing read-side of process output pipe", "error", err)
+				l.logger.Warn("error closing read-side of process output pipe", "err", err)
 			}
 		}
 

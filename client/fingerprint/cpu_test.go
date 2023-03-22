@@ -67,9 +67,7 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
-	cfg := &config.Config{
-		ReservableCores: []uint16{0, 1, 2},
-	}
+	cfg := &config.Config{}
 	var originalCPU int
 
 	{
@@ -82,10 +80,6 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 
 		if !response.Detected {
 			t.Fatalf("expected response to be applicable")
-		}
-
-		if attr := response.Attributes["cpu.reservablecores"]; attr != "3" {
-			t.Fatalf("expected cpu.reservablecores == 3 but found %s", attr)
 		}
 
 		if response.Resources.CPU == 0 {
@@ -116,10 +110,6 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		}
 		if response.Attributes["cpu.totalcompute"] != strconv.Itoa(cfg.CpuCompute) {
 			t.Fatalf("expected override cpu.totalcompute of %d but found %s", cfg.CpuCompute, response.Attributes["cpu.totalcompute"])
-		}
-
-		if attr := response.Attributes["cpu.reservablecores"]; attr != "3" {
-			t.Fatalf("expected cpu.reservablecores == 3 but found %s", attr)
 		}
 	}
 }

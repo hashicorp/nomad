@@ -15,44 +15,15 @@
     "path": "json-jobs"
   },
   {
-    "title": "Task API",
-    "path": "task-api"
-  },
-  {
     "divider": true
   },
   {
-    "title": "ACL",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "acl"
-      },
-      {
-        "title": "Auth Methods",
-        "path": "acl/auth-methods"
-      },
-      {
-        "title": "Binding Rules",
-        "path": "acl/binding-rules"
-      },
-      {
-        "title": "OIDC",
-        "path": "acl/oidc"
-      },
-      {
-        "title": "Policies",
-        "path": "acl/policies"
-      },
-      {
-        "title": "Roles",
-        "path": "acl/roles"
-      },
-      {
-        "title": "Tokens",
-        "path": "acl/tokens"
-      }
-    ]
+    "title": "ACL Policies",
+    "path": "acl-policies"
+  },
+  {
+    "title": "ACL Tokens",
+    "path": "acl-tokens"
   },
   {
     "title": "Agent",
@@ -106,16 +77,12 @@
         "path": "operator/autopilot"
       },
       {
-        "title": "Keyring",
-        "path": "operator/keyring"
+        "title": "Raft",
+        "path": "operator/raft"
       },
       {
         "title": "License",
         "path": "operator/license"
-      },
-      {
-        "title": "Raft",
-        "path": "operator/raft"
       },
       {
         "title": "Scheduler",
@@ -174,10 +141,6 @@
   {
     "title": "Validate",
     "path": "validate"
-  },
-  {
-    "title": "Variables",
-    "path": "variables"
   },
   {
     "title": "Volumes",

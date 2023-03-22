@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -24,10 +25,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -185,7 +184,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	if consul {
 		var err error
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
-			c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
+			// defaults
 		})
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
@@ -514,7 +513,6 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Permissions(t *testing.T) {
-	clienttestutil.RequireRoot(t)
 	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := "hello, world!"
@@ -1504,11 +1502,14 @@ COMMON={{key "common"}}
 // process environment variables.  nomad host process environment variables
 // are to be treated the same as not found environment variables.
 func TestTaskTemplateManager_FiltersEnvVars(t *testing.T) {
+	ci.Parallel(t)
 
-	t.Setenv("NOMAD_TASK_NAME", "should be overridden by task")
+	defer os.Setenv("NOMAD_TASK_NAME", os.Getenv("NOMAD_TASK_NAME"))
+	os.Setenv("NOMAD_TASK_NAME", "should be overridden by task")
 
 	testenv := "TESTENV_" + strings.ReplaceAll(uuid.Generate(), "-", "")
-	t.Setenv(testenv, "MY_TEST_VALUE")
+	os.Setenv(testenv, "MY_TEST_VALUE")
+	defer os.Unsetenv(testenv)
 
 	// Make a template that will render immediately
 	content := `Hello Nomad Task: {{env "NOMAD_TASK_NAME"}}
@@ -2471,46 +2472,6 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	}
 }
 
-// TestTaskTemplateManager_Template_ErrMissingKey_Set asserts that all template level
-// configuration is accurately mapped from the template to the TaskTemplateManager's
-// template config.
-func TestTaskTemplateManager_Template_ErrMissingKey_Set(t *testing.T) {
-	ci.Parallel(t)
-
-	c := config.DefaultConfig()
-	c.Node = mock.Node()
-
-	alloc := mock.Alloc()
-
-	ttmConfig := &TaskTemplateManagerConfig{
-		ClientConfig: c,
-		VaultToken:   "token",
-		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
-		Templates: []*structs.Template{
-			{
-				EmbeddedTmpl:  "test-false",
-				ErrMissingKey: false,
-			},
-			{
-				EmbeddedTmpl:  "test-true",
-				ErrMissingKey: true,
-			},
-		},
-	}
-
-	templateMapping, err := parseTemplateConfigs(ttmConfig)
-	require.NoError(t, err)
-
-	for k, tmpl := range templateMapping {
-		if tmpl.EmbeddedTmpl == "test-false" {
-			require.False(t, *k.ErrMissingKey)
-		}
-		if tmpl.EmbeddedTmpl == "test-true" {
-			require.True(t, *k.ErrMissingKey)
-		}
-	}
-}
-
 // TestTaskTemplateManager_writeToFile_Disabled asserts the consul-template function
 // writeToFile is disabled by default.
 func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
@@ -2557,7 +2518,10 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	ci.Parallel(t)
 
-	cu, err := users.Current()
+	cu, err := user.Current()
+	require.NoError(t, err)
+
+	cg, err := user.LookupGroupId(cu.Gid)
 	require.NoError(t, err)
 
 	file := "my.tmpl"
@@ -2571,7 +2535,7 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	// Add template now that we know the taskDir
 	harness.templates[0].EmbeddedTmpl = fmt.Sprintf(`Testing writeToFile...
-{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cu.Gid+`" "0644" }}
+{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cg.Name+`" "0644" }}
 ...done
 `, filepath.Join(harness.taskDir, "writetofile.out"))
 

@@ -28,13 +28,6 @@ policy is as follows:
 namespace "foo" {
   policy = "write"                # this is a policy field
   capabilities = ["alloc-exec"]  # this is a capabilities list
-
-  # this block controls access to variables in this namespace
-  variables {
-    path "project/*" {
-      capabilities = ["read", "write"]
-    }
-  }
 }
 
 # this is a namespace rule, with a wildcard label
@@ -107,7 +100,7 @@ namespace "*" {
 ```
 
 Each namespace rule can include a coarse-grained `policy` field, a fine-grained
-`capabilities` field, a `variables` block, or all three.
+`capabilities` field, or both.
 
 The `policy` field for namespace rules can have one of the following values:
 - `read`: allow the resource to be read but not modified
@@ -180,53 +173,6 @@ A similar policy could also be expressed as:
 # to view log output or inspect the filesystem
 namespace "default" {
   capabilities = ["submit-job","list-jobs","read-job"]
-}
-```
-
-### Variables
-
-The `variables` block in the `namespace` rule controls access to
-[Variables][]. The variables block is optional, but you can specify only one
-variables block per namespace rule.
-
-A `variables` block includes one or more `path` blocks. Each `path` block is
-labeled with the path it applies to. You may use wildcard globs (`"*"`) in the
-path label, to apply the block to multiple paths in the namespace.
-
-Each path has a list of `capabilities`. The available capabilities for Variables
-are as follows:
-
-| Capability | Notes                                                                                                                 |
-|------------|-----------------------------------------------------------------------------------------------------------------------|
-| write      | Create or update Variables at this path. Includes the "list" capability but not the "read" or "destroy" capabilities. |
-| read       | Read the decrypted contents of Variables at this path. Also includes the "list" capability                            |
-| list       | List the metadata but not contents of Variables at this path.                                                         |
-| destroy    | Delete Variables at this path.                                                                                        |
-| deny       | No permissions at this path. Deny takes precedence over other capabilities.                                           |
-
-For example, the policy below allows full access to variables at all paths in
-the "dev" namespace that are prefixed with "project/", but only read access to
-paths prefixed with "system/". Note that the glob can match an empty string but
-all other characters are strictly matched. This policy grants read access to
-paths prefixed with "system/" but not a path named "system" (without a trailing
-slash). This policy does not grant any other coarse-grained policy or
-fine-grained capabilities.
-
-```hcl
-namespace "dev" {
-
-  variables {
-
-    # full access to secrets in all "project" paths
-    path "project/*" {
-      capabilities = ["write", "read", "destroy", "list"]
-    }
-
-    # read/list access within a "system/" path belonging to administrators
-    path "system/*" {
-      capabilities = ["read"]
-    }
-  }
 }
 ```
 
@@ -382,24 +328,39 @@ The `policy` field for the plugin rule can have one of the following values:
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
 
+## Configuring ACLs for the web UI
 
-[Secure Nomad with Access Control]: /nomad/tutorials/access-control
+The Nomad web UI uses the API endpoints `/v1/agent` and `/v1/node` for nearly
+every page. ACL policies for users who will use the Nomad UI should include the
+following rules.
+
+```hcl
+node {
+  policy = "read"
+}
+
+agent {
+  policy = "read"
+}
+```
+
+
+[Secure Nomad with Access Control]: https://learn.hashicorp.com/collections/nomad/access-control
 [hcl]: https://github.com/hashicorp/hcl
 [hcl_syntax_spec]: https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md
-[api_jobs]: /nomad/api-docs/jobs
-[api_allocations]: /nomad/api-docs/allocations
-[api_deployments]: /nomad/api-docs/deployments
-[api_evaluations]: /nomad/api-docs/evaluations
-[api_recommendations]: /nomad/api-docs/recommendations
-[api_scaling_policies]: /nomad/api-docs/scaling-policies
-[api_services]: /nomad/api-docs/services
-[api_volumes]: /nomad/api-docs/volumes
-[api_events]: /nomad/api-docs/events
-[api_search]: /nomad/api-docs/search
-[api_agent]: /nomad/api-docs/agent/
-[api_node]: /nomad/api-docs/nodes/
-[api_operator]: /nomad/api-docs/operator/
-[api_quota]: /nomad/api-docs/quotas/
-[host_volumes]: /nomad/docs/configuration/client#host_volume-block
-[api_plugins]: /nomad/api-docs/plugins/
-[Variables]: /nomad/docs/concepts/variables
+[api_jobs]: /api-docs/jobs
+[api_allocations]: /api-docs/allocations
+[api_deployments]: /api-docs/deployments
+[api_evaluations]: /api-docs/evaluations
+[api_recommendations]: /api-docs/recommendations
+[api_scaling_policies]: /api-docs/scaling-policies
+[api_services]: /api-docs/services
+[api_volumes]: /api-docs/volumes
+[api_events]: /api-docs/events
+[api_search]: /api-docs/search
+[api_agent]: /api-docs/agent/
+[api_node]: /api-docs/nodes/
+[api_operator]: /api-docs/operator/
+[api_quota]: /api-docs/quotas/
+[host_volumes]: /docs/configuration/client#host_volume-block
+[api_plugins]: /api-docs/plugins/

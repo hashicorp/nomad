@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,21 +60,6 @@ func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, job1, job2)
-}
-
-func TestParse_ConnectJob(t *testing.T) {
-	ci.Parallel(t)
-
-	name := "./test-fixtures/connect-example.hcl"
-	f, err := os.Open(name)
-	must.NoError(t, err)
-	t.Cleanup(func() { _ = f.Close() })
-
-	job2, err := Parse(name, f)
-	must.NoError(t, err)
-
-	timeout := job2.TaskGroups[0].Services[0].Connect.SidecarService.Proxy.Upstreams[0].Config["connect_timeout_ms"]
-	must.Eq(t, 9999, timeout)
 }
 
 func TestParse_VarsAndFunctions(t *testing.T) {
@@ -1066,20 +1050,4 @@ func TestWaitConfig(t *testing.T) {
 	require.NotNil(t, tmpl.Wait)
 	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
 	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
-}
-
-func TestErrMissingKey(t *testing.T) {
-	ci.Parallel(t)
-	hclBytes, err := os.ReadFile("test-fixtures/template-err-missing-key.hcl")
-	require.NoError(t, err)
-	job, err := ParseWithConfig(&ParseConfig{
-		Path:    "test-fixtures/template-err-missing-key.hcl",
-		Body:    hclBytes,
-		AllowFS: false,
-	})
-	require.NoError(t, err)
-	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
-	require.NotNil(t, tmpl)
-	require.NotNil(t, tmpl.ErrMissingKey)
-	require.True(t, *tmpl.ErrMissingKey)
 }

@@ -221,7 +221,7 @@ func (tc *SysBatchSchedulerTest) TestJobRunDispatch(f *framework.F) {
 	jobs := nomadClient.Jobs()
 	result, _, err := jobs.Dispatch(jobID, map[string]string{
 		"KEY": "value",
-	}, nil, "", nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// grab the new dispatched jobID

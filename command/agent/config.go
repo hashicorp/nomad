@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -22,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -227,12 +227,6 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
-	// DiskTotalMB is used to override any detected or default total disk space.
-	DiskTotalMB int `hcl:"disk_total_mb"`
-
-	// DiskFreeMB is used to override any detected or default free disk space.
-	DiskFreeMB int `hcl:"disk_free_mb"`
-
 	// ReservableCores is used to override detected reservable cpu cores.
 	ReserveableCores string `hcl:"reservable_cores"`
 
@@ -315,10 +309,6 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
-	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
-	// internal bridge network
-	BridgeNetworkHairpinMode bool `hcl:"bridge_network_hairpin_mode"`
-
 	// HostNetworks describes the different host networks available to the host
 	// if the host uses multiple interfaces
 	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
@@ -386,28 +376,10 @@ type ACLConfig struct {
 	PolicyTTL    time.Duration
 	PolicyTTLHCL string `hcl:"policy_ttl" json:"-"`
 
-	// RoleTTL controls how long we cache ACL roles. This controls how stale
-	// they can be when we are enforcing policies. Defaults to "30s".
-	// Reducing this impacts performance by forcing more frequent resolution.
-	RoleTTL    time.Duration
-	RoleTTLHCL string `hcl:"role_ttl" json:"-"`
-
 	// ReplicationToken is used by servers to replicate tokens and policies
 	// from the authoritative region. This must be a valid management token
 	// within the authoritative region.
 	ReplicationToken string `hcl:"replication_token"`
-
-	// TokenMinExpirationTTL is used to enforce the lowest acceptable value for
-	// ACL token expiration. This is used by the Nomad servers to validate ACL
-	// tokens with an expiration value set upon creation.
-	TokenMinExpirationTTL    time.Duration
-	TokenMinExpirationTTLHCL string `hcl:"token_min_expiration_ttl" json:"-"`
-
-	// TokenMaxExpirationTTL is used to enforce the highest acceptable value
-	// for ACL token expiration. This is used by the Nomad servers to validate
-	// ACL tokens with an expiration value set upon creation.
-	TokenMaxExpirationTTL    time.Duration
-	TokenMaxExpirationTTLHCL string `hcl:"token_max_expiration_ttl" json:"-"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -486,13 +458,9 @@ type ServerConfig struct {
 	BatchEvalGCThreshold string `hcl:"batch_eval_gc_threshold"`
 
 	// DeploymentGCThreshold controls how "old" a deployment must be to be
-	// collected by GC. Age is not the only requirement for a deployment to be
+	// collected by GC.  Age is not the only requirement for a deployment to be
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
-
-	// CSIVolumeClaimGCInterval is how often we dispatch a job to GC
-	// volume claims.
-	CSIVolumeClaimGCInterval string `hcl:"csi_volume_claim_gc_interval"`
 
 	// CSIVolumeClaimGCThreshold controls how "old" a CSI volume must be to
 	// have its claims collected by GC.	Age is not the only requirement for
@@ -503,23 +471,6 @@ type ServerConfig struct {
 	// collected by GC. Age is not the only requirement for a plugin to be
 	// GCed but the threshold can be used to filter by age.
 	CSIPluginGCThreshold string `hcl:"csi_plugin_gc_threshold"`
-
-	// ACLTokenGCThreshold controls how "old" an expired ACL token must be to
-	// be collected by GC.
-	ACLTokenGCThreshold string `hcl:"acl_token_gc_threshold"`
-
-	// RootKeyGCInterval is how often we dispatch a job to GC
-	// encryption key metadata
-	RootKeyGCInterval string `hcl:"root_key_gc_interval"`
-
-	// RootKeyGCThreshold is how "old" encryption key metadata must be
-	// to be eligible for GC.
-	RootKeyGCThreshold string `hcl:"root_key_gc_threshold"`
-
-	// RootKeyRotationThreshold is how "old" an encryption key must be
-	// before it is automatically rotated on the next garbage
-	// collection interval.
-	RootKeyRotationThreshold string `hcl:"root_key_rotation_threshold"`
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
@@ -566,7 +517,7 @@ type ServerConfig struct {
 	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
-	// When set to false (default), a leave causes Nomad to not rejoin
+	// When set to false (default), a leave causes Consul to not rejoin
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `hcl:"rejoin_after_leave"`
@@ -629,31 +580,6 @@ type ServerConfig struct {
 
 	// RaftBoltConfig configures boltdb as used by raft.
 	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
-
-	// RaftSnapshotThreshold controls how many outstanding logs there must be
-	// before we perform a snapshot. This is to prevent excessive snapshotting by
-	// replaying a small set of logs instead. The value passed here is the initial
-	// setting used. This can be tuned during operation with a hot reload.
-	RaftSnapshotThreshold *int `hcl:"raft_snapshot_threshold"`
-
-	// RaftSnapshotInterval controls how often we check if we should perform a
-	// snapshot. We randomly stagger between this value and 2x this value to avoid
-	// the entire cluster from performing a snapshot at once. The value passed
-	// here is the initial setting used. This can be tuned during operation with a
-	// hot reload.
-	RaftSnapshotInterval *string `hcl:"raft_snapshot_interval"`
-
-	// RaftTrailingLogs controls how many logs are left after a snapshot. This is
-	// used so that we can quickly replay logs on a follower instead of being
-	// forced to send an entire snapshot. The value passed here is the initial
-	// setting used. This can be tuned during operation using a hot reload.
-	RaftTrailingLogs *int `hcl:"raft_trailing_logs"`
-
-	// JobDefaultPriority is the default Job priority if not specified.
-	JobDefaultPriority *int `hcl:"job_default_priority"`
-
-	// JobMaxPriority is an upper bound on the Job priority.
-	JobMaxPriority *int `hcl:"job_max_priority"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -676,11 +602,6 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
 	ns.RaftBoltConfig = s.RaftBoltConfig.Copy()
-	ns.RaftSnapshotInterval = pointer.Copy(s.RaftSnapshotInterval)
-	ns.RaftSnapshotThreshold = pointer.Copy(s.RaftSnapshotThreshold)
-	ns.RaftTrailingLogs = pointer.Copy(s.RaftTrailingLogs)
-	ns.JobDefaultPriority = pointer.Copy(s.JobDefaultPriority)
-	ns.JobMaxPriority = pointer.Copy(s.JobMaxPriority)
 	return &ns
 }
 
@@ -904,12 +825,6 @@ type Telemetry struct {
 	// high numbers of single count dispatch jobs as the metrics for each take up
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `hcl:"disable_dispatched_job_summary_metrics"`
-
-	// DisableRPCRateMetricsLabels drops the label for the identity of the
-	// requester when publishing metrics on RPC rate on the server. This may be
-	// useful to control metrics collection costs in environments where request
-	// rate is well-controlled but cardinality of requesters is high.
-	DisableRPCRateMetricsLabels bool `hcl:"disable_rpc_rate_metrics_labels"`
 
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
@@ -1143,7 +1058,7 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 			// come up and fail unexpectedly to run jobs
 			return nil, fmt.Errorf("-dev-connect is only supported on linux.")
 		}
-		u, err := users.Current()
+		u, err := user.Current()
 		if err != nil {
 			return nil, fmt.Errorf(
 				"-dev-connect uses network namespaces and is only supported for root: %v", err)
@@ -1237,7 +1152,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	return conf
 }
 
-// DefaultConfig is the baseline configuration for Nomad.
+// DefaultConfig is a the baseline configuration for Nomad
 func DefaultConfig() *Config {
 	return &Config{
 		LogLevel:   "INFO",
@@ -1311,7 +1226,6 @@ func DefaultConfig() *Config {
 			Enabled:   false,
 			TokenTTL:  30 * time.Second,
 			PolicyTTL: 30 * time.Second,
-			RoleTTL:   30 * time.Second,
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
@@ -1817,24 +1731,6 @@ func (a *ACLConfig) Merge(b *ACLConfig) *ACLConfig {
 	if b.PolicyTTLHCL != "" {
 		result.PolicyTTLHCL = b.PolicyTTLHCL
 	}
-	if b.RoleTTL != 0 {
-		result.RoleTTL = b.RoleTTL
-	}
-	if b.RoleTTLHCL != "" {
-		result.RoleTTLHCL = b.RoleTTLHCL
-	}
-	if b.TokenMinExpirationTTL != 0 {
-		result.TokenMinExpirationTTL = b.TokenMinExpirationTTL
-	}
-	if b.TokenMinExpirationTTLHCL != "" {
-		result.TokenMinExpirationTTLHCL = b.TokenMinExpirationTTLHCL
-	}
-	if b.TokenMaxExpirationTTL != 0 {
-		result.TokenMaxExpirationTTL = b.TokenMaxExpirationTTL
-	}
-	if b.TokenMaxExpirationTTLHCL != "" {
-		result.TokenMaxExpirationTTLHCL = b.TokenMaxExpirationTTLHCL
-	}
 	if b.ReplicationToken != "" {
 		result.ReplicationToken = b.ReplicationToken
 	}
@@ -1879,12 +1775,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold
 	}
-	if b.JobDefaultPriority != nil {
-		result.JobDefaultPriority = pointer.Of(*b.JobDefaultPriority)
-	}
-	if b.JobMaxPriority != nil {
-		result.JobMaxPriority = pointer.Of(*b.JobMaxPriority)
-	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
 	}
@@ -1894,26 +1784,11 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
 	}
-	if b.CSIVolumeClaimGCInterval != "" {
-		result.CSIVolumeClaimGCInterval = b.CSIVolumeClaimGCInterval
-	}
 	if b.CSIVolumeClaimGCThreshold != "" {
 		result.CSIVolumeClaimGCThreshold = b.CSIVolumeClaimGCThreshold
 	}
 	if b.CSIPluginGCThreshold != "" {
 		result.CSIPluginGCThreshold = b.CSIPluginGCThreshold
-	}
-	if b.ACLTokenGCThreshold != "" {
-		result.ACLTokenGCThreshold = b.ACLTokenGCThreshold
-	}
-	if b.RootKeyGCInterval != "" {
-		result.RootKeyGCInterval = b.RootKeyGCInterval
-	}
-	if b.RootKeyGCThreshold != "" {
-		result.RootKeyGCThreshold = b.RootKeyGCThreshold
-	}
-	if b.RootKeyRotationThreshold != "" {
-		result.RootKeyRotationThreshold = b.RootKeyRotationThreshold
 	}
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
@@ -2051,12 +1926,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.MemoryMB != 0 {
 		result.MemoryMB = b.MemoryMB
 	}
-	if b.DiskTotalMB != 0 {
-		result.DiskTotalMB = b.DiskTotalMB
-	}
-	if b.DiskFreeMB != 0 {
-		result.DiskFreeMB = b.DiskFreeMB
-	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout
 	}
@@ -2160,10 +2029,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
-	}
-
-	if b.BridgeNetworkHairpinMode {
-		result.BridgeNetworkHairpinMode = true
 	}
 
 	result.HostNetworks = a.HostNetworks
@@ -2279,9 +2144,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.DisableDispatchedJobSummaryMetrics {
 		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
-	}
-	if b.DisableRPCRateMetricsLabels {
-		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels
 	}
 
 	return &result

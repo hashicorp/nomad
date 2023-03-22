@@ -1,6 +1,6 @@
 /* eslint-disable qunit/require-expect */
 import { get } from '@ember/object';
-import { currentURL, typeIn, click } from '@ember/test-helpers';
+import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -14,7 +14,6 @@ import {
 } from 'nomad-ui/utils/units';
 import queryString from 'query-string';
 import percySnapshot from '@percy/ember';
-import faker from 'nomad-ui/mirage/faker';
 
 const sumResources = (list, dimension) =>
   list.reduce((agg, val) => agg + (get(val, dimension) || 0), 0);
@@ -38,7 +37,6 @@ module('Acceptance | topology', function (hooks) {
   });
 
   test('by default the info panel shows cluster aggregate stats', async function (assert) {
-    faker.seed(1);
     server.createList('node', 3);
     server.createList('allocation', 5);
 
@@ -310,29 +308,5 @@ module('Acceptance | topology', function (hooks) {
     await Topology.visit();
     assert.ok(Topology.filteredNodesWarning.isPresent);
     assert.ok(Topology.filteredNodesWarning.message.startsWith('1'));
-  });
-
-  test('Filtering and Querying reduces the number of nodes shown', async function (assert) {
-    server.createList('node', 10);
-    server.createList('node', 2, {
-      nodeClass: 'foo-bar-baz',
-    });
-    server.createList('allocation', 5);
-
-    await Topology.visit();
-    assert.dom('[data-test-topo-viz-node]').exists({ count: 12 });
-
-    await typeIn('input.node-search', server.schema.nodes.first().name);
-    assert.dom('[data-test-topo-viz-node]').exists({ count: 1 });
-    await typeIn('input.node-search', server.schema.nodes.first().name);
-    assert.dom('[data-test-topo-viz-node]').doesNotExist();
-    await click('[title="Clear search"]');
-    assert.dom('[data-test-topo-viz-node]').exists({ count: 12 });
-
-    await Topology.facets.class.toggle();
-    await Topology.facets.class.options
-      .findOneBy('label', 'foo-bar-baz')
-      .toggle();
-    assert.dom('[data-test-topo-viz-node]').exists({ count: 2 });
   });
 });

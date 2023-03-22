@@ -1,3 +1,0 @@
-```release-note:improvement
-jobspec: Added `strlen` HCL2 function to determine the length of a string
-```

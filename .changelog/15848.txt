@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update github.com/docker/docker from 20.10.21+incompatible to 20.10.23+incompatible
-```

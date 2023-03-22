@@ -168,8 +168,7 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		req.Status = structs.NodeStatusDisconnected
 	}
 	var resp structs.NodeUpdateResponse
-
-	if err := h.RPC("Node.UpdateStatus", &req, &resp); err != nil {
+	if err := h.staticEndpoints.Node.UpdateStatus(&req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
 	}
 }

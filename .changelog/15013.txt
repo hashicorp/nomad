@@ -1,3 +1,0 @@
-```release-note:security
-event stream: Fixed a bug where ACL token expiration was not checked when emitting events
-```

@@ -109,9 +109,6 @@ type TaskTemplateManagerConfig struct {
 
 	// NomadNamespace is the Nomad namespace for the task
 	NomadNamespace string
-
-	// NomadToken is the Nomad token or identity claim for the task
-	NomadToken string
 }
 
 // Validate validates the configuration.
@@ -694,7 +691,6 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.Contents = &tmpl.EmbeddedTmpl
 		ct.LeftDelim = &tmpl.LeftDelim
 		ct.RightDelim = &tmpl.RightDelim
-		ct.ErrMissingKey = &tmpl.ErrMissingKey
 		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
 		if sandboxEnabled {
 			ct.SandboxPath = &config.TaskDir
@@ -919,7 +915,10 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up Nomad
 	conf.Nomad.Namespace = &config.NomadNamespace
 	conf.Nomad.Transport.CustomDialer = cc.TemplateDialer
-	conf.Nomad.Token = &config.NomadToken
+
+	// Use the Node's SecretID to authenticate Nomad template function calls.
+	conf.Nomad.Token = &cc.Node.SecretID
+
 	if cc.TemplateConfig != nil && cc.TemplateConfig.NomadRetry != nil {
 		// Set the user-specified Nomad RetryConfig
 		var err error

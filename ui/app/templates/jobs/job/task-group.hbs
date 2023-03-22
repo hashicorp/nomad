@@ -71,12 +71,6 @@
         </span>
         {{format-scheduled-bytes this.model.reservedEphemeralDisk start="MiB"}}
       </span>
-      <span class="pair">
-        <span class="term">
-          Namespace
-        </span>
-        {{this.model.job.namespace.name}}
-      </span>
       {{#if this.model.scaling}}
         <span class="pair" data-test-task-group-min>
           <span class="term">
@@ -91,11 +85,6 @@
             Scaling Policy?
           </span>
           {{if this.model.scaling.policy "Yes" "No"}}
-        </span>
-      {{/if}}
-      {{#if (and (can "list variables") this.model.pathLinkedVariable)}}
-        <span class="pair" data-test-task-group-stat="variables">
-          <LinkTo @route="variables.variable" @model={{this.model.pathLinkedVariable.id}}>Variables</LinkTo>
         </span>
       {{/if}}
     </div>
@@ -155,15 +144,6 @@
           @class="is-padded"
           @inputClass="is-compact"
         />
-        <span class="is-padded is-one-line">
-          <Toggle
-            @isActive={{this.showSubTasks}}
-            @onToggle={{this.toggleShowSubTasks}}
-            title="Show tasks of allocations"
-          >
-            Show Tasks
-          </Toggle>
-        </span>
       </div>
     </div>
     <div class="boxed-section-body is-full-bleed">
@@ -178,7 +158,7 @@
             @source={{p.list}}
             @sortProperty={{this.sortProperty}}
             @sortDescending={{this.sortDescending}}
-            @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
+            @class="with-foot" as |t|
           >
             <t.head>
               <th class="is-narrow"></th>
@@ -221,11 +201,6 @@
                 @context="taskGroup"
                 @onClick={{action "gotoAllocation" row.model}}
               />
-              {{#if this.showSubTasks}}
-                {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} />
-                {{/each}}
-              {{/if}}
             </t.body>
           </ListTable>
           <div class="table-foot">

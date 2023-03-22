@@ -33,6 +33,9 @@
           </ul>
         </div>
       {{/if}}
+      <p class="menu-label">
+        Workload
+      </p>
       <ul class="menu-list">
         <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "j") }}>
           <LinkTo
@@ -69,17 +72,6 @@
             Storage
           </LinkTo>
         </li>
-        {{#if (can "list variables")}}
-        <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "v") }}>
-          <LinkTo
-            @route="variables"
-            @activeClass="is-active"
-            data-test-gutter-link="variables"
-          >
-            Variables
-          </LinkTo>
-        </li>
-        {{/if}}
       </ul>
       <p class="menu-label">
         Cluster
@@ -114,7 +106,7 @@
         </li>
       </ul>
       <p class="menu-label">
-        Operations
+        Debugging
       </p>
       <ul class="menu-list">
         <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "e") }}>
@@ -126,23 +118,6 @@
             Evaluations
           </LinkTo>
         </li>
-        {{#if (can "list policies")}}
-          <li
-            {{keyboard-shortcut
-              menuLevel=true
-              pattern=(array "g" "l")
-              action=(action this.transitionTo 'policies')
-            }}
-          >
-            <LinkTo
-              @route="policies"
-              @activeClass="is-active"
-              data-test-gutter-link="policies"
-            >
-              Policies
-            </LinkTo>
-          </li>
-        {{/if}}
       </ul>
     </aside>
     {{#if this.system.agent.version}}

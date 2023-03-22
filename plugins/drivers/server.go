@@ -1,20 +1,19 @@
 package drivers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"math"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/hashicorp/go-plugin"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	dstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	context "golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type driverPluginServer struct {

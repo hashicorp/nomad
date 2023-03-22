@@ -48,30 +48,6 @@ export default class Task extends Fragment {
   @attr('number') reservedCPU;
   @attr('number') reservedDisk;
   @attr('number') reservedEphemeralDisk;
-  @fragmentArray('service-fragment') services;
 
   @fragmentArray('volume-mount', { defaultValue: () => [] }) volumeMounts;
-
-  async _fetchParentJob() {
-    let job = await this.store.findRecord('job', this.taskGroup.job.id, {
-      reload: true,
-    });
-    this._job = job;
-  }
-
-  get pathLinkedVariable() {
-    if (!this._job) {
-      this._fetchParentJob();
-      return null;
-    } else {
-      let jobID = this._job.plainId;
-      if (this._job.parent.get('plainId')) {
-        jobID = this._job.parent.get('plainId');
-      }
-      return this._job.variables?.findBy(
-        'path',
-        `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
-      );
-    }
-  }
 }

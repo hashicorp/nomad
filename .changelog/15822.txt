@@ -1,3 +1,0 @@
-```release-note:bug
-consul: correctly interpret missing consul checks as unhealthy
-```

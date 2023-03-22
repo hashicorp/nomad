@@ -67,11 +67,10 @@ func TestServiceSched_JobRegister(t *testing.T) {
 
 	// Ensure the eval has no spawned blocked eval
 	if len(h.CreateEvals) != 0 {
-		t.Errorf("bad: %#v", h.CreateEvals)
+		t.Fatalf("bad: %#v", h.CreateEvals)
 		if h.Evals[0].BlockedEval != "" {
 			t.Fatalf("bad: %#v", h.Evals[0])
 		}
-		t.FailNow()
 	}
 
 	// Ensure the plan allocated
@@ -767,7 +766,7 @@ func TestServiceSched_Spread(t *testing.T) {
 			remaining := uint8(100 - start)
 			// Create a job that uses spread over data center
 			job := mock.Job()
-			job.Datacenters = []string{"dc*"}
+			job.Datacenters = []string{"dc1", "dc2"}
 			job.TaskGroups[0].Count = 10
 			job.TaskGroups[0].Spreads = append(job.TaskGroups[0].Spreads,
 				&structs.Spread{
@@ -1122,9 +1121,10 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
-	_, ok = metrics.NodesAvailable["dc1"]
-	must.False(t, ok, must.Sprintf(
-		"expected NodesAvailable metric to be unpopulated when there are no nodes"))
+	// Check the available nodes
+	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 0 {
+		t.Fatalf("bad: %#v", metrics)
+	}
 
 	// Check queued allocations
 	queued := outEval.QueuedAllocations["web"]
@@ -1533,11 +1533,10 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 
 	// Ensure the eval has no spawned blocked eval
 	if len(h.Evals) != 1 {
-		t.Errorf("bad: %#v", h.Evals)
+		t.Fatalf("bad: %#v", h.Evals)
 		if h.Evals[0].BlockedEval != "" {
 			t.Fatalf("bad: %#v", h.Evals[0])
 		}
-		t.FailNow()
 	}
 
 	// Ensure the plan allocated
@@ -1610,7 +1609,6 @@ func TestServiceSched_JobModify(t *testing.T) {
 		alloc.NodeID = nodes[i].ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DesiredStatus = structs.AllocDesiredStatusStop
-		alloc.ClientStatus = structs.AllocClientStatusFailed // #10446
 		terminal = append(terminal, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), terminal))

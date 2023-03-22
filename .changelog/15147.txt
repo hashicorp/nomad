@@ -1,3 +1,0 @@
-```release-note:improvement
-api: Added an API for counting evaluations that match a filter
-```

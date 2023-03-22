@@ -1,3 +1,0 @@
-```release-note:improvement
-exec: Allow running commands from mounted host volumes
-```

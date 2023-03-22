@@ -75,7 +75,7 @@ commands:
           command: |
             set -x
 
-            echo installing golang ${GO_VERSION}
+            echo installing golang ${GOLANG_VERSION}
 
             case "${OSTYPE}" in
               linux*)  os="linux" ;;
@@ -339,6 +339,17 @@ jobs:
           path: /tmp/test-reports
       - store_artifacts:
           path: /tmp/test-reports
+  lint-go:
+    executor: go
+    steps:
+      - checkout
+      - run: apt-get update; apt-get install -y shellcheck sudo unzip
+      - install-buf
+      - install-circleci-local-cli
+      - run: make deps lint-deps
+      - run: make check
+      - run: make checkscripts
+      - run: mkdir -p ui/dist && make generate-all static-assets
   build-darwin-binaries:
     executor: go-macos
     steps:
@@ -499,14 +510,18 @@ workflows:
               ignore:
                 - stable-website
 
-      - test-e2e:
-          filters:
+      - lint-go:
+          # check branches are almost all the backend branches
+          filters: &backend_check_branches_filter
             branches:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
                 - /^backport/docs-.*/
                 - stable-website
+
+      - test-e2e:
+          filters: *backend_check_branches_filter
 
       - test-ui:
           filters:

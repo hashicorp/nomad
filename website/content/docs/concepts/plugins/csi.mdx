@@ -80,10 +80,10 @@ Nomad exposes a Unix domain socket named `csi.sock` inside each CSI
 plugin task, and communicates over the gRPC protocol expected by the
 CSI specification. The `mount_dir` field tells Nomad where the plugin
 expects to find the socket file. The path to this socket is exposed in
-the container as the `CSI_ENDPOINT` environment variable.
+the container as the `CSI_ENDPOINT` environment variable. 
 
 Some plugins also require the `stage_publish_base_dir` field, which
-tells Nomad where to instruct the plugin to mount volumes for staging
+tells Nomad where to instruct the plugin to mount volumes for staging 
 and/or publishing.
 
 ### Plugin Lifecycle and State
@@ -134,10 +134,10 @@ terminal. The client frees the volume locally by making "unpublish"
 RPCs to the node plugin. The node plugin unmounts the bind-mount from
 the allocation and unmounts the volume from the plugin (if it's not in
 use by another task). The client will then send an "unpublish" RPC to
-the server, which will forward it to the controller plugin (if
+the server, which will forward it to the the controller plugin (if
 any), and decrement the claim count for the volume. At this point the
 volume’s claim capacity has been freed up for scheduling.
 
 [csi-spec]: https://github.com/container-storage-interface/spec
 [csi-drivers-list]: https://kubernetes-csi.github.io/docs/drivers.html
-[csi_plugin]: /nomad/docs/job-specification/csi_plugin
+[csi_plugin]: /docs/job-specification/csi_plugin

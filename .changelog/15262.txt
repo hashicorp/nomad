@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added `-wait` flag to `deployment status` for use with `-monitor` mode
-```

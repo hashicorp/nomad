@@ -114,23 +114,13 @@
         <span class="term">
           Client
         </span>
-        <Tooltip @text={{this.model.node.name}}>
-          <LinkTo
-            @route="clients.client"
-            @model={{this.model.node}}
-            data-test-client-link
-          >
-            {{this.model.node.shortId}}
-          </LinkTo>
-        </Tooltip>
-      </span>
-      <span class="pair">
-        <span class="term">
-          Namespace
-        </span>
-        <span>
-          {{this.model.job.namespace.name}}
-        </span>
+        <LinkTo
+          @route="clients.client"
+          @model={{this.model.node}}
+          data-test-client-link
+        >
+          {{this.model.node.shortId}}
+        </LinkTo>
       </span>
     </div>
   </div>
@@ -280,60 +270,50 @@
         Services
       </div>
       <div class="boxed-section-body is-full-bleed">
-        <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
+        <ListTable @source={{this.services}} as |t|>
           <t.head>
-            <th class="is-narrow"></th>
-            <th>
+            <th class="is-2">
               Name
             </th>
-            <th>
+            <th class="is-1">
               Port
             </th>
             <td>
               Tags
             </td>
             <td>
-              Health Check Status
+              On Update
+            </td>
+            <td>
+              Connect?
+            </td>
+            <td>
+              Upstreams
             </td>
           </t.head>
           <t.body as |row|>
-            <tr data-test-service class="is-interactive {{if (eq this.activeService row.model) "is-active"}}"
-              {{on "click" (fn this.handleServiceClick row.model)}}
-              {{keyboard-shortcut 
-                enumerated=true
-                action=(fn this.handleServiceClick row.model)
-              }}
-            >
-              <td class="is-narrow">
-                {{#if (eq row.model.provider "nomad")}}
-                  <FlightIcon @name="nomad-color" />
-                {{else}}
-                  <FlightIcon @name="consul-color" />
-                  {{#if row.model.connect}}
-                    <FlightIcon @name="mesh" @color="#444444" />
-                  {{/if}}
-                {{/if}}
-              </td>
-              <td data-test-service-name class="is-long-text">
+            <tr data-test-service>
+              <td data-test-service-name>
                 {{row.model.name}}
               </td>
               <td data-test-service-port>
                 {{row.model.portLabel}}
               </td>
               <td data-test-service-tags class="is-long-text">
-                {{#each row.model.tags as |tag|}}
-                  <span class="tag is-service">{{tag}}</span>
-                {{/each}}
-                {{#each row.model.canary_tags as |tag|}}
-                  <span class="tag canary is-service">{{tag}}</span>
-                {{/each}}
+                {{join ", " row.model.tags}}
               </td>
-              <td data-test-service-health class="is-2">
-                {{#if (eq row.model.provider "nomad")}}
-                  <div class="inline-chart">
-                    <ServiceStatusBar @isNarrow={{true}} @status={{row.model.mostRecentCheckStatus}} />
-                  </div>
-                {{/if}}
+              <td data-test-service-onupdate>
+                {{row.model.onUpdate}}
+              </td>
+              <td data-test-service-connect>
+                {{if row.model.connect "Yes" "No"}}
+              </td>
+              <td data-test-service-upstreams>
+                {{#each
+                  row.model.connect.sidecarService.proxy.upstreams as |upstream|
+                }}
+                  {{upstream.destinationName}}:{{upstream.localBindPort}}
+                {{/each}}
               </td>
             </tr>
           </t.body>
@@ -503,11 +483,4 @@
       </div>
     </div>
   {{/if}}
-  <AllocationServiceSidebar
-    @service={{this.activeService}}
-    @allocation={{this.model}}
-    @fns={{hash
-      closeSidebar=this.closeSidebar
-    }}
-  />
 </section>

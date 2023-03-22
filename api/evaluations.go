@@ -30,16 +30,6 @@ func (e *Evaluations) PrefixList(prefix string) ([]*Evaluation, *QueryMeta, erro
 	return e.List(&QueryOptions{Prefix: prefix})
 }
 
-// Count is used to get a count of evaluations.
-func (e *Evaluations) Count(q *QueryOptions) (*EvalCountResponse, *QueryMeta, error) {
-	var resp *EvalCountResponse
-	qm, err := e.client.query("/v1/evaluations/count", &resp, q)
-	if err != nil {
-		return resp, nil, err
-	}
-	return resp, qm, nil
-}
-
 // Info is used to query a single evaluation by its ID.
 func (e *Evaluations) Info(evalID string, q *QueryOptions) (*Evaluation, *QueryMeta, error) {
 	var resp Evaluation
@@ -60,16 +50,6 @@ func (e *Evaluations) Delete(evalIDs []string, w *WriteOptions) (*WriteMeta, err
 		return nil, err
 	}
 	return wm, nil
-}
-
-// DeleteOpts is used to batch delete evaluations using a filter.
-func (e *Evaluations) DeleteOpts(req *EvalDeleteRequest, w *WriteOptions) (*EvalDeleteResponse, *WriteMeta, error) {
-	resp := &EvalDeleteResponse{}
-	wm, err := e.client.delete("/v1/evaluations", &req, resp, w)
-	if err != nil {
-		return nil, nil, err
-	}
-	return resp, wm, nil
 }
 
 // Allocations is used to retrieve a set of allocations given
@@ -150,17 +130,7 @@ type EvaluationStub struct {
 
 type EvalDeleteRequest struct {
 	EvalIDs []string
-	Filter  string
 	WriteRequest
-}
-
-type EvalDeleteResponse struct {
-	Count int
-}
-
-type EvalCountResponse struct {
-	Count int
-	QueryMeta
 }
 
 // EvalIndexSort is a wrapper to sort evaluations by CreateIndex.

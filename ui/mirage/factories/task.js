@@ -2,14 +2,11 @@ import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { generateResources } from '../common';
 import { dasherize } from '@ember/string';
-import { pickOne } from '../utils';
 
 const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
 
 export default Factory.extend({
   createRecommendations: false,
-
-  withServices: false,
 
   // Hidden property used to compute the Summary hash
   groupNames: [],
@@ -70,26 +67,6 @@ export default Factory.extend({
       }
 
       task.save({ recommendationIds: recommendations.mapBy('id') });
-    }
-
-    if (task.withServices) {
-      const services = server.createList('service-fragment', 1, {
-        provider: 'nomad',
-        taskName: task.name,
-      });
-
-      services.push(
-        server.create('service-fragment', {
-          provider: 'consul',
-          taskName: task.name,
-        })
-      );
-      services.forEach((fragment) => {
-        server.createList('service', 5, {
-          serviceName: fragment.name,
-        });
-      });
-      task.update({ services });
     }
   },
 });

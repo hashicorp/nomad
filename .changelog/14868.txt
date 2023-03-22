@@ -1,3 +1,0 @@
-```release-note:bug
-servicedisco: Fixed a bug where job using checks could land on incompatible client
-```

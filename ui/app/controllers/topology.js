@@ -1,4 +1,3 @@
-/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -6,13 +5,6 @@ import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
 import { reduceBytes, reduceHertz } from 'nomad-ui/utils/units';
-import {
-  serialize,
-  deserializedQueryParam as selection,
-} from 'nomad-ui/utils/qp-serialize';
-import { scheduleOnce } from '@ember/runloop';
-import intersection from 'lodash.intersection';
-import Searchable from 'nomad-ui/mixins/searchable';
 
 const sumAggregator = (sum, value) => sum + (value || 0);
 const formatter = new Intl.NumberFormat(window.navigator.locale || 'en', {
@@ -20,139 +12,12 @@ const formatter = new Intl.NumberFormat(window.navigator.locale || 'en', {
 });
 
 @classic
-export default class TopologyControllers extends Controller.extend(Searchable) {
+export default class TopologyControllers extends Controller {
   @service userSettings;
-
-  queryParams = [
-    {
-      searchTerm: 'search',
-    },
-    {
-      qpState: 'status',
-    },
-    {
-      qpVersion: 'version',
-    },
-    {
-      qpClass: 'class',
-    },
-    {
-      qpDatacenter: 'dc',
-    },
-  ];
-
-  @tracked searchTerm = '';
-  qpState = '';
-  qpVersion = '';
-  qpClass = '';
-  qpDatacenter = '';
-
-  setFacetQueryParam(queryParam, selection) {
-    this.set(queryParam, serialize(selection));
-  }
-
-  @selection('qpState') selectionState;
-  @selection('qpClass') selectionClass;
-  @selection('qpDatacenter') selectionDatacenter;
-  @selection('qpVersion') selectionVersion;
-
-  @computed
-  get optionsState() {
-    return [
-      { key: 'initializing', label: 'Initializing' },
-      { key: 'ready', label: 'Ready' },
-      { key: 'down', label: 'Down' },
-      { key: 'ineligible', label: 'Ineligible' },
-      { key: 'draining', label: 'Draining' },
-      { key: 'disconnected', label: 'Disconnected' },
-    ];
-  }
-
-  @computed('model.nodes', 'nodes.[]', 'selectionClass')
-  get optionsClass() {
-    const classes = Array.from(new Set(this.model.nodes.mapBy('nodeClass')))
-      .compact()
-      .without('');
-
-    // Remove any invalid node classes from the query param/selection
-    scheduleOnce('actions', () => {
-      // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpClass',
-        serialize(intersection(classes, this.selectionClass))
-      );
-    });
-
-    return classes.sort().map((dc) => ({ key: dc, label: dc }));
-  }
-
-  @computed('model.nodes', 'nodes.[]', 'selectionDatacenter')
-  get optionsDatacenter() {
-    const datacenters = Array.from(
-      new Set(this.model.nodes.mapBy('datacenter'))
-    ).compact();
-
-    // Remove any invalid datacenters from the query param/selection
-    scheduleOnce('actions', () => {
-      // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpDatacenter',
-        serialize(intersection(datacenters, this.selectionDatacenter))
-      );
-    });
-
-    return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
-  }
-
-  @computed('model.nodes', 'nodes.[]', 'selectionVersion')
-  get optionsVersion() {
-    const versions = Array.from(
-      new Set(this.model.nodes.mapBy('version'))
-    ).compact();
-
-    // Remove any invalid versions from the query param/selection
-    scheduleOnce('actions', () => {
-      // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpVersion',
-        serialize(intersection(versions, this.selectionVersion))
-      );
-    });
-
-    return versions.sort().map((v) => ({ key: v, label: v }));
-  }
 
   @alias('userSettings.showTopoVizPollingNotice') showPollingNotice;
 
-  @tracked pre09Nodes = null;
-
-  get filteredNodes() {
-    const { nodes } = this.model;
-    return nodes.filter((node) => {
-      const {
-        searchTerm,
-        selectionState,
-        selectionVersion,
-        selectionDatacenter,
-        selectionClass,
-      } = this;
-      return (
-        (selectionState.length ? selectionState.includes(node.status) : true) &&
-        (selectionVersion.length
-          ? selectionVersion.includes(node.version)
-          : true) &&
-        (selectionDatacenter.length
-          ? selectionDatacenter.includes(node.datacenter)
-          : true) &&
-        (selectionClass.length
-          ? selectionClass.includes(node.nodeClass)
-          : true) &&
-        (node.name.includes(searchTerm) ||
-          node.datacenter.includes(searchTerm) ||
-          node.nodeClass.includes(searchTerm))
-      );
-    });
-  }
+  @tracked filteredNodes = null;
 
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
@@ -291,9 +156,9 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
 
   @action
   handleTopoVizDataError(errors) {
-    const pre09NodesError = errors.findBy('type', 'filtered-nodes');
-    if (pre09NodesError) {
-      this.pre09Nodes = pre09NodesError.context;
+    const filteredNodesError = errors.findBy('type', 'filtered-nodes');
+    if (filteredNodesError) {
+      this.filteredNodes = filteredNodesError.context;
     }
   }
 }

@@ -64,24 +64,6 @@ type AllocResourceUsage struct {
 	Timestamp     int64
 }
 
-// AllocCheckStatus contains the current status of a nomad service discovery check.
-type AllocCheckStatus struct {
-	ID         string
-	Check      string
-	Group      string
-	Mode       string
-	Output     string
-	Service    string
-	Task       string
-	Status     string
-	StatusCode int
-	Timestamp  int64
-}
-
-// AllocCheckStatuses holds the set of nomad service discovery checks within
-// the allocation (including group and task level service checks).
-type AllocCheckStatuses map[string]AllocCheckStatus
-
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
@@ -570,7 +552,6 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
-
 }
 
 // These needs to be in sync with DefaultServiceJobRestartPolicy in
@@ -704,7 +685,6 @@ type Task struct {
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
-	Identity        *WorkloadIdentity      `hcl:"identity,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -834,22 +814,21 @@ func (ch *ChangeScript) Canonicalize() {
 }
 
 type Template struct {
-	SourcePath    *string        `mapstructure:"source" hcl:"source,optional"`
-	DestPath      *string        `mapstructure:"destination" hcl:"destination,optional"`
-	EmbeddedTmpl  *string        `mapstructure:"data" hcl:"data,optional"`
-	ChangeMode    *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeScript  *ChangeScript  `mapstructure:"change_script" hcl:"change_script,block"`
-	ChangeSignal  *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
-	Splay         *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
-	Perms         *string        `mapstructure:"perms" hcl:"perms,optional"`
-	Uid           *int           `mapstructure:"uid" hcl:"uid,optional"`
-	Gid           *int           `mapstructure:"gid" hcl:"gid,optional"`
-	LeftDelim     *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
-	RightDelim    *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
-	Envvars       *bool          `mapstructure:"env" hcl:"env,optional"`
-	VaultGrace    *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
-	Wait          *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
-	ErrMissingKey *bool          `mapstructure:"error_on_missing_key" hcl:"error_on_missing_key,optional"`
+	SourcePath   *string        `mapstructure:"source" hcl:"source,optional"`
+	DestPath     *string        `mapstructure:"destination" hcl:"destination,optional"`
+	EmbeddedTmpl *string        `mapstructure:"data" hcl:"data,optional"`
+	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeScript *ChangeScript  `mapstructure:"change_script" hcl:"change_script,block"`
+	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Splay        *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
+	Perms        *string        `mapstructure:"perms" hcl:"perms,optional"`
+	Uid          *int           `mapstructure:"uid" hcl:"uid,optional"`
+	Gid          *int           `mapstructure:"gid" hcl:"gid,optional"`
+	LeftDelim    *string        `mapstructure:"left_delimiter" hcl:"left_delimiter,optional"`
+	RightDelim   *string        `mapstructure:"right_delimiter" hcl:"right_delimiter,optional"`
+	Envvars      *bool          `mapstructure:"env" hcl:"env,optional"`
+	VaultGrace   *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
+	Wait         *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
 }
 
 func (tmpl *Template) Canonicalize() {
@@ -893,9 +872,7 @@ func (tmpl *Template) Canonicalize() {
 	if tmpl.Envvars == nil {
 		tmpl.Envvars = pointerOf(false)
 	}
-	if tmpl.ErrMissingKey == nil {
-		tmpl.ErrMissingKey = pointerOf(false)
-	}
+
 	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
 	if tmpl.VaultGrace == nil {
 		tmpl.VaultGrace = pointerOf(time.Duration(0))
@@ -1111,11 +1088,4 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 	if t.HealthTimeout == 0 {
 		t.HealthTimeout = 30 * time.Second
 	}
-}
-
-// WorkloadIdentity is the jobspec block which determines if and how a workload
-// identity is exposed to tasks.
-type WorkloadIdentity struct {
-	Env  bool `hcl:"env,optional"`
-	File bool `hcl:"file,optional"`
 }

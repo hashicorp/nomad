@@ -1,3 +1,0 @@
-```release-note:improvement
-server: Add a git `revision` tag to the serf tags gossiped between servers.
-```

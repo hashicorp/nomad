@@ -14,10 +14,6 @@ Multiple tiers can be defined by declaring more than one `check` in the
 same scaling policy. If there is any overlap between the bounds, the [safest
 `check`][internals_check] will be used.
 
-~> **Note:** When using the `threshold` strategy with multiple checks make sure
-  they all have the same [`group`][policy_group] value, otherwise your target
-  may not be able to scale down.
-
 ## Agent Configuration Options
 
 ```hcl
@@ -33,8 +29,6 @@ policy {
   # ...
   check "high-memory-usage" {
     # ...
-    group = "memory-usage"
-
     strategy "threshold" {
       upper_bound = 100
       lower_bound = 70
@@ -42,10 +36,8 @@ policy {
     }
   }
 
-  check "low-memory-usage" {
+  check "low-memory-traffic" {
     # ...
-    group = "memory-usage"
-
     strategy "threshold" {
       upper_bound = 30
       lower_bound = 0
@@ -74,8 +66,7 @@ policy {
   as the new target count. Conflicts with `delta` and `percentage`.
 
 - `within_bounds_trigger` `(int: 5)` - The number of data points in the query
-  result time series that must be within the bound values to trigger the
-  action.
+  result time series that must be within the bound valus to trigger the action.
 
 At least one of `lower_bound` or `upper_bound` must be defined. If
 `lower_bound` is not defined, any value below `upper_bound` is considered
@@ -84,5 +75,4 @@ within bounds. Similarly, if `upper_bound` is not defined, any value above
 
 One, and only one, of `delta`, `percentage`, or `value` must be defined.
 
-[internals_check]: /nomad/tools/autoscaling/internals/checks
-[policy_group]: /nomad/tools/autoscaling/policy#group
+[internals_check]: /tools/autoscaling/internals/checks

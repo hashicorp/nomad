@@ -62,22 +62,6 @@ export default create({
         text: text(),
         link: property('href'),
       },
-
-      signInLink: {
-        scope: '[data-test-header-signin-link]',
-        text: text(),
-        link: property('href'),
-      },
-
-      profileDropdown: {
-        scope: '[data-test-header-profile-dropdown]',
-        text: text(),
-        open: clickable(),
-        options: collection('.dropdown-label', {
-          label: text(),
-          choose: clickable(),
-        }),
-      },
     },
   },
 
@@ -87,10 +71,6 @@ export default create({
 
     optimize: {
       scope: '[data-test-gutter-link="optimize"]',
-    },
-
-    variables: {
-      scope: '[data-test-gutter-link="variables"]',
     },
 
     visitClients: clickable('[data-test-gutter-link="clients"]'),

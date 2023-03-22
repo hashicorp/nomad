@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -204,7 +203,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 						},
 						Constraints: []*structs.Constraint{
 							{
-								LTarget: attrVaultVersion,
+								LTarget: vaultConstraintLTarget,
 								RTarget: ">= 1.0.0",
 								Operand: structs.ConstraintSemver,
 							},
@@ -225,7 +224,7 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 						},
 						Constraints: []*structs.Constraint{
 							{
-								LTarget: attrVaultVersion,
+								LTarget: vaultConstraintLTarget,
 								RTarget: ">= 1.0.0",
 								Operand: structs.ConstraintSemver,
 							},
@@ -715,54 +714,6 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			require.Equal(t, tc.expectedOutputJob, actualJob)
 			require.ElementsMatch(t, tc.expectedOutputWarnings, actualWarnings)
 			require.Equal(t, tc.expectedOutputError, actualError)
-		})
-	}
-}
-
-func Test_jobCanonicalizer_Mutate(t *testing.T) {
-	ci.Parallel(t)
-
-	serverJobDefaultPriority := 100
-
-	testCases := []struct {
-		name              string
-		inputJob          *structs.Job
-		expectedOutputJob *structs.Job
-	}{
-		{
-			name: "no mutation",
-			inputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    123,
-			},
-			expectedOutputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    123,
-			},
-		},
-		{
-			name: "when priority is 0 mutate using the value present in the server config",
-			inputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    0,
-			},
-			expectedOutputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    serverJobDefaultPriority,
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			impl := jobCanonicalizer{srv: &Server{config: &Config{JobDefaultPriority: serverJobDefaultPriority}}}
-			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
-			must.Eq(t, tc.expectedOutputJob, actualJob)
-			must.NoError(t, actualError)
-			must.Nil(t, actualWarnings)
 		})
 	}
 }

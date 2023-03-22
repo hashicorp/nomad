@@ -11,8 +11,6 @@ import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
-import { union } from '@ember/object/computed';
-import { tracked } from '@glimmer/tracking';
 
 @classic
 export default class IndexController extends Controller.extend(Sortable) {
@@ -25,9 +23,6 @@ export default class IndexController extends Controller.extend(Sortable) {
     },
     {
       sortDescending: 'desc',
-    },
-    {
-      activeServiceID: 'service',
     },
   ];
 
@@ -51,49 +46,9 @@ export default class IndexController extends Controller.extend(Sortable) {
     return (this.get('model.allocatedResources.ports') || []).sortBy('label');
   }
 
-  @computed('model.states.@each.task')
-  get tasks() {
-    return this.get('model.states').mapBy('task') || [];
-  }
-
-  @computed('tasks.@each.services')
-  get taskServices() {
-    return this.get('tasks')
-      .map((t) => ((t && t.services) || []).toArray())
-      .flat()
-      .compact();
-  }
-
   @computed('model.taskGroup.services.@each.name')
-  get groupServices() {
+  get services() {
     return (this.get('model.taskGroup.services') || []).sortBy('name');
-  }
-
-  @union('taskServices', 'groupServices') services;
-
-  @computed('model.{healthChecks,id}', 'services')
-  get servicesWithHealthChecks() {
-    return this.services.map((service) => {
-      if (this.model.healthChecks) {
-        const healthChecks = Object.values(this.model.healthChecks)?.filter(
-          (check) => {
-            const refPrefix =
-              check.Task || check.Group.split('.')[1].split('[')[0];
-            const currentServiceName = `${refPrefix}-${check.Service}`;
-            return currentServiceName === service.refID;
-          }
-        );
-        healthChecks.forEach((check) => {
-          service.healthChecks.pushObject(check);
-        });
-      }
-      // Contextualize healthchecks for the allocation we're in
-      service.healthChecks = service.healthChecks.filterBy(
-        'Alloc',
-        this.model.id
-      );
-      return service;
-    });
   }
 
   onDismiss() {
@@ -160,31 +115,4 @@ export default class IndexController extends Controller.extend(Sortable) {
   taskClick(allocation, task, event) {
     lazyClick([() => this.send('gotoTask', allocation, task), event]);
   }
-
-  //#region Services
-
-  @tracked activeServiceID = null;
-
-  @action handleServiceClick(service) {
-    this.set('activeServiceID', service.refID);
-  }
-
-  @computed('activeServiceID', 'services')
-  get activeService() {
-    return this.services.findBy('refID', this.activeServiceID);
-  }
-
-  @action closeSidebar() {
-    this.set('activeServiceID', null);
-  }
-
-  keyCommands = [
-    {
-      label: 'Close Evaluations Sidebar',
-      pattern: ['Escape'],
-      action: () => this.closeSidebar(),
-    },
-  ];
-
-  //#endregion Services
 }

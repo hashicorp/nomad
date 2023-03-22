@@ -127,7 +127,7 @@ func (f *EnvDigitalOceanFingerprint) Fingerprint(request *FingerprintRequest, re
 		resp, err := f.Get(attr.path, "text")
 		v := strings.TrimSpace(resp)
 		if err != nil {
-			f.logger.Warn("failed to read attribute", "attribute", k, "error", err)
+			f.logger.Warn("failed to read attribute", "attribute", k, "err", err)
 			continue
 		} else if v == "" {
 			f.logger.Debug("read an empty value", "attribute", k)

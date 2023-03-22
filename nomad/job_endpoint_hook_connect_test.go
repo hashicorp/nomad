@@ -341,7 +341,7 @@ func TestJobEndpointConnect_ConnectInterpolation(t *testing.T) {
 	ci.Parallel(t)
 
 	server := &Server{logger: testlog.HCLogger(t)}
-	jobEndpoint := NewJobEndpoints(server, nil)
+	jobEndpoint := NewJobEndpoints(server)
 
 	j := mock.ConnectJob()
 	j.TaskGroups[0].Services[0].Name = "${JOB}-api"

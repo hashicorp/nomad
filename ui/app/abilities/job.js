@@ -31,7 +31,6 @@ export default class Job extends AbstractAbility {
     // For each policy record, extract all policies of all namespaces
     const allNamespacePolicies = policies
       .toArray()
-      .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
       .map((policy) => get(policy, 'rulesJSON.Namespaces'))
       .flat()
       .map((namespace = {}) => {

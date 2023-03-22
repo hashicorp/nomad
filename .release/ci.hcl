@@ -2,15 +2,12 @@ schema = "1"
 
 project "nomad" {
   team = "nomad"
-
   slack {
     notification_channel = "C03B5EWFW01"
   }
-
   github {
     organization = "hashicorp"
     repository   = "nomad"
-
     release_branches = [
       "main",
       "release/**",
@@ -45,12 +42,12 @@ event "prepare" {
 ## they should be added to the end of the file after the prepare event stanza.
 
 event "trigger-staging" {
-  // This event is dispatched by the bob trigger-promotion command  // and is required - do not delete.
+  // This event is dispatched by the bob trigger-promotion command
+  // and is required - do not delete.
 }
 
 event "promote-staging" {
   depends = ["trigger-staging"]
-
   action "promote-staging" {
     organization = "hashicorp"
     repository   = "crt-workflows-common"
@@ -64,12 +61,12 @@ event "promote-staging" {
 }
 
 event "trigger-production" {
-  // This event is dispatched by the bob trigger-promotion command  // and is required - do not delete.
+  // This event is dispatched by the bob trigger-promotion command
+  // and is required - do not delete.
 }
 
 event "promote-production" {
   depends = ["trigger-production"]
-
   action "promote-production" {
     organization = "hashicorp"
     repository   = "crt-workflows-common"
@@ -83,7 +80,6 @@ event "promote-production" {
 
 event "promote-production-packaging" {
   depends = ["promote-production"]
-
   action "promote-production-packaging" {
     organization = "hashicorp"
     repository   = "crt-workflows-common"

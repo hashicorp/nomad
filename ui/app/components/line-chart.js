@@ -350,20 +350,6 @@ export default class LineChart extends Component {
     });
   }
 
-  @action
-  recomputeXAxis(el) {
-    if (!this.isDestroyed && !this.isDestroying) {
-      d3.select(el.querySelector('.x-axis')).call(this.xAxis);
-    }
-  }
-
-  @action
-  recomputeYAxis(el) {
-    if (!this.isDestroyed && !this.isDestroying) {
-      d3.select(el.querySelector('.y-axis')).call(this.yAxis);
-    }
-  }
-
   mountD3Elements() {
     if (!this.isDestroyed && !this.isDestroying) {
       d3.select(this.element.querySelector('.x-axis')).call(this.xAxis);

@@ -153,17 +153,4 @@ export default class Node extends Model {
   cancelDrain() {
     return this.store.adapterFor('node').cancelDrain(this);
   }
-
-  async addMeta(newMeta) {
-    let metaResponse = await this.store
-      .adapterFor('node')
-      .addMeta(this, newMeta);
-
-    if (!this.meta) {
-      this.set('meta', this.store.createFragment('structured-attributes'));
-    }
-
-    this.meta.recomputeRawProperties(metaResponse.Meta);
-    return metaResponse;
-  }
 }

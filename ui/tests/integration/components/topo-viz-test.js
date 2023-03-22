@@ -8,7 +8,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';
 import topoVizPageObject from 'nomad-ui/tests/pages/components/topo-viz';
-import { HOSTS } from '../../../mirage/common';
 
 const TopoViz = create(topoVizPageObject());
 
@@ -29,7 +28,6 @@ const alloc = (nodeId, jobId, taskGroupName, memory, cpu, props = {}) => ({
 const node = (datacenter, id, memory, cpu) => ({
   datacenter,
   id,
-  name: `nomad@${HOSTS[Math.floor(Math.random() * 10) % HOSTS.length]}`,
   resources: { memory, cpu },
 });
 

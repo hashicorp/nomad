@@ -7,12 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
+	memdb "github.com/hashicorp/go-memdb"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -58,7 +57,7 @@ type FeasibleIterator interface {
 	Reset()
 }
 
-// ContextualIterator is an iterator that can have the job and task group set
+// JobContextualIterator is an iterator that can have the job and task group set
 // on it.
 type ContextualIterator interface {
 	SetJob(*structs.Job)
@@ -149,7 +148,7 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
+func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
 	lookupMap := make(map[string][]*structs.VolumeRequest)
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
@@ -158,14 +157,7 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*str
 			continue
 		}
 
-		if req.PerAlloc {
-			// provide a unique volume source per allocation
-			copied := req.Copy()
-			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			lookupMap[copied.Source] = append(lookupMap[copied.Source], copied)
-		} else {
-			lookupMap[req.Source] = append(lookupMap[req.Source], req)
-		}
+		lookupMap[req.Source] = append(lookupMap[req.Source], req)
 	}
 	h.volumes = lookupMap
 }
@@ -389,11 +381,6 @@ func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 }
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {
-	// Allow jobs not requiring any network resources
-	if c.networkMode == "none" {
-		return true
-	}
-
 	if !c.hasNetwork(option) {
 
 		// special case - if the client is running a version older than 0.12 but
@@ -831,7 +818,7 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 	case "!=", "not":
 		return !reflect.DeepEqual(lVal, rVal)
 	case "<", "<=", ">", ">=":
-		return lFound && rFound && checkOrder(operand, lVal, rVal)
+		return lFound && rFound && checkLexicalOrder(operand, lVal, rVal)
 	case structs.ConstraintAttributeIsSet:
 		return lFound
 	case structs.ConstraintAttributeIsNotSet:
@@ -863,65 +850,27 @@ func checkAttributeAffinity(ctx Context, operand string, lVal, rVal *psstructs.A
 	return checkAttributeConstraint(ctx, operand, lVal, rVal, lFound, rFound)
 }
 
-// checkOrder returns the result of (lVal operand rVal). The comparison is
-// done as integers if possible, or floats if possible, and lexically otherwise.
-func checkOrder(operand string, lVal, rVal any) bool {
-	left, leftOK := lVal.(string)
-	right, rightOK := rVal.(string)
-	if !leftOK || !rightOK {
+// checkLexicalOrder is used to check for lexical ordering
+func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
+	// Ensure the values are strings
+	lStr, ok := lVal.(string)
+	if !ok {
 		return false
 	}
-	if result, ok := checkIntegralOrder(operand, left, right); ok {
-		return result
+	rStr, ok := rVal.(string)
+	if !ok {
+		return false
 	}
-	if result, ok := checkFloatOrder(operand, left, right); ok {
-		return result
-	}
-	return checkLexicalOrder(operand, left, right)
-}
 
-// checkIntegralOrder compares lVal and rVal as integers if possible, or false otherwise.
-func checkIntegralOrder(op, lVal, rVal string) (bool, bool) {
-	left, lErr := strconv.ParseInt(lVal, 10, 64)
-	if lErr != nil {
-		return false, false
-	}
-	right, rErr := strconv.ParseInt(rVal, 10, 64)
-	if rErr != nil {
-		return false, false
-	}
-	return compareOrder(op, left, right), true
-}
-
-// checkFloatOrder compares lVal and rVal as floats if possible, or false otherwise.
-func checkFloatOrder(op, lVal, rVal string) (bool, bool) {
-	left, lErr := strconv.ParseFloat(lVal, 64)
-	if lErr != nil {
-		return false, false
-	}
-	right, rErr := strconv.ParseFloat(rVal, 64)
-	if rErr != nil {
-		return false, false
-	}
-	return compareOrder(op, left, right), true
-}
-
-// checkLexicalOrder compares lVal and rVal lexically.
-func checkLexicalOrder(op string, lVal, rVal string) bool {
-	return compareOrder[string](op, lVal, rVal)
-}
-
-// compareOrder returns the result of the expression (left op right)
-func compareOrder[T constraints.Ordered](op string, left, right T) bool {
 	switch op {
 	case "<":
-		return left < right
+		return lStr < rStr
 	case "<=":
-		return left <= right
+		return lStr <= rStr
 	case ">":
-		return left > right
+		return lStr > rStr
 	case ">=":
-		return left >= right
+		return lStr >= rStr
 	default:
 		return false
 	}
@@ -929,7 +878,7 @@ func compareOrder[T constraints.Ordered](op string, left, right T) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interface{}) bool {
+func checkVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -954,18 +903,18 @@ func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interfac
 	}
 
 	// Parse the constraints
-	c := parse(constraintStr)
-	if c == nil {
+	constraints := parse(constraintStr)
+	if constraints == nil {
 		return false
 	}
 
 	// Check the constraints against the version
-	return c.Check(vers)
+	return constraints.Check(vers)
 }
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -989,13 +938,13 @@ func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal
 	}
 
 	// Parse the constraints
-	c := parse(constraintStr)
-	if c == nil {
+	constraints := parse(constraintStr)
+	if constraints == nil {
 		return false
 	}
 
 	// Check the constraints against the version
-	return c.Check(vers)
+	return constraints.Check(vers)
 }
 
 // checkRegexpMatch is used to compare a value on the
@@ -1033,7 +982,7 @@ func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsAll(_ Context, lVal, rVal interface{}) bool {
+func checkSetContainsAll(ctx Context, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1380,13 +1329,6 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 
 	// Handle the interpolations
 	switch {
-	case "${device.ids}" == target:
-		ids := make([]string, len(d.Instances))
-		for i, device := range d.Instances {
-			ids[i] = device.ID
-		}
-		return psstructs.NewStringAttribute(strings.Join(ids, ",")), true
-
 	case "${device.model}" == target:
 		return psstructs.NewStringAttribute(d.Name), true
 
@@ -1543,13 +1485,13 @@ func newVersionConstraintParser(ctx Context) verConstraintParser {
 			return c
 		}
 
-		constraint, err := version.NewConstraint(cstr)
+		constraints, err := version.NewConstraint(cstr)
 		if err != nil {
 			return nil
 		}
-		cache[cstr] = constraint
+		cache[cstr] = constraints
 
-		return constraint
+		return constraints
 	}
 }
 
@@ -1561,12 +1503,12 @@ func newSemverConstraintParser(ctx Context) verConstraintParser {
 			return c
 		}
 
-		constraint, err := semver.NewConstraint(cstr)
+		constraints, err := semver.NewConstraint(cstr)
 		if err != nil {
 			return nil
 		}
-		cache[cstr] = constraint
+		cache[cstr] = constraints
 
-		return constraint
+		return constraints
 	}
 }

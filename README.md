@@ -1,6 +1,4 @@
-Nomad
-[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
-[![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
+Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](https://circleci.com/gh/hashicorp/nomad) [![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
 ===
 
 <p align="center" style="text-align:center;">
@@ -16,6 +14,8 @@ Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, 
 * Website: https://nomadproject.io
 * Tutorials: [HashiCorp Learn](https://learn.hashicorp.com/nomad)
 * Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
+* Mailing List: [Google Groups](https://groups.google.com/group/nomad-tool)
+* Gitter: [hashicorp-nomad](https://gitter.im/hashicorp-nomad/Lobby)
 
 Nomad provides several key features:
 
@@ -40,7 +40,7 @@ See [Learn: Getting Started](https://learn.hashicorp.com/collections/nomad/get-s
 Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
 
 #### Production
-See [Learn: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
+See [Learn: Nomad Reference Architecture](https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul?in=nomad/production) for recommended practices and a reference architecture for production deployments.
 
 Documentation
 ---

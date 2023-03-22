@@ -56,19 +56,13 @@ func (s *HTTPServer) evalsDeleteRequest(resp http.ResponseWriter, req *http.Requ
 
 	numIDs := len(args.EvalIDs)
 
-	if args.Filter != "" && numIDs > 0 {
-		return nil, CodedError(http.StatusBadRequest,
-			"evals cannot be deleted by both ID and filter")
-	}
-	if args.Filter == "" && numIDs == 0 {
-		return nil, CodedError(http.StatusBadRequest,
-			"evals must be deleted by either ID or filter")
-	}
-
-	// If an explicit list of evaluation IDs is sent, ensure its within bounds
-	if numIDs > structs.MaxUUIDsPerWriteRequest {
+	// Ensure the number of evaluation IDs included in the request is within
+	// bounds.
+	if numIDs < 1 {
+		return nil, CodedError(http.StatusBadRequest, "request does not include any evaluation IDs")
+	} else if numIDs > structs.MaxUUIDsPerWriteRequest {
 		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf(
-			"request includes %v evaluation IDs, must be %v or fewer",
+			"request includes %v evaluations IDs, must be %v or fewer",
 			numIDs, structs.MaxUUIDsPerWriteRequest))
 	}
 
@@ -79,9 +73,8 @@ func (s *HTTPServer) evalsDeleteRequest(resp http.ResponseWriter, req *http.Requ
 	if err := s.agent.RPC(structs.EvalDeleteRPCMethod, &args, &reply); err != nil {
 		return nil, err
 	}
-
 	setIndex(resp, reply.Index)
-	return reply, nil
+	return nil, nil
 }
 
 func (s *HTTPServer) EvalSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -144,23 +137,4 @@ func (s *HTTPServer) evalQuery(resp http.ResponseWriter, req *http.Request, eval
 		return nil, CodedError(404, "eval not found")
 	}
 	return out.Eval, nil
-}
-
-func (s *HTTPServer) EvalsCountRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
-		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
-	}
-
-	args := structs.EvalCountRequest{}
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
-	}
-
-	var out structs.EvalCountResponse
-	if err := s.agent.RPC("Eval.Count", &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-	return &out, nil
 }

@@ -35,7 +35,6 @@ values for `VAULT_TOKEN`, `VAULT_ADDR`, and `VAULT_NAMESPACE`:
 
 ```
 cd ./hcp-vault-auth
-terraform init
 terraform apply --auto-approve
 $(terraform output --raw environment)
 ```
@@ -47,7 +46,7 @@ Linux clients or Windows clients.
 region                           = "us-east-1"
 instance_type                    = "t2.medium"
 server_count                     = "3"
-client_count_ubuntu_jammy_amd64  = "4"
+client_count_ubuntu_bionic_amd64 = "4"
 client_count_windows_2016_amd64  = "1"
 ```
 
@@ -59,7 +58,6 @@ Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
-terraform init
 terraform apply
 ```
 

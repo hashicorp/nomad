@@ -91,4 +91,34 @@ func TestConsulACLsAPI_CheckPermissions_oss(t *testing.T) {
 			try(t, "", usage, "f1682bde-1e71-90b1-9204-85d35467ba61", errors.New("unable to read consul token: no such token"))
 		})
 	})
+
+	t.Run("check-permissions connect service identity write", func(t *testing.T) {
+		usage := &structs.ConsulUsage{Kinds: []structs.TaskKind{structs.NewTaskKind(structs.ConnectProxyPrefix, "service1")}}
+
+		t.Run("operator has service write", func(t *testing.T) {
+			try(t, "", usage, consul.ExampleOperatorTokenID1, nil)
+		})
+
+		t.Run("operator has service_prefix write", func(t *testing.T) {
+			u := &structs.ConsulUsage{Kinds: []structs.TaskKind{structs.NewTaskKind(structs.ConnectProxyPrefix, "foo-service1")}}
+			try(t, "", u, consul.ExampleOperatorTokenID2, nil)
+		})
+
+		t.Run("operator has service_prefix write wrong prefix", func(t *testing.T) {
+			u := &structs.ConsulUsage{Kinds: []structs.TaskKind{structs.NewTaskKind(structs.ConnectProxyPrefix, "bar-service1")}}
+			try(t, "", u, consul.ExampleOperatorTokenID2, errors.New(`insufficient Consul ACL permissions to write Connect service "bar-service1"`))
+		})
+
+		t.Run("operator permissions insufficient", func(t *testing.T) {
+			try(t, "", usage, consul.ExampleOperatorTokenID3, errors.New(`insufficient Consul ACL permissions to write Connect service "service1"`))
+		})
+
+		t.Run("operator provided no token", func(t *testing.T) {
+			try(t, "", usage, "", errors.New("missing consul token"))
+		})
+
+		t.Run("operator provided nonsense token", func(t *testing.T) {
+			try(t, "", usage, "f1682bde-1e71-90b1-9204-85d35467ba61", errors.New("unable to read consul token: no such token"))
+		})
+	})
 }

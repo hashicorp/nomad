@@ -67,10 +67,6 @@ horizontal application scaling or horizontal cluster scaling.
 - `query_window` - Defines how far back to query the APM for metrics. It should
   be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
 
-- `group` - Specifies which checks should treated as correlated when the policy
-  is evaluated. Refer to [Check Grouping][concepts_grouping] for more
-  information.
-
 - `on_error` - Defines how to handle errors during the `check` evaluation.
   Possible values are `"fail"` or `"ignore"`. If set to `"fail"` the policy
   evaluation will stop in case an error occurs and not scaling action will take
@@ -240,11 +236,10 @@ scaling "mem" {
 }
 ```
 
-[concepts_grouping]: /nomad/tools/autoscaling/concepts/policy-eval/checks#check-grouping
-[das]: /nomad/tools/autoscaling#dynamic-application-sizing
-[policy_default_cooldown_agent]: /nomad/tools/autoscaling/agent#default_cooldown
-[eval_interval_agent]: /nomad/tools/autoscaling/agent#default_evaluation_interval
-[target_plugin_docs]: /nomad/tools/autoscaling/plugins/target
-[strategy_plugin_docs]: /nomad/tools/autoscaling/plugins/strategy
-[apm_plugin_docs]: /nomad/tools/autoscaling/plugins/apm
-[jobspec_scaling_block]: /nomad/docs/job-specification/scaling
+[das]: /tools/autoscaling#dynamic-application-sizing
+[policy_default_cooldown_agent]: /tools/autoscaling/agent#default_cooldown
+[eval_interval_agent]: /tools/autoscaling/agent#default_evaluation_interval
+[target_plugin_docs]: /tools/autoscaling/plugins/target
+[strategy_plugin_docs]: /tools/autoscaling/plugins/strategy
+[apm_plugin_docs]: /tools/autoscaling/plugins/apm
+[jobspec_scaling_block]: /docs/job-specification/scaling

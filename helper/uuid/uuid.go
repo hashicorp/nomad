@@ -1,15 +1,14 @@
 package uuid
 
 import (
+	"crypto/rand"
 	"fmt"
-
-	"github.com/hashicorp/nomad/helper/crypto"
 )
 
 // Generate is used to generate a random UUID.
 func Generate() string {
-	buf, err := crypto.Bytes(16)
-	if err != nil {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
 		panic(fmt.Errorf("failed to read random bytes: %v", err))
 	}
 

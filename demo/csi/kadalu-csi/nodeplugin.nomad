@@ -16,7 +16,7 @@ variable "gluster_volname" {
 }
 
 variable "kadalu_version" {
-  default = "0.8.15"
+  default = "0.8.6"
 }
 
 job "kadalu-csi-nodeplugin" {

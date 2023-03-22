@@ -243,7 +243,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.Build = "1.4.0"
+		c.Build = "0.9.2"
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)

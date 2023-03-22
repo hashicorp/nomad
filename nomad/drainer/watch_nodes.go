@@ -33,7 +33,6 @@ func (n *NodeDrainer) Remove(nodeID string) {
 	n.l.Lock()
 	defer n.l.Unlock()
 
-	// TODO test the notifier is updated
 	// Remove it from being tracked and remove it from the dealiner
 	delete(n.nodes, nodeID)
 	n.deadlineNotifier.Remove(nodeID)
@@ -58,7 +57,6 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		draining.Update(node)
 	}
 
-	// TODO test the notifier is updated
 	if inf, deadline := node.DrainStrategy.DeadlineTime(); !inf {
 		n.deadlineNotifier.Watch(node.ID, deadline)
 	} else {
@@ -67,7 +65,6 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 		n.deadlineNotifier.Remove(node.ID)
 	}
 
-	// TODO Test this
 	// Register interest in the draining jobs.
 	jobs, err := draining.DrainingJobs()
 	if err != nil {
@@ -77,8 +74,6 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	n.logger.Trace("node has draining jobs on it", "node_id", node.ID, "num_jobs", len(jobs))
 	n.jobWatcher.RegisterJobs(jobs)
 
-	// TODO Test at this layer as well that a node drain on a node without
-	// allocs immediately gets unmarked as draining
 	// Check if the node is done such that if an operator drains a node with
 	// nothing on it we unset drain
 	done, err := draining.IsDone()
@@ -88,8 +83,8 @@ func (n *NodeDrainer) Update(node *structs.Node) {
 	}
 
 	if done {
-		// Node is done draining. Stop remaining system allocs before
-		// marking node as complete.
+		// Node is done draining. Stop remaining system allocs before marking
+		// node as complete.
 		remaining, err := draining.RemainingAllocs()
 		if err != nil {
 			n.logger.Error("error getting remaining allocs on drained node", "node_id", node.ID, "error", err)
@@ -179,21 +174,26 @@ func (w *nodeDrainWatcher) watch() {
 			currentNode, tracked := tracked[nodeID]
 
 			switch {
-			// If the node is tracked but not draining, untrack
+
 			case tracked && !newDraining:
+				// If the node is tracked but not draining, untrack
 				w.tracker.Remove(nodeID)
 
-				// If the node is not being tracked but is draining, track
 			case !tracked && newDraining:
+				// If the node is not being tracked but is draining, track
 				w.tracker.Update(node)
 
-				// If the node is being tracked but has changed, update:
 			case tracked && newDraining && !currentNode.DrainStrategy.Equal(node.DrainStrategy):
+				// If the node is being tracked but has changed, update
 				w.tracker.Update(node)
-			default:
-			}
 
-			// TODO(schmichael) handle the case of a lost node
+			default:
+				// note that down/disconnected nodes are handled the same as any
+				// other node here, because we don't want to stop draining a
+				// node that might heartbeat again. The job watcher will let us
+				// know if we can stop watching the node when all the allocs are
+				// evicted
+			}
 		}
 
 		for nodeID := range tracked {
@@ -219,7 +219,7 @@ func (w *nodeDrainWatcher) getNodes(minIndex uint64) (map[string]*structs.Node, 
 }
 
 // getNodesImpl is used to get nodes from the state store, returning the set of
-// nodes and the given index.
+// nodes and the current node table index.
 func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
 	iter, err := state.Nodes(ws)
 	if err != nil {
@@ -231,7 +231,6 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 		return nil, 0, err
 	}
 
-	var maxIndex uint64 = 0
 	resp := make(map[string]*structs.Node, 64)
 	for {
 		raw := iter.Next()
@@ -241,15 +240,6 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 
 		node := raw.(*structs.Node)
 		resp[node.ID] = node
-		if maxIndex < node.ModifyIndex {
-			maxIndex = node.ModifyIndex
-		}
-	}
-
-	// Prefer using the actual max index of affected nodes since it means less
-	// unblocking
-	if maxIndex != 0 {
-		index = maxIndex
 	}
 
 	return resp, index, nil

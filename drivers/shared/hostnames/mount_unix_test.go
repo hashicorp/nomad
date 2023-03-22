@@ -4,7 +4,7 @@
 package hostnames
 
 import (
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 
@@ -105,7 +105,7 @@ func TestGenerateEtcHostsMount(t *testing.T) {
 			} else {
 				require.NotNil(got)
 				require.FileExists(dest)
-				tmpHosts, err := os.ReadFile(dest)
+				tmpHosts, err := ioutil.ReadFile(dest)
 				require.NoError(err)
 				for _, line := range tc.expected {
 					require.Contains(string(tmpHosts), line)

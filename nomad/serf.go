@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"strings"
+	"sync/atomic"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -82,7 +83,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 		s.peerLock.Unlock()
 
 		// If we still expecting to bootstrap, may need to handle this
-		if s.config.BootstrapExpect != 0 && !s.bootstrapped.Load() {
+		if s.config.BootstrapExpect != 0 && atomic.LoadInt32(&s.config.Bootstrapped) == 0 {
 			s.maybeBootstrap()
 		}
 	}
@@ -116,7 +117,7 @@ func (s *Server) maybeBootstrap() {
 	// Bootstrap can only be done if there are no committed logs,
 	// remove our expectations of bootstrapping
 	if index != 0 {
-		s.bootstrapped.Store(true)
+		atomic.StoreInt32(&s.config.Bootstrapped, 1)
 		return
 	}
 
@@ -187,7 +188,7 @@ func (s *Server) maybeBootstrap() {
 		if len(peers) > 0 {
 			s.logger.Info("disabling bootstrap mode because existing Raft peers being reported by peer",
 				"peer_name", server.Name, "peer_address", server.Addr)
-			s.bootstrapped.Store(true)
+			atomic.StoreInt32(&s.config.Bootstrapped, 1)
 			return
 		}
 	}
@@ -196,8 +197,7 @@ func (s *Server) maybeBootstrap() {
 	// Attempt a live bootstrap!
 	var configuration raft.Configuration
 	var addrs []string
-
-	minRaftVersion, err := s.MinRaftProtocol()
+	minRaftVersion, err := s.autopilot.MinRaftProtocol()
 	if err != nil {
 		s.logger.Error("failed to read server raft versions", "error", err)
 	}
@@ -230,7 +230,7 @@ func (s *Server) maybeBootstrap() {
 	}
 
 	// Bootstrapping complete, or failed for some reason, don't enter this again
-	s.bootstrapped.Store(true)
+	atomic.StoreInt32(&s.config.Bootstrapped, 1)
 }
 
 // nodeFailed is used to handle fail events on the serf cluster

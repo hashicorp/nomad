@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: adds searching and filtering to the topology page
-```

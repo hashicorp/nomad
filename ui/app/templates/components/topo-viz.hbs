@@ -2,7 +2,6 @@
   data-test-topo-viz
   class="topo-viz {{if this.isSingleColumn "is-single-column"}}"
   {{did-insert this.buildTopology}}
-  {{did-update this.buildTopology @nodes}}
   {{did-insert this.captureElement}}
   {{window-resize this.determineViewportColumns}}>
   <FlexMasonry
