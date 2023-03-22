@@ -51,6 +51,11 @@
       {{~@key}}
     </td>
     <td title="{{@value}}">
+      <CopyButton
+        @inset={{true}}
+        @compact={{true}}
+        @clipboardText={{@value}}
+      />
       <span data-test-value>{{@value}}</span>
       {{#if @editable}}
       <button class="button is-light is-compact edit-existing-metadata-button" type="button"

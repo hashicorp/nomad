@@ -6,9 +6,9 @@
       </td>
     </tr>
     <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}}
-    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} />
+    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} @copyable={{@copyable}} />
   {{else}}
     <MetadataKv @prefix={{this.prefix}}
-    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} />
+    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} @copyable={{@copyable}} />
   {{/if}}
 {{/each-in}}

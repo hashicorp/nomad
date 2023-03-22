@@ -1,20 +1,28 @@
 {{#if (eq this.state 'success')}}
   <div class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
-    <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
-      {{x-icon 'copy-success'}}
-    </span>
+    {{#if @inset}}
+      <span aria-label="Copied!">{{x-icon 'copy-success'}}</span>
+    {{else}}
+      <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
+        {{x-icon 'copy-success'}}
+      </span>
+    {{/if}}
     {{yield}}
   </div>
 {{else if (eq this.state 'error')}}
   <div class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
-    <span class="tooltip text-center" role="tooltip" aria-label="Error copying">
-      {{x-icon 'alert-triangle'}}
-    </span>
+    {{#if @inset}}
+      <span aria-label="Error copying">{{x-icon 'alert-triangle'}}</span>
+    {{else}}
+      <span class="tooltip text-center" role="tooltip" aria-label="Error copying">
+        {{x-icon 'alert-triangle'}}
+      </span>
+    {{/if}}
     {{yield}}
   </div>
 {{else}}
   <AddonCopyButton
-    @class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}}"
+    @class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}} {{if @inset "is-inset"}}"
     @clipboardText={{this.clipboardText}}
     @success={{perform this.indicateSuccess}}
     @error={{action (mut this.state) "error"}}
