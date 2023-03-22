@@ -324,7 +324,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 
 	// Upsert the allocation
 	state := s.State()
-	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
@@ -382,7 +382,7 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
-	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, nil, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
 
 	cases := []struct {
@@ -492,9 +492,9 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
-	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
@@ -613,7 +613,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 
 	// Upsert the allocation
 	state := s.State()
-	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
@@ -672,7 +672,7 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
-	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, nil, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
 
 	cases := []struct {
@@ -769,9 +769,9 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
-	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
@@ -853,7 +853,7 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 
 	// Upsert the allocation
 	state := s.State()
-	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
@@ -967,9 +967,9 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
-	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
@@ -1028,7 +1028,7 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
-	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, nil, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
 
 	cases := []struct {
@@ -1136,10 +1136,10 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 
 	// Upsert the allocation
 	localState := localServer.State()
-	require.Nil(t, localState.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(t, localState.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(t, localState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 	remoteState := remoteServer.State()
-	require.Nil(t, remoteState.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(t, remoteState.UpsertJob(nstructs.MsgTypeTestSetup, 999, nil, a.Job))
 	require.Nil(t, remoteState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation

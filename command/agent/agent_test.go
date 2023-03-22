@@ -675,7 +675,7 @@ func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 	}
 }
 
-func TestAgent_ClientConfig(t *testing.T) {
+func TestAgent_ClientConfig_discovery(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
@@ -686,45 +686,43 @@ func TestAgent_ClientConfig(t *testing.T) {
 	conf.Ports.HTTP = 5678
 	a := &Agent{config: conf}
 
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	must.NoError(t, conf.normalizeAddrs())
 	c, err := a.clientConfig()
-	if err != nil {
-		t.Fatalf("got err: %v", err)
-	}
-
-	expectedHttpAddr := "169.254.0.1:5678"
-	if c.Node.HTTPAddr != expectedHttpAddr {
-		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
-	}
+	must.NoError(t, err)
+	must.Eq(t, "169.254.0.1:5678", c.Node.HTTPAddr)
 
 	conf = DefaultConfig()
 	conf.DevMode = true
 	a = &Agent{config: conf}
 	conf.Client.Enabled = true
 	conf.Addresses.HTTP = "169.254.0.1"
+	must.NoError(t, conf.normalizeAddrs())
 
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
 	c, err = a.clientConfig()
-	if err != nil {
-		t.Fatalf("got err: %v", err)
-	}
+	must.NoError(t, err)
+	must.Eq(t, "169.254.0.1:4646", c.Node.HTTPAddr)
 
-	expectedHttpAddr = "169.254.0.1:4646"
-	if c.Node.HTTPAddr != expectedHttpAddr {
-		t.Fatalf("Expected http addr: %v, got: %v", expectedHttpAddr, c.Node.HTTPAddr)
-	}
-
-	// Test the default, and then custom setting of the client service
-	// discovery boolean.
-	require.True(t, c.NomadServiceDiscovery)
+	// Test the default, and then custom setting of the client service discovery boolean.
+	must.True(t, c.NomadServiceDiscovery)
 	conf.Client.NomadServiceDiscovery = pointer.Of(false)
 	c, err = a.clientConfig()
-	require.NoError(t, err)
-	require.False(t, c.NomadServiceDiscovery)
+	must.NoError(t, err)
+	must.False(t, c.NomadServiceDiscovery)
+}
+
+func TestAgent_ClientConfig_JobMaxSourceSize(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := DevConfig(nil)
+	must.Eq(t, conf.Server.JobMaxSourceSize, pointer.Of("1M"))
+	must.NoError(t, conf.normalizeAddrs())
+
+	// config conversion ensures value is set
+	conf.Server.JobMaxSourceSize = nil
+	agent := &Agent{config: conf}
+	serverConf, err := agent.serverConfig()
+	must.NoError(t, err)
+	must.Eq(t, 1e6, serverConf.JobMaxSourceSize)
 }
 
 func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
@@ -735,16 +733,14 @@ func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
 	conf.Client.Reserved.Cores = "0,2-3"
 	a := &Agent{config: conf}
 	c, err := a.clientConfig()
-	require.NoError(t, err)
-	require.Exactly(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
-	require.Exactly(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
+	must.NoError(t, err)
+	must.Eq(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
+	must.Eq(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
 }
 
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	ci.Parallel(t)
-
-	assert := assert.New(t)
 
 	conf := DefaultConfig()
 	conf.DevMode = true
@@ -752,13 +748,13 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	a := &Agent{config: conf}
 
 	c, err := a.clientConfig()
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	telemetry := conf.Telemetry
 
-	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
-	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
-	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
+	must.Eq(t, c.StatsCollectionInterval, telemetry.collectionInterval)
+	must.Eq(t, c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
+	must.Eq(t, c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP

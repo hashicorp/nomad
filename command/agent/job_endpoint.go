@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -104,6 +105,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/services"):
 		jobID := strings.TrimSuffix(path, "/services")
 		return s.jobServiceRegistrations(resp, req, jobID)
+	case strings.HasSuffix(path, "/submission"):
+		jobID := strings.TrimSuffix(path, "/submission")
+		return s.jobSubmissionCRUD(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -327,6 +331,42 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
+func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
+	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
+	if err != nil {
+		return nil, CodedError(400, "Unable to parse job submission version parameter")
+	}
+	switch req.Method {
+	case "GET":
+		return s.jobSubmissionQuery(resp, req, jobID, version)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Request, jobID string, version uint64) (*structs.JobSubmission, error) {
+	args := structs.JobSubmissionRequest{
+		JobID:   jobID,
+		Version: version,
+	}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobSubmissionResponse
+	if err := s.agent.RPC("Job.GetJobSubmission", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Submission == nil {
+		return nil, CodedError(404, "job source not found")
+	}
+
+	return out.Submission, nil
+}
+
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	switch req.Method {
 	case "GET":
@@ -347,6 +387,9 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request, jobID
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+
+	// just get me a submission=true parameter?
+	// args.QueryOptions.
 
 	var out structs.SingleJobResponse
 	if err := s.agent.RPC("Job.GetJob", &args, &out); err != nil {
@@ -410,8 +453,13 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 	}
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
+	maxSubmissionSize := s.agent.Server().GetConfig().JobMaxSourceSize
+	submission := apiJobSubmissionToStructs(args.Submission, maxSubmissionSize)
+
 	regReq := structs.JobRegisterRequest{
-		Job:            sJob,
+		Job:        sJob,
+		Submission: submission,
+
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
@@ -702,6 +750,37 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
+// writeVariablesFile writes content to a temporary file that is to be read by
+// the hcl parser. If content is empty nothing is written and nil is returned.
+// The return value is otherwise a one element slice with the filename of the
+// temporary file. Also returned is a cleanup function that must be called by
+// the caller for removing the temporary file once it is no longer needed.
+func writeVariablesFile(content string) ([]string, func(), error) {
+	// nothing to do if there is no variables content
+	if content == "" {
+		return nil, func() {}, nil
+	}
+
+	// write variables content to a tmp file and return the filename and cleanup
+	// helper function for removing the tmp file
+	f, err := os.CreateTemp("", "hcl-") // uses 0600
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err = f.WriteString(content); err != nil {
+		return nil, nil, err
+	}
+	if err = f.Sync(); err != nil {
+		return nil, nil, err
+	}
+	if err = f.Close(); err != nil {
+		return nil, nil, err
+	}
+	return []string{f.Name()}, func() {
+		_ = os.Remove(f.Name())
+	}, nil
+}
+
 // JobsParseRequest parses a hcl jobspec and returns a api.Job
 func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
@@ -739,11 +818,20 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
+		varsFile, cleanupVarsFile, varsErr := writeVariablesFile(args.Variables)
+		if varsErr != nil {
+			return nil, CodedError(400, "Failed to write HCL variables file")
+		}
+		defer cleanupVarsFile()
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:    "input.hcl",
-			Body:    []byte(args.JobHCL),
-			AllowFS: false,
+			Path:     "input.hcl",
+			Body:     []byte(args.JobHCL),
+			AllowFS:  false,
+			VarFiles: varsFile,
 		})
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("failed to parse job: %v", err))
+		}
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
@@ -785,6 +873,31 @@ func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http
 		return nil, CodedError(http.StatusNotFound, jobNotFoundErr)
 	}
 	return reply.Services, nil
+}
+
+func apiJobSubmissionToStructs(submission *api.JobSubmission, maxSize int) *structs.JobSubmission {
+	if submission == nil {
+		return nil
+	}
+
+	// discard the job if the submission is larger than the maximum size
+	totalSize := len(submission.Source)
+	totalSize += len(submission.Variables)
+	for key, value := range submission.VariableFlags {
+		totalSize += len(key)
+		totalSize += len(value)
+	}
+
+	if totalSize > maxSize {
+		return nil
+	}
+
+	return &structs.JobSubmission{
+		Source:        submission.Source,
+		Format:        submission.Format,
+		VariableFlags: submission.VariableFlags,
+		Variables:     submission.Variables,
+	}
 }
 
 // apiJobAndRequestToStructs parses the query params from the incoming

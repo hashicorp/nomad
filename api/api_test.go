@@ -39,8 +39,7 @@ func makeACLClient(t *testing.T, cb1 configCallback,
 	return client, server, root
 }
 
-func makeClient(t *testing.T, cb1 configCallback,
-	cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
+func makeClient(t *testing.T, cb1 configCallback, cb2 testutil.ServerConfigCallback) (*Client, *testutil.TestServer) {
 	// Make client config
 	conf := DefaultConfig()
 	if cb1 != nil {
