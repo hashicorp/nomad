@@ -1,3 +1,16 @@
+## 1.4.7 (March 21, 2023)
+
+IMPROVEMENTS:
+
+* build: Update to go1.20.2 [[GH-16427](https://github.com/hashicorp/nomad/issues/16427)]
+
+BUG FIXES:
+
+* client: Fixed a bug where clients using Consul discovery to join the cluster would get permission denied errors [[GH-16490](https://github.com/hashicorp/nomad/issues/16490)]
+* client: Fixed a bug where cpuset initialization fails after Client restart [[GH-16467](https://github.com/hashicorp/nomad/issues/16467)]
+* plugin: Add missing fields to `TaskConfig` so they can be accessed by external task drivers [[GH-16434](https://github.com/hashicorp/nomad/issues/16434)]
+* services: Fixed a bug where a service would be deregistered twice [[GH-16289](https://github.com/hashicorp/nomad/issues/16289)]
+
 ## 1.4.6 (March 10, 2023)
 
 SECURITY:
