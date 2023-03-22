@@ -587,9 +587,8 @@ func TestLeader_PeriodicDispatcher_No_Overlaps_No_Running_Job(t *testing.T) {
 	// Check that an eval was made.
 	ws := memdb.NewWatchSet()
 	last, err := s1.fsm.State().PeriodicLaunchByID(ws, job.Namespace, job.ID)
-	if err != nil || last == nil {
-		t.Fatalf("failed to get periodic launch time: %v", err)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, last)
 
 	if last.Launch == past {
 		t.Fatalf("restorePeriodicDispatcher did not force launch")
