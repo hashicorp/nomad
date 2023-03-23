@@ -179,25 +179,20 @@ func (w *nodeDrainWatcher) watch() {
 				// If the node is tracked but not draining, untrack
 				w.tracker.Remove(nodeID)
 
-			case !tracked && node.UnresponsiveStatus():
-				// Down or Disconnected nodes can't be migrated, so skip
-				// tracking them
-
 			case !tracked && newDraining:
 				// If the node is not being tracked but is draining, track
 				w.tracker.Update(node)
-
-			case tracked && node.UnresponsiveStatus():
-				// Down or Disconnected nodes can't be migrated, so stop
-				// tracking them. The node update event that changed the status
-				// will trigger all the evaluations we need
-				w.tracker.Remove(nodeID)
 
 			case tracked && newDraining && !currentNode.DrainStrategy.Equal(node.DrainStrategy):
 				// If the node is being tracked but has changed, update
 				w.tracker.Update(node)
 
 			default:
+				// note that down/disconnected nodes are handled the same as any
+				// other node here, because we don't want to stop draining a
+				// node that might heartbeat again. The job watcher will let us
+				// know if we can stop watching the node when all the allocs are
+				// evicted
 			}
 		}
 
