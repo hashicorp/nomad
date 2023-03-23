@@ -415,6 +415,14 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job restart": func() (cli.Command, error) {
+			// Use a *cli.ConcurrentUi because this command spawns several
+			// goroutines that write to the terminal concurrently.
+			meta.Ui = &cli.ConcurrentUi{Ui: meta.Ui}
+			return &JobRestartCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job deployments": func() (cli.Command, error) {
 			return &JobDeploymentsCommand{
 				Meta: meta,

@@ -152,19 +152,46 @@ func waitForNodes(t *testing.T, client *api.Client) {
 	})
 }
 
-func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
+func waitForJobAllocsStatus(t *testing.T, client *api.Client, jobID string, status string, token string) {
+	testutil.WaitForResult(func() (bool, error) {
+		q := &api.QueryOptions{AuthToken: token}
+
+		allocs, _, err := client.Jobs().Allocations(jobID, true, q)
+		if err != nil {
+			return false, fmt.Errorf("failed to query job allocs: %v", err)
+		}
+		if len(allocs) == 0 {
+			return false, fmt.Errorf("no allocs")
+		}
+
+		for _, alloc := range allocs {
+			if alloc.ClientStatus != status {
+				return false, fmt.Errorf("alloc status is %q not %q", alloc.ClientStatus, status)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+}
+
+func waitForAllocStatus(t *testing.T, client *api.Client, allocID string, status string) {
 	testutil.WaitForResult(func() (bool, error) {
 		alloc, _, err := client.Allocations().Info(allocID, nil)
 		if err != nil {
 			return false, err
 		}
-		if alloc.ClientStatus == api.AllocClientStatusRunning {
+		if alloc.ClientStatus == status {
 			return true, nil
 		}
-		return false, fmt.Errorf("alloc status: %s", alloc.ClientStatus)
+		return false, fmt.Errorf("alloc status is %q not %q", alloc.ClientStatus, status)
 	}, func(err error) {
-		t.Fatalf("timed out waiting for alloc to be running: %v", err)
+		must.NoError(t, err)
 	})
+}
+
+func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
+	waitForAllocStatus(t, client, allocID, api.AllocClientStatusRunning)
 }
 
 func waitForCheckStatus(t *testing.T, client *api.Client, allocID, status string) {
