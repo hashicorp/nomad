@@ -72,11 +72,11 @@
     <div class="columns">
       {{#if this.canSignIn}}
         <div class="column is-half sign-in-methods">
-          {{#if this.authMethods.length}}
+          {{#if this.nonTokenAuthMethods.length}}
             <h3 class="title is-4">Sign in with SSO</h3>
             <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
             <div class="sso-auth-methods">
-              {{#each this.model.authMethods as |method|}}
+              {{#each this.nonTokenAuthMethods as |method|}}
                 <button
                   data-test-auth-method
                   class="button is-primary"
@@ -90,8 +90,8 @@
           {{/if}}
 
           <h3 class="title is-4">Sign in with token</h3>
-          <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID, each future request will be authenticated, potentially authorizing read access to additional information.</p>
-          <label class="label" for="token-input">Secret ID</label>
+          <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID{{#if this.hasJWTAuthMethods}} or <a href="https://jwt.io/" target="_blank">JWT</a>{{/if}}, each future request will be authenticated, potentially authorizing read access to additional information.</p>
+          <label class="label" for="token-input">Secret ID{{#if this.hasJWTAuthMethods}} or JWT{{/if}}</label>
           <div class="control">
             <Input
               id="token-input"

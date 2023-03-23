@@ -48,6 +48,14 @@ export default class Tokens extends Controller {
     return this.store.peekAll('auth-method');
   }
 
+  get hasJWTAuthMethods() {
+    return this.authMethods.any((method) => method.type === 'JWT');
+  }
+
+  get nonTokenAuthMethods() {
+    return this.authMethods.rejectBy('type', 'JWT');
+  }
+
   @action
   verifyToken() {
     const { secret } = this;
@@ -57,22 +65,28 @@ export default class Tokens extends Controller {
     this.set('token.secret', secret);
     this.set('secret', null);
 
-    TokenAdapter.findSelf().then(
-      () => {
-        // Clear out all data to ensure only data the new token is privileged to see is shown
-        this.resetStore();
+    const isJWT = secret.length > 36 && secret.split('.').length === 3; // TODO: TEMP, HACKY HACK
 
-        // Refetch the token and associated policies
-        this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+    if (isJWT) {
+      // Do a roundabout and set bearer token instead of findSelf etc.
+    } else {
+      TokenAdapter.findSelf().then(
+        () => {
+          // Clear out all data to ensure only data the new token is privileged to see is shown
+          this.resetStore();
 
-        this.signInStatus = 'success';
-        this.token.set('tokenNotFound', false);
-      },
-      () => {
-        this.set('token.secret', undefined);
-        this.signInStatus = 'failure';
-      }
-    );
+          // Refetch the token and associated policies
+          this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+
+          this.signInStatus = 'success';
+          this.token.set('tokenNotFound', false);
+        },
+        () => {
+          this.set('token.secret', undefined);
+          this.signInStatus = 'failure';
+        }
+      );
+    }
   }
 
   // Generate a 20-char nonce, using window.crypto to
