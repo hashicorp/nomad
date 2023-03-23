@@ -62,6 +62,13 @@ func limit(s string, length int) string {
 	return s[:length]
 }
 
+// indentString returns the string s padded with the given number of empty
+// spaces before each line except for the first one.
+func indentString(s string, pad int) string {
+	prefix := strings.Repeat(" ", pad)
+	return strings.Join(strings.Split(s, "\n"), fmt.Sprintf("\n%s", prefix))
+}
+
 // wrapAtLengthWithPadding wraps the given text at the maxLineLength, taking
 // into account any provided left padding.
 func wrapAtLengthWithPadding(s string, pad int) string {

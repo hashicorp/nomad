@@ -543,6 +543,10 @@
             "path": "commands/job/promote"
           },
           {
+            "title": "restart",
+            "path": "commands/job/restart"
+          },
+          {
             "title": "revert",
             "path": "commands/job/revert"
           },
