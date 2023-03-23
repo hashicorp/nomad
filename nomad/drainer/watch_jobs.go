@@ -29,7 +29,7 @@ func NewDrainRequest(allocs []*structs.Allocation) *DrainRequest {
 // DrainingJobWatcher is the interface for watching a job drain
 type DrainingJobWatcher interface {
 	// RegisterJob is used to start watching a draining job
-	RegisterJobs(job []structs.NamespacedID)
+	RegisterJobs(jobs []structs.NamespacedID)
 
 	// Drain is used to emit allocations that should be drained.
 	Drain() <-chan *DrainRequest
