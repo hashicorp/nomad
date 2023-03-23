@@ -432,7 +432,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// their replacements first because there is specific logic when deciding
 	// which ones to keep that can only be applied when the client reconnects.
 	if len(reconnecting) > 0 {
-		// Pass all allocations becasue the replacements we need to find may be
+		// Pass all allocations because the replacements we need to find may be
 		// in any state, including themselves being reconnected.
 		reconnect, stop := a.reconcileReconnecting(reconnecting, all)
 
