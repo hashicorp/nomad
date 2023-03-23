@@ -87,31 +87,31 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 		assertTrackerSettled(t, tracker, []string{})
 		must.MapEmpty(t, tracker.deadlineNotifier.(*MockDeadlineNotifier).nodes)
 	})
+}
 
-	t.Run("down node", func(t *testing.T) {
-		n, _ := testNodeDrainWatcherSetup(t, store, tracker)
+// TestNodeDrainWatcher_NoRemove tests that when the node status changes to
+// down/disconnected that we don't remove it from the node watcher or deadline
+// notifier
+func TestNodeDrainWatcher_NoRemove(t *testing.T) {
+	ci.Parallel(t)
+	_, store, tracker := testNodeDrainWatcher(t)
+	n, _ := testNodeDrainWatcherSetup(t, store, tracker)
 
-		index, _ := store.LatestIndex()
-		n = n.Copy()
-		n.Status = structs.NodeStatusDown
-		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index+1, n))
+	index, _ := store.LatestIndex()
+	n = n.Copy()
+	n.Status = structs.NodeStatusDisconnected
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index+1, n))
 
-		// Down node should no longer be tracked
-		assertTrackerSettled(t, tracker, []string{})
-		must.MapEmpty(t, tracker.deadlineNotifier.(*MockDeadlineNotifier).nodes)
-	})
+	assertTrackerSettled(t, tracker, []string{n.ID})
+	must.MapContainsKey(t, tracker.deadlineNotifier.(*MockDeadlineNotifier).nodes, n.ID)
 
-	t.Run("disconnected node", func(t *testing.T) {
-		n, _ := testNodeDrainWatcherSetup(t, store, tracker)
-		index, _ := store.LatestIndex()
-		n = n.Copy()
-		n.Status = structs.NodeStatusDisconnected
-		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index+1, n))
+	index, _ = store.LatestIndex()
+	n = n.Copy()
+	n.Status = structs.NodeStatusDown
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index+1, n))
 
-		// Disconnected node should no longer be tracked
-		assertTrackerSettled(t, tracker, []string{})
-		must.MapEmpty(t, tracker.deadlineNotifier.(*MockDeadlineNotifier).nodes)
-	})
+	assertTrackerSettled(t, tracker, []string{n.ID})
+	must.MapContainsKey(t, tracker.deadlineNotifier.(*MockDeadlineNotifier).nodes, n.ID)
 }
 
 // TestNodeDrainWatcher_Update_Spec tests drain spec updates emit events to the
