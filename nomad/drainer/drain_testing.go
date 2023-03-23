@@ -76,12 +76,17 @@ func (m *MockDeadlineNotifier) Watch(nodeID string, _ time.Time) {
 }
 
 type MockRaftApplierShim struct {
+	lock  sync.Mutex
 	state *state.StateStore
 }
 
 // AllocUpdateDesiredTransition mocks a write to raft as a state store update
 func (m *MockRaftApplierShim) AllocUpdateDesiredTransition(
 	allocs map[string]*structs.DesiredTransition, evals []*structs.Evaluation) (uint64, error) {
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	index, _ := m.state.LatestIndex()
 	index++
 	err := m.state.UpdateAllocsDesiredTransitions(structs.MsgTypeTestSetup, index, allocs, evals)
@@ -91,6 +96,10 @@ func (m *MockRaftApplierShim) AllocUpdateDesiredTransition(
 // NodesDrainComplete mocks a write to raft as a state store update
 func (m *MockRaftApplierShim) NodesDrainComplete(
 	nodes []string, event *structs.NodeEvent) (uint64, error) {
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	index, _ := m.state.LatestIndex()
 	index++
 
@@ -118,22 +127,15 @@ func testNodeDrainWatcher(t *testing.T) (*nodeDrainWatcher, *state.StateStore, *
 	logger := testlog.HCLogger(t)
 
 	drainer := &NodeDrainer{
-		enabled: false,
-		logger:  logger,
-		nodes:   map[string]*drainingNode{},
-		jobWatcher: &MockJobWatcher{
-			drainCh:    make(chan *DrainRequest),
-			migratedCh: make(chan []*structs.Allocation),
-			jobs:       map[structs.NamespacedID]struct{}{},
-		},
-		deadlineNotifier: &MockDeadlineNotifier{
-			expiredCh: make(<-chan []string),
-			nodes:     map[string]struct{}{},
-		},
-		state:        store,
-		queryLimiter: limiter,
-		raft:         &MockRaftApplierShim{state: store},
-		batcher:      allocMigrateBatcher{},
+		enabled:          false,
+		logger:           logger,
+		nodes:            map[string]*drainingNode{},
+		jobWatcher:       &MockJobWatcher{jobs: map[structs.NamespacedID]struct{}{}},
+		deadlineNotifier: &MockDeadlineNotifier{nodes: map[string]struct{}{}},
+		state:            store,
+		queryLimiter:     limiter,
+		raft:             &MockRaftApplierShim{state: store},
+		batcher:          allocMigrateBatcher{},
 	}
 
 	w := NewNodeDrainWatcher(context.Background(), limiter, store, logger, drainer)
