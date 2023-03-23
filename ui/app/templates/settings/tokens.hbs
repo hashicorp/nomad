@@ -18,6 +18,17 @@
         </div>
       {{/if}}
 
+      {{#if (eq this.signInStatus "jwtFailure")}}
+        <div data-test-token-error class="notification is-danger">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">JWT Failed to Authenticate</h3>
+              <p>You passed in a JWT, but no JWT auth methods were found</p>
+            </div>
+          </div>
+        </div>
+      {{/if}}
+
       {{#if this.tokenRecord.isExpired}}
         <div data-test-token-expired class="notification is-danger">
           <div class="columns">

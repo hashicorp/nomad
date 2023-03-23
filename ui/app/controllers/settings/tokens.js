@@ -14,13 +14,14 @@ export default class Tokens extends Controller {
   @service token;
   @service store;
   @service router;
+  @service notifications;
 
   queryParams = ['code', 'state'];
 
   @reads('token.secret') secret;
 
   /**
-   * @type {(null | "success" | "failure")} signInStatus
+   * @type {(null | "success" | "failure" | "jwtFailure")} signInStatus
    */
   @tracked
   signInStatus = null;
@@ -57,19 +58,57 @@ export default class Tokens extends Controller {
   }
 
   @action
-  verifyToken() {
+  async verifyToken() {
     const { secret } = this;
-    this.clearTokenProperties();
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
-    this.set('token.secret', secret);
-    this.set('secret', null);
-
-    const isJWT = secret.length > 36 && secret.split('.').length === 3; // TODO: TEMP, HACKY HACK
+    // const isJWT = secret.length > 36 && secret.split('.').length === 3; // TODO: TEMP, HACKY HACK
+    // use regex to determine if "secret" is a JWT
+    const isJWT =
+      secret.length > 36 &&
+      secret.match(/^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/);
 
     if (isJWT) {
-      // Do a roundabout and set bearer token instead of findSelf etc.
+      // TODO: Discussion: There may be multiple JWT methods sometime in the future.
+      // A quick assumption would be to just use the first one, but that
+      // won't hold up forever. We should probably have a way to select which one
+      // to use, or at least a way to know which one was used to generate the token.
+      const methodName = await this.authMethods.findBy('type', 'JWT')?.name;
+
+      // If user passes a JWT token, but there is no JWT auth method, throw an error
+      if (!methodName) {
+        this.set('token.secret', undefined);
+        this.signInStatus = 'jwtFailure';
+        return;
+      }
+
+      this.clearTokenProperties();
+
+      // Set bearer token instead of findSelf etc.
+      TokenAdapter.loginJWT(secret, methodName).then(
+        (token) => {
+          this.set('token.secret', token.secret);
+          this.set('secret', null);
+
+          // Clear out all data to ensure only data the new token is privileged to see is shown
+          this.resetStore();
+
+          // Refetch the token and associated policies
+          this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+
+          this.signInStatus = 'success';
+          this.token.set('tokenNotFound', false);
+        },
+        () => {
+          this.set('token.secret', undefined);
+          this.signInStatus = 'failure';
+        }
+      );
     } else {
+      this.clearTokenProperties();
+      this.set('token.secret', secret);
+      this.set('secret', null);
+
       TokenAdapter.findSelf().then(
         () => {
           // Clear out all data to ensure only data the new token is privileged to see is shown

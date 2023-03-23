@@ -32,6 +32,22 @@ export default class TokenAdapter extends ApplicationAdapter {
     });
   }
 
+  loginJWT(LoginToken, AuthMethodName) {
+    return this.ajax(`${this.buildURL()}/login`, 'POST', {
+      data: {
+        AuthMethodName,
+        LoginToken,
+      },
+    }).then((token) => {
+      const store = this.store;
+      store.pushPayload('token', {
+        tokens: [token],
+      });
+
+      return store.peekRecord('token', store.normalize('token', token).data.id);
+    });
+  }
+
   exchangeOneTimeToken(oneTimeToken) {
     return this.ajax(`${this.buildURL()}/token/onetime/exchange`, 'POST', {
       data: {
