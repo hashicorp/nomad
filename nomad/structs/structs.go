@@ -691,6 +691,9 @@ type NodeSpecificRequest struct {
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
+	Submission *JobSubmission
+
+	// Job is the parsed job, no matter what form the input was in.
 	Job *Job
 
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -4245,6 +4248,16 @@ const (
 	// kept for a single task group.
 	JobTrackedScalingEvents = 20
 )
+
+// A JobSubmission contains the original job specification (hcl2 only), along
+// with the Variables submitted with the job (command line -var flags only).
+type JobSubmission struct {
+	// HCL contains the original HCL2 job definition (hcl2 only).
+	HCL string
+
+	// VariableFlags contain the CLI "-var" flag arguments as submitted with the job.
+	VariableFlags map[string]string
+}
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group

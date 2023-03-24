@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shoenig/netlog"
-
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
@@ -22,7 +20,6 @@ import (
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-
 	"github.com/ryanuber/columnize"
 )
 
@@ -483,6 +480,7 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 
 	// Parse the JobFile
 	var jobStruct *api.Job
+	var jobSubmission *api.JobSubmission
 	var err error
 	switch {
 	case j.HCL1:
@@ -512,12 +510,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			return nil, nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
 		}
 
-		// copy buf as string of hcl?
-		vars := j.Vars
-
-		// parse vars, they are in key=val form here
-		netlog.Yellow("Get()", "vars", vars)
-
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
 			Body:     buf.Bytes(),
@@ -527,6 +519,12 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Envs:     os.Environ(),
 			Strict:   j.Strict,
 		})
+
+		// in the hcl2 case, we will submit the job with the submission context
+		jobSubmission = &api.JobSubmission{
+			VariableFlags: extractVarFlags(j.Vars),
+			HCL:           buf.String(),
+		}
 
 		if err != nil {
 			if _, merr := jobspec.Parse(&buf); merr == nil {
@@ -539,7 +537,16 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 		return nil, nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
 
-	return nil, jobStruct, nil
+	return jobSubmission, jobStruct, nil
+}
+
+func extractVarFlags(slice []string) map[string]string {
+	m := make(map[string]string, len(slice))
+	for _, s := range slice {
+		tokens := strings.SplitN(s, "=", 2)
+		m[tokens[0]] = tokens[1]
+	}
+	return m
 }
 
 // mergeAutocompleteFlags is used to join multiple flag completion sets.

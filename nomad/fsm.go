@@ -549,6 +549,8 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		return err
 	}
 
+	//
+
 	// We always add the job to the periodic dispatcher because there is the
 	// possibility that the periodic spec was removed and then we should stop
 	// tracking it.

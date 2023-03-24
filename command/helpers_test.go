@@ -372,7 +372,7 @@ job "example" {
 		Strict:   true,
 	}
 
-	_, j, err := jg.Get(hclf.Name())
+	j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -427,7 +427,7 @@ unsedVar2 = "from-varfile"
 		Strict:   false,
 	}
 
-	_, j, err := jg.Get(hclf.Name())
+	j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)

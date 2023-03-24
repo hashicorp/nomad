@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/netlog"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -379,8 +380,7 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 	return job, nil
 }
 
-func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobName string) (interface{}, error) {
 	var args api.JobRegisterRequest
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
@@ -395,6 +395,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
+
+	netlog.Cyan("H.jobUpdate", "sub:", args.Submission)
 
 	// GH-8481. Jobs of type system can only have a count of 1 and therefore do
 	// not support scaling. Even though this returns an error on the first
@@ -419,7 +421,9 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
-		Job:            sJob,
+		Job:        sJob,
+		Submission: apiJobSubmissionToStructs(args.Submission),
+
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
@@ -799,6 +803,13 @@ func (s *HTTPServer) jobServiceRegistrations(
 		return nil, CodedError(http.StatusNotFound, jobNotFoundErr)
 	}
 	return reply.Services, nil
+}
+
+func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmission {
+	return &structs.JobSubmission{
+		HCL:           submission.HCL,
+		VariableFlags: submission.VariableFlags,
+	}
 }
 
 // apiJobAndRequestToStructs parses the query params from the incoming

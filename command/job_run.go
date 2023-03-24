@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
+	"github.com/shoenig/netlog"
 )
 
 var (
@@ -233,7 +234,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	_, job, err := c.JobGetter.Get(args[0])
+	sub, job, err := c.JobGetter.Get(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
@@ -323,8 +324,10 @@ func (c *JobRunCommand) Run(args []string) int {
 		opts.ModifyIndex = checkIndex
 	}
 
+	netlog.Yellow("JRC.Run", "sub:", sub)
+
 	// Submit the job
-	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
+	resp, _, err := client.Jobs().RegisterOpts(sub, job, opts, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
 			// Format the error specially if the error is due to index

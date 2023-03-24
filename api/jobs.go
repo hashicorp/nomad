@@ -121,21 +121,22 @@ type RegisterOptions struct {
 // Register is used to register a new job. It returns the ID
 // of the evaluation, along with any errors encountered.
 func (j *Jobs) Register(job *Job, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
-	return j.RegisterOpts(job, nil, q)
+	return j.RegisterOpts(nil, job, nil, q)
 }
 
 // EnforceRegister is used to register a job enforcing its job modify index.
 func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	opts := RegisterOptions{EnforceIndex: true, ModifyIndex: modifyIndex}
-	return j.RegisterOpts(job, &opts, q)
+	return j.RegisterOpts(nil, job, &opts, q)
 }
 
 // RegisterOpts is used to register a new job with the passed RegisterOpts. It
 // returns the ID of the evaluation, along with any errors encountered.
-func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+func (j *Jobs) RegisterOpts(sub *JobSubmission, job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	// Format the request
 	req := &JobRegisterRequest{
-		Job: job,
+		Submission: sub,
+		Job:        job,
 	}
 	if opts != nil {
 		if opts.EnforceIndex {
@@ -869,8 +870,11 @@ type ParameterizedJobConfig struct {
 // A JobSubmission may be nil, indicating no information is known about the job
 // submission.
 type JobSubmission struct {
-	HCL       string
-	Variables map[string]string
+	// HCL contains the original HCL2 job definition (hcl2 only).
+	HCL string
+
+	// VariableFlags contain the CLI "-var" flag arguments as submitted with the job.
+	VariableFlags map[string]string
 }
 
 // Job is used to serialize a job.
@@ -1258,7 +1262,8 @@ type JobRevertRequest struct {
 
 // JobRegisterRequest is used to update a job
 type JobRegisterRequest struct {
-	Job *Job
+	Submission *JobSubmission
+	Job        *Job
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
 	// register only occurs if the job is new.
