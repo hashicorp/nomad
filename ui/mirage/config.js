@@ -477,6 +477,23 @@ export default function () {
     return new Response(400, {}, null);
   });
 
+  this.post('/acl/login', function (schema, { requestBody }) {
+    const { LoginToken } = JSON.parse(requestBody);
+    const tokenType = LoginToken.endsWith('management')
+      ? 'management'
+      : 'client';
+    const isBad = LoginToken.endsWith('bad');
+
+    if (isBad) {
+      return new Response(403, {}, null);
+    } else {
+      const token = schema.tokens
+        .all()
+        .models.find((token) => token.type === tokenType);
+      return this.serialize(token);
+    }
+  });
+
   this.get('/acl/token/:id', function ({ tokens }, req) {
     const token = tokens.find(req.params.id);
     const secret = req.requestHeaders['X-Nomad-Token'];

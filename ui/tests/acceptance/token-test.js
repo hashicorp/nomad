@@ -414,6 +414,66 @@ module('Acceptance | tokens', function (hooks) {
     assert.ok(Tokens.ssoErrorMessage);
   });
 
+  test('JWT Sign-in flow: OIDC methods only', async function (assert) {
+    server.create('auth-method', { name: 'Vault', type: 'OIDC' });
+    server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
+    await Tokens.visit();
+    assert
+      .dom('[data-test-auth-method]')
+      .exists({ count: 2 }, 'Both OIDC methods shown');
+    assert
+      .dom('label[for="token-input"]')
+      .hasText(
+        'Secret ID',
+        'Secret ID input shown without JWT info when no such method exists'
+      );
+  });
+
+  test('JWT Sign-in flow: JWT method', async function (assert) {
+    server.create('auth-method', { name: 'Vault', type: 'OIDC' });
+    server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
+    server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
+    await Tokens.visit();
+    assert
+      .dom('[data-test-auth-method]')
+      .exists(
+        { count: 2 },
+        'The newly added JWT method does not add a 3rd Auth Method button'
+      );
+    assert
+      .dom('label[for="token-input"]')
+      .hasText('Secret ID or JWT', 'Secret ID input now shows JWT info');
+
+    // Expect to be signed in as a manager
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.management'
+    ).submit();
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Manager');
+    await Tokens.clear();
+
+    // Expect to be signed in as a client
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
+    ).submit();
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText(
+      `Token: ${
+        server.db.tokens.filter((token) => {
+          return token.type === 'client';
+        })[0].name
+      }`
+    );
+    await Tokens.clear();
+
+    // Expect to an error on bad JWT
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bad'
+    ).submit();
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-error]').exists();
+  });
+
   test('when the ott exchange fails an error is shown', async function (assert) {
     await visit('/?ott=fake');
 
