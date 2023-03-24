@@ -427,6 +427,12 @@ func IsMethodHTTP(s string) bool {
 	return true
 }
 
+// IsContentType returns whether headers contains a Content-Type header that
+// matches the target value.
+func IsContentType(headers http.Header, target string) bool {
+	return strings.EqualFold(headers.Get("Content-Type"), target)
+}
+
 // EqualFunc represents a type implementing the Equal method.
 type EqualFunc[A any] interface {
 	Equal(A) bool

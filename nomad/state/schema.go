@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -66,6 +66,7 @@ func init() {
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
+		jobSubmissionTableSchema,
 		deploymentSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
@@ -328,6 +329,29 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func jobSubmissionTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "job_submission",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "JobName",
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // deploymentSchema returns the MemDB schema tracking a job's deployments

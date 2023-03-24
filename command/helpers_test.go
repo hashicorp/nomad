@@ -268,7 +268,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 
 	j := &JobGetter{}
-	aj, err := j.ApiJob(fh.Name())
+	_, aj, err := j.ApiJob(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -315,7 +315,7 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 			require.NoError(t, err)
 
 			j := &JobGetter{}
-			_, err = j.ApiJob(fh.Name())
+			_, _, err = j.ApiJob(fh.Name())
 			require.Error(t, err)
 
 			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
@@ -372,7 +372,7 @@ job "example" {
 		Strict:   true,
 	}
 
-	j, err := jg.Get(hclf.Name())
+	_, j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -427,7 +427,7 @@ unsedVar2 = "from-varfile"
 		Strict:   false,
 	}
 
-	j, err := jg.Get(hclf.Name())
+	_, j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -446,7 +446,7 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	j := &JobGetter{}
-	aj, err := j.ApiJob("http://127.0.0.1:12345/")
+	_, aj, err := j.ApiJob("http://127.0.0.1:12345/")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

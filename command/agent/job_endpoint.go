@@ -105,6 +105,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/services"):
 		jobName := strings.TrimSuffix(path, "/services")
 		return s.jobServiceRegistrations(resp, req, jobName)
+	case strings.HasSuffix(path, "/submission"):
+		jobName := strings.TrimSuffix(path, "/submission")
+		return s.jobSubCRUD(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -333,8 +336,41 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
-func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobSubCRUD(resp http.ResponseWriter, req *http.Request, jobName string) (*structs.JobSubmission, error) {
+	switch req.Method {
+	case "GET":
+		return s.jobSubQuery(resp, req, jobName)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobSubQuery(resp http.ResponseWriter, req *http.Request, jobName string) (*structs.JobSubmission, error) {
+	netlog.Yellow("HS.jobSubQuery", "jobName", jobName)
+
+	args := structs.JobSubmissionRequest{
+		JobName: jobName,
+	}
+
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobSubmissionResponse
+	if err := s.agent.RPC("Job.GetJobSubmission", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.Submission == nil {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	return out.Submission, nil
+}
+
+func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobName string) (interface{}, error) {
+	netlog.Yellow("HS.jobCRUD", "jobName", jobName)
 	switch req.Method {
 	case "GET":
 		return s.jobQuery(resp, req, jobName)
@@ -347,14 +383,17 @@ func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,
 	}
 }
 
-func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request, jobName string) (*structs.Job, error) {
+
 	args := structs.JobSpecificRequest{
 		JobID: jobName,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+
+	// just get me a submission=true parameter?
+	// args.QueryOptions.
 
 	var out structs.SingleJobResponse
 	if err := s.agent.RPC("Job.GetJob", &args, &out); err != nil {

@@ -792,6 +792,20 @@ type EvalOptions struct {
 	ForceReschedule bool
 }
 
+// JobSubmissionRequest is used to lookup a JobSubmission object associated with a
+// specific job.
+type JobSubmissionRequest struct {
+	JobName string
+
+	QueryOptions
+}
+
+type JobSubmissionResponse struct {
+	Submission *JobSubmission
+
+	QueryMeta
+}
+
 // JobSpecificRequest is used when we just need to specify a target job
 type JobSpecificRequest struct {
 	JobID string
@@ -813,8 +827,9 @@ type JobStubFields struct {
 // JobPlanRequest is used for the Job.Plan endpoint to trigger a dry-run
 // evaluation of the Job.
 type JobPlanRequest struct {
-	Job  *Job
-	Diff bool // Toggles an annotated diff
+	Submission *JobSubmission
+	Job        *Job
+	Diff       bool // Toggles an annotated diff
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 	WriteRequest
@@ -4257,6 +4272,21 @@ type JobSubmission struct {
 
 	// VariableFlags contain the CLI "-var" flag arguments as submitted with the job.
 	VariableFlags map[string]string
+
+	// Namespace is managed internally by the state store, do not use.
+	//
+	// The namespace the associated job belongs to.
+	Namespace string
+
+	// JobName is managed internally by the state store, do not use.
+	//
+	// The job.Name field.
+	JobName string
+
+	// JobIndex is managed internally by the state store, do not use.
+	//
+	// The raft index the Job this submission is associated with.
+	JobIndex uint64
 }
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
