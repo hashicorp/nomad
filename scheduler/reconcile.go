@@ -1078,13 +1078,21 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
-	// Mark all failed reconnects for stop.
-	failedReconnects := reconnecting.filterByFailedReconnect()
-	stop = stop.union(failedReconnects)
-	a.markStop(failedReconnects, structs.AllocClientStatusFailed, allocRescheduled)
-	successfulReconnects := reconnecting.difference(failedReconnects)
+	for _, reconnectingAlloc := range reconnecting {
+		// Stop allocations that failed to reconnect.
+		reconnectFailed := !reconnectingAlloc.ServerTerminalStatus() &&
+			reconnectingAlloc.ClientStatus == structs.AllocClientStatusFailed
 
-	for _, reconnectingAlloc := range successfulReconnects {
+		if reconnectFailed {
+			stop[reconnectingAlloc.ID] = reconnectingAlloc
+			a.result.stop = append(a.result.stop, allocStopResult{
+				alloc:             reconnectingAlloc,
+				clientStatus:      structs.AllocClientStatusFailed,
+				statusDescription: allocRescheduled,
+			})
+			continue
+		}
+
 		// If the desired status is not run, or if the user-specified desired
 		// transition is not run, stop the reconnecting allocation.
 		stopReconnecting := reconnectingAlloc.DesiredStatus != structs.AllocDesiredStatusRun ||
@@ -1106,6 +1114,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 		// Find replacement allocations and decide which one to stop. A
 		// reconnecting allocation may have multiple replacements.
 		for _, replacementAlloc := range others {
+
 			// Skip allocations that are not a replacement of the one
 			// reconnecting. Replacement allocations have the same name but a
 			// higher CreateIndex and a different ID.
@@ -1116,7 +1125,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 			// Skip allocations that are server terminal.
 			// We don't want to replace a reconnecting allocation with one that
 			// is or will terminate and we don't need to stop them since they
-			// are marked as terminal by the servers.
+			// are already marked as terminal by the servers.
 			if !isReplacement || replacementAlloc.ServerTerminalStatus() {
 				continue
 			}
@@ -1146,7 +1155,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, others al
 	}
 
 	// Any reconnecting allocation not set to stop must be reconnected.
-	for _, alloc := range successfulReconnects {
+	for _, alloc := range reconnecting {
 		if _, ok := stop[alloc.ID]; !ok {
 			reconnect[alloc.ID] = alloc
 		}
