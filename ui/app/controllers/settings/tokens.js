@@ -62,8 +62,6 @@ export default class Tokens extends Controller {
     const { secret } = this;
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
-    // const isJWT = secret.length > 36 && secret.split('.').length === 3; // TODO: TEMP, HACKY HACK
-    // use regex to determine if "secret" is a JWT
     const isJWT =
       secret.length > 36 &&
       secret.match(/^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/);
@@ -87,7 +85,10 @@ export default class Tokens extends Controller {
       // Set bearer token instead of findSelf etc.
       TokenAdapter.loginJWT(secret, methodName).then(
         (token) => {
-          this.set('token.secret', token.secret);
+          this.token.setProperties({
+            secret: token.secret,
+            tokenNotFound: false,
+          });
           this.set('secret', null);
 
           // Clear out all data to ensure only data the new token is privileged to see is shown
@@ -97,7 +98,6 @@ export default class Tokens extends Controller {
           this.get('token.fetchSelfTokenAndPolicies').perform().catch();
 
           this.signInStatus = 'success';
-          this.token.set('tokenNotFound', false);
         },
         () => {
           this.set('token.secret', undefined);
