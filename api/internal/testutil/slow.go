@@ -26,6 +26,7 @@ func Parallel(t *testing.T) {
 }
 
 func RequireRoot(t *testing.T) {
+	t.Helper()
 	if syscall.Getuid() != 0 {
 		t.Skip("test requires root")
 	}
