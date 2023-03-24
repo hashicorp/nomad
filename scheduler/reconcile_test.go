@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -5328,6 +5329,9 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		nodeStatusDisconnected       bool
 		replace                      bool
 		failReplacement              bool
+		taintReplacement             bool
+		disconnectReplacement        bool
+		replaceFailedReplacement     bool
 		shouldStopOnDisconnectedNode bool
 		maxDisconnect                *time.Duration
 		expected                     *resultExpectation
@@ -5450,6 +5454,66 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
+			name:                    "keep-original-alloc-and-stop-failed-replacement",
+			allocCount:              3,
+			replace:                 true,
+			failReplacement:         true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: disconnectAllocState,
+			serverDesiredStatus:     structs.AllocDesiredStatusRun,
+			expected: &resultExpectation{
+				reconnectUpdates: 2,
+				stop:             2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 3,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
+			name:                    "keep-original-and-stop-reconnecting-replacement",
+			allocCount:              2,
+			replace:                 true,
+			disconnectReplacement:   true,
+			disconnectedAllocCount:  1,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: disconnectAllocState,
+			serverDesiredStatus:     structs.AllocDesiredStatusRun,
+			expected: &resultExpectation{
+				reconnectUpdates: 1,
+				stop:             1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 2,
+						Stop:   1,
+					},
+				},
+			},
+		},
+		{
+			name:                    "keep-original-and-stop-tainted-replacement",
+			allocCount:              3,
+			replace:                 true,
+			taintReplacement:        true,
+			disconnectedAllocCount:  2,
+			disconnectedAllocStatus: structs.AllocClientStatusRunning,
+			disconnectedAllocStates: disconnectAllocState,
+			serverDesiredStatus:     structs.AllocDesiredStatusRun,
+			expected: &resultExpectation{
+				reconnectUpdates: 2,
+				stop:             2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Ignore: 3,
+						Stop:   2,
+					},
+				},
+			},
+		},
+		{
 			name:                         "stop-original-alloc-with-old-job-version",
 			allocCount:                   5,
 			replace:                      true,
@@ -5490,14 +5554,15 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			},
 		},
 		{
-			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements",
+			name:                         "stop-original-alloc-with-old-job-version-and-failed-replacements-replaced",
 			allocCount:                   5,
 			replace:                      true,
+			failReplacement:              true,
+			replaceFailedReplacement:     true,
 			disconnectedAllocCount:       2,
 			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
 			disconnectedAllocStates:      disconnectAllocState,
 			serverDesiredStatus:          structs.AllocDesiredStatusRun,
-			failReplacement:              true,
 			shouldStopOnDisconnectedNode: true,
 			jobVersionIncrement:          1,
 			expected: &resultExpectation{
@@ -5526,6 +5591,28 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 					"web": {
 						Stop:   1,
 						Ignore: 2,
+					},
+				},
+			},
+		},
+		{
+			name:                         "stop-failed-original-and-failed-replacements-and-place-new",
+			allocCount:                   5,
+			replace:                      true,
+			failReplacement:              true,
+			disconnectedAllocCount:       2,
+			disconnectedAllocStatus:      structs.AllocClientStatusFailed,
+			disconnectedAllocStates:      disconnectAllocState,
+			serverDesiredStatus:          structs.AllocDesiredStatusRun,
+			shouldStopOnDisconnectedNode: true,
+			expected: &resultExpectation{
+				stop:  4,
+				place: 2,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   4,
+						Place:  2,
+						Ignore: 3,
 					},
 				},
 			},
@@ -5585,6 +5672,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			// Create resumable allocs
 			job, allocs := buildResumableAllocations(tc.allocCount, structs.AllocClientStatusRunning, structs.AllocDesiredStatusRun, 2)
 
+			origAllocs := set.New[string](len(allocs))
+			for _, alloc := range allocs {
+				origAllocs.Insert(alloc.ID)
+			}
+
 			if tc.isBatch {
 				job.Type = structs.JobTypeBatch
 			}
@@ -5623,6 +5715,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 					replacement.PreviousAllocation = alloc.ID
 					replacement.AllocStates = nil
 					replacement.TaskStates = nil
+					replacement.CreateIndex += 1
 					alloc.NextAllocation = replacement.ID
 
 					if tc.jobVersionIncrement != 0 {
@@ -5631,19 +5724,33 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 					if tc.nodeScoreIncrement != 0 {
 						replacement.Metrics.ScoreMetaData[0].NormScore = replacement.Metrics.ScoreMetaData[0].NormScore + tc.nodeScoreIncrement
 					}
-
-					replacements = append(replacements, replacement)
+					if tc.taintReplacement {
+						replacement.DesiredTransition.Migrate = pointer.Of(true)
+					}
+					if tc.disconnectReplacement {
+						replacement.AllocStates = tc.disconnectedAllocStates
+					}
 
 					// If we want to test intermediate replacement failures simulate that.
 					if tc.failReplacement {
 						replacement.ClientStatus = structs.AllocClientStatusFailed
-						nextReplacement := replacement.Copy()
-						nextReplacement.ID = uuid.Generate()
-						nextReplacement.ClientStatus = structs.AllocClientStatusRunning
-						nextReplacement.PreviousAllocation = replacement.ID
-						replacement.NextAllocation = nextReplacement.ID
-						replacements = append(replacements, nextReplacement)
+
+						if tc.replaceFailedReplacement {
+							nextReplacement := replacement.Copy()
+							nextReplacement.ID = uuid.Generate()
+							nextReplacement.ClientStatus = structs.AllocClientStatusRunning
+							nextReplacement.DesiredStatus = structs.AllocDesiredStatusRun
+							nextReplacement.PreviousAllocation = replacement.ID
+							nextReplacement.CreateIndex += 1
+
+							replacement.NextAllocation = nextReplacement.ID
+							replacement.DesiredStatus = structs.AllocDesiredStatusStop
+
+							replacements = append(replacements, nextReplacement)
+						}
 					}
+
+					replacements = append(replacements, replacement)
 				}
 
 				allocs = append(allocs, replacements...)
@@ -5661,6 +5768,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			assertResults(t, results, tc.expected)
 
 			for _, stopResult := range results.stop {
+				// Skip replacement allocs.
+				if !origAllocs.Contains(stopResult.alloc.ID) {
+					continue
+				}
+
 				if tc.shouldStopOnDisconnectedNode {
 					require.Equal(t, testNode.ID, stopResult.alloc.NodeID)
 				} else {
