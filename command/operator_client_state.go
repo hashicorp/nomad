@@ -71,6 +71,16 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 		for _, jt := range tg.Tasks {
 			ls, rs, err := db.GetTaskRunnerState(allocID, jt.Name)
+			if ls == nil {
+				c.Ui.Warn(fmt.Sprintf("no task runner state for %s (%s)", allocID, jt.Name))
+				tasks[jt.Name] = &taskState{
+					LocalState:  ls,
+					RemoteState: rs,
+					DriverState: nil,
+				}
+				continue
+
+			}
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("failed to get task runner state %s: %v", allocID, err))
 				return 1
