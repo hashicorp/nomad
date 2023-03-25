@@ -48,7 +48,7 @@ func (c *CpuStats) Percent(cpuTime float64) float64 {
 // TicksConsumed calculates the total ticks consumes by the process across all
 // cpu cores
 func (c *CpuStats) TicksConsumed(percent float64) float64 {
-	return (percent / 100) * shelpers.TotalTicksAvailable() / float64(c.totalCpus)
+	return (percent / 100) * float64(shelpers.TotalTicksAvailable()) / float64(c.totalCpus)
 }
 
 func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
@@ -83,7 +83,7 @@ func (h *HostStatsCollector) collectCPUStats() (cpus []*CPUStats, totalTicks flo
 			Idle:   idle,
 			Total:  total,
 		}
-		ticksConsumed += (total / 100.0) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
+		ticksConsumed += (total / 100.0) * (float64(shelpers.TotalTicksAvailable()) / float64(len(cpuStats)))
 	}
 
 	return cs, ticksConsumed, nil
