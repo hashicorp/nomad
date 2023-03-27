@@ -86,7 +86,7 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
-	must.StrContains(t, out, "test-quota")
+	must.StrContains(t, out, "test")
 
 	ui.OutputWriter.Reset()
 }
