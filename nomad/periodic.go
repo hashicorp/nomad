@@ -295,14 +295,32 @@ func (p *PeriodicDispatch) removeLocked(jobID structs.NamespacedID) error {
 	return nil
 }
 
-// ForceEval causes the periodic job to be evaluated immediately and returns the
+func (p *PeriodicDispatch) ForceRunIfNotRunning(job *structs.Job) (*structs.Evaluation, error) {
+
+	if job.Periodic.ProhibitOverlap {
+		running, err := p.dispatcher.RunningChildren(job)
+		if err != nil {
+			p.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
+			return nil, nil
+		}
+
+		if running {
+			p.logger.Debug("skipping launch of periodic job because job prohibits overlap", "job", job.NamespacedID())
+			return nil, nil
+		}
+	}
+
+	return p.ForceRun(job.Namespace, job.ID)
+}
+
+// ForceRun causes the periodic job to be evaluated immediately and returns the
 // subsequent eval.
 func (p *PeriodicDispatch) ForceEval(namespace, jobID string) (*structs.Evaluation, error) {
 	p.l.Lock()
+	defer p.l.Unlock()
 
 	// Do nothing if not enabled
 	if !p.enabled {
-		p.l.Unlock()
 		return nil, fmt.Errorf("periodic dispatch disabled")
 	}
 
@@ -312,11 +330,9 @@ func (p *PeriodicDispatch) ForceEval(namespace, jobID string) (*structs.Evaluati
 	}
 	job, tracked := p.tracked[tuple]
 	if !tracked {
-		p.l.Unlock()
 		return nil, fmt.Errorf("can't force run non-tracked job %q (%s)", jobID, namespace)
 	}
 
-	p.l.Unlock()
 	return p.createEval(job, time.Now().In(job.Periodic.GetLocation()))
 }
 
@@ -356,6 +372,7 @@ func (p *PeriodicDispatch) run(ctx context.Context, updateCh <-chan struct{}) {
 // based on the passed launch time.
 func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 	p.l.Lock()
+	defer p.l.Unlock()
 
 	nextLaunch, err := job.Periodic.Next(launchTime)
 	if err != nil {
@@ -370,19 +387,16 @@ func (p *PeriodicDispatch) dispatch(job *structs.Job, launchTime time.Time) {
 		running, err := p.dispatcher.RunningChildren(job)
 		if err != nil {
 			p.logger.Error("failed to determine if periodic job has running children", "job", job.NamespacedID(), "error", err)
-			p.l.Unlock()
 			return
 		}
 
 		if running {
 			p.logger.Debug("skipping launch of periodic job because job prohibits overlap", "job", job.NamespacedID())
-			p.l.Unlock()
 			return
 		}
 	}
 
 	p.logger.Debug(" launching job", "job", job.NamespacedID(), "launch_time", launchTime)
-	p.l.Unlock()
 	p.createEval(job, launchTime)
 }
 

@@ -764,11 +764,15 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		if _, err := s.periodicDispatcher.ForceEval(job.Namespace, job.ID); err != nil {
+		eval, err := s.periodicDispatcher.ForceRunIfNotRunning(job)
+		if err != nil {
 			logger.Error("force run of periodic job failed", "job", job.NamespacedID(), "error", err)
 			return fmt.Errorf("force run of periodic job %q failed: %v", job.NamespacedID(), err)
 		}
-		logger.Debug("periodic job force runned during leadership establishment", "job", job.NamespacedID())
+
+		if eval != nil {
+			logger.Debug("periodic job force ran during leadership establishment", "job", job.NamespacedID())
+		}
 	}
 
 	return nil
