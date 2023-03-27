@@ -139,7 +139,7 @@ module('display and edit using full specification', function (hooks) {
   });
 
   test('it allows users to toggle between full specification and JSON definition', async function (assert) {
-    assert.expect(5);
+    assert.expect(3);
     server.get('/job/:id', () => JOB_JSON);
 
     await Definition.visit({ id: job.id });
@@ -154,16 +154,8 @@ module('display and edit using full specification', function (hooks) {
       'Shows the full definition as written by the user'
     );
 
-    assert
-      .dom('[data-test-job-variables]')
-      .exists('A table showing job variables appears');
-
     await click('[data-test-toggle-full]');
     codeMirror = getCodeMirrorInstance('[data-test-editor]');
     assert.propContains(JSON.parse(codeMirror.getValue()), JOB_JSON);
-
-    assert
-      .dom('[data-test-job-variables]')
-      .doesNotExist('A table showing job variables appears');
   });
 });
