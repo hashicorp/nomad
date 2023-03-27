@@ -635,11 +635,11 @@ func TestExecutor_Capabilities(t *testing.T) {
 		{
 			user: "nobody",
 			caps: `
-CapInh: 0000000000000000
-CapPrm: 0000000000000000
-CapEff: 0000000000000000
+CapInh: 00000000a80405fb
+CapPrm: 00000000a80405fb
+CapEff: 00000000a80405fb
 CapBnd: 00000000a80405fb
-CapAmb: 0000000000000000`,
+CapAmb: 00000000a80405fb`,
 		},
 		{
 			user: "root",
