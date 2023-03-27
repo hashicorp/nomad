@@ -70,24 +70,12 @@ type JobsParseRequest struct {
 
 	// Variables are HCL2 variables associated with the job. Only works with hcl2.
 	//
-	// Values must be string, numeric, or boolean.
-	Variables map[string]any
+	// Interpreted as if it were the content of a variables file.
+	Variables string
 
 	// Canonicalize is a flag as to if the server should return default values
 	// for unset fields
 	Canonicalize bool
-}
-
-// ArgVars returns Variables as a CLI argument list.
-func (r *JobsParseRequest) ArgVars() []string {
-	if r == nil || len(r.Variables) == 0 {
-		return nil
-	}
-	result := make([]string, 0, len(r.Variables))
-	for k, v := range r.Variables {
-		result = append(result, fmt.Sprintf("%s=%v", k, v))
-	}
-	return result
 }
 
 // Jobs returns a handle on the jobs endpoints.

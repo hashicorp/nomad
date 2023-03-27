@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -758,6 +759,32 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
+func writeVariablesFile(content string) (string, func(), error) {
+	// nothing to do if there is no variables content
+	if content == "" {
+		return "", func() {}, nil
+	}
+
+	// write variables content to a tmp file and return the filename and cleanup
+	// helper function for removing the tmp file
+	f, err := os.CreateTemp("", "hcl-") // uses 0600
+	if err != nil {
+		return "", nil, err
+	}
+	if _, err = f.WriteString(content); err != nil {
+		return "", nil, err
+	}
+	if err = f.Sync(); err != nil {
+		return "", nil, err
+	}
+	if err = f.Close(); err != nil {
+		return "", nil, err
+	}
+	return f.Name(), func() {
+		_ = os.Remove(f.Name())
+	}, nil
+}
+
 // JobsParseRequest parses a hcl jobspec and returns a api.Job
 func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
@@ -795,13 +822,22 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
-		netlog.Green("PARSE", "args", args.ArgVars())
+		varsFile, cleanupVarsFile, varsErr := writeVariablesFile(args.Variables)
+		if varsErr != nil {
+			return nil, CodedError(400, "Failed to write HCL variables file")
+		}
+		defer cleanupVarsFile()
+
+		netlog.Green("PARSE", "varsFile", varsFile, "chars", len(args.Variables))
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:    "input.hcl",
-			Body:    []byte(args.JobHCL),
-			AllowFS: false,
-			ArgVars: args.ArgVars(),
+			Path:     "input.hcl",
+			Body:     []byte(args.JobHCL),
+			AllowFS:  false,
+			VarFiles: []string{varsFile},
 		})
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("failed to parse job: %v", err))
+		}
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())

@@ -1837,6 +1837,11 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
+	// Delete the job submission
+	if err := s.deleteJobSubmission(job, txn); err != nil {
+		return fmt.Errorf("deleting job submission failed: %v", err)
+	}
+
 	// Delete any remaining job scaling policies
 	if err := s.deleteJobScalingPolicies(index, job, txn); err != nil {
 		return fmt.Errorf("deleting job scaling policies failed: %v", err)
@@ -1889,6 +1894,12 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 		}
 	}
 	return nil
+}
+
+func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
+	count, err := txn.DeleteAll("job_submission", "id", job.Namespace, job.Name)
+	netlog.Yellow("SS.deleteJobSubmission", "namespace", job.Namespace, "name", job.Name, "count", count)
+	return err
 }
 
 // deleteJobVersions deletes all versions of the given job.
