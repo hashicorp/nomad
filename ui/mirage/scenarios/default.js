@@ -81,7 +81,7 @@ function smallCluster(server) {
       region = "us"
     
       # Spread the tasks in this job between us-west-1 and us-east-1.
-      datacenters = ["us-west-1", "us-east-1"]
+      datacenters = var.datacenters
     
       # Run this job as a "service" type. Each job type has different
       # properties. See the documentation below for more examples.
@@ -162,10 +162,6 @@ function smallCluster(server) {
         }
       }
     }`,
-      Variables: {
-        datacenters: ['west'],
-        external_port: 4000,
-      },
     },
   });
   server.createList('allocFile', 5);
