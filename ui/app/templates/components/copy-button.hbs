@@ -23,8 +23,8 @@
   </div>
 {{else}}
   <AddonCopyButton
-    @class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}}"
-    @text={{this.clipboardText}}
+    {{!-- @buttonType="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}}" --}}
+    @text={{@clipboardText}}
     @onSuccess={{perform this.indicateSuccess}}
     @onError={{action (mut this.state) "error"}}
     {{!-- @title="Copy" --}}
