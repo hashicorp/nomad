@@ -1725,7 +1725,7 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		return fmt.Errorf("unable to update job csi plugins: %v", err)
 	}
 
-	if err := s.updateJobSubmission(index, sub, job.Namespace, job.Name, txn); err != nil {
+	if err := s.updateJobSubmission(index, sub, job.Namespace, job.Name, job.Version, txn); err != nil {
 		return fmt.Errorf("unable to update job submission: %v", err)
 	}
 
@@ -1897,7 +1897,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 }
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
-	count, err := txn.DeleteAll("job_submission", "id", job.Namespace, job.Name)
+	count, err := txn.DeleteAll("job_submission", "by_name", job.Namespace, job.Name)
 	netlog.Yellow("SS.deleteJobSubmission", "namespace", job.Namespace, "name", job.Name, "count", count)
 	return err
 }
@@ -1990,17 +1990,18 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	return nil
 }
 
-// JobSubmissionByJobName returns the original HCL/Variables context of a job, if available.
+// JobSubmission returns the original HCL/Variables context of a job, if available.
 //
 // Note: it is a normal case for the submission context to be unavailable, in which case
 // nil is returned with no error.
-func (s *StateStore) JobSubmissionByJobName(ws memdb.WatchSet, namespace, jobName string) (*structs.JobSubmission, error) {
+func (s *StateStore) JobSubmission(ws memdb.WatchSet, namespace, jobName string, version uint64) (*structs.JobSubmission, error) {
 	txn := s.db.ReadTxn()
-	return s.jobSubmissionByJobName(ws, namespace, jobName, txn)
+	return s.jobSubmission(ws, namespace, jobName, version, txn)
 }
 
-func (s *StateStore) jobSubmissionByJobName(ws memdb.WatchSet, namespace, jobName string, txn Txn) (*structs.JobSubmission, error) {
-	watchCh, existing, err := txn.FirstWatch("job_submission", "id", namespace, jobName)
+func (s *StateStore) jobSubmission(ws memdb.WatchSet, namespace, jobName string, version uint64, txn Txn) (*structs.JobSubmission, error) {
+	netlog.Cyan("SS.jobSubmission find", "namespace", namespace, "jobName", jobName, "version", version)
+	watchCh, existing, err := txn.FirstWatch("job_submission", "id", namespace, jobName, version)
 	if err != nil {
 		return nil, fmt.Errorf("job submission lookup failed: %v", err)
 	}
@@ -5356,12 +5357,13 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 // original HCL and Variables associated with the job.
 //
 // sub may be nil, in which case we do not touch the submission (or should we update the index?)
-func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobName string, txn *txn) error {
+func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobName string, version uint64, txn *txn) error {
 	if sub != nil {
-		netlog.Green("SS.updateJobSubmission", "job_name", jobName, "namespace", namespace, "index", index, "len", len(sub.Source))
+		netlog.Green("SS.updateJobSubmission", "job_name", jobName, "namespace", namespace, "index", index, "len", len(sub.Source), "version", version)
 		sub.Namespace = namespace
 		sub.JobName = jobName
 		sub.JobIndex = index
+		sub.Version = version
 		if err := txn.Insert("job_submission", sub); err != nil {
 			return err
 		}

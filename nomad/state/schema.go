@@ -66,7 +66,7 @@ func init() {
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
-		jobSubmissionTableSchema,
+		jobSubmissionSchema,
 		deploymentSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
@@ -278,6 +278,51 @@ func jobVersionSchema() *memdb.TableSchema {
 	}
 }
 
+// jobSubmissionSchema returns the memdb table schemas of job submission associated
+// with each job version.
+func jobSubmissionSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "job_submission",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "JobName",
+							Lowercase: true,
+						},
+						&memdb.UintFieldIndex{
+							Field: "Version",
+						},
+					},
+				},
+			},
+			"by_name": {
+				Name:         "by_name",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "JobName",
+							Lowercase: true,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // jobIsGCable satisfies the ConditionalIndexFunc interface and creates an index
 // on whether a job is eligible for garbage collection.
 func jobIsGCable(obj interface{}) (bool, error) {
@@ -329,29 +374,6 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 	}
 
 	return false, nil
-}
-
-func jobSubmissionTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "job_submission",
-		Indexes: map[string]*memdb.IndexSchema{
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-						&memdb.StringFieldIndex{
-							Field: "JobName",
-						},
-					},
-				},
-			},
-		},
-	}
 }
 
 // deploymentSchema returns the MemDB schema tracking a job's deployments

@@ -338,19 +338,24 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 }
 
 func (s *HTTPServer) jobSubCRUD(resp http.ResponseWriter, req *http.Request, jobName string) (*structs.JobSubmission, error) {
+	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
+	if err != nil {
+		return nil, CodedError(400, "Unable to parse job submission version parameter")
+	}
 	switch req.Method {
 	case "GET":
-		return s.jobSubQuery(resp, req, jobName)
+		return s.jobSubQuery(resp, req, jobName, version)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) jobSubQuery(resp http.ResponseWriter, req *http.Request, jobName string) (*structs.JobSubmission, error) {
-	netlog.Yellow("HS.jobSubQuery", "jobName", jobName)
+func (s *HTTPServer) jobSubQuery(resp http.ResponseWriter, req *http.Request, jobName string, version uint64) (*structs.JobSubmission, error) {
+	netlog.Yellow("HS.jobSubQuery", "jobName", jobName, "version", version)
 
 	args := structs.JobSubmissionRequest{
 		JobName: jobName,
+		Version: version,
 	}
 
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {

@@ -1208,7 +1208,7 @@ func (j *Job) GetJobSubmission(args *structs.JobSubmissionRequest, reply *struct
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the job
-			out, err := state.JobSubmissionByJobName(ws, args.RequestNamespace(), args.JobName)
+			out, err := state.JobSubmission(ws, args.RequestNamespace(), args.JobName, args.Version)
 			if err != nil {
 				return err
 			}

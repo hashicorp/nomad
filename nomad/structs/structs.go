@@ -793,9 +793,10 @@ type EvalOptions struct {
 }
 
 // JobSubmissionRequest is used to lookup a JobSubmission object associated with a
-// specific job.
+// job at a specific version.
 type JobSubmissionRequest struct {
 	JobName string
+	Version uint64
 
 	QueryOptions
 }
@@ -4277,17 +4278,22 @@ type JobSubmission struct {
 	// job (hcl2 only).
 	VariableFlags map[string]string
 
-	// Namespace is managed internally by the state store, do not use.
+	// Namespace is managed internally by the state store, do not set.
 	//
 	// The namespace the associated job belongs to.
 	Namespace string
 
-	// JobName is managed internally by the state store, do not use.
+	// JobName is managed internally by the state store, do not set.
 	//
 	// The job.Name field.
 	JobName string
 
-	// JobIndex is managed internally by the state store, do not use.
+	// Version is managed internally by the state store, do not set.
+	//
+	// The version of the Job this submission is associated with.
+	Version uint64
+
+	// JobIndex is managed internally by the state store, do not set.
 	//
 	// The raft index the Job this submission is associated with.
 	JobIndex uint64
