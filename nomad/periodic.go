@@ -274,9 +274,9 @@ func (p *PeriodicDispatch) removeLocked(jobID structs.NamespacedID) error {
 	return nil
 }
 
-// ForceRun causes the periodic job to be evaluated immediately and returns the
+// ForceEval causes the periodic job to be evaluated immediately and returns the
 // subsequent eval.
-func (p *PeriodicDispatch) ForceRun(namespace, jobID string) (*structs.Evaluation, error) {
+func (p *PeriodicDispatch) ForceEval(namespace, jobID string) (*structs.Evaluation, error) {
 	p.l.Lock()
 
 	// Do nothing if not enabled
