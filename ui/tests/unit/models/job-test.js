@@ -1,6 +1,7 @@
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
+import sinon from 'sinon';
 
 module('Unit | Model | job', function (hooks) {
   setupTest(hooks);
@@ -131,5 +132,93 @@ module('Unit | Model | job', function (hooks) {
         .reduce((sum, allocs) => sum + allocs, 0),
       'lostAllocs is the sum of all group lostAllocs'
     );
+  });
+
+  module('#parse', function () {
+    test('it parses JSON', async function (assert) {
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set('_newDefinition', '{"name": "Tomster"}');
+
+      const setIdByPayloadSpy = sinon.spy(model, 'setIdByPayload');
+
+      const result = await model.parse();
+
+      assert.deepEqual(
+        model.get('_newDefinitionJSON'),
+        { name: 'Tomster' },
+        'Sets _newDefinitionJSON correctly'
+      );
+      assert.ok(
+        setIdByPayloadSpy.calledWith({ name: 'Tomster' }),
+        'setIdByPayload is called with the parsed JSON'
+      );
+      assert.deepEqual(result, '{"name": "Tomster"}', 'Returns the JSON input');
+    });
+
+    test('it dispatches a POST request to the /parse endpoint (eagerly assumes HCL specification) if JSON parse method errors', async function (assert) {
+      assert.expect(2);
+
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set('_newDefinition', 'invalidJSON');
+
+      const adapter = store.adapterFor('job');
+      adapter.parse = sinon.stub().resolves('invalidJSON');
+
+      await model.parse();
+
+      assert.ok(
+        adapter.parse.calledWith('invalidJSON', undefined),
+        'adapter parse method should be called'
+      );
+
+      assert.deepEqual(
+        model.get('_newDefinitionJSON'),
+        'invalidJSON',
+        '_newDefinitionJSON is set'
+      );
+    });
+
+    test('it does not dispatch a POST request to the /parse endpoint if HCL Variables are invalid JSON', async function (assert) {
+      assert.expect(4);
+
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set('_newDefinition', 'someFakeHCL');
+      model.set('_newDefinitionVariables', 'invalidJSON');
+
+      const adapter = store.adapterFor('job');
+      adapter.parse = sinon.stub();
+
+      const setIdByPayloadSpy = sinon.spy(model, 'setIdByPayload');
+
+      try {
+        await model.parse();
+        assert.ok(false, 'Should have thrown an error');
+      } catch (error) {
+        assert.ok(
+          setIdByPayloadSpy.notCalled,
+          'setIdByPayload should not be called'
+        );
+        assert.ok(
+          adapter.parse.notCalled,
+          'adapter parse method should not be called'
+        );
+        assert.equal(
+          error.message,
+          `SyntaxError: Unexpected token 'i', "invalidJSON" is not valid JSON`,
+          'Error message should match the expected error'
+        );
+        assert.deepEqual(
+          model.get('_newDefinitionJSON'),
+          undefined,
+          '_newDefinitionJSON is not set'
+        );
+      }
+    });
   });
 });
