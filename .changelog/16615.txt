@@ -1,0 +1,3 @@
+```release-note:note
+docs: new enterprise license expiration behavior
+```

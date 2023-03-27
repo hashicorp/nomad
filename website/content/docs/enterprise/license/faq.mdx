@@ -20,9 +20,10 @@ For trial licenses, the behavior remains the same.  Enterprise features will sto
 when the license expires, and a server can not start with an expired license.
 
 For new "non-terminating" contract licenses, instead of expiration being compared to the current time,
-expiration time is compared to the build date of the Nomad binary, which you can see with `nomad version`.
+expiration time is compared to the build date of the Nomad binary, which you can find in the output of the
+[`nomad version`](/nomad/docs/commands/version) command.
 
-The practical result is that newer contract licenses will work in perpetuity for any v1.6+ version of Nomad
+The practical result is that newer contract licenses will work in perpetuity for any v1.6.0+ version of Nomad
 built prior to the expiration time of the license.  No features will stop working,
 and server agents can be restarted safely.
 
@@ -56,7 +57,7 @@ Nomad agents running with the `-dev` flag will also need a license.
 
 If you have an expired license that has not yet become fully nonfunctional
 (i.e. it is in grace period between ExpirationTime and TerminationTime),
-then a Nomad server will not be able to start using a new v1.6 binary.
+then a Nomad server will not be able to start using a new v1.6.0+ binary.
 
 Before shutting down a server agent to replace it with a new version,
 be sure to run [`nomad license inspect`][license inspect] with the new binary.
@@ -86,7 +87,7 @@ Every time `nomad agent` runs as a server (or in `-dev`), it requires a license.
 
 ## Q: May I downgrade Nomad Enterprise from v1.6 to an earlier version?
 
-Yes, if you upgrade a server to 1.6 but it fails to start due to license expiration,
+Yes, if you upgrade a server to 1.6.0+ but it fails to start due to license expiration,
 you can roll back to a previous working version with the old expiration logic.
 
 ## Q: Is there a tutorial available for the license configuration steps?
