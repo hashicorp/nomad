@@ -356,16 +356,16 @@ func TestPeriodicDispatch_Remove_TriggersUpdate(t *testing.T) {
 	}
 }
 
-func TestPeriodicDispatch_ForceRun_Untracked(t *testing.T) {
+func TestPeriodicDispatch_ForceEval_Untracked(t *testing.T) {
 	ci.Parallel(t)
 	p, _ := testPeriodicDispatcher(t)
 
-	if _, err := p.ForceRun("ns", "foo"); err == nil {
-		t.Fatal("ForceRun of untracked job should fail")
+	if _, err := p.ForceEval("ns", "foo"); err == nil {
+		t.Fatal("ForceEval of untracked job should fail")
 	}
 }
 
-func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
+func TestPeriodicDispatch_ForceEval_Tracked(t *testing.T) {
 	ci.Parallel(t)
 	p, m := testPeriodicDispatcher(t)
 
@@ -377,9 +377,9 @@ func TestPeriodicDispatch_ForceRun_Tracked(t *testing.T) {
 		t.Fatalf("Add failed %v", err)
 	}
 
-	// ForceRun the job
-	if _, err := p.ForceRun(job.Namespace, job.ID); err != nil {
-		t.Fatalf("ForceRun failed %v", err)
+	// ForceEval the job
+	if _, err := p.ForceEval(job.Namespace, job.ID); err != nil {
+		t.Fatalf("ForceEval failed %v", err)
 	}
 
 	// Check that job was launched correctly.
