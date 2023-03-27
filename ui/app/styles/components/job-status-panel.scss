@@ -128,7 +128,7 @@
     }
   }
 
-  & > .boxed-section-body > footer {
+  & > .boxed-section-body > .sub-panels {
     display: grid;
     gap: 0.5rem;
     grid-template-columns: 50% 50%;
@@ -168,5 +168,100 @@
         }
       }
     }
+  }
+
+  .active-deployment-info-panels {
+    display: grid;
+    grid-template-columns: 70% auto;
+    gap: 1rem;
+    margin-top: 2rem; // TODO: grid-ify the deployment panel generally and just use gap for this
+  }
+
+  .deployment-history {
+    & > header {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: end;
+      & > .search-box {
+        max-width: unset;
+      }
+    }
+    & > ol {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    & > ol > li {
+      @for $i from 1 through 50 {
+        &:nth-child(#{$i}) {
+          animation-name: historyItemSlide;
+          animation-duration: 0.2s;
+          animation-fill-mode: both;
+          animation-delay: 0.1s + (0.05 * $i);
+        }
+
+        &:nth-child(#{$i}) > div {
+          animation-name: historyItemShine;
+          animation-duration: 1s;
+          animation-fill-mode: both;
+          animation-delay: 0.1s + (0.05 * $i);
+        }
+      }
+
+      & > div {
+        gap: 0.5rem;
+      }
+      &.error > div {
+        border: 1px solid $danger;
+        background: rgba($danger, 0.1);
+      }
+    }
+  }
+
+  .update-parameters {
+    & > code {
+      max-height: 300px;
+      overflow-y: auto;
+      display: block;
+    }
+    ul,
+    span.notification {
+      display: block;
+      background: #1a2633;
+      padding: 1rem;
+      color: white;
+      .key {
+        color: #1caeff;
+        &:after {
+          content: '=';
+          color: white;
+          margin-left: 0.5rem;
+        }
+      }
+      .value {
+        color: #06d092;
+      }
+    }
+  }
+}
+
+@keyframes historyItemSlide {
+  from {
+    opacity: 0;
+    top: 40px;
+  }
+  to {
+    opacity: 1;
+    top: 0px;
+  }
+}
+
+@keyframes historyItemShine {
+  from {
+    box-shadow: inset 0 0 0 100px rgba(255, 200, 0, 0.2);
+  }
+  to {
+    box-shadow: inset 0 0 0 100px rgba(255, 200, 0, 0);
   }
 }
