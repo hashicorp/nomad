@@ -764,8 +764,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		eval, err := s.periodicDispatcher.ForceRunIfNotRunning(job)
-		if err != nil {
+		if _, err := s.periodicDispatcher.ForceEval(job.Namespace, job.ID); err != nil {
 			logger.Error("force run of periodic job failed", "job", job.NamespacedID(), "error", err)
 			return fmt.Errorf("force run of periodic job %q failed: %v", job.NamespacedID(), err)
 		}
