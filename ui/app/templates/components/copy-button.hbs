@@ -1,3 +1,4 @@
+<div class="copy-button">
 {{#if (eq this.state 'success')}}
   <div class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
     {{#if @inset}}
@@ -22,13 +23,14 @@
   </div>
 {{else}}
   <AddonCopyButton
-    @class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}} {{if @inset "is-inset"}}"
-    @clipboardText={{this.clipboardText}}
-    @success={{perform this.indicateSuccess}}
-    @error={{action (mut this.state) "error"}}
-    @title="Copy"
+    @class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}}"
+    @text={{this.clipboardText}}
+    @onSuccess={{perform this.indicateSuccess}}
+    @onError={{action (mut this.state) "error"}}
+    {{!-- @title="Copy" --}}
   >
     {{x-icon 'copy-action'}}
     {{yield}}
   </AddonCopyButton>
 {{/if}}
+</div>

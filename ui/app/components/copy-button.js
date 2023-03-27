@@ -1,20 +1,16 @@
-import Component from '@ember/component';
+import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
 import { task, timeout } from 'ember-concurrency';
-import { classNames, classNameBindings } from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
 
-@classic
-@classNames('copy-button')
-@classNameBindings('inset')
 export default class CopyButton extends Component {
   clipboardText = null;
-  state = null;
+  @tracked state = null;
 
   @(task(function* () {
-    this.set('state', 'success');
+    this.state = 'success';
 
     yield timeout(2000);
-    this.set('state', null);
+    this.state = null;
   }).restartable())
   indicateSuccess;
 }
