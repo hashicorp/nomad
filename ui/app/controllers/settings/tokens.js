@@ -1,6 +1,5 @@
 // @ts-check
 import { inject as service } from '@ember/service';
-import { reads } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
@@ -9,6 +8,11 @@ import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
 import Ember from 'ember';
 
+/**
+ * @type {RegExp}
+ */
+const JWT_MATCH_EXPRESSION = /^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/;
+
 @classic
 export default class Tokens extends Controller {
   @service token;
@@ -16,9 +20,9 @@ export default class Tokens extends Controller {
   @service router;
   @service notifications;
 
-  queryParams = ['code', 'state'];
+  queryParams = ['code', 'state', 'jwtAuthMethod'];
 
-  @reads('token.secret') secret;
+  @tracked secret = this.token.secret;
 
   /**
    * @type {(null | "success" | "failure" | "jwtFailure")} signInStatus
@@ -45,8 +49,11 @@ export default class Tokens extends Controller {
     this.store.findAll('auth-method');
   }
 
+  /**
+   * @returns {import('@ember/array/mutable').default<import('../../models/auth-method').default>}
+   */
   get authMethods() {
-    return this.store.peekAll('auth-method');
+    return this.model?.authMethods || [];
   }
 
   get hasJWTAuthMethods() {
@@ -57,25 +64,61 @@ export default class Tokens extends Controller {
     return this.authMethods.rejectBy('type', 'JWT');
   }
 
+  get JWTAuthMethods() {
+    return this.authMethods.filterBy('type', 'JWT');
+  }
+
+  get JWTAuthMethodOptions() {
+    return this.JWTAuthMethods.map((method) => ({
+      key: method.name,
+      label: method.name,
+    }));
+  }
+
+  get defaultJWTAuthMethod() {
+    return (
+      this.JWTAuthMethods.findBy('default', true) || this.JWTAuthMethods[0]
+    );
+  }
+
+  @action
+  setCurrentAuthMethod() {
+    if (!this.jwtAuthMethod) {
+      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
+    }
+  }
+
+  /**
+   * @type {string}
+   */
+  @tracked jwtAuthMethod;
+
+  /**
+   * @type {boolean}
+   */
+  get currentSecretIsJWT() {
+    return this.secret?.length > 36 && this.secret.match(JWT_MATCH_EXPRESSION);
+  }
+
   @action
   async verifyToken() {
     const { secret } = this;
+    /**
+     * @type {import('../../adapters/token').default}
+     */
+
+    // Ember currently lacks types for getOwner: https://github.com/emberjs/ember.js/issues/19916
+    // @ts-ignore
     const TokenAdapter = getOwner(this).lookup('adapter:token');
 
-    const isJWT =
-      secret.length > 36 &&
-      secret.match(/^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/);
+    const isJWT = secret.length > 36 && secret.match(JWT_MATCH_EXPRESSION);
 
     if (isJWT) {
-      // TODO: Discussion: There may be multiple JWT methods sometime in the future.
-      // A quick assumption would be to just use the first one, but that
-      // won't hold up forever. We should probably have a way to select which one
-      // to use, or at least a way to know which one was used to generate the token.
-      const methodName = await this.authMethods.findBy('type', 'JWT')?.name;
+      const methodName = this.jwtAuthMethod;
 
       // If user passes a JWT token, but there is no JWT auth method, throw an error
       if (!methodName) {
-        this.set('token.secret', undefined);
+        this.token.set('secret', undefined);
         this.signInStatus = 'jwtFailure';
         return;
       }
@@ -95,18 +138,18 @@ export default class Tokens extends Controller {
           this.resetStore();
 
           // Refetch the token and associated policies
-          this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+          this.token.get('fetchSelfTokenAndPolicies').perform().catch();
 
           this.signInStatus = 'success';
         },
         () => {
-          this.set('token.secret', undefined);
+          this.token.set('secret', undefined);
           this.signInStatus = 'failure';
         }
       );
     } else {
       this.clearTokenProperties();
-      this.set('token.secret', secret);
+      this.token.set('secret', secret);
       this.set('secret', null);
 
       TokenAdapter.findSelf().then(
@@ -115,13 +158,13 @@ export default class Tokens extends Controller {
           this.resetStore();
 
           // Refetch the token and associated policies
-          this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+          this.token.get('fetchSelfTokenAndPolicies').perform().catch();
 
           this.signInStatus = 'success';
           this.token.set('tokenNotFound', false);
         },
         () => {
-          this.set('token.secret', undefined);
+          this.token.set('secret', undefined);
           this.signInStatus = 'failure';
         }
       );
@@ -211,7 +254,7 @@ export default class Tokens extends Controller {
       this.code = null;
 
       // Refetch the token and associated policies
-      this.get('token.fetchSelfTokenAndPolicies').perform().catch();
+      this.token.get('fetchSelfTokenAndPolicies').perform().catch();
 
       this.signInStatus = 'success';
       this.token.set('tokenNotFound', false);

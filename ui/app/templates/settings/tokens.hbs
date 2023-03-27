@@ -115,7 +115,25 @@
               data-test-token-secret />
           </div>
           <p class="help">Sent with every request to determine authorization</p>
-          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Sign in with token</button>
+          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">
+            {{#if this.currentSecretIsJWT}}
+              Sign in with JWT
+            {{else}}
+              Sign in with secret
+            {{/if}}
+          </button>
+          {{#if this.currentSecretIsJWT}}
+            {{did-insert (action this.setCurrentAuthMethod)}}
+            {{#if (gt this.JWTAuthMethods.length 1)}}
+              <SingleSelectDropdown
+                data-test-select-jwt
+                @label="Sign-in method"
+                @options={{this.JWTAuthMethodOptions}}
+                @selection={{this.jwtAuthMethod}}
+                @onSelect={{fn (mut this.jwtAuthMethod)}}
+              />
+            {{/if}}
+          {{/if}}
         </div>
       {{/if}}
 

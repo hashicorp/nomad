@@ -1,7 +1,7 @@
 {
-    "compilerOptions": {
-      "experimentalDecorators": true,
-      "target": "es5",
-    },
-
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "target": "es2015",
+    "moduleResolution": "node"
+  } 
 }
