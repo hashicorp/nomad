@@ -158,7 +158,7 @@ module('Unit | Model | job', function (hooks) {
     });
 
     test('it dispatches a POST request to the /parse endpoint (eagerly assumes HCL specification) if JSON parse method errors', async function (assert) {
-      assert.expect(3);
+      assert.expect(2);
 
       const store = this.owner.lookup('service:store');
       const model = store.createRecord('job');
@@ -166,7 +166,33 @@ module('Unit | Model | job', function (hooks) {
       model.set('_newDefinition', 'invalidJSON');
 
       const adapter = store.adapterFor('job');
-      adapter.parse = sinon.stub().rejects(new Error('Invalid JSON'));
+      adapter.parse = sinon.stub().resolves('invalidJSON');
+
+      await model.parse();
+
+      assert.ok(
+        adapter.parse.calledWith('invalidJSON', undefined),
+        'adapter parse method should be called'
+      );
+
+      assert.deepEqual(
+        model.get('_newDefinitionJSON'),
+        'invalidJSON',
+        '_newDefinitionJSON is set'
+      );
+    });
+
+    test('it does not dispatch a POST request to the /parse endpoint if HCL Variables are invalid JSON', async function (assert) {
+      assert.expect(4);
+
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set('_newDefinition', 'someFakeHCL');
+      model.set('_newDefinitionVariables', 'invalidJSON');
+
+      const adapter = store.adapterFor('job');
+      adapter.parse = sinon.stub();
 
       const setIdByPayloadSpy = sinon.spy(model, 'setIdByPayload');
 
@@ -178,9 +204,13 @@ module('Unit | Model | job', function (hooks) {
           setIdByPayloadSpy.notCalled,
           'setIdByPayload should not be called'
         );
+        assert.ok(
+          adapter.parse.notCalled,
+          'adapter parse method should not be called'
+        );
         assert.equal(
           error.message,
-          'Invalid JSON',
+          `SyntaxError: Unexpected token 'i', "invalidJSON" is not valid JSON`,
           'Error message should match the expected error'
         );
         assert.deepEqual(
