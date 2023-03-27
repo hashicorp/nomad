@@ -18,8 +18,8 @@ RUN useradd --create-home vagrant \
     && echo 'vagrant      ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # install priv packages
-COPY ./scripts/vagrant-linux-priv-config.sh /tmp/scripts/vagrant-linux-priv-config.sh
-RUN /tmp/scripts/vagrant-linux-priv-config.sh
+COPY ./scripts/linux-priv-config.sh /tmp/scripts/linux-priv-config.sh
+RUN /tmp/scripts/linux-priv-config.sh
 
 COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
 RUN /tmp/scripts/vagrant-linux-priv-go.sh
