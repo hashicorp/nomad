@@ -187,6 +187,7 @@
     "title-case": "^3.0.3"
   },
   "resolutions": {
-    "ember-auto-import": "^2.4.0"
+    "ember-auto-import": "^2.4.0",
+    "prop-types": "^15.8.1"
   }
 }
