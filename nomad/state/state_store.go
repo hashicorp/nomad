@@ -5346,8 +5346,8 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 //
 // sub may be nil, in which case we do not touch the submission (or should we update the index?)
 func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobName string, txn *txn) error {
-	netlog.Green("SS.updateJobSubmission", "job_name", jobName, "namespace", namespace, "index", index, "len", len(sub.HCL))
 	if sub != nil {
+		netlog.Green("SS.updateJobSubmission", "job_name", jobName, "namespace", namespace, "index", index, "len", len(sub.Source))
 		sub.Namespace = namespace
 		sub.JobName = jobName
 		sub.JobIndex = index

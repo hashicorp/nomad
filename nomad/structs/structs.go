@@ -4267,10 +4267,14 @@ const (
 // A JobSubmission contains the original job specification (hcl2 only), along
 // with the Variables submitted with the job (command line -var flags only).
 type JobSubmission struct {
-	// HCL contains the original HCL2 job definition (hcl2 only).
-	HCL string
+	// Source contains the original job definition (may be hc1, hcl2, or json)
+	Source string
 
-	// VariableFlags contain the CLI "-var" flag arguments as submitted with the job.
+	// Format indicates whether the original job was hcl1, hcl2, or json.
+	Format string
+
+	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
+	// job (hcl2 only).
 	VariableFlags map[string]string
 
 	// Namespace is managed internally by the state store, do not use.

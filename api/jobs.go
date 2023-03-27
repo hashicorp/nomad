@@ -68,9 +68,26 @@ type JobsParseRequest struct {
 	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
 	HCLv1 bool `json:"hclv1,omitempty"`
 
+	// Variables are HCL2 variables associated with the job. Only works with hcl2.
+	//
+	// Values must be string, numeric, or boolean.
+	Variables map[string]any
+
 	// Canonicalize is a flag as to if the server should return default values
 	// for unset fields
 	Canonicalize bool
+}
+
+// ArgVars returns Variables as a CLI argument list.
+func (r *JobsParseRequest) ArgVars() []string {
+	if r == nil || len(r.Variables) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(r.Variables))
+	for k, v := range r.Variables {
+		result = append(result, fmt.Sprintf("%s=%v", k, v))
+	}
+	return result
 }
 
 // Jobs returns a handle on the jobs endpoints.
@@ -78,7 +95,7 @@ func (c *Client) Jobs() *Jobs {
 	return &Jobs{client: c}
 }
 
-// ParseHCL is used to convert the HCL repesentation of a Job to JSON server side.
+// ParseHCL is used to convert the HCL representation of a Job to JSON server side.
 // To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
 // Use ParseHCLOpts if you need to customize JobsParseRequest.
 func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
@@ -89,10 +106,8 @@ func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 	return j.ParseHCLOpts(req)
 }
 
-// ParseHCLOpts is used to convert the HCL representation of a Job to JSON
-// server side. To parse the HCL client side see package
-// github.com/hashicorp/nomad/jobspec.
-// ParseHCL is an alternative convenience API for HCLv2 users.
+// ParseHCLOpts is used to request the server convert the HCL representation of a
+// Job to JSON on our behalf. Accepts HCL1 or HCL2 jobs as input.
 func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
 	var job Job
 	_, err := j.client.put("/v1/jobs/parse", req, &job, nil)
@@ -870,10 +885,14 @@ type ParameterizedJobConfig struct {
 // A JobSubmission may be nil, indicating no information is known about the job
 // submission.
 type JobSubmission struct {
-	// HCL contains the original HCL2 job definition (hcl2 only).
-	HCL string
+	// Source contains the original job definition (may be hcl1, hcl2, or json).
+	Source string
 
-	// VariableFlags contain the CLI "-var" flag arguments as submitted with the job.
+	// Format indicates what the Source content was (hcl1, hcl2, or json).
+	Format string
+
+	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
+	// job (hcl2 only).
 	VariableFlags map[string]string
 }
 

@@ -21,6 +21,13 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
+	"github.com/shoenig/netlog"
+)
+
+const (
+	formatJSON = "json"
+	formatHCL1 = "hcl1"
+	formatHCL2 = "hcl2"
 )
 
 // maxLineLength is the maximum width of any line.
@@ -479,13 +486,21 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	}
 
 	// Parse the JobFile
-	var jobStruct *api.Job
-	var jobSubmission *api.JobSubmission
+	var jobStruct *api.Job               // deserialized destination
+	var source bytes.Buffer              // tee the original
+	var jobSubmission *api.JobSubmission // store the original and format
+	jobfile = io.TeeReader(jobfile, &source)
 	var err error
 	switch {
 	case j.HCL1:
 		jobStruct, err = jobspec.Parse(jobfile)
+		jobSubmission = &api.JobSubmission{
+			Source: source.String(),
+			Format: formatHCL1,
+		}
+		netlog.Yellow("format hcl1")
 	case j.JSON:
+
 		// Support JSON files with both a top-level Job key as well as
 		// ones without.
 		eitherJob := struct {
@@ -502,17 +517,21 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 		} else {
 			jobStruct = &eitherJob.Job
 		}
+
+		jobSubmission = &api.JobSubmission{
+			Source: source.String(),
+			Format: formatJSON,
+		}
+		netlog.Yellow("format json")
 	default:
-		// we are parsing HCL2, whether from a file or stdio
-		var buf bytes.Buffer
-		_, err = io.Copy(&buf, jobfile)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+		if _, err = io.Copy(&source, jobfile); err != nil {
+			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
 		}
 
+		// we are parsing HCL2, whether from a file or stdio
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
-			Body:     buf.Bytes(),
+			Body:     source.Bytes(),
 			ArgVars:  j.Vars,
 			AllowFS:  true,
 			VarFiles: j.VarFiles,
@@ -523,11 +542,14 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 		// in the hcl2 case, we will submit the job with the submission context
 		jobSubmission = &api.JobSubmission{
 			VariableFlags: extractVarFlags(j.Vars),
-			HCL:           buf.String(),
+			Source:        source.String(),
+			Format:        formatHCL2,
 		}
 
+		netlog.Yellow("format hcl2")
+
 		if err != nil {
-			if _, merr := jobspec.Parse(&buf); merr == nil {
+			if _, merr := jobspec.Parse(&source); merr == nil {
 				return nil, nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
 			}
 		}

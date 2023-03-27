@@ -795,10 +795,12 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
+		netlog.Green("PARSE", "args", args.ArgVars())
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:    "input.hcl",
 			Body:    []byte(args.JobHCL),
 			AllowFS: false,
+			ArgVars: args.ArgVars(),
 		})
 	}
 	if err != nil {
@@ -845,8 +847,12 @@ func (s *HTTPServer) jobServiceRegistrations(
 }
 
 func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmission {
+	if submission == nil {
+		return nil
+	}
 	return &structs.JobSubmission{
-		HCL:           submission.HCL,
+		Source:        submission.Source,
+		Format:        submission.Format,
 		VariableFlags: submission.VariableFlags,
 	}
 }
