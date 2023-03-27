@@ -769,9 +769,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 			return fmt.Errorf("force run of periodic job %q failed: %v", job.NamespacedID(), err)
 		}
 
-		if eval != nil {
-			logger.Debug("periodic job force ran during leadership establishment", "job", job.NamespacedID())
-		}
+		logger.Debug("periodic job force ran during leadership establishment", "job", job.NamespacedID())
 	}
 
 	return nil
