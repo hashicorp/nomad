@@ -26,14 +26,14 @@ func TestQuotaStatusCommand_Fails(t *testing.T) {
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
-	must.Zero(t, code)
+	must.One(t, code)
 
 	out := ui.ErrorWriter.String()
 	must.StrContains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	code = cmd.Run([]string{"-address=nope", "foo"})
-	must.Zero(t, code)
+	must.One(t, code)
 
 	out = ui.ErrorWriter.String()
 	must.StrContains(t, out, "retrieving quota")
