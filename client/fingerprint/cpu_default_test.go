@@ -1,3 +1,5 @@
+//go:build !darwin || !arm64 || !cgo
+
 package fingerprint
 
 import (
@@ -8,54 +10,36 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
 
-func TestCPUFingerprint(t *testing.T) {
+func TestCPUFingerprint_Classic(t *testing.T) {
 	ci.Parallel(t)
 
 	f := NewCPUFingerprint(testlog.HCLogger(t))
-	node := &structs.Node{
-		Attributes: make(map[string]string),
-	}
+	node := &structs.Node{Attributes: make(map[string]string)}
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
+
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
-
-	// CPU info
+	must.True(t, response.Detected)
 	attributes := response.Attributes
-	if attributes == nil {
-		t.Fatalf("expected attributes to be initialized")
-	}
-	if attributes["cpu.numcores"] == "" {
-		t.Fatalf("Missing Num Cores")
-	}
-	if attributes["cpu.modelname"] == "" {
-		t.Fatalf("Missing Model Name")
-	}
+	must.NotNil(t, attributes)
+	must.MapContainsKey(t, attributes, "cpu.numcores")
+	must.MapContainsKey(t, attributes, "cpu.modelname")
+	must.MapContainsKey(t, attributes, "cpu.frequency")
+	must.MapContainsKey(t, attributes, "cpu.totalcompute")
+	must.Positive(t, response.Resources.CPU)
+	must.Positive(t, response.NodeResources.Cpu.CpuShares)
+	must.Positive(t, response.NodeResources.Cpu.SharesPerCore())
+	must.SliceNotEmpty(t, response.NodeResources.Cpu.ReservableCpuCores)
 
-	if attributes["cpu.frequency"] == "" {
-		t.Fatalf("Missing CPU Frequency")
-	}
-	if attributes["cpu.totalcompute"] == "" {
-		t.Fatalf("Missing CPU Total Compute")
-	}
-
-	// COMPAT(0.10): Remove in 0.10
-	if response.Resources == nil || response.Resources.CPU == 0 {
-		t.Fatalf("Expected to find CPU Resources")
-	}
-
-	if response.NodeResources == nil || response.NodeResources.Cpu.CpuShares == 0 {
-		t.Fatalf("Expected to find CPU Resources")
-	}
+	// asymetric core detection currently only works with apple silicon
+	must.MapNotContainsKey(t, attributes, "cpu.numcores.power")
+	must.MapNotContainsKey(t, attributes, "cpu.numcores.efficiency")
 }
 
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in

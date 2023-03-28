@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/lib/cpuset"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -22,85 +22,128 @@ const (
 // CPUFingerprint is used to fingerprint the CPU
 type CPUFingerprint struct {
 	StaticFingerprinter
-	logger log.Logger
+	logger hclog.Logger
+
+	// accumulates result in these resource structs
+	resources     *structs.Resources
+	nodeResources *structs.NodeResources
 }
 
 // NewCPUFingerprint is used to create a CPU fingerprint
-func NewCPUFingerprint(logger log.Logger) Fingerprint {
-	f := &CPUFingerprint{logger: logger.Named("cpu")}
-	return f
+func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
+	return &CPUFingerprint{
+		logger:        logger.Named("cpu"),
+		resources:     new(structs.Resources), // COMPAT (to be removed after 0.10)
+		nodeResources: new(structs.NodeResources),
+	}
 }
 
-func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
-	cfg := req.Config
-	setResourcesCPU := func(totalCompute int, totalCores uint16, reservableCores []uint16) {
-		// COMPAT(0.10): Remove in 0.10
-		resp.Resources = &structs.Resources{
-			CPU: totalCompute,
-		}
+func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
+	f.initialize()
 
-		resp.NodeResources = &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{
-				CpuShares:          int64(totalCompute),
-				TotalCpuCores:      totalCores,
-				ReservableCpuCores: reservableCores,
-			},
-		}
-	}
+	f.setModelName(response)
 
+	f.setFrequency(response)
+
+	f.setCoreCount(response)
+
+	f.setReservableCores(request, response)
+
+	f.setTotalCompute(request, response)
+
+	f.setResponseResources(response)
+
+	response.Detected = true
+
+	return nil
+}
+
+func (f *CPUFingerprint) initialize() {
 	if err := stats.Init(); err != nil {
 		f.logger.Warn("failed initializing stats collector", "error", err)
 	}
+}
 
+func (f *CPUFingerprint) setModelName(response *FingerprintResponse) {
 	if modelName := stats.CPUModelName(); modelName != "" {
-		resp.AddAttribute("cpu.modelname", modelName)
+		response.AddAttribute("cpu.modelname", modelName)
+		f.logger.Debug("detected CPU model", "name", modelName)
 	}
+}
 
-	if mhz := stats.CPUMHzPerCore(); mhz > 0 {
-		resp.AddAttribute("cpu.frequency", fmt.Sprintf("%.0f", mhz))
-		f.logger.Debug("detected cpu frequency", "MHz", log.Fmt("%.0f", mhz))
+func (*CPUFingerprint) frequency(mhz uint64) string {
+	return fmt.Sprintf("%.0f", float64(mhz))
+}
+
+func (f *CPUFingerprint) setFrequency(response *FingerprintResponse) {
+	power, efficiency := stats.CPUMHzPerCore()
+	switch {
+	case efficiency > 0:
+		response.AddAttribute("cpu.frequency.efficiency", f.frequency(efficiency))
+		response.AddAttribute("cpu.frequency.power", f.frequency(power))
+		f.logger.Debug("detected CPU efficiency core speed", "mhz", efficiency)
+		f.logger.Debug("detected CPU power core speed", "mhz", power)
+	case power > 0:
+		response.AddAttribute("cpu.frequency", f.frequency(power))
+		f.logger.Debug("detected CPU frequency", "mhz", power)
 	}
+}
 
-	var numCores int
-	if numCores = stats.CPUNumCores(); numCores > 0 {
-		resp.AddAttribute("cpu.numcores", strconv.Itoa(numCores))
-		f.logger.Debug("detected core count", "cores", numCores)
+func (*CPUFingerprint) cores(count int) string {
+	return strconv.Itoa(count)
+}
+
+func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse) {
+	power, efficiency := stats.CPUNumCores()
+	switch {
+	case efficiency > 0:
+		response.AddAttribute("cpu.numcores.efficiency", f.cores(efficiency))
+		response.AddAttribute("cpu.numcores.power", f.cores(power))
+		f.logger.Debug("detected CPU efficiency core count", "cores", efficiency)
+		f.logger.Debug("detected CPU power core count", "cores", power)
+	case power > 0:
+		response.AddAttribute("cpu.numcores", f.cores(power))
+		f.logger.Debug("detected CPU core count", power)
 	}
+	f.nodeResources.Cpu.TotalCpuCores = uint16(power + efficiency)
+}
 
-	var reservableCores []uint16
-	if req.Config.ReservableCores != nil {
-		reservableCores = req.Config.ReservableCores
-		f.logger.Debug("reservable cores set by config", "cpuset", reservableCores)
+func (f *CPUFingerprint) setReservableCores(request *FingerprintRequest, response *FingerprintResponse) {
+	reservable := request.Config.ReservableCores
+	if len(reservable) > 0 {
+		f.logger.Debug("reservable cores set by config", "cpuset", reservable)
 	} else {
-		if cores, err := f.deriveReservableCores(req); err != nil {
-			f.logger.Warn("failed to detect set of reservable cores", "error", err)
-		} else {
-			if req.Node.ReservedResources != nil {
-				reservableCores = cpuset.New(cores...).Difference(cpuset.New(req.Node.ReservedResources.Cpu.ReservedCpuCores...)).ToSlice()
+		cgroupParent := request.Config.CgroupParent
+		if reservable = f.deriveReservableCores(cgroupParent); reservable != nil {
+			if request.Node.ReservedResources != nil {
+				forNode := request.Node.ReservedResources.Cpu.ReservedCpuCores
+				reservable = cpuset.New(reservable...).Difference(cpuset.New(forNode...)).ToSlice()
+				f.logger.Debug("client configuration reserves these cores for node", "cores", forNode)
 			}
-			f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
+			f.logger.Debug("set of reservable cores available for tasks", "cores", reservable)
 		}
 	}
-	resp.AddAttribute("cpu.reservablecores", strconv.Itoa(len(reservableCores)))
 
-	tt := int(stats.TotalTicksAvailable())
-	if cfg.CpuCompute > 0 {
-		f.logger.Debug("using user specified cpu compute", "cpu_compute", cfg.CpuCompute)
-		tt = cfg.CpuCompute
+	response.AddAttribute("cpu.reservablecores", strconv.Itoa(len(reservable)))
+	f.nodeResources.Cpu.ReservableCpuCores = reservable
+}
+
+func (f *CPUFingerprint) setTotalCompute(request *FingerprintRequest, response *FingerprintResponse) {
+	var ticks uint64
+	switch {
+	case request.Config.CpuCompute > 0:
+		ticks = uint64(request.Config.CpuCompute)
+	case stats.TotalTicksAvailable() > 0:
+		ticks = stats.TotalTicksAvailable()
+	default:
+		ticks = defaultCPUTicks
 	}
+	response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", ticks))
+	f.resources.CPU = int(ticks)
+	f.nodeResources.Cpu.CpuShares = int64(ticks)
+}
 
-	// If we cannot detect the cpu total compute, fallback to a very low default
-	// value and log a message about configuring cpu_total_compute. This happens
-	// on Graviton instances where CPU information is unavailable. In that case,
-	// the env_aws fingerprinter updates the value with correct information.
-	if tt == 0 {
-		f.logger.Info("fallback to default cpu total compute, set client config option cpu_total_compute to override")
-		tt = defaultCPUTicks
-	}
-
-	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
-	setResourcesCPU(tt, uint16(numCores), reservableCores)
-	resp.Detected = true
-
-	return nil
+func (f *CPUFingerprint) setResponseResources(response *FingerprintResponse) {
+	response.Resources = f.resources
+	response.NodeResources = f.nodeResources
 }
