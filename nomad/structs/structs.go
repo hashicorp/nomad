@@ -7036,6 +7036,13 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		}
 	}
 
+	for _, s := range tg.Services {
+		if err := s.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", s.Name))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -7748,6 +7755,13 @@ func (t *Task) Warnings() error {
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Warnings(); err != nil {
 			err = multierror.Prefix(err, fmt.Sprintf("Template[%d]", idx))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	for _, s := range t.Services {
+		if err := s.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", s.Name))
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}

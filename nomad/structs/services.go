@@ -676,19 +676,19 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	}
 }
 
-// Validate checks if the Service definition is valid
-func (s *Service) Validate() error {
-	var mErr multierror.Error
-
+// Warning checks if the Service definition has any warnings
+func (s *Service) Warnings() error {
 	// Ensure the service name is valid per the below RFCs but make an exception
 	// for our interpolation syntax by first stripping any environment variables from the name
 
 	serviceNameStripped := args.ReplaceEnvWithPlaceHolder(s.Name, "ENV-VAR")
 
-	if err := s.ValidateName(serviceNameStripped); err != nil {
-		// Log actual service name, not the stripped version.
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("%v: %q", err, s.Name))
-	}
+	return s.ValidateName(serviceNameStripped)
+}
+
+// Validate checks if the Service definition is valid
+func (s *Service) Validate() error {
+	var mErr multierror.Error
 
 	switch s.AddressMode {
 	case "", AddressModeAuto:
