@@ -10,6 +10,15 @@ import { task, timeout } from 'ember-concurrency';
 export default class CopyButton extends Component {
   @tracked state = null;
 
+  get text() {
+    if (typeof this.args.clipboardText === 'function')
+      return this.args.clipboardText;
+    if (typeof this.args.clipboardText === 'string')
+      return this.args.clipboardText;
+
+    return String(this.args.clipboardText);
+  }
+
   @(task(function* () {
     this.state = 'success';
 
