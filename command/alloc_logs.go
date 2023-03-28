@@ -12,7 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper/cli"
+	"github.com/hashicorp/nomad/command/ui"
 	"github.com/posener/complete"
 )
 
@@ -289,10 +289,6 @@ func (l *AllocLogsCommand) handleSingleFile(client *api.Client, alloc *api.Alloc
 		if readErr != nil {
 			return fmt.Errorf("error tailing file: %v", readErr)
 		}
-	}
-
-	if readErr != nil {
-		return readErr
 	}
 
 	defer r.Close()
