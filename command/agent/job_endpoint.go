@@ -888,7 +888,7 @@ func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmis
 		Source:        submission.Source,
 		Format:        submission.Format,
 		VariableFlags: submission.VariableFlags,
-		VariableBlob:  submission.VariableBlob,
+		Variables:     submission.Variables,
 	}
 }
 

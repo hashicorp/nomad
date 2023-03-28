@@ -883,9 +883,9 @@ type JobSubmission struct {
 	// job (hcl2 only).
 	VariableFlags map[string]string
 
-	// VariableBlob contains the opaque variables configuration as coming from
+	// Variables contains the opaque variables configuration as coming from
 	// a var-file or the WebUI variables input (hcl2 only).
-	VariableBlob string
+	Variables string
 }
 
 // Job is used to serialize a job.
