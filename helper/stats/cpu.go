@@ -50,21 +50,20 @@ func Init() error {
 
 			var err error
 			if cpuPowerCoreCount, err = cpu.Counts(true); err != nil {
-				initErr = errors.Join(initErr, fmt.Errorf("failed to detect number of CPU cores: %v", err))
+				initErr = errors.Join(initErr, fmt.Errorf("failed to detect number of CPU cores: %w", err))
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), cpuInfoTimeout)
 			defer cancel()
 
-			var cpuInfo []cpu.InfoStat
-			if cpuInfo, err = cpu.InfoWithContext(ctx); err != nil {
-				errors.Join(err, fmt.Errorf("failed to detect CPU information: %v", err))
-				initErr = errors.Join(initErr, fmt.Errorf("Unable to obtain CPU information: %v", err))
+			var cpuInfoStats []cpu.InfoStat
+			if cpuInfoStats, err = cpu.InfoWithContext(ctx); err != nil {
+				initErr = errors.Join(initErr, fmt.Errorf("Unable to obtain CPU information: %w", err))
 			}
 
-			for _, cpu := range cpuInfo {
-				cpuModelName = cpu.ModelName
-				cpuPowerCoreMHz = uint64(cpu.Mhz)
+			for _, infoStat := range cpuInfoStats {
+				cpuModelName = infoStat.ModelName
+				cpuPowerCoreMHz = uint64(infoStat.Mhz)
 				break
 			}
 

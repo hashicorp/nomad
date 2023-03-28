@@ -33,7 +33,7 @@ type CPUFingerprint struct {
 func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
 	return &CPUFingerprint{
 		logger:        logger.Named("cpu"),
-		resources:     new(structs.Resources),
+		resources:     new(structs.Resources), // COMPAT (to be removed after 0.10)
 		nodeResources: new(structs.NodeResources),
 	}
 }
