@@ -342,6 +342,7 @@ func (s *HTTPServer) jobSubCRUD(resp http.ResponseWriter, req *http.Request, job
 	if err != nil {
 		return nil, CodedError(400, "Unable to parse job submission version parameter")
 	}
+	netlog.Cyan("HS.jobSubCRUD", "jobName", jobName, "version", version, "method", req.Method)
 	switch req.Method {
 	case "GET":
 		return s.jobSubQuery(resp, req, jobName, version)
@@ -895,6 +896,7 @@ func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmis
 		Source:        submission.Source,
 		Format:        submission.Format,
 		VariableFlags: submission.VariableFlags,
+		VariableBlob:  submission.VariableBlob,
 	}
 }
 

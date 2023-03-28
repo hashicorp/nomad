@@ -4278,6 +4278,10 @@ type JobSubmission struct {
 	// job (hcl2 only).
 	VariableFlags map[string]string
 
+	// VariableBlob contains the opaque variable blob that was input from the
+	// webUI (hcl2 only).
+	VariableBlob string
+
 	// Namespace is managed internally by the state store, do not set.
 	//
 	// The namespace the associated job belongs to.

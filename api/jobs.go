@@ -879,9 +879,13 @@ type JobSubmission struct {
 	// Format indicates what the Source content was (hcl1, hcl2, or json).
 	Format string
 
-	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
+	// VariableFlags contains the CLI "-var" flag arguments as submitted with the
 	// job (hcl2 only).
 	VariableFlags map[string]string
+
+	// VariableBlob contains the opaque variables configuration as coming from
+	// a var-file or the WebUI variables input (hcl2 only).
+	VariableBlob string
 }
 
 // Job is used to serialize a job.
