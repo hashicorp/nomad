@@ -17,7 +17,7 @@ module('Integration | Component | copy-button', function (hooks) {
   test('it shows the copy icon by default', async function (assert) {
     assert.expect(2);
 
-    await render(hbs`<CopyButton @class="copy-button" />`);
+    await render(hbs`<CopyButton />`);
 
     assert.dom('.copy-button .icon-is-copy-action').exists();
     await componentA11yAudit(this.element, assert);
@@ -28,17 +28,17 @@ module('Integration | Component | copy-button', function (hooks) {
 
     const clock = sinon.useFakeTimers({ shouldAdvanceTime: true });
 
-    await render(hbs`<CopyButton @class="copy-button" />`);
+    await render(hbs`<CopyButton @clipboardText="tomster" />`);
 
     await click('.copy-button button');
     await triggerCopySuccess('.copy-button button');
 
-    assert.dom('.copy-button .icon-is-copy-success').exists();
+    assert.dom('[data-test-copy-success]').exists();
     await componentA11yAudit(this.element, assert);
 
     clock.runAll();
 
-    assert.dom('.copy-button .icon-is-copy-success').doesNotExist();
+    assert.dom('[data-test-copy-success]').doesNotExist();
     assert.dom('.copy-button .icon-is-copy-action').exists();
 
     clock.restore();
@@ -47,7 +47,7 @@ module('Integration | Component | copy-button', function (hooks) {
   test('it shows the error icon on error', async function (assert) {
     assert.expect(2);
 
-    await render(hbs`<CopyButton @class="copy-button" />`);
+    await render(hbs`<CopyButton @clipboardText="tomster" />`);
 
     await click('.copy-button button');
     await triggerCopyError('.copy-button button');
