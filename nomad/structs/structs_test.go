@@ -271,6 +271,42 @@ func TestJob_Warnings(t *testing.T) {
 			},
 		},
 		{
+			Name:     "Invalid service name on task group",
+			Expected: []string{"Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Services: []*Service{
+							{
+								Name: "invalid.name",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Invalid service name on on task inside task group",
+			Expected: []string{"Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters"},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Tasks: []*Task{
+							{
+								Services: []*Service{
+									{
+										Name: "invalid.name",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name:     "Update.MaxParallel no warning",
 			Expected: []string{},
 			Job: &Job{
@@ -3395,6 +3431,88 @@ func BenchmarkEncodeDecode(b *testing.B) {
 	}
 }
 
+func TestService_ValidateName(t *testing.T) {
+	ci.Parallel(t)
+
+	tests := []struct {
+		name        string
+		serviceName string
+		expErr      bool
+		msg         string
+	}{
+		{
+			name:        "valid",
+			serviceName: "service-name",
+			expErr:      false,
+			msg:         "Service should be valid"},
+		{
+			name:        "begins with a hyphen",
+			serviceName: "-service-name",
+			msg:         "Service should be invalid: begins with a hyphen",
+			expErr:      true},
+		{
+			name:        "name with underscore",
+			serviceName: "my_service",
+			msg:         "Service should be invalid: contains underscores",
+			expErr:      true},
+		{
+			name:        "name too long",
+			serviceName: "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
+			msg:         "Service should be invalid: too long",
+			expErr:      true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			s := Service{
+				Name:      tc.name,
+				Provider:  "consul",
+				PortLabel: "bar",
+			}
+
+			err := s.ValidateName(s.Name)
+			must.Eq(t, err != nil, tc.expErr, must.Sprint(tc.msg))
+		})
+	}
+}
+
+func TestService_Warnings(t *testing.T) {
+	ci.Parallel(t)
+
+	tests := []struct {
+		name        string
+		serviceName string
+		expErr      bool
+		msg         string
+	}{
+		{
+			name:        "no warnings",
+			serviceName: "my-service-${NOMAD_META_FOO}",
+			expErr:      false,
+			msg:         "Service should have no warnings"},
+		{
+			name:        "invalid name",
+			serviceName: "my.invalid.service.name",
+			expErr:      true,
+			msg:         "Service should have warnings: name is invalid"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			s := Service{
+				Name:      tc.serviceName,
+				Provider:  "consul",
+				PortLabel: "bar",
+			}
+
+			err := s.Warnings()
+			must.Eq(t, err != nil, tc.expErr, must.Sprint(tc.msg))
+		})
+	}
+}
+
 func TestInvalidServiceCheck(t *testing.T) {
 	ci.Parallel(t)
 
@@ -3414,48 +3532,12 @@ func TestInvalidServiceCheck(t *testing.T) {
 	}
 
 	s = Service{
-		Name:      "service.name",
-		Provider:  "consul",
-		PortLabel: "bar",
-	}
-	if err := s.ValidateName(s.Name); err == nil {
-		t.Fatalf("Service should be invalid (contains a dot): %v", err)
-	}
-
-	s = Service{
-		Name:      "-my-service",
-		Provider:  "consul",
-		PortLabel: "bar",
-	}
-	if err := s.Validate(); err == nil {
-		t.Fatalf("Service should be invalid (begins with a hyphen): %v", err)
-	}
-
-	s = Service{
 		Name:      "my-service-${NOMAD_META_FOO}",
 		Provider:  "consul",
 		PortLabel: "bar",
 	}
 	if err := s.Validate(); err != nil {
 		t.Fatalf("Service should be valid: %v", err)
-	}
-
-	s = Service{
-		Name:      "my_service-${NOMAD_META_FOO}",
-		Provider:  "consul",
-		PortLabel: "bar",
-	}
-	if err := s.Validate(); err == nil {
-		t.Fatalf("Service should be invalid (contains underscore but not in a variable name): %v", err)
-	}
-
-	s = Service{
-		Name:      "abcdef0123456789-abcdef0123456789-abcdef0123456789-abcdef0123456",
-		Provider:  "consul",
-		PortLabel: "bar",
-	}
-	if err := s.ValidateName(s.Name); err == nil {
-		t.Fatalf("Service should be invalid (too long): %v", err)
 	}
 
 	s = Service{
