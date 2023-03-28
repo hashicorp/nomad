@@ -229,7 +229,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// In order to run the mixed log output, we can only follow the files from
 	// their current positions. There is no way to interleave previous log
 	// lines as there is no timestamp references.
-	if !l.stderr && !l.stdout && l.follow && !l.tail && l.numLines < 0 && l.numBytes < 0 {
+	if l.follow && !(l.stderr || l.stdout || l.tail || l.numLines > 0 || l.numBytes > 0) {
 		if err := l.tailMultipleFiles(client, alloc); err != nil {
 			l.Ui.Error(fmt.Sprintf("Failed to tail stdout and stderr files: %v", err))
 			return 1
@@ -398,7 +398,7 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 		case stdoutErr := <-stdoutErrCh:
 			return fmt.Errorf("received an error from stdout log stream: %v", stdoutErr)
 		case stdoutFrame := <-stdoutFrames:
-			logUI.Info(string(stdoutFrame.Data))
+			logUI.Output(string(stdoutFrame.Data))
 		case stderrErr := <-stderrErrCh:
 			return fmt.Errorf("received an error from stderr log stream: %v", stderrErr)
 		case stderrFrame := <-stderrFrames:
