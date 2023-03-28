@@ -21,8 +21,8 @@ RUN useradd --create-home vagrant \
 COPY ./scripts/linux-priv-config.sh /tmp/scripts/linux-priv-config.sh
 RUN /tmp/scripts/linux-priv-config.sh
 
-COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
-RUN /tmp/scripts/vagrant-linux-priv-go.sh
+COPY ./scripts/linux-priv-go.sh /tmp/scripts/linux-priv-go.sh
+RUN /tmp/scripts/linux-priv-go.sh
 
 COPY ./scripts/vagrant-linux-priv-buf.sh /tmp/scripts/vagrant-linux-priv-buf.sh
 RUN /tmp/scripts/vagrant-linux-priv-buf.sh
