@@ -1,18 +1,11 @@
 package cli
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"os/signal"
-	"strings"
-
-	"github.com/bgentry/speakeasy"
 	"github.com/fatih/color"
-	"github.com/mattn/go-isatty"
 	"github.com/mitchellh/cli"
+	"io"
 )
 
 // LogUI is an implementation of the cli.Ui interface which can be used for
@@ -22,6 +15,10 @@ type LogUI struct {
 	reader      io.Reader
 	writer      io.Writer
 	errorWriter io.Writer
+
+	// underlyingUI stores the basic UI that was used to create this logUI. It
+	// allows us to call the ask functions and not implement them again.
+	underlyingUI cli.Ui
 
 	isColor     bool
 	outputColor cli.UiColor
@@ -49,6 +46,7 @@ func NewLogUI(ui cli.Ui) (cli.Ui, error) {
 		logUI.infoColor = coloredUI.InfoColor
 		logUI.errorColor = coloredUI.ErrorColor
 		logUI.warnColor = coloredUI.WarnColor
+		logUI.underlyingUI = coloredUI.Ui
 
 		if basicUI, ok := coloredUI.Ui.(*cli.BasicUi); ok {
 			logUI.reader = basicUI.Reader
@@ -60,6 +58,7 @@ func NewLogUI(ui cli.Ui) (cli.Ui, error) {
 		logUI.reader = basicUI.Reader
 		logUI.writer = basicUI.Writer
 		logUI.errorWriter = basicUI.ErrorWriter
+		logUI.underlyingUI = basicUI
 		found = true
 	}
 
@@ -72,56 +71,12 @@ func NewLogUI(ui cli.Ui) (cli.Ui, error) {
 
 // Ask implements the Ask function of the cli.Ui interface.
 func (l *LogUI) Ask(query string) (string, error) {
-	return l.ask(l.colorize(query, l.outputColor), false)
+	return l.underlyingUI.Ask(l.colorize(query, l.outputColor))
 }
 
 // AskSecret implements the AskSecret function of the cli.Ui interface.
 func (l *LogUI) AskSecret(query string) (string, error) {
-	return l.ask(l.colorize(query, l.outputColor), true)
-}
-
-func (l *LogUI) ask(query string, secret bool) (string, error) {
-	if _, err := fmt.Fprint(l.writer, query+" "); err != nil {
-		return "", err
-	}
-
-	// Register for interrupts so that we can catch it and immediately
-	// return...
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	defer signal.Stop(sigCh)
-
-	// Ask for input in a go-routine so that we can ignore it.
-	errCh := make(chan error, 1)
-	lineCh := make(chan string, 1)
-	go func() {
-		var line string
-		var err error
-		if secret && isatty.IsTerminal(os.Stdin.Fd()) {
-			line, err = speakeasy.Ask("")
-		} else {
-			r := bufio.NewReader(l.reader)
-			line, err = r.ReadString('\n')
-		}
-		if err != nil {
-			errCh <- err
-			return
-		}
-
-		lineCh <- strings.TrimRight(line, "\r\n")
-	}()
-
-	select {
-	case err := <-errCh:
-		return "", err
-	case line := <-lineCh:
-		return line, nil
-	case <-sigCh:
-		// Print a newline so that any further output starts properly
-		// on a new line.
-		_, _ = fmt.Fprintln(l.writer)
-		return "", errors.New("interrupted")
-	}
+	return l.underlyingUI.AskSecret(l.colorize(query, l.outputColor))
 }
 
 // Output implements the Output function of the cli.Ui interface.
