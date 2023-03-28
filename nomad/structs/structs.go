@@ -7038,7 +7038,7 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 
 	for _, s := range tg.Services {
 		if err := s.Warnings(); err != nil {
-			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", s.Name))
+			err = multierror.Prefix(err, fmt.Sprintf("Service :%q on TaksGroup: %q", s.Name, tg.Name))
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -7761,7 +7761,7 @@ func (t *Task) Warnings() error {
 
 	for _, s := range t.Services {
 		if err := s.Warnings(); err != nil {
-			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", s.Name))
+			err = multierror.Prefix(err, fmt.Sprintf("Service :%q on Task: %q", s.Name, t.Name))
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
