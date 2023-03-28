@@ -80,7 +80,7 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Go template to format the output
-	code = cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Name }}{{end}}", qs.Name})
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{ .Name }}", qs.Name})
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
