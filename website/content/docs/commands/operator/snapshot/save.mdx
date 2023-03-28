@@ -27,6 +27,10 @@ leader is available):
 $ nomad operator snapshot save -stale backup.snap
 ```
 
+This command only saves a Raft snapshot. If you use this snapshot to recover a
+cluster, you will also need to [restore the keyring][] onto at least one server.
+
+
 ## Usage
 
 ```plaintext
@@ -44,4 +48,5 @@ nomad operator snapshot save [options] <file>
   may need to set `-stale` to "true" to get the configuration from a non-leader
   server.
 
-[outage recovery]: https://learn.hashicorp.com/tutorials/nomad/outage-recovery
+[outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
+[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backu
