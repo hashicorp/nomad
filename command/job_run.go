@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
-	"github.com/shoenig/netlog"
 )
 
 var (
@@ -323,8 +322,6 @@ func (c *JobRunCommand) Run(args []string) int {
 		opts.EnforceIndex = true
 		opts.ModifyIndex = checkIndex
 	}
-
-	netlog.Yellow("JRC.Run", "sub:", sub)
 
 	// Submit the job
 	resp, _, err := client.Jobs().RegisterOpts(sub, job, opts, nil)

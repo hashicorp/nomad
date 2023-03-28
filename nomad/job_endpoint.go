@@ -98,8 +98,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return fmt.Errorf("missing job for registration")
 	}
 
-	// netlog.Cyan("Job.Register", "flags", args.Submission.VariableFlags, "job size", len(args.Submission.Source))
-
 	// defensive check; http layer and RPC requester should ensure namespaces are set consistently
 	if args.RequestNamespace() != args.Job.Namespace {
 		return fmt.Errorf("mismatched request namespace in request: %q, %q", args.RequestNamespace(), args.Job.Namespace)

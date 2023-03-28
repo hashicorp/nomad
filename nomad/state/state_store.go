@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/netlog"
 )
 
 // Txn is a transaction against a state store.
@@ -1897,8 +1896,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 }
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
-	count, err := txn.DeleteAll("job_submission", "by_name", job.Namespace, job.Name)
-	netlog.Yellow("SS.deleteJobSubmission", "namespace", job.Namespace, "name", job.Name, "count", count)
+	_, err := txn.DeleteAll("job_submission", "by_name", job.Namespace, job.Name)
 	return err
 }
 
@@ -2000,7 +1998,6 @@ func (s *StateStore) JobSubmission(ws memdb.WatchSet, namespace, jobName string,
 }
 
 func (s *StateStore) jobSubmission(ws memdb.WatchSet, namespace, jobName string, version uint64, txn Txn) (*structs.JobSubmission, error) {
-	netlog.Cyan("SS.jobSubmission find", "namespace", namespace, "jobName", jobName, "version", version)
 	watchCh, existing, err := txn.FirstWatch("job_submission", "id", namespace, jobName, version)
 	if err != nil {
 		return nil, fmt.Errorf("job submission lookup failed: %v", err)
@@ -5359,7 +5356,6 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 // sub may be nil, in which case we do not touch the submission (or should we update the index?)
 func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobName string, version uint64, txn *txn) error {
 	if sub != nil {
-		netlog.Green("SS.updateJobSubmission", "job_name", jobName, "namespace", namespace, "index", index, "len", len(sub.Source), "version", version)
 		sub.Namespace = namespace
 		sub.JobName = jobName
 		sub.JobIndex = index

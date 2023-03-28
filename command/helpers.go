@@ -21,7 +21,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
-	"github.com/shoenig/netlog"
 )
 
 const (
@@ -498,7 +497,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Source: source.String(),
 			Format: formatHCL1,
 		}
-		netlog.Yellow("format hcl1")
 	case j.JSON:
 
 		// Support JSON files with both a top-level Job key as well as
@@ -522,7 +520,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Source: source.String(),
 			Format: formatJSON,
 		}
-		netlog.Yellow("format json")
 	default:
 		if _, err = io.Copy(&source, jobfile); err != nil {
 			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
@@ -545,8 +542,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Source:        source.String(),
 			Format:        formatHCL2,
 		}
-
-		netlog.Yellow("format hcl2")
 
 		if err != nil {
 			if _, merr := jobspec.Parse(&source); merr == nil {

@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/netlog"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -342,7 +341,6 @@ func (s *HTTPServer) jobSubCRUD(resp http.ResponseWriter, req *http.Request, job
 	if err != nil {
 		return nil, CodedError(400, "Unable to parse job submission version parameter")
 	}
-	netlog.Cyan("HS.jobSubCRUD", "jobName", jobName, "version", version, "method", req.Method)
 	switch req.Method {
 	case "GET":
 		return s.jobSubQuery(resp, req, jobName, version)
@@ -352,8 +350,6 @@ func (s *HTTPServer) jobSubCRUD(resp http.ResponseWriter, req *http.Request, job
 }
 
 func (s *HTTPServer) jobSubQuery(resp http.ResponseWriter, req *http.Request, jobName string, version uint64) (*structs.JobSubmission, error) {
-	netlog.Yellow("HS.jobSubQuery", "jobName", jobName, "version", version)
-
 	args := structs.JobSubmissionRequest{
 		JobName: jobName,
 		Version: version,
@@ -377,7 +373,6 @@ func (s *HTTPServer) jobSubQuery(resp http.ResponseWriter, req *http.Request, jo
 }
 
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobName string) (interface{}, error) {
-	netlog.Yellow("HS.jobCRUD", "jobName", jobName)
 	switch req.Method {
 	case "GET":
 		return s.jobQuery(resp, req, jobName)
@@ -441,8 +436,6 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobN
 	if jobName != "" && *args.Job.ID != jobName {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
-
-	netlog.Cyan("H.jobUpdate", "sub:", args.Submission)
 
 	// GH-8481. Jobs of type system can only have a count of 1 and therefore do
 	// not support scaling. Even though this returns an error on the first
@@ -834,7 +827,6 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		}
 		defer cleanupVarsFile()
 
-		netlog.Green("PARSE", "varsFile", varsFile, "chars", len(args.Variables))
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     "input.hcl",
 			Body:     []byte(args.JobHCL),
