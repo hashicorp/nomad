@@ -1,11 +1,11 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
 	"sync/atomic"
-	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
@@ -14,14 +14,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
-	"github.com/stretchr/testify/require"
+	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/shoenig/test/must"
 )
 
 var (
 	nodeNumber int32 = 0
 )
 
-func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
+func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
 	server, cleanup := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		if cb != nil {
@@ -36,13 +37,13 @@ func TestACLServer(t *testing.T, cb func(*Config)) (*Server, *structs.ACLToken, 
 	return server, token, cleanup
 }
 
-func TestServer(t *testing.T, cb func(*Config)) (*Server, func()) {
+func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
-	require.NoError(t, err, "failed to start test server")
+	must.NoError(t, err, must.Sprint("failed to start test server"))
 	return s, c
 }
 
-func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
+func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
 
@@ -122,7 +123,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 					defer close(ch)
 
 					// Shutdown server
-					err := server.Shutdown()
+					err = server.Shutdown()
 					if err != nil {
 						ch <- fmt.Errorf("failed to shutdown server: %w", err)
 					}
@@ -137,9 +138,7 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 					t.Fatal("timed out while shutting down server")
 				}
 			}, nil
-		} else if i == 0 {
-			return nil, nil, err
-		} else {
+		} else if i > 0 {
 			if server != nil {
 				_ = server.Shutdown()
 			}
@@ -148,22 +147,18 @@ func TestServerErr(t *testing.T, cb func(*Config)) (*Server, func(), error) {
 		}
 	}
 
-	return nil, nil, nil
+	return nil, nil, errors.New("unable to acquire ports for test server")
 }
 
-func TestJoin(t *testing.T, servers ...*Server) {
+func TestJoin(t testing.T, servers ...*Server) {
 	for i := 0; i < len(servers)-1; i++ {
 		addr := fmt.Sprintf("127.0.0.1:%d",
 			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
 
 		for j := i + 1; j < len(servers); j++ {
 			num, err := servers[j].Join([]string{addr})
-			if err != nil {
-				t.Fatalf("err: %v", err)
-			}
-			if num != 1 {
-				t.Fatalf("bad: %d", num)
-			}
+			must.NoError(t, err)
+			must.Eq(t, 1, num)
 		}
 	}
 }

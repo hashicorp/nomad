@@ -37,7 +37,7 @@ sed -i'' -e "s|\\(Install .Go\\) [.0-9]*|\\1 ${golang_version}|g" \
 	contributing/README.md
 
 sed -i'' -e "s|go_version=\"*[^\"]*\"*$|go_version=\"${golang_version}\"|g" \
-	scripts/vagrant-linux-priv-go.sh scripts/release/mac-remote-build
+	scripts/linux-priv-go.sh scripts/release/mac-remote-build
 
 echo "--> Checking if there is any remaining references to old versions..."
 if git grep -I --fixed-strings "${current_version}" | grep -v -e CHANGELOG.md -e .changelog/ -e vendor/ -e website/ -e ui/ -e contributing/golang.md -e '.*.go:' -e go.sum -e go.mod  -e LICENSE

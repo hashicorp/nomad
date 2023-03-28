@@ -68,7 +68,7 @@ client {
 - `disk_total_mb` `(int:0)` - Specifies an override for the total disk space
   fingerprint attribute. This value is not used by the scheduler unless you have
   constraints set on the attribute `unique.storage.bytestotal`. The actual total
-  disk space can be determined via the [Read Stats API](https://github.com/api-docs/client#read-stats)
+  disk space can be determined via the [Read Stats API](/nomad/api-docs/client#read-stats)
 
 - `disk_free_mb` `(int:0)` - Specifies the disk space free for scheduling
   allocations. If set, this value overrides any detected free disk space. This
@@ -470,7 +470,7 @@ see the [drivers documentation](/nomad/docs/drivers).
   "blocking queries". A blocking query is used to wait for a potential change
   using long polling.
 
-- `consul_retry` `(map: { attempts = 0 backoff = "250ms" max_backoff = "1m" })`-
+- `consul_retry` `(map: { attempts = 12 backoff = "250ms" max_backoff = "1m" })`-
   This controls the retry behavior when an error is returned from Consul. The template
   runner will not exit in the face of failure. Instead, it uses exponential back-off
   and retry functions to wait for the Consul cluster to become available, as is
@@ -481,7 +481,7 @@ see the [drivers documentation](/nomad/docs/drivers).
     # This specifies the number of attempts to make before giving up. Each
     # attempt adds the exponential backoff sleep time. Setting this to
     # zero will implement an unlimited number of retries.
-    attempts = 0
+    attempts = 12
     # This is the base amount of time to sleep between retry attempts. Each
     # retry sleeps for an exponent of 2 longer than this base. For 5 retries,
     # the sleep times would be: 250ms, 500ms, 1s, 2s, then 4s.
@@ -495,7 +495,7 @@ see the [drivers documentation](/nomad/docs/drivers).
   }
   ```
 
-- `vault_retry` `(map: { attempts = 0 backoff = "250ms" max_backoff = "1m" })` -
+- `vault_retry` `(map: { attempts = 12 backoff = "250ms" max_backoff = "1m" })` -
   This controls the retry behavior when an error is returned from Vault. Consul
   Template is highly fault tolerant, meaning it does not exit in the face of failure.
   Instead, it uses exponential back-off and retry functions to wait for the cluster
@@ -506,7 +506,7 @@ see the [drivers documentation](/nomad/docs/drivers).
     # This specifies the number of attempts to make before giving up. Each
     # attempt adds the exponential backoff sleep time. Setting this to
     # zero will implement an unlimited number of retries.
-    attempts = 0
+    attempts = 12
     # This is the base amount of time to sleep between retry attempts. Each
     # retry sleeps for an exponent of 2 longer than this base. For 5 retries,
     # the sleep times would be: 250ms, 500ms, 1s, 2s, then 4s.
@@ -520,7 +520,7 @@ see the [drivers documentation](/nomad/docs/drivers).
   }
   ```
 
-- `nomad_retry` `(map: { attempts = 0 backoff = "250ms" max_backoff = "1m" })` -
+- `nomad_retry` `(map: { attempts = 12 backoff = "250ms" max_backoff = "1m" })` -
   This controls the retry behavior when an error is returned from Nomad. Consul
   Template is highly fault tolerant, meaning it does not exit in the face of failure.
   Instead, it uses exponential back-off and retry functions to wait for the cluster
@@ -531,7 +531,7 @@ see the [drivers documentation](/nomad/docs/drivers).
     # This specifies the number of attempts to make before giving up. Each
     # attempt adds the exponential backoff sleep time. Setting this to
     # zero will implement an unlimited number of retries.
-    attempts = 0
+    attempts = 12
     # This is the base amount of time to sleep between retry attempts. Each
     # retry sleeps for an exponent of 2 longer than this base. For 5 retries,
     # the sleep times would be: 250ms, 500ms, 1s, 2s, then 4s.

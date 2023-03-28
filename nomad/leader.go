@@ -774,14 +774,43 @@ func (s *Server) restorePeriodicDispatcher() error {
 			continue
 		}
 
-		if _, err := s.periodicDispatcher.ForceRun(job.Namespace, job.ID); err != nil {
+		// We skip if the job doesn't allow overlap and there are already
+		// instances running
+		allowed, err := s.cronJobOverlapAllowed(job)
+		if err != nil {
+			return fmt.Errorf("failed to get job status: %v", err)
+		}
+		if !allowed {
+			continue
+		}
+
+		if _, err := s.periodicDispatcher.ForceEval(job.Namespace, job.ID); err != nil {
 			logger.Error("force run of periodic job failed", "job", job.NamespacedID(), "error", err)
 			return fmt.Errorf("force run of periodic job %q failed: %v", job.NamespacedID(), err)
 		}
-		logger.Debug("periodic job force runned during leadership establishment", "job", job.NamespacedID())
+
+		logger.Debug("periodic job force run during leadership establishment", "job", job.NamespacedID())
 	}
 
 	return nil
+}
+
+// cronJobOverlapAllowed checks if the job allows for overlap and if there are already
+// instances of the job running in order to determine if a new evaluation needs to
+// be created upon periodic dispatcher restore
+func (s *Server) cronJobOverlapAllowed(job *structs.Job) (bool, error) {
+	if job.Periodic.ProhibitOverlap {
+		running, err := s.periodicDispatcher.dispatcher.RunningChildren(job)
+		if err != nil {
+			return false, fmt.Errorf("failed to determine if periodic job has running children %q error %q", job.NamespacedID(), err)
+		}
+
+		if running {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // schedulePeriodic is used to do periodic job dispatch while we are leader

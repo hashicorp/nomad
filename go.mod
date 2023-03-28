@@ -91,7 +91,7 @@ require (
 	github.com/mitchellh/go-glint v0.0.0-20210722152315-6515ceb4a127
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
-	github.com/mitchellh/go-testing-interface v1.14.1
+	github.com/mitchellh/go-testing-interface v1.14.2-0.20210821155943-2d9075ca8770
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mitchellh/reflectwalk v1.0.2
@@ -108,7 +108,8 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shirou/gopsutil/v3 v3.23.1
 	github.com/shoenig/go-landlock v0.1.5
-	github.com/shoenig/test v0.6.2
+	github.com/shoenig/go-m1cpu v0.1.4
+	github.com/shoenig/test v0.6.3
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/testify v1.8.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635

@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: added new keyboard commands for job start, stop, exec, and client metadata
+```

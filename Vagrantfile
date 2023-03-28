@@ -130,31 +130,31 @@ def configureLinuxProvisioners(vmCfg)
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-go.sh'
+		path: './scripts/linux-priv-go.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-config.sh'
+		path: './scripts/linux-priv-config.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-dev.sh'
+		path: './scripts/linux-priv-dev.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-docker.sh'
+		path: './scripts/linux-priv-docker.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-consul.sh'
+		path: './scripts/linux-priv-consul.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-cni.sh'
+		path: './scripts/linux-priv-cni.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-vault.sh'
+		path: './scripts/linux-priv-vault.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: false,

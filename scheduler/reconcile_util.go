@@ -520,19 +520,6 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 	return
 }
 
-// filterByFailedReconnect filters allocation into a set that have failed on the
-// client but do not have a terminal status at the server so that they can be
-// marked as stop at the server.
-func (a allocSet) filterByFailedReconnect() allocSet {
-	failed := make(allocSet)
-	for _, alloc := range a {
-		if !alloc.ServerTerminalStatus() && alloc.ClientStatus == structs.AllocClientStatusFailed {
-			failed[alloc.ID] = alloc
-		}
-	}
-	return failed
-}
-
 // delayByStopAfterClientDisconnect returns a delay for any lost allocation that's got a
 // stop_after_client_disconnect configured
 func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedRescheduleInfo) {

@@ -84,6 +84,11 @@
             @query={{hash namespace=this.qpNamespace}}
             data-test-run-job
             class="button is-primary"
+            {{keyboard-shortcut 
+              label="Run Job"
+              pattern=(array "r" "u" "n")
+              action=(action this.goToRun)
+            }}
           >
             Run Job
           </LinkTo>

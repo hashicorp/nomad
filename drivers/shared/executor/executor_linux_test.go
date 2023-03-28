@@ -628,26 +628,39 @@ func TestExecutor_Capabilities(t *testing.T) {
 	testutil.ExecCompatible(t)
 
 	cases := []struct {
-		user string
-		caps string
+		user         string
+		capAdd       []string
+		capDrop      []string
+		capsExpected string
 	}{
 		{
 			user: "nobody",
-			caps: `
-CapInh: 0000000000000000
-CapPrm: 0000000000000000
-CapEff: 0000000000000000
+			capsExpected: `
+CapInh: 00000000a80405fb
+CapPrm: 00000000a80405fb
+CapEff: 00000000a80405fb
 CapBnd: 00000000a80405fb
-CapAmb: 0000000000000000`,
+CapAmb: 00000000a80405fb`,
 		},
 		{
 			user: "root",
-			caps: `
+			capsExpected: `
 CapInh: 0000000000000000
 CapPrm: 0000003fffffffff
 CapEff: 0000003fffffffff
 CapBnd: 0000003fffffffff
 CapAmb: 0000000000000000`,
+		},
+		{
+			user:    "nobody",
+			capDrop: []string{"all"},
+			capAdd:  []string{"net_bind_service"},
+			capsExpected: `
+CapInh: 0000000000000400
+CapPrm: 0000000000000400
+CapEff: 0000000000000400
+CapBnd: 0000000000000400
+CapAmb: 0000000000000400`,
 		},
 	}
 
@@ -662,7 +675,17 @@ CapAmb: 0000000000000000`,
 			execCmd.ResourceLimits = true
 			execCmd.Cmd = "/bin/bash"
 			execCmd.Args = []string{"-c", "cat /proc/$$/status"}
-			execCmd.Capabilities = capabilities.NomadDefaults().Slice(true)
+
+			capsBasis := capabilities.NomadDefaults()
+			capsAllowed := capsBasis.Slice(true)
+			if c.capDrop != nil || c.capAdd != nil {
+				calcCaps, err := capabilities.Calculate(
+					capsBasis, capsAllowed, c.capAdd, c.capDrop)
+				require.NoError(t, err)
+				execCmd.Capabilities = calcCaps
+			} else {
+				execCmd.Capabilities = capsAllowed
+			}
 
 			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 			defer executor.Shutdown("SIGKILL", 0)
@@ -690,7 +713,7 @@ CapAmb: 0000000000000000`,
 				return s
 			}
 
-			expected := canonical(c.caps)
+			expected := canonical(c.capsExpected)
 			tu.WaitForResult(func() (bool, error) {
 				output := canonical(testExecCmd.stdout.String())
 				if !strings.Contains(output, expected) {

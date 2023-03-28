@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 type testFn func() (bool, error)
@@ -140,6 +141,28 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 	}, func(err error) {
 		t.Fatalf("failed to find leader: %v", err)
 	})
+}
+
+// WaitForLeaders blocks until each rpcs knows the leader.
+func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
+	t.Helper()
+
+	var leader string
+	for i := 0; i < len(rpcs); i++ {
+		ok := func() (bool, error) {
+			leader = ""
+			args := &structs.GenericRequest{}
+			err := rpcs[i]("Status.Leader", args, &leader)
+			return leader != "", err
+		}
+		must.Wait(t, wait.InitialSuccess(
+			wait.TestFunc(ok),
+			wait.Timeout(10*time.Second),
+			wait.Gap(1*time.Second),
+		))
+	}
+
+	return leader
 }
 
 // WaitForClient blocks until the client can be found

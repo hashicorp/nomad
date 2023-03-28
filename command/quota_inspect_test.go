@@ -4,13 +4,15 @@
 package command
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestQuotaInspectCommand_Implements(t *testing.T) {
@@ -24,24 +26,20 @@ func TestQuotaInspectCommand_Fails(t *testing.T) {
 	cmd := &QuotaInspectCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "retrieving quota") {
-		t.Fatalf("connection error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "foo"})
+	must.One(t, code)
+
+	must.StrContains(t, ui.ErrorWriter.String(), "retrieving quota")
 	ui.ErrorWriter.Reset()
 }
 
-func TestQuotaInspectCommand_Good(t *testing.T) {
+func TestQuotaInspectCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a server
@@ -54,22 +52,38 @@ func TestQuotaInspectCommand_Good(t *testing.T) {
 	// Create a quota to delete
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
-	// Delete a namespace
-	if code := cmd.Run([]string{"-address=" + url, qs.Name}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	// Delete a quota
+	code := cmd.Run([]string{"-address=" + url, qs.Name})
+	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
 	if !strings.Contains(out, "Usages") || !strings.Contains(out, qs.Name) {
 		t.Fatalf("expected quota, got: %s", out)
 	}
+
+	// List json
+	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", qs.Name}))
+
+	outJson := api.QuotaSpec{}
+	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
+	must.NoError(t, err)
+
+	ui.OutputWriter.Reset()
+
+	// Go template to format the output
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{ .Name }}", qs.Name})
+	must.Zero(t, code)
+
+	out = ui.OutputWriter.String()
+	must.StrContains(t, out, "test-quota")
+
+	ui.OutputWriter.Reset()
 }
 
 func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, client, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -80,12 +94,12 @@ func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
 	// Create a quota
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	args := complete.Args{Last: "t"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(qs.Name, res[0])
+	must.One(t, len(res))
+	must.StrContains(t, qs.Name, res[0])
 }

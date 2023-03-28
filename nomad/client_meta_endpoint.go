@@ -25,6 +25,10 @@ func newNodeMetaEndpoint(srv *Server) *NodeMeta {
 func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.NodeMetaResponse) error {
 	const method = "NodeMeta.Apply"
 
+	// Prevent infinite loop between leader and
+	// follower-with-the-target-node-connection.
+	args.QueryOptions.AllowStale = true
+
 	authErr := n.srv.Authenticate(nil, args)
 	if done, err := n.srv.forward(method, args, args, reply); done {
 		return err
@@ -47,6 +51,10 @@ func (n *NodeMeta) Apply(args *structs.NodeMetaApplyRequest, reply *structs.Node
 
 func (n *NodeMeta) Read(args *structs.NodeSpecificRequest, reply *structs.NodeMetaResponse) error {
 	const method = "NodeMeta.Read"
+
+	// Prevent infinite loop between leader and
+	// follower-with-the-target-node-connection.
+	args.QueryOptions.AllowStale = true
 
 	authErr := n.srv.Authenticate(nil, args)
 	if done, err := n.srv.forward(method, args, args, reply); done {

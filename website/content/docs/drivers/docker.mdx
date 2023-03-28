@@ -504,11 +504,11 @@ config {
   }
   ```
 
-- `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
-  [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured allowlist.
-  The allowlist can be customized using the [`allow_caps`][allow_caps] plugin option key in the client node's configuration.
-  For example:
+- `cap_add` - (Optional) A list of Linux capabilities as strings to pass
+  directly to [`--cap-add`][]. Effective capabilities (computed from `cap_add`
+  and `cap_drop`) must be a subset of the allowed capabilities configured with
+  the [`allow_caps`][allow_caps] plugin option key in the client node's
+  configuration. For example:
 
 ```hcl
 config {
@@ -516,11 +516,11 @@ config {
 }
 ```
 
-- `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
-  [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured allowlist.
-  The allowlist can be customized using the [`allow_caps`][allow_caps] plugin option key in the client node's configuration.
-  For example:
+- `cap_drop` - (Optional) A list of Linux capabilities as strings to pass
+  directly to [`--cap-drop`][]. Effective capabilities (computed from `cap_add`
+  and `cap_drop`) must be a subset of the allowed capabilities configured with
+  the [`allow_caps`][allow_caps] plugin option key in the client node's
+  configuration. For example:
 
 ```hcl
 config {
@@ -884,11 +884,14 @@ plugin "docker" {
  "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
 ```
 
-  which is the same list of capabilities allowed by [docker by default][docker_caps]
-  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities can be obtained
-  by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options. Supports
-  the value `"all"` as a shortcut for allow-listing all capabilities supported by
-  the operating system.
+  which is the same list of capabilities allowed by [docker by
+  default][docker_caps] (without [`NET_RAW`][no_net_raw]). Allows the operator
+  to control which capabilities can be obtained by tasks using
+  [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options. Supports the value
+  `"all"` as a shortcut for allow-listing all capabilities supported by the
+  operating system. Note that due to a limitation in Docker, tasks running as
+  non-root users cannot expand the capabilities set beyond the default. They can
+  only have their capabilities reduced.
 
 !> **Warning:** Allowing more capabilities beyond the default may lead to
 undesirable consequences, including untrusted tasks being able to compromise the
@@ -1220,3 +1223,5 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/runtime/environment#job-related-variables
+[`--cap-add`][](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)
+[`--cap-drop`][](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)

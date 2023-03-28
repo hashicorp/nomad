@@ -42,6 +42,14 @@ Prefer adding a new message to changing any existing RPC messages.
     upgraded, so use this to guard sending the new RPC, else send the old RPC
   * Version must match the actual release version!
 
+* [ ] If implementing a Client RPC...
+  * Use `QueryOptions` instead of `WriteRequest` in the Request struct as
+    `WriteRequest` is only for *Raft* writes.
+  * Set `QueryOptions.AllowStale = true` in the *Server* RPC forwarder to avoid
+    an infinite loop between leaders and followers when a Client RPC is
+    forwarded through a follower. See
+    https://github.com/hashicorp/nomad/issues/16517
+
 ## Docs
 
 * [ ] Changelog
