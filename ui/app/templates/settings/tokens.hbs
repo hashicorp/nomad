@@ -103,7 +103,7 @@
           <h3 class="title is-4">Sign in with token</h3>
           <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID{{#if this.hasJWTAuthMethods}} or <a href="https://jwt.io/" target="_blank" rel="noopener noreferrer">JWT</a>{{/if}}, each future request will be authenticated, potentially authorizing read access to additional information.</p>
           <label class="label" for="token-input">Secret ID{{#if this.hasJWTAuthMethods}} or JWT{{/if}}</label>
-          <div class="control">
+          <div class="control {{if (and this.currentSecretIsJWT (gt this.JWTAuthMethods.length 1)) "with-jwt-selector"}}">
             <Input
               id="token-input"
               class="input"
@@ -113,9 +113,28 @@
               {{on "input" (action (mut this.secret) value="target.value")}}
               @enter={{this.verifyToken}}
               data-test-token-secret />
+
+            {{#if this.currentSecretIsJWT}}
+              {{did-insert (action this.setCurrentAuthMethod)}}
+              {{#if (gt this.JWTAuthMethods.length 1)}}
+                <SingleSelectDropdown
+                  data-test-select-jwt
+                  @label="Sign-in method"
+                  @options={{this.JWTAuthMethodOptions}}
+                  @selection={{this.jwtAuthMethod}}
+                  @onSelect={{fn (mut this.jwtAuthMethod)}}
+                />
+              {{/if}}
+            {{/if}}
           </div>
           <p class="help">Sent with every request to determine authorization</p>
-          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Sign in with token</button>
+          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">
+            {{#if this.currentSecretIsJWT}}
+              Sign in with JWT
+            {{else}}
+              Sign in with secret
+            {{/if}}
+          </button>
         </div>
       {{/if}}
 
