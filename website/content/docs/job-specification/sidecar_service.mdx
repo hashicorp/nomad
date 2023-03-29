@@ -49,6 +49,8 @@ job "countdash" {
 - `disable_default_tcp_check` `(bool: false)` - disable the default TCP health
   check.
 
+- `meta` <code>(map&lt;string|string&gt;: nil)</code> - Specifies arbitrary KV metadata pairs.
+
 - `port` `(string: )` - Port label for sidecar service.
 
 - `proxy` <code>([proxy][]: nil)</code> - This is used to configure the
@@ -56,8 +58,6 @@ job "countdash" {
 
 - `tags` <code>(array&lt;string&gt;: nil)</code> - Custom Consul service tags
   for the sidecar service.
-
-- `meta` <code>(map&lt;string|string&gt;: nil)</code> - Specifies arbitrary KV metadata pairs.
 
 ## `sidecar_service` Examples
 
