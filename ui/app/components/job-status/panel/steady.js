@@ -4,7 +4,6 @@ import { alias } from '@ember/object/computed';
 
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
-  @alias('args.handleError') handleError = () => {};
 
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
   allocTypes = [
