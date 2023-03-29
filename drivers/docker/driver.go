@@ -170,7 +170,7 @@ func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlu
 		ctx:             ctx,
 		logger:          logger,
 	}
-	go driver.recoverPauseContainers(ctx)
+
 	return driver
 }
 
@@ -747,11 +747,11 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	return binds, nil
 }
 
+// recoverPauseContainers gets called when we start up the plugin. On client
+// restarts we need to rebuild the set of pause containers we are
+// tracking. Basically just scan all containers and pull the ID from anything
+// that has the Nomad Label and has Name with prefix "/nomad_init_".
 func (d *Driver) recoverPauseContainers(ctx context.Context) {
-	// On Client restart, we must rebuild the set of pause containers
-	// we are tracking. Basically just scan all containers and pull the ID from
-	// anything that has the Nomad Label and has Name with prefix "/nomad_init_".
-
 	_, dockerClient, err := d.dockerClients()
 	if err != nil {
 		d.logger.Error("failed to recover pause containers", "error", err)
@@ -765,8 +765,8 @@ func (d *Driver) recoverPauseContainers(ctx context.Context) {
 			"label": {dockerLabelAllocID},
 		},
 	})
-	if listErr != nil {
-		d.logger.Error("failed to list pause containers", "error", err)
+	if listErr != nil && listErr != ctx.Err() {
+		d.logger.Error("failed to list pause containers", "error", listErr)
 		return
 	}
 

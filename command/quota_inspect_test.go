@@ -52,7 +52,7 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 	// Create a quota to delete
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	must.NoError(t, err)
+	must.NoError(t, err, must.Sprint("unexpected error:", err))
 
 	// Delete a quota
 	code := cmd.Run([]string{"-address=" + url, qs.Name})
@@ -63,12 +63,13 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 		t.Fatalf("expected quota, got: %s", out)
 	}
 
+	ui.OutputWriter.Reset()
 	// List json
 	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", qs.Name}))
 
 	outJson := api.QuotaSpec{}
 	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
-	must.NoError(t, err)
+	must.NoError(t, err, must.Sprint("unexpected error:", err))
 
 	ui.OutputWriter.Reset()
 
