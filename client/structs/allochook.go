@@ -7,23 +7,31 @@ import (
 )
 
 // AllocHookResources contains data that is provided by AllocRunner Hooks for
-// consumption by TaskRunners
+// consumption by TaskRunners. This should be instantiated once in the
+// AllocRunner and then only accessed via getters and setters that hold the
+// lock.
 type AllocHookResources struct {
-	CSIMounts map[string]*csimanager.MountInfo
+	csiMounts map[string]*csimanager.MountInfo
 
 	mu sync.RWMutex
+}
+
+func NewAllocHookResources() *AllocHookResources {
+	return &AllocHookResources{
+		csiMounts: map[string]*csimanager.MountInfo{},
+	}
 }
 
 func (a *AllocHookResources) GetCSIMounts() map[string]*csimanager.MountInfo {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.CSIMounts
+	return a.csiMounts
 }
 
 func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.CSIMounts = m
+	a.csiMounts = m
 }
