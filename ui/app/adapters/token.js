@@ -21,15 +21,23 @@ export default class TokenAdapter extends ApplicationAdapter {
     return `${this.buildURL()}/${singularize(modelName)}/${identifier}`;
   }
 
-  findSelf() {
-    return this.ajax(`${this.buildURL()}/token/self`, 'GET').then((token) => {
-      const store = this.store;
-      store.pushPayload('token', {
-        tokens: [token],
-      });
+  async findSelf() {
+    const response = await this.ajax(`${this.buildURL()}/token/self`, 'GET');
+    const normalized = this.store.normalize('token', response);
+    const tokenRecord = this.store.push(normalized);
+    return tokenRecord;
+  }
 
-      return store.peekRecord('token', store.normalize('token', token).data.id);
+  async loginJWT(LoginToken, AuthMethodName) {
+    const response = await this.ajax(`${this.buildURL()}/login`, 'POST', {
+      data: {
+        AuthMethodName,
+        LoginToken,
+      },
     });
+    const normalized = this.store.normalize('token', response);
+    const tokenRecord = this.store.push(normalized);
+    return tokenRecord;
   }
 
   exchangeOneTimeToken(oneTimeToken) {

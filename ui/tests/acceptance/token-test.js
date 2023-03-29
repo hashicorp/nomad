@@ -14,6 +14,10 @@ import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
 import { run } from '@ember/runloop';
 import { allScenarios } from '../../mirage/scenarios/default';
+import {
+  selectChoose,
+  clickTrigger,
+} from 'ember-power-select/test-support/helpers';
 
 let job;
 let node;
@@ -412,6 +416,157 @@ module('Acceptance | tokens', function (hooks) {
 
     await percySnapshot(assert);
     assert.ok(Tokens.ssoErrorMessage);
+  });
+
+  test('JWT Sign-in flow: OIDC methods only', async function (assert) {
+    server.create('auth-method', { name: 'Vault', type: 'OIDC' });
+    server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
+    await Tokens.visit();
+    assert
+      .dom('[data-test-auth-method]')
+      .exists({ count: 2 }, 'Both OIDC methods shown');
+    assert
+      .dom('label[for="token-input"]')
+      .hasText(
+        'Secret ID',
+        'Secret ID input shown without JWT info when no such method exists'
+      );
+  });
+
+  test('JWT Sign-in flow: JWT method', async function (assert) {
+    server.create('auth-method', { name: 'Vault', type: 'OIDC' });
+    server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
+    server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
+    await Tokens.visit();
+    assert
+      .dom('[data-test-auth-method]')
+      .exists(
+        { count: 2 },
+        'The newly added JWT method does not add a 3rd Auth Method button'
+      );
+    assert
+      .dom('label[for="token-input"]')
+      .hasText('Secret ID or JWT', 'Secret ID input now shows JWT info');
+
+    // Expect to be signed in as a manager
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.management'
+    ).submit();
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText('Token: Manager');
+    await Tokens.clear();
+
+    // Expect to be signed in as a client
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
+    ).submit();
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-name]').includesText(
+      `Token: ${
+        server.db.tokens.filter((token) => {
+          return token.type === 'client';
+        })[0].name
+      }`
+    );
+    await Tokens.clear();
+
+    // Expect to an error on bad JWT
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bad'
+    ).submit();
+    assert.ok(currentURL().startsWith('/settings/tokens'));
+    assert.dom('[data-test-token-error]').exists();
+  });
+
+  test('JWT Sign-in flow: JWT Method Selector, Single JWT', async function (assert) {
+    server.create('auth-method', { name: 'Vault', type: 'OIDC' });
+    server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
+    server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
+    await Tokens.visit();
+    assert
+      .dom('[data-test-token-submit]')
+      .exists(
+        { count: 1 },
+        'Submit token/JWT button exists with only a single JWT '
+      );
+    assert
+      .dom('[data-test-token-submit]')
+      .hasText(
+        'Sign in with secret',
+        'Submit token/JWT button has correct text with only a single JWT '
+      );
+    await Tokens.secret('very-short-secret');
+    assert
+      .dom('[data-test-token-submit]')
+      .hasText(
+        'Sign in with secret',
+        'A short secret still shows the "secret" verbiage on the button'
+      );
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
+    );
+    assert
+      .dom('[data-test-token-submit]')
+      .hasText(
+        'Sign in with JWT',
+        'A JWT-shaped secret will change button text to reflect JWT sign-in'
+      );
+
+    assert
+      .dom('[data-test-select-jwt]')
+      .doesNotExist('No JWT selector shown with only a single method');
+  });
+
+  test('JWT Sign-in flow: JWT Method Selector, Multiple JWT', async function (assert) {
+    server.create('auth-method', { name: 'Vault', type: 'OIDC' });
+    server.create('auth-method', { name: 'Auth0', type: 'OIDC' });
+    server.create('auth-method', {
+      name: 'JWT-Local',
+      type: 'JWT',
+      default: false,
+    });
+    server.create('auth-method', {
+      name: 'JWT-Regional',
+      type: 'JWT',
+      default: false,
+    });
+    server.create('auth-method', {
+      name: 'JWT-Global',
+      type: 'JWT',
+      default: true,
+    });
+    await Tokens.visit();
+    assert
+      .dom('[data-test-token-submit]')
+      .exists(
+        { count: 1 },
+        'Submit token/JWT button exists with only a single JWT '
+      );
+    assert
+      .dom('[data-test-select-jwt]')
+      .doesNotExist('No JWT selector shown with an empty token/secret');
+    await Tokens.secret(
+      'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
+    );
+    assert
+      .dom('[data-test-select-jwt]')
+      .exists({ count: 1 }, 'JWT selector shown with multiple JWT methods');
+
+    assert.equal(
+      currentURL(),
+      '/settings/tokens?jwtAuthMethod=JWT-Global',
+      'Default JWT method is selected'
+    );
+    await clickTrigger('[data-test-select-jwt]');
+    assert.dom('.dropdown-options').exists('Dropdown options are shown');
+
+    await selectChoose('[data-test-select-jwt]', 'JWT-Regional');
+    console.log(currentURL());
+    assert.equal(
+      currentURL(),
+      '/settings/tokens?jwtAuthMethod=JWT-Regional',
+      'Selected JWT method is shown'
+    );
   });
 
   test('when the ott exchange fails an error is shown', async function (assert) {

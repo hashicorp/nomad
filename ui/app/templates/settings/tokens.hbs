@@ -18,6 +18,17 @@
         </div>
       {{/if}}
 
+      {{#if (eq this.signInStatus "jwtFailure")}}
+        <div data-test-token-error class="notification is-danger">
+          <div class="columns">
+            <div class="column">
+              <h3 class="title is-4">JWT Failed to Authenticate</h3>
+              <p>You passed in a JWT, but no JWT auth methods were found</p>
+            </div>
+          </div>
+        </div>
+      {{/if}}
+
       {{#if this.tokenRecord.isExpired}}
         <div data-test-token-expired class="notification is-danger">
           <div class="columns">
@@ -72,11 +83,11 @@
     <div class="columns">
       {{#if this.canSignIn}}
         <div class="column is-half sign-in-methods">
-          {{#if this.authMethods.length}}
+          {{#if this.nonTokenAuthMethods.length}}
             <h3 class="title is-4">Sign in with SSO</h3>
             <p>Sign in to Nomad using the configured authorization provider. After logging in, the policies and rules for the token will be listed.</p>
             <div class="sso-auth-methods">
-              {{#each this.model.authMethods as |method|}}
+              {{#each this.nonTokenAuthMethods as |method|}}
                 <button
                   data-test-auth-method
                   class="button is-primary"
@@ -90,22 +101,40 @@
           {{/if}}
 
           <h3 class="title is-4">Sign in with token</h3>
-          <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID, each future request will be authenticated, potentially authorizing read access to additional information.</p>
-          <label class="label" for="token-input">Secret ID</label>
-          <div class="control">
+          <p>Clusters that use Access Control Lists require tokens to perform certain tasks. By providing a token Secret ID{{#if this.hasJWTAuthMethods}} or <a href="https://jwt.io/" target="_blank" rel="noopener noreferrer">JWT</a>{{/if}}, each future request will be authenticated, potentially authorizing read access to additional information.</p>
+          <label class="label" for="token-input">Secret ID{{#if this.hasJWTAuthMethods}} or JWT{{/if}}</label>
+          <div class="control {{if (and this.currentSecretIsJWT (gt this.JWTAuthMethods.length 1)) "with-jwt-selector"}}">
             <Input
               id="token-input"
               class="input"
               @type="text"
-              placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-              {{!-- FIXME this placeholder gets read out by VoiceOver sans dashes 😵 --}}
+              placeholder="{{if this.hasJWTAuthMethods "36-character token secret or JWT" "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"}}"
               {{autofocus}}
               {{on "input" (action (mut this.secret) value="target.value")}}
               @enter={{this.verifyToken}}
               data-test-token-secret />
+
+            {{#if this.currentSecretIsJWT}}
+              {{did-insert (action this.setCurrentAuthMethod)}}
+              {{#if (gt this.JWTAuthMethods.length 1)}}
+                <SingleSelectDropdown
+                  data-test-select-jwt
+                  @label="Sign-in method"
+                  @options={{this.JWTAuthMethodOptions}}
+                  @selection={{this.jwtAuthMethod}}
+                  @onSelect={{fn (mut this.jwtAuthMethod)}}
+                />
+              {{/if}}
+            {{/if}}
           </div>
           <p class="help">Sent with every request to determine authorization</p>
-          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">Set Token</button>
+          <button disabled={{not this.secret}} data-test-token-submit class="button is-primary" {{action "verifyToken"}} type="button">
+            {{#if this.currentSecretIsJWT}}
+              Sign in with JWT
+            {{else}}
+              Sign in with secret
+            {{/if}}
+          </button>
         </div>
       {{/if}}
 
