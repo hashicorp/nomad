@@ -204,7 +204,7 @@ var (
 			"type":   hclspec.NewAttr("type", "string", false),
 			"config": hclspec.NewBlockAttrs("config", "string", false),
 		})), hclspec.NewLiteral(`{
-			type = "json-file" 
+			type = "json-file"
 			config = {
 				max-file = "2"
 				max-size = "2m"
@@ -770,6 +770,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	d.danglingReconciler = newReconciler(d)
 
 	d.cpusetFixer = newCpusetFixer(d)
+
+	go d.recoverPauseContainers(d.ctx)
 
 	return nil
 }
