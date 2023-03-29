@@ -10,19 +10,18 @@ import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 export default class DefinitionController extends Controller.extend(
   WithNamespaceResetting
 ) {
-  @tracked view = this.specification ? 'job-spec' : 'full-definition';
-  queryParams = ['view'];
-
   @alias('model.definition') definition;
   @alias('model.job') job;
   @alias('model.specification') specification;
 
+  @tracked view;
+  queryParams = ['view'];
+
   @service router;
 
   @action
-  toggleView() {
-    const opposite = this.view === 'job-spec' ? 'full-definition' : 'job-spec';
-    this.view = opposite;
+  selectView(selectedView) {
+    this.view = selectedView;
   }
 
   onSubmit() {

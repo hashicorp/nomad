@@ -152,7 +152,7 @@ export default class JobEditor extends Component {
       onReset: this.reset,
       onSaveAs: this.args.handleSaveAsTemplate,
       onSubmit: this.submit,
-      onToggle: this.args.onToggle,
+      onSelect: this.args.onSelect,
       onUpdate: this.updateCode,
       onUpload: this.uploadJobSpec,
     };
