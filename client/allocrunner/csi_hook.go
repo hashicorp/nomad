@@ -9,7 +9,9 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -27,7 +29,7 @@ type csiHook struct {
 	// interfaces implemented by the allocRunner
 	rpcClient            RPCer
 	taskCapabilityGetter taskCapabilityGetter
-	updater              hookResourceSetter
+	hookResources        *cstructs.AllocHookResources
 
 	nodeSecret         string
 	volumeRequests     map[string]*volumeAndRequest
@@ -44,7 +46,7 @@ type taskCapabilityGetter interface {
 	GetTaskDriverCapabilities(string) (*drivers.Capabilities, error)
 }
 
-func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, updater hookResourceSetter, nodeSecret string) *csiHook {
+func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, hookResources *cstructs.AllocHookResources, nodeSecret string) *csiHook {
 
 	shutdownCtx, shutdownCancelFn := context.WithCancel(context.Background())
 
@@ -54,7 +56,7 @@ func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.M
 		csimanager:           csi,
 		rpcClient:            rpcClient,
 		taskCapabilityGetter: taskCapabilityGetter,
-		updater:              updater,
+		hookResources:        hookResources,
 		nodeSecret:           nodeSecret,
 		volumeRequests:       map[string]*volumeAndRequest{},
 		minBackoffInterval:   time.Second,
@@ -108,9 +110,8 @@ func (c *csiHook) Prerun() error {
 		mounts[alias] = mountInfo
 	}
 
-	res := c.updater.GetAllocHookResources()
-	res.CSIMounts = mounts
-	c.updater.SetAllocHookResources(res)
+	// make the mounts available to the taskrunner's volume_hook
+	c.hookResources.SetCSIMounts(mounts)
 
 	return nil
 }
