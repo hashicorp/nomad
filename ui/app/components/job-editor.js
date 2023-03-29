@@ -8,18 +8,16 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { tracked } from '@glimmer/tracking';
 
 export default class JobEditor extends Component {
-  @service store;
   @service config;
+  @service store;
 
   @tracked error = null;
   @tracked planOutput = null;
   @tracked isEditing;
-  @tracked view;
 
   constructor() {
     super(...arguments);
     this.isEditing = !!(this.args.context === 'new');
-    this.view = this.args.view;
   }
 
   toggleEdit(bool) {
@@ -125,14 +123,8 @@ export default class JobEditor extends Component {
     reader.readAsText(file);
   }
 
-  @action
-  toggleView() {
-    const opposite = this.view === 'job-spec' ? 'full-definition' : 'job-spec';
-    this.view = opposite;
-  }
-
   get definition() {
-    if (this.view === 'full-definition') {
+    if (this.args.view === 'full-definition') {
       return this.args.definition;
     } else {
       return this.args.specification;
@@ -148,7 +140,7 @@ export default class JobEditor extends Component {
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
-      view: this.view,
+      view: this.args.view,
     };
   }
 
@@ -160,7 +152,7 @@ export default class JobEditor extends Component {
       onReset: this.reset,
       onSaveAs: this.args.handleSaveAsTemplate,
       onSubmit: this.submit,
-      onToggle: this.toggleView,
+      onToggle: this.args.onToggle,
       onUpdate: this.updateCode,
       onUpload: this.uploadJobSpec,
     };
