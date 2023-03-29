@@ -19,7 +19,7 @@ export default class JobEditor extends Component {
   constructor() {
     super(...arguments);
     this.isEditing = !!(this.args.context === 'new');
-    this.view = this.args.specification ? 'job-spec' : 'full-definition';
+    this.view = this.args.view;
   }
 
   toggleEdit(bool) {
