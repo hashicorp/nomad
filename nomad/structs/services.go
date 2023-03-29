@@ -801,7 +801,7 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc2782).
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
-		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters")
+		return fmt.Errorf("We recommend using RFC 1123 compliant DNS labels for service definition names, to ensures compatibility with external DNSs:")
 	}
 	return nil
 }

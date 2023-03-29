@@ -272,7 +272,7 @@ func TestJob_Warnings(t *testing.T) {
 		},
 		{
 			Name:     "Invalid service name on task group",
-			Expected: []string{"Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters"},
+			Expected: []string{"We recommend using RFC 1123 compliant DNS labels for service definition names, to ensures compatibility with external DNSs."},
 			Job: &Job{
 				Type: JobTypeService,
 				TaskGroups: []*TaskGroup{
@@ -288,7 +288,7 @@ func TestJob_Warnings(t *testing.T) {
 		},
 		{
 			Name:     "Invalid service name on on task inside task group",
-			Expected: []string{"Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters"},
+			Expected: []string{"We recommend using RFC 1123 compliant DNS labels for service definition names, to ensures compatibility with external DNSs."},
 			Job: &Job{
 				Type: JobTypeService,
 				TaskGroups: []*TaskGroup{
