@@ -1349,8 +1349,8 @@ func TestParse(t *testing.T) {
 		{
 			"tg-service-connect-sidecar_meta.hcl",
 			&api.Job{
-				ID:   stringToPtr("sidecar_disablecheck"),
-				Name: stringToPtr("sidecar_disablecheck"),
+				ID:   stringToPtr("sidecar_meta"),
+				Name: stringToPtr("sidecar_meta"),
 				Type: stringToPtr("service"),
 				TaskGroups: []*api.TaskGroup{{
 					Name: stringToPtr("group"),
