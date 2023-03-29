@@ -31,6 +31,6 @@ export default class DefinitionRoute extends Route {
 
   setupController(controller, model) {
     super.setupController(controller, model);
-    controller.view = model.specification ? 'job-spec' : 'full-definition';
+    controller.view = model?.specification ? 'job-spec' : 'full-definition';
   }
 }
