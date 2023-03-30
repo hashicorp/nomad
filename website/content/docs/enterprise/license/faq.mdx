@@ -36,7 +36,7 @@ before trying to upgrade your servers.
 
 The list below is a great starting point for learning more about license usage in general.
 
-- [v1.6.0 Upgrade Guide](/nomad/docs/upgrade/upgrade-specific#nomad-1-6-0-enterprise)
+- [v1.6.0 Upgrade Guide](/nomad/docs/upgrade/upgrade-specific#enterprise-license-validation-with-builddate)
 
 - [Nomad License Documentation](/nomad/docs/enterprise/license)
 
@@ -85,10 +85,14 @@ Visit https://nomadproject.io/trial for a free 30-day trial license.
 
 Every time `nomad agent` runs as a server (or in `-dev`), it requires a license.
 
-## Q: May I downgrade Nomad Enterprise from v1.6 to an earlier version?
+## Q: May I downgrade Nomad Enterprise from v1.6.0 to an earlier version?
 
 Yes, if you upgrade a server to 1.6.0+ but it fails to start due to license expiration,
 you can roll back to a previous working version with the old expiration logic.
+
+If a server fails to start for any other reason aside from license expiration,
+roll back to a previous version is not supported due to the Nomad state store
+not having forward compatibility, and may result in a crash loop.
 
 ## Q: Is there a tutorial available for the license configuration steps?
 Please visit the [Enterprise License Tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license).
