@@ -4,7 +4,7 @@
         <A.Description data-test-error-message>{{@data.error.message}}</A.Description>
     </Hds::Alert>
   {{/if}}
-  {{#if (and (eq @data.stage "read") @data.hasVariables)}}
+  {{#if (and (eq @data.stage "read") @data.hasVariables (eq @data.view "job-spec"))}}
     {{#if this.shouldShowAlert}}
       <Hds::Alert @type="inline" @onDismiss={{this.dismissAlert}} data-test-variable-notification as |A|>
         <A.Title>Job Variable Values Not Shown</A.Title>
