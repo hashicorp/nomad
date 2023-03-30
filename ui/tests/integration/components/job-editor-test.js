@@ -6,7 +6,7 @@
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click } from '@ember/test-helpers';
+import { render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
@@ -83,31 +83,17 @@ module('Integration | Component | job-editor', function (hooks) {
     <JobEditor
       @job={{job}}
       @context={{context}}
-      @onSubmit={{onSubmit}} 
-    />
-  `;
-
-  const cancelableTemplate = hbs`
-    <JobEditor
-      @job={{job}}
-      @context={{context}}
-      @cancelable={{true}}
       @onSubmit={{onSubmit}}
     />
   `;
 
   const renderNewJob = async (component, job) => {
-    component.setProperties({ job, onSubmit: sinon.spy(), context: 'new' });
-    await component.render(commonTemplate);
-  };
-
-  const renderEditJob = async (component, job) => {
     component.setProperties({
       job,
       onSubmit: sinon.spy(),
-      context: 'edit',
+      context: 'new',
     });
-    await component.render(cancelableTemplate);
+    await component.render(commonTemplate);
   };
 
   const planJob = async (spec) => {
@@ -351,8 +337,23 @@ module('Integration | Component | job-editor', function (hooks) {
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
-    await renderEditJob(this, job);
-    await click('[data-test-edit-job]');
+    this.set('job', job);
+
+    this.set('onToggleEdit', () => {});
+    this.set('onSubmit', () => {});
+    this.set('handleSaveAsTemplate', () => {});
+    this.set('onSelect', () => {});
+
+    await render(hbs`
+      <JobEditor
+        @context="edit"
+        @job={{this.job}}
+        @onToggleEdit={{this.onToggleEdit}}
+        @onSubmit={{this.onSubmit}}
+        @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
+        @onSelect={{this.onSelect}}
+      />
+    `);
 
     await planJob(spec);
     await Editor.run();
@@ -416,22 +417,27 @@ module('Integration | Component | job-editor', function (hooks) {
 
     const job = await this.store.createRecord('job');
 
-    await renderEditJob(this, job);
-    await click('[data-test-edit-job]');
+    this.set('job', job);
+
+    this.set('onToggleEdit', () => {});
+    this.set('onSubmit', () => {});
+    this.set('handleSaveAsTemplate', () => {});
+    this.set('onSelect', () => {});
+
+    await render(hbs`
+      <JobEditor
+        @cancelable={{true}}
+        @context="new"
+        @job={{this.job}}
+        @onToggleEdit={{this.onToggleEdit}}
+        @onSubmit={{this.onSubmit}}
+        @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
+        @onSelect={{this.onSelect}}
+      />
+    `);
 
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
 
     await componentA11yAudit(this.element, assert);
-  });
-
-  test('when the job-editor cancel button is clicked, the onCancel hook is called', async function (assert) {
-    const job = await this.store.createRecord('job');
-
-    await renderEditJob(this, job);
-    await click('[data-test-edit-job]');
-    await click('[data-test-cancel-editing]');
-    assert
-      .dom('[data-test-json-viewer]')
-      .exists('We reset state to be in read only mode after hitting cancel.');
   });
 });

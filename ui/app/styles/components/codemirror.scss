@@ -138,7 +138,7 @@ $dark-bright: lighten($dark, 15%);
 header.run-job-header {
   display: grid;
   grid-template-columns: 1fr auto;
-  margin-bottom: 2rem;
+  margin: 2rem 0rem;
   gap: 0 1rem;
   & > h1 {
     grid-column: -1 / 1;
@@ -162,7 +162,7 @@ header.run-job-header {
   justify-content: space-between;
 }
 
-.job-definition-toggle {
+.job-definition-select {
   border: 1px solid $grey-blue;
   background: rgba(0, 0, 0, 0.05);
   border-radius: 2px;
