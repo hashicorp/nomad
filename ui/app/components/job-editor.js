@@ -8,36 +8,38 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { tracked } from '@glimmer/tracking';
 
 export default class JobEditor extends Component {
-  @service store;
   @service config;
+  @service store;
 
   @tracked error = null;
   @tracked planOutput = null;
-  @tracked isEditing;
-  @tracked view;
 
   constructor() {
     super(...arguments);
-    this.isEditing = !!(this.args.context === 'new');
-    this.view = this.args.specification ? 'job-spec' : 'full-definition';
+
+    if (this.definition) {
+      this.setDefinitionOnModel();
+    }
   }
 
-  toggleEdit(bool) {
-    this.isEditing = bool || !this.isEditing;
+  get isEditing() {
+    return ['new', 'edit'].includes(this.args.context);
+  }
+
+  @action
+  setDefinitionOnModel() {
+    this.args.job.set('_newDefinition', this.definition);
   }
 
   @action
   edit() {
-    this.args.job.set(
-      '_newDefinition',
-      JSON.stringify(this.args.definition, null, 2)
-    );
-    this.toggleEdit(true);
+    this.setDefinitionOnModel();
+    this.args.onToggleEdit(true);
   }
 
   @action
   onCancel() {
-    this.toggleEdit(false);
+    this.args.onToggleEdit(false);
   }
 
   get stage() {
@@ -108,9 +110,13 @@ export default class JobEditor extends Component {
   }
 
   @action
-  updateCode(value) {
+  updateCode(value, type = 'job') {
     if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
-      this.args.job.set('_newDefinition', value);
+      if (type === 'hclVars') {
+        this.args.job.set('_newDefinitionVariables', value);
+      } else {
+        this.args.job.set('_newDefinition', value);
+      }
     }
   }
 
@@ -125,15 +131,9 @@ export default class JobEditor extends Component {
     reader.readAsText(file);
   }
 
-  @action
-  toggleView() {
-    const opposite = this.view === 'job-spec' ? 'full-definition' : 'job-spec';
-    this.view = opposite;
-  }
-
   get definition() {
-    if (this.view === 'full-definition') {
-      return this.args.definition;
+    if (this.args.view === 'full-definition') {
+      return JSON.stringify(this.args.definition, null, 2);
     } else {
       return this.args.specification;
     }
@@ -148,7 +148,7 @@ export default class JobEditor extends Component {
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
-      view: this.view,
+      view: this.args.view,
     };
   }
 
@@ -160,7 +160,7 @@ export default class JobEditor extends Component {
       onReset: this.reset,
       onSaveAs: this.args.handleSaveAsTemplate,
       onSubmit: this.submit,
-      onToggle: this.toggleView,
+      onSelect: this.args.onSelect,
       onUpdate: this.updateCode,
       onUpload: this.uploadJobSpec,
     };

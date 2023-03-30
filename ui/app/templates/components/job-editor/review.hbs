@@ -1,17 +1,3 @@
-{{#if @data.shouldShowPlanMessage}}
-    <div class="notification is-info">
-    <div class="columns">
-        <div class="column">
-        <h3 class="title is-4" data-test-plan-help-title>Job Plan</h3>
-        <p data-test-plan-help-message>This is the impact running this job
-            will have on your cluster.</p>
-        </div>
-        <div class="column is-centered is-minimum">
-        <Hds::Button @text="Okay" {{on "click" (toggle-action "showPlanMessage" this)}} data-test-plan-help-dismiss />
-        </div>
-    </div>
-    </div>
-{{/if}}
 <div class="boxed-section">
     <div class="boxed-section-head">Job Plan</div>
     <div class="boxed-section-body is-dark">
