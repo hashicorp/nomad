@@ -3,19 +3,19 @@
     Job Definition
     <div class="pull-right" style="display: flex">
         {{#if @data.hasSpecification}}
-        <div class="job-definition-toggle" data-test-toggle={{@data.view}}>
+        <div class="job-definition-select" data-test-select={{@data.view}}>
             <button 
                 class="button is-small is-borderless {{if (eq @data.view "job-spec") "is-active"}}"
                 type="button"
-                {{on "click" @fns.onToggle}}
+                {{on "click" (fn @fns.onSelect "job-spec")}}
             >
                 Job Spec
             </button>
             <button 
                 class="button is-small is-borderless {{if (eq @data.view "full-definition") "is-active"}}"
                 type="button"
-                {{on "click" @fns.onToggle}}
-                data-test-toggle-full
+                {{on "click" (fn @fns.onSelect "full-definition")}}
+                data-test-select-full
             >
                 Full Definition
             </button>
@@ -44,7 +44,15 @@
             }} 
         />
     {{else}}
-        <JsonViewer data-test-definition-view @json={{@data.definition}} />
+        <div
+            data-test-json-viewer
+            {{code-mirror
+            content=@data.definition
+            theme="hashi-read-only"
+            readOnly=true
+            screenReaderLabel="JSON Viewer"
+            }}
+        />
     {{/if}}
     </div>
 </div>

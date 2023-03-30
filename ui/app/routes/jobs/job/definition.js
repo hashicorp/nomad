@@ -28,4 +28,15 @@ export default class DefinitionRoute extends Route {
       controller.set('isEditing', false);
     }
   }
+
+  setupController(controller, model) {
+    super.setupController(controller, model);
+
+    const view = controller.view
+      ? controller.view
+      : model?.specification
+      ? 'job-spec'
+      : 'full-definition';
+    controller.view = view;
+  }
 }
