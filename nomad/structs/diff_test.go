@@ -8260,6 +8260,84 @@ func TestServicesDiff(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			Name:       "SidecarService with different meta",
+			Contextual: false,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						SidecarService: &ConsulSidecarService{
+							Port:  "http",
+							Proxy: &ConsulProxy{},
+							Meta: map[string]string{
+								"foo": "qux",
+							},
+						},
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{},
+						},
+					},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						SidecarService: &ConsulSidecarService{
+							Port:  "http",
+							Proxy: &ConsulProxy{},
+							Meta: map[string]string{
+								"foo":     "var",
+								"testKey": "testValue",
+							},
+						},
+						Gateway: &ConsulGateway{
+							Ingress: &ConsulIngressConfigEntry{},
+						},
+					},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Objects: []*ObjectDiff{
+						{
+							Type:   "Edited",
+							Name:   "ConsulConnect",
+							Fields: nil,
+							Objects: []*ObjectDiff{
+								{
+									Type: "Edited",
+									Name: "SidecarService",
+									Fields: []*FieldDiff{
+										{
+											Type:        "Edited",
+											Name:        "Meta[foo]",
+											Old:         "qux",
+											New:         "var",
+											Annotations: nil,
+										},
+										{
+											Type:        "Added",
+											Name:        "Meta[testKey]",
+											Old:         "",
+											New:         "testValue",
+											Annotations: nil,
+										},
+									},
+									Objects: nil,
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
