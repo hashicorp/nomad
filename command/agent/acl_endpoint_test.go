@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1122,7 +1123,7 @@ func TestHTTPServer_ACLAuthMethodListRequest(t *testing.T) {
 
 				// Upsert two auth-methods into state.
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
-					10, []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}))
+					10, []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}))
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodGet, "/v1/acl/auth-methods", nil)
@@ -1198,7 +1199,7 @@ func TestHTTPServer_ACLAuthMethodRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Create a mock auth-method to use in the request body.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 
 				// Build the HTTP request.
 				req, err := http.NewRequest(http.MethodPut, "/v1/acl/auth-method", encodeReq(mockACLAuthMethod))
@@ -1269,7 +1270,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Create a mock auth-method and put directly into state.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1294,7 +1295,7 @@ func TestHTTPServer_ACLAuthMethodSpecificRequest(t *testing.T) {
 			testFn: func(srv *TestAgent) {
 
 				// Create a mock auth-method and put directly into state.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					20, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1499,7 +1500,7 @@ func TestHTTPServer_ACLBindingRuleRequest(t *testing.T) {
 
 				// Upsert the auth method that the binding rule will associate
 				// with.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					10, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1607,7 +1608,7 @@ func TestHTTPServer_ACLBindingRuleSpecificRequest(t *testing.T) {
 
 				// Upsert the auth method that the binding rule will associate
 				// with.
-				mockACLAuthMethod := mock.ACLAuthMethod()
+				mockACLAuthMethod := mock.ACLOIDCAuthMethod()
 				must.NoError(t, srv.server.State().UpsertACLAuthMethods(
 					10, []*structs.ACLAuthMethod{mockACLAuthMethod}))
 
@@ -1716,7 +1717,7 @@ func TestHTTPServer_ACLOIDCAuthURLRequest(t *testing.T) {
 
 				// Generate and upsert an ACL auth method for use. Certain values must be
 				// taken from the cap OIDC provider just like real world use.
-				mockedAuthMethod := mock.ACLAuthMethod()
+				mockedAuthMethod := mock.ACLOIDCAuthMethod()
 				mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 				mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
 				mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
@@ -1799,7 +1800,7 @@ func TestHTTPServer_ACLOIDCCompleteAuthRequest(t *testing.T) {
 
 				// Generate and upsert an ACL auth method for use. Certain values must be
 				// taken from the cap OIDC provider just like real world use.
-				mockedAuthMethod := mock.ACLAuthMethod()
+				mockedAuthMethod := mock.ACLOIDCAuthMethod()
 				mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
 				mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
 				mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
@@ -1880,6 +1881,138 @@ func TestHTTPServer_ACLOIDCCompleteAuthRequest(t *testing.T) {
 
 				// Send the HTTP request.
 				obj, err := testAgent.Server.ACLOIDCCompleteAuthRequest(respW, req)
+				must.NoError(t, err)
+
+				aclTokenResp, ok := obj.(*structs.ACLToken)
+				must.True(t, ok)
+				must.NotNil(t, aclTokenResp)
+				must.Len(t, 1, aclTokenResp.Policies)
+				must.Eq(t, mockACLPolicy.Name, aclTokenResp.Policies[0])
+				must.Len(t, 1, aclTokenResp.Roles)
+				must.Eq(t, mockACLRole.Name, aclTokenResp.Roles[0].Name)
+				must.Eq(t, mockACLRole.ID, aclTokenResp.Roles[0].ID)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
+}
+
+func TestHTTPServer_ACLLoginRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "incorrect method",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodConnect, "/v1/acl/login", nil)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLOIDCCompleteAuthRequest(respW, req)
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), "Invalid method")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "success",
+			testFn: func(testAgent *TestAgent) {
+
+				// Generate a sample JWT
+				iat := time.Now().Unix()
+				nbf := time.Now().Unix()
+				exp := time.Now().Add(time.Hour).Unix()
+				claims := jwt.MapClaims{
+					"iss":                            "nomad test suite",
+					"iat":                            iat,
+					"nbf":                            nbf,
+					"exp":                            exp,
+					"aud":                            "engineering",
+					"http://nomad.internal/policies": []string{"engineering"},
+					"http://nomad.internal/roles":    []string{"engineering"},
+				}
+
+				token, pubKey, err := mock.SampleJWTokenWithKeys(claims, nil)
+				must.NoError(t, err)
+
+				// Generate and upsert a JWT ACL auth method for use.
+				mockedAuthMethod := mock.ACLJWTAuthMethod()
+				mockedAuthMethod.Config.BoundAudiences = []string{"engineering"}
+				mockedAuthMethod.Config.JWTValidationPubKeys = []string{pubKey}
+				mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}
+				mockedAuthMethod.Config.ExpirationLeeway = time.Duration(3600)
+				mockedAuthMethod.Config.ClockSkewLeeway = time.Duration(3600)
+				mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+				mockedAuthMethod.Config.ListClaimMappings = map[string]string{
+					"http://nomad.internal/roles":    "roles",
+					"http://nomad.internal/policies": "policies",
+				}
+
+				must.NoError(t, testAgent.server.State().UpsertACLAuthMethods(
+					10, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+				// Generate the request body.
+				requestBody := structs.ACLLoginRequest{
+					AuthMethodName: mockedAuthMethod.Name,
+					LoginToken:     token,
+					WriteRequest: structs.WriteRequest{
+						Region: "global",
+					},
+				}
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(http.MethodPost, "/v1/acl/login", encodeReq(&requestBody))
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				_, err = testAgent.Server.ACLLoginRequest(respW, req)
+				must.ErrorContains(t, err, "no role or policy bindings matched")
+
+				// Upsert an ACL policy and role, so that we can reference this within our
+				// OIDC claims.
+				mockACLPolicy := mock.ACLPolicy()
+				must.NoError(t, testAgent.server.State().UpsertACLPolicies(
+					structs.MsgTypeTestSetup, 20, []*structs.ACLPolicy{mockACLPolicy}))
+
+				mockACLRole := mock.ACLRole()
+				mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: mockACLPolicy.Name}}
+				must.NoError(t, testAgent.server.State().UpsertACLRoles(
+					structs.MsgTypeTestSetup, 30, []*structs.ACLRole{mockACLRole}, true))
+
+				// Generate and upsert two binding rules, so we can test both ACL Policy
+				// and Role claim mapping.
+				mockBindingRule1 := mock.ACLBindingRule()
+				mockBindingRule1.AuthMethod = mockedAuthMethod.Name
+				mockBindingRule1.BindType = structs.ACLBindingRuleBindTypePolicy
+				mockBindingRule1.Selector = "engineering in list.policies"
+				mockBindingRule1.BindName = mockACLPolicy.Name
+
+				mockBindingRule2 := mock.ACLBindingRule()
+				mockBindingRule2.AuthMethod = mockedAuthMethod.Name
+				mockBindingRule2.BindName = mockACLRole.Name
+
+				must.NoError(t, testAgent.server.State().UpsertACLBindingRules(
+					40, []*structs.ACLBindingRule{mockBindingRule1, mockBindingRule2}, true))
+
+				// Build the HTTP request.
+				req, err = http.NewRequest(http.MethodPost, "/v1/acl/login", encodeReq(&requestBody))
+				must.NoError(t, err)
+				respW = httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLLoginRequest(respW, req)
 				must.NoError(t, err)
 
 				aclTokenResp, ok := obj.(*structs.ACLToken)

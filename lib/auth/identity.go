@@ -1,4 +1,4 @@
-package oidc
+package auth
 
 import (
 	"github.com/hashicorp/nomad/nomad/structs"

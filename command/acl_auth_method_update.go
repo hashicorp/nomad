@@ -46,8 +46,7 @@ General Options:
 ACL Auth Method Update Options:
 
   -type
-    Updates the type of the auth method. Currently the only supported type is
-    'OIDC'.
+    Updates the type of the auth method. Supported types are 'OIDC' and 'JWT'.
 
   -max-token-ttl
     Updates the duration of time all tokens created by this auth method should be
@@ -79,7 +78,7 @@ ACL Auth Method Update Options:
 func (a *ACLAuthMethodUpdateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":           complete.PredictSet("OIDC"),
+			"-type":           complete.PredictSet("OIDC", "JWT"),
 			"-max-token-ttl":  complete.PredictAnything,
 			"-token-locality": complete.PredictSet("local", "global"),
 			"-default":        complete.PredictSet("true", "false"),
@@ -161,8 +160,8 @@ func (a *ACLAuthMethodUpdateCommand) Run(args []string) int {
 	}
 
 	if slices.Contains(setFlags, "type") {
-		if strings.ToLower(a.methodType) != "oidc" {
-			a.Ui.Error("ACL auth method type must be set to 'OIDC'")
+		if !slices.Contains([]string{"OIDC", "JWT"}, strings.ToUpper(a.methodType)) {
+			a.Ui.Error("ACL auth method type must be set to 'OIDC' or 'JWT'")
 			return 1
 		}
 		updatedMethod.Type = a.methodType

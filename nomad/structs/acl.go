@@ -169,6 +169,14 @@ const (
 	// Args: ACLOIDCCompleteAuthRequest
 	// Reply: ACLOIDCCompleteAuthResponse
 	ACLOIDCCompleteAuthRPCMethod = "ACL.OIDCCompleteAuth"
+
+	// ACLLoginRPCMethod is the RPC method for performing a non-OIDC login
+	// workflow. It exchanges the provided token for a Nomad ACL token with
+	// roles as defined within the remote provider.
+	//
+	// Args: ACLLoginRequest
+	// Reply: ACLLoginResponse
+	ACLLoginRPCMethod = "ACL.Login"
 )
 
 const (
@@ -185,6 +193,23 @@ const (
 	// maxACLBindingRuleDescriptionLength limits an ACL binding rules
 	// description length and should be used to validate the object.
 	maxACLBindingRuleDescriptionLength = 256
+
+	// ACLAuthMethodTokenLocalityLocal is the ACLAuthMethod.TokenLocality that
+	// will generate ACL tokens which can only be used on the local cluster the
+	// request was made.
+	ACLAuthMethodTokenLocalityLocal = "local"
+
+	// ACLAuthMethodTokenLocalityGlobal is the ACLAuthMethod.TokenLocality that
+	// will generate ACL tokens which can be used on all federated clusters.
+	ACLAuthMethodTokenLocalityGlobal = "global"
+
+	// ACLAuthMethodTypeOIDC the ACLAuthMethod.Type and represents an
+	// auth-method which uses the OIDC protocol.
+	ACLAuthMethodTypeOIDC = "OIDC"
+
+	// ACLAuthMethodTypeJWT the ACLAuthMethod.Type and represents an auth-method
+	// which uses the JWT type.
+	ACLAuthMethodTypeJWT = "JWT"
 )
 
 var (
@@ -193,6 +218,9 @@ var (
 
 	// ValidACLAuthMethod is used to validate an ACL auth method name.
 	ValidACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// ValitACLAuthMethodTypes lists supported auth method types.
+	ValidACLAuthMethodTypes = []string{ACLAuthMethodTypeOIDC, ACLAuthMethodTypeJWT}
 )
 
 type ACLCacheEntry[T any] lang.Pair[T, time.Time]
@@ -895,7 +923,7 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 			mErr.Errors, fmt.Errorf("invalid token locality '%s'", a.TokenLocality))
 	}
 
-	if a.Type != "OIDC" {
+	if !slices.Contains(ValidACLAuthMethodTypes, a.Type) {
 		mErr.Errors = append(
 			mErr.Errors, fmt.Errorf("invalid token type '%s'", a.Type))
 	}
@@ -915,16 +943,61 @@ func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool { return a.TokenLocality ==
 
 // ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
-	OIDCDiscoveryURL    string
-	OIDCClientID        string
-	OIDCClientSecret    string
-	OIDCScopes          []string
-	BoundAudiences      []string
+	// A list of PEM-encoded public keys to use to authenticate signatures
+	// locally
+	JWTValidationPubKeys []string
+
+	// JSON Web Key Sets url for authenticating signatures
+	JWKSURL string
+
+	// The OIDC Discovery URL, without any .well-known component (base path)
+	OIDCDiscoveryURL string
+
+	// The OAuth Client ID configured with the OIDC provider
+	OIDCClientID string
+
+	// The OAuth Client Secret configured with the OIDC provider
+	OIDCClientSecret string
+
+	// List of OIDC scopes
+	OIDCScopes []string
+
+	// List of auth claims that are valid for login
+	BoundAudiences []string
+
+	// The value against which to match the iss claim in a JWT
+	BoundIssuer []string
+
+	// A list of allowed values for redirect_uri
 	AllowedRedirectURIs []string
-	DiscoveryCaPem      []string
-	SigningAlgs         []string
-	ClaimMappings       map[string]string
-	ListClaimMappings   map[string]string
+
+	// PEM encoded CA certs for use by the TLS client used to talk with the
+	// OIDC Discovery URL.
+	DiscoveryCaPem []string
+
+	// PEM encoded CA cert for use by the TLS client used to talk with the JWKS
+	// URL
+	JWKSCACert string
+
+	// A list of supported signing algorithms
+	SigningAlgs []string
+
+	// Duration in seconds of leeway when validating expiration of a token to
+	// account for clock skew
+	ExpirationLeeway time.Duration
+
+	// Duration in seconds of leeway when validating not before values of a
+	// token to account for clock skew.
+	NotBeforeLeeway time.Duration
+
+	// Duration in seconds of leeway when validating all claims to account for
+	// clock skew.
+	ClockSkewLeeway time.Duration
+
+	// Mappings of claims (key) that will be copied to a metadata field
+	// (value).
+	ClaimMappings     map[string]string
+	ListClaimMappings map[string]string
 }
 
 func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
@@ -935,13 +1008,102 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	c := new(ACLAuthMethodConfig)
 	*c = *a
 
+	c.JWTValidationPubKeys = slices.Clone(a.JWTValidationPubKeys)
 	c.OIDCScopes = slices.Clone(a.OIDCScopes)
 	c.BoundAudiences = slices.Clone(a.BoundAudiences)
+	c.BoundIssuer = slices.Clone(a.BoundIssuer)
 	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
 	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
 	c.SigningAlgs = slices.Clone(a.SigningAlgs)
 
 	return c
+}
+
+// MarshalJSON implements the json.Marshaler interface and allows
+// time.Diration fields to be marshaled correctly.
+func (a *ACLAuthMethodConfig) MarshalJSON() ([]byte, error) {
+	type Alias ACLAuthMethodConfig
+	exported := &struct {
+		ExpirationLeeway string
+		NotBeforeLeeway  string
+		ClockSkewLeeway  string
+		*Alias
+	}{
+		ExpirationLeeway: a.ExpirationLeeway.String(),
+		NotBeforeLeeway:  a.NotBeforeLeeway.String(),
+		ClockSkewLeeway:  a.ClockSkewLeeway.String(),
+		Alias:            (*Alias)(a),
+	}
+	if a.ExpirationLeeway == 0 {
+		exported.ExpirationLeeway = ""
+	}
+	if a.NotBeforeLeeway == 0 {
+		exported.NotBeforeLeeway = ""
+	}
+	if a.ClockSkewLeeway == 0 {
+		exported.ClockSkewLeeway = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// time.Duration fields to be unmarshalled correctly.
+func (a *ACLAuthMethodConfig) UnmarshalJSON(data []byte) (err error) {
+	type Alias ACLAuthMethodConfig
+	aux := &struct {
+		ExpirationLeeway any
+		NotBeforeLeeway  any
+		ClockSkewLeeway  any
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.ExpirationLeeway != nil {
+		switch v := aux.ExpirationLeeway.(type) {
+		case string:
+			if v != "" {
+				if a.ExpirationLeeway, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.ExpirationLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ExpirationLeeway type: %v", v)
+		}
+	}
+	if aux.NotBeforeLeeway != nil {
+		switch v := aux.NotBeforeLeeway.(type) {
+		case string:
+			if v != "" {
+				if a.NotBeforeLeeway, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.NotBeforeLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected NotBeforeLeeway type: %v", v)
+		}
+	}
+	if aux.ClockSkewLeeway != nil {
+		switch v := aux.ClockSkewLeeway.(type) {
+		case string:
+			if v != "" {
+				if a.ClockSkewLeeway, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			a.ClockSkewLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ClockSkewLeeway type: %v", v)
+		}
+	}
+	return nil
 }
 
 // ACLAuthClaims is the claim mapping of the OIDC auth method in a format that
@@ -1433,9 +1595,39 @@ func (a *ACLOIDCCompleteAuthRequest) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-// ACLOIDCCompleteAuthResponse is the response when the OIDC auth flow has been
+// ACLLoginResponse is the response when the auth flow has been
 // completed successfully.
-type ACLOIDCCompleteAuthResponse struct {
+type ACLLoginResponse struct {
 	ACLToken *ACLToken
 	WriteMeta
+}
+
+// ACLLoginRequest is the request object to begin auth with an external
+// token provider.
+type ACLLoginRequest struct {
+
+	// AuthMethodName is the name of the auth method being used to login. This
+	// is a required parameter.
+	AuthMethodName string
+
+	// LoginToken is the 3rd party token that we use to exchange for Nomad ACL
+	// Token in order to authenticate. This is a required parameter.
+	LoginToken string
+
+	WriteRequest
+}
+
+// Validate ensures the request object contains all the required fields in
+// order to complete the authentication flow.
+func (a *ACLLoginRequest) Validate() error {
+
+	var mErr multierror.Error
+
+	if a.AuthMethodName == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing auth method name"))
+	}
+	if a.LoginToken == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("missing login token"))
+	}
+	return mErr.ErrorOrNil()
 }

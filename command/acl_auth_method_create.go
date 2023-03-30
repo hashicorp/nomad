@@ -50,8 +50,7 @@ ACL Auth Method Create Options:
     between 1-128 characters and is a required parameter.
 
   -type
-    Sets the type of the auth method. Currently the only supported type is
-    'OIDC'.
+    Sets the type of the auth method. Supported types are 'OIDC' and 'JWT'.
 
   -max-token-ttl
     Sets the duration of time all tokens created by this auth method should be
@@ -83,7 +82,7 @@ func (a *ACLAuthMethodCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(a.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-name":           complete.PredictAnything,
-			"-type":           complete.PredictSet("OIDC"),
+			"-type":           complete.PredictSet("OIDC", "JWT"),
 			"-max-token-ttl":  complete.PredictAnything,
 			"-token-locality": complete.PredictSet("local", "global"),
 			"-default":        complete.PredictSet("true", "false"),
@@ -140,8 +139,8 @@ func (a *ACLAuthMethodCreateCommand) Run(args []string) int {
 		a.Ui.Error("Max token TTL must be set to a value between min and max TTL configured for the server.")
 		return 1
 	}
-	if strings.ToUpper(a.methodType) != "OIDC" {
-		a.Ui.Error("ACL auth method type must be set to 'OIDC'")
+	if !slices.Contains([]string{"OIDC", "JWT"}, strings.ToUpper(a.methodType)) {
+		a.Ui.Error("ACL auth method type must be set to 'OIDC' or 'JWT'")
 		return 1
 	}
 	if len(a.config) == 0 {

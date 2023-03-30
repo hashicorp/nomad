@@ -55,7 +55,7 @@ func TestACLOIDC_GetAuthURL(t *testing.T) {
 		ClientNonce:    "fpSPuaodKevKfDU3IeXb",
 	}
 
-	authURLResp, _, err := testClient.ACLOIDC().GetAuthURL(&authURLRequest, nil)
+	authURLResp, _, err := testClient.ACLAuth().GetAuthURL(&authURLRequest, nil)
 	must.NoError(t, err)
 
 	// The response URL comes encoded, so decode this and check we have each
@@ -170,7 +170,7 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 		Code:           "codeABC",
 	}
 
-	completeAuthResp, _, err := testClient.ACLOIDC().CompleteAuth(&authURLRequest, nil)
+	completeAuthResp, _, err := testClient.ACLAuth().CompleteAuth(&authURLRequest, nil)
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp)
 	must.Len(t, 1, completeAuthResp.Policies)

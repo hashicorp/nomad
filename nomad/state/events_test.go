@@ -1058,7 +1058,7 @@ func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
 	defer testState.StopEventBroker()
 
 	// Generate a test ACL auth method
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 
 	// Upsert the auth method straight into state
 	writeTxn := testState.db.WriteTxn(10)
