@@ -13,15 +13,20 @@ export default class JobEditor extends Component {
 
   @tracked error = null;
   @tracked planOutput = null;
-  @tracked isEditing;
 
   constructor() {
     super(...arguments);
-    this.isEditing = !!(this.args.context === 'new');
+
+    if (this.args.definition) {
+      this.args.job.set(
+        '_newDefinition',
+        JSON.stringify(this.args.definition, null, 2)
+      );
+    }
   }
 
-  toggleEdit(bool) {
-    this.isEditing = bool || !this.isEditing;
+  get isEditing() {
+    return ['new', 'edit'].includes(this.args.context);
   }
 
   @action
@@ -30,12 +35,12 @@ export default class JobEditor extends Component {
       '_newDefinition',
       JSON.stringify(this.args.definition, null, 2)
     );
-    this.toggleEdit(true);
+    this.args.onToggleEdit(true);
   }
 
   @action
   onCancel() {
-    this.toggleEdit(false);
+    this.args.onToggleEdit(false);
   }
 
   get stage() {
