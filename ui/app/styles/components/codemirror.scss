@@ -133,7 +133,7 @@ $dark-bright: lighten($dark, 15%);
 header.run-job-header {
   display: grid;
   grid-template-columns: 1fr auto;
-  margin-bottom: 2rem;
+  margin: 2rem 0rem;
   gap: 0 1rem;
   & > h1 {
     grid-column: -1 / 1;

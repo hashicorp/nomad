@@ -15,9 +15,19 @@ export default class DefinitionController extends Controller.extend(
   @alias('model.specification') specification;
 
   @tracked view;
-  queryParams = ['view'];
+  @tracked isEditing = false;
+  queryParams = ['isEditing', 'view'];
 
   @service router;
+
+  get context() {
+    return this.isEditing ? 'edit' : 'read';
+  }
+
+  @action
+  toggleEdit(bool) {
+    this.isEditing = bool || !this.isEditing;
+  }
 
   @action
   selectView(selectedView) {
