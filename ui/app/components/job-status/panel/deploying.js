@@ -9,7 +9,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
   @alias('args.job') job;
   @alias('args.handleError') handleError = () => {};
 
-  // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
   allocTypes = [
     'running',
     'pending',
@@ -108,5 +107,15 @@ export default class JobStatusPanelDeployingComponent extends Component {
         });
     }
     return allocationsOfShowableType;
+  }
+
+  // TODO: eventually we will want this from a new property on a job.
+  // TODO: consolidate w/ the one in steady.js
+  get totalAllocs() {
+    // v----- Experimental method: Count all allocs. Good for testing but not a realistic representation of "Desired"
+    // return this.allocTypes.reduce((sum, type) => sum + this.args.job[type.property], 0);
+
+    // v----- Realistic method: Tally a job's task groups' "count" property
+    return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
   }
 }
