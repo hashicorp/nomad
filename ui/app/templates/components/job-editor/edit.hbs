@@ -13,17 +13,32 @@
     {{/if}}
     </div>
     <div class="boxed-section-body is-full-bleed">
-    <div
-        data-test-editor
-        {{code-mirror
-        screenReaderLabel="Job definition"
-        content=@data.job._newDefinition
-        theme="hashi"
-        onUpdate=@fns.onUpdate
-        mode="javascript"
-        }}
-    />
+        <div
+            data-test-editor
+            {{code-mirror
+            screenReaderLabel="Job definition"
+            content=@data.job._newDefinition
+            theme="hashi"
+            onUpdate=@fns.onUpdate
+            mode="javascript"
+            }}
+        />
     </div>
+    {{#if (eq @data.view "job-spec")}}
+    <div>
+        <h1 style="font-size: 2rem; font-weight: 600">Edit HCL Variables</h1>
+        <div
+            data-test-variable-editor
+            {{code-mirror
+            screenReaderLabel="HLC Variables for Job Spec"
+            content=""
+            theme="hashi"
+            onUpdate=(fn @fns.onUpdate "hclVars")
+            mode="ruby"
+            }}
+        />
+    </div>
+    {{/if}}
 </div>
 <div class="is-associative buttonset">
     <Hds::Button

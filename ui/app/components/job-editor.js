@@ -17,11 +17,8 @@ export default class JobEditor extends Component {
   constructor() {
     super(...arguments);
 
-    if (this.args.definition) {
-      this.args.job.set(
-        '_newDefinition',
-        JSON.stringify(this.args.definition, null, 2)
-      );
+    if (this.definition) {
+      this.setDefinitionOnModel();
     }
   }
 
@@ -30,11 +27,13 @@ export default class JobEditor extends Component {
   }
 
   @action
+  setDefinitionOnModel() {
+    this.args.job.set('_newDefinition', this.definition);
+  }
+
+  @action
   edit() {
-    this.args.job.set(
-      '_newDefinition',
-      JSON.stringify(this.args.definition, null, 2)
-    );
+    this.setDefinitionOnModel();
     this.args.onToggleEdit(true);
   }
 
@@ -111,9 +110,13 @@ export default class JobEditor extends Component {
   }
 
   @action
-  updateCode(value) {
+  updateCode(value, type = 'job') {
     if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
-      this.args.job.set('_newDefinition', value);
+      if (type === 'hclVars') {
+        this.args.job.set('_newDefinitionVariables', value);
+      } else {
+        this.args.job.set('_newDefinition', value);
+      }
     }
   }
 
@@ -130,7 +133,7 @@ export default class JobEditor extends Component {
 
   get definition() {
     if (this.args.view === 'full-definition') {
-      return this.args.definition;
+      return JSON.stringify(this.args.definition, null, 2);
     } else {
       return this.args.specification;
     }
