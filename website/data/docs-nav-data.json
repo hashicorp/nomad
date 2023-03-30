@@ -586,6 +586,10 @@
           {
             "title": "get",
             "path": "commands/license/get"
+          },
+          {
+            "title": "inspect",
+            "path": "commands/license/inspect"
           }
         ]
       },

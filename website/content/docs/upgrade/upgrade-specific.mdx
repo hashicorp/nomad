@@ -15,6 +15,15 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.6.0
 
+#### Enterprise License Validation with BuildDate
+
+Nomad Enterprise 1.6.0 now compares license `ExpirationTime` with the Nomad binary's `BuildDate`,
+rather than comparing the sometimes more lenient license `TerminationTime` with `time.Now()`.
+See the [licensing FAQ](/nomad/docs/v1.6.x/enterprise/license/faq) for more info,
+but most relevant here is that you should run the new
+[`nomad license inspect`](/nomad/docs/commands/license/inspect) command
+before trying to upgrade your Enterprise servers to v1.6.0 or higher.
+
 #### Job Evaluate API Endpoint Requires `submit-job` Instead of `read-job`
 
 Nomad 1.6.0 updated the ACL capability requirement for the job evaluate

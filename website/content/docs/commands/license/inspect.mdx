@@ -1,0 +1,82 @@
+---
+layout: docs
+page_title: 'Commands: license inspect'
+description: |
+  The license inspect command is used to inspect and validate an enterprise license.
+---
+
+# Command: license inspect
+
+<EnterpriseAlert>
+  This command is only present in Nomad Enterprise.
+</EnterpriseAlert>
+
+The `license inspect` command is used to inspect and validate a Nomad Enterprise
+license. It will read the license from a file on disk or an environment variable
+and exit non-0 if the license is not valid with the Nomad binary.
+
+This command should always be run with the new binary before upgrading Nomad on a server,
+as the server agent will not start with an invalid license.
+
+## Usage
+
+```plaintext
+nomad license inspect [/path/to/license.hclic]
+```
+
+## Examples
+
+With a license file argument:
+
+```shell-session
+$ nomad license inspect /path/to/nomad/license.hclic
+Source: /path/to/nomad/license.hclic
+Product: nomad
+License ID: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+Customer ID: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+Installation ID: *
+Issue Time: 2021-12-01 17:49:23.021041516 +0000 UTC
+Start Time: 2021-12-01 00:00:00 +0000 UTC
+Expiration Time: 2023-12-01 00:00:00 +0000 UTC
+Termination Time: 2024-01-01 00:00:00 +0000 UTC
+Build Date: 2000-01-01 00:00:00 +0000 UTC
+Flags: {
+   "modules": [
+      "multicluster-and-efficiency",
+      "governance-policy"
+   ]
+}
+
+License is valid
+```
+
+With a license file environment variable:
+
+```shell-session
+$ export NOMAD_LICENSE_PATH=/path/to/nomad/license.hclic
+$ nomad license inspect
+Source: /path/to/nomad/license.hclic (path from the NOMAD_LICENSE_PATH environment variable)
+Product: nomad
+.....
+License is valid
+```
+
+With a license string environment variable:
+
+```shell-session
+$ export NOMAD_LICENSE=full-license-text-string
+$ nomad license inspect
+Source: NOMAD_LICENSE environment variable
+.....
+License is valid
+```
+
+## Example error
+
+```shell-session
+$ nomad license inspect license.hclic
+...
+Validation Errors:
+   * license is no longer valid
+   * license expiration date is before version build date: expiration=2023-01-13T23:59:59Z build=2023-03-17T00:00:00Z
+```

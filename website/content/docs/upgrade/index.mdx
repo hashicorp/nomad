@@ -141,7 +141,14 @@ are in a `ready` state.
 
 ## Upgrading to Nomad Enterprise
 
-The process of upgrading to a Nomad Enterprise version is identical to upgrading
+Before upgrading servers to Nomad Enterprise versions 1.6.0 and later,
+you should validate your enterprise license with the
+[`nomad license inspect` command](/nomad/docs/commands/license/inspect)
+using the binary that you are upgrading to.
+See the [licensing FAQ](/nomad/docs/enterprise/license/faq)
+for more information.
+
+After that, the process of upgrading to a Nomad Enterprise version is identical to upgrading
 between versions of open source Nomad. The same guidance above should be
 followed and as always, prior to starting the upgrade please check the [specific
 version details](/nomad/docs/upgrade/upgrade-specific) page as some version
