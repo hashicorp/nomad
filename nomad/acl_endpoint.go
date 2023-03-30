@@ -19,6 +19,8 @@ import (
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/auth"
+	"github.com/hashicorp/nomad/lib/auth/jwt"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -43,6 +45,10 @@ const (
 	// aclOIDCCallbackRequestExpiryTime is the deadline used when obtaining an
 	// OIDC provider token. This is used for HTTP requests to external APIs.
 	aclOIDCCallbackRequestExpiryTime = 60 * time.Second
+
+	// aclLoginRequestExpiryTime is the deadline used when performing HTTP
+	// requests to external APIs during the validation of bearer tokens.
+	aclLoginRequestExpiryTime = 60 * time.Second
 )
 
 // ACL endpoint is used for manipulating ACL tokens and policies
@@ -2612,7 +2618,7 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 // provider token for a Nomad ACL token, using the configured ACL role and
 // policy claims to provide authorization.
 func (a *ACL) OIDCCompleteAuth(
-	args *structs.ACLOIDCCompleteAuthRequest, reply *structs.ACLOIDCCompleteAuthResponse) error {
+	args *structs.ACLOIDCCompleteAuthRequest, reply *structs.ACLLoginResponse) error {
 
 	// The OIDC flow can only be used when the Nomad cluster has ACL enabled.
 	if !a.srv.config.ACLEnabled {
@@ -2719,19 +2725,19 @@ func (a *ACL) OIDCCompleteAuth(
 
 	// Generate the data used by the go-bexpr selector that is an internal
 	// representation of the claims that can be understood by Nomad.
-	oidcInternalClaims, err := oidc.SelectorData(authMethod, idTokenClaims, userClaims)
+	oidcInternalClaims, err := auth.SelectorData(authMethod, idTokenClaims, userClaims)
 	if err != nil {
 		return err
 	}
 
 	// Create a new binder object based on the current state snapshot to
 	// provide consistency within the RPC handler.
-	oidcBinder := oidc.NewBinder(stateSnapshot)
+	oidcBinder := auth.NewBinder(stateSnapshot)
 
 	// Generate the role and policy bindings that will be assigned to the ACL
 	// token. Ensure we have at least 1 role or policy, otherwise the RPC will
 	// fail anyway.
-	tokenBindings, err := oidcBinder.Bind(authMethod, oidc.NewIdentity(authMethod.Config, oidcInternalClaims))
+	tokenBindings, err := oidcBinder.Bind(authMethod, auth.NewIdentity(authMethod.Config, oidcInternalClaims))
 	if err != nil {
 		return err
 	}
@@ -2775,5 +2781,154 @@ func (a *ACL) OIDCCompleteAuth(
 	// we will have exactly the same number of tokens returned as we sent. It
 	// is therefore safe to assume we have 1 token.
 	reply.ACLToken = tokenUpsertReply.Tokens[0]
+	return nil
+}
+
+// Login RPC performs non-interactive auth using a given AuthMethod. This method
+// can not be used for OIDC login flow.
+func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginResponse) error {
+
+	// The login flow can only be used when the Nomad cluster has ACL enabled.
+	if !a.srv.config.ACLEnabled {
+		return aclDisabled
+	}
+
+	// Perform the initial forwarding within the region. This ensures we
+	// respect stale queries.
+	if done, err := a.srv.forward(structs.ACLLoginRPCMethod, args, args, reply); done {
+		return err
+	}
+
+	// Measure the login endpoint performance.
+	defer metrics.MeasureSince([]string{"nomad", "acl", "login"}, time.Now())
+
+	// This endpoint can only be used once all servers in all federated regions
+	// have been upgraded to minACLJWTAuthMethodVersion or greater, since JWT Auth
+	// method was introduced then.
+	if !ServersMeetMinimumVersion(a.srv.Members(), AllRegions, minACLJWTAuthMethodVersion, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use JWT ACL auth methods",
+			minACLJWTAuthMethodVersion)
+	}
+
+	// Validate the request arguments to ensure it contains all the data it
+	// needs.
+	if err := args.Validate(); err != nil {
+		return structs.NewErrRPCCodedf(http.StatusBadRequest, "invalid login request: %v", err)
+	}
+
+	// Grab a snapshot of the state, so we can query it safely.
+	stateSnapshot, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Lookup the auth method from state, so we have the entire object
+	// available to us. It's important to check for nil on the auth method
+	// object, as it is possible the request was made with an incorrectly named
+	// auth method.
+	authMethod, err := stateSnapshot.GetACLAuthMethodByName(nil, args.AuthMethodName)
+	if err != nil {
+		return err
+	}
+	if authMethod == nil {
+		return structs.NewErrRPCCodedf(
+			http.StatusBadRequest,
+			"auth-method %q not found",
+			args.AuthMethodName,
+		)
+	}
+
+	// If the authentication method generates global ACL tokens, we need to
+	// forward the request onto the authoritative regional leader.
+	if authMethod.TokenLocalityIsGlobal() {
+		args.Region = a.srv.config.AuthoritativeRegion
+
+		if done, err := a.srv.forward(structs.ACLLoginRPCMethod, args, args, reply); done {
+			return err
+		}
+	}
+
+	// Generate a context with a deadline. This is used when making remote HTTP
+	// requests.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(aclLoginRequestExpiryTime))
+	defer cancel()
+
+	var claims map[string]interface{}
+
+	// Validate the token depending on its method type
+	switch authMethod.Type {
+	case structs.ACLAuthMethodTypeJWT:
+		claims, err = jwt.Validate(ctx, args.LoginToken, authMethod.Config)
+		if err != nil {
+			return structs.NewErrRPCCodedf(
+				http.StatusUnauthorized,
+				"unable to validate provided token: %v",
+				err,
+			)
+		}
+	default:
+		return structs.NewErrRPCCodedf(
+			http.StatusBadRequest,
+			"unsupported auth-method type: %s",
+			authMethod.Type,
+		)
+	}
+
+	// Create a new binder object based on the current state snapshot to
+	// provide consistency within the RPC handler.
+	jwtBinder := auth.NewBinder(stateSnapshot)
+
+	// Generate the data used by the go-bexpr selector that is an internal
+	// representation of the claims that can be understood by Nomad.
+	jwtClaims, err := auth.SelectorData(authMethod, claims, nil)
+	if err != nil {
+		return err
+	}
+
+	tokenBindings, err := jwtBinder.Bind(authMethod, auth.NewIdentity(authMethod.Config, jwtClaims))
+	if err != nil {
+		return err
+	}
+	if tokenBindings.None() && !tokenBindings.Management {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, "no role or policy bindings matched")
+	}
+
+	// Build our token RPC request. The RPC handler includes a lot of specific
+	// logic, so we do not want to call Raft directly or copy that here. In the
+	// future we should try and extract out the logic into an interface, or at
+	// least a separate function.
+	token := structs.ACLToken{
+		Name:          "JWT-" + authMethod.Name,
+		Global:        authMethod.TokenLocalityIsGlobal(),
+		ExpirationTTL: authMethod.MaxTokenTTL,
+	}
+
+	if tokenBindings.Management {
+		token.Type = structs.ACLManagementToken
+	} else {
+		token.Type = structs.ACLClientToken
+		token.Policies = tokenBindings.Policies
+		token.Roles = tokenBindings.Roles
+	}
+
+	tokenUpsertRequest := structs.ACLTokenUpsertRequest{
+		Tokens: []*structs.ACLToken{&token},
+		WriteRequest: structs.WriteRequest{
+			Region:    a.srv.Region(),
+			AuthToken: a.srv.getLeaderAcl(),
+		},
+	}
+
+	var tokenUpsertReply structs.ACLTokenUpsertResponse
+
+	if err := a.srv.RPC(structs.ACLUpsertTokensRPCMethod, &tokenUpsertRequest, &tokenUpsertReply); err != nil {
+		return err
+	}
+
+	// The way the UpsertTokens RPC currently works, if we get no error, then
+	// we will have exactly the same number of tokens returned as we sent. It
+	// is therefore safe to assume we have 1 token.
+	reply.ACLToken = tokenUpsertReply.Tokens[0]
+
 	return nil
 }

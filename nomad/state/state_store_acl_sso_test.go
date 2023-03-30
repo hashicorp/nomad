@@ -15,7 +15,7 @@ func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
 	testState := testStateStore(t)
 
 	// Create mock auth methods
-	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}
 
 	must.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
 
@@ -88,7 +88,7 @@ func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
 
 	// Try adding a new auth method, which has a name clash with an existing
 	// entry.
-	dup := mock.ACLAuthMethod()
+	dup := mock.ACLOIDCAuthMethod()
 	dup.Name = mockedACLAuthMethods[0].Name
 	dup.Type = mockedACLAuthMethods[0].Type
 
@@ -115,7 +115,7 @@ func TestStateStore_DeleteACLAuthMethods(t *testing.T) {
 
 	// Generate some mocked ACL auth methods for testing and upsert these
 	// straight into state.
-	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}
 	must.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
 
 	// Try and delete a method using a name that doesn't exist. This should
@@ -178,7 +178,7 @@ func TestStateStore_GetACLAuthMethods(t *testing.T) {
 
 	// Generate a some mocked ACL auth methods for testing and upsert these
 	// straight into state.
-	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}
 	must.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
 
 	// List the auth methods and ensure they are exactly as we expect.
@@ -207,7 +207,7 @@ func TestStateStore_GetACLAuthMethodByName(t *testing.T) {
 
 	// Generate a some mocked ACL auth methods for testing and upsert these
 	// straight into state.
-	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	mockedACLAuthMethods := []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}
 	must.NoError(t, testState.UpsertACLAuthMethods(10, mockedACLAuthMethods))
 
 	ws := memdb.NewWatchSet()
@@ -232,9 +232,9 @@ func TestStateStore_GetDefaultACLAuthMethod(t *testing.T) {
 	testState := testStateStore(t)
 
 	// Generate 2 auth methods, make one of them default
-	am1 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
 	am1.Default = true
-	am2 := mock.ACLAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 
 	// upsert
 	mockedACLAuthMethods := []*structs.ACLAuthMethod{am1, am2}

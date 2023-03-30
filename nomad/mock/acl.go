@@ -1,16 +1,21 @@
 package mock
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/golang-jwt/jwt/v4"
 	testing "github.com/mitchellh/go-testing-interface"
-
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // StateStore defines the methods required from state.StateStore but avoids a
@@ -219,7 +224,7 @@ func ACLManagementToken() *structs.ACLToken {
 	}
 }
 
-func ACLAuthMethod() *structs.ACLAuthMethod {
+func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 	maxTokenTTL, _ := time.ParseDuration("3600s")
 	method := structs.ACLAuthMethod{
 		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
@@ -232,10 +237,10 @@ func ACLAuthMethod() *structs.ACLAuthMethod {
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
 			OIDCScopes:          []string{"groups"},
-			BoundAudiences:      []string{"audience1", "audience2"},
+			BoundAudiences:      []string{"sales", "engineering"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
 			DiscoveryCaPem:      []string{"foo"},
-			SigningAlgs:         []string{"bar"},
+			SigningAlgs:         []string{"RS256"},
 			ClaimMappings:       map[string]string{"foo": "bar"},
 			ListClaimMappings:   map[string]string{"foo": "bar"},
 		},
@@ -246,6 +251,73 @@ func ACLAuthMethod() *structs.ACLAuthMethod {
 	method.Canonicalize()
 	method.SetHash()
 	return &method
+}
+
+func ACLJWTAuthMethod() *structs.ACLAuthMethod {
+	maxTokenTTL, _ := time.ParseDuration("3600s")
+	method := structs.ACLAuthMethod{
+		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
+		Type:          "JWT",
+		TokenLocality: "local",
+		MaxTokenTTL:   maxTokenTTL,
+		Default:       false,
+		Config: &structs.ACLAuthMethodConfig{
+			JWTValidationPubKeys: []string{},
+			OIDCDiscoveryURL:     "http://example.com",
+			BoundAudiences:       []string{"sales", "engineering"},
+			DiscoveryCaPem:       []string{"foo"},
+			SigningAlgs:          []string{"RS256"},
+			ClaimMappings:        map[string]string{"foo": "bar"},
+			ListClaimMappings:    map[string]string{"foo": "bar"},
+		},
+		CreateTime:  time.Now().UTC(),
+		CreateIndex: 10,
+		ModifyIndex: 10,
+	}
+	method.Canonicalize()
+	method.SetHash()
+	return &method
+}
+
+// SampleJWTokenWithKeys takes a set of claims (can be nil) and optionally
+// a private RSA key that should be used for signing the JWT, and returns:
+// - a JWT signed with a randomly generated RSA key
+// - PEM string of the public part of that key that can be used for validation.
+func SampleJWTokenWithKeys(claims jwt.Claims, rsaKey *rsa.PrivateKey) (string, string, error) {
+	var token, pubkeyPem string
+
+	if rsaKey == nil {
+		var err error
+		rsaKey, err = rsa.GenerateKey(rand.Reader, 4096)
+		if err != nil {
+			return token, pubkeyPem, err
+		}
+	}
+
+	pubkeyBytes, err := x509.MarshalPKIXPublicKey(rsaKey.Public())
+	if err != nil {
+		return token, pubkeyPem, err
+	}
+	pubkeyPem = string(pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PUBLIC KEY",
+			Bytes: pubkeyBytes,
+		},
+	))
+
+	var rawToken *jwt.Token
+	if claims != nil {
+		rawToken = jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	} else {
+		rawToken = jwt.New(jwt.SigningMethodRS256)
+	}
+
+	token, err = rawToken.SignedString(rsaKey)
+	if err != nil {
+		return token, pubkeyPem, err
+	}
+
+	return token, pubkeyPem, nil
 }
 
 func ACLBindingRule() *structs.ACLBindingRule {

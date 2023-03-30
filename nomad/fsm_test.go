@@ -2691,7 +2691,7 @@ func TestFSM_SnapshotRestore_ACLAuthMethods(t *testing.T) {
 	testState := fsm.State()
 
 	// Generate and upsert some ACL auth methods.
-	authMethods := []*structs.ACLAuthMethod{mock.ACLAuthMethod(), mock.ACLAuthMethod()}
+	authMethods := []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}
 	must.NoError(t, testState.UpsertACLAuthMethods(10, authMethods))
 
 	// Perform a snapshot restore.
@@ -3540,8 +3540,8 @@ func TestFSM_UpsertACLAuthMethods(t *testing.T) {
 	ci.Parallel(t)
 	fsm := testFSM(t)
 
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 	req := structs.ACLAuthMethodUpsertRequest{
 		AuthMethods: []*structs.ACLAuthMethod{am1, am2},
 	}
@@ -3564,8 +3564,8 @@ func TestFSM_DeleteACLAuthMethods(t *testing.T) {
 	ci.Parallel(t)
 	fsm := testFSM(t)
 
-	am1 := mock.ACLAuthMethod()
-	am2 := mock.ACLAuthMethod()
+	am1 := mock.ACLOIDCAuthMethod()
+	am2 := mock.ACLOIDCAuthMethod()
 	must.Nil(t, fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
 
 	req := structs.ACLAuthMethodDeleteRequest{
@@ -3591,7 +3591,7 @@ func TestFSM_UpsertACLBindingRules(t *testing.T) {
 	fsm := testFSM(t)
 
 	// Create an auth method and upsert so the binding rules can link to this.
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	must.NoError(t, fsm.state.UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))
 
 	aclBindingRule1 := mock.ACLBindingRule()

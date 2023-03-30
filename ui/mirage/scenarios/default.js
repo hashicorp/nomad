@@ -238,6 +238,7 @@ function smallCluster(server) {
   server.create('auth-method', { name: 'vault' });
   server.create('auth-method', { name: 'auth0' });
   server.create('auth-method', { name: 'cognito' });
+  server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
 }
 
 function mediumCluster(server) {
@@ -570,6 +571,10 @@ Secret: ${token.secretId}
 Accessor: ${token.accessorId}
 
 `);
+
+    console.log(
+      'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.'
+    );
   });
 }
 

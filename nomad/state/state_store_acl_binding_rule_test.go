@@ -24,7 +24,7 @@ func TestStateStore_UpsertACLBindingRules(t *testing.T) {
 
 	// Create an auth method and ensure the binding rule is updated, so it is
 	// related to it.
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	mockedACLBindingRules[0].AuthMethod = authMethod.Name
 
 	must.NoError(t, testState.UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))

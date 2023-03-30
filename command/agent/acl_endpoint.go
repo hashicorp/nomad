@@ -867,8 +867,27 @@ func (s *HTTPServer) ACLOIDCCompleteAuthRequest(resp http.ResponseWriter, req *h
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	var out structs.ACLOIDCCompleteAuthResponse
+	var out structs.ACLLoginResponse
 	if err := s.agent.RPC(structs.ACLOIDCCompleteAuthRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out.ACLToken, nil
+}
+
+// ACLLoginRequest performs a non-interactive authentication request
+func (s *HTTPServer) ACLLoginRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	// The endpoint only supports PUT or POST requests.
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+	var args structs.ACLLoginRequest
+	s.parseWriteRequest(req, &args.WriteRequest)
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+	var out structs.ACLLoginResponse
+	if err := s.agent.RPC(structs.ACLLoginRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
