@@ -8,10 +8,14 @@
 <section class="section">
   <JobEditor
     @cancelable={{true}}
+    @context={{this.context}}
     @definition={{this.definition}}
     @job={{this.job}}
     @specification={{this.specification}}
+    @view={{this.view}}
     @onSubmit={{action this.onSubmit}}
+    @onSelect={{this.selectView}}
+    @onToggleEdit={{this.toggleEdit}}
     data-test-job-editor
   />
 </section>

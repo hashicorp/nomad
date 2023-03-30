@@ -4,18 +4,9 @@
 ~}}
 
 <div>
-  {{#if this.error}}
-    <div data-test-error={{this.error.type}} class="notification is-danger">
-      <h3 class="title is-4" data-test-error-title>{{conditionally-capitalize this.error.type true}} Error</h3>
-      <p data-test-error-message>{{this.error.message}}</p>
-    </div>
-  {{/if}}
-  {{#if this.data.hasVariables}}
-    <div data-test-variable-notification class="notification">
-      <h3 class="title is-4">Job Variable Values Not Shown</h3>
-      <p>Please refer to Nomad CLI to see the current value of variables.</p>
-    </div>
-  {{/if}}
+  <JobEditor::Alert 
+    @data={{merge (hash error=this.error stage=this.stage) this.data}}
+  />
 
     <header class="run-job-header">
       <h1 class="title is-3">Run a job</h1>
@@ -23,6 +14,6 @@
         Paste or author HCL or JSON to submit to your cluster, or select from a list of templates. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.
       </p>
     </header>
-
+    {{did-update this.setDefinitionOnModel this.definition}}
     {{component (concat 'job-editor/' this.stage) data=this.data fns=this.fns}}
 </div>
