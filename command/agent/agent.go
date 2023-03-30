@@ -170,7 +170,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.EnableDebug = agentConfig.EnableDebug
 
 	conf.Build = agentConfig.Version.VersionNumber()
-	conf.BuildDate = agentConfig.Version.BuildDate
 	conf.Revision = agentConfig.Version.Revision
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
@@ -550,9 +549,12 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 
 	// Add Enterprise license configs
-	conf.LicenseEnv = agentConfig.Server.LicenseEnv
-	conf.LicensePath = agentConfig.Server.LicensePath
-	conf.LicenseConfig.AdditionalPubKeys = agentConfig.Server.licenseAdditionalPublicKeys
+	conf.LicenseConfig = &nomad.LicenseConfig{
+		BuildDate:         agentConfig.Version.BuildDate,
+		AdditionalPubKeys: agentConfig.Server.licenseAdditionalPublicKeys,
+		LicenseEnvBytes:   agentConfig.Server.LicenseEnv,
+		LicensePath:       agentConfig.Server.LicensePath,
+	}
 
 	// Add the search configuration
 	if search := agentConfig.Server.Search; search != nil {

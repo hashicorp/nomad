@@ -127,9 +127,6 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
-	// BuildDate is the time of the git commit used to build the program.
-	BuildDate time.Time
-
 	// Revision is a string that carries the version.GitCommit of Nomad that
 	// was compiled.
 	Revision string
@@ -389,10 +386,8 @@ type Config struct {
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
 
-	// LicenseConfig is a tunable knob for enterprise license testing.
+	// LicenseConfig stores information about the Enterprise license loaded for the server.
 	LicenseConfig *LicenseConfig
-	LicenseEnv    string
-	LicensePath   string
 
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig
