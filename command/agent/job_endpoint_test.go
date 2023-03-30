@@ -2557,6 +2557,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Tags:                   []string{"f", "g"},
 								Port:                   "9000",
 								DisableDefaultTCPCheck: true,
+								Meta: map[string]string{
+									"test-key": "test-value",
+								},
 							},
 						},
 					},
@@ -2965,6 +2968,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Tags:                   []string{"f", "g"},
 								Port:                   "9000",
 								DisableDefaultTCPCheck: true,
+								Meta: map[string]string{
+									"test-key": "test-value",
+								},
 							},
 						},
 					},
@@ -3766,11 +3772,17 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 		Proxy: &structs.ConsulProxy{
 			LocalServiceAddress: "192.168.30.1",
 		},
+		Meta: map[string]string{
+			"test-key": "test-value",
+		},
 	}, apiConnectSidecarServiceToStructs(&api.ConsulSidecarService{
 		Tags: []string{"foo"},
 		Port: "myPort",
 		Proxy: &api.ConsulProxy{
 			LocalServiceAddress: "192.168.30.1",
+		},
+		Meta: map[string]string{
+			"test-key": "test-value",
 		},
 	}))
 }

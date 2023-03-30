@@ -1645,6 +1645,7 @@ func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.Co
 		Tags:                   slices.Clone(in.Tags),
 		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
 		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
+		Meta:                   maps.Clone(in.Meta),
 	}
 }
 
