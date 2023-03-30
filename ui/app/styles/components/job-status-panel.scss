@@ -7,6 +7,7 @@
       'allocation-status-row'
       'legend-and-summary';
     gap: 1rem;
+    grid-auto-columns: 100%;
 
     & > h3 {
       grid-area: title;
@@ -25,11 +26,13 @@
       'legend-and-summary'
       'history-and-params';
     gap: 1rem;
+    grid-auto-columns: 100%;
 
     & > .deployment-allocations {
       grid-area: deployment-allocations;
       display: grid;
       gap: 1rem;
+      grid-auto-columns: 100%;
 
       & > h4 {
         margin-bottom: -0.5rem;
