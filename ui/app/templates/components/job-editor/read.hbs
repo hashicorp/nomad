@@ -44,7 +44,15 @@
             }} 
         />
     {{else}}
-        <JsonViewer data-test-definition-view @json={{@data.definition}} />
+        <div
+            data-test-json-viewer
+            {{code-mirror
+            content=@data.definition
+            theme="hashi-read-only"
+            readOnly=true
+            screenReaderLabel="JSON Viewer"
+            }}
+        />
     {{/if}}
     </div>
 </div>

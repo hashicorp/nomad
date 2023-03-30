@@ -4,13 +4,19 @@
         <A.Description data-test-error-message>{{@data.error.message}}</A.Description>
     </Hds::Alert>
   {{/if}}
-  {{#if (and (eq @data.stage "read") @data.hasVariables)}}
+  {{#if (and (eq @data.stage "read") @data.hasVariables (eq @data.view "job-spec"))}}
     {{#if this.shouldShowAlert}}
       <Hds::Alert @type="inline" @onDismiss={{this.dismissAlert}} data-test-variable-notification as |A|>
         <A.Title>Job Variable Values Not Shown</A.Title>
         <A.Description>Please refer to Nomad CLI to see the current value of variables.</A.Description>
       </Hds::Alert>
     {{/if}}
+  {{/if}}
+  {{#if (and (eq @data.stage "edit") (eq @data.view "full-definition"))}}
+      <Hds::Alert @type="inline" @color="warning" data-test-json-warning as |A|>
+        <A.Title>Edit JSON</A.Title>
+        <A.Description>If you edit the JSON formation in the full definition, you will no longer be able to see job spec in HCL.</A.Description>
+      </Hds::Alert>
   {{/if}}
   {{#if (and (eq @data.stage "review") @data.shouldShowPlanMessage)}}
     <Hds::Alert @type="inline" @onDismiss={{fn (mut @data.showPlanMessage)}} as |A|>
