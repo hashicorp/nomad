@@ -2144,6 +2144,7 @@ func linkedServicesEqual(a, b []*ConsulLinkedService) bool {
 }
 
 type ConsulTerminatingConfigEntry struct {
+	Meta     map[string]string
 	Services []*ConsulLinkedService
 }
 
@@ -2161,6 +2162,7 @@ func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
 	}
 
 	return &ConsulTerminatingConfigEntry{
+		Meta:     maps.Clone(e.Meta),
 		Services: services,
 	}
 }
@@ -2170,7 +2172,15 @@ func (e *ConsulTerminatingConfigEntry) Equal(o *ConsulTerminatingConfigEntry) bo
 		return e == o
 	}
 
-	return linkedServicesEqual(e.Services, o.Services)
+	if !linkedServicesEqual(e.Services, o.Services) {
+		return false
+	}
+
+	if !maps.Equal(e.Meta, o.Meta) {
+		return false
+	}
+
+	return true
 }
 
 func (e *ConsulTerminatingConfigEntry) Validate() error {

@@ -625,6 +625,7 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 
 func parseTerminatingConfigEntry(o *ast.ObjectItem) (*api.ConsulTerminatingConfigEntry, error) {
 	valid := []string{
+		"meta",
 		"service",
 	}
 
@@ -633,6 +634,24 @@ func parseTerminatingConfigEntry(o *ast.ObjectItem) (*api.ConsulTerminatingConfi
 	}
 
 	var terminating api.ConsulTerminatingConfigEntry
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "service")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &terminating,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("terminating: %v", err)
+	}
 
 	// Parse service(s)
 

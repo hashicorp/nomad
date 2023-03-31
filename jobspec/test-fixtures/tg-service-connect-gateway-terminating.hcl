@@ -28,6 +28,12 @@ job "connect_gateway_terminating" {
           }
 
           terminating {
+            meta {
+              test-key  = "test-value"
+              test-key1 = "test-value1"
+              test-key2 = "test-value2"
+            }
+
             service {
               name      = "service1"
               ca_file   = "ca.pem"

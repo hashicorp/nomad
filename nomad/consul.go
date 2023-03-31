@@ -17,6 +17,7 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -625,6 +626,7 @@ func convertTerminatingCE(namespace, service string, entry *structs.ConsulTermin
 		Namespace: namespace,
 		Kind:      api.TerminatingGateway,
 		Name:      service,
+		Meta:      maps.Clone(entry.Meta),
 		Services:  linked,
 	}
 }

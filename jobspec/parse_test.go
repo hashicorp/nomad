@@ -1679,6 +1679,11 @@ func TestParse(t *testing.T) {
 									Config:                    map[string]interface{}{"foo": "bar"},
 								},
 								Terminating: &api.ConsulTerminatingConfigEntry{
+									Meta: map[string]string{
+										"test-key":  "test-value",
+										"test-key1": "test-value1",
+										"test-key2": "test-value2",
+									},
 									Services: []*api.ConsulLinkedService{{
 										Name:     "service1",
 										CAFile:   "ca.pem",
