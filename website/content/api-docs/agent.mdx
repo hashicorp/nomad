@@ -21,8 +21,8 @@ eventually consistent.
 | `GET`  | `/agent/members` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -82,8 +82,8 @@ are changes in the cluster.
 | `GET`  | `/agent/servers` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -112,8 +112,8 @@ This endpoint updates the list of known servers to the provided list. This
 | `POST` | `/agent/servers` | `(empty body)` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required  |
 | ---------------- | ------------- |
@@ -141,8 +141,8 @@ This endpoint queries the state of the target agent (self).
 | `GET`  | `/agent/self` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -390,8 +390,8 @@ eligible for servers.
 | `POST` | `/agent/join` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -431,8 +431,8 @@ stop attempting replication. This is only applicable for servers.
 | `POST` | `/agent/force-leave` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required  |
 | ---------------- | ------------- |
@@ -463,8 +463,8 @@ containing an error message.
 | `GET`  | `/agent/health` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -505,8 +505,8 @@ information.
 | `GET`  | `/agent/host` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -585,8 +585,8 @@ This endpoint streams logs from the local agent until the connection is closed
 | `GET`  | `/agent/monitor` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -657,8 +657,8 @@ by ACLs and supports remote forwarding to a client node or server. See the
 | `GET`  | `/agent/pprof/<pprof profile>` | `application/octet-stream` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required  |
 | ---------------- | ------------- |
@@ -669,7 +669,7 @@ The table below shows this endpoint's support for
 This endpoint is enabled whenever ACLs are enabled. Due to the potentially
 sensitive nature of data contained in profiles, as well as their significant
 performance impact, the agent/pprof endpoint is protected by a high level ACL:
-`agent:write`. For these reasons its recommended to leave [`enable_debug`](/docs/configuration#enable_debug)
+`agent:write`. For these reasons its recommended to leave [`enable_debug`](/nomad/docs/configuration#enable_debug)
 unset and only use the ACL-protected endpoints.
 
 The following table explains when each endpoint is available:
@@ -732,8 +732,8 @@ a Nomad server agent's scheduler workers.
 | `GET`  | `/agent/schedulers` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -823,8 +823,8 @@ the perspective of the agent. This is only applicable for servers.
 | `GET`  | `/agent/schedulers/config` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
@@ -871,8 +871,8 @@ to apply the provided values. This is only applicable for servers.
 | `PUT`  | `/agent/schedulers/config` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required  |
 | ---------------- | ------------- |
@@ -919,5 +919,5 @@ $ curl \
 }
 ```
 
-[`enabled_schedulers`]: /docs/configuration/server#enabled_schedulers
-[`num_schedulers`]: /docs/configuration/server#num_schedulers
+[`enabled_schedulers`]: /nomad/docs/configuration/server#enabled_schedulers
+[`num_schedulers`]: /nomad/docs/configuration/server#num_schedulers
