@@ -400,12 +400,29 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 }
 
+type ConsulGatewayTLSSDSConfig struct {
+	ClusterName  string `hcl:"cluster_name,optional" mapstructure:"cluster_name"`
+	CertResource string `hcl:"cert_resource,optional" mapstructure:"cert_resource"`
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled       bool     `hcl:"enabled,optional"`
-	TLSMinVersion string   `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
-	TLSMaxVersion string   `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
-	CipherSuites  []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+	Enabled       bool                       `hcl:"enabled,optional"`
+	TLSMinVersion string                     `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
+	TLSMaxVersion string                     `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
+	CipherSuites  []string                   `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+	SDS           *ConsulGatewayTLSSDSConfig `hcl:"sds_config,block" mapstructure:"sds_config"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -420,6 +437,7 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       tc.Enabled,
 		TLSMinVersion: tc.TLSMinVersion,
 		TLSMaxVersion: tc.TLSMaxVersion,
+		SDS:           tc.SDS.Copy(),
 	}
 	if len(tc.CipherSuites) != 0 {
 		cipherSuites := make([]string, len(tc.CipherSuites))
@@ -430,13 +448,54 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 	return result
 }
 
+// ConsulHTTPHeaderModifiers is a set of rules for HTTP header modification that
+// should be performed by proxies as the request passes through them. It can
+// operate on either request or response headers depending on the context in
+// which it is used.
+type ConsulHTTPHeaderModifiers struct {
+	// Add is a set of name -> value pairs that should be appended to the request
+	// or response (i.e. allowing duplicates if the same header already exists).
+	Add map[string]string `hcl:"add,block" mapstructure:"add"`
+
+	// Set is a set of name -> value pairs that should be added to the request or
+	// response, overwriting any existing header values of the same name.
+	Set map[string]string `hcl:"set,block" mapstructure:"set"`
+
+	// Remove is the set of header names that should be stripped from the request
+	// or response.
+	Remove []string `hcl:"remove,optional" mapstructure:"remove"`
+}
+
+func (h *ConsulHTTPHeaderModifiers) Copy() *ConsulHTTPHeaderModifiers {
+	if h == nil {
+		return nil
+	}
+
+	var remove []string
+	if n := len(h.Remove); n > 0 {
+		remove = make([]string, n)
+		copy(remove, h.Remove)
+	}
+
+	return &ConsulHTTPHeaderModifiers{
+		Add:    maps.Clone(h.Add),
+		Set:    maps.Clone(h.Set),
+		Remove: remove,
+	}
+}
+
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
 type ConsulIngressService struct {
 	// Namespace is not yet supported.
 	// Namespace string
-	Name string `hcl:"name,optional"`
-
-	Hosts []string `hcl:"hosts,optional"`
+	Name                  string                     `hcl:"name,optional"`
+	Hosts                 []string                   `hcl:"hosts,optional"`
+	TLS                   *ConsulGatewayTLSConfig    `hcl:"tls,block" mapstructure:"tls"`
+	RequestHeaders        *ConsulHTTPHeaderModifiers `hcl:"request_headers,block" mapstructure:"request_headers"`
+	ResponseHeaders       *ConsulHTTPHeaderModifiers `hcl:"response_headers,block" mapstructure:"response_headers"`
+	MaxConnections        *uint32                    `hcl:"max_connections,optional" mapstructure:"max_connections"`
+	MaxPendingRequests    *uint32                    `hcl:"max_pending_requests,optional" mapstructure:"max_pending_requests"`
+	MaxConcurrentRequests *uint32                    `hcl:"max_concurrent_requests,optional" mapstructure:"max_concurrent_requests"`
 }
 
 func (s *ConsulIngressService) Canonicalize() {
@@ -454,16 +513,34 @@ func (s *ConsulIngressService) Copy() *ConsulIngressService {
 		return nil
 	}
 
+	ns := new(ConsulIngressService)
+	*ns = *s
+
 	var hosts []string = nil
 	if n := len(s.Hosts); n > 0 {
 		hosts = make([]string, n)
 		copy(hosts, s.Hosts)
 	}
 
-	return &ConsulIngressService{
-		Name:  s.Name,
-		Hosts: hosts,
+	ns.Name = s.Name
+	ns.Hosts = hosts
+	ns.RequestHeaders = s.RequestHeaders.Copy()
+	ns.ResponseHeaders = s.ResponseHeaders.Copy()
+	ns.TLS = s.TLS.Copy()
+
+	if s.MaxConnections != nil {
+		ns.MaxConnections = pointerOf(*s.MaxConnections)
 	}
+
+	if s.MaxPendingRequests != nil {
+		ns.MaxPendingRequests = pointerOf(*s.MaxPendingRequests)
+	}
+
+	if s.MaxConcurrentRequests != nil {
+		ns.MaxConcurrentRequests = pointerOf(*s.MaxConcurrentRequests)
+	}
+
+	return ns
 }
 
 const (

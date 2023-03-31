@@ -114,6 +114,12 @@ envoy_gateway_bind_addresses "<service>" {
   [`CipherSuites`](/consul/docs/connect/config-entries/ingress-gateway#ciphersuites)
   in the Consul documentation for the supported cipher suites.
 
+- `sds` `(SDSConfig: <optional>)` - Defines a set of parameters that configures the listener to load TLS certificates from an external SDS service.
+
+  - `cluster_name` `(string)` - The SDS cluster name to connect to to retrieve certificates.
+
+  - `cert_resource` `(string)` - The SDS resource name to request when fetching the certificate from the SDS service.
+
 #### `listener` Parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.
@@ -174,8 +180,25 @@ envoy_gateway_bind_addresses "<service>" {
 - `key_file` `(string: <optional>)` - A file path to a PEM-encoded private key.
   The file must be accessible by the gateway task. The key is used with the certificate
   to verify the gateway's authenticity. It must be provided if a `cert_file` is provided.
+- `max_concurrent_requests` `(int: 0)` - overrides for the Defaults field
+- `max_connections` `(int: 0)` - overrides for the Defaults field
+- `max_pending_requests` `(int: 0)` - overrides for the Defaults field
+- `response_headers` `(HTTPHeaderModifiers: <optional>)` - A set of HTTP-specific header modification rules that 
+  will be applied to responses from this service. This cannot be used with a tcp listener.
+- `request_headers` `(HTTPHeaderModifiers: <optional>)` - A set of HTTP-specific header modification rules that
+  will be applied to requests routed to this service. This cannot be used with a tcp listener.
 - `sni` `(string: <optional>)` - An optional hostname or domain name to specify during
   the TLS handshake.
+- `tls` `(ServiceTLSConfig: <optional>)` - TLS configuration for this service.
+
+  - `sds` `(SDSConfig: <optional>)` - Defines a set of parameters that configures the SDS source 
+  for the certificate for this specific service. At least one custom host must be specified in Hosts. 
+  The certificate retrieved from SDS will be served for all requests identifying one of the Hosts values 
+  in the TLS Server Name Indication (SNI) header.
+
+    - `cluster_name` `(string)` - The SDS cluster name to connect to to retrieve certificates.
+
+    - `cert_resource` `(string)` - The SDS resource name to request when fetching the certificate from the SDS service.
 
 ### `mesh` Parameters
 

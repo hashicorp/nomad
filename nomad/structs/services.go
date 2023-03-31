@@ -1994,12 +1994,39 @@ func (p *ConsulGatewayProxy) Validate() error {
 	return nil
 }
 
+type ConsulGatewayTLSSDSConfig struct {
+	ClusterName  string
+	CertResource string
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Equal(o *ConsulGatewayTLSSDSConfig) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	return c.ClusterName == o.ClusterName &&
+		c.CertResource == o.CertResource
+}
+
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
 	Enabled       bool
 	TLSMinVersion string
 	TLSMaxVersion string
 	CipherSuites  []string
+	// SDS allows configuring TLS certificate from an SDS service.
+	SDS *ConsulGatewayTLSSDSConfig
 }
 
 func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
@@ -2012,6 +2039,7 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		TLSMinVersion: c.TLSMinVersion,
 		TLSMaxVersion: c.TLSMaxVersion,
 		CipherSuites:  slices.Clone(c.CipherSuites),
+		SDS:           c.SDS.Copy(),
 	}
 }
 
@@ -2023,13 +2051,70 @@ func (c *ConsulGatewayTLSConfig) Equal(o *ConsulGatewayTLSConfig) bool {
 	return c.Enabled == o.Enabled &&
 		c.TLSMinVersion == o.TLSMinVersion &&
 		c.TLSMaxVersion == o.TLSMaxVersion &&
-		helper.SliceSetEq(c.CipherSuites, o.CipherSuites)
+		helper.SliceSetEq(c.CipherSuites, o.CipherSuites) &&
+		c.SDS.Equal(o.SDS)
+}
+
+// ConsulHTTPHeaderModifiers is a set of rules for HTTP header modification that
+// should be performed by proxies as the request passes through them. It can
+// operate on either request or response headers depending on the context in
+// which it is used.
+type ConsulHTTPHeaderModifiers struct {
+	// Add is a set of name -> value pairs that should be appended to the request
+	// or response (i.e. allowing duplicates if the same header already exists).
+	Add map[string]string
+
+	// Set is a set of name -> value pairs that should be added to the request or
+	// response, overwriting any existing header values of the same name.
+	Set map[string]string
+
+	// Remove is the set of header names that should be stripped from the request
+	// or response.
+	Remove []string
+}
+
+func (h *ConsulHTTPHeaderModifiers) Copy() *ConsulHTTPHeaderModifiers {
+	if h == nil {
+		return nil
+	}
+
+	return &ConsulHTTPHeaderModifiers{
+		Add:    maps.Clone(h.Add),
+		Set:    maps.Clone(h.Set),
+		Remove: slices.Clone(h.Remove),
+	}
+}
+
+func (h *ConsulHTTPHeaderModifiers) Equal(o *ConsulHTTPHeaderModifiers) bool {
+	if h == nil || o == nil {
+		return h == o
+	}
+
+	if !maps.Equal(h.Add, o.Add) {
+		return false
+	}
+
+	if !maps.Equal(h.Set, o.Set) {
+		return false
+	}
+
+	if !helper.SliceSetEq(h.Remove, o.Remove) {
+		return false
+	}
+
+	return true
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
 type ConsulIngressService struct {
-	Name  string
-	Hosts []string
+	Name                  string
+	Hosts                 []string
+	TLS                   *ConsulGatewayTLSConfig
+	RequestHeaders        *ConsulHTTPHeaderModifiers
+	ResponseHeaders       *ConsulHTTPHeaderModifiers
+	MaxConnections        *uint32
+	MaxPendingRequests    *uint32
+	MaxConcurrentRequests *uint32
 }
 
 func (s *ConsulIngressService) Copy() *ConsulIngressService {
@@ -2037,16 +2122,37 @@ func (s *ConsulIngressService) Copy() *ConsulIngressService {
 		return nil
 	}
 
+	ns := new(ConsulIngressService)
+	*ns = *s
+
 	var hosts []string = nil
 	if n := len(s.Hosts); n > 0 {
 		hosts = make([]string, n)
 		copy(hosts, s.Hosts)
 	}
 
-	return &ConsulIngressService{
-		Name:  s.Name,
-		Hosts: hosts,
+	ns.Name = s.Name
+	ns.Hosts = hosts
+	ns.RequestHeaders = s.RequestHeaders.Copy()
+	ns.ResponseHeaders = s.ResponseHeaders.Copy()
+
+	if s.TLS != nil {
+		ns.TLS = s.TLS.Copy()
 	}
+
+	if s.MaxConnections != nil {
+		ns.MaxConnections = pointer.Of(*s.MaxConnections)
+	}
+
+	if s.MaxPendingRequests != nil {
+		ns.MaxPendingRequests = pointer.Of(*s.MaxPendingRequests)
+	}
+
+	if s.MaxConcurrentRequests != nil {
+		ns.MaxConcurrentRequests = pointer.Of(*s.MaxConcurrentRequests)
+	}
+
+	return ns
 }
 
 func (s *ConsulIngressService) Equal(o *ConsulIngressService) bool {
@@ -2058,7 +2164,35 @@ func (s *ConsulIngressService) Equal(o *ConsulIngressService) bool {
 		return false
 	}
 
-	return helper.SliceSetEq(s.Hosts, o.Hosts)
+	if !helper.SliceSetEq(s.Hosts, o.Hosts) {
+		return false
+	}
+
+	if !s.TLS.Equal(o.TLS) {
+		return false
+	}
+
+	if !s.RequestHeaders.Equal(o.RequestHeaders) {
+		return false
+	}
+
+	if !s.ResponseHeaders.Equal(o.ResponseHeaders) {
+		return false
+	}
+
+	if !pointer.Eq(s.MaxConnections, o.MaxConnections) {
+		return false
+	}
+
+	if !pointer.Eq(s.MaxPendingRequests, o.MaxPendingRequests) {
+		return false
+	}
+
+	if !pointer.Eq(s.MaxConcurrentRequests, o.MaxConcurrentRequests) {
+		return false
+	}
+
+	return true
 }
 
 func (s *ConsulIngressService) Validate(protocol string) error {
