@@ -799,6 +799,9 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
 	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
 	// (https://tools.ietf.org/html/rfc2782).
+	//  This validation is enforced on Nomad, but not on Consul, however if
+	//  consul-template is being used, service names with dots in them wont be
+	//  admissible.
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
 		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters")
