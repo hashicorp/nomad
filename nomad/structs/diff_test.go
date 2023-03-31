@@ -2783,8 +2783,9 @@ func TestTaskGroupDiff(t *testing.T) {
 							SidecarService: &ConsulSidecarService{
 								Port: "http",
 								Proxy: &ConsulProxy{
-									LocalServiceAddress: "127.0.0.1",
-									LocalServicePort:    8080,
+									LocalServiceAddress:    "127.0.0.1",
+									LocalServicePort:       8080,
+									LocalServiceSocketPath: "/run/test.sock",
 									Upstreams: []ConsulUpstream{
 										{
 											DestinationName:      "foo",
@@ -3097,6 +3098,12 @@ func TestTaskGroupDiff(t *testing.T) {
 														Name: "LocalServicePort",
 														Old:  "",
 														New:  "8080",
+													},
+													{
+														Type: DiffTypeAdded,
+														Name: "LocalServiceSocketPath",
+														Old:  "",
+														New:  "/run/test.sock",
 													},
 												},
 												Objects: []*ObjectDiff{

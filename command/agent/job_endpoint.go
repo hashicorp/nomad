@@ -1661,11 +1661,12 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 	}
 
 	return &structs.ConsulProxy{
-		LocalServiceAddress: in.LocalServiceAddress,
-		LocalServicePort:    in.LocalServicePort,
-		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
-		Expose:              apiConsulExposeConfigToStructs(expose),
-		Config:              maps.Clone(in.Config),
+		LocalServiceAddress:    in.LocalServiceAddress,
+		LocalServicePort:       in.LocalServicePort,
+		LocalServiceSocketPath: in.LocalServiceSocketPath,
+		Upstreams:              apiUpstreamsToStructs(in.Upstreams),
+		Expose:                 apiConsulExposeConfigToStructs(expose),
+		Config:                 maps.Clone(in.Config),
 	}
 }
 

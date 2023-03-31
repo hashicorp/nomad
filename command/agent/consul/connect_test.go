@@ -204,10 +204,11 @@ func TestConnect_connectProxy(t *testing.T) {
 		proxy, err := connectSidecarProxy(info, nil, 2000, testConnectNetwork)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
-			LocalServiceAddress: "",
-			LocalServicePort:    0,
-			Upstreams:           nil,
-			Expose:              api.ExposeConfig{},
+			LocalServiceAddress:    "",
+			LocalServicePort:       0,
+			LocalServiceSocketPath: "",
+			Upstreams:              nil,
+			Expose:                 api.ExposeConfig{},
 			Config: map[string]interface{}{
 				"bind_address":     "0.0.0.0",
 				"bind_port":        2000,
@@ -233,9 +234,10 @@ func TestConnect_connectProxy(t *testing.T) {
 
 	t.Run("normal", func(t *testing.T) {
 		proxy, err := connectSidecarProxy(info, &structs.ConsulProxy{
-			LocalServiceAddress: "0.0.0.0",
-			LocalServicePort:    2000,
-			Upstreams:           nil,
+			LocalServiceAddress:    "0.0.0.0",
+			LocalServicePort:       2000,
+			LocalServiceSocketPath: "dev/null",
+			Upstreams:              nil,
 			Expose: &structs.ConsulExposeConfig{
 				Paths: []structs.ConsulExposePath{{
 					Path:          "/health",
@@ -248,9 +250,10 @@ func TestConnect_connectProxy(t *testing.T) {
 		}, 2000, testConnectNetwork)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
-			LocalServiceAddress: "0.0.0.0",
-			LocalServicePort:    2000,
-			Upstreams:           nil,
+			LocalServiceAddress:    "0.0.0.0",
+			LocalServicePort:       2000,
+			LocalServiceSocketPath: "dev/null",
+			Upstreams:              nil,
 			Expose: api.ExposeConfig{
 				Paths: []api.ExposePath{{
 					Path:          "/health",

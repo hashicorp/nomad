@@ -380,9 +380,10 @@ func TestService_Hash(t *testing.T) {
 				Tags: []string{"original", "sidecar", "tags"},
 				Port: "9000",
 				Proxy: &ConsulProxy{
-					LocalServiceAddress: "127.0.0.1",
-					LocalServicePort:    24000,
-					Config:              map[string]any{"foo": "bar"},
+					LocalServiceAddress:    "127.0.0.1",
+					LocalServicePort:       24000,
+					LocalServiceSocketPath: "/run/test.sock",
+					Config:                 map[string]any{"foo": "bar"},
 					Upstreams: []ConsulUpstream{{
 						DestinationName:      "upstream1",
 						DestinationNamespace: "ns2",
@@ -467,6 +468,10 @@ func TestService_Hash(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.LocalServicePort = 9999 })
 	})
 
+	t.Run("mod connect sidecar proxy local service socket path", func(t *testing.T) {
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.LocalServiceSocketPath = "/run/newTest.sock" })
+	})
+
 	t.Run("mod connect sidecar proxy config", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Config = map[string]interface{}{"foo": "baz"} })
 	})
@@ -515,8 +520,9 @@ func TestConsulConnect_CopyEqual(t *testing.T) {
 			Tags: []string{"tag1", "tag2"},
 			Port: "9001",
 			Proxy: &ConsulProxy{
-				LocalServiceAddress: "127.0.0.1",
-				LocalServicePort:    8080,
+				LocalServiceAddress:    "127.0.0.1",
+				LocalServicePort:       8080,
+				LocalServiceSocketPath: "/run/test.sock",
 				Upstreams: []ConsulUpstream{
 					{
 						DestinationName:      "up1",

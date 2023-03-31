@@ -8,8 +8,9 @@ job "connect-proxy-local-service" {
       connect {
         sidecar_service {
           proxy {
-            local_service_port    = 9876
-            local_service_address = "10.0.1.2"
+            local_service_port        = 9876
+            local_service_address     = "10.0.1.2"
+            local_service_socket_path = "/run/test.sock"
           }
         }
       }

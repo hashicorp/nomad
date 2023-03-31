@@ -8,8 +8,9 @@ job "service-connect-proxy" {
       connect {
         sidecar_service {
           proxy {
-            local_service_port    = 8080
-            local_service_address = "10.0.1.2"
+            local_service_port        = 8080
+            local_service_address     = "10.0.1.2"
+            local_service_socket_path = "/run/test.sock"
 
             upstreams {
               destination_name = "upstream1"

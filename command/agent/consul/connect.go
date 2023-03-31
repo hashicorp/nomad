@@ -144,11 +144,12 @@ func connectSidecarProxy(info structs.AllocInfo, proxy *structs.ConsulProxy, cPo
 	}
 
 	return &api.AgentServiceConnectProxyConfig{
-		LocalServiceAddress: proxy.LocalServiceAddress,
-		LocalServicePort:    proxy.LocalServicePort,
-		Config:              connectProxyConfig(proxy.Config, cPort, info),
-		Upstreams:           connectUpstreams(proxy.Upstreams),
-		Expose:              expose,
+		LocalServiceAddress:    proxy.LocalServiceAddress,
+		LocalServicePort:       proxy.LocalServicePort,
+		LocalServiceSocketPath: proxy.LocalServiceSocketPath,
+		Config:                 connectProxyConfig(proxy.Config, cPort, info),
+		Upstreams:              connectUpstreams(proxy.Upstreams),
+		Expose:                 expose,
 	}, nil
 }
 

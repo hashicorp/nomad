@@ -850,6 +850,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 		if p := connect.SidecarService.Proxy; p != nil {
 			hashString(h, p.LocalServiceAddress)
 			hashString(h, strconv.Itoa(p.LocalServicePort))
+			hashString(h, p.LocalServiceSocketPath)
 			hashConfig(h, p.Config)
 			for _, upstream := range p.Upstreams {
 				hashString(h, upstream.DestinationName)
@@ -1361,6 +1362,8 @@ type ConsulProxy struct {
 	// in clusters with mixed Connect and non-Connect services
 	LocalServicePort int
 
+	LocalServiceSocketPath string
+
 	// Upstreams configures the upstream services this service intends to
 	// connect to.
 	Upstreams []ConsulUpstream
@@ -1381,11 +1384,12 @@ func (p *ConsulProxy) Copy() *ConsulProxy {
 	}
 
 	return &ConsulProxy{
-		LocalServiceAddress: p.LocalServiceAddress,
-		LocalServicePort:    p.LocalServicePort,
-		Expose:              p.Expose.Copy(),
-		Upstreams:           slices.Clone(p.Upstreams),
-		Config:              maps.Clone(p.Config),
+		LocalServiceAddress:    p.LocalServiceAddress,
+		LocalServicePort:       p.LocalServicePort,
+		LocalServiceSocketPath: p.LocalServiceSocketPath,
+		Expose:                 p.Expose.Copy(),
+		Upstreams:              slices.Clone(p.Upstreams),
+		Config:                 maps.Clone(p.Config),
 	}
 }
 
@@ -1400,6 +1404,10 @@ func (p *ConsulProxy) Equal(o *ConsulProxy) bool {
 	}
 
 	if p.LocalServicePort != o.LocalServicePort {
+		return false
+	}
+
+	if p.LocalServiceSocketPath != o.LocalServiceSocketPath {
 		return false
 	}
 
