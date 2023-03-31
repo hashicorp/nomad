@@ -218,6 +218,13 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			expectIDKey:    fmt.Sprintf("client:%s", node.ID),
 		},
 		{
+			name:           "from client missing secret", // ex. Node.Register
+			tlsCfg:         clientTLSCfg,
+			expectAccessor: "anonymous",
+			expectTLSName:  "regionFoo.nomad",
+			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
+		},
+		{
 			name:      "from failed workload", // ex. Variables.List
 			tlsCfg:    clientTLSCfg,
 			testToken: claims1Token,
