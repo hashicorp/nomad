@@ -5,7 +5,6 @@ package command
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -26,20 +25,19 @@ func TestQuotaStatusCommand_Fails(t *testing.T) {
 	cmd := &QuotaStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expected help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
-	if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
-		t.Fatalf("expected exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "retrieving quota") {
-		t.Fatalf("connection error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-address=nope", "foo"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "retrieving quota")
+
 	ui.ErrorWriter.Reset()
 }
 
@@ -59,9 +57,8 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 	must.NoError(t, err)
 
 	// Delete a namespace
-	if code := cmd.Run([]string{"-address=" + url, qs.Name}); code != 0 {
-		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-	}
+	code := cmd.Run([]string{"-address=" + url, qs.Name})
+	must.Zero(t, code)
 
 	// Check for basic spec
 	out := ui.OutputWriter.String()
@@ -73,7 +70,8 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// List json
-	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", qs.Name}))
+	code = cmd.Run([]string{"-address=" + url, "-json", qs.Name})
+	must.Zero(t, code)
 
 	outJson := api.QuotaSpec{}
 	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
@@ -82,11 +80,11 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 
 	// Go template to format the output
-	code := cmd.Run([]string{"-address=" + url, "-t", "{{range .}}{{ .Name }}{{end}}", qs.Name})
+	code = cmd.Run([]string{"-address=" + url, "-t", "{{ .Name }}", qs.Name})
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
-	must.StrContains(t, out, "test-quota")
+	must.StrContains(t, out, "test")
 
 	ui.OutputWriter.Reset()
 }
