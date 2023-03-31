@@ -5,13 +5,32 @@
   {{#if this.countToShow}}
     <div class="ungrouped-allocs">
       {{#each (range 0 this.countToShow)}}
-        <span class="represented-allocation {{@status}}" />
+        <span class="represented-allocation {{@status}} {{@health}} {{@canary}}">
+          {{#if (eq @status "running")}}
+            <span class="alloc-health-indicator">
+              {{#if (eq @health "healthy")}}
+                <FlightIcon @name="check" @color="white" />
+              {{else}}
+                <FlightIcon @name="running" @color="black" />
+              {{/if}}
+            </span>
+          {{/if}}
+        </span>
       {{/each}}
     </div>
   {{/if}}
   {{#if this.remaining}}
-    <span class="represented-allocation rest {{@status}}">
+    <span class="represented-allocation rest {{@status}} {{@health}} {{@canary}}">
       {{#if this.countToShow}}+{{/if}}{{this.remaining}}
+      {{#if (eq @status "running")}}
+        <span class="alloc-health-indicator">
+          {{#if (eq @health "healthy")}}
+            <FlightIcon @name="check" @color="white" />
+          {{else}}
+            <FlightIcon @name="running" @color="black" />
+          {{/if}}
+        </span>
+      {{/if}}
     </span>
   {{/if}}
 </div>

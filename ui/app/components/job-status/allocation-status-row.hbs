@@ -1,4 +1,4 @@
-<div class="allocation-status-row">
+{{!-- <div class="allocation-status-row">
   {{#if this.showSummaries}}
     <div class="alloc-status-summaries"
       {{did-insert this.captureElement}}
@@ -6,7 +6,7 @@
     >
       {{#each-in @allocBlocks as |status allocs|}}
         {{#if (gt allocs.length 0)}}
-          <JobStatus::AllocationStatusBlock @status={{status}} @count={{allocs.length}} @width={{compute (action this.calcPerc) allocs.length}} />
+          <JobStatus::AllocationStatusBlock @status={{status}} @count={{allocs.length}} @width={{compute (action this.calcPerc) allocs.length}} @allocs={{allocs}} />
         {{/if}}
       {{/each-in}}
     </div>
@@ -21,4 +21,44 @@
       {{/each-in}}
     </div>
   {{/if}}
+</div> --}}
+
+<div class="allocation-status-row">
+  {{#if this.showSummaries}}
+    <div class="alloc-status-summaries"
+      {{did-insert this.captureElement}}
+      {{window-resize this.reflow}}
+    >
+      {{#each-in @allocBlocks as |status allocsByStatus|}}
+        {{#each-in allocsByStatus as |health allocsByHealth|}}
+          {{#each-in allocsByHealth as |canary allocsByCanary|}}
+            {{#if (gt allocsByCanary.length 0)}}
+              <JobStatus::AllocationStatusBlock
+                @status={{status}}
+                @health={{health}}
+                @canary={{canary}}
+                @count={{allocsByCanary.length}}
+                @width={{compute (action this.calcPerc) allocsByCanary.length}}
+                @allocs={{allocsByCanary}} />
+            {{/if}}
+          {{/each-in}}
+        {{/each-in}}
+      {{/each-in}}
+    </div>
+  {{else}}
+    <div class="ungrouped-allocs">
+      {{#each-in @allocBlocks as |status allocsByStatus|}}
+        {{#each-in allocsByStatus as |health allocsByHealth|}}
+          {{#each-in allocsByHealth as |canary allocsByCanary|}}
+            {{#if (gt allocsByCanary.length 0)}}
+              {{#each (range 0 allocsByCanary.length)}}
+                <span class="represented-allocation {{status}} {{health}} {{canary}}"></span>
+              {{/each}}
+            {{/if}}
+          {{/each-in}}
+        {{/each-in}}
+      {{/each-in}}
+    </div>
+  {{/if}}
 </div>
+       

@@ -40,19 +40,33 @@
           <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} />
         {{/if}}
 
-        <h4 class="title is-5">New allocations: {{this.newVersionAllocBlocks.running.length}}/{{this.totalAllocs}} running</h4>
+        <h4 class="title is-5">New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
         <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
       </div>
 
       <div class="legend-and-summary">
-        <legend>
+        {{!-- <legend>
           {{#each this.allocTypes as |type|}}
             <span class="legend-item {{if (eq (get (get this.newVersionAllocBlocks type.label) "length") 0) "faded"}}">
               <span class="represented-allocation {{type.label}}"></span>
               {{get (get this.newVersionAllocBlocks type.label) "length"}} {{capitalize type.label}}
             </span>
           {{/each}}
+        </legend> --}}
+
+        <legend>
+          {{#each this.allocTypes as |type|}}
+            {{#each-in (get this.newVersionAllocBlocks type.label) as |health allocsByHealth|}}
+              {{#each-in allocsByHealth as |canary allocsByCanary|}}
+                <span class="legend-item {{if (eq (get allocsByCanary "length") 0) "faded"}}">
+                  <span class="represented-allocation {{type.label}} {{health}} {{canary}}"></span>
+                  {{get allocsByCanary "length"}} {{capitalize type.label}} {{capitalize health}} {{capitalize canary}}
+                </span>
+              {{/each-in}}
+            {{/each-in}}
+          {{/each}}
         </legend>
+
       </div>
 
       <div class="history-and-params">

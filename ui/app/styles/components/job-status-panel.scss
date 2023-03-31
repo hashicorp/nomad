@@ -147,6 +147,7 @@
         font-weight: bold;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
         width: 100%;
+        // min-width: 32px; // TODO: fix
 
         &.unplaced {
           color: black;
@@ -169,6 +170,7 @@
     $failed: $danger;
     $lost: $dark;
 
+    // Client Statuses
     &.running {
       background: $running;
     }
@@ -192,10 +194,93 @@
     &.lost {
       background: $lost;
     }
-
     &.unplaced {
       background: transparent;
       border: 2px solid $grey-lighter;
+    }
+
+    // Health Statuses
+    &.running {
+      position: relative;
+      // overflow: hidden;
+      .alloc-health-indicator {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        align-content: center;
+        justify-content: center;
+        background-color: unset;
+      }
+      &.rest .alloc-health-indicator {
+        top: -7px;
+        right: -7px;
+        border-radius: 20px;
+        background: white;
+        box-shadow: 0px 0px 3px 0px rgba(0, 0, 0, 0.3);
+        // border: 1px solid white;
+        width: 20px;
+        height: 20px;
+        box-sizing: border-box;
+        transform: scale(0.75);
+      }
+      &.rest.healthy {
+        .alloc-health-indicator {
+          background: $nomad-green-dark;
+          // border: 1px solid white;
+        }
+      }
+
+      // .alloc-health-indicator {
+      //   position: absolute;
+      //   // top: -6px;
+      //   // right: -6px;
+      //   // border-radius: 20px;
+      //   width: 100%;
+      //   height: 100%;
+      //   display: grid;
+      //   align-content: center;
+      //   justify-content: center;
+      // }
+
+      // &.healthy {
+      //   .alloc-health-indicator {
+      //     background: #16704d;
+      //   }
+      // }
+
+      // &:after {
+      //   content: "";
+      //   position:absolute;
+      //   right: -8px;
+      //   top: -8px;
+      //   width:16px;
+      //   height:16px;
+      //   transform:rotate(45deg);
+      //   background-color:#4A4A4A;
+      // }
+
+      // &.healthy {
+      //   &:after {
+      //     background-color: $nomad-green-darker;
+      //   }
+      // }
+    }
+
+    // Canary Status
+    &.canary {
+      // border: 2px solid $orange;
+      overflow: hidden;
+      &:after {
+        content: '';
+        position: absolute;
+        left: -8px;
+        bottom: -8px;
+        width: 16px;
+        height: 16px;
+        transform: rotate(45deg);
+        background-color: $orange;
+      }
     }
   }
 
