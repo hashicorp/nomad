@@ -127,7 +127,7 @@ artifact {
 
 To download from a private repo, sshkey needs to be set. The key must be
 base64-encoded string. On Linux, you can run `base64 -w0 <file>` to encode the
-file. Or use [HCL2](https://www.nomadproject.io/docs/job-specification/hcl2)
+file. Or use [HCL2](/nomad/docs/job-specification/hcl2)
 expressions to read and encode the key from a file on your machine:
 
 ```hcl
@@ -244,12 +244,12 @@ artifact {
 }
 ```
 
-[client_artifact]: /docs/configuration/client#artifact-parameters
+[client_artifact]: /nomad/docs/configuration/client#artifact-parameters
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'
 [go-getter-headers]: https://github.com/hashicorp/go-getter#headers 'HashiCorp go-getter Headers'
 [minio]: https://www.minio.io/
 [s3-bucket-addr]: http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro 'Amazon S3 Bucket Addressing'
 [s3-region-endpoints]: http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region 'Amazon S3 Region Endpoints'
 [iam-instance-profiles]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html 'EC2 IAM instance profiles'
-[task's working directory]: /docs/runtime/environment#task-directories 'Task Directories'
-[filesystem internals]: /docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads
+[task's working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'
+[filesystem internals]: /nomad/docs/concepts/filesystem#templates-artifacts-and-dispatch-payloads

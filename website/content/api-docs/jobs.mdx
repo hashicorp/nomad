@@ -17,8 +17,8 @@ This endpoint lists all known jobs in the system registered with Nomad.
 | `GET`  | `/v1/jobs` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required          |
 | ---------------- | --------------------- |
@@ -39,14 +39,14 @@ The table below shows this endpoint's support for
   `X-Nomad-NextToken` header of the last response can be used as the
   `next_token` of the next request to fetch additional pages.
 
-- `filter` `(string: "")` - Specifies the [expression](/api-docs#filtering)
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering)
   used to filter the results. Consider using pagination or a query parameter to
   reduce resource used to serve the request.
 
 - `namespace` `(string: "default")` - Specifies the target namespace. Specifying
   `*` would return all jobs across all the authorized namespaces.
 
-- `meta` `(bool: false)` - If set, jobs returned will include a [meta](/docs/job-specification/meta) field containing key-value pairs provided in the job specification's `meta` block.
+- `meta` `(bool: false)` - If set, jobs returned will include a [meta](/nomad/docs/job-specification/meta) field containing key-value pairs provided in the job specification's `meta` block.
 
 ### Sample Request
 
@@ -111,8 +111,8 @@ This endpoint creates (aka "registers") a new job in the system.
 | `POST` | `/v1/jobs` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                                                      |
 | ---------------- | --------------------------------------------------------------------------------- |
@@ -216,8 +216,8 @@ job.
 | `POST` | `/v1/jobs/parse` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                      |
 | ---------------- | ------------------------------------------------- |
@@ -308,8 +308,8 @@ status.
 | `GET`  | `/v1/job/:job_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -556,8 +556,8 @@ This endpoint reads information about all versions of a job.
 | `GET`  | `/v1/job/:job_id/versions` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1146,8 +1146,8 @@ This endpoint reads information about a single job's allocations.
 | `GET`  | `/v1/job/:job_id/allocations` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1315,8 +1315,8 @@ This endpoint reads information about a single job's evaluations
 | `GET`  | `/v1/job/:job_id/evaluations` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1376,8 +1376,8 @@ This endpoint lists a single job's deployments
 | `GET`  | `/v1/job/:job_id/deployments` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1464,8 +1464,8 @@ This endpoint returns a single job's most recent deployment.
 | `GET`  | `/v1/job/:job_id/deployment` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1523,8 +1523,8 @@ This endpoint reads summary information about a job.
 | `GET`  | `/v1/job/:job_id/summary` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1576,8 +1576,8 @@ This endpoint registers a new job or updates an existing job.
 | `POST` | `/v1/job/:job_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                                                      |
 | ---------------- | --------------------------------------------------------------------------------- |
@@ -1646,8 +1646,8 @@ This endpoint dispatches a new instance of a parameterized job.
 | `POST` | `/v1/job/:job_id/dispatch` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required             |
 | ---------------- | ------------------------ |
@@ -1709,8 +1709,8 @@ This endpoint reverts the job to an older version.
 | `POST` | `/v1/job/:job_id/revert` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required           |
 | ---------------- | ---------------------- |
@@ -1727,11 +1727,11 @@ The table below shows this endpoint's support for
   job's version. This is checked and acts as a check-and-set value before
   reverting to the specified job.
 
-- `ConsulToken` `(string:"")` - Optional value specifying the [consul token](/docs/commands/job/revert)
-  used for Consul [service identity polity authentication checking](/docs/configuration/consul#allow_unauthenticated).
+- `ConsulToken` `(string:"")` - Optional value specifying the [consul token](/nomad/docs/commands/job/revert)
+  used for Consul [service identity polity authentication checking](/nomad/docs/configuration/consul#allow_unauthenticated).
 
-- `VaultToken` `(string: "")` - Optional value specifying the [vault token](/docs/commands/job/revert)
-  used for Vault [policy authentication checking](/docs/configuration/vault#allow_unauthenticated).
+- `VaultToken` `(string: "")` - Optional value specifying the [vault token](/nomad/docs/commands/job/revert)
+  used for Vault [policy authentication checking](/nomad/docs/configuration/vault#allow_unauthenticated).
 
 ### Sample Payload
 
@@ -1770,8 +1770,8 @@ This endpoint sets the job's stability.
 | `POST` | `/v1/job/:job_id/stable` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required           |
 | ---------------- | ---------------------- |
@@ -1826,8 +1826,8 @@ without a JSON payload will be removed in Nomad 0.9.
 | `POST` | `/v1/job/:job_id/evaluate` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required         |
 | ---------------- | -------------------- |
@@ -1884,8 +1884,8 @@ This endpoint invokes a dry-run of the scheduler for the job.
 | `POST` | `/v1/job/:job_id/plan` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                                                      |
 | ---------------- | --------------------------------------------------------------------------------- |
@@ -2082,7 +2082,7 @@ $ curl \
 
 This endpoint forces a new instance of the periodic job. A new instance will be
 created even if it violates the job's
-[`prohibit_overlap`](/docs/job-specification/periodic#prohibit_overlap)
+[`prohibit_overlap`](/nomad/docs/job-specification/periodic#prohibit_overlap)
 settings. As such, this should be only used to immediately run a periodic job.
 
 | Method | Path                             | Produces           |
@@ -2090,8 +2090,8 @@ settings. As such, this should be only used to immediately run a periodic job.
 | `POST` | `/v1/job/:job_id/periodic/force` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                       |
 | ---------------- | -------------------------------------------------- |
@@ -2128,8 +2128,8 @@ This endpoint deregisters a job, and stops all allocations part of it.
 | `DELETE` | `/v1/job/:job_id` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required           |
 | ---------------- | ---------------------- |
@@ -2178,8 +2178,8 @@ This endpoint reads scale information about a job.
 | `GET`  | `/v1/job/:job_id/scale` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                         |
 | ---------------- | ---------------------------------------------------- |
@@ -2230,8 +2230,8 @@ This will return a 400 error if the job has an active deployment.
 | `POST` | `/v1/job/:job_id/scale` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required                                                                                               |
 | ---------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -2312,8 +2312,8 @@ The endpoint is used to read all services registered within Nomad belonging to t
 | `GET`  | `/job/:job_id/services` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries), [consistency modes](/api-docs#consistency-modes) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | Consistency Modes | ACL Required         |
 | ---------------- | ----------------- | -------------------- |

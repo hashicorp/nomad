@@ -16,7 +16,7 @@ permanently deletes objects once they are terminal and no longer needed for
 future scheduling decisions. See [`gc` related server agent configuration
 parameters][gc_params] for details on tuning periodic garbage collection.
 
-[gc_params]: /docs/configuration/server#node_gc_threshold
+[gc_params]: /nomad/docs/configuration/server#node_gc_threshold
 
 The `system gc` command bypasses these settings and immediately attempts to
 garbage collect dead objects regardless of any "threshold" or "interval" server

@@ -22,7 +22,7 @@ cidrhost(prefix, hostnum)
 no more than the number of digits remaining in the address after the given
 prefix. For more details on how this function interprets CIDR prefixes and
 populates host numbers, see the worked example for
-[`cidrsubnet`](/docs/job-specification/hcl2/functions/ipnet/cidrsubnet).
+[`cidrsubnet`](/nomad/docs/job-specification/hcl2/functions/ipnet/cidrsubnet).
 
 Conventionally host number zero is used to represent the address of the
 network itself and the host number that would fill all the host bits with
@@ -46,5 +46,5 @@ fd00:fd12:3456:7890::22
 
 ## Related Functions
 
-- [`cidrsubnet`](/docs/job-specification/hcl2/functions/ipnet/cidrsubnet) calculates a subnet address under a given
+- [`cidrsubnet`](/nomad/docs/job-specification/hcl2/functions/ipnet/cidrsubnet) calculates a subnet address under a given
   network address prefix.

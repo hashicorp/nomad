@@ -39,7 +39,7 @@ directory.
 
 ## Capabilities
 
-The `containerd-driver` implements the following [capabilities](/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
+The `containerd-driver` implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
 
 | Feature              | Implementation          |
 | -------------------- | ----------------------- |
@@ -409,9 +409,9 @@ Please note the plugin name should match whatever name you have specified for
 the external driver in the [plugin_dir][plugin_dir] directory.
 
 [nomad-driver-containerd]: https://github.com/Roblox/nomad-driver-containerd
-[nomad-init]: /docs/commands/job/init
-[plugin]: /docs/configuration/plugin
-[plugin_dir]: /docs/configuration#plugin_dir
+[nomad-init]: /nomad/docs/commands/job/init
+[plugin]: /nomad/docs/configuration/plugin
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
 [plugin-options]: #plugin_options
 [authentication]: #authentication
 [host-network]: #host_network
@@ -419,6 +419,6 @@ the external driver in the [plugin_dir][plugin_dir] directory.
 [moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
 [docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
 [allowed syscalls]: https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390
-[`network`]: /docs/job-specification/network
-[`service`]: /docs/job-specification/service
+[`network`]: /nomad/docs/job-specification/network
+[`service`]: /nomad/docs/job-specification/service
 [releases]: https://github.com/Roblox/nomad-driver-containerd/releases/

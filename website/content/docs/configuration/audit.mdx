@@ -103,7 +103,7 @@ audit {
 
 - `path` `(string: "[data_dir]/audit/audit.log")` - Specifies the path and file
   name to use for the audit log. By default Nomad will use its configured
-  [`data_dir`](/docs/configuration#data_dir) for a combined path of
+  [`data_dir`](/nomad/docs/configuration#data_dir) for a combined path of
   `/data_dir/audit/audit.log`. If `rotate_bytes` or `rotate_duration` are set
   file rotation will occur. In this case the filename will be post-fixed with
   a timestamp `"filename-{timestamp}.log"`
