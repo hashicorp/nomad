@@ -66,7 +66,6 @@ func Init() error {
 				if uint64(infoStat.Mhz) > cpuPowerCoreMHz {
 					cpuPowerCoreMHz = uint64(infoStat.Mhz)
 				}
-				break
 			}
 
 			// compute ticks using only power core, until we add support for
