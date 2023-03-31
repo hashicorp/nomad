@@ -237,6 +237,7 @@ func TestConnect_connectProxy(t *testing.T) {
 			LocalServicePort:    2000,
 			Upstreams:           nil,
 			Expose: &structs.ConsulExposeConfig{
+				Checks: true,
 				Paths: []structs.ConsulExposePath{{
 					Path:          "/health",
 					Protocol:      "http",
@@ -252,6 +253,7 @@ func TestConnect_connectProxy(t *testing.T) {
 			LocalServicePort:    2000,
 			Upstreams:           nil,
 			Expose: api.ExposeConfig{
+				Checks: true,
 				Paths: []api.ExposePath{{
 					Path:          "/health",
 					Protocol:      "http",

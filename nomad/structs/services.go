@@ -1527,7 +1527,14 @@ func upstreamsEquals(a, b []ConsulUpstream) bool {
 }
 
 // ConsulExposeConfig represents a Consul Connect expose jobspec block.
+// ExposeConfig describes HTTP paths to expose through Envoy outside of Connect.
+// Users can expose individual paths and/or all HTTP/GRPC paths for checks.
 type ConsulExposeConfig struct {
+	// Checks defines whether paths associated with Consul checks will be exposed.
+	// This flag triggers exposing all HTTP and GRPC check paths registered for the service.
+	Checks bool
+
+	// Paths is the list of paths exposed through the proxy.
 	Paths []ConsulExposePath
 }
 
@@ -1550,7 +1557,8 @@ func (e *ConsulExposeConfig) Copy() *ConsulExposeConfig {
 	paths := make([]ConsulExposePath, len(e.Paths))
 	copy(paths, e.Paths)
 	return &ConsulExposeConfig{
-		Paths: paths,
+		Checks: e.Checks,
+		Paths:  paths,
 	}
 }
 
@@ -1559,7 +1567,16 @@ func (e *ConsulExposeConfig) Equal(o *ConsulExposeConfig) bool {
 	if e == nil || o == nil {
 		return e == o
 	}
-	return exposePathsEqual(e.Paths, o.Paths)
+
+	if e.Checks != o.Checks {
+		return false
+	}
+
+	if !exposePathsEqual(e.Paths, o.Paths) {
+		return false
+	}
+
+	return true
 }
 
 // ConsulGateway is used to configure one of the Consul Connect Gateway types.

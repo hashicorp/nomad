@@ -1283,6 +1283,7 @@ func TestParse(t *testing.T) {
 							SidecarService: &api.ConsulSidecarService{
 								Proxy: &api.ConsulProxy{
 									Expose: &api.ConsulExposeConfig{
+										Checks: true,
 										Paths: []*api.ConsulExposePath{{
 											Path:          "/health",
 											Protocol:      "http",
@@ -1412,6 +1413,7 @@ func TestParse(t *testing.T) {
 									LocalServiceAddress: "10.0.1.2",
 									LocalServicePort:    8080,
 									Expose: &api.ConsulExposeConfig{
+										Checks: true,
 										Paths: []*api.ConsulExposePath{{
 											Path:          "/metrics",
 											Protocol:      "http",

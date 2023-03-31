@@ -240,8 +240,9 @@ func (cu *ConsulUpstream) Canonicalize() {
 }
 
 type ConsulExposeConfig struct {
-	Paths []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
-	Path  []*ConsulExposePath // Deprecated: only to maintain backwards compatibility. Use Paths instead.
+	Checks bool                `mapstructure:"checks" hcl:"checks,optional"`
+	Paths  []*ConsulExposePath `mapstructure:"path" hcl:"path,block"`
+	Path   []*ConsulExposePath // Deprecated: only to maintain backwards compatibility. Use Paths instead.
 }
 
 func (cec *ConsulExposeConfig) Canonicalize() {

@@ -851,6 +851,7 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 
 func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
 	valid := []string{
+		"checks",
 		"path", // an array of path blocks
 	}
 

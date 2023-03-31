@@ -163,7 +163,7 @@ func connectProxyExpose(expose *structs.ConsulExposeConfig, networks structs.Net
 	}
 
 	return api.ExposeConfig{
-		Checks: false,
+		Checks: expose.Checks,
 		Paths:  paths,
 	}, nil
 }
