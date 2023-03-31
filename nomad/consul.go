@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
@@ -581,9 +582,21 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 	for _, listener := range entry.Listeners {
 		var services []api.IngressService = nil
 		for _, s := range listener.Services {
+			var sds *api.GatewayTLSSDSConfig = nil
+			if s.TLS != nil {
+				sds = convertGatewayTLSSDSConfig(s.TLS.SDS)
+			}
 			services = append(services, api.IngressService{
-				Name:  s.Name,
-				Hosts: slices.Clone(s.Hosts),
+				Name:                  s.Name,
+				Hosts:                 slices.Clone(s.Hosts),
+				RequestHeaders:        convertHTTPHeaderModifiers(s.RequestHeaders),
+				ResponseHeaders:       convertHTTPHeaderModifiers(s.ResponseHeaders),
+				MaxConnections:        s.MaxConnections,
+				MaxPendingRequests:    s.MaxPendingRequests,
+				MaxConcurrentRequests: s.MaxConcurrentRequests,
+				TLS: &api.GatewayServiceTLSConfig{
+					SDS: sds,
+				},
 			})
 		}
 		listeners = append(listeners, api.IngressListener{
@@ -607,6 +620,18 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		Name:      service,
 		TLS:       *convertGatewayTLSConfig(entry.TLS),
 		Listeners: listeners,
+	}
+}
+
+func convertHTTPHeaderModifiers(in *structs.ConsulHTTPHeaderModifiers) *api.HTTPHeaderModifiers {
+	if in != nil {
+		return &api.HTTPHeaderModifiers{
+			Add:    maps.Clone(in.Add),
+			Set:    maps.Clone(in.Set),
+			Remove: slices.Clone(in.Remove),
+		}
+	} else {
+		return &api.HTTPHeaderModifiers{}
 	}
 }
 
