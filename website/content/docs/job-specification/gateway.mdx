@@ -114,6 +114,12 @@ envoy_gateway_bind_addresses "<service>" {
   [`CipherSuites`](/consul/docs/connect/config-entries/ingress-gateway#ciphersuites)
   in the Consul documentation for the supported cipher suites.
 
+- `sds` `(SDSConfig: <optional>)` - Defines a set of parameters that configures the listener to load TLS certificates from an external SDS service.
+
+  - `cluster_name` `(string)` - The SDS cluster name to connect to to retrieve certificates.
+
+  - `cert_resource` `(string)` - The SDS resource name to request when fetching the certificate from the SDS service.
+
 #### `listener` Parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.

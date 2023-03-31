@@ -1833,12 +1833,39 @@ func (p *ConsulGatewayProxy) Validate() error {
 	return nil
 }
 
+type ConsulGatewayTLSSDSConfig struct {
+	ClusterName  string
+	CertResource string
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Equal(o *ConsulGatewayTLSSDSConfig) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	return c.ClusterName == o.ClusterName &&
+		c.CertResource == o.CertResource
+}
+
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
 	Enabled       bool
 	TLSMinVersion string
 	TLSMaxVersion string
 	CipherSuites  []string
+	// SDS allows configuring TLS certificate from an SDS service.
+	SDS *ConsulGatewayTLSSDSConfig
 }
 
 func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
@@ -1851,6 +1878,7 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		TLSMinVersion: c.TLSMinVersion,
 		TLSMaxVersion: c.TLSMaxVersion,
 		CipherSuites:  slices.Clone(c.CipherSuites),
+		SDS:           c.SDS.Copy(),
 	}
 }
 
@@ -1862,7 +1890,8 @@ func (c *ConsulGatewayTLSConfig) Equal(o *ConsulGatewayTLSConfig) bool {
 	return c.Enabled == o.Enabled &&
 		c.TLSMinVersion == o.TLSMinVersion &&
 		c.TLSMaxVersion == o.TLSMaxVersion &&
-		helper.SliceSetEq(c.CipherSuites, o.CipherSuites)
+		helper.SliceSetEq(c.CipherSuites, o.CipherSuites) &&
+		c.SDS.Equal(o.SDS)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
