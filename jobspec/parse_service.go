@@ -490,6 +490,7 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 		"port",
 		"protocol",
 		"service",
+		"tls",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -503,6 +504,7 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 	}
 
 	delete(m, "service")
+	delete(m, "tls")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result: &listener,
@@ -533,6 +535,13 @@ func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, 
 				return nil, err
 			}
 			listener.Services[i] = is
+		}
+	}
+	to := listVal.Filter("tls")
+	if len(to.Items) > 0 {
+		listener.TLS, err = parseConsulGatewayTLS(to.Items[0])
+		if err != nil {
+			return nil, err
 		}
 	}
 	return &listener, nil

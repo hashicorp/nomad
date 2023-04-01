@@ -590,6 +590,7 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 			Port:     listener.Port,
 			Protocol: listener.Protocol,
 			Services: services,
+			TLS:      convertGatewayTLSConfig(listener.TLS),
 		})
 	}
 

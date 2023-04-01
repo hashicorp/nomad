@@ -1965,6 +1965,7 @@ type ConsulIngressListener struct {
 	Port     int
 	Protocol string
 	Services []*ConsulIngressService
+	TLS      *ConsulGatewayTLSConfig
 }
 
 func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
@@ -1984,6 +1985,7 @@ func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
 		Port:     l.Port,
 		Protocol: l.Protocol,
 		Services: services,
+		TLS:      l.TLS.Copy(),
 	}
 }
 
@@ -1997,6 +1999,10 @@ func (l *ConsulIngressListener) Equal(o *ConsulIngressListener) bool {
 	}
 
 	if l.Protocol != o.Protocol {
+		return false
+	}
+
+	if !l.TLS.Equal(o.TLS) {
 		return false
 	}
 
