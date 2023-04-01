@@ -1032,6 +1032,70 @@ func connectGatewayIngressDiff(prev, next *ConsulIngressConfigEntry, contextual 
 		diff.Objects = append(diff.Objects, gatewayIngressListenersDiff...)
 	}
 
+	// Diff the ConsulIngressServiceConfig objects.
+	infressServiceConfigDiff := connectGatewayIngressServiceConfigDiff(prev.Defaults, next.Defaults, contextual)
+	if infressServiceConfigDiff != nil {
+		diff.Objects = append(diff.Objects, infressServiceConfigDiff)
+	}
+
+	return diff
+}
+
+func connectGatewayIngressServiceConfigDiff(prev, next *ConsulIngressServiceConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "IngressServiceConfig"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulIngressServiceConfig)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulIngressServiceConfig)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff pointer types.
+	if prev != nil {
+		if prev.MaxConnections != nil {
+			oldPrimitiveFlat["MaxConnections"] = fmt.Sprintf("%v", *prev.MaxConnections)
+		}
+	}
+	if next != nil {
+		if next.MaxConnections != nil {
+			newPrimitiveFlat["MaxConnections"] = fmt.Sprintf("%v", *next.MaxConnections)
+		}
+	}
+	if prev != nil {
+		if prev.MaxPendingRequests != nil {
+			oldPrimitiveFlat["MaxPendingRequests"] = fmt.Sprintf("%v", *prev.MaxPendingRequests)
+		}
+	}
+	if next != nil {
+		if next.MaxPendingRequests != nil {
+			newPrimitiveFlat["MaxPendingRequests"] = fmt.Sprintf("%v", *next.MaxPendingRequests)
+		}
+	}
+	if prev != nil {
+		if prev.MaxConcurrentRequests != nil {
+			oldPrimitiveFlat["MaxConcurrentRequests"] = fmt.Sprintf("%v", *prev.MaxConcurrentRequests)
+		}
+	}
+	if next != nil {
+		if next.MaxConcurrentRequests != nil {
+			newPrimitiveFlat["MaxConcurrentRequests"] = fmt.Sprintf("%v", *next.MaxConcurrentRequests)
+		}
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
 	return diff
 }
 

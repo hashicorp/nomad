@@ -2034,6 +2034,54 @@ func ingressServicesEqual(a, b []*ConsulIngressService) bool {
 	return helper.ElementsEqual(a, b)
 }
 
+type ConsulIngressServiceConfig struct {
+	MaxConnections        *uint32
+	MaxPendingRequests    *uint32
+	MaxConcurrentRequests *uint32
+}
+
+func (c *ConsulIngressServiceConfig) Copy() *ConsulIngressServiceConfig {
+	if c == nil {
+		return nil
+	}
+	nc := new(ConsulIngressServiceConfig)
+	*nc = *c
+
+	if c.MaxConnections != nil {
+		nc.MaxConnections = pointer.Of(*c.MaxConnections)
+	}
+
+	if c.MaxPendingRequests != nil {
+		nc.MaxPendingRequests = pointer.Of(*c.MaxPendingRequests)
+	}
+
+	if c.MaxConcurrentRequests != nil {
+		nc.MaxConcurrentRequests = pointer.Of(*c.MaxConcurrentRequests)
+	}
+
+	return nc
+}
+
+func (c *ConsulIngressServiceConfig) Equal(o *ConsulIngressServiceConfig) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	if !pointer.Eq(c.MaxConnections, o.MaxConnections) {
+		return false
+	}
+
+	if !pointer.Eq(c.MaxPendingRequests, o.MaxPendingRequests) {
+		return false
+	}
+
+	if !pointer.Eq(c.MaxConcurrentRequests, o.MaxConcurrentRequests) {
+		return false
+	}
+
+	return true
+}
+
 // ConsulIngressConfigEntry represents the Consul Configuration Entry type for
 // an Ingress Gateway.
 //
@@ -2041,6 +2089,8 @@ func ingressServicesEqual(a, b []*ConsulIngressService) bool {
 type ConsulIngressConfigEntry struct {
 	TLS       *ConsulGatewayTLSConfig
 	Listeners []*ConsulIngressListener
+	Meta      map[string]string
+	Defaults  *ConsulIngressServiceConfig
 }
 
 func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
@@ -2059,6 +2109,8 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	return &ConsulIngressConfigEntry{
 		TLS:       e.TLS.Copy(),
 		Listeners: listeners,
+		Meta:      maps.Clone(e.Meta),
+		Defaults:  e.Defaults.Copy(),
 	}
 }
 
@@ -2068,6 +2120,14 @@ func (e *ConsulIngressConfigEntry) Equal(o *ConsulIngressConfigEntry) bool {
 	}
 
 	if !e.TLS.Equal(o.TLS) {
+		return false
+	}
+
+	if !maps.Equal(e.Meta, o.Meta) {
+		return false
+	}
+
+	if !e.Defaults.Equal(o.Defaults) {
 		return false
 	}
 

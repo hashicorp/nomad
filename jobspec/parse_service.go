@@ -619,10 +619,42 @@ func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, erro
 	return &tls, nil
 }
 
+func parseConsulIngressServiceConfig(o *ast.ObjectItem) (*api.ConsulIngressServiceConfig, error) {
+	valid := []string{
+		"max_connections",
+		"max_pending_requests",
+		"max_concurrent_requests",
+	}
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "defaults ->")
+	}
+
+	var defaults api.ConsulIngressServiceConfig
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &defaults,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &defaults, nil
+}
+
 func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, error) {
 	valid := []string{
 		"tls",
 		"listener",
+		"meta",
+		"defaults",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -637,6 +669,19 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 
 	delete(m, "tls")
 	delete(m, "listener")
+	delete(m, "meta")
+	delete(m, "defaults")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &ingress,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
 
 	// Parse tls and listener(s)
 
@@ -666,6 +711,27 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 				return nil, err
 			}
 			ingress.Listeners[i] = listener
+		}
+	}
+
+	// Parse meta
+	if metaO := listVal.Filter("meta"); len(metaO.Items) > 0 {
+		for _, o := range metaO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &ingress.Meta); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Parse Defaults
+	if defaultsO := listVal.Filter("defaults"); len(defaultsO.Items) > 0 {
+		ingress.Defaults, err = parseConsulIngressServiceConfig(defaultsO.Items[0])
+		if err != nil {
+			return nil, err
 		}
 	}
 
