@@ -365,6 +365,12 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 					Name:  "service1",
 					Hosts: []string{"1.1.1.1"},
 				}},
+				TLS: &ConsulGatewayTLSConfig{
+					SDS: &ConsulGatewayTLSSDSConfig{
+						ClusterName:  "foo",
+						CertResource: "bar",
+					},
+				},
 			}},
 		}
 		c.Canonicalize()
@@ -377,6 +383,12 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 					Name:  "service1",
 					Hosts: []string{"1.1.1.1"},
 				}},
+				TLS: &ConsulGatewayTLSConfig{
+					SDS: &ConsulGatewayTLSSDSConfig{
+						ClusterName:  "foo",
+						CertResource: "bar",
+					},
+				},
 			}},
 		}, c)
 	})
@@ -404,6 +416,12 @@ func TestConsulIngressConfigEntry_Copy(t *testing.T) {
 				Name:  "service2",
 				Hosts: []string{"2.2.2.2"},
 			}},
+			TLS: &ConsulGatewayTLSConfig{
+				SDS: &ConsulGatewayTLSSDSConfig{
+					ClusterName:  "foo",
+					CertResource: "bar",
+				},
+			},
 		}},
 	}
 

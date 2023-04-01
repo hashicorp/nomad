@@ -1637,7 +1637,14 @@ func TestParse(t *testing.T) {
 											Hosts: []string{
 												"10.0.0.1:8001",
 											}},
-										}}, {
+										},
+										TLS: &api.ConsulGatewayTLSConfig{
+											SDS: &api.ConsulGatewayTLSSDSConfig{
+												ClusterName:  "foo",
+												CertResource: "bar",
+											},
+										},
+									}, {
 										Port:     8080,
 										Protocol: "http",
 										Services: []*api.ConsulIngressService{{

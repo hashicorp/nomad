@@ -883,6 +883,12 @@ var (
 					Name:  "service2",
 					Hosts: []string{"10.0.0.2", "10.0.0.2:3000"},
 				}},
+				TLS: &ConsulGatewayTLSConfig{
+					SDS: &ConsulGatewayTLSSDSConfig{
+						ClusterName:  "foo",
+						CertResource: "bar",
+					},
+				},
 			}, {
 				Port:     3001,
 				Protocol: "tcp",
@@ -1061,6 +1067,12 @@ func TestConsulGateway_Equal_ingress(t *testing.T) {
 		try(t, func(g *cg) { g.Ingress.Listeners[0].Port = 7777 })
 	})
 
+	t.Run("mod ingress listeners tls sds clustername and certresource", func(t *testing.T) {
+		try(t, func(g *cg) {
+			g.Ingress.Listeners[0].TLS.SDS = &ConsulGatewayTLSSDSConfig{ClusterName: "baz", CertResource: "qux"}
+		})
+	})
+
 	t.Run("mod ingress listeners protocol", func(t *testing.T) {
 		try(t, func(g *cg) { g.Ingress.Listeners[0].Protocol = "tcp" })
 	})
@@ -1176,6 +1188,12 @@ func TestConsulGateway_ingressListenersEqual(t *testing.T) {
 			Name:  "service1",
 			Hosts: []string{"host1", "host2"},
 		}},
+		TLS: &ConsulGatewayTLSConfig{
+			SDS: &ConsulGatewayTLSSDSConfig{
+				ClusterName:  "foo",
+				CertResource: "bar",
+			},
+		},
 	}, {
 		Port:     2001,
 		Protocol: "tcp",
