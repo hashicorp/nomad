@@ -28,6 +28,13 @@ job "connect_gateway_ingress" {
               cipher_suites   = ["TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"]
             }
 
+            meta {
+              testKey = "testValue"
+            }
+            defaults {
+              max_connections = 5120
+            }
+
             listener {
               port     = 8001
               protocol = "tcp"

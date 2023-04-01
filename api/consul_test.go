@@ -322,6 +322,12 @@ func TestConsulGateway_Copy(t *testing.T) {
 					}},
 				}},
 			},
+			Meta: map[string]string{
+				"testKey": "testValue",
+			},
+			Defaults: &ConsulIngressServiceConfig{
+				MaxConnections: pointerOf(uint32(5120)),
+			},
 		},
 		Terminating: &ConsulTerminatingConfigEntry{
 			Services: []*ConsulLinkedService{{
@@ -349,6 +355,8 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 		c := &ConsulIngressConfigEntry{
 			TLS:       nil,
 			Listeners: []*ConsulIngressListener{},
+			Meta:      map[string]string{},
+			Defaults:  nil,
 		}
 		c.Canonicalize()
 		must.Nil(t, c.TLS)
@@ -366,6 +374,12 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 					Hosts: []string{"1.1.1.1"},
 				}},
 			}},
+			Meta: map[string]string{
+				"testKey": "testValue",
+			},
+			Defaults: &ConsulIngressServiceConfig{
+				MaxConnections: pointerOf(uint32(5120)),
+			},
 		}
 		c.Canonicalize()
 		must.Eq(t, &ConsulIngressConfigEntry{
@@ -378,6 +392,12 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 					Hosts: []string{"1.1.1.1"},
 				}},
 			}},
+			Meta: map[string]string{
+				"testKey": "testValue",
+			},
+			Defaults: &ConsulIngressServiceConfig{
+				MaxConnections: pointerOf(uint32(5120)),
+			},
 		}, c)
 	})
 }

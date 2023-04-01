@@ -890,6 +890,12 @@ var (
 					Name: "service3",
 				}},
 			}},
+			Meta: map[string]string{
+				"testKey": "testValue",
+			},
+			Defaults: &ConsulIngressServiceConfig{
+				MaxConnections: pointer.Of(uint32(5120)),
+			},
 		},
 	}
 
@@ -1051,6 +1057,14 @@ func TestConsulGateway_Equal_ingress(t *testing.T) {
 	t.Run("mod ingress tls", func(t *testing.T) {
 		try(t, func(g *cg) { g.Ingress.TLS = nil })
 		try(t, func(g *cg) { g.Ingress.TLS.Enabled = false })
+	})
+
+	t.Run("mod ingress meta", func(t *testing.T) {
+		try(t, func(g *cg) { g.Ingress.Meta = map[string]string{"newTestKey": "newTestValue"} })
+	})
+
+	t.Run("mod ingress defaults", func(t *testing.T) {
+		try(t, func(g *cg) { g.Ingress.Defaults.MaxConnections = pointer.Of(uint32(6040)) })
 	})
 
 	t.Run("mod ingress listeners count", func(t *testing.T) {

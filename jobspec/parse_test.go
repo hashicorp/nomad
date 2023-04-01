@@ -9,6 +9,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1647,6 +1648,12 @@ func TestParse(t *testing.T) {
 											},
 										}},
 									},
+									},
+									Meta: map[string]string{
+										"testKey": "testValue",
+									},
+									Defaults: &api.ConsulIngressServiceConfig{
+										MaxConnections: pointer.Of(uint32(5120)),
 									},
 								},
 							},
