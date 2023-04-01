@@ -871,6 +871,7 @@ type Job struct {
 	Namespace        *string                 `hcl:"namespace,optional"`
 	ID               *string                 `hcl:"id,optional"`
 	Name             *string                 `hcl:"name,optional"`
+	Description      *string                 `hcl:"description,optional"`
 	Type             *string                 `hcl:"type,optional"`
 	Priority         *int                    `hcl:"priority,optional"`
 	AllAtOnce        *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
@@ -949,6 +950,7 @@ func (j *Job) Canonicalize() {
 	if j.Namespace == nil {
 		j.Namespace = pointerOf("default")
 	}
+
 	if j.Type == nil {
 		j.Type = pointerOf("service")
 	}
@@ -972,6 +974,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Status == nil {
 		j.Status = pointerOf("")
+	}
+	if j.Description == nil {
+		j.Description = pointerOf("")
 	}
 	if j.StatusDescription == nil {
 		j.StatusDescription = pointerOf("")

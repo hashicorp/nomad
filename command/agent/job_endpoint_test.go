@@ -2370,6 +2370,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Type:        pointer.Of("service"),
 		Priority:    pointer.Of(50),
 		AllAtOnce:   pointer.Of(true),
+		Description: pointer.Of(""),
 		Datacenters: []string{"dc1", "dc2"},
 		Constraints: []*api.Constraint{
 			{
@@ -2782,6 +2783,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Type:           "service",
 		Priority:       50,
 		AllAtOnce:      true,
+		Description:    "",
 		Datacenters:    []string{"dc1", "dc2"},
 		Constraints: []*structs.Constraint{
 			{
@@ -3196,6 +3198,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Name:        pointer.Of("name"),
 		Type:        pointer.Of("system"),
 		Priority:    pointer.Of(50),
+		Description: pointer.Of("")
 		AllAtOnce:   pointer.Of(true),
 		Datacenters: []string{"dc1", "dc2"},
 		Constraints: []*api.Constraint{
@@ -3315,6 +3318,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Name:        "name",
 		Type:        "system",
 		Priority:    50,
+		Description: "",
 		AllAtOnce:   true,
 		Datacenters: []string{"dc1", "dc2"},
 		Constraints: []*structs.Constraint{

@@ -4267,6 +4267,10 @@ type Job struct {
 	// specified hierarchically like LineOfBiz/OrgName/Team/Project
 	ID string
 
+	// Markdown compatible multi line description.
+	// Supports mermaid with ```mermaid
+	Description string
+
 	// ParentID is the unique identifier of the job that spawned this job.
 	ParentID string
 
@@ -4472,6 +4476,10 @@ func (j *Job) Copy() *Job {
 	nj.Affinities = CopySliceAffinities(nj.Affinities)
 	nj.Multiregion = nj.Multiregion.Copy()
 
+	if j.Description != "" {
+		nj.Description = j.Description
+	}
+
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(nj.TaskGroups))
 		for i, tg := range nj.TaskGroups {
@@ -4505,6 +4513,7 @@ func (j *Job) Validate() error {
 	} else if strings.Contains(j.Name, "\000") {
 		mErr.Errors = append(mErr.Errors, errors.New("Job Name contains a null character"))
 	}
+
 	if j.Namespace == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
 	}

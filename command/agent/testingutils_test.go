@@ -16,6 +16,7 @@ func MockJob() *api.Job {
 		Type:        pointer.Of("service"),
 		Priority:    pointer.Of(50),
 		AllAtOnce:   pointer.Of(false),
+		Description: pointer.Of(""),
 		Datacenters: []string{"dc1"},
 		Constraints: []*api.Constraint{
 			{
