@@ -28,9 +28,6 @@ export default class Job extends Model {
   @attr('number') modifyIndex;
   @attr('date') submitTime;
 
-  @attr('string') description;
-  @attr('string') graph;
-
   @fragment('structured-attributes') meta;
 
   // True when the job is the parent periodic or parameterized jobs
@@ -55,14 +52,6 @@ export default class Job extends Model {
   @computed('renderDescription')
   get renderDescription(){
     const renderer = new marked.Renderer();
-
-    renderer.code = function (code, language) {
-      if (code.match(/^sequenceDiagram/) || code.match(/^graph/)) {
-        return '<code class="mermaid">' + encode(code) + '</code>';
-      } else {
-        return '<code>' + encode(code) + '</code>';
-      }
-    };
 
     renderer.link = function (href, title, text) {
       return '<a target="_new" href="'+encode(href)+'" title="'+encode(title)+'">'+ encode(text) + '</a>';
