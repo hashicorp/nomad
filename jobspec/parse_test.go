@@ -55,7 +55,6 @@ func TestParse(t *testing.T) {
 				Type:        stringToPtr("batch"),
 				Priority:    intToPtr(52),
 				AllAtOnce:   boolToPtr(true),
-				Description: stringToPtr("foo"),
 				Datacenters: []string{"us2", "eu1"},
 				Region:      stringToPtr("fooregion"),
 				Namespace:   stringToPtr("foonamespace"),

@@ -372,7 +372,6 @@ func testJob() *Job {
 		Type:        JobTypeService,
 		Priority:    JobDefaultPriority,
 		AllAtOnce:   false,
-		Description: "foo",
 		Datacenters: []string{"*"},
 		Constraints: []*Constraint{
 			{

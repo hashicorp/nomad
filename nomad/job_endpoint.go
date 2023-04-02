@@ -85,7 +85,6 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 // Register is used to upsert a job for scheduling
 func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
 	authErr := j.srv.Authenticate(j.ctx, args)
-
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
 		return err
 	}

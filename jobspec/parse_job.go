@@ -62,7 +62,6 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 		"constraint",
 		"affinity",
 		"spread",
-		"description",
 		"datacenters",
 		"group",
 		"id",

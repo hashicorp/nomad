@@ -180,11 +180,7 @@
     "@percy/ember": "^3.0.0",
     "curved-arrows": "^0.1.0",
     "d3": "^7.3.0",
-    "html-entities": "^2.3.3",
     "lru_map": "^0.4.1",
-    "markdown-it": "^13.0.1",
-    "marked": "^4.3.0",
-    "mermaid": "^10.0.2",
     "no-case": "^3.0.4",
     "tether": "^2.0.0",
     "title-case": "^3.0.3"

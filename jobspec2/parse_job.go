@@ -16,11 +16,6 @@ func normalizeJob(jc *jobConfig) {
 		j.ID = &jc.JobID
 	}
 
-	if j.Description == nil {
-		desc := ""
-		j.Description = &desc
-	}
-
 	if j.Periodic != nil && j.Periodic.Spec != nil {
 		v := "cron"
 		j.Periodic.SpecType = &v

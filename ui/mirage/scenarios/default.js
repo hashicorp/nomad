@@ -123,7 +123,6 @@ function smallCluster(server) {
           Name: newJobName,
           Namespace: 'default',
           Datacenters: ['dc1'],
-	  Description: "What",
           Priority: 50,
           TaskGroups: [
             {

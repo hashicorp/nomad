@@ -39,25 +39,23 @@ func TestJobDiff(t *testing.T) {
 		{
 			// Primitive only that is the same
 			Old: &Job{
-				Region:      "foo",
-				ID:          "foo",
-				Name:        "foo",
-				Description: "foo",
-				Type:        "batch",
-				Priority:    10,
-				AllAtOnce:   true,
+				Region:    "foo",
+				ID:        "foo",
+				Name:      "foo",
+				Type:      "batch",
+				Priority:  10,
+				AllAtOnce: true,
 				Meta: map[string]string{
 					"foo": "bar",
 				},
 			},
 			New: &Job{
-				Region:      "foo",
-				ID:          "foo",
-				Name:        "foo",
-				Description: "foo",
-				Type:        "batch",
-				Priority:    10,
-				AllAtOnce:   true,
+				Region:    "foo",
+				ID:        "foo",
+				Name:      "foo",
+				Type:      "batch",
+				Priority:  10,
+				AllAtOnce: true,
 				Meta: map[string]string{
 					"foo": "bar",
 				},
@@ -70,25 +68,23 @@ func TestJobDiff(t *testing.T) {
 		{
 			// Primitive only that is has diffs
 			Old: &Job{
-				Region:      "foo",
-				ID:          "foo",
-				Name:        "foo",
-				Type:        "batch",
-				Description: "foo",
-				Priority:    10,
-				AllAtOnce:   true,
+				Region:    "foo",
+				ID:        "foo",
+				Name:      "foo",
+				Type:      "batch",
+				Priority:  10,
+				AllAtOnce: true,
 				Meta: map[string]string{
 					"foo": "bar",
 				},
 			},
 			New: &Job{
-				Region:      "bar",
-				ID:          "foo",
-				Name:        "bar",
-				Description: "bar",
-				Type:        "system",
-				Priority:    100,
-				AllAtOnce:   false,
+				Region:    "bar",
+				ID:        "foo",
+				Name:      "bar",
+				Type:      "system",
+				Priority:  100,
+				AllAtOnce: false,
 				Meta: map[string]string{
 					"foo": "baz",
 				},
@@ -97,12 +93,6 @@ func TestJobDiff(t *testing.T) {
 				Type: DiffTypeEdited,
 				ID:   "foo",
 				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Description",
-						Old:  "foo",
-						New:  "barred", // @debug should be bar
-					},
 					{
 						Type: DiffTypeEdited,
 						Name: "AllAtOnce",
@@ -145,13 +135,12 @@ func TestJobDiff(t *testing.T) {
 		{
 			// Primitive only deleted job
 			Old: &Job{
-				Region:      "foo",
-				ID:          "foo",
-				Name:        "foo",
-				Type:        "batch",
-				Priority:    10,
-				Description: "foo",
-				AllAtOnce:   true,
+				Region:    "foo",
+				ID:        "foo",
+				Name:      "foo",
+				Type:      "batch",
+				Priority:  10,
+				AllAtOnce: true,
 				Meta: map[string]string{
 					"foo": "bar",
 				},
@@ -161,12 +150,6 @@ func TestJobDiff(t *testing.T) {
 				Type: DiffTypeDeleted,
 				ID:   "foo",
 				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "Description",
-						Old:  "foo",
-						New:  "",
-					},
 					{
 						Type: DiffTypeDeleted,
 						Name: "AllAtOnce",
@@ -222,13 +205,12 @@ func TestJobDiff(t *testing.T) {
 			// Primitive only added job
 			Old: nil,
 			New: &Job{
-				Region:      "foo",
-				ID:          "foo",
-				Name:        "foo",
-				Description: "foo",
-				Type:        "batch",
-				Priority:    10,
-				AllAtOnce:   true,
+				Region:    "foo",
+				ID:        "foo",
+				Name:      "foo",
+				Type:      "batch",
+				Priority:  10,
+				AllAtOnce: true,
 				Meta: map[string]string{
 					"foo": "bar",
 				},
@@ -237,12 +219,6 @@ func TestJobDiff(t *testing.T) {
 				Type: DiffTypeAdded,
 				ID:   "foo",
 				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "Description",
-						Old:  "",
-						New:  "foo",
-					},
 					{
 						Type: DiffTypeAdded,
 						Name: "AllAtOnce",
