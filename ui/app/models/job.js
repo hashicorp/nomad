@@ -58,7 +58,7 @@ export default class Job extends Model {
 
     renderer.code = function (code, language) {
       if (code.match(/^sequenceDiagram/) || code.match(/^graph/)) {
-        return '<code class="mermaid">' + code + '</code>';
+        return '<code class="mermaid">' + encode(code) + '</code>';
       } else {
         return '<code>' + encode(code) + '</code>';
       }
@@ -70,7 +70,7 @@ export default class Job extends Model {
 
     marked.setOptions({renderer: renderer });
 
-    return marked.parse( this.description );
+    return marked.parse( this.meta.get('description') ); 
     
   }
 
