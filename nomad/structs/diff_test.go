@@ -3123,6 +3123,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																New:  "ns2",
 															},
 															{
+																Type: DiffTypeNone,
+																Name: "DestinationPartition",
+																Old:  "",
+																New:  "",
+															},
+															{
 																Type: DiffTypeAdded,
 																Name: "LocalBindAddress",
 																Old:  "",
@@ -3268,6 +3274,14 @@ func TestTaskGroupDiff(t *testing.T) {
 											{
 												Type: DiffTypeEdited,
 												Name: "Ingress",
+												Fields: []*FieldDiff{
+													{
+														Type: DiffTypeNone,
+														Name: "Partition",
+														Old:  "",
+														New:  "",
+													},
+												},
 												Objects: []*ObjectDiff{
 													{
 														Type: DiffTypeEdited,
@@ -3321,6 +3335,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																		Old:  "",
 																		New:  "listener2",
 																	},
+																	{
+																		Type: DiffTypeNone,
+																		Name: "Partition",
+																		Old:  "",
+																		New:  "",
+																	},
 																},
 																Objects: []*ObjectDiff{
 																	{
@@ -3373,6 +3393,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																		Old:  "listener1",
 																		New:  "",
 																	},
+																	{
+																		Type: DiffTypeNone,
+																		Name: "Partition",
+																		Old:  "",
+																		New:  "",
+																	},
 																},
 															},
 														},
@@ -3382,6 +3408,14 @@ func TestTaskGroupDiff(t *testing.T) {
 											{
 												Type: DiffTypeEdited,
 												Name: "Terminating",
+												Fields: []*FieldDiff{
+													{
+														Type: DiffTypeNone,
+														Name: "Partition",
+														Old:  "",
+														New:  "",
+													},
+												},
 												Objects: []*ObjectDiff{
 													{
 														Type: DiffTypeAdded,
