@@ -578,10 +578,10 @@ func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) err
 
 func convertIngressCE(namespace, service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
 	var listeners []api.IngressListener = nil
+	var partition string
 	for _, listener := range entry.Listeners {
 		var services []api.IngressService = nil
 		for _, s := range listener.Services {
-			var partition string = ""
 			if s.Partition != "" {
 				partition = s.Partition
 			} else {
