@@ -9,7 +9,7 @@ import classic from 'ember-classic-decorator';
 
 import { marked } from 'marked';
 
-import {encode} from 'html-entities';
+import { encode } from 'html-entities';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
@@ -54,12 +54,12 @@ export default class Job extends Model {
     const renderer = new marked.Renderer();
 
     renderer.link = function (href, title, text) {
-      return '<a target="_new" href="'+encode(href)+'" title="'+encode(title)+'">'+ encode(text) + '</a>';
+      return '<a target="_new" href="' + encode(href) + '" title="' + encode(title) + '">' + encode(text) + '</a>';
     };
 
     marked.setOptions({renderer: renderer });
 
-    return marked.parse( this.meta.get('description') ); 
+    return marked.parse(this.meta.get('description'));
     
   }
 
