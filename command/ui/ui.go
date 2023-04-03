@@ -3,9 +3,10 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
+
 	"github.com/fatih/color"
 	"github.com/mitchellh/cli"
-	"io"
 )
 
 // LogUI is an implementation of the cli.Ui interface which can be used for
