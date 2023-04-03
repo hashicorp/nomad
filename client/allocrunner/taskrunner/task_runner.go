@@ -175,6 +175,9 @@ type TaskRunner struct {
 	// hookResources captures the resources provided by hooks
 	hookResources *hookResources
 
+	// allocHookResources captures the resources provided by the allocrunner hooks
+	allocHookResources *cstructs.AllocHookResources
+
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
 	consulServiceClient serviceregistration.Handler
@@ -253,8 +256,6 @@ type TaskRunner struct {
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
-	allocHookResources *cstructs.AllocHookResources
-
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
@@ -329,6 +330,10 @@ type Config struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
+
+	// AllocHookResources is how taskrunner hooks can get state written by
+	// allocrunner hooks
+	AllocHookResources *cstructs.AllocHookResources
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -368,6 +373,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		vaultClient:            config.Vault,
 		state:                  tstate,
 		localState:             state.NewLocalState(),
+		allocHookResources:     config.AllocHookResources,
 		stateDB:                config.StateDB,
 		stateUpdater:           config.StateUpdater,
 		deviceStatsReporter:    config.DeviceStatsReporter,
@@ -1584,10 +1590,6 @@ func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 	return tr.driver.Capabilities()
-}
-
-func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
-	tr.allocHookResources = res
 }
 
 // shutdownDelayCancel is used for testing only and cancels the
