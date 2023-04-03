@@ -44,7 +44,7 @@ Logs Specific Options:
 
   -stdout
     Display stdout logs. This is used as the default value in all commands
-    expect when using the "-f" flag where both stdout and stderr are used as
+    except when using the "-f" flag where both stdout and stderr are used as
     default.
 
   -stderr
@@ -129,8 +129,8 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	flags.BoolVar(&l.job, "job", false, "")
 	flags.BoolVar(&l.tail, "tail", false, "")
 	flags.BoolVar(&l.follow, "f", false, "")
-	flags.BoolVar(&l.stderr, api.FSLogNameStderr, false, "")
-	flags.BoolVar(&l.stdout, api.FSLogNameStdout, false, "")
+	flags.BoolVar(&l.stderr, "stderr", false, "")
+	flags.BoolVar(&l.stdout, "stdout", false, "")
 	flags.Int64Var(&l.numLines, "n", -1, "")
 	flags.Int64Var(&l.numBytes, "c", -1, "")
 	flags.StringVar(&l.task, "task", "", "")
