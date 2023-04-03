@@ -150,6 +150,10 @@ envoy_gateway_bind_addresses "<service>" {
 
 ### `terminating` Parameters
 
+- `partition` `(string: "default")` - Specifies the admin partition to which the configuration entry will apply. 
+  This must match the partition in which the gateway is registered. If omitted, the partition will be inherited 
+  from the request or will default to the default partition.
+
 - `service` <code>(array<[linked-service]>: required)</code> - One or more services to be
   linked with the gateway. The gateway will proxy traffic to these services. These
   linked services must be registered with Consul for the gateway to discover their
