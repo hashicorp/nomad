@@ -261,7 +261,7 @@ func (l *AllocLogsCommand) handleSingleFile(client *api.Client, alloc *api.Alloc
 	var r io.ReadCloser
 	var readErr error
 	if !l.tail {
-		r, readErr = l.followFile(client, alloc, l.follow, l.task, logType, api.OriginStart, 0)
+		r, readErr = l.followFile(client, alloc, logType, api.OriginStart, 0)
 		if readErr != nil {
 			return fmt.Errorf("error reading file: %v", readErr)
 		}
@@ -279,7 +279,7 @@ func (l *AllocLogsCommand) handleSingleFile(client *api.Client, alloc *api.Alloc
 			l.numLines = defaultTailLines
 		}
 
-		r, readErr = l.followFile(client, alloc, l.follow, l.task, logType, api.OriginEnd, offset)
+		r, readErr = l.followFile(client, alloc, logType, api.OriginEnd, offset)
 
 		// If numLines is set, wrap the reader
 		if l.numLines != -1 {
@@ -302,10 +302,10 @@ func (l *AllocLogsCommand) handleSingleFile(client *api.Client, alloc *api.Alloc
 // followFile outputs the contents of the file to stdout relative to the end of
 // the file.
 func (l *AllocLogsCommand) followFile(client *api.Client, alloc *api.Allocation,
-	follow bool, task, logType, origin string, offset int64) (io.ReadCloser, error) {
+	logType, origin string, offset int64) (io.ReadCloser, error) {
 
 	cancel := make(chan struct{})
-	frames, errCh := client.AllocFS().Logs(alloc, follow, task, logType, origin, offset, cancel, nil)
+	frames, errCh := client.AllocFS().Logs(alloc, l.follow, l.task, logType, origin, offset, cancel, nil)
 
 	// Setting up the logs stream can fail, therefore we need to check the
 	// error channel before continuing further.
