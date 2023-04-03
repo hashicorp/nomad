@@ -53,54 +53,53 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	path := strings.TrimPrefix(req.URL.Path, "/v1/job/")
 	switch {
 	case strings.HasSuffix(path, "/evaluate"):
-		jobName := strings.TrimSuffix(path, "/evaluate")
-		return s.jobForceEvaluate(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/evaluate")
+		return s.jobForceEvaluate(resp, req, jobID)
 	case strings.HasSuffix(path, "/allocations"):
-		jobName := strings.TrimSuffix(path, "/allocations")
-		return s.jobAllocations(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/allocations")
+		return s.jobAllocations(resp, req, jobID)
 	case strings.HasSuffix(path, "/evaluations"):
-		jobName := strings.TrimSuffix(path, "/evaluations")
-		return s.jobEvaluations(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/evaluations")
+		return s.jobEvaluations(resp, req, jobID)
 	case strings.HasSuffix(path, "/periodic/force"):
-		jobName := strings.TrimSuffix(path, "/periodic/force")
-		return s.periodicForceRequest(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/periodic/force")
+		return s.periodicForceRequest(resp, req, jobID)
 	case strings.HasSuffix(path, "/plan"):
-		jobName := strings.TrimSuffix(path, "/plan")
-		return s.jobPlan(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/plan")
+		return s.jobPlan(resp, req, jobID)
 	case strings.HasSuffix(path, "/summary"):
-		jobName := strings.TrimSuffix(path, "/summary")
-		return s.jobSummaryRequest(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/summary")
+		return s.jobSummaryRequest(resp, req, jobID)
 	case strings.HasSuffix(path, "/dispatch"):
-		jobName := strings.TrimSuffix(path, "/dispatch")
-		return s.jobDispatchRequest(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/dispatch")
+		return s.jobDispatchRequest(resp, req, jobID)
 	case strings.HasSuffix(path, "/versions"):
-		jobName := strings.TrimSuffix(path, "/versions")
-		return s.jobVersions(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/versions")
+		return s.jobVersions(resp, req, jobID)
 	case strings.HasSuffix(path, "/revert"):
-		jobName := strings.TrimSuffix(path, "/revert")
-		return s.jobRevert(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/revert")
+		return s.jobRevert(resp, req, jobID)
 	case strings.HasSuffix(path, "/deployments"):
-		jobName := strings.TrimSuffix(path, "/deployments")
-		return s.jobDeployments(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/deployments")
+		return s.jobDeployments(resp, req, jobID)
 	case strings.HasSuffix(path, "/deployment"):
-		jobName := strings.TrimSuffix(path, "/deployment")
-		return s.jobLatestDeployment(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/deployment")
+		return s.jobLatestDeployment(resp, req, jobID)
 	case strings.HasSuffix(path, "/stable"):
-		jobName := strings.TrimSuffix(path, "/stable")
-		return s.jobStable(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/stable")
+		return s.jobStable(resp, req, jobID)
 	case strings.HasSuffix(path, "/scale"):
-		jobName := strings.TrimSuffix(path, "/scale")
-		return s.jobScale(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/scale")
+		return s.jobScale(resp, req, jobID)
 	case strings.HasSuffix(path, "/services"):
-		jobName := strings.TrimSuffix(path, "/services")
-		return s.jobServiceRegistrations(resp, req, jobName)
+		jobID := strings.TrimSuffix(path, "/services")
+		return s.jobServiceRegistrations(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
 }
 
-func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -110,7 +109,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 	// COMPAT: For backwards compatibility allow using this endpoint without a payload
 	if req.ContentLength == 0 {
 		args = structs.JobEvaluateRequest{
-			JobID: jobName,
+			JobID: jobID,
 		}
 	} else {
 		if err := decodeBody(req, &args); err != nil {
@@ -120,7 +119,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 			return nil, CodedError(400, "Job ID must be specified")
 		}
 
-		if jobName != "" && args.JobID != jobName {
+		if jobID != "" && args.JobID != jobID {
 			return nil, CodedError(400, "JobID not same as job name")
 		}
 	}
@@ -222,15 +221,14 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
-func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
 
 	args := structs.JobSpecificRequest{
-		JobID: jobName,
+		JobID: jobID,
 		All:   allAllocs,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -252,13 +250,12 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	return out.Allocations, nil
 }
 
-func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
-		JobID: jobName,
+		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -276,14 +273,13 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 	return out.Evaluations, nil
 }
 
-func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	all, _ := strconv.ParseBool(req.URL.Query().Get("all"))
 	args := structs.JobSpecificRequest{
-		JobID: jobName,
+		JobID: jobID,
 		All:   all,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -302,13 +298,12 @@ func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
 	return out.Deployments, nil
 }
 
-func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
-		JobID: jobName,
+		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -323,24 +318,22 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
-func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	switch req.Method {
 	case "GET":
-		return s.jobQuery(resp, req, jobName)
+		return s.jobQuery(resp, req, jobID)
 	case "PUT", "POST":
-		return s.jobUpdate(resp, req, jobName)
+		return s.jobUpdate(resp, req, jobID)
 	case "DELETE":
-		return s.jobDelete(resp, req, jobName)
+		return s.jobDelete(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	args := structs.JobSpecificRequest{
-		JobID: jobName,
+		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -370,8 +363,7 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 	return job, nil
 }
 
-func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	var args api.JobRegisterRequest
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
@@ -383,7 +375,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	if args.Job.ID == nil {
 		return nil, CodedError(400, "Job ID hasn't been provided")
 	}
-	if jobName != "" && *args.Job.ID != jobName {
+	if jobID != "" && *args.Job.ID != jobID {
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 
@@ -427,10 +419,11 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	args := structs.JobDeregisterRequest{JobID: jobName}
+	args := structs.JobDeregisterRequest{
+		JobID: jobID,
+	}
 
 	// Identify the purge query param and parse.
 	purgeStr := req.URL.Query().Get("purge")
@@ -494,24 +487,22 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	switch req.Method {
 	case "GET":
-		return s.jobScaleStatus(resp, req, jobName)
+		return s.jobScaleStatus(resp, req, jobID)
 	case "PUT", "POST":
-		return s.jobScaleAction(resp, req, jobName)
+		return s.jobScaleAction(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	args := structs.JobScaleStatusRequest{
-		JobID: jobName,
+		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -530,8 +521,7 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 	return out.JobScaleStatus, nil
 }
 
-func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -543,12 +533,12 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 	}
 
 	targetJob := args.Target[structs.ScalingTargetJob]
-	if targetJob != "" && targetJob != jobName {
+	if targetJob != "" && targetJob != jobID {
 		return nil, CodedError(400, "job ID in payload did not match URL")
 	}
 
 	scaleReq := structs.JobScaleRequest{
-		JobID:          jobName,
+		JobID:          jobID,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
@@ -568,8 +558,7 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
 	var diffsBool bool
@@ -582,7 +571,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 	}
 
 	args := structs.JobVersionsRequest{
-		JobID: jobName,
+		JobID: jobID,
 		Diffs: diffsBool,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -602,8 +591,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -616,7 +604,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 	if revertRequest.JobID == "" {
 		return nil, CodedError(400, "JobID must be specified")
 	}
-	if revertRequest.JobID != jobName {
+	if revertRequest.JobID != jobID {
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
@@ -631,8 +619,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -645,7 +632,7 @@ func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
 	if stableRequest.JobID == "" {
 		return nil, CodedError(400, "JobID must be specified")
 	}
-	if stableRequest.JobID != jobName {
+	if stableRequest.JobID != jobID {
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
@@ -660,9 +647,9 @@ func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Request, name string) (interface{}, error) {
+func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	args := structs.JobSummaryRequest{
-		JobID: name,
+		JobID: jobID,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -681,7 +668,7 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 	return out.JobSummary, nil
 }
 
-func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, name string) (interface{}, error) {
+func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -689,11 +676,11 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
 	}
-	if args.JobID != "" && args.JobID != name {
+	if args.JobID != "" && args.JobID != jobID {
 		return nil, CodedError(400, "Job ID does not match")
 	}
 	if args.JobID == "" {
-		args.JobID = name
+		args.JobID = jobID
 	}
 
 	s.parseWriteRequest(req, &args.WriteRequest)
@@ -763,8 +750,7 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 // to the job identifier. It is callable via the
 // /v1/job/:jobID/services HTTP API and uses the
 // structs.JobServiceRegistrationsRPCMethod RPC method.
-func (s *HTTPServer) jobServiceRegistrations(
-	resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	// The endpoint only supports GET requests.
 	if req.Method != http.MethodGet {
