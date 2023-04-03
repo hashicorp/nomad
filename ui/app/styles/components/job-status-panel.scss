@@ -267,9 +267,14 @@
     }
 
     // Canary Status
-    &.canary {
-      // border: 2px solid $orange;
+    &.canary > .alloc-canary-indicator {
       overflow: hidden;
+      width: 16px;
+      height: 16px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+
       &:after {
         content: '';
         position: absolute;

@@ -22,6 +22,9 @@
   {{#if this.remaining}}
     <span class="represented-allocation rest {{@status}} {{@health}} {{@canary}}">
       {{#if this.countToShow}}+{{/if}}{{this.remaining}}
+      {{#if (eq @canary "canary")}}
+        <span class="alloc-canary-indicator" />
+      {{/if}}
       {{#if (eq @status "running")}}
         <span class="alloc-health-indicator">
           {{#if (eq @health "healthy")}}
