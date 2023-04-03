@@ -34,10 +34,11 @@ job "foo" {
             local_service_port = 8080
 
             upstreams {
-              destination_name   = "other-service"
-              local_bind_port    = 4567
-              local_bind_address = "0.0.0.0"
-              datacenter         = "dc1"
+              destination_name      = "other-service"
+              destination_partition = "partition-1"
+              local_bind_port       = 4567
+              local_bind_address    = "0.0.0.0"
+              datacenter            = "dc1"
 
               mesh_gateway {
                 mode = "local"

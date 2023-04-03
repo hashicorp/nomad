@@ -581,9 +581,16 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 	for _, listener := range entry.Listeners {
 		var services []api.IngressService = nil
 		for _, s := range listener.Services {
+			var partition string = ""
+			if s.Partition != "" {
+				partition = s.Partition
+			} else {
+				partition = entry.Partition
+			}
 			services = append(services, api.IngressService{
-				Name:  s.Name,
-				Hosts: slices.Clone(s.Hosts),
+				Name:      s.Name,
+				Hosts:     slices.Clone(s.Hosts),
+				Partition: partition,
 			})
 		}
 		listeners = append(listeners, api.IngressListener{
@@ -607,6 +614,7 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		Name:      service,
 		TLS:       tls,
 		Listeners: listeners,
+		Partition: entry.Partition,
 	}
 }
 
@@ -625,6 +633,7 @@ func convertTerminatingCE(namespace, service string, entry *structs.ConsulTermin
 		Namespace: namespace,
 		Kind:      api.TerminatingGateway,
 		Name:      service,
+		Partition: entry.Partition,
 		Services:  linked,
 	}
 }

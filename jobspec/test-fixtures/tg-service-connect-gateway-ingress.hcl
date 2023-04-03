@@ -22,6 +22,8 @@ job "connect_gateway_ingress" {
             }
           }
           ingress {
+            partition = "partition-1"
+
             tls {
               enabled         = true
               tls_min_version = "TLSv1_2"
@@ -32,12 +34,14 @@ job "connect_gateway_ingress" {
               port     = 8001
               protocol = "tcp"
               service {
-                name  = "service1"
-                hosts = ["127.0.0.1:8001", "[::1]:8001"]
+                name      = "service1"
+                hosts     = ["127.0.0.1:8001", "[::1]:8001"]
+                partition = "partition-1"
               }
               service {
-                name  = "service2"
-                hosts = ["10.0.0.1:8001"]
+                name      = "service2"
+                hosts     = ["10.0.0.1:8001"]
+                partition = "partition-1"
               }
             }
 
@@ -45,8 +49,9 @@ job "connect_gateway_ingress" {
               port     = 8080
               protocol = "http"
               service {
-                name  = "nginx"
-                hosts = ["2.2.2.2:8080"]
+                name      = "nginx"
+                hosts     = ["2.2.2.2:8080"]
+                partition = "partition-1"
               }
             }
           }
