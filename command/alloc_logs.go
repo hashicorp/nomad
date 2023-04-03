@@ -377,7 +377,7 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 
 	// Generate our logging UI that doesn't add any additional formatting to
 	// output strings.
-	logUI, err := cli.NewLogUI(l.Ui)
+	logUI, err := ui.NewLogUI(l.Ui)
 	if err != nil {
 		return err
 	}
