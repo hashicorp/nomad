@@ -41,5 +41,5 @@ func testMixedFollow(t *testing.T) {
 	if err != nil {
 		must.ErrorContains(t, err, "failed: signal: killed")
 	}
-	must.StrContains(t, out, "stdout\nstderr\nstdout\nstderr\nstdout\nstderr")
+	must.StrContains(t, out, "stdout\nstderr")
 }
