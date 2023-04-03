@@ -25,50 +25,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
     };
   });
 
-  // clientStatuses = [
-  //   'running',
-  //   'pending',
-  //   'failed',
-  //   'unknown',
-  // ];
-
-  // propertyStatuses = [
-  //   'isCanary',
-  //   'isHealthy',
-  //   'isNotHealthy'
-  // ];
-
-  // // Make a matrix of clientStatuses and propertyStatuses
-  // allocTypes = this.clientStatuses.reduce((acc, clientStatus) => {
-  //   this.propertyStatuses.forEach(propertyStatus => {
-  //     acc.push({
-  //       label: `${clientStatus} ${propertyStatus}`,
-  //       clientStatus,
-  //       propertyStatus,
-  //     });
-  //   });
-  //   return acc;
-  // }, []);
-
-  // allocTypes = [
-  //   { clientStatus: 'running',  isCanary: true},
-  //   { clientStatus: 'running',  isCanary: false},
-  //   { clientStatus: 'pending',  isCanary: true},
-  //   { clientStatus: 'pending',  isCanary: false},
-  //   { clientStatus: 'failed',   isCanary: true},
-  //   { clientStatus: 'failed',   isCanary: false},
-  //   // 'unknown',
-  //   // 'lost',
-  //   // 'queued',
-  //   // 'complete',
-  //   'unplaced',
-  // ].map((type) => {
-  //   return {
-  //     label: type,
-  //     // property: `${type}Allocs`,
-  //   };
-  // });
-
   @tracked oldVersionAllocBlockIDs = [];
 
   // Called via did-insert; sets a static array of "outgoing"
@@ -107,25 +63,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
 
   @alias('job.latestDeployment') deployment;
   @alias('deployment.desiredTotal') desiredTotal;
-
-  // get oldVersionAllocBlocks() {
-  //   return this.job.allocations
-  //     .filter((allocation) => this.oldVersionAllocBlockIDs.includes(allocation))
-  //     .reduce((alloGroups, currentAlloc) => {
-  //       (alloGroups[currentAlloc.clientStatus] =
-  //         alloGroups[currentAlloc.clientStatus] || []).push(currentAlloc);
-  //       return alloGroups;
-  //     }, {});
-  // }
-  // get oldVersionAllocBlocks() {
-  //   return this.job.allocations
-  //     .filter((allocation) => this.oldVersionAllocBlockIDs.includes(allocation))
-  //     .reduce((alloGroups, currentAlloc) => {
-  //       const key = `${currentAlloc.clientStatus} old`;
-  //       (alloGroups[key] = alloGroups[key] || []).push(currentAlloc);
-  //       return alloGroups;
-  //     }, {});
-  // }
 
   get oldVersionAllocBlocks() {
     return this.job.allocations
@@ -187,7 +124,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
           return { clientStatus: 'unplaced' };
         });
     }
-    console.log('allocationCategories', allocationCategories);
 
     return allocationCategories;
   }
@@ -198,6 +134,11 @@ export default class JobStatusPanelDeployingComponent extends Component {
       ...this.newVersionAllocBlocks['running']['healthy']['nonCanary'],
     ];
   }
+
+  get oldRunningHealthyAllocBlocks() {
+    return this.oldVersionAllocBlocks['running']['healthy']['nonCanary'];
+  }
+
   // TODO: eventually we will want this from a new property on a job.
   // TODO: consolidate w/ the one in steady.js
   get totalAllocs() {

@@ -8,13 +8,6 @@ const UNGROUPED_ALLOCS_THRESHOLD = 50;
 export default class JobStatusAllocationStatusRowComponent extends Component {
   @tracked width = 0;
 
-  // get allocBlockSlots() {
-  //   return Object.values(this.args.allocBlocks).reduce(
-  //     (m, n) => m + n.length,
-  //     0
-  //   );
-  // }
-
   get allocBlockSlots() {
     return Object.values(this.args.allocBlocks)
       .flatMap((statusObj) => Object.values(statusObj))

@@ -31,13 +31,17 @@ export default class JobStatusPanelSteadyComponent extends Component {
         type.label
       );
       if (availableSlotsToFill > 0) {
-        blocks[type.label] = Array(
-          Math.min(availableSlotsToFill, jobAllocsOfType.length)
-        )
-          .fill()
-          .map((_, i) => {
-            return jobAllocsOfType[i];
-          });
+        blocks[type.label] = {
+          healthy: {
+            nonCanary: Array(
+              Math.min(availableSlotsToFill, jobAllocsOfType.length)
+            )
+              .fill()
+              .map((_, i) => {
+                return jobAllocsOfType[i];
+              }),
+          },
+        };
         availableSlotsToFill -= blocks[type.label].length;
       } else {
         blocks[type.label] = [];
@@ -45,11 +49,15 @@ export default class JobStatusPanelSteadyComponent extends Component {
       return blocks;
     }, {});
     if (availableSlotsToFill > 0) {
-      allocationsOfShowableType['unplaced'] = Array(availableSlotsToFill)
-        .fill()
-        .map(() => {
-          return { clientStatus: 'unplaced' };
-        });
+      allocationsOfShowableType['unplaced'] = {
+        healthy: {
+          nonCanary: Array(availableSlotsToFill)
+            .fill()
+            .map(() => {
+              return { clientStatus: 'unplaced' };
+            }),
+        },
+      };
     }
     return allocationsOfShowableType;
   }

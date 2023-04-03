@@ -36,7 +36,7 @@
     <div class="boxed-section-body">
       <div class="deployment-allocations">
         {{#if this.oldVersionAllocBlockIDs.length}}
-          <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldVersionAllocBlocks.running.length}} running{{/if}}</h4>
+          <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
           <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
         {{/if}}
 
@@ -45,15 +45,6 @@
       </div>
 
       <div class="legend-and-summary">
-        {{!-- <legend>
-          {{#each this.allocTypes as |type|}}
-            <span class="legend-item {{if (eq (get (get this.newVersionAllocBlocks type.label) "length") 0) "faded"}}">
-              <span class="represented-allocation {{type.label}}"></span>
-              {{get (get this.newVersionAllocBlocks type.label) "length"}} {{capitalize type.label}}
-            </span>
-          {{/each}}
-        </legend> --}}
-
         <legend>
           {{#each this.allocTypes as |type|}}
             {{#each-in (get this.newVersionAllocBlocks type.label) as |health allocsByHealth|}}
