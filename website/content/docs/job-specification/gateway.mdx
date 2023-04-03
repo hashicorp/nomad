@@ -92,6 +92,9 @@ envoy_gateway_bind_addresses "<service>" {
 - `tls` <code>([tls]: nil)</code> - TLS configuration for this gateway.
 - `listener` <code>(array<[listener]> : required)</code> - One or more listeners that the
   ingress gateway should setup, uniquely identified by their port number.
+- `partition` `(string: "default")` - Specifies the admin partition in which the configuration 
+  will apply. The value must match the partition in which the gateway is registered.
+  If omitted, the partition will be inherited from the request.
 
 #### `tls` Parameters
 
