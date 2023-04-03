@@ -19,8 +19,8 @@ the future.
 | `GET`  | `/v1/operator/scheduler/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required    |
 | ---------------- | --------------- |
@@ -71,7 +71,7 @@ $ curl \
 
   - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When
     `true`, tasks may exceed their reserved memory limit, if the client has excess
-    memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max)
+    memory capacity. Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
     to take advantage of memory oversubscription.
 
   - `RejectJobRegistration` `(bool: false)` - When `true`, the server will return
@@ -110,8 +110,8 @@ This endpoint updates the scheduler configuration of the cluster.
 | `PUT`, `POST` | `/v1/operator/scheduler/configuration` | `application/json` |
 
 The table below shows this endpoint's support for
-[blocking queries](/api-docs#blocking-queries) and
-[required ACLs](/api-docs#acls).
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
 
 | Blocking Queries | ACL Required     |
 | ---------------- | ---------------- |
@@ -152,7 +152,7 @@ server state is authoritative.
 
 - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When
   `true`, tasks may exceed their reserved memory limit, if the client has excess
-  memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max)
+  memory capacity. Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
   to take advantage of memory oversubscription.
 
 - `RejectJobRegistration` `(bool: false)` - When `true`, the server will return
@@ -199,4 +199,4 @@ server state is authoritative.
 
 - `Index` - Current Raft index when the request was received.
 
-[`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
+[`default_scheduler_config`]: /nomad/docs/configuration/server#default_scheduler_config

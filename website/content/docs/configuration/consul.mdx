@@ -74,10 +74,10 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `checks_use_advertise` `(bool: false)` - Specifies if Consul health checks
   should bind to the advertise address. By default, this is the first [HTTP
-  address](https://www.nomadproject.io/docs/configuration#http). If no
-  [HTTP address](https://www.nomadproject.io/docs/configuration#http) is
+  address](/nomad/docs/configuration#http). If no
+  [HTTP address](/nomad/docs/configuration#http) is
   specified, it will fall back to the
-  [bind_addr](https://www.nomadproject.io/docs/configuration#bind_addr).
+  [bind_addr](/nomad/docs/configuration#bind_addr).
 
 - `client_auto_join` `(bool: true)` - Specifies if the Nomad clients should
   automatically discover servers in the same region by searching for the Consul
@@ -100,7 +100,7 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
-- `namespace` `(string: "")` - Specifies the [Consul namespace](https://developer.hashicorp.com/consul/docs/enterprise/namespaces)
+- `namespace` `(string: "")` - Specifies the [Consul namespace](/consul/docs/enterprise/namespaces)
   used by the Consul integration. If non-empty, this namespace will be used on
   all Consul API calls and for Consul Connect configurations.
 
@@ -229,7 +229,7 @@ namespace "nomad-ns" {
 ```
 
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
-[bootstrap]: https://learn.hashicorp.com/tutorials/nomad/clustering 'Automatic Bootstrapping'
+[bootstrap]: /nomad/tutorials/manage-clusters/clustering 'Automatic Bootstrapping'
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
-[grpc_port]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#grpc_port
-[grpctls_port]: https://developer.hashicorp.com/consul/docs/agent/config/config-files#grpc_tls_port
+[grpc_port]: /consul/docs/agent/config/config-files#grpc_port
+[grpctls_port]: /consul/docs/agent/config/config-files#grpc_tls_port

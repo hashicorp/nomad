@@ -31,7 +31,7 @@ A device plugin is long-lived. Nomad will ensure that one instance of the plugin
 running. If the plugin crashes or otherwise terminates, Nomad will launch another
 instance of it.
 
-However, unlike [task drivers](/docs/concepts/plugins/task-drivers), device plugins do not currently
+However, unlike [task drivers](/nomad/docs/concepts/plugins/task-drivers), device plugins do not currently
 have an interface for persisting state to the Nomad client. Instead, the device
 plugin API emphasizes fingerprinting devices and reporting their status. After
 helping to provision a task with a scheduled device, a device plugin does not
@@ -72,7 +72,7 @@ into the task's filesystem. Any orchestration required to prepare the device for
 use should also be performed in this function.
 
 [deviceplugin]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/device/device.go#L20-L33
-[baseplugin]: /docs/concepts/plugins/base
+[baseplugin]: /nomad/docs/concepts/plugins/base
 [skeletonproject]: https://github.com/hashicorp/nomad-skeleton-device-plugin
 [fingerprintresponse]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/device/device.go#L37-L43
 [fingerprintfn]: https://github.com/hashicorp/nomad-skeleton-device-plugin/blob/v0.1.0/device/device.go#L159-L165

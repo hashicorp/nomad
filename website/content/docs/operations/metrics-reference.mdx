@@ -12,7 +12,7 @@ second interval and are retained for one minute.
 
 This data can be accessed via an HTTP endpoint or via sending a signal to the
 Nomad process. This data is available via HTTP at `/metrics`. See
-[Metrics](/api-docs/metrics) for more information.
+[Metrics](/nomad/api-docs/metrics) for more information.
 
 To view this data via sending a signal to the Nomad process: on Unix,
 this is `USR1` while on Windows it is `BREAK`. Once Nomad receives the signal,
@@ -25,7 +25,7 @@ Telemetry information can be streamed to both [statsite](https://github.com/armo
 as well as statsd based on providing the appropriate configuration options.
 
 To configure the telemetry output please see the [agent
-configuration](/docs/configuration/telemetry).
+configuration](/nomad/docs/configuration/telemetry).
 
 Below is sample output of a telemetry dump:
 
@@ -130,11 +130,11 @@ By default the collection interval is 1 second but it can be changed by the
 changing the value of the `collection_interval` key in the `telemetry`
 configuration block.
 
-Please see the [agent configuration](/docs/configuration/telemetry)
+Please see the [agent configuration](/nomad/docs/configuration/telemetry)
 page for more details.
 
-Additional labels are emitted for [parameterized](/docs/job-specification/parameterized) and
-[periodic](/docs/job-specification/parameterized) jobs. Nomad
+Additional labels are emitted for [parameterized](/nomad/docs/job-specification/parameterized) and
+[periodic](/nomad/docs/job-specification/parameterized) jobs. Nomad
 emits the parent job id as a new label `parent_id`. Also, the labels `dispatch_id`
 and `periodic_id` are emitted, containing the ID of the specific invocation of the
 parameterized or periodic job respectively. For example, a dispatch job with the id
@@ -487,6 +487,6 @@ Agent metrics are emitted by all Nomad agents running in either client or server
 | ----------------------------------------- | ----------------------------------------------------- | ----------- | ------- |
 | `nomad.agent.http.exceeded`               | Count of HTTP connections exceeding concurrency limit | Integer     | Counter |
 
-[tagged-metrics]: /docs/operations/metrics-reference#tagged-metrics
-[sticky]: /docs/job-specification/ephemeral_disk#sticky
-[s_port_plan_failure]: /s/port-plan-failure
+[tagged-metrics]: /nomad/docs/operations/metrics-reference#tagged-metrics
+[sticky]: /nomad/docs/job-specification/ephemeral_disk#sticky
+[s_port_plan_failure]: https://nomadproject.io/s/port-plan-failure

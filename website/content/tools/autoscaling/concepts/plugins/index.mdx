@@ -13,11 +13,11 @@ devices.
 
 The following components are currently pluggable within the Nomad Autoscaler:
 
-- [APMs](/tools/autoscaling/internals/plugins/apm)
-- [Strategies](/tools/autoscaling/internals/plugins/strategy)
-- [Targets](/tools/autoscaling/internals/plugins/target)
+- [APMs](/nomad/tools/autoscaling/internals/plugins/apm)
+- [Strategies](/nomad/tools/autoscaling/internals/plugins/strategy)
+- [Targets](/nomad/tools/autoscaling/internals/plugins/target)
 
-In addition, each plugin implements a [base](/tools/autoscaling/internals/plugins/base)
+In addition, each plugin implements a [base](/nomad/tools/autoscaling/internals/plugins/base)
 plugin functionality.
 
 # Architecture
@@ -36,5 +36,5 @@ The existing plugins can serve as examples; in addition, no-op external plugins
 are available in the [autoscaler repo][noop_plugins].
 
 [goplugin]: https://github.com/hashicorp/go-plugin
-[nomad_plugin_system]: /docs/concepts/plugins
+[nomad_plugin_system]: /nomad/docs/concepts/plugins
 [noop_plugins]: https://github.com/hashicorp/nomad-autoscaler/tree/main/plugins/test

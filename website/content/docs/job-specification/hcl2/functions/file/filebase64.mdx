@@ -29,9 +29,9 @@ SGVsbG8gV29ybGQ=
 
 ## Related Functions
 
-* [`file`](/docs/job-specification/hcl2/functions/file/file) also reads the contents of a given file,
+* [`file`](/nomad/docs/job-specification/hcl2/functions/file/file) also reads the contents of a given file,
   but interprets the data as UTF-8 text and returns the result directly
   as a string, without any further encoding.
-* [`base64decode`](/docs/job-specification/hcl2/functions/encoding/base64decode) can decode a
+* [`base64decode`](/nomad/docs/job-specification/hcl2/functions/encoding/base64decode) can decode a
   Base64 string representing bytes in UTF-8, but in practice `base64decode(filebase64(...))`
   is equivalent to the shorter expression `file(...)`.
