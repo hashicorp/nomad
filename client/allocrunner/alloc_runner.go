@@ -126,9 +126,9 @@ type allocRunner struct {
 	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
-	// hookState is the output of allocrunner hooks
-	hookState   *cstructs.AllocHookResources
-	hookStateMu sync.RWMutex
+	// hookResources holds the output from allocrunner hooks so that later
+	// allocrunner hooks or task runner hooks can read them
+	hookResources *cstructs.AllocHookResources
 
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
@@ -232,6 +232,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		rpcClient:                config.RPCClient,
 		serviceRegWrapper:        config.ServiceRegWrapper,
 		getter:                   config.Getter,
+		hookResources:            cstructs.NewAllocHookResources(),
 	}
 
 	// Create the logger based on the allocation ID
@@ -287,6 +288,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ShutdownDelayCtx:    ar.shutdownDelayCtx,
 			ServiceRegWrapper:   ar.serviceRegWrapper,
 			Getter:              ar.getter,
+			AllocHookResources:  ar.hookResources,
 		}
 
 		if ar.cpusetManager != nil {

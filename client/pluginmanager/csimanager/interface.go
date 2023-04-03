@@ -13,6 +13,16 @@ type MountInfo struct {
 	IsDevice bool
 }
 
+func (mi *MountInfo) Copy() *MountInfo {
+	if mi == nil {
+		return nil
+	}
+
+	nmi := new(MountInfo)
+	*nmi = *mi
+	return nmi
+}
+
 type UsageOptions struct {
 	ReadOnly       bool
 	AttachmentMode structs.CSIVolumeAttachmentMode
