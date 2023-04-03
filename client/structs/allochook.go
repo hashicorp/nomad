@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // AllocHookResources contains data that is provided by AllocRunner Hooks for
@@ -22,13 +23,17 @@ func NewAllocHookResources() *AllocHookResources {
 	}
 }
 
+// GetCSIMounts returns a copy of the CSI mount info previously written by the
+// CSI allocrunner hook
 func (a *AllocHookResources) GetCSIMounts() map[string]*csimanager.MountInfo {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.csiMounts
+	return helper.DeepCopyMap(a.csiMounts)
 }
 
+// SetCSIMounts stores the CSI mount info for later use by the volume taskrunner
+// hook
 func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
