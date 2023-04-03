@@ -132,16 +132,15 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 
 			tr := &TaskRunner{
-				task:   req.Task,
-				driver: tc.Driver,
-				allocHookResources: &cstructs.AllocHookResources{
-					CSIMounts: map[string]*csimanager.MountInfo{
-						"foo": {
-							Source: "/mnt/my-test-volume",
-						},
-					},
-				},
+				task:               req.Task,
+				driver:             tc.Driver,
+				allocHookResources: cstructs.NewAllocHookResources(),
 			}
+			tr.allocHookResources.SetCSIMounts(map[string]*csimanager.MountInfo{
+				"foo": {
+					Source: "/mnt/my-test-volume",
+				},
+			})
 
 			hook := &volumeHook{
 				logger: testlog.HCLogger(t),
