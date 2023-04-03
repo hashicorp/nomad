@@ -150,6 +150,8 @@ envoy_gateway_bind_addresses "<service>" {
   multiple hosts, but only in the leftmost DNS label. This ensures that all defined
   hosts are valid DNS records. For example, `*.example.com` is valid while `example.*`
   and `*-suffix.example.com` are not.
+- `partition` `(string: "")` - The admin partition from which to resolve the service 
+  if different than the existing partition. The current partition is used if unspecified.
 
 ### `terminating` Parameters
 
