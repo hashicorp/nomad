@@ -210,15 +210,14 @@
         display: grid;
         align-content: center;
         justify-content: center;
-        background-color: unset;
+        // background-color: white;
       }
       &.rest .alloc-health-indicator {
         top: -7px;
         right: -7px;
         border-radius: 20px;
         background: white;
-        box-shadow: 0px 0px 3px 0px rgba(0, 0, 0, 0.3);
-        // border: 1px solid white;
+        box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.5);
         width: 20px;
         height: 20px;
         box-sizing: border-box;
@@ -226,7 +225,7 @@
       }
       &.rest.healthy {
         .alloc-health-indicator {
-          background: $nomad-green-dark;
+          // background: $nomad-green-dark;
           // border: 1px solid white;
         }
       }
