@@ -33,10 +33,10 @@ The [`nomad job run -json`][job-run-json] flag submits a JSON formatted job:
 $ nomad job run -json example.json
 ```
 
-[job-inspect]: /docs/commands/job/inspect
-[job-output]: /docs/commands/job/run#output
-[job-parse]: /api-docs/jobs#parse-job
-[job-run-json]: /docs/commands/job/run#json
+[job-inspect]: /nomad/docs/commands/job/inspect
+[job-output]: /nomad/docs/commands/job/run#output
+[job-parse]: /nomad/api-docs/jobs#parse-job
+[job-run-json]: /nomad/docs/commands/job/run#json
 
 ## Syntax
 
@@ -298,7 +298,7 @@ The `Job` object supports the following keys:
 - `Type` - Specifies the job type and switches which scheduler
   is used. Nomad provides the `service`, `system` and `batch` schedulers,
   and defaults to `service`. To learn more about each scheduler type visit
-  [here](/docs/schedulers)
+  [here](/nomad/docs/schedulers)
 
 - `Update` - Specifies an update strategy to be applied to all task groups
   within the job. When specified both at the job level and the task group level,
@@ -435,13 +435,13 @@ The `Task` object supports the following keys:
     to. The file is written relative to the task's local directory.
 
 - `Driver` - Specifies the task driver that should be used to run the
-  task. See the [driver documentation](/docs/drivers) for what
+  task. See the [driver documentation](/nomad/docs/drivers) for what
   is available. Examples include `docker`, `qemu`, `java`, and `exec`.
 
 - `Env` - A map of key-value representing environment variables that
   will be passed along to the running process. Nomad variables are
   interpreted when set in the environment variable values. See the table of
-  interpreted variables [here](/docs/runtime/interpolation).
+  interpreted variables [here](/nomad/docs/runtime/interpolation).
 
   For example the below environment map will be reinterpreted:
 
@@ -486,7 +486,7 @@ The `Task` object supports the following keys:
   Consul for service discovery. A `Service` object represents a routable and
   discoverable service on the network. Nomad automatically registers when a task
   is started and de-registers it when the task transitions to the dead state.
-  [Click here](/docs/integrations/consul-integration#service-discovery) to learn more about
+  [Click here](/nomad/docs/integrations/consul-integration#service-discovery) to learn more about
   services. Below is the fields in the `Service` object:
 
   - `Name`: An explicit name for the Service. Nomad will replace `${JOB}`,
@@ -781,7 +781,7 @@ attributes:
 
   - "manual" - Specifies that Nomad should not automatically determine health
     and that the operator will specify allocation health using the [HTTP
-    API](/api-docs/deployments#set-allocation-health-in-deployment).
+    API](/nomad/api-docs/deployments#set-allocation-health-in-deployment).
 
 - `MinHealthyTime` - Specifies the minimum time the allocation must be in the
   healthy state before it is marked as healthy and unblocks further allocations
@@ -836,7 +836,7 @@ An example `Update` block:
 The `Constraint` object supports the following keys:
 
 - `LTarget` - Specifies the attribute to examine for the
-  constraint. See the table of attributes [here](/docs/runtime/interpolation#interpreted_node_vars).
+  constraint. See the table of attributes [here](/nomad/docs/runtime/interpolation#interpreted_node_vars).
 
 - `RTarget` - Specifies the value to compare the attribute against.
   This can be a literal value, another attribute or a regular expression if
@@ -881,12 +881,12 @@ The `Constraint` object supports the following keys:
 ### Affinity
 
 Affinities allow operators to express placement preferences. More details on how they work
-are described in [affinities](/docs/job-specification/affinity)
+are described in [affinities](/nomad/docs/job-specification/affinity)
 
 The `Affinity` object supports the following keys:
 
 - `LTarget` - Specifies the attribute to examine for the
-  affinity. See the table of attributes [here](/docs/runtime/interpolation#interpreted_node_vars).
+  affinity. See the table of attributes [here](/nomad/docs/runtime/interpolation#interpreted_node_vars).
 
 - `RTarget` - Specifies the value to compare the attribute against.
   This can be a literal value, another attribute or a regular expression if
@@ -1147,12 +1147,12 @@ README][ct].
 
 Spread allow operators to target specific percentages of allocations based on
 any node attribute or metadata. More details on how they work are described
-in [spread](/docs/job-specification/spread).
+in [spread](/nomad/docs/job-specification/spread).
 
 The `Spread` object supports the following keys:
 
 - `Attribute` - Specifies the attribute to examine for the
-  spread. See the [table of attributes](/docs/runtime/interpolation#interpreted_node_vars) for examples.
+  spread. See the [table of attributes](/nomad/docs/runtime/interpolation#interpreted_node_vars) for examples.
 
 - `SpreadTarget` - Specifies a list of attribute values and percentages. This is an optional field, when
   left empty Nomad will evenly spread allocations across values of the attribute.
@@ -1189,5 +1189,5 @@ The `Scaling` object supports the following keys:
   autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
-[drain]: /docs/commands/node/drain
-[env]: /docs/runtime/environment 'Nomad Runtime Environment'
+[drain]: /nomad/docs/commands/node/drain
+[env]: /nomad/docs/runtime/environment 'Nomad Runtime Environment'

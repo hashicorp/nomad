@@ -25,13 +25,13 @@ This will no longer work since each server must be able to find a valid license 
 
 The list below is a great starting point for learning more about the license changes introduced in Nomad Enterprise v1.1.0
 
-- [v1.1.0 Upgrade Guide](https://www.nomadproject.io/docs/upgrade/upgrade-specific#enterprise-licenses)
+- [v1.1.0 Upgrade Guide](/nomad/docs/upgrade/upgrade-specific#enterprise-licenses)
 
-- [Nomad License Documentation](https://www.nomadproject.io/docs/enterprise/license)
+- [Nomad License Documentation](/nomad/docs/enterprise/license)
 
-- [License configuration values documentation](https://www.nomadproject.io/docs/configuration/server#license_path)
+- [License configuration values documentation](/nomad/docs/configuration/server#license_path)
 
-- [Install a HashiCorp Enterprise License Tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license)
+- [Install a HashiCorp Enterprise License Tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license)
 
 ## Q: Does this affect Nomad or older versions of Nomad?
 
@@ -44,7 +44,7 @@ Nomad agents running with the `-dev` flag will also need a license.
 
 ## Q: What are some pitfalls that could be experienced during an upgrade because of the license changes?
 
-If you follow the steps in the [upgrade guide](https://www.nomadproject.io/docs/upgrade/upgrade-specific#enterprise-licenses), but have misconfigured the licensing steps, the server instances will stop during boot-up sequence. 
+If you follow the steps in the [upgrade guide](/nomad/docs/upgrade/upgrade-specific#enterprise-licenses), but have misconfigured the licensing steps, the server instances will stop during boot-up sequence. 
 
 If you do not check cluster health after adding new servers, and verify that the new servers have joined properly, then you may accidentally take down old servers without replacing them.
 
@@ -90,4 +90,4 @@ Nomad cannot safely be rolled back to an earlier version.
 This is not a supported operation due to the Nomad state store not having forward compatibility. The end result could be a crash loop.
 
 ## Q: Is there a tutorial available for the license configuration steps?
-Please visit the [Enterprise License Tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license).
+Please visit the [Enterprise License Tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license).
