@@ -162,6 +162,7 @@
     height: 32px;
     width: 32px;
     color: white;
+    position: relative;
 
     $queued: $grey;
     $pending: $grey-lighter;
@@ -201,7 +202,6 @@
 
     // Health Statuses
     &.running {
-      position: relative;
       // overflow: hidden;
       .alloc-health-indicator {
         position: absolute;

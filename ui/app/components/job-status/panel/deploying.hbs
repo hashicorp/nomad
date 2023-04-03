@@ -37,7 +37,7 @@
       <div class="deployment-allocations">
         {{#if this.oldVersionAllocBlockIDs.length}}
           <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldVersionAllocBlocks.running.length}} running{{/if}}</h4>
-          <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} />
+          <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
         {{/if}}
 
         <h4 class="title is-5">New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>

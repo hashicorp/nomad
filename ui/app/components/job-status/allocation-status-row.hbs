@@ -37,6 +37,7 @@
                 @status={{status}}
                 @health={{health}}
                 @canary={{canary}}
+                @steady={{@steady}}
                 @count={{allocsByCanary.length}}
                 @width={{compute (action this.calcPerc) allocsByCanary.length}}
                 @allocs={{allocsByCanary}} />
@@ -52,7 +53,22 @@
           {{#each-in allocsByHealth as |canary allocsByCanary|}}
             {{#if (gt allocsByCanary.length 0)}}
               {{#each (range 0 allocsByCanary.length)}}
-                <span class="represented-allocation {{status}} {{health}} {{canary}}"></span>
+                <span class="represented-allocation {{status}} {{health}} {{canary}}">
+                  {{#unless @steady}}
+                    {{#if (eq canary "canary")}}
+                      <span class="alloc-canary-indicator" />
+                    {{/if}}
+                    {{#if (eq status "running")}}
+                      <span class="alloc-health-indicator">
+                        {{#if (eq health "healthy")}}
+                          <FlightIcon @name="check" @color="white" />
+                        {{else}}
+                          <FlightIcon @name="running" @color="white" />
+                        {{/if}}
+                      </span>
+                    {{/if}}
+                  {{/unless}}
+                </span>
               {{/each}}
             {{/if}}
           {{/each-in}}
