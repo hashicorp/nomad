@@ -44,7 +44,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
         };
         availableSlotsToFill -= blocks[type.label].length;
       } else {
-        blocks[type.label] = {healthy: {nonCanary: []}};
+        blocks[type.label] = { healthy: { nonCanary: [] } };
       }
       return blocks;
     }, {});
@@ -73,7 +73,9 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get versions() {
     return Object.values(this.allocBlocks)
-      .flat()
+      .flatMap((allocType) => Object.values(allocType))
+      .flatMap((allocHealth) => Object.values(allocHealth))
+      .flatMap((allocCanary) => Object.values(allocCanary))
       .map((a) => (!isNaN(a?.jobVersion) ? `v${a.jobVersion}` : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
       .reduce(
         (result, item) => ({
