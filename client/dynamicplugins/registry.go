@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 const (
@@ -22,6 +23,7 @@ type Registry interface {
 	RegisterPlugin(info *PluginInfo) error
 	DeregisterPlugin(ptype, name, allocID string) error
 
+	WaitForPlugin(ctx context.Context, ptype, pname string) (*PluginInfo, error)
 	ListPlugins(ptype string) []*PluginInfo
 	DispensePlugin(ptype, name string) (interface{}, error)
 	PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error)
@@ -299,6 +301,44 @@ func (d *dynamicRegistry) ListPlugins(ptype string) []*PluginInfo {
 	}
 
 	return plugins
+}
+
+// WaitForPlugin repeatedly checks until a plugin with a given type and name
+// becomes available or its context is canceled or times out.
+// Callers should pass in a context with a sensible timeout
+// for the plugin they're expecting to find.
+func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string) (*PluginInfo, error) {
+	// these numbers are almost arbitrary...
+	delay := 200     // milliseconds between checks, will backoff
+	maxDelay := 5000 // up to 5 seconds between each check
+
+	// put a long upper bound on total time,
+	// just in case callers don't follow directions.
+	ctx, cancel := context.WithTimeout(ctx, 24*time.Hour)
+	defer cancel()
+
+	for {
+		for _, p := range d.ListPlugins(ptype) {
+			if p.Name == name {
+				return p, nil
+			}
+		}
+
+		//log.Printf("WaitForPlugin delay: %d", delay) // TODO: get a logger in here?
+		select {
+		case <-ctx.Done():
+			// an externally-defined timeout wins the day
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(delay) * time.Millisecond):
+			// continue after our internal delay
+		}
+		if delay < maxDelay {
+			delay += delay
+		}
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+	}
 }
 
 func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}, error) {
