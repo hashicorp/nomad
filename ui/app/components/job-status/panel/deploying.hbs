@@ -38,6 +38,19 @@
         {{#if this.oldVersionAllocBlockIDs.length}}
           <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
           <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
+          <div class="legend-and-summary">
+            <legend>
+              <span class="legend-item {{if (eq (get this.oldRunningHealthyAllocBlocks "length") 0) "faded"}}">
+                <span class="represented-allocation running"></span>
+                {{get this.oldRunningHealthyAllocBlocks "length"}} Running
+              </span>
+              <span class="legend-item {{if (eq (get this.oldCompleteHealthyAllocBlocks "length") 0) "faded"}}">
+                <span class="represented-allocation complete"></span>
+                {{get this.oldCompleteHealthyAllocBlocks "length"}} Complete
+              </span>
+            </legend>
+          </div>
+
         {{/if}}
 
         <h4 class="title is-5">New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
@@ -57,7 +70,6 @@
             {{/each-in}}
           {{/each}}
         </legend>
-
       </div>
 
       <div class="history-and-params">

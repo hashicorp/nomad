@@ -3,8 +3,6 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
-const UNGROUPED_ALLOCS_THRESHOLD = 50;
-
 export default class JobStatusAllocationStatusRowComponent extends Component {
   @tracked width = 0;
 
@@ -20,7 +18,7 @@ export default class JobStatusAllocationStatusRowComponent extends Component {
   }
 
   get showSummaries() {
-    return this.allocBlockSlots > UNGROUPED_ALLOCS_THRESHOLD;
+    return this.allocBlockSlots * 42 - 10 > this.width;
   }
 
   calcPerc(count) {

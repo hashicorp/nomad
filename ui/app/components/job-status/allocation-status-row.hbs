@@ -22,7 +22,10 @@
       {{/each-in}}
     </div>
   {{else}}
-    <div class="ungrouped-allocs">
+    <div class="ungrouped-allocs"
+      {{did-insert this.captureElement}}
+      {{window-resize this.reflow}}
+    >
       {{#each-in @allocBlocks as |status allocsByStatus|}}
         {{#each-in allocsByStatus as |health allocsByHealth|}}
           {{#each-in allocsByHealth as |canary allocsByCanary|}}

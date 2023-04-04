@@ -136,7 +136,10 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get oldRunningHealthyAllocBlocks() {
-    return this.oldVersionAllocBlocks['running']['healthy']['nonCanary'];
+    return this.oldVersionAllocBlocks.running?.healthy?.nonCanary || [];
+  }
+  get oldCompleteHealthyAllocBlocks() {
+    return this.oldVersionAllocBlocks.complete?.healthy?.nonCanary || [];
   }
 
   // TODO: eventually we will want this from a new property on a job.

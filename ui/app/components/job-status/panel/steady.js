@@ -18,7 +18,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
   ].map((type) => {
     return {
       label: type,
-      property: `${type}Allocs`,
+      // property: `${type}Allocs`,
     };
   });
 
@@ -44,7 +44,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
         };
         availableSlotsToFill -= blocks[type.label].length;
       } else {
-        blocks[type.label] = [];
+        blocks[type.label] = {healthy: {nonCanary: []}};
       }
       return blocks;
     }, {});

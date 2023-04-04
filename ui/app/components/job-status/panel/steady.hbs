@@ -29,7 +29,7 @@
           {{#each this.allocTypes as |type|}}
             <span class="legend-item {{if (eq (get (get this.allocBlocks type.label) "length") 0) "faded"}}">
               <span class="represented-allocation {{type.label}}"></span>
-              {{get (get this.allocBlocks type.label) "length"}} {{capitalize type.label}}
+              {{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}
             </span>
           {{/each}}
         </legend>

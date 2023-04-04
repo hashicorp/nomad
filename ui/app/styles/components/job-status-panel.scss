@@ -44,8 +44,8 @@
     }
   }
 
-  .boxed-section-body > .legend-and-summary {
-    grid-area: legend-and-summary;
+  .legend-and-summary {
+    // grid-area: legend-and-summary;
     display: grid;
     gap: 0.5rem;
     grid-template-columns: 50% 50%;
@@ -107,11 +107,11 @@
     display: grid;
     gap: 10px;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(1px, 32px);
-    margin-bottom: 1rem;
+    // grid-auto-columns: minmax(1px, 32px);
+    grid-auto-columns: 32px;
 
     & > .represented-allocation {
-      width: auto;
+      width: 32px;
     }
   }
 
@@ -288,20 +288,22 @@
     }
   }
 
-  & > .boxed-section-body > .legend-and-summary {
-    .legend-item {
-      display: grid;
-      gap: 0.5rem;
-      grid-template-columns: auto 1fr;
+  & > .boxed-section-body > .deployment-allocations {
+    margin-bottom: 1rem;
+  }
 
-      &.faded {
-        opacity: 0.5;
-      }
+  .legend-item {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: auto 1fr;
 
-      .represented-allocation {
-        width: 20px;
-        height: 20px;
-      }
+    &.faded {
+      opacity: 0.5;
+    }
+
+    .represented-allocation {
+      width: 20px;
+      height: 20px;
     }
   }
 
