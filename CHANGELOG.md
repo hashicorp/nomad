@@ -1,3 +1,9 @@
+## 1.4.8 (April 04, 2023)
+
+SECURITY:
+
+* build: update to Go 1.20.3 to prevent denial of service attack via malicious HTTP headers [CVE-2023-24534](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-24534) [[GH-16788](https://github.com/hashicorp/nomad/issues/16788)]
+
 ## 1.4.7 (March 21, 2023)
 
 IMPROVEMENTS:
