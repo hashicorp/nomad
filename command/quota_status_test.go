@@ -62,7 +62,7 @@ func TestQuotaStatusCommand_Run(t *testing.T) {
 
 	// Check for basic spec
 	out := ui.OutputWriter.String()
-	must.StrContains(t, out, "= test")
+	must.StrContains(t, out, "= quota-test-")
 
 	// Check for usage
 	must.StrContains(t, out, "0 / 100")
@@ -103,7 +103,7 @@ func TestQuotaStatusCommand_AutocompleteArgs(t *testing.T) {
 	_, err := client.Quotas().Register(qs, nil)
 	must.NoError(t, err)
 
-	args := complete.Args{Last: "t"}
+	args := complete.Args{Last: "quot"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
