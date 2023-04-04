@@ -5,7 +5,6 @@ package command
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -59,9 +58,8 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "Usages") || !strings.Contains(out, qs.Name) {
-		t.Fatalf("expected quota, got: %s", out)
-	}
+	must.StrContains(t, out, "Usages")
+	must.StrContains(t, out, qs.Name)
 
 	ui.OutputWriter.Reset()
 	// List json
@@ -78,7 +76,7 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
-	must.StrContains(t, out, "test-quota")
+	must.StrContains(t, out, qs.Name)
 
 	ui.OutputWriter.Reset()
 }
