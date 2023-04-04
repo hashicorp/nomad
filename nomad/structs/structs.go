@@ -5139,7 +5139,7 @@ func (u *UpdateStrategy) IsEmpty() bool {
 	// When the Job is transformed from api to struct, the Update Strategy block is
 	// copied into the existing task groups, the only things that are passed along
 	// are MaxParallel and Stagger, because they are enforced at job level.
-	// That is why checking if MaxParallel is cero is enough to know if the
+	// That is why checking if MaxParallel is zero is enough to know if the
 	// update block is empty.
 
 	return u.MaxParallel == 0
