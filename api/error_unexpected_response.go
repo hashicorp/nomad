@@ -17,6 +17,7 @@ type UnexpectedResponseError struct {
 	statusText string
 	body       string
 	err        error
+	additional error
 }
 
 func (e UnexpectedResponseError) HasExpectedStatuses() bool { return len(e.expected) > 0 }
@@ -29,7 +30,8 @@ func (e UnexpectedResponseError) HasBody() bool             { return e.body != "
 func (e UnexpectedResponseError) Body() string              { return e.body }
 func (e UnexpectedResponseError) HasError() bool            { return e.err != nil }
 func (e UnexpectedResponseError) Unwrap() error             { return e.err }
-
+func (e UnexpectedResponseError) HasAdditional() bool       { return e.additional != nil }
+func (e UnexpectedResponseError) Additional() error         { return e.additional }
 func NewUnexpectedResponseError(src UnexpectedResponseErrorSource, opts ...UnexpectedResponseErrorOption) UnexpectedResponseError {
 	new := src()
 	for _, opt := range opts {
@@ -66,6 +68,10 @@ func (e UnexpectedResponseError) Error() string {
 	}
 	if e.HasBody() {
 		eTxt.WriteString(fmt.Sprintf("(%s)", e.body))
+	}
+
+	if e.HasAdditional() {
+		eTxt.WriteString(fmt.Sprintf(". Additionally, an error occurred while constructing this error (%s); the body might be truncated or missing.", e.additional.Error()))
 	}
 
 	return eTxt.String()
@@ -109,18 +115,24 @@ type UnexpectedResponseErrorSource func() *UnexpectedResponseError
 // the data for the UnexpectedResponseError.
 func FromHTTPResponse(resp *http.Response) UnexpectedResponseErrorSource {
 	return func() *UnexpectedResponseError {
-		// collect and close the body
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, resp.Body)
-		_ = resp.Body.Close()
-		body := strings.TrimSpace(buf.String())
-
-		// make and return the error
 		u := new(UnexpectedResponseError)
-		u.statusCode = resp.StatusCode
-		u.statusText = strings.TrimSpace(strings.TrimPrefix(resp.Status, fmt.Sprint(resp.StatusCode)))
-		u.body = body
 
+		if resp != nil {
+			// collect and close the body
+			var buf bytes.Buffer
+			if _, e := io.Copy(&buf, resp.Body); e != nil {
+				u.additional = e
+			}
+
+			// Body has been tested as safe to close more than once
+			_ = resp.Body.Close()
+			body := strings.TrimSpace(buf.String())
+
+			// make and return the error
+			u.statusCode = resp.StatusCode
+			u.statusText = strings.TrimSpace(strings.TrimPrefix(resp.Status, fmt.Sprint(resp.StatusCode)))
+			u.body = body
+		}
 		return u
 	}
 }
