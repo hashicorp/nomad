@@ -58,7 +58,42 @@
       </div>
 
       <div class="legend-and-summary">
+
+        {{!-- Legend by Status, then by Health, then by Canary --}}
         <legend>
+          {{#each-in this.newAllocsByStatus as |status count|}}
+            <span class="legend-item {{if (eq count 0) "faded"}}">
+              <span class="represented-allocation {{status}}"></span>
+              {{count}} {{capitalize status}}
+            </span>
+          {{/each-in}}
+
+          {{#each-in this.newAllocsByHealth as |health count|}}
+            <span class="legend-item {{if (eq count 0) "faded"}}">
+              <span class="represented-allocation unplaced">
+                <span class="alloc-health-indicator">
+                  {{#if (eq health "healthy")}}
+                    <FlightIcon @name="check" @color="#25ba81" />
+                  {{else}}
+                    <FlightIcon @name="running" @color="black" />
+                  {{/if}}
+                </span>
+              </span>
+              {{count}} {{capitalize health}}
+            </span>
+          {{/each-in}}
+
+          <span class="legend-item {{if (eq this.newAllocsByCanary.canary 0) "faded"}}">
+            <span class="represented-allocation pending canary">
+              <span class="alloc-canary-indicator" />
+            </span>
+            {{this.newAllocsByCanary.canary}} Canary
+          </span>
+
+        </legend>
+
+
+        {{!-- <legend>
           {{#each this.allocTypes as |type|}}
             {{#each-in (get this.newVersionAllocBlocks type.label) as |health allocsByHealth|}}
               {{#each-in allocsByHealth as |canary allocsByCanary|}}
@@ -69,7 +104,7 @@
               {{/each-in}}
             {{/each-in}}
           {{/each}}
-        </legend>
+        </legend> --}}
       </div>
 
       <div class="history-and-params">

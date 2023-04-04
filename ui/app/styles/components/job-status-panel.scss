@@ -52,7 +52,7 @@
 
     legend {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 0.5rem;
     }
     .versions {
@@ -274,6 +274,7 @@
       position: absolute;
       bottom: 0;
       left: 0;
+      border-radius: 4px;
 
       &:after {
         content: '';

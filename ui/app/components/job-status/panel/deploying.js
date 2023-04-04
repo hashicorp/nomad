@@ -135,6 +135,38 @@ export default class JobStatusPanelDeployingComponent extends Component {
     ];
   }
 
+  // #region legend
+  get newAllocsByStatus() {
+    return Object.entries(this.newVersionAllocBlocks).reduce(
+      (counts, [status, healthStatusObj]) => {
+        counts[status] = Object.values(healthStatusObj)
+          .flatMap((canaryStatusObj) => Object.values(canaryStatusObj))
+          .flatMap((canaryStatusArray) => canaryStatusArray).length;
+        return counts;
+      },
+      {}
+    );
+  }
+
+  get newAllocsByCanary() {
+    return Object.values(this.newVersionAllocBlocks)
+      .flatMap((healthStatusObj) => Object.values(healthStatusObj))
+      .flatMap((canaryStatusObj) => Object.entries(canaryStatusObj))
+      .reduce((counts, [canaryStatus, items]) => {
+        counts[canaryStatus] = (counts[canaryStatus] || 0) + items.length;
+        return counts;
+      }, {});
+  }
+
+  get newAllocsByHealth() {
+    return {
+      healthy: this.newRunningHealthyAllocBlocks.length,
+      'health unknown':
+        this.totalAllocs - this.newRunningHealthyAllocBlocks.length,
+    };
+  }
+  // #endregion legend
+
   get oldRunningHealthyAllocBlocks() {
     return this.oldVersionAllocBlocks.running?.healthy?.nonCanary || [];
   }
