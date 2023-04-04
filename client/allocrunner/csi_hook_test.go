@@ -417,6 +417,10 @@ type mockPluginManager struct {
 	mounter mockVolumeMounter
 }
 
+func (mgr mockPluginManager) WaitForPlugin(ctx context.Context, pluginType, pluginID string) error {
+	return nil
+}
+
 func (mgr mockPluginManager) MounterForPlugin(ctx context.Context, pluginID string) (csimanager.VolumeMounter, error) {
 	return mgr.mounter, nil
 }
