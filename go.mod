@@ -108,7 +108,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shirou/gopsutil/v3 v3.23.1
 	github.com/shoenig/go-landlock v0.1.5
-	github.com/shoenig/go-m1cpu v0.1.4
+	github.com/shoenig/go-m1cpu v0.1.5
 	github.com/shoenig/test v0.6.3
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/testify v1.8.1
