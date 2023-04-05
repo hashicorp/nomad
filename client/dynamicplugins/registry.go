@@ -317,6 +317,7 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 	ctx, cancel := context.WithTimeout(ctx, 24*time.Hour)
 	defer cancel()
 
+	timer := time.NewTimer(time.Duration(delay) * time.Millisecond)
 	for {
 		for _, p := range d.ListPlugins(ptype) {
 			if p.Name == name {
@@ -329,7 +330,7 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 		case <-ctx.Done():
 			// an externally-defined timeout wins the day
 			return nil, ctx.Err()
-		case <-time.After(time.Duration(delay) * time.Millisecond):
+		case <-timer.C:
 			// continue after our internal delay
 		}
 		if delay < maxDelay {
@@ -338,6 +339,7 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 		if delay > maxDelay {
 			delay = maxDelay
 		}
+		timer.Reset(time.Duration(delay) * time.Millisecond)
 	}
 }
 
