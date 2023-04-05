@@ -137,7 +137,6 @@ func (s *Sandbox) runCmd(env *parameters) error {
 	cmd.Stdin = env.reader()
 	cmd.Stdout = output
 	cmd.Stderr = output
-	cmd.SysProcAttr = attributes()
 
 	// start & wait for the subprocess to terminate
 	if err := cmd.Run(); err != nil {

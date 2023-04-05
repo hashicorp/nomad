@@ -25,18 +25,6 @@ func init() {
 	userGID = uint32(syscall.Getgid())
 }
 
-// attributes returns the system process attributes to run
-// the sandbox process with
-func attributes() *syscall.SysProcAttr {
-	uid, gid := credentials()
-	return &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uid,
-			Gid: gid,
-		},
-	}
-}
-
 // credentials returns the UID and GID of the user the child process
 // will run as - for now this is always the same user the Nomad agent is
 // running as.

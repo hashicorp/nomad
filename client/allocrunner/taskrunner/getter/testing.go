@@ -24,7 +24,7 @@ func TestSandbox(t *testing.T) *Sandbox {
 }
 
 // SetupDir creates a directory suitable for testing artifact - i.e. it is
-// owned by the nobody user as would be the case in a normal client operation.
+// owned by the user under which nomad runs.
 //
 // returns alloc_dir, task_dir
 func SetupDir(t *testing.T) (string, string) {
