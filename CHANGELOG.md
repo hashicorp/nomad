@@ -1,3 +1,10 @@
+## 1.5.3 (April 04, 2023)
+
+SECURITY:
+
+* acl: Fixed a bug where unauthenticated HTTP API requests through the client could bypass ACL policy checking [CVE-2023-1782](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-1782) [[GH-16775](https://github.com/hashicorp/nomad/issues/16775)] [[GH-16775](https://github.com/hashicorp/nomad/issues/16775)]
+* build: update to Go 1.20.3 to prevent denial of service attack via malicious HTTP headers [CVE-2023-24534](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-24534) [[GH-16788](https://github.com/hashicorp/nomad/issues/16788)]
+
 ## 1.5.2 (March 21, 2023)
 
 BREAKING CHANGES:
