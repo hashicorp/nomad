@@ -5,7 +5,6 @@ package getter
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 )
 
 // credentials is not implemented on Windows
