@@ -70,7 +70,7 @@
 
           {{#each-in this.newAllocsByHealth as |health count|}}
             <span class="legend-item {{if (eq count 0) "faded"}}">
-              <span class="represented-allocation unplaced">
+              <span class="represented-allocation legend-example">
                 <span class="alloc-health-indicator">
                   {{#if (eq health "healthy")}}
                     <FlightIcon @name="check" @color="#25ba81" />
@@ -84,7 +84,7 @@
           {{/each-in}}
 
           <span class="legend-item {{if (eq this.newAllocsByCanary.canary 0) "faded"}}">
-            <span class="represented-allocation pending canary">
+            <span class="represented-allocation legend-example canary">
               <span class="alloc-canary-indicator" />
             </span>
             {{this.newAllocsByCanary.canary}} Canary

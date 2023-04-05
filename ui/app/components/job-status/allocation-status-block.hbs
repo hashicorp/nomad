@@ -23,7 +23,7 @@
   {{/if}}
   {{#if this.remaining}}
     <span class="represented-allocation rest {{@status}} {{@health}} {{@canary}}">
-      {{#if this.countToShow}}+{{/if}}{{this.remaining}}
+      <span class="rest-count">{{#if this.countToShow}}+{{/if}}{{this.remaining}}</span>
       {{#unless @steady}}
         {{#if (eq @canary "canary")}}
           <span class="alloc-canary-indicator" />
