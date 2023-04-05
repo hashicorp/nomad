@@ -4,18 +4,7 @@ package getter
 
 import (
 	"path/filepath"
-	"syscall"
 )
-
-// attributes is not implemented by default
-func attributes() *syscall.SysProcAttr {
-	return nil
-}
-
-// credentials is not implemented by default
-func credentials() (uint32, uint32) {
-	return 0, 0
-}
 
 // lockdown is not implemented by default
 func lockdown(string, string) error {
