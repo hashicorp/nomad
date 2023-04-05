@@ -302,6 +302,10 @@ type Client struct {
 	// applied to the node
 	fpInitialized chan struct{}
 
+	// registeredCh is closed when Node.Register has successfully run once.
+	registeredCh   chan struct{}
+	registeredOnce sync.Once
+
 	// serversContactedCh is closed when GetClientAllocs and runAllocs have
 	// successfully run once.
 	serversContactedCh   chan struct{}
@@ -376,6 +380,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
+		registeredCh:         make(chan struct{}),
+		registeredOnce:       sync.Once{},
 		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
@@ -1832,6 +1838,15 @@ func (c *Client) periodicSnapshot() {
 
 // run is a long lived goroutine used to run the client. Shutdown() stops it first
 func (c *Client) run() {
+
+	// Block until we've registered at least once so that we know the server has
+	// our node secret and we can authenticate
+	select {
+	case <-c.registeredCh:
+	case <-c.shutdownCh:
+		return
+	}
+
 	// Watch for changes in allocations
 	allocUpdates := make(chan *allocUpdates, 8)
 	go c.watchAllocations(allocUpdates)
@@ -1866,8 +1881,11 @@ func (c *Client) submitNodeEvents(events []*structs.NodeEvent) error {
 		nodeID: events,
 	}
 	req := structs.EmitNodeEventsRequest{
-		NodeEvents:   nodeEvents,
-		WriteRequest: structs.WriteRequest{Region: c.Region()},
+		NodeEvents: nodeEvents,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.Region(),
+			AuthToken: c.secretNodeID(),
+		},
 	}
 	var resp structs.EmitNodeEventsResponse
 	if err := c.RPC("Node.EmitEvents", &req, &resp); err != nil {
@@ -1950,13 +1968,29 @@ func (c *Client) retryRegisterNode() {
 // registerNode is used to register the node or update the registration
 func (c *Client) registerNode() error {
 	req := structs.NodeRegisterRequest{
-		Node:         c.Node(),
-		WriteRequest: structs.WriteRequest{Region: c.Region()},
+		Node: c.Node(),
+		WriteRequest: structs.WriteRequest{
+			Region: c.Region(),
+		},
 	}
+	select {
+	case <-c.registeredCh:
+		// registration is trust-on-first-use but we want to add the auth token
+		// after the initial request so that we can capture metrics
+		req.AuthToken = c.secretNodeID()
+	default:
+	}
+
 	var resp structs.NodeUpdateResponse
 	if err := c.RPC("Node.Register", &req, &resp); err != nil {
 		return err
 	}
+
+	// Signal that we've registered once so that RPCs sent from the client can
+	// send authenticated requests
+	c.registeredOnce.Do(func() {
+		close(c.registeredCh)
+	})
 
 	err := c.handleNodeUpdateResponse(resp)
 	if err != nil {
@@ -1985,9 +2019,12 @@ func (c *Client) registerNode() error {
 func (c *Client) updateNodeStatus() error {
 	start := time.Now()
 	req := structs.NodeUpdateStatusRequest{
-		NodeID:       c.NodeID(),
-		Status:       structs.NodeStatusReady,
-		WriteRequest: structs.WriteRequest{Region: c.Region()},
+		NodeID: c.NodeID(),
+		Status: structs.NodeStatusReady,
+		WriteRequest: structs.WriteRequest{
+			Region:    c.Region(),
+			AuthToken: c.secretNodeID(),
+		},
 	}
 	var resp structs.NodeUpdateResponse
 	if err := c.RPC("Node.UpdateStatus", &req, &resp); err != nil {
@@ -2129,8 +2166,11 @@ func (c *Client) allocSync() {
 
 			// Send to server.
 			args := structs.AllocUpdateRequest{
-				Alloc:        toSync,
-				WriteRequest: structs.WriteRequest{Region: c.Region()},
+				Alloc: toSync,
+				WriteRequest: structs.WriteRequest{
+					Region:    c.Region(),
+					AuthToken: c.secretNodeID(),
+				},
 			}
 
 			var resp structs.GenericResponse
@@ -2204,6 +2244,7 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 			// After the first request, only require monotonically
 			// increasing state.
 			AllowStale: false,
+			AuthToken:  c.secretNodeID(),
 		},
 	}
 	var resp structs.NodeClientAllocsResponse
@@ -2721,6 +2762,7 @@ func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vcli
 			Region:        c.Region(),
 			AllowStale:    false,
 			MinQueryIndex: alloc.CreateIndex,
+			AuthToken:     c.secretNodeID(),
 		},
 	}
 
@@ -2794,11 +2836,14 @@ func (c *Client) deriveSIToken(alloc *structs.Allocation, taskNames []string) (m
 	}
 
 	req := &structs.DeriveSITokenRequest{
-		NodeID:       c.NodeID(),
-		SecretID:     c.secretNodeID(),
-		AllocID:      alloc.ID,
-		Tasks:        tasks,
-		QueryOptions: structs.QueryOptions{Region: c.Region()},
+		NodeID:   c.NodeID(),
+		SecretID: c.secretNodeID(),
+		AllocID:  alloc.ID,
+		Tasks:    tasks,
+		QueryOptions: structs.QueryOptions{
+			Region:    c.Region(),
+			AuthToken: c.secretNodeID(),
+		},
 	}
 
 	// Nicely ask Nomad Server for the tokens.
