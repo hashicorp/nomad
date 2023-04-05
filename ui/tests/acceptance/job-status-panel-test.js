@@ -197,7 +197,6 @@ module('Acceptance | job status panel', function (hooks) {
       jobId: job.id,
     }).length;
 
-    await this.pauseTest();
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(

@@ -21,7 +21,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
   ].map((type) => {
     return {
       label: type,
-      // property: `${type}Allocs`,
     };
   });
 

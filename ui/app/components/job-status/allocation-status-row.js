@@ -3,6 +3,9 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
+const ALLOC_BLOCK_WIDTH = 32;
+const ALLOC_BLOCK_GAP = 10;
+
 export default class JobStatusAllocationStatusRowComponent extends Component {
   @tracked width = 0;
 
@@ -18,7 +21,11 @@ export default class JobStatusAllocationStatusRowComponent extends Component {
   }
 
   get showSummaries() {
-    return this.allocBlockSlots * 42 - 10 > this.width;
+    return (
+      this.allocBlockSlots * (ALLOC_BLOCK_WIDTH + ALLOC_BLOCK_GAP) -
+        ALLOC_BLOCK_GAP >
+      this.width
+    );
   }
 
   calcPerc(count) {

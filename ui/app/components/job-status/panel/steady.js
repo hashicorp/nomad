@@ -18,7 +18,6 @@ export default class JobStatusPanelSteadyComponent extends Component {
   ].map((type) => {
     return {
       label: type,
-      // property: `${type}Allocs`,
     };
   });
 

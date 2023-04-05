@@ -46,6 +46,7 @@
 
   .legend-and-summary {
     // grid-area: legend-and-summary;
+    // TODO: may revisit this grid-area later, but is currently used in 2 competing ways
     display: grid;
     gap: 0.5rem;
     grid-template-columns: 50% 50%;
@@ -107,7 +108,6 @@
     display: grid;
     gap: 10px;
     grid-auto-flow: column;
-    // grid-auto-columns: minmax(1px, 32px);
     grid-auto-columns: 32px;
 
     & > .represented-allocation {
@@ -140,6 +140,7 @@
       }
 
       .represented-allocation.rest {
+        // TODO: we eventually want to establish a minimum width here. However, we need to also include this in the allocation-status-block width computation.
         font-size: 0.8rem;
         text-align: center;
         display: grid;
@@ -147,7 +148,6 @@
         font-weight: bold;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
         width: 100%;
-        // min-width: 32px; // TODO: fix
 
         &.unplaced {
           color: black;
@@ -202,7 +202,6 @@
 
     // Health Statuses
     &.running {
-      // overflow: hidden;
       .alloc-health-indicator {
         position: absolute;
         width: 100%;
@@ -210,7 +209,6 @@
         display: grid;
         align-content: center;
         justify-content: center;
-        // background-color: white;
       }
       &.rest .alloc-health-indicator {
         top: -7px;
@@ -223,47 +221,6 @@
         box-sizing: border-box;
         transform: scale(0.75);
       }
-      &.rest.healthy {
-        .alloc-health-indicator {
-          // background: $nomad-green-dark;
-          // border: 1px solid white;
-        }
-      }
-
-      // .alloc-health-indicator {
-      //   position: absolute;
-      //   // top: -6px;
-      //   // right: -6px;
-      //   // border-radius: 20px;
-      //   width: 100%;
-      //   height: 100%;
-      //   display: grid;
-      //   align-content: center;
-      //   justify-content: center;
-      // }
-
-      // &.healthy {
-      //   .alloc-health-indicator {
-      //     background: #16704d;
-      //   }
-      // }
-
-      // &:after {
-      //   content: "";
-      //   position:absolute;
-      //   right: -8px;
-      //   top: -8px;
-      //   width:16px;
-      //   height:16px;
-      //   transform:rotate(45deg);
-      //   background-color:#4A4A4A;
-      // }
-
-      // &.healthy {
-      //   &:after {
-      //     background-color: $nomad-green-darker;
-      //   }
-      // }
     }
 
     // Canary Status

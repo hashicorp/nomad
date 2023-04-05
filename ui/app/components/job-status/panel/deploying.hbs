@@ -91,20 +91,6 @@
           </span>
 
         </legend>
-
-
-        {{!-- <legend>
-          {{#each this.allocTypes as |type|}}
-            {{#each-in (get this.newVersionAllocBlocks type.label) as |health allocsByHealth|}}
-              {{#each-in allocsByHealth as |canary allocsByCanary|}}
-                <span class="legend-item {{if (eq (get allocsByCanary "length") 0) "faded"}}">
-                  <span class="represented-allocation {{type.label}} {{health}} {{canary}}"></span>
-                  {{get allocsByCanary "length"}} {{capitalize type.label}} {{capitalize health}} {{capitalize canary}}
-                </span>
-              {{/each-in}}
-            {{/each-in}}
-          {{/each}}
-        </legend> --}}
       </div>
 
       <div class="history-and-params">
