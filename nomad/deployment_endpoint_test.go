@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1131,65 +1132,104 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
+	//assert := assert.New(t)
+
+	// Create dev namespace
+	devNS := mock.Namespace()
+	devNS.Name = "dev"
+	err := s1.fsm.State().UpsertNamespaces(999, []*structs.Namespace{devNS})
+	require.NoError(t, err)
 
 	// Create the register request
-	j := mock.Job()
-	d := mock.Deployment()
-	d.JobID = j.ID
+	d1 := mock.Deployment()
+	d2 := mock.Deployment()
+	d2.Namespace = devNS.Name
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	must.NoError(t, state.UpsertDeployment(1000, d1), must.Sprint("Upsert Deployment failed"))
+	must.NoError(t, state.UpsertDeployment(1001, d2), must.Sprint("Upsert Deployment failed"))
 
 	// Create the namespace policy and tokens
-	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
+	validToken := mock.CreatePolicyAndToken(t, state, 1002, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+	devToken := mock.CreatePolicyAndToken(t, state, 1004, "test-dev",
+		mock.NamespacePolicy("dev", "", []string{acl.NamespaceCapabilityReadJob}))
 
-	get := &structs.DeploymentListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: structs.DefaultNamespace,
+	testCases := []struct {
+		name                string
+		namespace           string
+		token               string
+		expectedDeployments []string
+		expectedError       string
+		prefix              string
+	}{
+		{
+			name:          "no token",
+			token:         "",
+			namespace:     structs.DefaultNamespace,
+			expectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:          "invalid token",
+			token:         invalidToken.SecretID,
+			namespace:     structs.DefaultNamespace,
+			expectedError: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:                "valid token",
+			token:               validToken.SecretID,
+			namespace:           structs.DefaultNamespace,
+			expectedDeployments: []string{d1.ID},
+		},
+		{
+			name:                "root token all namespaces",
+			token:               root.SecretID,
+			namespace:           structs.AllNamespacesSentinel,
+			expectedDeployments: []string{d1.ID, d2.ID},
+		},
+
+		{
+			name:                "root token default namespace",
+			token:               root.SecretID,
+			namespace:           structs.DefaultNamespace,
+			expectedDeployments: []string{d1.ID},
+		},
+		{
+			name:                "dev token all namespaces",
+			token:               devToken.SecretID,
+			namespace:           structs.AllNamespacesSentinel,
+			expectedDeployments: []string{d2.ID},
 		},
 	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			get := &structs.EvalListRequest{
+				QueryOptions: structs.QueryOptions{
+					AuthToken: tc.token,
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+				},
+			}
 
-	// Try with no token and expect permission denied
-	{
-		var resp structs.DeploymentUpdateResponse
-		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-	}
+			var resp structs.DeploymentListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
 
-	// Try with an invalid token
-	{
-		get.AuthToken = invalidToken.SecretID
-		var resp structs.DeploymentUpdateResponse
-		err := msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-	}
+			if tc.expectedError != "" {
+				must.ErrorContains(t, err, tc.expectedError)
+			} else {
+				must.NoError(t, err)
+				require.Equal(t, uint64(1001), resp.Index, "Bad index: %d %d", resp.Index, 1001)
 
-	// Lookup the deployments with a root token
-	{
-		get.AuthToken = root.SecretID
-		var resp structs.DeploymentListResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
-		assert.EqualValues(resp.Index, 1000, "Wrong Index")
-		assert.Len(resp.Deployments, 1, "Deployments")
-		assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
-	}
-
-	// Lookup the deployments with a valid token
-	{
-		get.AuthToken = validToken.SecretID
-		var resp structs.DeploymentListResponse
-		assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
-		assert.EqualValues(resp.Index, 1000, "Wrong Index")
-		assert.Len(resp.Deployments, 1, "Deployments")
-		assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
+				got := make([]string, len(resp.Deployments))
+				for i, eval := range resp.Deployments {
+					got[i] = eval.ID
+				}
+				require.ElementsMatch(t, got, tc.expectedDeployments)
+			}
+		})
 	}
 }
 
