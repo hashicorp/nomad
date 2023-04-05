@@ -5,18 +5,7 @@ package getter
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 )
-
-// attributes is not implemented on Windows
-func attributes() *syscall.SysProcAttr {
-	return nil
-}
-
-// credentials is not implemented on Windows
-func credentials() (uint32, uint32) {
-	return 0, 0
-}
 
 // lockdown is not implemented on Windows
 func lockdown(string, string) error {

@@ -5,44 +5,11 @@ package getter
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/shoenig/go-landlock"
 	"golang.org/x/sys/unix"
 )
-
-var (
-	// userUID is the current user's uid
-	userUID uint32
-
-	// userGID is the current user's gid
-	userGID uint32
-)
-
-func init() {
-	userUID = uint32(syscall.Getuid())
-	userGID = uint32(syscall.Getgid())
-}
-
-// attributes returns the system process attributes to run
-// the sandbox process with
-func attributes() *syscall.SysProcAttr {
-	uid, gid := credentials()
-	return &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uid,
-			Gid: gid,
-		},
-	}
-}
-
-// credentials returns the UID and GID of the user the child process
-// will run as - for now this is always the same user the Nomad agent is
-// running as.
-func credentials() (uint32, uint32) {
-	return userUID, userGID
-}
 
 // findHomeDir returns the home directory as provided by os.UserHomeDir. In case
 // os.UserHomeDir returns an error, we return /root if the current process is being
