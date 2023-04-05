@@ -115,7 +115,7 @@ module('Acceptance | job status panel', function (hooks) {
         `All ${jobAllocCount} allocations are represented in the status panel`
       );
 
-    groupTaskCount = 40;
+    groupTaskCount = 20;
 
     job = server.create('job', {
       status: 'running',
@@ -130,6 +130,7 @@ module('Acceptance | job status panel', function (hooks) {
         lost: 0,
       },
       groupTaskCount,
+      noActiveDeployment: true,
       shallow: true,
     });
 
@@ -161,7 +162,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .exists(
         { count: failedAllocCount },
-        `All ${failedAllocCount} running allocations are represented in the status panel`
+        `All ${failedAllocCount} failed allocations are represented in the status panel`
       );
     await percySnapshot(assert);
   });
@@ -171,7 +172,7 @@ module('Acceptance | job status panel', function (hooks) {
 
     faker.seed(1);
 
-    let groupTaskCount = 50;
+    let groupTaskCount = 20;
 
     let job = server.create('job', {
       status: 'running',
@@ -196,6 +197,7 @@ module('Acceptance | job status panel', function (hooks) {
       jobId: job.id,
     }).length;
 
+    await this.pauseTest();
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
@@ -203,7 +205,7 @@ module('Acceptance | job status panel', function (hooks) {
         `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`
       );
 
-    groupTaskCount = 51;
+    groupTaskCount = 40;
 
     job = server.create('job', {
       status: 'running',
@@ -228,9 +230,8 @@ module('Acceptance | job status panel', function (hooks) {
       jobId: job.id,
     }).length;
 
-    // At standard test resolution, 51 allocations will attempt to display 20 ungrouped, and 31 grouped.
+    // At standard test resolution, 40 allocations will attempt to display 20 ungrouped, and 20 grouped.
     let desiredUngroupedAllocCount = 20;
-
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(

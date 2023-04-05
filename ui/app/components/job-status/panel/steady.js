@@ -42,7 +42,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
               }),
           },
         };
-        availableSlotsToFill -= blocks[type.label].length;
+        availableSlotsToFill -= blocks[type.label].healthy.nonCanary.length;
       } else {
         blocks[type.label] = { healthy: { nonCanary: [] } };
       }
