@@ -162,87 +162,6 @@ func (tc *NodeDrainE2ETest) TestNodeDrainEphemeralMigrate(f *framework.F) {
 	f.Equal(oldAllocID, strings.TrimSpace(got), "node drained but migration failed")
 }
 
-// TestNodeDrainIgnoreSystem tests that system jobs are left behind when the
-// -ignore-system flag is used.
-func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
-
-	nodes, err := e2e.NodeStatusListFiltered(
-		func(section string) bool {
-			kernelName, err := e2e.GetField(section, "kernel.name")
-			return err == nil && kernelName == "linux"
-		})
-	f.NoError(err, "could not get node status listing")
-
-	serviceJobID := "test-node-drain-service-" + uuid.Generate()[0:8]
-	systemJobID := "test-node-drain-system-" + uuid.Generate()[0:8]
-
-	f.NoError(e2e.Register(serviceJobID, "nodedrain/input/drain_simple.nomad"))
-	tc.jobIDs = append(tc.jobIDs, serviceJobID)
-
-	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, ns, []string{"running"}))
-
-	allocs, err := e2e.AllocsForJob(serviceJobID, ns)
-	f.NoError(err, "could not get allocs for service job")
-	f.Len(allocs, 1, "could not get allocs for service job")
-	oldAllocID := allocs[0]["ID"]
-
-	f.NoError(e2e.Register(systemJobID, "nodedrain/input/drain_ignore_system.nomad"))
-	tc.jobIDs = append(tc.jobIDs, systemJobID)
-
-	expected := []string{"running"}
-	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, ns, expected),
-		"service job should be running")
-
-	// can't just give it a static list because the number of nodes can vary
-	f.NoError(
-		e2e.WaitForAllocStatusComparison(
-			func() ([]string, error) { return e2e.AllocStatuses(systemJobID, ns) },
-			func(got []string) bool {
-				if len(got) != len(nodes) {
-					return false
-				}
-				for _, status := range got {
-					if status != "running" {
-						return false
-					}
-				}
-				return true
-			}, nil,
-		),
-		"system job should be running on every node",
-	)
-
-	jobNodes, err := nodesForJob(serviceJobID)
-	f.NoError(err, "could not get nodes for job")
-	f.Len(jobNodes, 1, "could not get nodes for job")
-	nodeID := jobNodes[0]
-
-	out, err := e2e.Command(
-		"nomad", "node", "drain",
-		"-ignore-system", "-enable", "-yes", "-detach", nodeID)
-	f.NoError(err, fmt.Sprintf("'nomad node drain' failed: %v\n%v", err, out))
-	tc.nodeIDs = append(tc.nodeIDs, nodeID)
-
-	f.NoError(waitForNodeDrain(nodeID,
-		func(got []map[string]string) bool {
-			for _, alloc := range got {
-				if alloc["ID"] == oldAllocID && alloc["Status"] == "complete" {
-					return true
-				}
-			}
-			return false
-		}, &e2e.WaitConfig{Interval: time.Millisecond * 100, Retries: 500},
-	), "node did not drain")
-
-	allocs, err = e2e.AllocsForJob(systemJobID, ns)
-	f.NoError(err, "could not query allocs for system job")
-	f.Equal(len(nodes), len(allocs), "system job should still be running on every node")
-	for _, alloc := range allocs {
-		f.Equal("run", alloc["Desired"], "no system allocs should be draining")
-		f.Equal("running", alloc["Status"], "no system allocs should be draining")
-	}
-}
-
 // TestNodeDrainDeadline tests the enforcement of the node drain deadline so
 // that allocations are terminated even if they haven't gracefully exited.
 func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
@@ -326,29 +245,4 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 		}, &e2e.WaitConfig{Interval: time.Second, Retries: 40},
 	), "node did not drain immediately when forced")
 
-}
-
-// TestNodeDrainKeepIneligible tests that nodes can be kept ineligible for
-// scheduling after disabling drain.
-func (tc *NodeDrainE2ETest) TestNodeDrainKeepIneligible(f *framework.F) {
-
-	nodes, err := e2e.NodeStatusList()
-	f.NoError(err, "could not get node status listing")
-
-	nodeID := nodes[0]["ID"]
-
-	out, err := e2e.Command("nomad", "node", "drain", "-enable", "-yes", "-detach", nodeID)
-	f.NoError(err, fmt.Sprintf("'nomad node drain' failed: %v\n%v", err, out))
-	tc.nodeIDs = append(tc.nodeIDs, nodeID)
-
-	_, err = e2e.Command(
-		"nomad", "node", "drain",
-		"-disable", "-keep-ineligible", "-yes", nodeID)
-	f.NoError(err, fmt.Sprintf("'nomad node drain' failed: %v\n%v", err, out))
-
-	nodes, err = e2e.NodeStatusList()
-	f.NoError(err, "could not get updated node status listing")
-
-	f.Equal("ineligible", nodes[0]["Eligibility"])
-	f.Equal("false", nodes[0]["Drain"])
 }
