@@ -48,23 +48,23 @@ func TestAuth(t *testing.T) {
 	setupAuthTest(t, nomadClient, ns, validPolicyName, invalidPolicyName)
 
 	// Test cases that exercise requests directly to the server
-	t.Run("AnonServerRequests", testAnonServerRequests(t, node, ns))
-	t.Run("BogusServerRequests", testBogusServerRequests(t, nomadClient, node, ns))
+	t.Run("AnonServerRequests", testAnonServerRequests(node, ns))
+	t.Run("BogusServerRequests", testBogusServerRequests(nomadClient, node, ns))
 	t.Run("InvalidPermissionsServerRequests",
-		testInvalidPermissionsServerRequests(t, nomadClient, node, ns, invalidPolicyName))
+		testInvalidPermissionsServerRequests(nomadClient, node, ns, invalidPolicyName))
 	t.Run("ValidPermissionsServerRequests",
-		testValidPermissionsServerRequests(t, nomadClient, node, ns, validPolicyName))
+		testValidPermissionsServerRequests(nomadClient, node, ns, validPolicyName))
 
 	// Test cases that exercise requests forwarded from the client
-	t.Run("AnonClientRequests", testAnonClientRequests(t, node, ns))
-	t.Run("BogusClientRequests", testBogusClientRequests(t, nomadClient, node, ns))
+	t.Run("AnonClientRequests", testAnonClientRequests(node, ns))
+	t.Run("BogusClientRequests", testBogusClientRequests(nomadClient, node, ns))
 	t.Run("InvalidPermissionsClientRequests",
-		testInvalidPermissionsClientRequests(t, nomadClient, node, ns, invalidPolicyName))
+		testInvalidPermissionsClientRequests(nomadClient, node, ns, invalidPolicyName))
 	t.Run("ValidPermissionsClientRequests",
-		testValidPermissionsClientRequests(t, nomadClient, node, ns, validPolicyName))
+		testValidPermissionsClientRequests(nomadClient, node, ns, validPolicyName))
 }
 
-func testAnonServerRequests(t *testing.T, node *api.Node, ns string) func(t *testing.T) {
+func testAnonServerRequests(node *api.Node, ns string) func(t *testing.T) {
 	return func(t *testing.T) {
 		nomadClient := e2eutil.NomadClient(t)
 		nomadClient.SetSecretID("")
@@ -75,7 +75,7 @@ func testAnonServerRequests(t *testing.T, node *api.Node, ns string) func(t *tes
 	}
 }
 
-func testBogusServerRequests(t *testing.T, nomadClient *api.Client,
+func testBogusServerRequests(nomadClient *api.Client,
 	node *api.Node, ns string) func(t *testing.T) {
 	return func(t *testing.T) {
 		authToken := uuid.Generate()
@@ -86,7 +86,7 @@ func testBogusServerRequests(t *testing.T, nomadClient *api.Client,
 	}
 }
 
-func testInvalidPermissionsServerRequests(t *testing.T, nomadClient *api.Client,
+func testInvalidPermissionsServerRequests(nomadClient *api.Client,
 	node *api.Node, ns, policyName string) func(t *testing.T) {
 	return func(t *testing.T) {
 		token, _, err := nomadClient.ACLTokens().Create(&api.ACLToken{
@@ -104,7 +104,7 @@ func testInvalidPermissionsServerRequests(t *testing.T, nomadClient *api.Client,
 	}
 }
 
-func testValidPermissionsServerRequests(t *testing.T, nomadClient *api.Client,
+func testValidPermissionsServerRequests(nomadClient *api.Client,
 	node *api.Node, ns, policyName string) func(t *testing.T) {
 	return func(t *testing.T) {
 		token, _, err := nomadClient.ACLTokens().Create(&api.ACLToken{
@@ -122,7 +122,7 @@ func testValidPermissionsServerRequests(t *testing.T, nomadClient *api.Client,
 	}
 }
 
-func testAnonClientRequests(t *testing.T, node *api.Node, ns string) func(t *testing.T) {
+func testAnonClientRequests(node *api.Node, ns string) func(t *testing.T) {
 	return func(t *testing.T) {
 		config := api.DefaultConfig()
 		config.Address = addressForNode(node)
@@ -136,7 +136,7 @@ func testAnonClientRequests(t *testing.T, node *api.Node, ns string) func(t *tes
 	}
 }
 
-func testBogusClientRequests(t *testing.T, rootClient *api.Client,
+func testBogusClientRequests(rootClient *api.Client,
 	node *api.Node, ns string) func(t *testing.T) {
 	return func(t *testing.T) {
 		config := api.DefaultConfig()
@@ -152,7 +152,7 @@ func testBogusClientRequests(t *testing.T, rootClient *api.Client,
 	}
 }
 
-func testInvalidPermissionsClientRequests(t *testing.T, rootClient *api.Client,
+func testInvalidPermissionsClientRequests(rootClient *api.Client,
 	node *api.Node, ns, policyName string) func(t *testing.T) {
 	return func(t *testing.T) {
 		token, _, err := rootClient.ACLTokens().Create(&api.ACLToken{
@@ -176,7 +176,7 @@ func testInvalidPermissionsClientRequests(t *testing.T, rootClient *api.Client,
 	}
 }
 
-func testValidPermissionsClientRequests(t *testing.T, rootClient *api.Client,
+func testValidPermissionsClientRequests(rootClient *api.Client,
 	node *api.Node, ns, policyName string) func(t *testing.T) {
 	return func(t *testing.T) {
 		token, _, err := rootClient.ACLTokens().Create(&api.ACLToken{
