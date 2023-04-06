@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -308,6 +310,23 @@ func (d *dynamicRegistry) ListPlugins(ptype string) []*PluginInfo {
 // Callers should pass in a context with a sensible timeout
 // for the plugin they're expecting to find.
 func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string) (*PluginInfo, error) {
+	// this is our actual goal, which may be run repeatedly
+	findPlugin := func() *PluginInfo {
+		for _, p := range d.ListPlugins(ptype) {
+			if p.Name == name {
+				return p
+			}
+		}
+		return nil
+	}
+
+	// try immediately first, before any timers get involved
+	if p := findPlugin(); p != nil {
+		return p, nil
+	}
+
+	// next, loop until found or context is done
+
 	// these numbers are almost arbitrary...
 	delay := 200     // milliseconds between checks, will backoff
 	maxDelay := 5000 // up to 5 seconds between each check
@@ -317,15 +336,9 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 	ctx, cancel := context.WithTimeout(ctx, 24*time.Hour)
 	defer cancel()
 
-	timer := time.NewTimer(time.Duration(delay) * time.Millisecond)
+	timer, stop := helper.NewSafeTimer(time.Duration(delay) * time.Millisecond)
+	defer stop()
 	for {
-		for _, p := range d.ListPlugins(ptype) {
-			if p.Name == name {
-				return p, nil
-			}
-		}
-
-		//log.Printf("WaitForPlugin delay: %d", delay) // TODO: get a logger in here?
 		select {
 		case <-ctx.Done():
 			// an externally-defined timeout wins the day
@@ -333,6 +346,11 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 		case <-timer.C:
 			// continue after our internal delay
 		}
+
+		if p := findPlugin(); p != nil {
+			return p, nil
+		}
+
 		if delay < maxDelay {
 			delay += delay
 		}
