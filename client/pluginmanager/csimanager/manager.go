@@ -39,7 +39,7 @@ func New(config *Config) Manager {
 	}
 
 	return &csiManager{
-		logger:    config.Logger.Named("csiManager"),
+		logger:    config.Logger.Named("csi_manager"),
 		eventer:   config.TriggerNodeEvent,
 		registry:  config.DynamicRegistry,
 		instances: make(map[string]map[string]*instanceManager),
@@ -84,6 +84,8 @@ func (c *csiManager) WaitForPlugin(ctx context.Context, pType, pID string) error
 	if err != nil {
 		return fmt.Errorf("%s plugin '%s' did not become ready: %w", pType, pID, err)
 	}
+	c.instancesLock.Lock()
+	defer c.instancesLock.Unlock()
 	c.ensureInstance(p)
 	return nil
 }
