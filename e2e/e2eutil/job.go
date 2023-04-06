@@ -255,6 +255,20 @@ func CleanupJobsAndGC(t *testing.T, jobIDs *[]string) func() {
 	}
 }
 
+// MaybeCleanupJobsAndGC stops and purges the list of jobIDs and runs a
+// system gc. Returns a func so that the return value can be used
+// in t.Cleanup. Similar to CleanupJobsAndGC, but this one does not assert
+// on a successful stop and gc, which is useful for tests that want to stop and
+// gc the jobs themselves but we want a backup Cleanup just in case.
+func MaybeCleanupJobsAndGC(jobIDs *[]string) func() {
+	return func() {
+		for _, jobID := range *jobIDs {
+			_ = StopJob(jobID, "-purge", "-detach")
+		}
+		_, _ = Command("nomad", "system", "gc")
+	}
+}
+
 // CleanupJobsAndGCWithContext stops and purges the list of jobIDs and runs a
 // system gc. The passed context allows callers to cancel the execution of the
 // cleanup as they desire. This is useful for tests which attempt to remove the
