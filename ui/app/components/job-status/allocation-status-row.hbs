@@ -30,8 +30,13 @@
         {{#each-in allocsByStatus as |health allocsByHealth|}}
           {{#each-in allocsByHealth as |canary allocsByCanary|}}
             {{#if (gt allocsByCanary.length 0)}}
-              {{#each (range 0 allocsByCanary.length)}}
-                <span class="represented-allocation {{status}} {{health}} {{canary}}">
+              {{#each (range 0 allocsByCanary.length) as |i|}}
+                <ConditionalLinkTo
+                  @condition={{not (eq status "unplaced")}}
+                  @route="allocations.allocation"
+                  @model={{get allocsByCanary i}}
+                  @class="represented-allocation {{status}} {{health}} {{canary}}"
+                >
                   {{#unless @steady}}
                     {{#if (eq canary "canary")}}
                       <span class="alloc-canary-indicator" />
@@ -46,7 +51,7 @@
                       </span>
                     {{/if}}
                   {{/unless}}
-                </span>
+                </ConditionalLinkTo>
               {{/each}}
             {{/if}}
           {{/each-in}}

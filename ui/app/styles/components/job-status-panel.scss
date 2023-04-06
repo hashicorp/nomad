@@ -302,6 +302,10 @@
     }
   }
 
+  .legend-item .represented-allocation .flight-icon {
+    animation: none;
+  }
+
   & > .boxed-section-body > .deployment-allocations {
     margin-bottom: 1rem;
   }
