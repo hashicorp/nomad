@@ -58,7 +58,7 @@ func newEnvoyVersionHook(c *envoyVersionHookConfig) *envoyVersionHook {
 	}
 }
 
-func (envoyVersionHook) Name() string {
+func (_ *envoyVersionHook) Name() string {
 	return envoyVersionHookName
 }
 
