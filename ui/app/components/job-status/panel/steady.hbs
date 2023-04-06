@@ -45,8 +45,10 @@
           <ul>
             {{#each-in this.versions as |version allocs|}}
               <li>
-                <Hds::Badge @text={{concat "v" version}} />
-                <Hds::BadgeCount @text={{allocs.length}} @type="inverted" />
+                <LinkTo @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' version ']')}}>
+                  <Hds::Badge @text={{concat "v" version}} />
+                </LinkTo>
+                  <Hds::BadgeCount @text={{allocs.length}} @type="inverted" />
               </li>
             {{/each-in}}
           </ul>
