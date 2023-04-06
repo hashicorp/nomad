@@ -32,7 +32,7 @@
       @condition={{not (eq @status "unplaced")}}
       @route="jobs.job.allocations"
       @model={{@allocs.0.job}}
-      @query={{hash status=(concat '["' @status '"]')}}
+      @query={{hash status=(concat '["' @status '"]') version=(concat '[' @allocs.0.jobVersion ']')}}
       @class="represented-allocation rest {{@status}} {{@health}} {{@canary}}"
     >
       <span class="rest-count">{{#if this.countToShow}}+{{/if}}{{this.remaining}}</span>
