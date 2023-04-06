@@ -318,6 +318,11 @@
     .represented-allocation {
       width: 20px;
       height: 20px;
+      animation: none;
+      &:before,
+      &:after {
+        animation: none;
+      }
     }
   }
 
