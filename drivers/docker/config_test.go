@@ -216,6 +216,7 @@ config {
   devices = [
     {"host_path"="/dev/null", "container_path"="/tmp/container-null", cgroup_permissions="rwm"},
     {"host_path"="/dev/random", "container_path"="/tmp/container-random"},
+    {"host_path"="/dev/bus/usb"},
   ]
   dns_search_domains = ["sub.example.com", "sub2.example.com"]
   dns_options = ["debug", "attempts:10"]
@@ -370,6 +371,11 @@ config {
 			{
 				HostPath:          "/dev/random",
 				ContainerPath:     "/tmp/container-random",
+				CgroupPermissions: "",
+			},
+			{
+				HostPath:          "/dev/bus/usb",
+				ContainerPath:     "",
 				CgroupPermissions: "",
 			},
 		},
