@@ -504,6 +504,11 @@ func (d DockerDevice) toDockerDevice() (docker.Device, error) {
 		return dd, fmt.Errorf("host path must be set in configuration for devices")
 	}
 
+	// Docker's CLI defaults to HostPath in this case. See #16754
+	if dd.PathInContainer == "" {
+		dd.PathInContainer = d.HostPath
+	}
+
 	if dd.CgroupPermissions == "" {
 		dd.CgroupPermissions = "rwm"
 	}
