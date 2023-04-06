@@ -27,10 +27,16 @@
       <div class="legend-and-summary">
         <legend>
           {{#each this.allocTypes as |type|}}
-            <span class="legend-item {{if (eq (get (get this.allocBlocks type.label) "length") 0) "faded"}}">
+            <ConditionalLinkTo
+              @condition={{not (eq type.label "unplaced")}}
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (keys this.versions) ']')}}
+              @class="legend-item {{if (eq (get (get this.allocBlocks type.label) "length") 0) "faded"}}"
+            >
               <span class="represented-allocation {{type.label}}"></span>
               {{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}
-            </span>
+            </ConditionalLinkTo>
           {{/each}}
         </legend>
 
@@ -39,7 +45,7 @@
           <ul>
             {{#each-in this.versions as |version allocs|}}
               <li>
-                <Hds::Badge @text={{version}} />
+                <Hds::Badge @text={{concat "v" version}} />
                 <Hds::BadgeCount @text={{allocs.length}} @type="inverted" />
               </li>
             {{/each-in}}

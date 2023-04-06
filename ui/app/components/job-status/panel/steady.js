@@ -75,7 +75,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
       .flatMap((allocType) => Object.values(allocType))
       .flatMap((allocHealth) => Object.values(allocHealth))
       .flatMap((allocCanary) => Object.values(allocCanary))
-      .map((a) => (!isNaN(a?.jobVersion) ? `v${a.jobVersion}` : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
+      .map((a) => (!isNaN(a?.jobVersion) ? a.jobVersion : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
       .reduce(
         (result, item) => ({
           ...result,
