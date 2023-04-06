@@ -1035,7 +1035,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
-	// Setup devices
+	// Setup devices from Docker-specific config
 	for _, device := range driverConfig.Devices {
 		dd, err := device.toDockerDevice()
 		if err != nil {
@@ -1043,6 +1043,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 		hostConfig.Devices = append(hostConfig.Devices, dd)
 	}
+
+	// Setup devices from Nomad device plugins
 	for _, device := range task.Devices {
 		hostConfig.Devices = append(hostConfig.Devices, docker.Device{
 			PathOnHost:        device.HostPath,
