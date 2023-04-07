@@ -3,7 +3,6 @@ package agent
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -747,37 +746,6 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-// writeVariablesFile writes content to a temporary file that is to be read by
-// the hcl parser. If content is empty nothing is written and nil is returned.
-// The return value is otherwise a one element slice with the filename of the
-// temporary file. Also returned is a cleanup function that must be called by
-// the caller for removing the temporary file once it is no longer needed.
-func writeVariablesFile(content string) ([]string, func(), error) {
-	// nothing to do if there is no variables content
-	if content == "" {
-		return nil, func() {}, nil
-	}
-
-	// write variables content to a tmp file and return the filename and cleanup
-	// helper function for removing the tmp file
-	f, err := os.CreateTemp("", "hcl-") // uses 0600
-	if err != nil {
-		return nil, nil, err
-	}
-	if _, err = f.WriteString(content); err != nil {
-		return nil, nil, err
-	}
-	if err = f.Sync(); err != nil {
-		return nil, nil, err
-	}
-	if err = f.Close(); err != nil {
-		return nil, nil, err
-	}
-	return []string{f.Name()}, func() {
-		_ = os.Remove(f.Name())
-	}, nil
-}
-
 // JobsParseRequest parses a hcl jobspec and returns a api.Job
 func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
@@ -815,16 +783,11 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	if args.HCLv1 {
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
-		varsFile, cleanupVarsFile, varsErr := writeVariablesFile(args.Variables)
-		if varsErr != nil {
-			return nil, CodedError(400, "Failed to write HCL variables file")
-		}
-		defer cleanupVarsFile()
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:     "input.hcl",
-			Body:     []byte(args.JobHCL),
-			AllowFS:  false,
-			VarFiles: varsFile,
+			Path:       "input.hcl",
+			Body:       []byte(args.JobHCL),
+			AllowFS:    false,
+			VarContent: args.Variables,
 		})
 		if err != nil {
 			return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))

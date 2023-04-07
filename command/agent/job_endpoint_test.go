@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
@@ -4032,32 +4030,5 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		}, ApiConsulConnectToStructs(&api.ConsulConnect{
 			Native: true,
 		}))
-	})
-}
-
-func TestSubmission_writeVariablesFile(t *testing.T) {
-	// no parallel
-
-	tmpDir := t.TempDir()
-	t.Setenv("TMPDIR", tmpDir)
-
-	t.Run("no content", func(t *testing.T) {
-		files, cleanup, err := writeVariablesFile("")
-		must.NoError(t, err)
-		must.Nil(t, files)
-		cleanup() // noop
-	})
-
-	t.Run("with content", func(t *testing.T) {
-		files, cleanup, err := writeVariablesFile("key = value")
-		must.NoError(t, err)
-		fmt.Println("files", files, "tmpDir", tmpDir)
-		must.Eq(t, tmpDir, filepath.Dir(files[0]))
-		must.NotNil(t, cleanup)
-		must.FileContains(t, files[0], "key = value")
-		cleanup()
-		// todo: must.FileNotExist is broken
-		_, err = os.Stat(files[0])
-		must.ErrorContains(t, err, "no such file")
 	})
 }
