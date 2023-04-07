@@ -10634,9 +10634,8 @@ func (a *Allocation) ShouldMigrate() bool {
 		return false
 	}
 
-	// We won't migrate any data is the user hasn't enabled migration or the
-	// disk is not marked as sticky
-	if !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
+	// We won't migrate any data if the user hasn't enabled migration
+	if !tg.EphemeralDisk.Migrate {
 		return false
 	}
 
