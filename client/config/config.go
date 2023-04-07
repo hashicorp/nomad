@@ -316,6 +316,9 @@ type Config struct {
 
 	// Artifact configuration from the agent's config file.
 	Artifact *ArtifactConfig
+
+	// Drain configuration from the agent's config file.
+	Drain *DrainConfig
 }
 
 type APIListenerRegistrar interface {

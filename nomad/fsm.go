@@ -473,10 +473,19 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 			return fmt.Errorf("error looking up ACL token: %v", err)
 		}
 		if token == nil {
-			n.logger.Error("token did not exist during node drain update")
-			return fmt.Errorf("token did not exist during node drain update")
+			node, err := n.state.NodeBySecretID(nil, req.AuthToken)
+			if err != nil {
+				n.logger.Error("error looking up node for drain update", "error", err)
+				return fmt.Errorf("error looking up node for drain update: %v", err)
+			}
+			if node == nil {
+				n.logger.Error("token did not exist during node drain update")
+				return fmt.Errorf("token did not exist during node drain update")
+			}
+			accessorId = node.ID
+		} else {
+			accessorId = token.AccessorID
 		}
-		accessorId = token.AccessorID
 	}
 
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,

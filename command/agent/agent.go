@@ -853,6 +853,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.Artifact = artifactConfig
 
+	drainConfig, err := clientconfig.DrainConfigFromAgent(agentConfig.Client.Drain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid drain_on_shutdown config: %v", err)
+	}
+	conf.Drain = drainConfig
+
 	return conf, nil
 }
 
