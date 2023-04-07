@@ -1218,7 +1218,7 @@ func (j *Job) GetJobSubmission(args *structs.JobSubmissionRequest, reply *struct
 			reply.Submission = out
 			if out != nil {
 				// associate with the index of the job this submission originates from
-				reply.Index = out.JobIndex
+				reply.Index = out.JobModifyIndex
 			} else {
 				// if there is no submission context, associate with no index
 				reply.Index = 0

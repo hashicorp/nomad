@@ -4298,10 +4298,10 @@ type JobSubmission struct {
 	// The version of the Job this submission is associated with.
 	Version uint64
 
-	// JobIndex is managed internally, not set.
+	// JobModifyIndex is managed internally, not set.
 	//
 	// The raft index the Job this submission is associated with.
-	JobIndex uint64
+	JobModifyIndex uint64
 }
 
 // Job is the scope of a scheduling request to Nomad. It is the largest

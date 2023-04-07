@@ -5364,7 +5364,7 @@ func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmissio
 	default:
 		sub.Namespace = namespace
 		sub.JobID = jobID
-		sub.JobIndex = index
+		sub.JobModifyIndex = index
 		sub.Version = version
 		return txn.Insert("job_submission", sub)
 	}

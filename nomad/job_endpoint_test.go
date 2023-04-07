@@ -4375,7 +4375,7 @@ func TestJobEndpoint_GetJobSubmission(t *testing.T) {
 	must.Eq(t, map[string]string{"one": "1"}, sub.VariableFlags)
 	must.Eq(t, "two = 2", sub.Variables)
 	must.Eq(t, job.Namespace, sub.Namespace)
-	must.Eq(t, indexV0, sub.JobIndex)
+	must.Eq(t, indexV0, sub.JobModifyIndex)
 
 	// lookup the submission for v1
 	submissionRequestV1 := &structs.JobSubmissionRequest{
@@ -4397,7 +4397,7 @@ func TestJobEndpoint_GetJobSubmission(t *testing.T) {
 	must.Eq(t, map[string]string{"three": "3"}, sub.VariableFlags)
 	must.Eq(t, "four = 4", sub.Variables)
 	must.Eq(t, job.Namespace, sub.Namespace)
-	must.Eq(t, indexV1, sub.JobIndex)
+	must.Eq(t, indexV1, sub.JobModifyIndex)
 
 	// lookup non-existent submission v2
 	submissionRequestV2 := &structs.JobSubmissionRequest{
