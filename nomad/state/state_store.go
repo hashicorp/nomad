@@ -5354,14 +5354,20 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 // job structure originates from. It is up to the job submitter to include the source
 // material, and as such sub may be nil, in which case nothing is stored.
 func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobID string, version uint64, txn *txn) error {
-	if sub == nil || namespace == "" || jobID == "" {
+	switch {
+	case sub == nil:
 		return nil
+	case namespace == "":
+		return errors.New("job_submission requires a namespace")
+	case jobID == "":
+		return errors.New("job_submission requires a jobID")
+	default:
+		sub.Namespace = namespace
+		sub.JobID = jobID
+		sub.JobIndex = index
+		sub.Version = version
+		return txn.Insert("job_submission", sub)
 	}
-	sub.Namespace = namespace
-	sub.JobID = jobID
-	sub.JobIndex = index
-	sub.Version = version
-	return txn.Insert("job_submission", sub)
 }
 
 // updateJobCSIPlugins runs on job update, and indexes the job in the plugin
