@@ -1,5 +1,4 @@
 job "drain_simple" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"

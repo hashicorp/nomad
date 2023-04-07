@@ -1,5 +1,4 @@
 job "drain_ignore_system_service" {
-  datacenters = ["dc1", "dc2"]
 
   type = "system"
 
