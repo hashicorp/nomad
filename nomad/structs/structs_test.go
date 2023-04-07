@@ -4408,97 +4408,100 @@ func TestTaskArtifact_Hash(t *testing.T) {
 func TestAllocation_ShouldMigrate(t *testing.T) {
 	ci.Parallel(t)
 
-	alloc := Allocation{
-		PreviousAllocation: "123",
-		TaskGroup:          "foo",
-		Job: &Job{
-			TaskGroups: []*TaskGroup{
-				{
-					Name: "foo",
-					EphemeralDisk: &EphemeralDisk{
-						Migrate: true,
-						Sticky:  true,
+	testCases := []struct {
+		name   string
+		expect bool
+		alloc  Allocation
+	}{
+		{
+			name:   "should migrate with previous alloc and migrate=true sticky=true",
+			expect: true,
+			alloc: Allocation{
+				PreviousAllocation: "123",
+				TaskGroup:          "foo",
+				Job: &Job{
+					TaskGroups: []*TaskGroup{
+						{
+							Name: "foo",
+							EphemeralDisk: &EphemeralDisk{
+								Migrate: true,
+								Sticky:  true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "should not migrate with migrate=false sticky=false",
+			expect: false,
+			alloc: Allocation{
+				PreviousAllocation: "123",
+				TaskGroup:          "foo",
+				Job: &Job{
+					TaskGroups: []*TaskGroup{
+						{
+							Name:          "foo",
+							EphemeralDisk: &EphemeralDisk{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "should migrate with migrate=true sticky=false",
+			expect: true,
+			alloc: Allocation{
+				PreviousAllocation: "123",
+				TaskGroup:          "foo",
+				Job: &Job{
+					TaskGroups: []*TaskGroup{
+						{
+							Name: "foo",
+							EphemeralDisk: &EphemeralDisk{
+								Sticky:  false,
+								Migrate: true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "should not migrate with nil ephemeral disk",
+			expect: false,
+			alloc: Allocation{
+				PreviousAllocation: "123",
+				TaskGroup:          "foo",
+				Job: &Job{
+					TaskGroups: []*TaskGroup{{Name: "foo"}},
+				},
+			},
+		},
+		{
+			name:   "should not migrate without previous alloc",
+			expect: false,
+			alloc: Allocation{
+				TaskGroup: "foo",
+				Job: &Job{
+					TaskGroups: []*TaskGroup{
+						{
+							Name: "foo",
+							EphemeralDisk: &EphemeralDisk{
+								Migrate: true,
+								Sticky:  true,
+							},
+						},
 					},
 				},
 			},
 		},
 	}
 
-	if !alloc.ShouldMigrate() {
-		t.Fatalf("bad: %v", alloc)
-	}
-
-	alloc1 := Allocation{
-		PreviousAllocation: "123",
-		TaskGroup:          "foo",
-		Job: &Job{
-			TaskGroups: []*TaskGroup{
-				{
-					Name:          "foo",
-					EphemeralDisk: &EphemeralDisk{},
-				},
-			},
-		},
-	}
-
-	if alloc1.ShouldMigrate() {
-		t.Fatalf("bad: %v", alloc)
-	}
-
-	alloc2 := Allocation{
-		PreviousAllocation: "123",
-		TaskGroup:          "foo",
-		Job: &Job{
-			TaskGroups: []*TaskGroup{
-				{
-					Name: "foo",
-					EphemeralDisk: &EphemeralDisk{
-						Sticky:  false,
-						Migrate: true,
-					},
-				},
-			},
-		},
-	}
-
-	if alloc2.ShouldMigrate() {
-		t.Fatalf("bad: %v", alloc)
-	}
-
-	alloc3 := Allocation{
-		PreviousAllocation: "123",
-		TaskGroup:          "foo",
-		Job: &Job{
-			TaskGroups: []*TaskGroup{
-				{
-					Name: "foo",
-				},
-			},
-		},
-	}
-
-	if alloc3.ShouldMigrate() {
-		t.Fatalf("bad: %v", alloc)
-	}
-
-	// No previous
-	alloc4 := Allocation{
-		TaskGroup: "foo",
-		Job: &Job{
-			TaskGroups: []*TaskGroup{
-				{
-					Name: "foo",
-					EphemeralDisk: &EphemeralDisk{
-						Migrate: true,
-						Sticky:  true,
-					},
-				},
-			},
-		},
-	}
-
-	if alloc4.ShouldMigrate() {
-		t.Fatalf("bad: %v", alloc4)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expect, tc.alloc.ShouldMigrate())
+		})
 	}
 }
 

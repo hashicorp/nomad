@@ -1,0 +1,3 @@
+```release-note:improvement
+ephemeral disk: migrate=true now implies sticky=true
+```
