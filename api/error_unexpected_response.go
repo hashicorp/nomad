@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 // UnexpectedResponseError tracks the components for API errors encountered when
@@ -33,16 +35,16 @@ func (e UnexpectedResponseError) Unwrap() error             { return e.err }
 func (e UnexpectedResponseError) HasAdditional() bool       { return e.additional != nil }
 func (e UnexpectedResponseError) Additional() error         { return e.additional }
 func NewUnexpectedResponseError(src UnexpectedResponseErrorSource, opts ...UnexpectedResponseErrorOption) UnexpectedResponseError {
-	new := src()
+	nErr := src()
 	for _, opt := range opts {
-		opt(new)
+		opt(nErr)
 	}
-	if new.statusText == "" {
+	if nErr.statusText == "" {
 		// the stdlib's http.StatusText function is a good place to start
-		new.statusFromCode(http.StatusText)
+		nErr.statusFromCode(http.StatusText)
 	}
 
-	return *new
+	return *nErr
 }
 
 // Use textual representation of the given integer code. Called when status text
@@ -102,10 +104,7 @@ func WithStatusText(st string) UnexpectedResponseErrorOption {
 // expected to receive. This can be used by API callers to provide more feedback
 // to end-users.
 func WithExpectedStatuses(s []int) UnexpectedResponseErrorOption {
-	return func(u *UnexpectedResponseError) {
-		u.expected = make([]int, len(s))
-		copy(u.expected, s)
-	}
+	return func(u *UnexpectedResponseError) { u.expected = slices.Clone(s) }
 }
 
 // UnexpectedResponseErrorSource provides the basis for a NewUnexpectedResponseError.
@@ -137,9 +136,9 @@ func FromHTTPResponse(resp *http.Response) UnexpectedResponseErrorSource {
 	}
 }
 
-// FromStatusCode is the "thinnest" source for an UnexpectedResultError. It
-// will attempt to resolve the status code to status text using a resolving
-// function provided inside of the NewUnexpectedResponseError implementation.
+// FromStatusCode attempts to resolve the status code to status text using
+// the resolving function provided inside of the NewUnexpectedResponseError
+// implementation.
 func FromStatusCode(sc int) UnexpectedResponseErrorSource {
 	return func() *UnexpectedResponseError { return &UnexpectedResponseError{statusCode: sc} }
 }

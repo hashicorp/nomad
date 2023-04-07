@@ -14,14 +14,15 @@ import (
 
 	"github.com/felixge/httpsnoop"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/portal"
 )
 
 const mockNamespaceBody = `{"Capabilities":null,"CreateIndex":1,"Description":"Default shared namespace","Hash":"C7UbjDwBK0dK8wQq7Izg7SJIzaV+lIo2X7wRtzY3pSw=","Meta":null,"ModifyIndex":1,"Name":"default","Quota":""}`
 
 func TestUnexpectedResponseError(t *testing.T) {
-	t.Parallel()
+	testutil.Parallel(t)
 	a := testServer(t)
 	cfg := api.DefaultConfig()
 	cfg.Address = a
@@ -52,7 +53,7 @@ func TestUnexpectedResponseError(t *testing.T) {
 	// with the correct data when a response code that the API client wasn't
 	// looking for is returned by the server.
 	t.Run("WrongStatus", func(t *testing.T) {
-		t.Parallel()
+		testutil.Parallel(t)
 		n, _, err := c.Namespaces().Info("badStatus", nil)
 		must.Nil(t, n)
 		must.Error(t, err)
@@ -75,7 +76,7 @@ func TestUnexpectedResponseError(t *testing.T) {
 	// with the correct data when a `404 Not Found`` is returned to the API
 	// client, since the requireOK wrapper doesn't "expect" 404s.
 	t.Run("NotFound", func(t *testing.T) {
-		t.Parallel()
+		testutil.Parallel(t)
 		n, _, err := c.Namespaces().Info("wat", nil)
 		must.Nil(t, n)
 		must.Error(t, err)
@@ -97,7 +98,7 @@ func TestUnexpectedResponseError(t *testing.T) {
 	// EarlyClose tests what happens when an error occurs during the building of
 	// the UnexpectedResponseError using FromHTTPRequest.
 	t.Run("EarlyClose", func(t *testing.T) {
-		t.Parallel()
+		testutil.Parallel(t)
 		n, _, err := c.Namespaces().Info("earlyClose", nil)
 		must.Nil(t, n)
 		must.Error(t, err)
@@ -123,9 +124,7 @@ func TestUnexpectedResponseError(t *testing.T) {
 // testServer creates a httptest.Server that can be used to serve simple mock
 // data, which is faster than starting a real Nomad agent.
 func testServer(t *testing.T) string {
-	grabber := portal.New(t)
-	ports := grabber.Grab(1)
-	must.Len(t, 1, ports)
+	port := ci.PortAllocator.One()
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/namespace/earlyClose", closingHandler(http.StatusInternalServerError, mockNamespaceBody))
@@ -138,7 +137,7 @@ func testServer(t *testing.T) string {
 
 	lMux := testLogRequestHandler(t, mux)
 	ts := httptest.NewUnstartedServer(lMux)
-	ts.Config.Addr = fmt.Sprintf("127.0.0.1:%d", ports[0])
+	ts.Config.Addr = fmt.Sprintf("127.0.0.1:%d", port)
 
 	t.Logf("starting mock server on %s", ts.Config.Addr)
 	ts.Start()
@@ -214,7 +213,6 @@ func closingHandler(sc int, b string) http.Handler {
 // test log output
 func testLogRequestHandler(t *testing.T, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t := t
 		// call the original http.Handler wrapped in a httpsnoop
 		m := httpsnoop.CaptureMetrics(h, w, r)
 		ri := HTTPReqInfo{
