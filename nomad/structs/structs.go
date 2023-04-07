@@ -10635,11 +10635,7 @@ func (a *Allocation) ShouldMigrate() bool {
 	}
 
 	// We won't migrate any data if the user hasn't enabled migration
-	if !tg.EphemeralDisk.Migrate {
-		return false
-	}
-
-	return true
+	return tg.EphemeralDisk.Migrate
 }
 
 // SetEventDisplayMessages populates the display message if its not already set,
