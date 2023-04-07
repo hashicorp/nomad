@@ -139,7 +139,7 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 
 	constraints := []string{}
 	if c.constraint {
-		constraints = []string{c.domain, "localhost"}
+		constraints = []string{c.domain, "localhost", "nomad"}
 		constraints = append(constraints, c.additionalDomain...)
 	}
 

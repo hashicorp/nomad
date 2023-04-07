@@ -53,8 +53,8 @@ func TestCACreateCommand(t *testing.T) {
 			func(t *testing.T, cert *x509.Certificate) {
 				require.Equal(t, 365*24*time.Hour, time.Until(cert.NotAfter).Round(24*time.Hour))
 				require.True(t, cert.PermittedDNSDomainsCritical)
-				require.Len(t, cert.PermittedDNSDomains, 3)
-				require.ElementsMatch(t, cert.PermittedDNSDomains, []string{"foo", "localhost", "bar"})
+				require.Len(t, cert.PermittedDNSDomains, 4)
+				require.ElementsMatch(t, cert.PermittedDNSDomains, []string{"nomad", "foo", "localhost", "bar"})
 			},
 		},
 		{"with common-name",

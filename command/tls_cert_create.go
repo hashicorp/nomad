@@ -33,19 +33,23 @@ type TLSCertCreateCommand struct {
 	cli    bool
 	client bool
 
-	// key is used to set the custom CA certificate key when creating
-	// certificates.
-	key string
-
 	// days is the number of days the certificate will be valid for.
 	days int
+
+	// domain is used to provide a custom domain for the certificate.
+	domain string
 
 	// cluster_region is used to add the region name to the certifacte SAN
 	// records
 	cluster_region string
 
-	// domain is used to provide a custom domain for the certificate.
-	domain string
+	// key is used to set the custom CA certificate key when creating
+	// certificates.
+	key string
+
+	// cluster_region is used to add the region name to the certifacte SAN
+	// records
+	region string
 
 	server bool
 }
@@ -79,8 +83,7 @@ Certificate Create Options:
     Generate a client certificate.
 
   -cluster-region
-    Provide the datacenter. Only used for -server certificates.
-    Defaults to "global".
+    DEPRECATED please use -region.
 
   -days
     Provide number of days the certificate is valid for from now on.
@@ -92,6 +95,10 @@ Certificate Create Options:
   -key
     Provide path to the certificate authority key. Defaults to
     #DOMAIN#-agent-ca-key.pem.
+  
+  -region
+    Provide the region. Only used for -server certificates.
+    Defaults to "global".
 
   -server
     Generate a server certificate.
@@ -134,10 +141,10 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	flagSet.StringVar(&c.ca, "ca", "#DOMAIN#-agent-ca.pem", "")
 	flagSet.BoolVar(&c.cli, "cli", false, "")
 	flagSet.BoolVar(&c.client, "client", false, "")
-	flagSet.StringVar(&c.key, "key", "#DOMAIN#-agent-ca-key.pem", "")
+	flagSet.StringVar(&c.cluster_region, "cluster-region", "", "")
 	flagSet.IntVar(&c.days, "days", 365, "")
-	flagSet.StringVar(&c.cluster_region, "cluster-region", "global", "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
+	flagSet.StringVar(&c.key, "key", "#DOMAIN#-agent-ca-key.pem", "")
 	flagSet.BoolVar(&c.server, "server", false, "")
 	if err := flagSet.Parse(args); err != nil {
 		return 1
@@ -168,7 +175,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	var DNSNames []string
 	var IPAddresses []net.IP
 	var extKeyUsage []x509.ExtKeyUsage
-	var name, prefix string
+	var name, regionName, regionUrl, prefix string
 
 	for _, d := range c.dnsNames {
 		if len(d) > 0 {
@@ -182,25 +189,48 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		}
 	}
 
+	// set region variable to prepare for deprecating cluster_region
+	if c.cluster_region != "" {
+		regionName = c.cluster_region
+	} else if c.clientConfig().Region != "" && c.clientConfig().Region != "global" {
+		regionName = c.clientConfig().Region
+	} else if c.clientConfig().Region == "" {
+		regionName = "global"
+	} else {
+		regionName = c.clientConfig().Region
+	}
 	if c.server {
-		name = fmt.Sprintf("server.%s.%s", c.cluster_region, c.domain)
-		DNSNames = append(DNSNames, name)
+		if regionName != "global" && c.domain != "nomad" {
+			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
+			regionUrl = fmt.Sprintf("server.%s.nomad", regionName)
+			DNSNames = append(DNSNames, name, regionUrl, "server.global.nomad")
+		} else if regionName != "global" && c.domain == "nomad" {
+			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
+			DNSNames = append(DNSNames, name, "server.global.nomad")
+		} else if regionName == "global" {
+			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
+			DNSNames = append(DNSNames, name)
+		}
+		// } else {
+		// 	name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
+		// 	DNSNames = append(DNSNames, name)
+		// }
 		DNSNames = append(DNSNames, "localhost")
 
 		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		prefix = fmt.Sprintf("%s-server-%s", c.cluster_region, c.domain)
+		prefix = fmt.Sprintf("%s-server-%s", regionName, c.domain)
 
 	} else if c.client {
-		name = fmt.Sprintf("client.%s.%s", c.cluster_region, c.domain)
+		name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
 		DNSNames = append(DNSNames, []string{name, "localhost"}...)
 		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
-		prefix = fmt.Sprintf("%s-client-%s", c.cluster_region, c.domain)
+		prefix = fmt.Sprintf("%s-client-%s", regionName, c.domain)
 	} else if c.cli {
-		name = fmt.Sprintf("cli.%s.%s", c.cluster_region, c.domain)
+		name = fmt.Sprintf("cli.%s.%s", regionName, c.domain)
 		DNSNames = []string{name, "localhost"}
-		prefix = fmt.Sprintf("%s-cli-%s", c.cluster_region, c.domain)
+		prefix = fmt.Sprintf("%s-cli-%s", regionName, c.domain)
 	} else {
 		c.Ui.Error("Neither client, cli nor server - should not happen")
 		return 1
@@ -252,7 +282,6 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-
 	pub, priv, err := tlsutil.GenerateCert(tlsutil.CertOpts{
 		Signer: signer, CA: string(cert), Name: name, Days: c.days,
 		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
