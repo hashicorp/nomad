@@ -758,8 +758,12 @@ func (c *Client) Reload(newConfig *config.Config) error {
 
 // Leave is used to prepare the client to leave the cluster
 func (c *Client) Leave() error {
-	// TODO
-	return nil
+	if c.GetConfig().DevMode {
+		return nil
+	}
+
+	// In normal mode optionally drain the node
+	return c.DrainSelf()
 }
 
 // GetConfig returns the config of the client. Do *not* mutate without first
