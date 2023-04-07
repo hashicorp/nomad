@@ -110,6 +110,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 	args.Job = job
 
+	// Run the submission controller
+	warnings = append(warnings, j.submissionController(args))
+
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
 	nomadACLToken, err := j.srv.ResolveSecretToken(args.AuthToken)

@@ -449,8 +449,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 	}
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
-	maxSubmissionSize := s.agent.Server().GetConfig().JobMaxSourceSize
-	submission := apiJobSubmissionToStructs(args.Submission, maxSubmissionSize)
+	submission := apiJobSubmissionToStructs(args.Submission)
 
 	regReq := structs.JobRegisterRequest{
 		Job:        sJob,
@@ -835,24 +834,10 @@ func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http
 	return reply.Services, nil
 }
 
-func apiJobSubmissionToStructs(submission *api.JobSubmission, maxSize int) *structs.JobSubmission {
+func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmission {
 	if submission == nil {
 		return nil
 	}
-
-	// discard the submission if the source + variables is larger than the maximum
-	// allowable size as set by client config
-	totalSize := len(submission.Source)
-	totalSize += len(submission.Variables)
-	for key, value := range submission.VariableFlags {
-		totalSize += len(key)
-		totalSize += len(value)
-	}
-
-	if totalSize > maxSize {
-		return nil
-	}
-
 	return &structs.JobSubmission{
 		Source:        submission.Source,
 		Format:        submission.Format,

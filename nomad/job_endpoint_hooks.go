@@ -3,6 +3,7 @@ package nomad
 import (
 	"fmt"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -331,4 +332,29 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 	}
 
 	return warnings, err
+}
+
+// submissionController is used to protect against job source sizes that exceed
+// the maximum as set in server config as job_max_source_size
+//
+// Such jobs will have their source discarded and emit a warning, but the job
+// itself will still continue with being registered.
+func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
+	maxSize := j.srv.GetConfig().JobMaxSourceSize
+	submission := args.Submission
+	// discard the submission if the source + variables is larger than the maximum
+	// allowable size as set by client config
+	totalSize := len(submission.Source)
+	totalSize += len(submission.Variables)
+	for key, value := range submission.VariableFlags {
+		totalSize += len(key)
+		totalSize += len(value)
+	}
+	if totalSize > maxSize {
+		args.Submission = nil
+		totalSizeHuman := humanize.Bytes(uint64(totalSize))
+		maxSizeHuman := humanize.Bytes(uint64(maxSize))
+		return fmt.Errorf("job source size of %s exceeds maximum of %s and will be discarded", totalSizeHuman, maxSizeHuman)
+	}
+	return nil
 }

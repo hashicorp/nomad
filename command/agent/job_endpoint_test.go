@@ -3693,27 +3693,17 @@ func TestConversion_apiJobSubmissionToStructs(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil", func(t *testing.T) {
-		result := apiJobSubmissionToStructs(nil, 0)
+		result := apiJobSubmissionToStructs(nil)
 		must.Nil(t, result)
 	})
 
-	t.Run("over max size", func(t *testing.T) {
+	t.Run("not nil", func(t *testing.T) {
 		result := apiJobSubmissionToStructs(&api.JobSubmission{
 			Source:        "source",
 			Format:        "hcl2",
 			VariableFlags: map[string]string{"foo": "bar"},
 			Variables:     "variable",
-		}, 1)
-		must.Nil(t, result)
-	})
-
-	t.Run("under max size", func(t *testing.T) {
-		result := apiJobSubmissionToStructs(&api.JobSubmission{
-			Source:        "source",
-			Format:        "hcl2",
-			VariableFlags: map[string]string{"foo": "bar"},
-			Variables:     "variable",
-		}, 1024)
+		})
 		must.Eq(t, &structs.JobSubmission{
 			Source:        "source",
 			Format:        "hcl2",
