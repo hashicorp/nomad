@@ -343,7 +343,6 @@ func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
 	if args.Submission == nil {
 		return nil
 	}
-
 	maxSize := j.srv.GetConfig().JobMaxSourceSize
 	submission := args.Submission
 	// discard the submission if the source + variables is larger than the maximum

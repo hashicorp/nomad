@@ -106,6 +106,9 @@ func TestConfigForServer(t testing.T) *Config {
 	}
 	config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 
+	// max job submission source size
+	config.JobMaxSourceSize = 1e6
+
 	return config
 }
 
