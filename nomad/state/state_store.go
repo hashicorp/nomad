@@ -15,8 +15,10 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/slices"
 )
 
 // Txn is a transaction against a state store.
@@ -5366,8 +5368,56 @@ func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmissio
 		sub.JobID = jobID
 		sub.JobModifyIndex = index
 		sub.Version = version
-		return txn.Insert("job_submission", sub)
 	}
+
+	// insert the job submission
+	if err := txn.Insert("job_submission", sub); err != nil {
+		return err
+	}
+
+	// prune old job submissions
+	return s.pruneJobSubmissions(namespace, jobID, txn)
+}
+
+func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) error {
+	// although the number of tracked submissions is the same as the number of
+	// tracked job versions, do not assume a 1:1 correlation, as there could be
+	// holes in the submissions (or none at all)
+	limit := structs.JobTrackedVersions
+
+	iter, err := txn.Get("job_submission", "by_jobID", namespace, jobID)
+	if err != nil {
+		return err
+	}
+
+	// lookup each stored submission's (modify index, version)
+	stored := make([]lang.Pair[uint64, uint64], 0, limit+1)
+	for next := iter.Next(); next != nil; next = iter.Next() {
+		sub := next.(*structs.JobSubmission)
+		stored = append(stored, lang.Pair[uint64, uint64]{First: sub.JobModifyIndex, Second: sub.Version})
+	}
+
+	// if we are still below the limit, nothing to do
+	if len(stored) <= limit {
+		return nil
+	}
+
+	// sort by job modify index descending so we can just keep the first N
+	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) bool {
+		return a.First > b.First
+	})
+
+	// remove the outdated submission versions
+	for _, sub := range stored[limit:] {
+		if err = txn.Delete("job_submission", &structs.JobSubmission{
+			Namespace: namespace,
+			JobID:     jobID,
+			Version:   sub.Second,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // updateJobCSIPlugins runs on job update, and indexes the job in the plugin

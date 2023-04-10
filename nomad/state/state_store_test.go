@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -2196,6 +2197,70 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 	if !watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_UpsertJob_submission(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	job := mock.Job()
+	job.Meta = map[string]string{"version": "1"}
+	submission := &structs.JobSubmission{
+		Source:  "source",
+		Version: 0,
+	}
+
+	index := uint64(1000)
+
+	// initially non-existent
+	sub, err := state.JobSubmission(nil, job.Namespace, job.ID, 0)
+	must.NoError(t, err)
+	must.Nil(t, sub)
+
+	// insert first one, version 0, index 1001
+	index++
+	err = state.UpsertJob(structs.JobRegisterRequestType, index, submission, job)
+	must.NoError(t, err)
+
+	// query first one, version 0
+	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 0)
+	must.NoError(t, err)
+	must.NotNil(t, sub)
+	must.Eq(t, 0, sub.Version)
+	must.Eq(t, index, sub.JobModifyIndex)
+
+	// insert 6 more, going over the limit
+	for i := 1; i <= structs.JobTrackedVersions; i++ {
+		index++
+		job2 := job.Copy()
+		job2.Meta["version"] = strconv.Itoa(i)
+		sub2 := &structs.JobSubmission{
+			Source:  "source",
+			Version: uint64(i),
+		}
+		err = state.UpsertJob(structs.JobRegisterRequestType, index, sub2, job2)
+		must.NoError(t, err)
+	}
+
+	// the version 0 submission is now dropped
+	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 0)
+	must.NoError(t, err)
+	must.Nil(t, sub)
+
+	// but we do have version 1
+	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 1)
+	must.NoError(t, err)
+	must.NotNil(t, sub)
+	must.Eq(t, 1, sub.Version)
+	must.Eq(t, 1002, sub.JobModifyIndex)
+
+	// and up to version 6
+	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 6)
+	must.NoError(t, err)
+	must.NotNil(t, sub)
+	must.Eq(t, 6, sub.Version)
+	must.Eq(t, 1007, sub.JobModifyIndex)
 }
 
 func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
