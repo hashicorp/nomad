@@ -207,14 +207,13 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		} else if regionName != "global" && c.domain == "nomad" {
 			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
 			DNSNames = append(DNSNames, name, "server.global.nomad")
-		} else if regionName == "global" {
+		} else if regionName == "global" && c.domain != "nomad" {
+			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
+			DNSNames = append(DNSNames, name, "server.global.nomad")
+		} else {
 			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
 			DNSNames = append(DNSNames, name)
 		}
-		// } else {
-		// 	name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
-		// 	DNSNames = append(DNSNames, name)
-		// }
 		DNSNames = append(DNSNames, "localhost")
 
 		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
@@ -222,14 +221,32 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		prefix = fmt.Sprintf("%s-server-%s", regionName, c.domain)
 
 	} else if c.client {
-		name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
-		DNSNames = append(DNSNames, []string{name, "localhost"}...)
+		if regionName != "global" && c.domain != "nomad" {
+			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
+			regionUrl = fmt.Sprintf("client.%s.nomad", regionName)
+			DNSNames = append(DNSNames, name, regionUrl, "client.global.nomad", "localhost")
+		} else if regionName == "global" && c.domain != "nomad" {
+			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
+			DNSNames = append(DNSNames, name, "client.global.nomad", "localhost")
+		} else if regionName != "global" && c.domain != "nomad" {
+			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
+			DNSNames = append(DNSNames, name, "client.global.nomad", "localhost")
+		} else {
+			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
+			DNSNames = append(DNSNames, []string{name, "localhost"}...)
+		}
 		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
 		prefix = fmt.Sprintf("%s-client-%s", regionName, c.domain)
 	} else if c.cli {
-		name = fmt.Sprintf("cli.%s.%s", regionName, c.domain)
-		DNSNames = []string{name, "localhost"}
+		if c.domain != "nomad" {
+			name = fmt.Sprintf("cli.%s.%s", regionName, c.domain)
+			regionUrl = fmt.Sprintf("cli.%s.nomad", regionName)
+			DNSNames = []string{name, "cli.global.nomad", "localhost"}
+		} else {
+			name = fmt.Sprintf("cli.%s.%s", regionName, c.domain)
+			DNSNames = []string{name, "localhost"}
+		}
 		prefix = fmt.Sprintf("%s-cli-%s", regionName, c.domain)
 	} else {
 		c.Ui.Error("Neither client, cli nor server - should not happen")
