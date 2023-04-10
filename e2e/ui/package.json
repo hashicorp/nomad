@@ -1,5 +1,7 @@
 {
   "devDependencies": {
-    "@playwright/test": "^1.22.1"
-  }
+    "@playwright/test": "^1.22.1",
+    "axios": "^0.27.2"
+  },
+  "type": "module"
 }
