@@ -340,6 +340,10 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 // Such jobs will have their source discarded and emit a warning, but the job
 // itself will still continue with being registered.
 func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
+	if args.Submission == nil {
+		return nil
+	}
+
 	maxSize := j.srv.GetConfig().JobMaxSourceSize
 	submission := args.Submission
 	// discard the submission if the source + variables is larger than the maximum

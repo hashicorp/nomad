@@ -776,6 +776,15 @@ func TestJob_submissionController(t *testing.T) {
 			Variables: "variables",
 		},
 	}
+	t.Run("nil", func(t *testing.T) {
+		j := &Job{srv: &Server{
+			config: &Config{JobMaxSourceSize: 1024},
+		}}
+		err := j.submissionController(&structs.JobRegisterRequest{
+			Submission: nil,
+		})
+		must.NoError(t, err)
+	})
 	t.Run("under max size", func(t *testing.T) {
 		j := &Job{srv: &Server{
 			config: &Config{JobMaxSourceSize: 1024},
