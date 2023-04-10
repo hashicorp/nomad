@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # There can only be a single job definition per file. This job is named
 # "countdash" so it will create a job with the ID and Name "countdash".
 

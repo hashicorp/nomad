@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 log_file   = "C:\\opt\\nomad\\nomad.log"
 plugin_dir = "C:\\opt\\nomad\\plugins"
 

@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 id        = "ebs-vol[1]"
 name      = "idempotency-token" # CSIVolumeName tag
 type      = "csi"

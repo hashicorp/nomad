@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package jobspec2
 
 // This file is copied verbatim from Packer: https://github.com/hashicorp/packer/blob/7a1680df97e028c4a75622effe08f6610d0ee5b4/hcl2template/types.variables.go

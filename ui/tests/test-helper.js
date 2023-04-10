@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import 'core-js';
 import Application from 'nomad-ui/app';
 import config from 'nomad-ui/config/environment';

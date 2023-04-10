@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // @ts-check
 import { default as ApplicationAdapter, namespace } from './application';
 import { dasherize } from '@ember/string';

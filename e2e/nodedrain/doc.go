@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nodedrain
 
 // This package contains only tests, so this is a placeholder file to

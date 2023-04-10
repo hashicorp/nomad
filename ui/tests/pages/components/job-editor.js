@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 

@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 plugin_dir = "/opt/nomad/plugins"
 
 client {

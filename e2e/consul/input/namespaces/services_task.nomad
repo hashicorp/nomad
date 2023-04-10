@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "services_task" {
   datacenters = ["dc1"]
   type        = "service"
