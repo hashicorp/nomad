@@ -9,7 +9,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
@@ -85,11 +85,15 @@ func (c *csiHook) Prerun() error {
 	mounts := make(map[string]*csimanager.MountInfo, len(volumes))
 	for alias, pair := range volumes {
 
-		// We use this context only to attach hclog to the gRPC
-		// context. The lifetime is the lifetime of the gRPC stream,
-		// not specific RPC timeouts, but we manage the stream
-		// lifetime via Close in the pluginmanager.
-		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, pair.volume.PluginID)
+		// make sure the plugin is ready or becomes so quickly.
+		plugin := pair.volume.PluginID
+		pType := dynamicplugins.PluginTypeCSINode
+		if err := c.csimanager.WaitForPlugin(c.shutdownCtx, pType, plugin); err != nil {
+			return err
+		}
+		c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
+
+		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
 		if err != nil {
 			return err
 		}

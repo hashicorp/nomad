@@ -39,7 +39,7 @@ func New(config *Config) Manager {
 	}
 
 	return &csiManager{
-		logger:    config.Logger,
+		logger:    config.Logger.Named("csi_manager"),
 		eventer:   config.TriggerNodeEvent,
 		registry:  config.DynamicRegistry,
 		instances: make(map[string]map[string]*instanceManager),
@@ -73,6 +73,21 @@ type csiManager struct {
 
 func (c *csiManager) PluginManager() pluginmanager.PluginManager {
 	return c
+}
+
+// WaitForPlugin waits for a specific plugin to be registered and available,
+// unless the context is canceled, or it takes longer than a minute.
+func (c *csiManager) WaitForPlugin(ctx context.Context, pType, pID string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	p, err := c.registry.WaitForPlugin(ctx, pType, pID)
+	if err != nil {
+		return fmt.Errorf("%s plugin '%s' did not become ready: %w", pType, pID, err)
+	}
+	c.instancesLock.Lock()
+	defer c.instancesLock.Unlock()
+	c.ensureInstance(p)
+	return nil
 }
 
 func (c *csiManager) MounterForPlugin(ctx context.Context, pluginID string) (VolumeMounter, error) {
