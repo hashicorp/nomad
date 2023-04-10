@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "failed_sibling" {
   type        = "service"
   datacenters = ["dc1"]

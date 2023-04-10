@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 // fake is a package that includes fake implementations of public interfaces
 // from the CSI package for testing.
 package fake

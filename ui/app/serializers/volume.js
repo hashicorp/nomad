@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { set, get } from '@ember/object';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';

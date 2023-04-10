@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable ember-a11y-testing/a11y-audit-called */
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package scheduler
 
 // LimitIterator is a RankIterator used to limit the number of options

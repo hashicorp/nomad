@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 resource "tls_private_key" "nomad" {
   algorithm   = "ECDSA"
   ecdsa_curve = "P384"

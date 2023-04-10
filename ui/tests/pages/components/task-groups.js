@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { collection, clickable, text } from 'ember-cli-page-object';
 import { singularize } from 'ember-inflector';
 

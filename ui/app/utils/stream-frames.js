@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { TextDecoderLite } from 'text-encoder-lite';
 import base64js from 'base64-js';
 

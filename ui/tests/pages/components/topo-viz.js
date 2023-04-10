@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { collection, isPresent } from 'ember-cli-page-object';
 import TopoVizDatacenter from './topo-viz/datacenter';
 

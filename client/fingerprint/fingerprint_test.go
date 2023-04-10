@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package fingerprint
 
 // This file contains helper methods for testing fingerprinters

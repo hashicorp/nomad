@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { create, isPresent, visitable, clickable } from 'ember-cli-page-object';
 
 import jobEditor from 'nomad-ui/tests/pages/components/job-editor';

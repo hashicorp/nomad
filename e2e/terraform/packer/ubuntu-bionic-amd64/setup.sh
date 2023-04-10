@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # setup script for Ubuntu Linux 18.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 

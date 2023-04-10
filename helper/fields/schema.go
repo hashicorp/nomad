@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package fields
 
 // FieldSchema is a basic schema to describe the format of a configuration field

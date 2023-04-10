@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package benchmarks
 
 // Test helper functions for running scheduling tests and benchmarks

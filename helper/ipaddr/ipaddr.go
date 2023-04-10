@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package ipaddr
 
 // IsAny checks if the given IP address is an IPv4 or IPv6 ANY address.
