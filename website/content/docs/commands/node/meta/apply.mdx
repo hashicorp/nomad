@@ -18,7 +18,7 @@ This command uses the [`/v1/client/metadata` HTTP API][api].
 ## Usage
 
 ```plaintext
-nomad node meta apply -unset testing,tempvar ready=1 role=preinit-db
+nomad node meta apply [-node-id ...] [-unset ...] key1=value1 ... kN=vN
 ```
 
 ## General Options
@@ -31,5 +31,11 @@ nomad node meta apply -unset testing,tempvar ready=1 role=preinit-db
   node receiving the request will be used by default.
 
 - `-unset` - Unset the comma separated list of keys.
+
+## Examples
+
+```shell-session
+$ nomad node meta apply -unset testing,tempvar ready=1 role=preinit-db
+```
 
 [api]: /nomad/api-docs/client#update-node-metadata

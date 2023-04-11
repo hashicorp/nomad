@@ -18,10 +18,29 @@ scheduling.
 
 This command uses the [`/v1/client/metadata` HTTP API][api].
 
-# Usage
+## Usage
 
 ```plaintext
-nomad node meta read -node-id 3b58b0a6
+nomad node meta read [-json] [-node-id ...]
+```
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Node Meta Read Options
+
+- `-node-id` - Reads metadata on the specified node. If not specified the
+  node receiving the request will be used by default.
+
+- `-json` - Output the node metadata in its JSON format.
+
+- `-t` : Format and display node using a Go template.
+
+## Example
+
+```shell-session
+$ nomad node meta read -node-id 3b58b0a6
 
 All Meta
 connect.gateway_image     = envoyproxy/envoy:v${NOMAD_envoy_version}
@@ -39,18 +58,5 @@ connect.log_level         = info
 connect.proxy_concurrency = 1
 connect.sidecar_image     = envoyproxy/envoy:v${NOMAD_envoy_version}
 ```
-
-## General Options
-
-@include 'general_options.mdx'
-
-## Node Meta Apply Options
-
-- `-node-id` - Updates metadata on the specified node. If not specified the
-  node receiving the request will be used by default.
-
-- `-json` - Output the node metadata in its JSON format.
-
-- `-t` : Format and display node using a Go template.
 
 [api]: /nomad/api-docs/client#read-node-metadata
