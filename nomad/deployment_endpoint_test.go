@@ -975,7 +975,6 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
 
 	// Create the register request
 	j := mock.Job()
@@ -983,8 +982,8 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, j), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertDeployment(1000, d), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments
 	get := &structs.DeploymentListRequest{
@@ -994,10 +993,10 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 		},
 	}
 	var resp structs.DeploymentListResponse
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
-	assert.EqualValues(resp.Index, 1000, "Wrong Index")
-	assert.Len(resp.Deployments, 1, "Deployments")
-	assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), must.Sprint("RPC"))
+	must.Eq(t, resp.Index, 1000, must.Sprint("Wrong Index"))
+	must.Len(t, 1, resp.Deployments, must.Sprint("Deployments"))
+	must.StrContains(t, resp.Deployments[0].ID, d.ID, must.Sprint("Deployment ID"))
 
 	// Lookup the deploys by prefix
 	get = &structs.DeploymentListRequest{
@@ -1009,21 +1008,20 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	}
 
 	var resp2 structs.DeploymentListResponse
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp2), "RPC")
-	assert.EqualValues(resp.Index, 1000, "Wrong Index")
-	assert.Len(resp2.Deployments, 1, "Deployments")
-	assert.Equal(resp2.Deployments[0].ID, d.ID, "Deployment ID")
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp2), must.Sprint("RPC"))
+	must.Eq(t, resp.Index, 1000, must.Sprint("Wrong Index"))
+	must.Len(t, 1, resp2.Deployments, must.Sprint("Deployments"))
+	must.Eq(t, resp2.Deployments[0].ID, d.ID, must.Sprint("Deployment ID"))
 
 	// add another deployment in another namespace
-
 	j2 := mock.Job()
 	d2 := mock.Deployment()
 	j2.Namespace = "prod"
 	d2.Namespace = "prod"
 	d2.JobID = j2.ID
-	assert.Nil(state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, j2), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1003, d2), "UpsertDeployment")
+	must.Nil(t, state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, j2), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertDeployment(1003, d2), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments with wildcard namespace
 	get = &structs.DeploymentListRequest{
@@ -1032,9 +1030,9 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 			Namespace: structs.AllNamespacesSentinel,
 		},
 	}
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
-	assert.EqualValues(resp.Index, 1003, "Wrong Index")
-	assert.Len(resp.Deployments, 2, "Deployments")
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), must.Sprint("RPC"))
+	must.Eq(t, resp.Index, 1003, must.Sprint("Wrong Index"))
+	must.Len(t, 2, resp.Deployments, must.Sprint("Deployments"))
 
 	// Lookup a deployment with wildcard namespace and prefix
 	var resp3 structs.DeploymentListResponse
@@ -1046,10 +1044,10 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 		},
 	}
 
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp3), "RPC")
-	assert.EqualValues(resp3.Index, 1003, "Wrong Index")
-	assert.Len(resp3.Deployments, 1, "Deployments")
-	assert.Equal(resp3.Deployments[0].ID, d.ID, "Deployment ID")
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp3), must.Sprint("RPC"))
+	must.Eq(t, resp3.Index, 1003, must.Sprint("Wrong Index"))
+	must.Len(t, 1, resp3.Deployments, must.Sprint("Deployments"))
+	must.StrContains(t, resp3.Deployments[0].ID, d.ID, must.Sprint("Deployment ID"))
 
 	// Lookup the other deployments with wildcard namespace and prefix
 	var resp4 structs.DeploymentListResponse
@@ -1061,10 +1059,10 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 		},
 	}
 
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp4), "RPC")
-	assert.EqualValues(resp4.Index, 1003, "Wrong Index")
-	assert.Len(resp4.Deployments, 1, "Deployments")
-	assert.Equal(resp4.Deployments[0].ID, d2.ID, "Deployment ID")
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp4), must.Sprint("RPC"))
+	must.Eq(t, resp4.Index, 1003, must.Sprint("Wrong Index"))
+	must.Len(t, 1, resp4.Deployments, must.Sprint("Deployments"))
+	must.StrContains(t, resp4.Deployments[0].ID, d2.ID, must.Sprint("Deployment ID"))
 
 }
 
@@ -1090,17 +1088,17 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 	dep3.ID = uuid3
 
 	err := s1.fsm.State().UpsertDeployment(1000, dep1)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = s1.fsm.State().UpsertDeployment(1001, dep2)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = s1.fsm.State().UpsertDeployment(1002, dep3)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// update dep2 again so we can later assert create index order did not change
 	err = s1.fsm.State().UpsertDeployment(1003, dep2)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	t.Run("default", func(t *testing.T) {
 		// Lookup the deployments in chronological order (oldest first)
@@ -1113,19 +1111,19 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 
 		var resp structs.DeploymentListResponse
 		err = msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Deployments, 3)
+		must.NoError(t, err)
+		must.Eq(t, uint64(1003), resp.Index)
+		must.Len(t, 3, resp.Deployments)
 
 		// Assert returned order is by CreateIndex (ascending)
-		require.Equal(t, uint64(1000), resp.Deployments[0].CreateIndex)
-		require.Equal(t, uuid1, resp.Deployments[0].ID)
+		must.Eq(t, uint64(1000), resp.Deployments[0].CreateIndex)
+		must.Eq(t, uuid1, resp.Deployments[0].ID)
 
-		require.Equal(t, uint64(1001), resp.Deployments[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Deployments[1].ID)
+		must.Eq(t, uint64(1001), resp.Deployments[1].CreateIndex)
+		must.Eq(t, uuid2, resp.Deployments[1].ID)
 
-		require.Equal(t, uint64(1002), resp.Deployments[2].CreateIndex)
-		require.Equal(t, uuid3, resp.Deployments[2].ID)
+		must.Eq(t, uint64(1002), resp.Deployments[2].CreateIndex)
+		must.Eq(t, uuid3, resp.Deployments[2].ID)
 	})
 
 	t.Run("reverse", func(t *testing.T) {
@@ -1140,19 +1138,19 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 
 		var resp structs.DeploymentListResponse
 		err = msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp)
-		require.NoError(t, err)
-		require.Equal(t, uint64(1003), resp.Index)
-		require.Len(t, resp.Deployments, 3)
+		must.NoError(t, err)
+		must.Eq(t, uint64(1003), resp.Index)
+		must.Len(t, 3, resp.Deployments)
 
 		// Assert returned order is by CreateIndex (descending)
-		require.Equal(t, uint64(1002), resp.Deployments[0].CreateIndex)
-		require.Equal(t, uuid3, resp.Deployments[0].ID)
+		must.Eq(t, uint64(1002), resp.Deployments[0].CreateIndex)
+		must.Eq(t, uuid3, resp.Deployments[0].ID)
 
-		require.Equal(t, uint64(1001), resp.Deployments[1].CreateIndex)
-		require.Equal(t, uuid2, resp.Deployments[1].ID)
+		must.Eq(t, uint64(1001), resp.Deployments[1].CreateIndex)
+		must.Eq(t, uuid2, resp.Deployments[1].ID)
 
-		require.Equal(t, uint64(1000), resp.Deployments[2].CreateIndex)
-		require.Equal(t, uuid1, resp.Deployments[2].ID)
+		must.Eq(t, uint64(1000), resp.Deployments[2].CreateIndex)
+		must.Eq(t, uuid1, resp.Deployments[2].ID)
 	})
 }
 
@@ -1272,18 +1270,17 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
 
 	// Create the deployment
 	j := mock.Job()
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, j), must.Sprint("UpsertJob"))
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(3, d), "UpsertDeployment")
+		must.Nil(t, state.UpsertDeployment(3, d), must.Sprint("UpsertDeployment"))
 	})
 
 	req := &structs.DeploymentListRequest{
@@ -1295,31 +1292,28 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	}
 	start := time.Now()
 	var resp structs.DeploymentListResponse
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp), "RPC")
-	assert.EqualValues(resp.Index, 3, "Wrong Index")
-	assert.Len(resp.Deployments, 1, "Deployments")
-	assert.Equal(resp.Deployments[0].ID, d.ID, "Deployment ID")
-	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
-	}
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp), must.Sprint("RPC"))
+	must.Eq(t, resp.Index, 3, must.Sprint("Wrong Index"))
+	must.Len(t, 1, resp.Deployments, must.Sprint("Deployments"))
+	must.Eq(t, resp.Deployments[0].ID, d.ID, must.Sprint("Deployment ID"))
+	elapsed := time.Since(start)
+	must.Greater(t, 100*time.Millisecond, elapsed, must.Sprintf("should block (returned in %s) %#v", elapsed, resp))
 
 	// Deployment updates trigger watches
 	d2 := d.Copy()
 	d2.Status = structs.DeploymentStatusPaused
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(5, d2), "UpsertDeployment")
+		must.Nil(t, state.UpsertDeployment(5, d2), must.Sprint("UpsertDeployment"))
 	})
 
 	req.MinQueryIndex = 3
 	start = time.Now()
 	var resp2 structs.DeploymentListResponse
-	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp2), "RPC")
-	assert.EqualValues(5, resp2.Index, "Wrong Index")
-	assert.Len(resp2.Deployments, 1, "Deployments")
-	assert.Equal(d2.ID, resp2.Deployments[0].ID, "Deployment ID")
-	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
-	}
+	must.Nil(t, msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp2), must.Sprint("RPC"))
+	must.Eq(t, 5, resp2.Index, must.Sprint("Wrong Index"))
+	must.Len(t, 1, resp2.Deployments, must.Sprint("Deployments"))
+	must.StrContains(t, d2.ID, resp2.Deployments[0].ID, must.Sprint("Deployment ID"))
+	must.Greater(t, 100*time.Millisecond, elapsed, must.Sprintf("should block (returned in %s) %#v", elapsed, resp2))
 }
 
 func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
@@ -1333,7 +1327,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 	devNS := mock.Namespace()
 	devNS.Name = "non-default"
 	err := s1.fsm.State().UpsertNamespaces(999, []*structs.Namespace{devNS})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// create a set of deployments. these are in the order that the
 	// state store will return them from the iterator (sorted by key),
@@ -1371,7 +1365,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		if m.namespace != "" { // defaults to "default"
 			deployment.Namespace = m.namespace
 		}
-		require.NoError(t, state.UpsertDeployment(index, deployment))
+		must.NoError(t, state.UpsertDeployment(index, deployment))
 	}
 
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
@@ -1539,10 +1533,10 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			var resp structs.DeploymentListResponse
 			err := msgpackrpc.CallWithCodec(codec, "Deployment.List", req, &resp)
 			if tc.expectedError == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedError)
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedError)
 				return
 			}
 
@@ -1550,8 +1544,8 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			for _, deployment := range resp.Deployments {
 				gotIDs = append(gotIDs, deployment.ID)
 			}
-			require.Equal(t, tc.expectedIDs, gotIDs, "unexpected page of deployments")
-			require.Equal(t, tc.expectedNextToken, resp.QueryMeta.NextToken, "unexpected NextToken")
+			must.Eq(t, tc.expectedIDs, gotIDs, must.Sprint("unexpected page of deployments"))
+			must.Eq(t, tc.expectedNextToken, resp.QueryMeta.NextToken, must.Sprint("unexpected NextToken"))
 		})
 	}
 }
