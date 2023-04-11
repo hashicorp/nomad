@@ -21,7 +21,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
   ].map((type) => {
     return {
       label: type,
-      property: `${type}Allocs`,
     };
   });
 
@@ -68,8 +67,16 @@ export default class JobStatusPanelDeployingComponent extends Component {
     return this.job.allocations
       .filter((allocation) => this.oldVersionAllocBlockIDs.includes(allocation))
       .reduce((alloGroups, currentAlloc) => {
-        (alloGroups[currentAlloc.clientStatus] =
-          alloGroups[currentAlloc.clientStatus] || []).push(currentAlloc);
+        const status = currentAlloc.clientStatus;
+
+        if (!alloGroups[status]) {
+          alloGroups[status] = {
+            healthy: { nonCanary: [] },
+            unhealthy: { nonCanary: [] },
+          };
+        }
+        alloGroups[status].healthy.nonCanary.push(currentAlloc);
+
         return alloGroups;
       }, {});
   }
@@ -79,34 +86,91 @@ export default class JobStatusPanelDeployingComponent extends Component {
     let allocationsOfDeploymentVersion = this.job.allocations.filter(
       (a) => a.jobVersion === this.deployment.get('versionNumber')
     );
-    // Only fill up to 100% of desiredTotal. Once we've filled up, we can stop counting.
-    let allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {
-      const jobAllocsOfType = allocationsOfDeploymentVersion.filterBy(
-        'clientStatus',
-        type.label
-      );
-      if (availableSlotsToFill > 0) {
-        blocks[type.label] = Array(
-          Math.min(availableSlotsToFill, jobAllocsOfType.length)
-        )
-          .fill()
-          .map((_, i) => {
-            return jobAllocsOfType[i];
-          });
-        availableSlotsToFill -= blocks[type.label].length;
-      } else {
-        blocks[type.label] = [];
-      }
-      return blocks;
+
+    let allocationCategories = this.allocTypes.reduce((categories, type) => {
+      categories[type.label] = {
+        healthy: { canary: [], nonCanary: [] },
+        unhealthy: { canary: [], nonCanary: [] },
+      };
+      return categories;
     }, {});
+
+    for (let alloc of allocationsOfDeploymentVersion) {
+      if (availableSlotsToFill <= 0) {
+        break;
+      }
+      let status = alloc.clientStatus;
+      let health = alloc.isHealthy ? 'healthy' : 'unhealthy';
+      let canary = alloc.isCanary ? 'canary' : 'nonCanary';
+
+      if (allocationCategories[status]) {
+        allocationCategories[status][health][canary].push(alloc);
+        availableSlotsToFill--;
+      }
+    }
+
+    // Fill unplaced slots if availableSlotsToFill > 0
     if (availableSlotsToFill > 0) {
-      allocationsOfShowableType['unplaced'] = Array(availableSlotsToFill)
+      allocationCategories['unplaced'] = {
+        healthy: { canary: [], nonCanary: [] },
+        unhealthy: { canary: [], nonCanary: [] },
+      };
+      allocationCategories['unplaced']['healthy']['nonCanary'] = Array(
+        availableSlotsToFill
+      )
         .fill()
         .map(() => {
           return { clientStatus: 'unplaced' };
         });
     }
-    return allocationsOfShowableType;
+
+    return allocationCategories;
+  }
+
+  get newRunningHealthyAllocBlocks() {
+    return [
+      ...this.newVersionAllocBlocks['running']['healthy']['canary'],
+      ...this.newVersionAllocBlocks['running']['healthy']['nonCanary'],
+    ];
+  }
+
+  // #region legend
+  get newAllocsByStatus() {
+    return Object.entries(this.newVersionAllocBlocks).reduce(
+      (counts, [status, healthStatusObj]) => {
+        counts[status] = Object.values(healthStatusObj)
+          .flatMap((canaryStatusObj) => Object.values(canaryStatusObj))
+          .flatMap((canaryStatusArray) => canaryStatusArray).length;
+        return counts;
+      },
+      {}
+    );
+  }
+
+  get newAllocsByCanary() {
+    return Object.values(this.newVersionAllocBlocks)
+      .flatMap((healthStatusObj) => Object.values(healthStatusObj))
+      .flatMap((canaryStatusObj) => Object.entries(canaryStatusObj))
+      .reduce((counts, [canaryStatus, items]) => {
+        counts[canaryStatus] = (counts[canaryStatus] || 0) + items.length;
+        return counts;
+      }, {});
+  }
+
+  get newAllocsByHealth() {
+    return {
+      healthy: this.newRunningHealthyAllocBlocks.length,
+      'health unknown':
+        this.totalAllocs - this.newRunningHealthyAllocBlocks.length,
+    };
+  }
+  // #endregion legend
+
+  get oldRunningHealthyAllocBlocks() {
+    return this.oldVersionAllocBlocks.running?.healthy?.nonCanary || [];
+  }
+  get oldCompleteHealthyAllocBlocks() {
+    return this.oldVersionAllocBlocks.complete?.healthy?.nonCanary || [];
   }
 
   // TODO: eventually we will want this from a new property on a job.

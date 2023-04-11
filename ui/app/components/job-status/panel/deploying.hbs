@@ -36,22 +36,67 @@
     <div class="boxed-section-body">
       <div class="deployment-allocations">
         {{#if this.oldVersionAllocBlockIDs.length}}
-          <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldVersionAllocBlocks.running.length}} running{{/if}}</h4>
-          <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} />
+          <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
+          <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
+          <div class="legend-and-summary">
+            <legend>
+              <span class="legend-item {{if (eq (get this.oldRunningHealthyAllocBlocks "length") 0) "faded"}}">
+                <span class="represented-allocation running"></span>
+                {{get this.oldRunningHealthyAllocBlocks "length"}} Running
+              </span>
+              <span class="legend-item {{if (eq (get this.oldCompleteHealthyAllocBlocks "length") 0) "faded"}}">
+                <span class="represented-allocation complete"></span>
+                {{get this.oldCompleteHealthyAllocBlocks "length"}} Complete
+              </span>
+            </legend>
+          </div>
+
         {{/if}}
 
-        <h4 class="title is-5">New allocations: {{this.newVersionAllocBlocks.running.length}}/{{this.totalAllocs}} running</h4>
+        <h4 class="title is-5">New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
         <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
       </div>
 
       <div class="legend-and-summary">
+
+        {{!-- Legend by Status, then by Health, then by Canary --}}
         <legend>
-          {{#each this.allocTypes as |type|}}
-            <span class="legend-item {{if (eq (get (get this.newVersionAllocBlocks type.label) "length") 0) "faded"}}">
-              <span class="represented-allocation {{type.label}}"></span>
-              {{get (get this.newVersionAllocBlocks type.label) "length"}} {{capitalize type.label}}
+          {{#each-in this.newAllocsByStatus as |status count|}}
+            <ConditionalLinkTo
+              @condition={{not (eq status "unplaced")}}
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{hash status=(concat '["' status '"]') version=(concat '[' this.job.latestDeployment.versionNumber ']')}}
+              @class="legend-item {{if (eq count 0) "faded"}}"
+              @label="View {{status}} allocations"
+            >
+              <span class="represented-allocation {{status}}"></span>
+                {{count}} {{capitalize status}}
+            </ConditionalLinkTo>
+          {{/each-in}}
+
+          {{#each-in this.newAllocsByHealth as |health count|}}
+            <span class="legend-item {{if (eq count 0) "faded"}}">
+              <span class="represented-allocation legend-example">
+                <span class="alloc-health-indicator">
+                  {{#if (eq health "healthy")}}
+                    <FlightIcon @name="check" @color="#25ba81" />
+                  {{else}}
+                    <FlightIcon @name="running" @color="black" class="not-animated" />
+                  {{/if}}
+                </span>
+              </span>
+              {{count}} {{capitalize health}}
             </span>
-          {{/each}}
+          {{/each-in}}
+
+          <span class="legend-item {{if (eq this.newAllocsByCanary.canary 0) "faded"}}">
+            <span class="represented-allocation legend-example canary">
+              <span class="alloc-canary-indicator" />
+            </span>
+            {{this.newAllocsByCanary.canary}} Canary
+          </span>
+
         </legend>
       </div>
 

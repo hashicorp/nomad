@@ -18,7 +18,6 @@ export default class JobStatusPanelSteadyComponent extends Component {
   ].map((type) => {
     return {
       label: type,
-      property: `${type}Allocs`,
     };
   });
 
@@ -31,25 +30,33 @@ export default class JobStatusPanelSteadyComponent extends Component {
         type.label
       );
       if (availableSlotsToFill > 0) {
-        blocks[type.label] = Array(
-          Math.min(availableSlotsToFill, jobAllocsOfType.length)
-        )
-          .fill()
-          .map((_, i) => {
-            return jobAllocsOfType[i];
-          });
-        availableSlotsToFill -= blocks[type.label].length;
+        blocks[type.label] = {
+          healthy: {
+            nonCanary: Array(
+              Math.min(availableSlotsToFill, jobAllocsOfType.length)
+            )
+              .fill()
+              .map((_, i) => {
+                return jobAllocsOfType[i];
+              }),
+          },
+        };
+        availableSlotsToFill -= blocks[type.label].healthy.nonCanary.length;
       } else {
-        blocks[type.label] = [];
+        blocks[type.label] = { healthy: { nonCanary: [] } };
       }
       return blocks;
     }, {});
     if (availableSlotsToFill > 0) {
-      allocationsOfShowableType['unplaced'] = Array(availableSlotsToFill)
-        .fill()
-        .map(() => {
-          return { clientStatus: 'unplaced' };
-        });
+      allocationsOfShowableType['unplaced'] = {
+        healthy: {
+          nonCanary: Array(availableSlotsToFill)
+            .fill()
+            .map(() => {
+              return { clientStatus: 'unplaced' };
+            }),
+        },
+      };
     }
     return allocationsOfShowableType;
   }
@@ -65,8 +72,10 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get versions() {
     return Object.values(this.allocBlocks)
-      .flat()
-      .map((a) => (!isNaN(a?.jobVersion) ? `v${a.jobVersion}` : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
+      .flatMap((allocType) => Object.values(allocType))
+      .flatMap((allocHealth) => Object.values(allocHealth))
+      .flatMap((allocCanary) => Object.values(allocCanary))
+      .map((a) => (!isNaN(a?.jobVersion) ? a.jobVersion : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
       .reduce(
         (result, item) => ({
           ...result,
