@@ -65,6 +65,9 @@
         gap: 0.5rem;
         & > li {
           white-space: nowrap;
+          & a {
+            text-decoration: none;
+          }
         }
       }
     }
@@ -300,6 +303,10 @@
         background-color: $orange;
       }
     }
+  }
+
+  .legend-item .represented-allocation .flight-icon {
+    animation: none;
   }
 
   & > .boxed-section-body > .deployment-allocations {

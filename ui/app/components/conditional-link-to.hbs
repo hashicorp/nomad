@@ -1,0 +1,9 @@
+{{#if @condition}}
+  <LinkTo @route={{@route}} @model={{@model}} @query={{this.query}} class={{@class}} aria-label={{@label}}>
+    {{yield}}
+  </LinkTo>
+{{else}}
+  <span class={{@class}}>
+    {{yield}}
+  </span>
+{{/if}}

@@ -62,10 +62,17 @@
         {{!-- Legend by Status, then by Health, then by Canary --}}
         <legend>
           {{#each-in this.newAllocsByStatus as |status count|}}
-            <span class="legend-item {{if (eq count 0) "faded"}}">
+            <ConditionalLinkTo
+              @condition={{not (eq status "unplaced")}}
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{hash status=(concat '["' status '"]') version=(concat '[' this.job.latestDeployment.versionNumber ']')}}
+              @class="legend-item {{if (eq count 0) "faded"}}"
+              @label="View {{status}} allocations"
+            >
               <span class="represented-allocation {{status}}"></span>
-              {{count}} {{capitalize status}}
-            </span>
+                {{count}} {{capitalize status}}
+            </ConditionalLinkTo>
           {{/each-in}}
 
           {{#each-in this.newAllocsByHealth as |health count|}}
@@ -75,7 +82,7 @@
                   {{#if (eq health "healthy")}}
                     <FlightIcon @name="check" @color="#25ba81" />
                   {{else}}
-                    <FlightIcon @name="running" @color="black" />
+                    <FlightIcon @name="running" @color="black" class="not-animated" />
                   {{/if}}
                 </span>
               </span>

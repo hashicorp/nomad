@@ -4,8 +4,14 @@
 >
   {{#if this.countToShow}}
     <div class="ungrouped-allocs">
-      {{#each (range 0 this.countToShow)}}
-        <span class="represented-allocation {{@status}} {{@health}} {{@canary}}">
+      {{#each (range 0 this.countToShow) as |i|}}
+        <ConditionalLinkTo
+          @condition={{not (eq @status "unplaced")}}
+          @route="allocations.allocation"
+          @model={{get @allocs i}}
+          @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
+          @label="View allocation"
+        >
           {{#unless @steady}}
             {{#if (eq @status "running")}}
               <span class="alloc-health-indicator">
@@ -17,12 +23,20 @@
               </span>
             {{/if}}
           {{/unless}}
-        </span>
+        </ConditionalLinkTo>
       {{/each}}
     </div>
   {{/if}}
   {{#if this.remaining}}
-    <span class="represented-allocation rest {{@status}} {{@health}} {{@canary}}">
+
+    <ConditionalLinkTo
+      @condition={{not (eq @status "unplaced")}}
+      @route="jobs.job.allocations"
+      @model={{@allocs.0.job}}
+      @query={{hash status=(concat '["' @status '"]') version=(concat '[' @allocs.0.jobVersion ']')}}
+      @class="represented-allocation rest {{@status}} {{@health}} {{@canary}}"
+      @label="View all {{@status}} allocations"
+    >
       <span class="rest-count">{{#if this.countToShow}}+{{/if}}{{this.remaining}}</span>
       {{#unless @steady}}
         {{#if (eq @canary "canary")}}
@@ -38,6 +52,6 @@
           </span>
         {{/if}}
       {{/unless}}
-    </span>
+    </ConditionalLinkTo>
   {{/if}}
 </div>
