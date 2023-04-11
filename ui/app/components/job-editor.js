@@ -110,9 +110,9 @@ export default class JobEditor extends Component {
   }
 
   @action
-  updateCode(value, type = 'job') {
+  updateCode(value, _codemirror, type = 'job') {
     if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
-      if (type === 'hclVars') {
+      if (type === 'hclVariables') {
         this.args.job.set('_newDefinitionVariables', value);
       } else {
         this.args.job.set('_newDefinition', value);
