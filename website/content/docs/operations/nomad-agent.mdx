@@ -107,7 +107,8 @@ supports special behavior for several other signals useful for debugging.
 * `SIGUSR1` will cause Nomad to print its [metrics][] without stopping the
   agent.
 * `SIGQUIT`, `SIGILL`, `SIGTRAP`, `SIGABRT`, `SIGSTKFLT`, `SIGEMT`, or `SIGSYS`
-  signals will cause the Nomad agent to exit and print its stack trace.
+  signals are handled by the Go runtime and will cause the Nomad agent to exit
+  and print its stack trace.
 
 When using the official HashiCorp packages on Linux, you can send these signals
 via `systemctl`. For example, to print the Nomad agent's metrics:
