@@ -12,17 +12,15 @@
           @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
           @label="View allocation"
         >
-          {{#unless @steady}}
-            {{#if (eq @status "running")}}
-              <span class="alloc-health-indicator">
-                {{#if (eq @health "healthy")}}
-                  <FlightIcon @name="check" @color="white" />
-                {{else}}
-                  <FlightIcon @name="running" @color="white" />
-                {{/if}}
-              </span>
-            {{/if}}
-          {{/unless}}
+          {{#if (and (eq @status "running") (not @steady))}}
+            <span class="alloc-health-indicator">
+              {{#if (eq @health "healthy")}}
+                <FlightIcon @name="check" @color="white" />
+              {{else}}
+                <FlightIcon @name="running" @color="white" />
+              {{/if}}
+            </span>
+          {{/if}}
         </ConditionalLinkTo>
       {{/each}}
     </div>
