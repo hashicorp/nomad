@@ -103,6 +103,7 @@ In addition to the optional handling of interrupt (`SIGINT`) and terminate
 signals (`SIGTERM`) described in [Stopping an Agent][#stopping-an-agent], Nomad
 supports special behavior for several other signals useful for debugging.
 
+* `SIGHUP` will cause Nomad to [reload its configuration][].
 * `SIGUSR1` will cause Nomad to print its [metrics][] without stopping the
   agent.
 * `SIGQUIT`, `SIGILL`, `SIGTRAP`, `SIGABRT`, `SIGSTKFLT`, `SIGEMT`, or `SIGSYS`
@@ -178,4 +179,5 @@ owned by `root` with filesystem permissions set to `0700`.
 [`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
 [`server force-leave` command]: /nomad/docs/commands/server/force-leave
 [consensus]: /nomad/docs/concepts/consensus
+[reload its configuration]: /nomad/docs/configuration#configuration-reload
 [metrics]: /nomad/docs/operations/metrics-reference
