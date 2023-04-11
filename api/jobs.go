@@ -1312,6 +1312,7 @@ type JobRevertRequest struct {
 type JobRegisterRequest struct {
 	Submission *JobSubmission
 	Job        *Job
+
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
 	// register only occurs if the job is new.

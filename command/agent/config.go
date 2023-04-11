@@ -608,7 +608,7 @@ type ServerConfig struct {
 
 	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
 	// before being discarded automatically. If unset, the maximum size defaults
-	// to 1 MiB. If the value is zero, no job sources will be stored.
+	// to 1 MB. If the value is zero, no job sources will be stored.
 	JobMaxSourceSize *string `hcl:"max_job_source_size"`
 
 	// LicensePath is the path to search for an enterprise license.
