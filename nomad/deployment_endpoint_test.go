@@ -1035,6 +1035,37 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp), "RPC")
 	assert.EqualValues(resp.Index, 1003, "Wrong Index")
 	assert.Len(resp.Deployments, 2, "Deployments")
+
+	// Lookup a deployment with wildcard namespace and prefix
+	var resp3 structs.DeploymentListResponse
+	get = &structs.DeploymentListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Prefix:    d.ID[:4],
+			Namespace: structs.AllNamespacesSentinel,
+		},
+	}
+
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp3), "RPC")
+	assert.EqualValues(resp3.Index, 1003, "Wrong Index")
+	assert.Len(resp3.Deployments, 1, "Deployments")
+	assert.Equal(resp3.Deployments[0].ID, d.ID, "Deployment ID")
+
+	// Lookup the other deployments with wildcard namespace and prefix
+	var resp4 structs.DeploymentListResponse
+	get = &structs.DeploymentListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Prefix:    d2.ID[:4],
+			Namespace: structs.AllNamespacesSentinel,
+		},
+	}
+
+	assert.Nil(msgpackrpc.CallWithCodec(codec, "Deployment.List", get, &resp4), "RPC")
+	assert.EqualValues(resp4.Index, 1003, "Wrong Index")
+	assert.Len(resp4.Deployments, 1, "Deployments")
+	assert.Equal(resp4.Deployments[0].ID, d2.ID, "Deployment ID")
+
 }
 
 func TestDeploymentEndpoint_List_order(t *testing.T) {
@@ -1298,6 +1329,12 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
+	// Create dev namespace
+	devNS := mock.Namespace()
+	devNS.Name = "non-default"
+	err := s1.fsm.State().UpsertNamespaces(999, []*structs.Namespace{devNS})
+	require.NoError(t, err)
+
 	// create a set of deployments. these are in the order that the
 	// state store will return them from the iterator (sorted by key),
 	// for ease of writing tests
@@ -1307,14 +1344,14 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		jobID     string
 		status    string
 	}{
-		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9"},                           // 0
-		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9"},                           // 1
-		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: "non-default"}, // 2
-		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},                           // 3
-		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},                           // 4
-		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},                           // 5
-		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},                           // 6
-		{id: "00000111-3350-4b4b-d185-0e1992ed43e9"},                           // 7
+		{id: "aaaa1111-3350-4b4b-d185-0e1992ed43e9"},                        // 0
+		{id: "aaaaaa22-3350-4b4b-d185-0e1992ed43e9"},                        // 1
+		{id: "aaaaaa33-3350-4b4b-d185-0e1992ed43e9", namespace: devNS.Name}, // 2
+		{id: "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},                        // 3
+		{id: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9"},                        // 4
+		{id: "aaaaaacc-3350-4b4b-d185-0e1992ed43e9"},                        // 5
+		{id: "aaaaaadd-3350-4b4b-d185-0e1992ed43e9"},                        // 6
+		{id: "00000111-3350-4b4b-d185-0e1992ed43e9"},                        // 7
 		{}, // 8, index missing
 		{id: "bbbb1111-3350-4b4b-d185-0e1992ed43e9"}, // 9
 	}
@@ -1470,6 +1507,18 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 			nextToken: "1008.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
 			expectedIDs: []string{
 				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:              "test15 size-2 page-2 all namespaces with prefix",
+			namespace:         "*",
+			prefix:            "aaaa",
+			pageSize:          2,
+			nextToken:         "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			expectedNextToken: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs: []string{
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
 			},
 		},
 	}

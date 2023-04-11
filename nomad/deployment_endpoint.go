@@ -454,7 +454,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	if err != nil {
 		return err
 	}
-	if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -466,20 +466,18 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
-			// Capture all the deployments
-			var err error
-			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
-
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
 			if err != nil {
 				if err == structs.ErrPermissionDenied {
-					// return empty evals if token isn't authorized for any
-					// namespace, matching other endpoints
 					reply.Deployments = make([]*structs.Deployment, 0)
+					return nil
 				}
 				return err
 			}
+
+			// Capture all the deployments
+			var iter memdb.ResultIterator
+			var opts paginator.StructsTokenizerOptions
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, sort)
@@ -504,6 +502,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			tokenizer := paginator.NewStructsTokenizer(iter, opts)
+
 			filters := []paginator.Filter{
 				paginator.NamespaceFilter{
 					AllowableNamespaces: allowableNamespaces,
