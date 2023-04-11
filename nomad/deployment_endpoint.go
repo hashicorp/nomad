@@ -454,7 +454,8 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	
+	if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
