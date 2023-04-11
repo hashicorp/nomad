@@ -24,7 +24,7 @@ export default class ClientController extends Controller.extend(
   Sortable,
   Searchable
 ) {
-  @service notifications;
+  @service flashMessages;
 
   queryParams = [
     {
@@ -316,18 +316,21 @@ export default class ClientController extends Controller.extend(
       e.preventDefault();
       await this.model.addMeta({ [key]: value });
 
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Metadata added',
         message: `${key} successfully saved`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 3000,
       });
     } catch (err) {
       const error =
         messageFromAdapterError(err) || 'Could not save new dynamic metadata';
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Error saving Metadata`,
         message: error,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }

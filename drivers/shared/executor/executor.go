@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -185,7 +186,7 @@ func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 			}
 			c.stdout = f
 		} else {
-			c.stdout = nopCloser{io.Discard}
+			c.stdout = nopCloser{ioutil.Discard}
 		}
 	}
 	return c.stdout, nil
@@ -201,7 +202,7 @@ func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 			}
 			c.stderr = f
 		} else {
-			c.stderr = nopCloser{io.Discard}
+			c.stderr = nopCloser{ioutil.Discard}
 		}
 	}
 	return c.stderr, nil

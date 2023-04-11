@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shoenig/test"
+	"github.com/stretchr/testify/assert"
 )
 
 // Register registers a jobspec from a file but with a unique ID.
@@ -248,10 +248,10 @@ func CleanupJobsAndGC(t *testing.T, jobIDs *[]string) func() {
 	return func() {
 		for _, jobID := range *jobIDs {
 			err := StopJob(jobID, "-purge", "-detach")
-			test.NoError(t, err)
+			assert.NoError(t, err)
 		}
 		_, err := Command("nomad", "system", "gc")
-		test.NoError(t, err)
+		assert.NoError(t, err)
 	}
 }
 
@@ -270,8 +270,8 @@ func CleanupJobsAndGCWithContext(t *testing.T, ctx context.Context, jobIDs *[]st
 	}
 	for _, jobID := range *jobIDs {
 		err := StopJob(jobID, "-purge", "-detach")
-		test.NoError(t, err)
+		assert.NoError(t, err)
 	}
 	_, err := Command("nomad", "system", "gc")
-	test.NoError(t, err)
+	assert.NoError(t, err)
 }

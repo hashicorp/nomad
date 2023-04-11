@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -206,7 +207,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	r.NoError(err)
 
 	memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
-	data, err := os.ReadFile(memLimits)
+	data, err := ioutil.ReadFile(memLimits)
 	r.NoError(err)
 
 	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
@@ -390,7 +391,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	executor.Shutdown("SIGKILL", 0)
 
 	// test that the cgroup paths are not visible
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := ioutil.TempFile("", "")
 	require.NoError(err)
 	defer os.Remove(tmpFile.Name())
 
@@ -846,7 +847,7 @@ func TestUniversalExecutor_NoCgroup(t *testing.T) {
 	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 
-	expectedBytes, err := os.ReadFile("/proc/self/cgroup")
+	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
 	require.NoError(t, err)
 
 	expected := strings.TrimSpace(string(expectedBytes))

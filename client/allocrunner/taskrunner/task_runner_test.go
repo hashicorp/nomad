@@ -1729,7 +1729,6 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 // TestTaskRunner_Download_RawExec asserts that downloaded artifacts may be
 // executed in a driver without filesystem isolation.
 func TestTaskRunner_Download_RawExec(t *testing.T) {
-	ci.SkipTestWithoutRootAccess(t)
 	ci.Parallel(t)
 
 	ts := httptest.NewServer(http.FileServer(http.Dir(filepath.Dir("."))))

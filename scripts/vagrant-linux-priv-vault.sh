@@ -2,15 +2,8 @@
 
 set -o errexit
 
-# Minimal effort to support amd64 and arm64 installs.
-ARCH=""
-case $(arch) in
-    x86_64) ARCH="amd64" ;;
-    aarch64) ARCH="arm64" ;;
-esac
-
-VERSION=1.13.0
-DOWNLOAD=https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_${ARCH}.zip
+VERSION=1.8.4
+DOWNLOAD=https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip
 
 function install_vault() {
 	if [[ -e /usr/bin/vault ]] ; then

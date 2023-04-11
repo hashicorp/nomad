@@ -7,7 +7,7 @@ import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
 export default class PoliciesPolicyController extends Controller {
-  @service notifications;
+  @service flashMessages;
   @service router;
   @service store;
 
@@ -37,18 +37,19 @@ export default class PoliciesPolicyController extends Controller {
     try {
       yield this.policy.deleteRecord();
       yield this.policy.save();
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Policy Deleted',
-        color: 'success',
-        type: `success`,
+        type: 'success',
         destroyOnClick: false,
+        timeout: 5000,
       });
       this.router.transitionTo('policies');
     } catch (err) {
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Error deleting Policy ${this.policy.name}`,
         message: err,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }
@@ -74,10 +75,11 @@ export default class PoliciesPolicyController extends Controller {
       });
       yield newToken.save();
       yield this.refreshTokens();
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Example Token Created',
         message: `${newToken.secret}`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
         timeout: 30000,
         customAction: {
           label: 'Copy to Clipboard',
@@ -102,9 +104,11 @@ export default class PoliciesPolicyController extends Controller {
       yield token.deleteRecord();
       yield token.save();
       yield this.refreshTokens();
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Token successfully deleted',
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
     } catch (err) {
       this.error = {
