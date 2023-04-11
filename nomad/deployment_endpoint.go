@@ -454,7 +454,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	if err != nil {
 		return err
 	}
-	
+
 	if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
@@ -511,7 +511,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			var deploys []*structs.Deployment
-			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+			pnator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					deploy := raw.(*structs.Deployment)
 					deploys = append(deploys, deploy)
@@ -522,7 +522,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := paginator.Page()
+			nextToken, err := pnator.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)
