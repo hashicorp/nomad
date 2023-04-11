@@ -266,14 +266,6 @@ export default class Job extends Model {
       // If the definition is invalid JSON, assume it is HCL. If it is invalid
       // in anyway, the parse endpoint will throw an error.
 
-      // Check first if variables is valid JSON before dispatching network req
-      if (variables) {
-        try {
-          JSON.parse(variables);
-        } catch (e) {
-          throw new Error(e);
-        }
-      }
       promise = this.store
         .adapterFor('job')
         .parse(this._newDefinition, variables)
