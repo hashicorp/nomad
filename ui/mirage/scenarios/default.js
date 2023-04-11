@@ -254,6 +254,7 @@ function smallCluster(server) {
         }
       }
     }`,
+      Variables: `datacenters=['us-east-1',us-west-1]`,
     },
   });
   server.createList('allocFile', 5);
