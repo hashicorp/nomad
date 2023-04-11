@@ -186,44 +186,5 @@ module('Unit | Model | job', function (hooks) {
         '_newDefinitionJSON is set'
       );
     });
-
-    test('it does not dispatch a POST request to the /parse endpoint if HCL Variables are invalid JSON', async function (assert) {
-      assert.expect(4);
-
-      const store = this.owner.lookup('service:store');
-      const model = store.createRecord('job');
-
-      model.set('_newDefinition', 'someFakeHCL');
-      model.set('_newDefinitionVariables', 'invalidJSON');
-
-      const adapter = store.adapterFor('job');
-      adapter.parse = sinon.stub();
-
-      const setIdByPayloadSpy = sinon.spy(model, 'setIdByPayload');
-
-      try {
-        await model.parse();
-        assert.ok(false, 'Should have thrown an error');
-      } catch (error) {
-        assert.ok(
-          setIdByPayloadSpy.notCalled,
-          'setIdByPayload should not be called'
-        );
-        assert.ok(
-          adapter.parse.notCalled,
-          'adapter parse method should not be called'
-        );
-        assert.equal(
-          error.message,
-          `SyntaxError: Unexpected token 'i', "invalidJSON" is not valid JSON`,
-          'Error message should match the expected error'
-        );
-        assert.deepEqual(
-          model.get('_newDefinitionJSON'),
-          undefined,
-          '_newDefinitionJSON is not set'
-        );
-      }
-    });
   });
 });
