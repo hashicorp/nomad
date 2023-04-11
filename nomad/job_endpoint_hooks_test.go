@@ -769,3 +769,40 @@ func Test_jobCanonicalizer_Mutate(t *testing.T) {
 		})
 	}
 }
+
+func TestJob_submissionController(t *testing.T) {
+	ci.Parallel(t)
+	args := &structs.JobRegisterRequest{
+		Submission: &structs.JobSubmission{
+			Source:    "this is some hcl content",
+			Format:    "hcl2",
+			Variables: "variables",
+		},
+	}
+	t.Run("nil", func(t *testing.T) {
+		j := &Job{srv: &Server{
+			config: &Config{JobMaxSourceSize: 1024},
+		}}
+		err := j.submissionController(&structs.JobRegisterRequest{
+			Submission: nil,
+		})
+		must.NoError(t, err)
+	})
+	t.Run("under max size", func(t *testing.T) {
+		j := &Job{srv: &Server{
+			config: &Config{JobMaxSourceSize: 1024},
+		}}
+		err := j.submissionController(args)
+		must.NoError(t, err)
+		must.NotNil(t, args.Submission)
+	})
+
+	t.Run("over max size", func(t *testing.T) {
+		j := &Job{srv: &Server{
+			config: &Config{JobMaxSourceSize: 1},
+		}}
+		err := j.submissionController(args)
+		must.ErrorContains(t, err, "job source size of 33 B exceeds maximum of 1 B and will be discarded")
+		must.Nil(t, args.Submission)
+	})
+}

@@ -67,6 +67,11 @@ type Config struct {
 	// EventBufferSize is the amount of events to hold in memory.
 	EventBufferSize int64
 
+	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
+	// before being discarded automatically. A value of zero indicates no job
+	// sources will be stored.
+	JobMaxSourceSize int
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer

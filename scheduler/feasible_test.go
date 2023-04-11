@@ -400,7 +400,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 			Source: vid2,
 		},
 	}
-	err = state.UpsertJob(structs.MsgTypeTestSetup, index, alloc.Job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job)
 	require.NoError(t, err)
 	index++
 	summary := mock.JobSummary(alloc.JobID)

@@ -20,9 +20,7 @@ func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 
 func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 	t.Helper()
-	if wm.LastIndex == 0 {
-		t.Fatalf("bad index: %d", wm.LastIndex)
-	}
+	must.Positive(t, wm.LastIndex, must.Sprint("expected WriteMeta.LastIndex to be > 0"))
 }
 
 func testJob() *Job {

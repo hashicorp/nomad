@@ -778,7 +778,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -869,7 +869,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1191,7 +1191,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 
 	// Update the eligibility and expect evals
 	dereg.DrainStrategy = nil
@@ -1655,7 +1655,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 
 	// Update the eligibility and expect evals
 	elig.Eligibility = structs.NodeSchedulingEligible
@@ -2652,7 +2652,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = "mytestjob"
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
 	require.Nil(err)
 
 	// Inject fake allocations
@@ -2740,7 +2740,7 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	state := s1.fsm.State()
 
 	job := mock.Job()
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
 	require.NoError(t, err)
 
 	alloc := mock.Alloc()
@@ -2897,7 +2897,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = alloc.JobID
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2964,7 +2964,7 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 
 	// Inject a fake system job.
 	job := mock.SystemJob()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	idx++
@@ -3056,14 +3056,14 @@ func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
 
 	// Inject a fake system job.
 	defaultJob := mock.SystemJob()
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, defaultJob)
 	require.NoError(t, err)
 	idx++
 
 	nsJob := mock.SystemJob()
 	nsJob.ID = defaultJob.ID
 	nsJob.Namespace = ns1.Name
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, nsJob)
 	require.NoError(t, err)
 	idx++
 
@@ -3117,14 +3117,14 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	// Inject a fake system job in the same dc
 	defaultJob := mock.SystemJob()
 	defaultJob.Datacenters = []string{"test1", "test2"}
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, defaultJob)
 	require.NoError(t, err)
 	idx++
 
 	// Inject a fake system job in a different dc
 	nsJob := mock.SystemJob()
 	nsJob.Datacenters = []string{"test2", "test3"}
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, nsJob)
 	require.NoError(t, err)
 	idx++
 
@@ -4201,7 +4201,7 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 			job.ID = tc.name + "-test-job"
 
 			if !tc.missingJob {
-				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, job)
+				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
 				require.NoError(t, err)
 			}
 

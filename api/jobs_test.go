@@ -1439,6 +1439,301 @@ func TestJobs_Versions(t *testing.T) {
 	must.Eq(t, *job.ID, *result[0].ID)
 }
 
+func TestJobs_JobSubmission_Canonicalize(t *testing.T) {
+	testutil.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		var js *JobSubmission
+		js.Canonicalize()
+		must.Nil(t, js)
+	})
+
+	t.Run("empty variable flags", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			Format:        "hcl2",
+			VariableFlags: make(map[string]string),
+		}
+		js.Canonicalize()
+		must.Nil(t, js.VariableFlags)
+	})
+}
+
+func TestJobs_JobSubmission_Copy(t *testing.T) {
+	testutil.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		var js *JobSubmission
+		c := js.Copy()
+		must.Nil(t, c)
+	})
+
+	t.Run("copy", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "source",
+			Format:        "format",
+			VariableFlags: map[string]string{"foo": "bar"},
+			Variables:     "variables",
+		}
+		c := js.Copy()
+		c.Source = "source2"
+		c.Format = "format2"
+		c.VariableFlags["foo"] = "baz"
+		c.Variables = "variables2"
+		must.Eq(t, &JobSubmission{
+			Source:        "source",
+			Format:        "format",
+			VariableFlags: map[string]string{"foo": "bar"},
+			Variables:     "variables",
+		}, js)
+	})
+}
+
+func TestJobs_Submission_versions(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) { c.DevMode = true })
+	t.Cleanup(s.Stop)
+
+	jobs := c.Jobs()
+
+	job := testJob()
+	jobID := *job.ID                       // job1
+	job.TaskGroups[0].Count = pointerOf(0) // no need to actually run
+
+	// trying to retrieve a version before job is submitted returns a Not Found
+	_, _, nfErr := jobs.Submission(jobID, 0, nil)
+	must.ErrorContains(t, nfErr, "job source not found")
+
+	// register our test job at version 0
+	job.Meta = map[string]string{"v": "0"}
+	_, wm, regErr := jobs.RegisterOpts(job, &RegisterOptions{
+		Submission: &JobSubmission{
+			Source:        "the job source v0",
+			Format:        "hcl2",
+			VariableFlags: map[string]string{"X": "x", "Y": "42", "Z": "true"},
+			Variables:     "var file content",
+		},
+	}, nil)
+	must.NoError(t, regErr)
+	assertWriteMeta(t, wm)
+
+	expectSubmission := func(sub *JobSubmission, format, source, vars string, flags map[string]string) {
+		must.NotNil(t, sub, must.Sprintf("expected a non-nil job submission for job %s @ version %d", jobID, 0))
+		must.Eq(t, format, sub.Format)
+		must.Eq(t, source, sub.Source)
+		must.Eq(t, vars, sub.Variables)
+		must.MapEq(t, flags, sub.VariableFlags)
+	}
+
+	// we should have a version 0 now
+	sub, _, err := jobs.Submission(jobID, 0, nil)
+	must.NoError(t, err)
+	expectSubmission(sub, "hcl2", "the job source v0", "var file content", map[string]string{"X": "x", "Y": "42", "Z": "true"})
+
+	// register our test job at version 1
+	job.Meta = map[string]string{"v": "1"}
+	_, wm, regErr = jobs.RegisterOpts(job, &RegisterOptions{
+		Submission: &JobSubmission{
+			Source:        "the job source v1",
+			Format:        "hcl2",
+			VariableFlags: nil,
+			Variables:     "different var content",
+		},
+	}, nil)
+	must.NoError(t, regErr)
+	assertWriteMeta(t, wm)
+
+	// we should have a version 1 now
+	sub, _, err = jobs.Submission(jobID, 1, nil)
+	must.NoError(t, err)
+	expectSubmission(sub, "hcl2", "the job source v1", "different var content", nil)
+
+	// if we query for version 0 we should still have it
+	sub, _, err = jobs.Submission(jobID, 0, nil)
+	must.NoError(t, err)
+	expectSubmission(sub, "hcl2", "the job source v0", "var file content", map[string]string{"X": "x", "Y": "42", "Z": "true"})
+
+	// deregister (and purge) the job
+	_, _, err = jobs.Deregister(jobID, true, &WriteOptions{Namespace: "default"})
+	must.NoError(t, err)
+
+	// now if we query for a submission of v0 it will be gone
+	sub, _, err = jobs.Submission(jobID, 0, nil)
+	must.ErrorContains(t, err, "job source not found")
+	must.Nil(t, sub)
+
+	// same for the v1 submission
+	sub, _, err = jobs.Submission(jobID, 1, nil)
+	must.ErrorContains(t, err, "job source not found")
+	must.Nil(t, sub)
+}
+
+func TestJobs_Submission_namespaces(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) { c.DevMode = true })
+	t.Cleanup(s.Stop)
+
+	first := &Namespace{
+		Name:        "first",
+		Description: "first namespace",
+	}
+
+	second := &Namespace{
+		Name:        "second",
+		Description: "second namespace",
+	}
+
+	// create two namespaces
+	namespaces := c.Namespaces()
+	_, err := namespaces.Register(first, nil)
+	must.NoError(t, err)
+	_, err = namespaces.Register(second, nil)
+	must.NoError(t, err)
+
+	jobs := c.Jobs()
+
+	// use the same jobID to prove we can query submissions of the same ID but
+	// in different namespaces
+	commonJobID := "common"
+
+	job := testJob()
+	job.ID = pointerOf(commonJobID)
+	job.TaskGroups[0].Count = pointerOf(0)
+
+	// register our test job into first namespace
+	_, wm, err := jobs.RegisterOpts(job, &RegisterOptions{
+		Submission: &JobSubmission{
+			Source: "the job source",
+			Format: "hcl2",
+		},
+	}, &WriteOptions{Namespace: "first"})
+	must.NoError(t, err)
+	assertWriteMeta(t, wm)
+
+	// if we query in the default namespace the submission should not exist
+	sub, _, err := jobs.Submission(commonJobID, 0, nil)
+	must.ErrorContains(t, err, "not found")
+	must.Nil(t, sub)
+
+	// if we query in the first namespace we expect to get the submission
+	sub, _, err = jobs.Submission(commonJobID, 0, &QueryOptions{Namespace: "first"})
+	must.NoError(t, err)
+	must.Eq(t, "the job source", sub.Source)
+
+	// if we query in the second namespace we expect the submission should not exist
+	sub, _, err = jobs.Submission(commonJobID, 0, &QueryOptions{Namespace: "second"})
+	must.ErrorContains(t, err, "not found")
+	must.Nil(t, sub)
+
+	// create a second test job for our second namespace
+	job2 := testJob()
+	job2.ID = pointerOf(commonJobID)
+	// keep job name redis to prove we write to correct namespace
+	job.TaskGroups[0].Count = pointerOf(0)
+
+	// register our second job into the second namespace
+	_, wm, err = jobs.RegisterOpts(job2, &RegisterOptions{
+		Submission: &JobSubmission{
+			Source: "second job source",
+			Format: "hcl1",
+		},
+	}, &WriteOptions{Namespace: "second"})
+	must.NoError(t, err)
+	assertWriteMeta(t, wm)
+
+	// if we query in the default namespace the submission should not exist
+	sub, _, err = jobs.Submission(commonJobID, 0, nil)
+	must.ErrorContains(t, err, "not found")
+	must.Nil(t, sub)
+
+	// if we query in the first namespace we expect to get the first job submission
+	sub, _, err = jobs.Submission(commonJobID, 0, &QueryOptions{Namespace: "first"})
+	must.NoError(t, err)
+	must.Eq(t, "the job source", sub.Source)
+
+	// if we query in the second namespace we expect the second job submission
+	sub, _, err = jobs.Submission(commonJobID, 0, &QueryOptions{Namespace: "second"})
+	must.NoError(t, err)
+	must.Eq(t, "second job source", sub.Source)
+
+	// if we query v1 in the first namespace we expect nothing
+	sub, _, err = jobs.Submission(commonJobID, 1, &QueryOptions{Namespace: "first"})
+	must.ErrorContains(t, err, "not found")
+	must.Nil(t, sub)
+
+	// if we query v1 in the second namespace we expect nothing
+	sub, _, err = jobs.Submission(commonJobID, 1, &QueryOptions{Namespace: "second"})
+	must.ErrorContains(t, err, "not found")
+	must.Nil(t, sub)
+}
+
+func TestJobs_Submission_delete(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) { c.DevMode = true })
+	t.Cleanup(s.Stop)
+
+	first := &Namespace{
+		Name:        "first",
+		Description: "first namespace",
+	}
+
+	namespaces := c.Namespaces()
+	_, err := namespaces.Register(first, nil)
+	must.NoError(t, err)
+
+	jobs := c.Jobs()
+	job := testJob()
+	jobID := *job.ID
+	job.TaskGroups[0].Count = pointerOf(0)
+	job.Meta = map[string]string{"version": "0"}
+
+	// register our test job into first namespace
+	_, wm, err := jobs.RegisterOpts(job, &RegisterOptions{
+		Submission: &JobSubmission{
+			Source: "the job source v0",
+			Format: "hcl2",
+		},
+	}, &WriteOptions{Namespace: "first"})
+	must.NoError(t, err)
+	assertWriteMeta(t, wm)
+
+	// modify the job and register it again
+	job.Meta["version"] = "1"
+	_, wm, err = jobs.RegisterOpts(job, &RegisterOptions{
+		Submission: &JobSubmission{
+			Source: "the job source v1",
+			Format: "hcl2",
+		},
+	}, &WriteOptions{Namespace: "first"})
+	must.NoError(t, err)
+	assertWriteMeta(t, wm)
+
+	// ensure we have our submissions for both versions
+	sub, _, err := jobs.Submission(jobID, 0, &QueryOptions{Namespace: "first"})
+	must.NoError(t, err)
+	must.Eq(t, "the job source v0", sub.Source)
+
+	sub, _, err = jobs.Submission(jobID, 1, &QueryOptions{Namespace: "first"})
+	must.NoError(t, err)
+	must.Eq(t, "the job source v1", sub.Source)
+
+	// deregister (and purge) the job
+	_, _, err = jobs.Deregister(jobID, true, &WriteOptions{Namespace: "first"})
+	must.NoError(t, err)
+
+	// ensure all submissions for the job are gone
+	sub, _, err = jobs.Submission(jobID, 0, &QueryOptions{Namespace: "first"})
+	must.ErrorContains(t, err, "job source not found")
+	must.Nil(t, sub)
+
+	sub, _, err = jobs.Submission(jobID, 1, &QueryOptions{Namespace: "first"})
+	must.ErrorContains(t, err, "job source not found")
+	must.Nil(t, sub)
+}
+
 func TestJobs_PrefixList(t *testing.T) {
 	testutil.Parallel(t)
 

@@ -694,6 +694,9 @@ type NodeSpecificRequest struct {
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
+	Submission *JobSubmission
+
+	// Job is the parsed job, no matter what form the input was in.
 	Job *Job
 
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -790,6 +793,23 @@ type JobEvaluateRequest struct {
 // EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
+}
+
+// JobSubmissionRequest is used to query a JobSubmission object associated with a
+// job at a specific version.
+type JobSubmissionRequest struct {
+	JobID   string
+	Version uint64
+
+	QueryOptions
+}
+
+// JobSubmissionResponse contains a JobSubmission object, which may be nil
+// if no submission data is available.
+type JobSubmissionResponse struct {
+	Submission *JobSubmission
+
+	QueryMeta
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
@@ -4248,6 +4268,44 @@ const (
 	// kept for a single task group.
 	JobTrackedScalingEvents = 20
 )
+
+// A JobSubmission contains the original job specification, along with the Variables
+// submitted with the job.
+type JobSubmission struct {
+	// Source contains the original job definition (may be hc1, hcl2, or json)
+	Source string
+
+	// Format indicates whether the original job was hcl1, hcl2, or json.
+	Format string
+
+	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
+	// job (hcl2 only).
+	VariableFlags map[string]string
+
+	// Variables contains the opaque variable blob that was input from the
+	// webUI (hcl2 only).
+	Variables string
+
+	// Namespace is managed internally, do not set.
+	//
+	// The namespace the associated job belongs to.
+	Namespace string
+
+	// JobID is managed internally, not set.
+	//
+	// The job.ID field.
+	JobID string
+
+	// Version is managed internally, not set.
+	//
+	// The version of the Job this submission is associated with.
+	Version uint64
+
+	// JobModifyIndex is managed internally, not set.
+	//
+	// The raft index the Job this submission is associated with.
+	JobModifyIndex uint64
+}
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group

@@ -114,7 +114,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()
@@ -158,7 +158,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -235,7 +235,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -440,7 +440,7 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	require.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, job))
+	require.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
@@ -587,7 +587,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 
 	alloc := mock.Alloc()
 
-	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, alloc.Job))
+	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, nil, alloc.Job))
 	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
 
 	msgType := structs.AllocUpdateDesiredTransitionRequestType

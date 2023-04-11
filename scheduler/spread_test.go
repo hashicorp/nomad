@@ -749,7 +749,7 @@ func generateJob(jobSize int) *structs.Job {
 }
 
 func upsertJob(h *Harness, job *structs.Job) (*structs.Evaluation, error) {
-	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job)
+	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job)
 	if err != nil {
 		return nil, err
 	}
@@ -870,7 +870,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 
 	job1.Version = 1
 	job1.TaskGroups[0].Count = 5
-	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job1)
+	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job1)
 	require.NoError(t, err)
 
 	allocs := []*structs.Allocation{}
@@ -902,7 +902,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	job2 := job1.Copy()
 	job2.Version = 2
 	job2.Spreads = nil
-	err = h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2)
+	err = h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2)
 	require.NoError(t, err)
 
 	eval := &structs.Evaluation{

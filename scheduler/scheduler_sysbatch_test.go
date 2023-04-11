@@ -30,7 +30,7 @@ func TestSysBatch_JobRegister(t *testing.T) {
 
 	// Create a job
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to deregister the job
 	eval := &structs.Evaluation{
@@ -100,7 +100,7 @@ func TestSysBatch_JobRegister_AddNode_Running(t *testing.T) {
 
 	// Generate a fake sysbatch job with allocations
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -178,7 +178,7 @@ func TestSysBatch_JobRegister_AddNode_Dead(t *testing.T) {
 	// Generate a dead sysbatch job with complete allocations
 	job := mock.SystemBatchJob()
 	job.Status = structs.JobStatusDead // job is dead but not stopped
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -255,7 +255,7 @@ func TestSysBatch_JobModify(t *testing.T) {
 
 	// Generate a fake job with allocations
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -288,7 +288,7 @@ func TestSysBatch_JobModify(t *testing.T) {
 
 	// Update the task, such that it cannot be done in-place
 	job2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -344,7 +344,7 @@ func TestSysBatch_JobModify_InPlace(t *testing.T) {
 	nodes := createNodes(t, h, 10)
 
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -360,7 +360,7 @@ func TestSysBatch_JobModify_InPlace(t *testing.T) {
 	// Update the job
 	job2 := mock.SystemBatchJob()
 	job2.ID = job.ID
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	// Create a mock evaluation to deal with update
 	eval := &structs.Evaluation{
@@ -481,7 +481,7 @@ func TestSysBatch_JobDeregister_Stopped(t *testing.T) {
 	// Generate a stopped sysbatch job with allocations
 	job := mock.SystemBatchJob()
 	job.Stop = true
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
 	for _, node := range nodes {
@@ -545,7 +545,7 @@ func TestSysBatch_NodeDown(t *testing.T) {
 
 	// Generate a sysbatch job allocated on that node
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	alloc := mock.SysBatchAlloc()
 	alloc.Job = job
@@ -606,7 +606,7 @@ func TestSysBatch_NodeDrain_Down(t *testing.T) {
 
 	// Generate a sysbatch job allocated on that node.
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	alloc := mock.SysBatchAlloc()
 	alloc.Job = job
@@ -659,7 +659,7 @@ func TestSysBatch_NodeDrain(t *testing.T) {
 
 	// Generate a sysbatch job allocated on that node.
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	alloc := mock.SysBatchAlloc()
 	alloc.Job = job
@@ -716,7 +716,7 @@ func TestSysBatch_NodeUpdate(t *testing.T) {
 
 	// Generate a sysbatch job allocated on that node.
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	alloc := mock.SysBatchAlloc()
 	alloc.Job = job
@@ -760,7 +760,7 @@ func TestSysBatch_RetryLimit(t *testing.T) {
 
 	// Create a job
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to register
 	eval := &structs.Evaluation{
@@ -811,7 +811,7 @@ func TestSysBatch_Queued_With_Constraints(t *testing.T) {
 			Operand: "=",
 		},
 	}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{
@@ -858,7 +858,7 @@ func TestSysBatch_Queued_With_Constraints_PartialMatch(t *testing.T) {
 
 	// Generate a sysbatch job which can't be placed on the node
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to deal with the node update
 	eval := &structs.Evaluation{
@@ -929,7 +929,7 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 
 	// Upsert Job
 	job.TaskGroups = []*structs.TaskGroup{tgA, tgB}
-	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Evaluate the job
 	eval := &structs.Evaluation{
@@ -1053,7 +1053,7 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 	// Make a sysbatch job
 	job := mock.SystemBatchJob()
 	job.Meta = map[string]string{"version": "1"}
-	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Evaluate the job
 	eval := &structs.Evaluation{
@@ -1097,7 +1097,7 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 	// Create a new job version, deploy
 	job2 := job.Copy()
 	job2.Meta["version"] = "2"
-	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
+	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	// Run evaluation as a plan
 	eval3 := &structs.Evaluation{
@@ -1149,7 +1149,7 @@ func TestSysBatch_ConstraintErrors(t *testing.T) {
 			Operand: "=",
 		})
 
-	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Evaluate the job
 	eval := &structs.Evaluation{
@@ -1205,7 +1205,7 @@ func TestSysBatch_ChainedAlloc(t *testing.T) {
 
 	// Create a sysbatch job
 	job := mock.SystemBatchJob()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -1236,7 +1236,7 @@ func TestSysBatch_ChainedAlloc(t *testing.T) {
 	job1.ID = job.ID
 	job1.TaskGroups[0].Tasks[0].Env = make(map[string]string)
 	job1.TaskGroups[0].Tasks[0].Env["foo"] = "bar"
-	require.NoError(t, h1.State.UpsertJob(structs.MsgTypeTestSetup, h1.NextIndex(), job1))
+	require.NoError(t, h1.State.UpsertJob(structs.MsgTypeTestSetup, h1.NextIndex(), nil, job1))
 
 	// Insert two more nodes
 	for i := 0; i < 2; i++ {
@@ -1314,7 +1314,7 @@ func TestSysBatch_PlanWithDrainedNode(t *testing.T) {
 	tg2.Name = "pinger2"
 	tg2.Constraints[0].RTarget = "blue"
 	job.TaskGroups = append(job.TaskGroups, tg2)
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create an allocation on each node
 	alloc := mock.SysBatchAlloc()
@@ -1396,7 +1396,7 @@ func TestSysBatch_QueuedAllocsMultTG(t *testing.T) {
 	tg2.Name = "pinger2"
 	tg2.Constraints[0].RTarget = "blue"
 	job.TaskGroups = append(job.TaskGroups, tg2)
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -1512,7 +1512,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 		},
 		Shared: structs.AllocatedSharedResources{DiskMB: 5 * 1024},
 	}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job1))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job1))
 
 	job2 := mock.BatchJob()
 	job2.Type = structs.JobTypeBatch
@@ -1543,7 +1543,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 		},
 		Shared: structs.AllocatedSharedResources{DiskMB: 5 * 1024},
 	}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	job3 := mock.Job()
 	job3.Type = structs.JobTypeBatch
@@ -1620,7 +1620,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 			DiskMB: 2 * 1024,
 		},
 	}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job4))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job4))
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc4}))
 
 	// Create a system job such that it would need to preempt both allocs to succeed
@@ -1634,7 +1634,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 			DynamicPorts: []structs.Port{{Label: "http"}},
 		}},
 	}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{

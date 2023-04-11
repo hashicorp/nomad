@@ -31,7 +31,7 @@ func registerMockJob(s *Server, t *testing.T, prefix string, counter int) *struc
 
 func registerJob(s *Server, t *testing.T, job *structs.Job) {
 	fsmState := s.fsm.State()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 }
 
 func mockAlloc() *structs.Allocation {
@@ -806,11 +806,11 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 	require.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{ns}))
 
 	job1 := mock.Job()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, job1))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, nil, job1))
 
 	job2 := mock.Job()
 	job2.Namespace = ns.Name
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, job2))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, nil, job2))
 
 	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
@@ -931,7 +931,7 @@ func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
 	prefix := policy.ID
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -1450,7 +1450,7 @@ func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
 	job, policy := mock.JobWithScalingPolicy()
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    policy.ID[0:3], // scaling policies are prefix searched
@@ -1491,11 +1491,11 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 	require.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{ns}))
 
 	job1 := mock.Job()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, job1))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, nil, job1))
 
 	job2 := mock.Job()
 	job2.Namespace = ns.Name
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, job2))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, nil, job2))
 
 	node := mock.Node()
 	node.Name = "run-jobs"
@@ -1629,19 +1629,19 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 	job1.Name = "teamA-job1"
 	job1.ID = "job1"
 	job1.Namespace = "teamA"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), job1))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job1))
 
 	job2 := mock.Job()
 	job2.Name = "teamB-job2"
 	job2.ID = "job2"
 	job2.Namespace = "teamB"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), job2))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job2))
 
 	job3 := mock.Job()
 	job3.Name = "teamC-job3"
 	job3.ID = "job3"
 	job3.Namespace = "teamC"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), job3))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job3))
 
 	// Upsert a node
 	node := mock.Node()

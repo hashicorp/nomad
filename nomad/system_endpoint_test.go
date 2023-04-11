@@ -31,7 +31,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Stop = true
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
 		t.Fatalf("UpsertJob() failed: %v", err)
 	}
 
@@ -126,7 +126,7 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 	state := s1.fsm.State()
 	s1.fsm.State()
 	job := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
 		t.Fatalf("UpsertJob() failed: %v", err)
 	}
 

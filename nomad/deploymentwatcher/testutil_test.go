@@ -92,7 +92,7 @@ func matchUpdateAllocDesiredTransitionReschedule(allocIDs []string) func(update 
 func (m *mockBackend) UpsertJob(job *structs.Job) (uint64, error) {
 	m.Called(job)
 	i := m.nextIndex()
-	return i, m.state.UpsertJob(structs.MsgTypeTestSetup, i, job)
+	return i, m.state.UpsertJob(structs.MsgTypeTestSetup, i, nil, job)
 }
 
 func (m *mockBackend) UpdateDeploymentStatus(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
