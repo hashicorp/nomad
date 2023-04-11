@@ -982,7 +982,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, j), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), must.Sprint("UpsertJob"))
 	must.Nil(t, state.UpsertDeployment(1000, d), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments
@@ -1020,7 +1020,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	d2.Namespace = "prod"
 	d2.JobID = j2.ID
 	must.Nil(t, state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
-	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, j2), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, j2), must.Sprint("UpsertJob"))
 	must.Nil(t, state.UpsertDeployment(1003, d2), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments with wildcard namespace
@@ -1276,7 +1276,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, j), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), must.Sprint("UpsertJob"))
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
