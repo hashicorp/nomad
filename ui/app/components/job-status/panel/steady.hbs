@@ -33,6 +33,7 @@
               @model={{@job}}
               @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (keys this.versions) ']')}}
               @class="legend-item {{if (eq (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length") 0) "faded"}}"
+              @label="View {{type.label}} allocations"
             >
               <span class="represented-allocation {{type.label}}"></span>
               {{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}

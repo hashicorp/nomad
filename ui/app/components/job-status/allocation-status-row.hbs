@@ -36,6 +36,7 @@
                   @route="allocations.allocation"
                   @model={{get allocsByCanary i}}
                   @class="represented-allocation {{status}} {{health}} {{canary}}"
+                  @label="View allocation"
                 >
                   {{#unless @steady}}
                     {{#if (eq canary "canary")}}

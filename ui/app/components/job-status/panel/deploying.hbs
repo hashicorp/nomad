@@ -68,6 +68,7 @@
               @model={{@job}}
               @query={{hash status=(concat '["' status '"]') version=(concat '[' this.job.latestDeployment.versionNumber ']')}}
               @class="legend-item {{if (eq count 0) "faded"}}"
+              @label="View {{status}} allocations"
             >
               <span class="represented-allocation {{status}}"></span>
                 {{count}} {{capitalize status}}
