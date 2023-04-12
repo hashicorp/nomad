@@ -70,7 +70,7 @@ func WaitForAllocStatusComparison(query func() ([]string, error), comparison fun
 }
 
 // SingleAllocID returns the ID for the first allocation found for jobID in namespace
-// at the specified job version number. Will retry for a ten seconds before returning
+// at the specified job version number. Will retry for ten seconds before returning
 // an error.
 //
 // Should only be used with jobs containing a single task group.
