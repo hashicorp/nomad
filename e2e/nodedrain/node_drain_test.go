@@ -3,6 +3,7 @@ package nodedrain
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ func TestNodeDrain(t *testing.T) {
 	e2eutil.WaitForNodesReady(t, nomadClient, 2) // needs at least 2 to test migration
 
 	t.Run("IgnoreSystem", testIgnoreSystem)
+	t.Run("EphemeralMigrate", testEphemeralMigrate)
 	t.Run("KeepIneligible", testKeepIneligible)
 }
 
@@ -76,6 +78,69 @@ func testIgnoreSystem(t *testing.T) {
 		must.Eq(t, "run", systemAlloc["Desired"],
 			must.Sprint("expected all system allocs to be left desired=run"))
 	}
+}
+
+// testEphemeralMigrate tests that ephermeral_disk migrations work as expected
+// even during a node drain.
+func testEphemeralMigrate(t *testing.T) {
+
+	t.Cleanup(cleanupDrainState(t))
+
+	nomadClient := e2eutil.NomadClient(t)
+	jobID := "drain-migrate-" + uuid.Short()
+
+	allocs := registerAndWaitForRunning(t, nomadClient, jobID, "./input/drain_migrate.nomad", 1)
+	t.Cleanup(cleanupJobState(t, jobID))
+	oldAllocID := allocs[0].ID
+	oldNodeID := allocs[0].NodeID
+
+	// make sure the allocation has written its ID to disk so we have something to migrate
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			got, err := e2eutil.Command("nomad", "alloc", "fs", oldAllocID,
+				"alloc/data/migrate.txt")
+			if err != nil {
+				return fmt.Errorf("did not expect error reading alloc fs: %v", err)
+			}
+			if !strings.Contains(got, oldAllocID) {
+				return fmt.Errorf("expected data to be written for alloc %q", oldAllocID)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(500*time.Millisecond),
+	))
+
+	out, err := e2eutil.Command("nomad", "node", "drain", "-enable", "-yes", "-detach", oldNodeID)
+	must.NoError(t, err, must.Sprintf("expected no error when marking node for drain: %v", out))
+
+	newAllocs := waitForAllocDrain(t, nomadClient, jobID, oldAllocID, oldNodeID)
+	must.Len(t, 1, newAllocs, must.Sprint("expected 1 new alloc"))
+	newAllocID := newAllocs[0].ID
+	newNodeID := newAllocs[0].NodeID
+
+	// although migrate=true implies sticky=true, the drained node is ineligible
+	// for scheduling so the alloc should have been migrated
+	must.NotEq(t, oldNodeID, newNodeID, must.Sprint("new alloc was placed on draining node"))
+
+	// once the new allocation is running, it should quickly have the right data
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			got, err := e2eutil.Command("nomad", "alloc", "fs", newAllocID,
+				"alloc/data/migrate.txt")
+			if err != nil {
+				return fmt.Errorf("did not expect error reading alloc fs: %v", err)
+			}
+			if !strings.Contains(got, oldAllocID) || !strings.Contains(got, newAllocID) {
+				return fmt.Errorf(
+					"expected data to be migrated from alloc=%s on node=%s to alloc=%s on node=%s but got:\n%q",
+					oldAllocID[:8], oldNodeID[:8], newAllocID[:8], newNodeID[:8], got)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(500*time.Millisecond),
+	))
 }
 
 // testKeepIneligible tests that nodes can be kept ineligible for scheduling after
@@ -172,7 +237,7 @@ func waitForAllocDrain(t *testing.T, nomadClient *api.Client, jobID, oldAllocID,
 				}
 			}
 			t.Logf("alloc has drained from node=%s after %v",
-				oldNodeID, time.Now().Sub(start))
+				oldNodeID[:8], time.Now().Sub(start))
 			return nil
 		}),
 		wait.Timeout(120*time.Second),
