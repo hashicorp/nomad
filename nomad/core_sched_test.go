@@ -1946,6 +1946,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 		DesiredStatus       string
 		JobStatus           string
 		JobStop             bool
+		RescheduleOnLost    *bool
 		AllocJobModifyIndex uint64
 		JobModifyIndex      uint64
 		ModifyIndex         uint64
@@ -2121,6 +2122,23 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ShouldGC: true,
 		},
 		{
+			Desc:          "GC when alloc is lost and eligible for reschedule",
+			ClientStatus:  structs.AllocClientStatusLost,
+			DesiredStatus: structs.AllocDesiredStatusStop,
+			GCTime:        fail,
+			JobStatus:     structs.JobStatusDead,
+			ShouldGC:      true,
+		},
+		{
+			Desc:             "Don't GC when alloc is lost and not being rescheduled",
+			ClientStatus:     structs.AllocClientStatusLost,
+			DesiredStatus:    structs.AllocDesiredStatusStop,
+			RescheduleOnLost: pointer.Of(false),
+			GCTime:           fail,
+			JobStatus:        structs.JobStatusDead,
+			ShouldGC:         false,
+		},
+		{
 			Desc:             "GC when job status is dead",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
@@ -2166,6 +2184,9 @@ func TestAllocation_GCEligible(t *testing.T) {
 		alloc.NextAllocation = tc.NextAllocID
 		job := mock.Job()
 		alloc.TaskGroup = job.TaskGroups[0].Name
+		if tc.RescheduleOnLost != nil {
+			job.TaskGroups[0].RescheduleOnLost = *tc.RescheduleOnLost
+		}
 		job.TaskGroups[0].ReschedulePolicy = tc.ReschedulePolicy
 		if tc.JobStatus != "" {
 			job.Status = tc.JobStatus

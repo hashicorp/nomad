@@ -2916,6 +2916,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Operand: "z",
 					},
 				},
+				RescheduleOnLost: true,
 				Affinities: []*structs.Affinity{
 					{
 						LTarget: "x",
@@ -3389,8 +3390,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "group1",
-				Count: 5,
+				Name:             "group1",
+				Count:            5,
+				RescheduleOnLost: true,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "x",

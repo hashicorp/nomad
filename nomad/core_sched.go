@@ -629,8 +629,23 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 		return false
 	}
 
+	// If the job is deleted all allocs can be removed
+	if job == nil {
+		return true
+	}
+
+	tg := job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return true
+	}
+
+	// Don't GC lost allocs when RescheduleOnLost is disabled
+	if !job.Stop && !tg.RescheduleOnLost && a.ClientStatus == structs.AllocClientStatusLost {
+		return false
+	}
+
 	// If the job is deleted, stopped or dead all allocs can be removed
-	if job == nil || job.Stop || job.Status == structs.JobStatusDead {
+	if job.Stop || job.Status == structs.JobStatusDead {
 		return true
 	}
 
@@ -647,12 +662,8 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, 
 		return true
 	}
 
-	var reschedulePolicy *structs.ReschedulePolicy
-	tg := job.LookupTaskGroup(a.TaskGroup)
+	reschedulePolicy := tg.ReschedulePolicy
 
-	if tg != nil {
-		reschedulePolicy = tg.ReschedulePolicy
-	}
 	// No reschedule policy or rescheduling is disabled
 	if reschedulePolicy == nil || (!reschedulePolicy.Unlimited && reschedulePolicy.Attempts == 0) {
 		return true

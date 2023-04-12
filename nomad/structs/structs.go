@@ -6496,6 +6496,11 @@ type TaskGroup struct {
 	// MaxClientDisconnect, if set, configures the client to allow placed
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
+
+	// RescheduleOnLost is used to control how allocations on disconnected
+	// nodes are handled. For backwards compatibility, it defaults to true.
+	// When true, such jobs are rescheduled.
+	RescheduleOnLost bool
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {

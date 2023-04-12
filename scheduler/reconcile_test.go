@@ -888,6 +888,55 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 }
 
 // Tests the reconciler properly handles lost nodes with allocations
+func TestReconciler_LostNode_RescheduleOff(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].RescheduleOnLost = false
+	// Create 10 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	// Build a map of tainted nodes
+	tainted := make(map[string]*structs.Node, 2)
+	for i := 0; i < 2; i++ {
+		n := mock.Node()
+		n.ID = allocs[i].NodeID
+		n.Status = structs.NodeStatusDown
+		tainted[n.ID] = n
+	}
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
+		nil, allocs, tainted, "", 50, true)
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              2,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:  0,
+				Stop:   2,
+				Ignore: 8,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
+}
+
+// Tests the reconciler properly handles lost nodes with allocations
 func TestReconciler_LostNode(t *testing.T) {
 	ci.Parallel(t)
 
