@@ -63,7 +63,7 @@ func (tc *PIDsNamespacing) TestIsolation_ExecDriver_PIDNamespacing(f *framework.
 	allocID := allocs[0].ID
 	e2eutil.WaitForAllocStopped(t, tc.Nomad(), allocID)
 
-	out, err := e2eutil.AllocLogs(allocID, e2eutil.LogsStdOut)
+	out, err := e2eutil.AllocLogs(allocID, "", e2eutil.LogsStdOut)
 	require.NoError(t, err, fmt.Sprintf("could not get logs for alloc %s", allocID))
 
 	require.Contains(t, out, "my pid is 1\n")
@@ -93,7 +93,7 @@ func (tc *PIDsNamespacing) TestIsolation_ExecDriver_PIDNamespacing_host(f *frame
 	allocID := allocs[0].ID
 	e2eutil.WaitForAllocStopped(t, tc.Nomad(), allocID)
 
-	out, err := e2eutil.AllocLogs(allocID, e2eutil.LogsStdOut)
+	out, err := e2eutil.AllocLogs(allocID, "", e2eutil.LogsStdOut)
 	require.NoError(t, err, fmt.Sprintf("could not get logs for alloc %s", allocID))
 
 	require.NotContains(t, out, "my pid is 1\n")
@@ -293,7 +293,7 @@ func (tc *PIDsNamespacing) TestIsolation_RawExecDriver_NoPIDNamespacing(f *frame
 	allocID := allocs[0].ID
 	e2eutil.WaitForAllocStopped(t, tc.Nomad(), allocID)
 
-	out, err := e2eutil.AllocLogs(allocID, e2eutil.LogsStdOut)
+	out, err := e2eutil.AllocLogs(allocID, "", e2eutil.LogsStdOut)
 	require.NoError(t, err, fmt.Sprintf("could not get logs for alloc %s", allocID))
 
 	var pid uint64
