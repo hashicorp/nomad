@@ -450,11 +450,16 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 
 	// Check namespace read-job permissions against request namespace since
 	// results are filtered by request namespace.
-	if aclObj, err := d.srv.ResolveACL(args); err != nil {
+	aclObj, err := d.srv.ResolveACL(args)
+	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
+	}
+
+	if aclObj != nil && !aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
+
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityReadJob)
 
 	// Setup the blocking query
 	sort := state.SortOption(args.Reverse)
@@ -462,8 +467,16 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
+			if err != nil {
+				if err == structs.ErrPermissionDenied {
+					reply.Deployments = make([]*structs.Deployment, 0)
+					return nil
+				}
+				return err
+			}
+
 			// Capture all the deployments
-			var err error
 			var iter memdb.ResultIterator
 			var opts paginator.StructsTokenizerOptions
 
@@ -491,8 +504,14 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 
 			tokenizer := paginator.NewStructsTokenizer(iter, opts)
 
+			filters := []paginator.Filter{
+				paginator.NamespaceFilter{
+					AllowableNamespaces: allowableNamespaces,
+				},
+			}
+
 			var deploys []*structs.Deployment
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			pnator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
 				func(raw interface{}) error {
 					deploy := raw.(*structs.Deployment)
 					deploys = append(deploys, deploy)
@@ -503,7 +522,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := paginator.Page()
+			nextToken, err := pnator.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)
@@ -522,7 +541,9 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			// Set the query response
 			d.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
-		}}
+		},
+	}
+
 	return d.srv.blockingRPC(&opts)
 }
 
