@@ -1479,10 +1479,10 @@ func TestDockerDriver_DNS(t *testing.T) {
 		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 		_, d, _, cleanup := dockerSetup(t, task, nil)
-		defer cleanup()
+		t.Cleanup(cleanup)
 
 		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-		defer d.DestroyTask(task.ID, true)
+		t.Cleanup(func() { _ = d.DestroyTask(task.ID, true) })
 
 		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
 	}
