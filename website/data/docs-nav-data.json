@@ -650,6 +650,23 @@
             "path": "commands/node/eligibility"
           },
           {
+            "title": "meta",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "commands/node/meta"
+              },
+              {
+                "title": "apply",
+                "path": "commands/node/meta/apply"
+              },
+              {
+                "title": "read",
+                "path": "commands/node/meta/read"
+              }
+            ]
+          },
+          {
             "title": "status",
             "path": "commands/node/status"
           }
