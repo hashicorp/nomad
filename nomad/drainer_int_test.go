@@ -56,16 +56,29 @@ func allocClientStateSimulator(t *testing.T, errCh chan<- error, ctx context.Con
 				continue
 			}
 
-			if alloc.DeploymentStatus.HasHealth() {
-				continue // only update to healthy once
+			switch alloc.DesiredStatus {
+			case structs.AllocDesiredStatusRun:
+				if alloc.DeploymentStatus.HasHealth() {
+					continue // only update to healthy once
+				}
+				newAlloc := alloc.Copy()
+				newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+					Healthy:   pointer.Of(true),
+					Timestamp: now,
+				}
+				updates = append(updates, newAlloc)
+				logger.Trace("marking deployment health for alloc", "alloc_id", alloc.ID)
+
+			case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+				if alloc.ClientStatus == structs.AllocClientStatusComplete {
+					continue // only update to complete once
+				}
+				newAlloc := alloc.Copy()
+				newAlloc.ClientStatus = structs.AllocClientStatusComplete
+				updates = append(updates, newAlloc)
+				logger.Trace("marking alloc complete", "alloc_id", alloc.ID)
 			}
-			newAlloc := alloc.Copy()
-			newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy:   pointer.Of(true),
-				Timestamp: now,
-			}
-			updates = append(updates, newAlloc)
-			logger.Trace("marking deployment health for alloc", "alloc_id", alloc.ID)
+
 		}
 
 		if len(updates) == 0 {
