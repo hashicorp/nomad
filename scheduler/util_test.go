@@ -546,7 +546,12 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Compare changed Template ErrMissingKey
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
-	must.True(t, tasksUpdated(j29, j30, name).modified)
+	require.True(t, tasksUpdated(j29, j30, name).modified)
+
+	// Change rescheduleOnLost mode
+	j31 := mock.Job()
+	j31.TaskGroups[0].RescheduleOnLost = false
+	require.True(t, tasksUpdated(j1, j31, name).modified)
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

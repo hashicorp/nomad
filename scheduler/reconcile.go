@@ -554,7 +554,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// placements can be made without any other consideration.
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
-	underProvisionedBy = a.computeReplacements(deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
+	underProvisionedBy = a.computeReplacements(tg, deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
 
 	if deploymentPlaceReady {
 		a.computeDestructiveUpdates(destructive, underProvisionedBy, desiredChanges, tg)
@@ -772,25 +772,30 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	// Add replacements for disconnected and lost allocs up to group.Count
 	existing := len(untainted) + len(migrate) + len(reschedule)
 
-	// Add replacements for lost
-	for _, alloc := range lost {
-		if existing >= group.Count {
-			// Reached desired count, do not replace remaining lost
-			// allocs
-			break
-		}
+	if group.RescheduleOnLost {
+		// Add replacements for lost
+		for _, alloc := range lost {
+			if existing >= group.Count {
+				// Reached desired count, do not replace remaining lost
+				// allocs
+				break
+			}
 
-		existing++
-		place = append(place, allocPlaceResult{
-			name:               alloc.Name,
-			taskGroup:          group,
-			previousAlloc:      alloc,
-			reschedule:         false,
-			canary:             alloc.DeploymentStatus.IsCanary(),
-			downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
-			minJobVersion:      alloc.Job.Version,
-			lost:               true,
-		})
+			existing++
+			place = append(place, allocPlaceResult{
+				name:               alloc.Name,
+				taskGroup:          group,
+				previousAlloc:      alloc,
+				reschedule:         false,
+				canary:             alloc.DeploymentStatus.IsCanary(),
+				downgradeNonCanary: isCanarying && !alloc.DeploymentStatus.IsCanary(),
+				minJobVersion:      alloc.Job.Version,
+				lost:               true,
+			})
+		}
+	} else {
+		//Don't add placements for lost where RescheduleOnLost is not enabled
+		existing += len(lost)
 	}
 
 	// Add remaining placement results
@@ -812,7 +817,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 // and if the placement is already rescheduling or part of a failed deployment.
 // The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying.
 // It returns the number of allocs still needed.
-func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
+func (a *allocReconciler) computeReplacements(tg *structs.TaskGroup, deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
 	place []allocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
 
 	// Disconnecting allocs are not failing, but are included in rescheduleNow.
@@ -847,8 +852,8 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 
 	// If allocs have been lost, determine the number of replacements that are needed
 	// and add placements to the result for the lost allocs.
-	if len(lost) != 0 {
-		allowed := min(len(lost), len(place))
+	if len(lost) != 0 && tg.RescheduleOnLost {
+		allowed := helper.Min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
 		a.result.place = append(a.result.place, place[:allowed]...)
 	}
@@ -986,7 +991,11 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// Mark all lost allocations for stop.
 	var stop allocSet
 	stop = stop.union(lost)
-	a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
+	if group.RescheduleOnLost {
+		a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
+	} else {
+		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+	}
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
