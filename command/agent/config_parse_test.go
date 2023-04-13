@@ -42,6 +42,12 @@ var basicConfig = &Config{
 		RPC:  "127.0.0.3",
 		Serf: "127.0.0.4",
 	},
+	APISocket: &SocketConfig{
+		Path:  "/var/run/nomad.sock",
+		User:  "nomad",
+		Group: "nomad",
+		Mode:  "0600",
+	},
 	Client: &ClientConfig{
 		Enabled:   true,
 		StateDir:  "/tmp/client-state",
@@ -219,33 +225,33 @@ var basicConfig = &Config{
 		ClientServiceName:    "nomad-client",
 		ClientHTTPCheckName:  "nomad-client-http-health-check",
 		Addr:                 "127.0.0.1:9500",
-		AllowUnauthenticated: &trueValue,
+		AllowUnauthenticated: pointer.Of(true),
 		Token:                "token1",
 		Auth:                 "username:pass",
-		EnableSSL:            &trueValue,
-		VerifySSL:            &trueValue,
+		EnableSSL:            pointer.Of(true),
+		VerifySSL:            pointer.Of(true),
 		CAFile:               "/path/to/ca/file",
 		CertFile:             "/path/to/cert/file",
 		KeyFile:              "/path/to/key/file",
-		ServerAutoJoin:       &trueValue,
-		ClientAutoJoin:       &trueValue,
-		AutoAdvertise:        &trueValue,
-		ChecksUseAdvertise:   &trueValue,
+		ServerAutoJoin:       pointer.Of(true),
+		ClientAutoJoin:       pointer.Of(true),
+		AutoAdvertise:        pointer.Of(true),
+		ChecksUseAdvertise:   pointer.Of(true),
 		Timeout:              5 * time.Second,
 		TimeoutHCL:           "5s",
 	},
 	Vault: &config.VaultConfig{
 		Addr:                 "127.0.0.1:9500",
-		AllowUnauthenticated: &trueValue,
+		AllowUnauthenticated: pointer.Of(true),
 		ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
-		Enabled:              &falseValue,
+		Enabled:              pointer.Of(false),
 		Role:                 "test_role",
 		TLSCaFile:            "/path/to/ca/file",
 		TLSCaPath:            "/path/to/ca",
 		TLSCertFile:          "/path/to/cert/file",
 		TLSKeyFile:           "/path/to/key/file",
 		TLSServerName:        "foobar",
-		TLSSkipVerify:        &trueValue,
+		TLSSkipVerify:        pointer.Of(true),
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
 	},
@@ -280,16 +286,16 @@ var basicConfig = &Config{
 		},
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers:         &trueValue,
+		CleanupDeadServers:         pointer.Of(true),
 		ServerStabilizationTime:    23057 * time.Second,
 		ServerStabilizationTimeHCL: "23057s",
 		LastContactThreshold:       12705 * time.Second,
 		LastContactThresholdHCL:    "12705s",
 		MaxTrailingLogs:            17849,
 		MinQuorum:                  3,
-		EnableRedundancyZones:      &trueValue,
-		DisableUpgradeMigration:    &trueValue,
-		EnableCustomUpgrades:       &trueValue,
+		EnableRedundancyZones:      pointer.Of(true),
+		DisableUpgradeMigration:    pointer.Of(true),
+		EnableCustomUpgrades:       pointer.Of(true),
 	},
 	Plugins: []*config.PluginConfig{
 		{
@@ -532,6 +538,9 @@ func removeHelperAttributes(c *Config) *Config {
 }
 
 func (c *Config) addDefaults() {
+	if c.APISocket == nil {
+		c.APISocket = &SocketConfig{}
+	}
 	if c.Client == nil {
 		c.Client = &ClientConfig{}
 	}
@@ -635,7 +644,8 @@ var sample0 = &Config{
 		RPC:  "host.example.com",
 		Serf: "host.example.com",
 	},
-	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	APISocket: &SocketConfig{},
+	Client:    &ClientConfig{ServerJoin: &ServerJoin{}},
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,
@@ -730,7 +740,8 @@ var sample1 = &Config{
 		RPC:  "host.example.com",
 		Serf: "host.example.com",
 	},
-	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	APISocket: &SocketConfig{},
+	Client:    &ClientConfig{ServerJoin: &ServerJoin{}},
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,
