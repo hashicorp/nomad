@@ -9,14 +9,12 @@ server {
 client {
   enabled = true
   host_volume "host-nfs" {
-    path      = "/srv/host-nfs"
-    read_only = false
+    path = "/srv/host-nfs"
   }
 }
 
 plugin "docker" {
   config {
-    # for node plugin to mount disk.
     allow_privileged = true
   }
 }

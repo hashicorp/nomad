@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# Clean up all demo components.
 
 set -x
 
@@ -8,12 +10,14 @@ purge() {
 
 purge web
 while true; do
-  nomad volume status my-nfs 2>&1 | grep -E 'No (allocations|volumes)' && break
-  sleep 2
+  nomad volume status csi-nfs 2>&1 | grep -E 'No (allocations|volumes)' && break
+  sleep 5
 done
 purge node
 
-nomad volume delete my-nfs
+nomad volume delete csi-nfs
 purge controller
+
+purge nfs
 
 nomad system gc

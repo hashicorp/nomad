@@ -1,34 +1,33 @@
-# node plugins mount the volume on the host and into other tasks.
-# when a volume is requested by a task, this plugin gets the volume context
-# from nomad that was set by the controller, and uses it to mount NFS to the host,
-# then mount that into a task container.
+# Node plugins mount the volume on the host to present to other tasks.
 job "node" {
+  # node plugins should run anywhere your task might be placed, i.e. ~everywhere
   type = "system"
+
   group "node" {
     task "node" {
       driver = "docker"
+      csi_plugin {
+        id   = "rocketduck-nfs"
+        type = "node"
+      }
       config {
-        image = "democraticcsi/democratic-csi:v1.8.3"
+        # thanks rocketDuck for aiming directly at Nomad :)
+        # https://gitlab.com/rocketduck/csi-plugin-nfs
+        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:0.6.1"
         args = [
-          "--csi-version=1.2.0",
-          "--csi-name=org.democratic-csi.nfs",
-          "--driver-config-file=${NOMAD_TASK_DIR}/driver-config.yaml",
-          "--log-level=debug",
-          "--csi-mode=node",
-          "--server-socket=${CSI_ENDPOINT}",
+          "--type=node",
+          "--endpoint=${CSI_ENDPOINT}", # provided by csi_plugin{}
+          "--node-id=${attr.unique.hostname}",
+          "--nfs-server=${NFS_ADDRESS}:/srv/nfs",
+          "--log-level=DEBUG",
         ]
         privileged   = true   # node plugins are always privileged to mount disks.
-        network_mode = "host" # allows rpc.statd to work for remote NFS locking.
-      }
-      csi_plugin {
-        id   = "org.democratic-csi.nfs" # must match --csi-name
-        type = "node"                   # --csi-mode
+        network_mode = "host" # allows rpc.statd to work for remote NFS locking
       }
       template {
-        destination = "${NOMAD_TASK_DIR}/driver-config.yaml"
-        # minimal required data here, just enough for the plugin to know
-        # how to use the Context that the controller adds to the volume.
-        data = "driver: nfs-client"
+        data        = "NFS_ADDRESS={{- range nomadService `nfs` }}{{ .Address }}{{ end -}}"
+        destination = "local/nfs.addy"
+        env         = true
       }
     }
   }
