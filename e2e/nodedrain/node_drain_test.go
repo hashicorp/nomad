@@ -27,6 +27,7 @@ func TestNodeDrain(t *testing.T) {
 	t.Run("IgnoreSystem", testIgnoreSystem)
 	t.Run("EphemeralMigrate", testEphemeralMigrate)
 	t.Run("KeepIneligible", testKeepIneligible)
+	t.Run("KillTimeout", testKillTimeout)
 	t.Run("DeadlineFlag", testDeadlineFlag)
 	t.Run("ForceFlag", testForceFlag)
 }
@@ -179,6 +180,62 @@ func testKeepIneligible(t *testing.T) {
 			must.Eq(t, "false", nodes[0]["Drain"])
 		}
 	}
+}
+
+// testKillTimeout tests that we block drains until the client status has been
+// updated, not the server status.
+func testKillTimeout(t *testing.T) {
+
+	nomadClient := e2eutil.NomadClient(t)
+	t.Cleanup(cleanupDrainState(t))
+
+	jobID := "test-node-drain-" + uuid.Short()
+
+	must.NoError(t, e2eutil.Register(jobID, "./input/drain_killtimeout.nomad"))
+	allocs := waitForRunningAllocs(t, nomadClient, jobID, 1)
+
+	t.Cleanup(cleanupJobState(t, jobID))
+	oldAllocID := allocs[0].ID
+	oldNodeID := allocs[0].NodeID
+
+	t.Logf("draining node %v", oldNodeID)
+	out, err := e2eutil.Command(
+		"nomad", "node", "drain",
+		"-enable", "-yes", "-detach", oldNodeID)
+	must.NoError(t, err, must.Sprintf("'nomad node drain %v' failed: %v\n%v", oldNodeID, err, out))
+
+	// the job will hang with kill_timeout for up to 30s, so we want to assert
+	// that we don't complete draining before that window expires. But we also
+	// can't guarantee we've started this assertion with exactly 30s left on the
+	// clock, so cut the deadline close without going over to avoid test
+	// flakiness
+	t.Log("waiting for kill_timeout to expire")
+	must.Wait(t, wait.ContinualSuccess(
+		wait.BoolFunc(func() bool {
+			node, _, err := nomadClient.Nodes().Info(oldNodeID, nil)
+			must.NoError(t, err)
+			return node.DrainStrategy != nil
+		}),
+		wait.Timeout(time.Second*25),
+		wait.Gap(500*time.Millisecond),
+	))
+
+	// the allocation will then get force-killed, so wait for the alloc
+	// eventually be migrated and for the node's drain to be complete
+	t.Log("waiting for migration to complete")
+	newAllocs := waitForAllocDrainComplete(t, nomadClient, jobID,
+		oldAllocID, oldNodeID, time.Second*60)
+	must.Len(t, 1, newAllocs, must.Sprint("expected 1 new alloc"))
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			node, _, err := nomadClient.Nodes().Info(oldNodeID, nil)
+			must.NoError(t, err)
+			return node.DrainStrategy == nil
+		}),
+		wait.Timeout(time.Second*5),
+		wait.Gap(500*time.Millisecond),
+	))
 }
 
 // testDeadlineFlag tests the enforcement of the node drain deadline so that
