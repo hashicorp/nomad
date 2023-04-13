@@ -48,21 +48,18 @@ export default class JobStatusUpdateParamsComponent extends Component {
   @tracked rawDefinition = null;
 
   get updateParamGroups() {
-    if (this.rawDefinition) {
-      return this.rawDefinition.TaskGroups.map((tg) => {
-        return {
-          name: tg.Name,
-          update: Object.keys(tg.Update).reduce((newUpdateObj, key) => {
-            newUpdateObj[key] = PARAMS_REQUIRING_CONVERSION.includes(key)
-              ? formatDuration(tg.Update[key])
-              : tg.Update[key];
-            return newUpdateObj;
-          }, {}),
-        };
-      });
-    } else {
+    if (!this.rawDefinition) {
       return null;
     }
+    return this.rawDefinition.TaskGroups.map((tg) => ({
+      name: tg.Name,
+      update: Object.keys(tg.Update || {}).reduce((newUpdateObj, key) => {
+        newUpdateObj[key] = PARAMS_REQUIRING_CONVERSION.includes(key)
+          ? formatDuration(tg.Update[key])
+          : tg.Update[key];
+        return newUpdateObj;
+      }, {}),
+    }));
   }
 
   @action onError({ Error }) {
