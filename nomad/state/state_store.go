@@ -675,7 +675,8 @@ func deploymentNamespaceFilter(namespace string) func(interface{}) bool {
 			return true
 		}
 
-		return d.Namespace != namespace
+		return namespace != structs.AllNamespacesSentinel &&
+			d.Namespace != namespace
 	}
 }
 
