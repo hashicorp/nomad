@@ -3,6 +3,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
+import formatDuration from 'nomad-ui/utils/format-duration';
 
 /**
  * @typedef {Object} DefinitionUpdateStrategy
@@ -31,6 +32,13 @@ import { inject as service } from '@ember/service';
  * @property {DefinitionTaskGroup[]} TaskGroups
  */
 
+const PARAMS_REQUIRING_CONVERSION = [
+  'HealthyDeadline',
+  'MinHealthyTime',
+  'ProgressDeadline',
+  'Stagger',
+];
+
 export default class JobStatusUpdateParamsComponent extends Component {
   @service notifications;
 
@@ -40,16 +48,18 @@ export default class JobStatusUpdateParamsComponent extends Component {
   @tracked rawDefinition = null;
 
   get updateParamGroups() {
-    if (this.rawDefinition) {
-      return this.rawDefinition.TaskGroups.map((tg) => {
-        return {
-          name: tg.Name,
-          update: tg.Update,
-        };
-      });
-    } else {
+    if (!this.rawDefinition) {
       return null;
     }
+    return this.rawDefinition.TaskGroups.map((tg) => ({
+      name: tg.Name,
+      update: Object.keys(tg.Update || {}).reduce((newUpdateObj, key) => {
+        newUpdateObj[key] = PARAMS_REQUIRING_CONVERSION.includes(key)
+          ? formatDuration(tg.Update[key])
+          : tg.Update[key];
+        return newUpdateObj;
+      }, {}),
+    }));
   }
 
   @action onError({ Error }) {
