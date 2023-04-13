@@ -92,6 +92,10 @@ type Config struct {
 	// Use normalizedAddrs if you need the host+port to bind to.
 	Addresses *Addresses `hcl:"addresses"`
 
+	// APISocket is used to configure a unix domain socket listener for the
+	// HTTP API
+	APISocket *SocketConfig `hcl:"api_socket"`
+
 	// normalizedAddr is set to the Address+Port by normalizeAddrs()
 	normalizedAddrs *NormalizedAddrs
 
@@ -1089,6 +1093,57 @@ func (n *NormalizedAddrs) Copy() *NormalizedAddrs {
 	return &nn
 }
 
+// SocketConfig contains the path and configuration for a unix domain socket
+// listener.
+type SocketConfig struct {
+	Path  string `hcl:"path"`
+	User  string `hcl:"user"`
+	Mode  string `hcl:"mode"`
+	Group string `hcl:"group"`
+}
+
+func (s *SocketConfig) Copy() *SocketConfig {
+	if s == nil {
+		return nil
+	}
+	ns := *s
+	return &ns
+}
+
+// Merge merges two SocketConfigs together, preferring values from the argument.
+func (s *SocketConfig) Merge(b *SocketConfig) *SocketConfig {
+	if b == nil {
+		return s
+	}
+	var result SocketConfig
+	if s != nil {
+		result = *s
+	}
+	if b.Path != "" {
+		result.Path = b.Path
+	}
+	if b.User != "" {
+		result.User = b.User
+	}
+	if b.Group != "" {
+		result.Group = b.Group
+	}
+	if b.Mode != "" {
+		result.Mode = b.Mode
+	}
+	return &result
+}
+
+// UnixSocketsConfig extracts user, group, and mode into a UnixSocketsConfig
+// suitable for listenerutil.UnixSocketListener
+func (s *SocketConfig) UnixSocketsConfig() *listenerutil.UnixSocketsConfig {
+	return &listenerutil.UnixSocketsConfig{
+		User:  s.User,
+		Group: s.Group,
+		Mode:  s.Mode,
+	}
+}
+
 // AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
@@ -1264,6 +1319,7 @@ func DefaultConfig() *Config {
 		},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
+		APISocket:      &SocketConfig{},
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
 		UI:             config.DefaultUIConfig(),
@@ -1501,6 +1557,13 @@ func (c *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
+	// Apply the api_socket config
+	if result.APISocket == nil && b.APISocket != nil {
+		result.APISocket = b.APISocket.Copy()
+	} else if b.APISocket != nil {
+		result.APISocket = result.APISocket.Merge(b.APISocket)
+	}
+
 	// Apply the Consul Configuration
 	if result.Consul == nil && b.Consul != nil {
 		result.Consul = b.Consul.Copy()
@@ -1576,6 +1639,7 @@ func (c *Config) Copy() *Config {
 	nc.Addresses = c.Addresses.Copy()
 	nc.normalizedAddrs = c.normalizedAddrs.Copy()
 	nc.AdvertiseAddrs = c.AdvertiseAddrs.Copy()
+	nc.APISocket = c.APISocket.Copy()
 	nc.Client = c.Client.Copy()
 	nc.Server = c.Server.Copy()
 	nc.ACL = c.ACL.Copy()
