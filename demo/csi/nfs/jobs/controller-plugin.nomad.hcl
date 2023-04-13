@@ -20,8 +20,7 @@ job "controller" {
           "--nfs-server=${NFS_ADDRESS}:/srv/nfs",
           "--log-level=DEBUG",
         ]
-        privileged   = true   # this particular controller mounts NFS in itself
-        network_mode = "host" # allows rpc.statd to work for remote NFS locking
+        privileged = true # this particular controller mounts NFS in itself
       }
       template {
         data        = "NFS_ADDRESS={{- range nomadService `nfs` }}{{ .Address }}{{ end -}}"

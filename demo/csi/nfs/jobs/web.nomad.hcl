@@ -38,6 +38,9 @@ job "web" {
         destination = "${NOMAD_ALLOC_DIR}/web-nfs"
       }
 
+      # this host user:group maps back to volume parameters.
+      user = "1000:1000"
+
       config {
         image   = "python:slim"
         command = "/bin/bash"

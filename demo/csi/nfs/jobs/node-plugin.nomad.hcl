@@ -21,8 +21,11 @@ job "node" {
           "--nfs-server=${NFS_ADDRESS}:/srv/nfs",
           "--log-level=DEBUG",
         ]
-        privileged   = true   # node plugins are always privileged to mount disks.
-        network_mode = "host" # allows rpc.statd to work for remote NFS locking
+        # node plugins are always privileged to mount disks.
+        privileged = true
+        # host networking is required for NFS mounts to keep working
+        # in dependent tasks across restarts of this node plugin.
+        network_mode = "host"
       }
       template {
         data        = "NFS_ADDRESS={{- range nomadService `nfs` }}{{ .Address }}{{ end -}}"
