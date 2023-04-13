@@ -165,6 +165,7 @@ function smallCluster(server) {
       Variables: `datacenters=['us-east-1',us-west-1]`,
     },
   });
+
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
