@@ -46,13 +46,14 @@ module(
 
       this.server.create('node');
 
-      const job = this.server.create('job', {
+      const job = await this.server.create('job', {
         type: 'service',
         createAllocations: true,
-        // activeDeployment: true,
-        groupTaskCount: 150,
+        noDeployments: true, // manually created below
+        activeDeployment: true,
+        groupTaskCount: 331,
         shallow: true,
-        resourceSpec: ['M: 256, C: 500'], // length of this array determines number of groups
+        resourceSpec: ['M: 257, C: 500', 'M: 257, C: 500'], // length of this array determines number of groups
         allocStatusDistribution: {
           running: 0.5,
           failed: 0.05,
@@ -61,55 +62,53 @@ module(
           complete: 0.1,
           pending: 0.05,
         },
-        // deployments: [
-        //   this.server.create('deployment', {
-        //     id: 'deployment-1',
-        //     status: 'running',
-        //     jobVersion: 1,
-        //     jobCreateIndex: 1,
-        //     jobModifyIndex: 1,
-        //     createIndex: 1,
-        //     modifyIndex: 1,
-        //     desiredTotal: 150,
-        //     placedAllocs: 75,
-        //   })
-        // ]
       });
 
-      const jobDeployment = this.server.create('deployment', false, 'active', {
-        id: 'Boop',
+      const jobRecord = await this.store.find(
+        'job',
+        JSON.stringify([job.id, 'default'])
+      );
+      await this.server.create('deployment', false, 'active', {
         jobId: job.id,
-        groupDesiredTotal: 49,
+        groupDesiredTotal: 331,
+        versionNumber: 1,
+        status: 'failed',
       });
 
-      job.deployments = [jobDeployment];
+      this.set('job', jobRecord);
+      await this.get('job.allocations');
 
-      console.log('jobdep', jobDeployment);
-
-      await this.store.findAll('job');
-
-      this.set('job', this.store.peekAll('job').get('firstObject'));
-      console.log('job job', this.get('job'), this.get('job.deployments'));
       await render(hbs`
-      <JobStatus::Panel @job={{this.job}} />
-    `);
-      await this.pauseTest();
+        <JobStatus::Panel @job={{this.job}} />
+      `);
+
+      // Initially no active deployment
+      assert.notOk(
+        find('.active-deployment'),
+        'Does not show an active deployment when latest is failed'
+      );
+
       const deployment = await this.get('job.latestDeployment');
 
-      assert.ok(find('.active-deployment'), 'Active deployment');
+      console.log('depl', deployment, this.get('job'));
+
+      await this.set('job.latestDeployment.status', 'running');
+
+      assert.ok(
+        find('.active-deployment'),
+        'Shows an active deployment if latest status is Running'
+      );
+
       assert.ok(
         find('.active-deployment').classList.contains('is-info'),
         'Running deployment gets the is-info class'
       );
+
       assert.equal(
         find('[data-test-active-deployment-stat="id"]').textContent.trim(),
         deployment.get('shortId'),
         'The active deployment is the most recent running deployment'
       );
-
-      // TODO: Replace the now-removed metrics tests with a new set of tests for alloc presence
-
-      await this.pauseTest();
 
       assert.equal(
         find('[data-test-deployment-metric="canaries"]').textContent.trim(),

@@ -147,6 +147,10 @@ export default Factory.extend({
                 ? faker.random.number({ min: 1, max: 5 })
                 : 0,
               clientStatus,
+              deploymentStatus: {
+                Canary: true,
+                Healthy: true,
+              },
             };
 
             if (group.withRescheduling) {

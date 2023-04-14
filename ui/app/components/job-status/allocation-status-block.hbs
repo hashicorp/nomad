@@ -13,6 +13,9 @@
           @label="View allocation"
         >
           {{#if (and (eq @status "running") (not @steady))}}
+            {{#if (eq @canary "canary")}}
+              <span class="alloc-canary-indicator" />
+            {{/if}}
             <span class="alloc-health-indicator">
               {{#if (eq @health "healthy")}}
                 <FlightIcon @name="check" @color="white" />
