@@ -562,7 +562,14 @@ func (iter *DistinctHostsIterator) SetJob(job *structs.Job) {
 func (iter *DistinctHostsIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
-			return true
+			// Maintain the old behavior around unset RTargets
+			if con.RTarget == "" {
+				return true
+			}
+			enabled, err := strconv.ParseBool(con.RTarget)
+			// If the value is unparsable as a boolean, fall back to the old behavior
+			// of enforcing the constraint when it appears.
+			return err != nil || enabled
 		}
 	}
 
