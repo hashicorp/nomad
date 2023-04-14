@@ -2607,3 +2607,66 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "hello", string(r))
 }
+
+func TestTaskTemplateManager_FuncMap_NodeAttrs(t *testing.T) {
+
+	// Make a template that will render immediately
+	content := `{{range $k, $v := node_attrs}}{{if eq $k "node.datacenter"}}{{printf "%s: %s" $k $v}}{{end}}{{end}}`
+	expected := "node.datacenter: dc1"
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: content,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail(t, "Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	require.Equal(t, expected, string(raw))
+}
+
+func TestTaskTemplateManager_FuncMap_NodeAttr(t *testing.T) {
+
+	content := `{{node_attr "node.unique.name"}}.{{node_attr "node.datacenter"}}.{{node_attr "node.region"}}`
+	expected := "foobar.dc1.global"
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: content,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail(t, "Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	require.Equal(t, expected, string(raw))
+}
