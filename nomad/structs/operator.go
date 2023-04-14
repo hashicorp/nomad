@@ -150,6 +150,8 @@ const (
 	// SchedulerAlgorithmSpread indicates that the scheduler should spread
 	// allocations as evenly as possible over the available hardware.
 	SchedulerAlgorithmSpread SchedulerAlgorithm = "spread"
+
+	SchedulerAlgorithmNewSpread SchedulerAlgorithm = "new_spread"
 )
 
 // SchedulerConfiguration is the config for controlling scheduler behavior

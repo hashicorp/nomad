@@ -2158,6 +2158,8 @@ type Node struct {
 	// updatedd its allocations status.
 	LastAllocUpdateIndex uint64
 
+	ScoreAlgorithm SchedulerAlgorithm
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64

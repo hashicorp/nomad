@@ -159,29 +159,18 @@ type BinPackIterator struct {
 	jobId                  structs.NamespacedID
 	taskGroup              *structs.TaskGroup
 	memoryOversubscription bool
-	scoreFit               func(*structs.Node, *structs.ComparableResources) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
 // potentially evicting other tasks based on a given priority.
 func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, schedConfig *structs.SchedulerConfiguration) *BinPackIterator {
-
-	algorithm := schedConfig.EffectiveSchedulerAlgorithm()
-	scoreFn := structs.ScoreFitBinPack
-	if algorithm == structs.SchedulerAlgorithmSpread {
-		scoreFn = structs.ScoreFitSpread
-	}
-
-	iter := &BinPackIterator{
+	return &BinPackIterator{
 		ctx:                    ctx,
 		source:                 source,
 		evict:                  evict,
 		priority:               priority,
 		memoryOversubscription: schedConfig != nil && schedConfig.MemoryOversubscriptionEnabled,
-		scoreFit:               scoreFn,
 	}
-	iter.ctx.Logger().Named("binpack").Trace("NewBinPackIterator created", "algorithm", algorithm)
-	return iter
 }
 
 func (iter *BinPackIterator) SetJob(job *structs.Job) {
@@ -537,7 +526,26 @@ OUTER:
 		}
 
 		// Score the fit normally otherwise
-		fitness := iter.scoreFit(option.Node, util)
+		var scoreFn func(*structs.Node, *structs.ComparableResources) float64
+		algorithm := option.Node.ScoreAlgorithm
+
+		switch algorithm {
+		case structs.SchedulerAlgorithmSpread:
+			scoreFn = structs.ScoreFitSpread
+			fitness := scoreFn(option.Node, util)
+			fmt.Printf("fitness with spread: %v\n", fitness)
+		case structs.SchedulerAlgorithmNewSpread:
+			scoreFn = structs.ScoreFitNewSpread
+			fitness := scoreFn(option.Node, util)
+			fmt.Printf("fitness with new spread: %v\n", fitness)
+		default:
+			scoreFn = structs.ScoreFitBinPack
+			fitness := scoreFn(option.Node, util)
+			fmt.Printf("fitness with binpack: %v\n", fitness)
+			scoreFn = structs.ScoreFitBinPack
+		}
+
+		fitness := scoreFn(option.Node, util)
 		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)

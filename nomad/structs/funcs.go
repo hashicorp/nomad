@@ -274,6 +274,19 @@ func ScoreFitSpread(node *Node, util *ComparableResources) float64 {
 	return score
 }
 
+func ScoreFitNewSpread(node *Node, util *ComparableResources) float64 {
+	freePctCpu, freePctRam := computeFreePercentage(node, util)
+	total := math.Pow(10, -(freePctCpu-1)) + math.Pow(10, -(freePctRam-1))
+	score := 20 - total
+
+	if score > 18.0 {
+		score = 18.0
+	} else if score < 0 {
+		score = 0
+	}
+	return score
+}
+
 func CopySliceConstraints(s []*Constraint) []*Constraint {
 	l := len(s)
 	if l == 0 {

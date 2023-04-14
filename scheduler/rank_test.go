@@ -4,12 +4,16 @@
 package scheduler
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
+	"github.com/grd/histogram"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2199,4 +2203,92 @@ func TestNodeAffinityIterator(t *testing.T) {
 		require.Equal(expectedScores[n.Node.ID], n.FinalScore)
 	}
 
+}
+
+func TestNewSpread(t *testing.T) {
+	algos := []structs.SchedulerAlgorithm{
+		structs.SchedulerAlgorithmBinpack,
+		//structs.SchedulerAlgorithmSpread,
+		structs.SchedulerAlgorithmNewSpread,
+	}
+
+	numNodes := 10
+	numAllocs := 100
+	numJobs := 10
+
+	//for _, algo := range algos {
+	nodes := make([]*structs.Node, numNodes)
+	for i := 0; i < numNodes; i++ {
+		nodes[i] = mock.Node()
+		nodes[i].ScoreAlgorithm = algos[i%len(algos)]
+	}
+
+	allocs := make([]*structs.Allocation, numAllocs)
+	for i := 0; i < numAllocs; i++ {
+		alloc := mock.Alloc()
+		alloc.Job.ID = fmt.Sprintf("job-%d", i%numJobs)
+		alloc.Resources = &structs.Resources{
+			CPU:      40,
+			MemoryMB: 80,
+		}
+		alloc.TaskResources["web"] = &structs.Resources{
+			CPU:      40,
+			MemoryMB: 80,
+		}
+		alloc.AllocatedResources.Tasks["web"] = &structs.AllocatedTaskResources{
+			Cpu: structs.AllocatedCpuResources{
+				CpuShares: 40,
+			},
+			Memory: structs.AllocatedMemoryResources{
+				MemoryMB: 80,
+			},
+		}
+		alloc.Job.TaskGroups[0].Networks = nil
+		alloc.Job.TaskGroups[0].Tasks[0].Services = nil
+		alloc.Job.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+			CPU:      40,
+			MemoryMB: 80,
+		}
+		allocs[i] = alloc
+	}
+
+	s := state.TestStateStore(t)
+	//s.SchedulerSetConfig(1000, &structs.SchedulerConfiguration{
+	//	SchedulerAlgorithm: algo,
+	//})
+
+	for i, alloc := range allocs {
+		_, ctx := testContext(t)
+		ctx.state = s
+
+		stack := NewGenericStack(false, ctx)
+		stack.SetNodes(nodes)
+
+		job := alloc.Job
+		stack.SetJob(job)
+
+		selectOptions := &SelectOptions{}
+		n := stack.Select(job.TaskGroups[0], selectOptions)
+		//t.Log(n.GoString())
+
+		alloc.NodeID = n.Node.ID
+		s.UpsertAllocs(structs.MsgTypeTestSetup, uint64(2000+i), []*structs.Allocation{alloc})
+	}
+
+	r := histogram.NaturalRange(0, 10, 10)
+	h, err := histogram.NewHistogram(r)
+	must.NoError(t, err)
+
+	result := map[structs.SchedulerAlgorithm][]int{}
+	for _, node := range nodes {
+		a, err := s.AllocsByNode(nil, node.ID)
+		must.NoError(t, err)
+		h.Add(float64(len(a)))
+
+		result[node.ScoreAlgorithm] = append(result[node.ScoreAlgorithm], len(a))
+	}
+
+	//t.Logf("Results with %q:\n%v\n%v", algo, h, result)
+	t.Logf("Results:\n%v\n%v", h, result)
+	//}
 }

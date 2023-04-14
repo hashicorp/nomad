@@ -128,6 +128,8 @@ require (
 	oss.indeed.com/go/libtime v1.6.0
 )
 
+require github.com/grd/histogram v0.0.0-20130107163446-074cc51e7eea // indirect
+
 require (
 	cloud.google.com/go v0.107.0 // indirect
 	cloud.google.com/go/compute v1.15.1 // indirect
