@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Added `drain_on_shutdown` configuration
+```

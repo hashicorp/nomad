@@ -344,6 +344,9 @@ type ClientConfig struct {
 	// Artifact contains the configuration for artifacts.
 	Artifact *config.ArtifactConfig `hcl:"artifact"`
 
+	// Drain specifies whether to drain the client on shutdown; ignored in dev mode.
+	Drain *config.DrainConfig `hcl:"drain_on_shutdown"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -366,6 +369,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.HostNetworks = helper.CopySlice(c.HostNetworks)
 	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
+	nc.Drain = c.Drain.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -1292,6 +1296,7 @@ func DefaultConfig() *Config {
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
+			Drain:                          nil,
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -2199,6 +2204,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)
+	result.Drain = a.Drain.Merge(b.Drain)
 
 	return &result
 }
