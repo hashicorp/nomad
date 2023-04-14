@@ -82,7 +82,7 @@ module(
         moment(version.get('submitTime')).fromNow(),
         'Time since the job was submitted is in the active deployment header'
       );
-
+      await this.pauseTest();
       assert.equal(
         find('[data-test-deployment-metric="canaries"]').textContent.trim(),
         `${deployment.get('placedCanaries')} / ${deployment.get(

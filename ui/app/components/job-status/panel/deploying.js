@@ -83,6 +83,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
 
   get newVersionAllocBlocks() {
     let availableSlotsToFill = this.desiredTotal;
+    console.log('nVAB', availableSlotsToFill);
     let allocationsOfDeploymentVersion = this.job.allocations.filter(
       (a) => a.jobVersion === this.deployment.get('versionNumber')
     );

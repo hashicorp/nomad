@@ -41,24 +41,59 @@ module(
       assert.notOk(find('.active-deployment'), 'No active deployment');
     });
 
-    test('the latest deployment section shows up for the currently running deployment', async function (assert) {
+    test.only('the latest deployment section shows up for the currently running deployment', async function (assert) {
       assert.expect(4);
 
       this.server.create('node');
 
-      this.server.create('job', {
+      const job = this.server.create('job', {
         type: 'service',
         createAllocations: true,
-        activeDeployment: true,
+        // activeDeployment: true,
+        groupTaskCount: 150,
+        shallow: true,
+        resourceSpec: ['M: 256, C: 500'], // length of this array determines number of groups
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.05,
+          unknown: 0.2,
+          lost: 0.1,
+          complete: 0.1,
+          pending: 0.05,
+        },
+        // deployments: [
+        //   this.server.create('deployment', {
+        //     id: 'deployment-1',
+        //     status: 'running',
+        //     jobVersion: 1,
+        //     jobCreateIndex: 1,
+        //     jobModifyIndex: 1,
+        //     createIndex: 1,
+        //     modifyIndex: 1,
+        //     desiredTotal: 150,
+        //     placedAllocs: 75,
+        //   })
+        // ]
       });
+
+      const jobDeployment = this.server.create('deployment', false, 'active', {
+        id: 'Boop',
+        jobId: job.id,
+        groupDesiredTotal: 49,
+      });
+
+      job.deployments = [jobDeployment];
+
+      console.log('jobdep', jobDeployment);
 
       await this.store.findAll('job');
 
       this.set('job', this.store.peekAll('job').get('firstObject'));
+      console.log('job job', this.get('job'), this.get('job.deployments'));
       await render(hbs`
-      <JobStatus::Panel @job={{this.job}} />)
+      <JobStatus::Panel @job={{this.job}} />
     `);
-
+      await this.pauseTest();
       const deployment = await this.get('job.latestDeployment');
 
       assert.ok(find('.active-deployment'), 'Active deployment');
@@ -74,13 +109,15 @@ module(
 
       // TODO: Replace the now-removed metrics tests with a new set of tests for alloc presence
 
-      // assert.equal(
-      //   find('[data-test-deployment-metric="canaries"]').textContent.trim(),
-      //   `${deployment.get('placedCanaries')} / ${deployment.get(
-      //     'desiredCanaries'
-      //   )}`,
-      //   'Canaries, both places and desired, are in the metrics'
-      // );
+      await this.pauseTest();
+
+      assert.equal(
+        find('[data-test-deployment-metric="canaries"]').textContent.trim(),
+        `${deployment.get('placedCanaries')} / ${deployment.get(
+          'desiredCanaries'
+        )}`,
+        'Canaries, both places and desired, are in the metrics'
+      );
 
       // assert.equal(
       //   find('[data-test-deployment-metric="placed"]').textContent.trim(),
@@ -111,6 +148,7 @@ module(
       //   deployment.get('statusDescription'),
       //   'Status description is in the metrics block'
       // );
+
       await componentA11yAudit(
         this.element,
         assert,
