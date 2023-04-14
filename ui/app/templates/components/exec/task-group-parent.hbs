@@ -1,7 +1,7 @@
 {{!
   Copyright (c) HashiCorp, Inc.
   SPDX-License-Identifier: MPL-2.0
-}}
+~}}
 
 <button {{action "toggleOpen"}} class="toggle-button {{if this.hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
   {{x-icon (if this.isOpen "chevron-down" "chevron-right")}}
