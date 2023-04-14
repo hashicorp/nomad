@@ -21,8 +21,8 @@ for more details.
 
 ## Expiring Licenses
 
-Nomad Enterprise license have an expiration time. You can read the license on
-a server with the `nomad license get` command:
+Nomad Enterprise licenses have an expiration time and a termination time. You
+can read the license on a server with the `nomad license get` command:
 
 ```
 $ nomad license get
@@ -50,9 +50,9 @@ Licensed Features:
         Dynamic Application Sizing
 ```
 
-As a Nomad Enterprise license approaches its expiration time, Nomad servers
-will periodically log a warning message about the approaching
-expiration. Below shows log excerpts of the warnings.
+As a Nomad Enterprise license approaches its expiration time, Nomad servers will
+periodically log a warning message about the approaching expiration. Below shows
+log excerpts of the warnings.
 
 ```
     2021-03-29T15:02:28.100-0400 [WARN]  nomad.licensing: license expiring: time_left=5m0s
@@ -64,11 +64,11 @@ expiration. Below shows log excerpts of the warnings.
     2021-03-29T15:07:58.104-0400 [ERROR] nomad.licensing: license expired, please update license: error="invalid license or license is expired"
 ```
 
-When the license expires, enterprise functionality will become limited. Only
-read operations on enterprise endpoints will be supported, and write
-operations will return an error.
+When the license reaches the termination time, enterprise functionality will
+become limited. Only read operations on enterprise endpoints will be supported,
+and write operations will return an error.
 
-Note that if the server is restarted with an expired license, it will
+Note that if the server is restarted with a terminated license, it will
 immediately stop.
 
 ## Configuring the License

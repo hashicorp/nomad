@@ -7,18 +7,23 @@ description: >-
 
 # Frequently Asked Questions (FAQ)
 
-This FAQ is for the license changes introduced in Nomad Enterprise version v1.1.0+ent. 
+This FAQ is for the license changes introduced in Nomad Enterprise version v1.1.0+ent.
 Nomad Enterprise automatically load Nomad licenses when a Nomad server agent starts using Nomad Enterprise.
 
 ## Q: Can I get a quick summary of the Nomad changes?
 
 Starting with Nomad Enterprise v1.1.0, the license enablement process is different.
 
-HashiCorp Enterprise servers will no longer start without a license. When the server instance initializes the license watcher, the server reads from either an environment variable or file. If the license is missing, invalid, or expired, the server will immediately exit. 
-This check is part of the server boot-up process.
+HashiCorp Enterprise servers will no longer start without a license. When the
+server instance initializes the license watcher, the server reads from either an
+environment variable or file. If the license is missing, invalid, or terminated,
+the server will immediately exit. This check is part of the server boot-up
+process.
 
-In previous versions of HashiCorp enterprise products, one server could distribute a license to other servers via the Raft protocol. 
-This will no longer work since each server must be able to find a valid license during the startup process.
+In previous versions of HashiCorp enterprise products, one server could
+distribute a license to other servers via the Raft protocol. This will no longer
+work since each server must be able to find a valid license during the startup
+process.
 
 
 ## Q: What resources are available?
@@ -44,7 +49,7 @@ Nomad agents running with the `-dev` flag will also need a license.
 
 ## Q: What are some pitfalls that could be experienced during an upgrade because of the license changes?
 
-If you follow the steps in the [upgrade guide](/nomad/docs/upgrade/upgrade-specific#enterprise-licenses), but have misconfigured the licensing steps, the server instances will stop during boot-up sequence. 
+If you follow the steps in the [upgrade guide](/nomad/docs/upgrade/upgrade-specific#enterprise-licenses), but have misconfigured the licensing steps, the server instances will stop during boot-up sequence.
 
 If you do not check cluster health after adding new servers, and verify that the new servers have joined properly, then you may accidentally take down old servers without replacing them.
 
@@ -54,7 +59,7 @@ If you have built automation around `nomad license put`, this command will fail 
 
 ## Q: What are some other gotchas?
 
-You might not have access to your organization's Nomad license. 
+You might not have access to your organization's Nomad license.
 The  6-hour temporary license window is now removed, and a license is required for proper boot-up.
 Running `nomad agent -dev` without a license will fail.
 
@@ -62,13 +67,26 @@ Running `nomad agent -dev` without a license will fail.
 ## Q: How can a user get their existing license to put on disk for an upgrade?
 
 If you are an existing HashiCorp enterprise customer you may contact your organization's customer success manager (CSM) or email support-softwaredelivery@hashicorp.com for information on how to get your organization's enterprise license.
-You can use `nomad license get` to retrieve information about the license, but not the license itself. 
+You can use `nomad license get` to retrieve information about the license, but not the license itself.
 
-## Q: What happens when a license expires?
-If a license expires after a server node joins the cluster, the existing Enterprise features will continue to operate until a grace period expires. 
-The grace period duration is 1 day, and upon the end of the grace period the Nomad servers will shut down. 
+## Q: What happens when a license expires or terminates?
 
-## Q: Will on-prem binaries with “baked-in” licenses work?
+As a Nomad Enterprise license approaches its expiration time, Nomad servers will
+periodically log a warning message about the approaching expiration. The grace
+period is defined as the time between license expiration and license
+termination. (This is typically very short for evaluation licenses, and much longer
+for non-evaluation licenses.) Customers must provide a valid license before the
+grace period expires.
+
+When the license terminates, enterprise functionality will become limited. Only
+read operations on enterprise endpoints will be supported, and write operations
+will return an error. Note that if the server is restarted with a terminated
+license, it will immediately stop.
+
+Clients are unaffected by terminated licenses because clients do not read the
+license.
+
+## Q: Will on-prem binaries with "baked-in" licenses work?
 
 There is no impact to baked-in licensed binaries.
 
@@ -86,7 +104,7 @@ Every time `nomad agent` runs as a server (or in `-dev`), it requires a license.
 
 ## Q: May I downgrade Nomad Enterprise from v1.1.0 to an earlier version?
 
-Nomad cannot safely be rolled back to an earlier version. 
+Nomad cannot safely be rolled back to an earlier version.
 This is not a supported operation due to the Nomad state store not having forward compatibility. The end result could be a crash loop.
 
 ## Q: Is there a tutorial available for the license configuration steps?
