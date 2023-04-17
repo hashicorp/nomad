@@ -43,14 +43,17 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return nil
 	}
 
-	nobody := users.Nobody()
+	u, err := users.Lookup("nobody")
+	if err != nil {
+		return fmt.Errorf("Unable to find nobody user: %w", err)
+	}
 
-	uid, err := getUid(&nobody)
+	uid, err := getUid(u)
 	if err != nil {
 		return err
 	}
 
-	gid, err := getGid(&nobody)
+	gid, err := getGid(u)
 	if err != nil {
 		return err
 	}
