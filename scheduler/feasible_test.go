@@ -1401,6 +1401,105 @@ func TestDistinctHostsIterator_JobDistinctHosts(t *testing.T) {
 	}
 }
 
+func TestDistinctHostsIterator_JobDistinctHosts_Table(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a job with a distinct_hosts constraint and a task group.
+	tg1 := &structs.TaskGroup{Name: "bar"}
+	job := &structs.Job{
+		ID:        "foo",
+		Namespace: structs.DefaultNamespace,
+		Constraints: []*structs.Constraint{{
+			Operand: structs.ConstraintDistinctHosts,
+		}},
+		TaskGroups: []*structs.TaskGroup{tg1},
+	}
+	makeJobAllocs := func(js []*structs.Job) []*structs.Allocation {
+		na := make([]*structs.Allocation, len(js))
+		for i, j := range js {
+			allocID := uuid.Generate()
+			na[i] = &structs.Allocation{
+				Namespace: structs.DefaultNamespace,
+				TaskGroup: j.TaskGroups[0].Name,
+				JobID:     j.ID,
+				Job:       j,
+				ID:        allocID,
+			}
+		}
+		return na
+	}
+
+	n1 := mock.Node()
+	n2 := mock.Node()
+	n3 := mock.Node()
+
+	testCases := []struct {
+		name        string
+		RTarget     string
+		expectLen   int
+		expectNodes []*structs.Node
+	}{
+		{
+			name:        "unset",
+			RTarget:     "",
+			expectLen:   1,
+			expectNodes: []*structs.Node{n3},
+		},
+		{
+			name:        "true",
+			RTarget:     "true",
+			expectLen:   1,
+			expectNodes: []*structs.Node{n3},
+		},
+		{
+			name:        "false",
+			RTarget:     "false",
+			expectLen:   3,
+			expectNodes: []*structs.Node{n1, n2, n3},
+		},
+		{
+			name:        "unparsable",
+			RTarget:     "not_a_bool",
+			expectLen:   1,
+			expectNodes: []*structs.Node{n3},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			ci.Parallel(t)
+
+			_, ctx := testContext(t)
+			static := NewStaticIterator(ctx, []*structs.Node{n1, n2, n3})
+
+			j := job.Copy()
+			j.Constraints[0].RTarget = tc.RTarget
+
+			oj := j.Copy()
+			oj.ID = "otherJob"
+
+			plan := ctx.Plan()
+			// Add allocations so that some of the nodes will be ineligible
+			// to receive the job when the distinct_hosts constraint
+			// is active. This will require the job be placed on n3.
+			//
+			// Another job is placed on all of the nodes to ensure that there
+			// are no unexpected interactions.
+			plan.NodeAllocation[n1.ID] = makeJobAllocs([]*structs.Job{j, oj})
+			plan.NodeAllocation[n2.ID] = makeJobAllocs([]*structs.Job{j, oj})
+			plan.NodeAllocation[n3.ID] = makeJobAllocs([]*structs.Job{oj})
+
+			proposed := NewDistinctHostsIterator(ctx, static)
+			proposed.SetTaskGroup(tg1)
+			proposed.SetJob(j)
+
+			out := collectFeasible(proposed)
+			must.Len(t, tc.expectLen, out, must.Sprintf("Bad: %v", out))
+			must.SliceContainsAll(t, tc.expectNodes, out)
+		})
+	}
+}
+
 func TestDistinctHostsIterator_JobDistinctHosts_InfeasibleCount(t *testing.T) {
 	ci.Parallel(t)
 
