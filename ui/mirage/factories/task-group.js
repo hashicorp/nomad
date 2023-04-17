@@ -148,8 +148,8 @@ export default Factory.extend({
                 : 0,
               clientStatus,
               deploymentStatus: {
-                Canary: true,
-                Healthy: true,
+                Canary: false,
+                Healthy: false,
               },
             };
 

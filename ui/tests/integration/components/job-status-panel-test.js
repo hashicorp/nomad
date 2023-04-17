@@ -5,6 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import faker from 'nomad-ui/mirage/faker';
 
 module(
   'Integration | Component | job status panel | active deployment',
@@ -41,27 +42,32 @@ module(
       assert.notOk(find('.active-deployment'), 'No active deployment');
     });
 
-    test.only('the latest deployment section shows up for the currently running deployment', async function (assert) {
-      assert.expect(4);
+    test('the latest deployment section shows up for the currently running deployment: Ungrouped Allocations (small cluster)', async function (assert) {
+      assert.expect(19);
+      faker.seed(0); // TODO: de-flake. Distribution doesnt look like it's using faker randomness.
 
       this.server.create('node');
+
+      const NUMBER_OF_GROUPS = 2;
+      const ALLOCS_PER_GROUP = 10;
+      const allocStatusDistribution = {
+        running: 0.5,
+        failed: 0.05,
+        unknown: 0.2,
+        lost: 0.1,
+        complete: 0.1,
+        pending: 0.05,
+      };
 
       const job = await this.server.create('job', {
         type: 'service',
         createAllocations: true,
         noDeployments: true, // manually created below
         activeDeployment: true,
-        groupTaskCount: 331,
+        groupTaskCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: ['M: 257, C: 500', 'M: 257, C: 500'], // length of this array determines number of groups
-        allocStatusDistribution: {
-          running: 0.5,
-          failed: 0.05,
-          unknown: 0.2,
-          lost: 0.1,
-          complete: 0.1,
-          pending: 0.05,
-        },
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
+        allocStatusDistribution,
       });
 
       const jobRecord = await this.store.find(
@@ -70,7 +76,7 @@ module(
       );
       await this.server.create('deployment', false, 'active', {
         jobId: job.id,
-        groupDesiredTotal: 331,
+        groupDesiredTotal: ALLOCS_PER_GROUP,
         versionNumber: 1,
         status: 'failed',
       });
@@ -90,8 +96,6 @@ module(
 
       const deployment = await this.get('job.latestDeployment');
 
-      console.log('depl', deployment, this.get('job'));
-
       await this.set('job.latestDeployment.status', 'running');
 
       assert.ok(
@@ -103,50 +107,172 @@ module(
         find('.active-deployment').classList.contains('is-info'),
         'Running deployment gets the is-info class'
       );
+      console.log(
+        'NUMBER OF JOBS IN STORE:',
+        this.store.peekAll('job').length,
+        this.server
+      );
+      // Half the shown allocations are running, 1 is pending, 1 is failed; none are canaries or healthy.
+      // The rest (lost, unknown, etc.) all show up as "Unplaced"
+      assert
+        .dom('.allocation-status-row .represented-allocation')
+        .exists(
+          { count: NUMBER_OF_GROUPS * ALLOCS_PER_GROUP },
+          'All allocations are shown (ungrouped)'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.running')
+        .exists(
+          {
+            count:
+              NUMBER_OF_GROUPS *
+              ALLOCS_PER_GROUP *
+              allocStatusDistribution.running,
+          },
+          'Correct number of running allocations are shown'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.running.canary')
+        .exists({ count: 0 }, 'No running canaries shown by default');
+      assert
+        .dom('.allocation-status-row .represented-allocation.running.healthy')
+        .exists({ count: 0 }, 'No running healthy shown by default');
+      assert
+        .dom('.allocation-status-row .represented-allocation.failed')
+        .exists(
+          {
+            count:
+              NUMBER_OF_GROUPS *
+              ALLOCS_PER_GROUP *
+              allocStatusDistribution.failed,
+          },
+          'Correct number of failed allocations are shown'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.failed.canary')
+        .exists({ count: 0 }, 'No failed canaries shown by default');
+      assert
+        .dom('.allocation-status-row .represented-allocation.pending')
+        .exists(
+          {
+            count:
+              NUMBER_OF_GROUPS *
+              ALLOCS_PER_GROUP *
+              allocStatusDistribution.pending,
+          },
+          'Correct number of pending allocations are shown'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.pending.canary')
+        .exists({ count: 0 }, 'No pending canaries shown by default');
+      assert
+        .dom('.allocation-status-row .represented-allocation.unplaced')
+        .exists(
+          {
+            count:
+              NUMBER_OF_GROUPS *
+              ALLOCS_PER_GROUP *
+              (allocStatusDistribution.lost +
+                allocStatusDistribution.unknown +
+                allocStatusDistribution.complete),
+          },
+          'Correct number of unplaced allocations are shown'
+        );
 
       assert.equal(
-        find('[data-test-active-deployment-stat="id"]').textContent.trim(),
-        deployment.get('shortId'),
-        'The active deployment is the most recent running deployment'
+        find('[data-test-new-allocation-tally]').textContent.trim(),
+        `New allocations: ${
+          this.job.allocations.filter(
+            (a) =>
+              a.clientStatus === 'running' &&
+              a.deploymentStatus.Healthy === true
+          ).length
+        }/${deployment.get('desiredTotal')} running and healthy`,
+        'Summary text shows accurate numbers when 0 are running/healthy'
       );
+
+      let NUMBER_OF_RUNNING_CANARIES = 2;
+      let NUMBER_OF_RUNNING_HEALTHY = 5;
+      let NUMBER_OF_FAILED_CANARIES = 1;
+      let NUMBER_OF_PENDING_CANARIES = 1;
+
+      // Set some allocs to canary, and to healthy
+      this.get('job.allocations')
+        .filter((a) => a.clientStatus === 'running')
+        .slice(0, NUMBER_OF_RUNNING_CANARIES)
+        .forEach((alloc) =>
+          alloc.set('deploymentStatus', {
+            Canary: true,
+            Healthy: alloc.deploymentStatus.Healthy,
+          })
+        );
+      this.get('job.allocations')
+        .filter((a) => a.clientStatus === 'running')
+        .slice(0, NUMBER_OF_RUNNING_HEALTHY)
+        .forEach((alloc) =>
+          alloc.set('deploymentStatus', {
+            Canary: alloc.deploymentStatus.Canary,
+            Healthy: true,
+          })
+        );
+      this.get('job.allocations')
+        .filter((a) => a.clientStatus === 'failed')
+        .slice(0, NUMBER_OF_FAILED_CANARIES)
+        .forEach((alloc) =>
+          alloc.set('deploymentStatus', {
+            Canary: true,
+            Healthy: alloc.deploymentStatus.Healthy,
+          })
+        );
+      this.get('job.allocations')
+        .filter((a) => a.clientStatus === 'pending')
+        .slice(0, NUMBER_OF_PENDING_CANARIES)
+        .forEach((alloc) =>
+          alloc.set('deploymentStatus', {
+            Canary: true,
+            Healthy: alloc.deploymentStatus.Healthy,
+          })
+        );
+
+      await render(hbs`
+        <JobStatus::Panel @job={{this.job}} />
+      `);
+      assert
+        .dom('.allocation-status-row .represented-allocation.running.canary')
+        .exists(
+          { count: NUMBER_OF_RUNNING_CANARIES },
+          'Running Canaries shown when deployment info dictates'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.running.healthy')
+        .exists(
+          { count: NUMBER_OF_RUNNING_HEALTHY },
+          'Running Healthy allocs shown when deployment info dictates'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.failed.canary')
+        .exists(
+          { count: NUMBER_OF_FAILED_CANARIES },
+          'Failed Canaries shown when deployment info dictates'
+        );
+      assert
+        .dom('.allocation-status-row .represented-allocation.pending.canary')
+        .exists(
+          { count: NUMBER_OF_PENDING_CANARIES },
+          'Pending Canaries shown when deployment info dictates'
+        );
 
       assert.equal(
-        find('[data-test-deployment-metric="canaries"]').textContent.trim(),
-        `${deployment.get('placedCanaries')} / ${deployment.get(
-          'desiredCanaries'
-        )}`,
-        'Canaries, both places and desired, are in the metrics'
+        find('[data-test-new-allocation-tally]').textContent.trim(),
+        `New allocations: ${
+          this.job.allocations.filter(
+            (a) =>
+              a.clientStatus === 'running' &&
+              a.deploymentStatus.Healthy === true
+          ).length
+        }/${deployment.get('desiredTotal')} running and healthy`,
+        'Summary text shows accurate numbers when some are running/healthy'
       );
-
-      // assert.equal(
-      //   find('[data-test-deployment-metric="placed"]').textContent.trim(),
-      //   deployment.get('placedAllocs'),
-      //   'Placed allocs aggregates across task groups'
-      // );
-
-      // assert.equal(
-      //   find('[data-test-deployment-metric="desired"]').textContent.trim(),
-      //   deployment.get('desiredTotal'),
-      //   'Desired allocs aggregates across task groups'
-      // );
-
-      // assert.equal(
-      //   find('[data-test-deployment-metric="healthy"]').textContent.trim(),
-      //   deployment.get('healthyAllocs'),
-      //   'Healthy allocs aggregates across task groups'
-      // );
-
-      // assert.equal(
-      //   find('[data-test-deployment-metric="unhealthy"]').textContent.trim(),
-      //   deployment.get('unhealthyAllocs'),
-      //   'Unhealthy allocs aggregates across task groups'
-      // );
-
-      // assert.equal(
-      //   find('[data-test-deployment-notification]').textContent.trim(),
-      //   deployment.get('statusDescription'),
-      //   'Status description is in the metrics block'
-      // );
 
       await componentA11yAudit(
         this.element,

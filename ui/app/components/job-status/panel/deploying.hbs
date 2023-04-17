@@ -53,7 +53,7 @@
 
         {{/if}}
 
-        <h4 class="title is-5">New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
+        <h4 class="title is-5" data-test-new-allocation-tally>New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
         <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
       </div>
 
