@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 variable "location" {
   description = "The Azure location to deploy to."
   default     = "East US"

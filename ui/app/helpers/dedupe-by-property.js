@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Takes an array and a property name and returns a new array with all the duplicates removed.
 import { helper } from '@ember/component/helper';
 

@@ -171,17 +171,27 @@ testing.
 - `http_api_response_headers` `(map<string|string>: nil)` - Specifies
   user-defined headers to add to the HTTP API responses.
 
-- `leave_on_interrupt` `(bool: false)` - Specifies if the agent should
-  gracefully leave when receiving the interrupt signal. By default, the agent
-  will exit forcefully on any signal. This value should only be set to true on
-  server agents if it is expected that a terminated server instance will never
-  join the cluster again.
+- `leave_on_interrupt` `(bool: false)` - Specifies if the agent should leave
+  when receiving the interrupt signal. By default, any stop signal to an agent
+  (interrupt or terminate) will cause the agent to exit after ensuring its
+  internal state is committed to disk as needed. If this value is set to true on
+  a server agent, the server will notify other servers of their intention to
+  leave the peer set. You should only set this value to true on server agents if
+  the terminated server will never join the cluster again. If this value is set
+  to true on a client agent and the client is configured with
+  [`drain_on_shutdown`][], the client will drain its workloads before shutting
+  down.
 
-- `leave_on_terminate` `(bool: false)` - Specifies if the agent should
-  gracefully leave when receiving the terminate signal. By default, the agent
-  will exit forcefully on any signal. This value should only be set to true on
-  server agents if it is expected that a terminated server instance will never
-  join the cluster again.
+- `leave_on_terminate` `(bool: false)` - Specifies if the agent should leave
+  when receiving the terminate signal. By default, any stop signal to an agent
+  (interrupt or terminate) will cause the agent to exit after ensuring its
+  internal state is committed to disk as needed. If this value is set to true on
+  a server agent, the server will notify other servers of their intention to
+  leave the peer set. You should only set this value to true on server agents if
+  the terminated server will never join the cluster again. If this value is set
+  to true on a client agent and the client is configured with
+  [`drain_on_shutdown`][], the client will drain its workloads before shutting
+  down.
 
 - `limits` - Available in Nomad 0.10.3 and later, this is a nested object that
   configures limits that are enforced by the agent. The following parameters
@@ -384,3 +394,4 @@ http_api_response_headers {
 [tls-reload]: /nomad/docs/configuration/tls#tls-configuration-reloads
 [vault-reload]: /nomad/docs/configuration/vault#vault-configuration-reloads
 [gh-3885]: https://github.com/hashicorp/nomad/issues/3885
+[`drain_on_shutdown`]: /nomad/docs/configuration/client#drain_on_shutdown

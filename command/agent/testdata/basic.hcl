@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # This file was used to generate basic.json from https://www.hcl2json.com/
 region = "foobar"
 

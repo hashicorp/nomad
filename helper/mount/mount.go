@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package mount
 
 // Mounter defines the set of methods to allow for mount operations on a system.

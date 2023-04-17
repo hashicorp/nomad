@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -756,7 +759,7 @@ func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
 	require.NoError(t, err)
 
-	err = s.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
+	err = s.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
 	require.NoError(t, err)
 
 	snapshot, err := snapshot.New(s.logger, s.raft)

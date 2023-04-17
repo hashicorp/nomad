@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 async function error(browser, message = "Something went wrong.") {
   console.error(message);
   await browser.close();

@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "deployment_auto.nomad" {
   datacenters = ["dc1"]
 

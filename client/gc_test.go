@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package client
 
 import (
@@ -394,7 +397,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertJobFn := func(server *nomad.Server, j *structs.Job) {
 		state := server.State()
-		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), j))
+		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), nil, j))
 		require.NoError(state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
 	}
 

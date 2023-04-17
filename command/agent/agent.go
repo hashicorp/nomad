@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package agent
 
 import (
@@ -14,6 +17,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/dustin/go-humanize"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	uuidparse "github.com/hashicorp/go-uuid"
@@ -26,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad"
@@ -160,7 +165,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 
 // convertServerConfig takes an agent config and log output and returns a Nomad
 // Config. There may be missing fields that must be set by the agent. To do this
-// call finalizeServerConfig
+// call finalizeServerConfig.
 func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf := agentConfig.NomadConfig
 	if conf == nil {
@@ -571,6 +576,16 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
 	}
 
+	// Interpret job_max_source_size as bytes from string value
+	if agentConfig.Server.JobMaxSourceSize == nil {
+		agentConfig.Server.JobMaxSourceSize = pointer.Of("1M")
+	}
+	jobMaxSourceBytes, err := humanize.ParseBytes(*agentConfig.Server.JobMaxSourceSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse max job source bytes: %w", err)
+	}
+	conf.JobMaxSourceSize = int(jobMaxSourceBytes)
+
 	return conf, nil
 }
 
@@ -603,7 +618,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		return nil, err
 	}
 
-	if err := a.finalizeClientConfig(c); err != nil {
+	if err = a.finalizeClientConfig(c); err != nil {
 		return nil, err
 	}
 
@@ -837,6 +852,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		return nil, fmt.Errorf("invalid artifact config: %v", err)
 	}
 	conf.Artifact = artifactConfig
+
+	drainConfig, err := clientconfig.DrainConfigFromAgent(agentConfig.Client.Drain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid drain_on_shutdown config: %v", err)
+	}
+	conf.Drain = drainConfig
 
 	return conf, nil
 }

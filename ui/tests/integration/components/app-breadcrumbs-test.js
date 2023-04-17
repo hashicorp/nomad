@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { setComponentTemplate } from '@ember/component';
 import templateOnlyComponent from '@ember/component/template-only';

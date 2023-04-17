@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package config
 
 import (
@@ -313,6 +316,9 @@ type Config struct {
 
 	// Artifact configuration from the agent's config file.
 	Artifact *ArtifactConfig
+
+	// Drain configuration from the agent's config file.
+	Drain *DrainConfig
 }
 
 type APIListenerRegistrar interface {

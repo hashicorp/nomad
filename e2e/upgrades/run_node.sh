@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 #/bin/bash
 # this script runs a nomad node (client/server)
 # first arg is the binary and second arg is of the format (<client|server><num>).

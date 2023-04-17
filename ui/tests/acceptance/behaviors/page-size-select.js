@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { pluralize } from 'ember-inflector';
 import { test } from 'qunit';
 import { selectChoose } from 'ember-power-select/test-support';

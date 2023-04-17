@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "completed_leader" {
   type        = "batch"
   datacenters = ["dc1"]

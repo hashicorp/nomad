@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -470,10 +473,19 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 			return fmt.Errorf("error looking up ACL token: %v", err)
 		}
 		if token == nil {
-			n.logger.Error("token did not exist during node drain update")
-			return fmt.Errorf("token did not exist during node drain update")
+			node, err := n.state.NodeBySecretID(nil, req.AuthToken)
+			if err != nil {
+				n.logger.Error("error looking up node for drain update", "error", err)
+				return fmt.Errorf("error looking up node for drain update: %v", err)
+			}
+			if node == nil {
+				n.logger.Error("token did not exist during node drain update")
+				return fmt.Errorf("token did not exist during node drain update")
+			}
+			accessorId = node.ID
+		} else {
+			accessorId = token.AccessorID
 		}
-		accessorId = token.AccessorID
 	}
 
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
@@ -544,7 +556,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJob(msgType, index, req.Job); err != nil {
+	if err := n.state.UpsertJob(msgType, index, req.Submission, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -783,7 +795,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
+		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
 		}
 	}

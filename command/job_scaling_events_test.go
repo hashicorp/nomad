@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package command
 
 import (
@@ -107,7 +110,7 @@ func TestJobScalingEventsCommand_ACL(t *testing.T) {
 	// Create a job.
 	job := mock.MinJob()
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
 	must.NoError(t, err)
 
 	testCases := []struct {

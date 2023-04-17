@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import Service from '@ember/service';
 import config from 'nomad-ui/config/environment';
 import { getOwner } from '@ember/application';

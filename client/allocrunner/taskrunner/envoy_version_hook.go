@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package taskrunner
 
 import (
@@ -58,11 +61,11 @@ func newEnvoyVersionHook(c *envoyVersionHookConfig) *envoyVersionHook {
 	}
 }
 
-func (envoyVersionHook) Name() string {
+func (_ *envoyVersionHook) Name() string {
 	return envoyVersionHookName
 }
 
-func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestartRequest, response *ifs.TaskPrestartResponse) error {
+func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestartRequest, _ *ifs.TaskPrestartResponse) error {
 	// First interpolation of the task image. Typically this turns the default
 	// ${meta.connect.sidecar_task} into envoyproxy/envoy:v${NOMAD_envoy_version}
 	// but could be a no-op or some other value if so configured.
@@ -73,7 +76,6 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 	// - task is a connect sidecar or gateway
 	// - task image needs ${NOMAD_envoy_version} resolved
 	if h.skip(request) {
-		response.Done = true
 		return nil
 	}
 
@@ -95,7 +97,6 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 	// Set the resulting image.
 	h.logger.Trace("setting task envoy image", "image", image)
 	request.Task.Config["image"] = image
-	response.Done = true
 	return nil
 }
 

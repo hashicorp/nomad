@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package agent
 
 import (
@@ -327,6 +330,10 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		if err := config.TLSConfig.SetChecksum(); err != nil {
 			c.Ui.Error(fmt.Sprintf("WARNING: Error when parsing TLS configuration: %v", err))
 		}
+	}
+	if !config.DevMode && (config.TLSConfig == nil ||
+		!config.TLSConfig.EnableHTTP || !config.TLSConfig.EnableRPC) {
+		c.Ui.Error("WARNING: mTLS is not configured - Nomad is not secure without mTLS!")
 	}
 
 	if config.Server.EncryptKey != "" {

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package docker
 
 import (
@@ -502,6 +505,11 @@ func (d DockerDevice) toDockerDevice() (docker.Device, error) {
 
 	if d.HostPath == "" {
 		return dd, fmt.Errorf("host path must be set in configuration for devices")
+	}
+
+	// Docker's CLI defaults to HostPath in this case. See #16754
+	if dd.PathInContainer == "" {
+		dd.PathInContainer = d.HostPath
 	}
 
 	if dd.CgroupPermissions == "" {

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -105,6 +108,9 @@ func TestConfigForServer(t testing.T) *Config {
 		Port: ports[0],
 	}
 	config.SerfConfig.MemberlistConfig.BindPort = ports[1]
+
+	// max job submission source size
+	config.JobMaxSourceSize = 1e6
 
 	return config
 }

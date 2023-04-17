@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package allocrunner
 
 import (
@@ -415,6 +418,10 @@ func (vm mockVolumeMounter) UnmountVolume(ctx context.Context, volID, remoteID, 
 
 type mockPluginManager struct {
 	mounter mockVolumeMounter
+}
+
+func (mgr mockPluginManager) WaitForPlugin(ctx context.Context, pluginType, pluginID string) error {
+	return nil
 }
 
 func (mgr mockPluginManager) MounterForPlugin(ctx context.Context, pluginID string) (csimanager.VolumeMounter, error) {

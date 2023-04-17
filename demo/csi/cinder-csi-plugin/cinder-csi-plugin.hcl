@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "cinder-csi-plugin" {
   datacenters = ["dc1"]
   type        = "system"

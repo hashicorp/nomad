@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # Terraform configuration for creating a volume in DigitalOcean and
 # registering it with Nomad
 

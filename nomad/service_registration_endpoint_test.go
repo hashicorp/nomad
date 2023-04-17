@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -884,7 +887,7 @@ func TestServiceRegistration_List(t *testing.T) {
 				job := allocs[0].Job
 				job.Namespace = "platform"
 				allocs[0].Namespace = "platform"
-				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 				s.signAllocIdentities(job, allocs)
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
@@ -1171,7 +1174,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				// Generate an allocation with a signed identity
 				allocs := []*structs.Allocation{mock.Alloc()}
 				job := allocs[0].Job
-				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 				s.signAllocIdentities(job, allocs)
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
