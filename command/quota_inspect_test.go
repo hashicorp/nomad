@@ -95,7 +95,7 @@ func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
 	_, err := client.Quotas().Register(qs, nil)
 	must.NoError(t, err)
 
-	args := complete.Args{Last: "t"}
+	args := complete.Args{Last: "q"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
