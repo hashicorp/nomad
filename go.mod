@@ -55,7 +55,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.5
 	github.com/hashicorp/go-memdb v1.3.4
-	github.com/hashicorp/go-msgpack/v2 v2.1.0
+	github.com/hashicorp/go-msgpack/v2 v2.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.4.9
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
