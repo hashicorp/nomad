@@ -232,8 +232,11 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 		c.RTarget = constraint
 	}
 
-	if d := v.GetAttr(api.ConstraintDistinctHosts); !d.IsNull() && d.True() {
+	// The shortcut form of the distinct_hosts constraint is a cty.Bool
+	// so it can not use the `attr` func defined earlier
+	if d := v.GetAttr(api.ConstraintDistinctHosts); !d.IsNull() {
 		c.Operand = api.ConstraintDistinctHosts
+		c.RTarget = fmt.Sprint(d.True())
 	}
 
 	if property := attr(api.ConstraintDistinctProperty); property != "" {
