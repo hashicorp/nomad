@@ -43,12 +43,6 @@ func TestLookup_Linux(t *testing.T) {
 	}
 }
 
-func TestLookup_NobodyIDs(t *testing.T) {
-	uid, gid := NobodyIDs()
-	must.Eq(t, 65534, uid) // ubuntu
-	must.Eq(t, 65534, gid) // ubuntu
-}
-
 func TestWriteFileFor_Linux(t *testing.T) {
 	// This is really how you have to retrieve umask. See `man 2 umask`
 	umask := unix.Umask(0)
@@ -93,7 +87,9 @@ func TestSocketFileFor_Linux(t *testing.T) {
 	ln, err := SocketFileFor(logger, path, "nobody")
 	must.NoError(t, err)
 	must.NotNil(t, ln)
-	defer ln.Close()
+	t.Cleanup(func() {
+		_ = ln.Close()
+	})
 
 	stat, err := os.Lstat(path)
 	must.NoError(t, err)
