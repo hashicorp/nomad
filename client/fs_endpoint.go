@@ -19,7 +19,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hpcloud/tail/watch"
 
 	"github.com/hashicorp/nomad/acl"
