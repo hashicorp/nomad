@@ -572,7 +572,7 @@ func (iter *DistinctHostsIterator) SetJob(job *structs.Job) {
 func (iter *DistinctHostsIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
-			// Maintain the old behavior around unset RTargets
+			// distinct_hosts defaults to true
 			if con.RTarget == "" {
 				return true
 			}
