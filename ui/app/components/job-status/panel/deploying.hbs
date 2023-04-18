@@ -40,7 +40,7 @@
           <div class="previous-allocations">
             <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
           </div>
-          <div class="legend-and-summary">
+          <div class="legend-and-summary" data-test-previous-allocations-legend>
             <legend>
               <span class="legend-item {{if (eq (get this.oldRunningHealthyAllocBlocks "length") 0) "faded"}}">
                 <span class="represented-allocation running"></span>
@@ -61,7 +61,7 @@
         </div>
       </div>
 
-      <div class="legend-and-summary">
+      <div class="legend-and-summary" data-test-new-allocations-legend>
 
         {{!-- Legend by Status, then by Health, then by Canary --}}
         <legend>

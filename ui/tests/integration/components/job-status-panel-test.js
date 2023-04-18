@@ -42,7 +42,7 @@ module(
     });
 
     test('the latest deployment section shows up for the currently running deployment: Ungrouped Allocations (small cluster)', async function (assert) {
-      assert.expect(23);
+      assert.expect(25);
 
       this.server.create('node');
 
@@ -313,6 +313,13 @@ module(
         'Old Alloc Summary text shows accurate numbers'
       );
 
+      assert.equal(
+        find('[data-test-previous-allocations-legend]')
+          .textContent.trim()
+          .replace(/\s\s+/g, ' '),
+        '25 Running 0 Complete'
+      );
+
       // Try setting a few of the old allocs to complete and make sure number ticks down
       await Promise.all(
         this.get('job.allocations')
@@ -352,6 +359,13 @@ module(
           ).length - OLD_ALLOCATIONS_TO_COMPLETE
         } running`,
         'Old Alloc Summary text shows accurate numbers after some are marked complete'
+      );
+
+      assert.equal(
+        find('[data-test-previous-allocations-legend]')
+          .textContent.trim()
+          .replace(/\s\s+/g, ' '),
+        '20 Running 5 Complete'
       );
 
       await componentA11yAudit(
