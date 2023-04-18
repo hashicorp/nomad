@@ -90,7 +90,7 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 
 			nm = netManager
 			networkInitiator = task.Name
-		} else if tg.Networks[0].Hostname != "" {
+		} else if len(tg.Networks) > 0 && tg.Networks[0].Hostname != "" {
 			// TODO jrasell: remove once the default linux network manager
 			//  supports setting the hostname in bridged mode. This currently
 			//  indicates only Docker supports this, which is true unless a
