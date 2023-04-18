@@ -18,7 +18,6 @@ export default class Tokens extends Controller {
   @service token;
   @service store;
   @service router;
-  @service notifications;
 
   queryParams = ['code', 'state', 'jwtAuthMethod'];
 
