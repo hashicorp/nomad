@@ -90,7 +90,7 @@ function smallCluster(server) {
   //#region Active Deployment
 
   const activelyDeployingJobGroups = 2;
-  const activelyDeployingTasksPerGroup = 200;
+  const activelyDeployingTasksPerGroup = 100;
 
   const activelyDeployingJob = server.create('job', {
     createAllocations: true,
@@ -100,23 +100,29 @@ function smallCluster(server) {
     noDeployments: true, // manually created below
     activeDeployment: true,
     allocStatusDistribution: {
-      running: 0.5,
+      running: 0.6,
       failed: 0.05,
-      unknown: 0.1,
-      lost: 0.05,
-      complete: 0.05,
-      pending: 0.25,
+      unknown: 0.05,
+      lost: 0,
+      complete: 0,
+      pending: 0.3,
     },
     name: 'actively-deploying-job',
     id: 'actively-deploying-job',
     namespaceId: 'default',
     type: 'service',
   });
+
   server.create('deployment', false, 'active', {
     jobId: activelyDeployingJob.id,
     groupDesiredTotal: activelyDeployingTasksPerGroup,
     versionNumber: 1,
     status: 'running',
+  });
+  server.createList('allocation', 25, {
+    jobId: activelyDeployingJob.id,
+    jobVersion: 0,
+    clientStatus: 'running',
   });
 
   // Manipulate the above job to show a nice distribution of running, canary, etc. allocs
@@ -137,13 +143,13 @@ function smallCluster(server) {
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'running')
-    .slice(20, 80)
+    .slice(20, 65)
     .forEach((a) =>
       a.update({ deploymentStatus: { Healthy: true, Canary: false } })
     );
   activelyDeployingJobAllocs.models
     .filter((a) => a.clientStatus === 'pending')
-    .slice(0, 5)
+    .slice(0, 10)
     .forEach((a) =>
       a.update({ deploymentStatus: { Healthy: true, Canary: true } })
     );
