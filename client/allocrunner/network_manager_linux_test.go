@@ -253,6 +253,32 @@ func TestNewNetworkManager(t *testing.T) {
 			err:         true,
 			errContains: "hostname is not currently supported on driver group1",
 		},
+		{
+			name: "legacy task network using exec and bridge",
+			alloc: &structs.Allocation{
+				TaskGroup: "group",
+				Job: &structs.Job{
+					TaskGroups: []*structs.TaskGroup{
+						{
+							Name: "group",
+							Tasks: []*structs.Task{
+								{
+									Name:   "task1",
+									Driver: "group1",
+									Resources: &structs.Resources{
+										Networks: []*structs.NetworkResource{
+											{Mode: "bridge"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			mustInit: false,
+			err:      false,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require := require.New(t)
