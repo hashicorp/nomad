@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -78,6 +75,27 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 
 	eval.CreateIndex = index
 	eval.ModifyIndex = index
+
+	// COMPAT(1.1): Remove in 1.1.0 - 0.12.1 introduced atomic eval job registration
+	if !ServersMeetMinimumVersion(s.Members(), s.Region(), minJobRegisterAtomicEvalVersion, false) {
+		// Create a new evaluation
+		eval.JobModifyIndex = index
+		update := &structs.EvalUpdateRequest{
+			Evals: []*structs.Evaluation{eval},
+		}
+
+		// Commit this evaluation via Raft
+		// There is a risk of partial failure where the JobRegister succeeds
+		// but that the EvalUpdate does not, before Nomad 0.12.1
+		_, evalIndex, err := s.raftApply(structs.EvalUpdateRequestType, update)
+		if err != nil {
+			return nil, err
+		}
+
+		// Update its indexes.
+		eval.CreateIndex = evalIndex
+		eval.ModifyIndex = evalIndex
+	}
 
 	return eval, nil
 }

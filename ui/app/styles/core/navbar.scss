@@ -1,18 +1,9 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 .navbar {
   display: flex;
   align-items: center;
 
   &.is-primary {
-    background: linear-gradient(
-      to right,
-      $nomad-green-darker,
-      $nomad-green-dark
-    );
+    background: linear-gradient(to right, $nomad-green-darker, $nomad-green-dark);
     height: 3.5rem;
     color: $primary-invert;
     padding-left: 20px;
@@ -155,37 +146,5 @@
         display: none;
       }
     }
-  }
-
-  .profile-dropdown {
-    padding: 0.5rem 1rem 0.5rem 0.75rem;
-    background-color: transparent;
-    border: none !important;
-    height: auto;
-    box-shadow: none !important;
-
-    &:focus {
-      background-color: #21a572;
-    }
-
-    .ember-power-select-prefix {
-      color: rgba($primary-invert, 0.8);
-    }
-    .ember-power-select-selected-item {
-      margin-left: 0;
-      border: none;
-    }
-    .ember-power-select-status-icon {
-      border-top-color: white;
-    }
-  }
-
-  .custom-label {
-    border-radius: 1rem;
-    padding: 0.25rem 1rem;
-    background: black;
-    color: white;
-    display: grid;
-    align-self: center;
   }
 }

@@ -27,12 +27,6 @@ capability and access to any namespaces that the quota is applied to.
 
 @include 'general_options.mdx'
 
-## Inspect Options
-
-- `-json`: Output the quota specifications in a JSON format.
-
-- `-t`: Format and display the quota using a Go template.
-
 ## Examples
 
 View the status of a quota specification:
@@ -46,36 +40,4 @@ Limits      = 1
 Quota Limits
 Region  CPU Usage   Memory Usage  Network Usage
 global  500 / 2500  256 / 2000    30 / 50
-
-```
-
-The `-json` flag can be used to get the quota status in json format:
-
-```shell-session
-$ nomad quota inspect -json default-quota
-{
-    "CreateIndex": 8,
-    "Description": "Limit the shared default namespace",
-    "Limits": [
-        {
-            "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
-            "Region": "global",
-            "RegionLimit": {
-                "CPU": 2500,
-                "DiskMB": 0,
-                "MemoryMB": 2000,
-                "Networks": null
-            }
-        }
-    ],
-    "ModifyIndex": 56,
-    "Name": "default-quota"
-}
-```
-
-Or use the `-t` flag to format and display the quota status using a Go template:
-
-```shell-session
-$ nomad quota inspect -t {{ .Description }} default-quota
-Limit the shared default namespace
 ```

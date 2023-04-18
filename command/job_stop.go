@@ -1,12 +1,8 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
@@ -28,10 +24,8 @@ Alias: nomad stop
   allocations and completes shutting down. It is safe to exit the monitor
   early using ctrl+c.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  and 'read-job' capabilities for the job's namespace. The 'list-jobs'
-  capability is required to run the command with job prefixes instead of exact
-  job IDs.
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'list-jobs' capabilities for the job's namespace.
 
 General Options:
 
@@ -124,18 +118,20 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
 	// Check that we got exactly one job
 	args = flags.Args()
-	if len(args) < 1 {
-		c.Ui.Error("This command takes at least one argument: <job>")
+	if len(args) != 1 {
+		c.Ui.Error("This command takes one argument: <job>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-
-	var jobIDs []string
-	for _, jobID := range flags.Args() {
-		jobIDs = append(jobIDs, strings.TrimSpace(jobID))
-	}
+	jobID := strings.TrimSpace(args[0])
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -144,124 +140,92 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 1
 	}
 
-	statusCh := make(chan int, len(jobIDs))
-
-	var wg sync.WaitGroup
-	for _, jobID := range jobIDs {
-		jobID := jobID
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			// Truncate the id unless full length is requested
-			length := shortId
-			if verbose {
-				length = fullId
-			}
-
-			// Check if the job exists
-			job, err := c.JobByPrefix(client, jobID, nil)
-			if err != nil {
-				c.Ui.Error(err.Error())
-				statusCh <- 1
-				return
-			}
-
-			getConfirmation := func(question string) (int, bool) {
-				answer, err := c.Ui.Ask(question)
-				if err != nil {
-					c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))
-					return 1, false
-				}
-
-				if answer == "" || strings.ToLower(answer)[0] == 'n' {
-					// No case
-					c.Ui.Output("Cancelling job stop")
-					return 0, false
-				} else if strings.ToLower(answer)[0] == 'y' && len(answer) > 1 {
-					// Non exact match yes
-					c.Ui.Output("For confirmation, an exact ‘y’ is required.")
-					return 0, false
-				} else if answer != "y" {
-					c.Ui.Output("No confirmation detected. For confirmation, an exact 'y' is required.")
-					return 1, false
-				}
-				return 0, true
-			}
-
-			// Confirm the stop if the job was a prefix match
-			// Ask for confirmation only when there's just one
-			// job that needs to be stopped. Since we're stopping
-			// jobs concurrently, we're going to skip confirmation
-			// for when multiple jobs need to be stopped.
-			if len(jobIDs) == 1 && jobID != *job.ID && !autoYes {
-				question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", *job.ID)
-				code, confirmed := getConfirmation(question)
-				if !confirmed {
-					statusCh <- code
-					return
-				}
-			}
-
-			// Confirm we want to stop only a single region of a multiregion job
-			if len(jobIDs) == 1 && job.IsMultiregion() && !global && !autoYes {
-				question := fmt.Sprintf(
-					"Are you sure you want to stop multi-region job %q in a single region? [y/N]", *job.ID)
-				code, confirmed := getConfirmation(question)
-				if !confirmed {
-					statusCh <- code
-					return
-				}
-			}
-
-			// Invoke the stop
-			opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority, NoShutdownDelay: noShutdownDelay}
-			wq := &api.WriteOptions{Namespace: *job.Namespace}
-			evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error deregistering job with id %s err: %s", jobID, err))
-				statusCh <- 1
-				return
-			}
-
-			// If we are stopping a periodic job there won't be an evalID.
-			if evalID == "" {
-				statusCh <- 0
-				return
-			}
-
-			// Goroutine won't wait on monitor
-			if detach {
-				c.Ui.Output(evalID)
-				statusCh <- 0
-				return
-			}
-
-			// Start monitoring the stop eval
-			// and return result on status channel
-			mon := newMonitor(c.Ui, client, length)
-			statusCh <- mon.monitor(evalID)
-		}()
+	// Check if the job exists
+	jobs, _, err := client.Jobs().PrefixList(jobID)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+		return 1
 	}
-	// users will still see
-	// errors if any while we
-	// wait for the goroutines
-	// to finish processing
-	wg.Wait()
-
-	// close the channel to ensure
-	// the range statement below
-	// doesn't go on indefinitely
-	close(statusCh)
-
-	// return a non-zero exit code
-	// if even a single job stop fails
-	for status := range statusCh {
-		if status != 0 {
-			return status
+	if len(jobs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
+		return 1
+	}
+	if len(jobs) > 1 {
+		if (jobID != jobs[0].ID) || (c.allNamespaces() && jobs[0].ID == jobs[1].ID) {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
 		}
 	}
 
-	return 0
+	// Prefix lookup matched a single job
+	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
+	job, _, err := client.Jobs().Info(jobs[0].ID, q)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+		return 1
+	}
+
+	getConfirmation := func(question string) (int, bool) {
+		answer, err := c.Ui.Ask(question)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Failed to parse answer: %v", err))
+			return 1, false
+		}
+
+		if answer == "" || strings.ToLower(answer)[0] == 'n' {
+			// No case
+			c.Ui.Output("Cancelling job stop")
+			return 0, false
+		} else if strings.ToLower(answer)[0] == 'y' && len(answer) > 1 {
+			// Non exact match yes
+			c.Ui.Output("For confirmation, an exact ‘y’ is required.")
+			return 0, false
+		} else if answer != "y" {
+			c.Ui.Output("No confirmation detected. For confirmation, an exact 'y' is required.")
+			return 1, false
+		}
+		return 0, true
+	}
+
+	// Confirm the stop if the job was a prefix match
+	if jobID != *job.ID && !autoYes {
+		question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", *job.ID)
+		code, confirmed := getConfirmation(question)
+		if !confirmed {
+			return code
+		}
+	}
+
+	// Confirm we want to stop only a single region of a multiregion job
+	if job.IsMultiregion() && !global {
+		question := fmt.Sprintf(
+			"Are you sure you want to stop multi-region job %q in a single region? [y/N]", *job.ID)
+		code, confirmed := getConfirmation(question)
+		if !confirmed {
+			return code
+		}
+	}
+
+	// Invoke the stop
+	opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority, NoShutdownDelay: noShutdownDelay}
+	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
+	evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error deregistering job: %s", err))
+		return 1
+	}
+
+	// If we are stopping a periodic job there won't be an evalID.
+	if evalID == "" {
+		return 0
+	}
+
+	if detach {
+		c.Ui.Output(evalID)
+		return 0
+	}
+
+	// Start monitoring the stop eval
+	mon := newMonitor(c.Ui, client, length)
+	return mon.monitor(evalID)
 }

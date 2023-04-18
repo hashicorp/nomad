@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { click, currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
@@ -51,7 +46,7 @@ module('Acceptance | task logs', function (hooks) {
       'No redirect'
     );
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
-    assert.equal(document.title, `Task ${task.name} logs - Mirage - Nomad`);
+    assert.equal(document.title, `Task ${task.name} logs - Nomad`);
   });
 
   test('the stdout log immediately starts streaming', async function (assert) {

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 $dark-bright: lighten($dark, 15%);
 
 .CodeMirror {
@@ -143,21 +138,16 @@ header.run-job-header {
   & > h1 {
     grid-column: -1 / 1;
   }
-}
 
-.job-spec-upload {
-  .button {
-    cursor: pointer;
+  .job-spec-upload {
+    .button {
+      cursor: pointer;
+    }
+    input {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      display: none;
+    }
   }
-  input {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    display: none;
-  }
-}
-
-.buttonset {
-  display: flex;
-  justify-content: space-between;
 }

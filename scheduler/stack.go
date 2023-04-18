@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -147,7 +144,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
-	s.taskGroupHostVolumes.SetVolumes(options.AllocName, tg.Volumes)
+	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
@@ -324,7 +321,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
-	s.taskGroupHostVolumes.SetVolumes(options.AllocName, tg.Volumes)
+	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])

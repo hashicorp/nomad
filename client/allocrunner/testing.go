@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !release
 // +build !release
 
@@ -93,7 +90,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*Config, fu
 		ServersContactedCh: make(chan struct{}),
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
 		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
-		Getter:             getter.TestSandbox(t),
+		Getter:             getter.TestDefaultGetter(t),
 	}
 
 	return conf, cleanup

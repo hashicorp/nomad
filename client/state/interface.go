@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -98,16 +95,6 @@ type StateDB interface {
 
 	// GetCheckResults is used to restore the set of check results on this Client.
 	GetCheckResults() (checks.ClientResults, error)
-
-	// PutNodeMeta sets dynamic node metadata for merging with the copy from the
-	// Client's config.
-	//
-	// This overwrites existing dynamic node metadata entirely.
-	PutNodeMeta(map[string]*string) error
-
-	// GetNodeMeta retrieves node metadata for merging with the copy from
-	// the Client's config.
-	GetNodeMeta() (map[string]*string, error)
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

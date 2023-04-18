@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -289,7 +286,6 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerSelectTag:            "dc:dc2",
 			PrefixFilter:                       []string{"prefix1", "prefix2"},
 			DisableDispatchedJobSummaryMetrics: true,
-			DisableRPCRateMetricsLabels:        true,
 			FilterDefault:                      pointer.Of(false),
 		},
 		Client: &ClientConfig{
@@ -360,8 +356,6 @@ func TestConfig_Merge(t *testing.T) {
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
-			JobMaxPriority:     pointer.Of(200),
-			JobDefaultPriority: pointer.Of(100),
 		},
 		ACL: &ACLConfig{
 			Enabled:               true,
@@ -1357,7 +1351,6 @@ func TestTelemetry_Parse(t *testing.T) {
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true
-		disable_rpc_rate_metrics_labels = true
 	}`), 0600)
 	require.NoError(err)
 
@@ -1368,7 +1361,6 @@ func TestTelemetry_Parse(t *testing.T) {
 	require.False(*config.Telemetry.FilterDefault)
 	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
 	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
-	require.True(config.Telemetry.DisableRPCRateMetricsLabels)
 }
 
 func TestEventBroker_Parse(t *testing.T) {

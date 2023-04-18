@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import ApplicationSerializer from './application';
 
 const groupBy = (list, attr) => {

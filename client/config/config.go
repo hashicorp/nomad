@@ -1,13 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package config
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"net"
+	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -51,7 +48,7 @@ var (
 		"java",
 	}, ",")
 
-	// DefaultChrootEnv is a mapping of directories on the host OS to attempt to embed inside each
+	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	DefaultChrootEnv = map[string]string{
 		"/bin":            "/bin",
@@ -97,6 +94,9 @@ type Config struct {
 	// AllocDir is where we store data for allocations
 	AllocDir string
 
+	// LogOutput is the destination for logs
+	LogOutput io.Writer
+
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
 
@@ -117,14 +117,6 @@ type Config struct {
 	// MemoryMB is the default node total memory in megabytes if it cannot be
 	// determined dynamically.
 	MemoryMB int
-
-	// DiskTotalMB is the default node total disk space in megabytes if it cannot be
-	// determined dynamically.
-	DiskTotalMB int
-
-	// DiskFreeMB is the default node free disk space in megabytes if it cannot be
-	// determined dynamically.
-	DiskFreeMB int
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout. If the
 	// task's KillTimeout is greater than the MaxKillTimeout, MaxKillTimeout is
@@ -209,6 +201,9 @@ type Config struct {
 	// before garbage collection is triggered.
 	GCMaxAllocs int
 
+	// LogLevel is the level of the logs to putout
+	LogLevel string
+
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
@@ -266,10 +261,6 @@ type Config struct {
 	// networking mode. This defaults to 'nomad' if not set
 	BridgeNetworkName string
 
-	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
-	// internal bridge network
-	BridgeNetworkHairpinMode bool
-
 	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
 	// for allocations in bridge networking mode. Subnet must be in CIDR
 	// notation
@@ -306,28 +297,8 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
-	// APIListenerRegistrar allows the client to register listeners created at
-	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
-	// creates the HTTP *after* the client starts, we have to use this shim to
-	// pass listeners back to the agent.
-	// This is the same design as the bufconndialer but for the
-	// http.Serve(listener) API instead of the net.Dial API.
-	APIListenerRegistrar APIListenerRegistrar
-
 	// Artifact configuration from the agent's config file.
 	Artifact *ArtifactConfig
-
-	// Drain configuration from the agent's config file.
-	Drain *DrainConfig
-}
-
-type APIListenerRegistrar interface {
-	// Serve the HTTP API on the provided listener.
-	//
-	// The context is because Serve may be called before the HTTP server has been
-	// initialized. If the context is canceled before the HTTP server is
-	// initialized, the context's error will be returned.
-	Serve(context.Context, net.Listener) error
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
@@ -494,8 +465,8 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return wc
 }
 
-// Equal returns the result of reflect.DeepEqual
-func (wc *WaitConfig) Equal(other *WaitConfig) bool {
+// Equals returns the result of reflect.DeepEqual
+func (wc *WaitConfig) Equals(other *WaitConfig) bool {
 	return reflect.DeepEqual(wc, other)
 }
 
@@ -504,7 +475,7 @@ func (wc *WaitConfig) IsEmpty() bool {
 	if wc == nil {
 		return true
 	}
-	return wc.Equal(&WaitConfig{})
+	return wc.Equals(&WaitConfig{})
 }
 
 // Validate returns an error  if the receiver is nil or empty or if Min is greater
@@ -629,8 +600,8 @@ func (rc *RetryConfig) Copy() *RetryConfig {
 	return nrc
 }
 
-// Equal returns the result of reflect.DeepEqual
-func (rc *RetryConfig) Equal(other *RetryConfig) bool {
+// Equals returns the result of reflect.DeepEqual
+func (rc *RetryConfig) Equals(other *RetryConfig) bool {
 	return reflect.DeepEqual(rc, other)
 }
 
@@ -640,7 +611,7 @@ func (rc *RetryConfig) IsEmpty() bool {
 		return true
 	}
 
-	return rc.Equal(&RetryConfig{})
+	return rc.Equals(&RetryConfig{})
 }
 
 // Validate returns an error if the receiver is nil or empty, or if Backoff
@@ -755,9 +726,11 @@ func DefaultConfig() *Config {
 		Version:                 version.GetVersion(),
 		VaultConfig:             structsc.DefaultVaultConfig(),
 		ConsulConfig:            structsc.DefaultConsulConfig(),
+		LogOutput:               os.Stderr,
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
+		LogLevel:                "DEBUG",
 		GCInterval:              1 * time.Minute,
 		GCParallelDestroys:      2,
 		GCDiskUsageThreshold:    80,

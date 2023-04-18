@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -13,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -630,50 +626,4 @@ func TestStateStore_ACLRoleRestore(t *testing.T) {
 	out, err := testState.GetACLRoleByName(ws, aclRole.Name)
 	require.NoError(t, err)
 	require.Equal(t, aclRole, out)
-}
-
-func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test registrations and index.
-	expectedIndex := uint64(13)
-	authMethod := mock.ACLOIDCAuthMethod()
-	authMethod.CreateIndex = expectedIndex
-	authMethod.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	require.NoError(t, err)
-	require.NoError(t, restore.ACLAuthMethodRestore(authMethod))
-	require.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored registrations.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLAuthMethodByName(ws, authMethod.Name)
-	require.NoError(t, err)
-	require.Equal(t, authMethod, out)
-}
-
-func TestStateStore_ACLBindingRuleRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test ACL binding rule and index.
-	expectedIndex := uint64(13)
-	aclBindingRule := mock.ACLBindingRule()
-	aclBindingRule.CreateIndex = expectedIndex
-	aclBindingRule.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	must.NoError(t, err)
-	must.NoError(t, restore.ACLBindingRuleRestore(aclBindingRule))
-	must.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored ACL binding rule.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLBindingRule(ws, aclBindingRule.ID)
-	must.NoError(t, err)
-	must.Eq(t, aclBindingRule, out)
 }

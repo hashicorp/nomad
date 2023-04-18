@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from '@ember-data/model';
@@ -230,10 +225,6 @@ export default class Job extends Model {
 
   stop() {
     return this.store.adapterFor('job').stop(this);
-  }
-
-  purge() {
-    return this.store.adapterFor('job').purge(this);
   }
 
   plan() {

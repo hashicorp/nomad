@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -208,8 +205,8 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		require.Equal(t, svs[0].ModifyIndex, got[0].ModifyIndex)
 		require.Equal(t, update2Index, got[1].ModifyIndex)
 
-		require.True(t, svs[0].Equal(got[0]))
-		require.True(t, sv2.Equal(got[1]))
+		require.True(t, svs[0].Equals(got[0]))
+		require.True(t, sv2.Equals(got[1]))
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
 		require.NoError(t, err)

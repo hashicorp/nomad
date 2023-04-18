@@ -1,14 +1,11 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -16,30 +13,22 @@ import (
 // Plan endpoint is used for plan interactions
 type Plan struct {
 	srv    *Server
-	ctx    *RPCContext
-	logger hclog.Logger
-}
+	logger log.Logger
 
-func NewPlanEndpoint(srv *Server, ctx *RPCContext) *Plan {
-	return &Plan{srv: srv, ctx: ctx, logger: srv.logger.Named("plan")}
+	// ctx provides context regarding the underlying connection
+	ctx *RPCContext
 }
 
 // Submit is used to submit a plan to the leader
 func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) error {
-
-	authErr := p.srv.Authenticate(p.ctx, args)
-
 	// Ensure the connection was initiated by another server if TLS is used.
 	err := validateTLSCertificateLevel(p.srv, p.ctx, tlsCertificateLevelServer)
 	if err != nil {
 		return err
 	}
+
 	if done, err := p.srv.forward("Plan.Submit", args, args, reply); done {
 		return err
-	}
-	p.srv.MeasureRPCRate("plan", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "plan", "submit"}, time.Now())
 

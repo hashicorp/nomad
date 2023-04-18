@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <div
   data-test-gutter-menu
   class="page-column is-left {{if this.isOpen "is-open"}}"
@@ -119,7 +114,7 @@
         </li>
       </ul>
       <p class="menu-label">
-        Operations
+        Debugging
       </p>
       <ul class="menu-list">
         <li {{keyboard-shortcut menuLevel=true pattern=(array "g" "e") }}>
@@ -131,23 +126,6 @@
             Evaluations
           </LinkTo>
         </li>
-        {{#if (can "list policies")}}
-          <li
-            {{keyboard-shortcut
-              menuLevel=true
-              pattern=(array "g" "l")
-              action=(action this.transitionTo 'policies')
-            }}
-          >
-            <LinkTo
-              @route="policies"
-              @activeClass="is-active"
-              data-test-gutter-link="policies"
-            >
-              Policies
-            </LinkTo>
-          </li>
-        {{/if}}
       </ul>
     </aside>
     {{#if this.system.agent.version}}

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: execute artifact downloads in sandbox process
-```

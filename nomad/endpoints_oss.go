@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !ent
 // +build !ent
 
@@ -13,7 +10,7 @@ type EnterpriseEndpoints struct{}
 
 // NewEnterpriseEndpoints returns a stub of the enterprise endpoints since there
 // are none in oss
-func NewEnterpriseEndpoints(s *Server, ctx *RPCContext) *EnterpriseEndpoints {
+func NewEnterpriseEndpoints(s *Server) *EnterpriseEndpoints {
 	return &EnterpriseEndpoints{}
 }
 

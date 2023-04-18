@@ -1,9 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
-import { assign } from '@ember/polyfills';
 import config from 'nomad-ui/config/environment';
 import * as topoScenarios from './topo';
 import * as sysbatchScenarios from './sysbatch';
@@ -25,7 +19,6 @@ export const allScenarios = {
   emptyCluster,
   variableTestCluster,
   servicesTestCluster,
-  policiesTestCluster,
   ...topoScenarios,
   ...sysbatchScenarios,
 };
@@ -57,14 +50,6 @@ function smallCluster(server) {
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 5);
-  server.create(
-    'node',
-    {
-      name: 'node-with-meta',
-      meta: { foo: 'bar', baz: 'qux' },
-    },
-    'withMeta'
-  );
   server.createList('job', 1, { createRecommendations: true });
   server.create('job', {
     withGroupServices: true,
@@ -116,54 +101,6 @@ function smallCluster(server) {
   server.create('variable', {
     id: `nomad/jobs/${variableLinkedJob.id}`,
     namespace: variableLinkedJob.namespace,
-  });
-
-  const newJobName = 'new-job';
-  const newJobTaskGroupName = 'redis';
-  const jsonJob = (overrides) => {
-    return JSON.stringify(
-      assign(
-        {},
-        {
-          Name: newJobName,
-          Namespace: 'default',
-          Datacenters: ['dc1'],
-          Priority: 50,
-          TaskGroups: [
-            {
-              Name: newJobTaskGroupName,
-              Tasks: [
-                {
-                  Name: 'redis',
-                  Driver: 'docker',
-                },
-              ],
-            },
-          ],
-        },
-        overrides
-      ),
-      null,
-      2
-    );
-  };
-
-  server.create('variable', {
-    id: `nomad/job-templates/foo-bar`,
-    namespace: 'namespace-2',
-    Items: {
-      description: 'a description',
-      template: jsonJob(),
-    },
-  });
-
-  server.create('variable', {
-    id: `nomad/job-templates/baz-qud`,
-    namespace: 'default',
-    Items: {
-      description: 'another different description',
-      template: jsonJob(),
-    },
   });
 
   server.create('variable', {
@@ -239,11 +176,6 @@ function smallCluster(server) {
     volume.readAllocs.add(alloc);
     volume.save();
   });
-
-  server.create('auth-method', { name: 'vault' });
-  server.create('auth-method', { name: 'auth0' });
-  server.create('auth-method', { name: 'cognito' });
-  server.create('auth-method', { name: 'JWT-Local', type: 'JWT' });
 }
 
 function mediumCluster(server) {
@@ -320,12 +252,6 @@ function variableTestCluster(server) {
     id: 'Auto-conflicting Variable',
     namespace: 'default',
   });
-}
-
-function policiesTestCluster(server) {
-  faker.seed(1);
-  createTokens(server);
-  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
 }
 
 function servicesTestCluster(server) {
@@ -547,10 +473,6 @@ function createTokens(server) {
     name: "Safe O'Constants",
     id: 'f3w3r-53cur3-v4r14bl35',
   });
-  server.create('token', {
-    name: 'Lazarus MacMarbh',
-    id: '3XP1R35-1N-3L3V3N-M1NU735',
-  });
   logTokens(server);
 }
 
@@ -576,10 +498,6 @@ Secret: ${token.secretId}
 Accessor: ${token.accessorId}
 
 `);
-
-    console.log(
-      'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.'
-    );
   });
 }
 

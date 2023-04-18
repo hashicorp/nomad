@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import {
@@ -107,12 +102,10 @@ export default function moduleForJob(
     test('the title buttons are dependent on job status', async function (assert) {
       if (job.status === 'dead') {
         assert.ok(JobDetail.start.isPresent);
-        assert.ok(JobDetail.purge.isPresent);
         assert.notOk(JobDetail.stop.isPresent);
         assert.notOk(JobDetail.execButton.isPresent);
       } else {
         assert.notOk(JobDetail.start.isPresent);
-        assert.notOk(JobDetail.purge.isPresent);
         assert.ok(JobDetail.stop.isPresent);
         assert.ok(JobDetail.execButton.isPresent);
       }
@@ -244,16 +237,6 @@ export function moduleForJobWithClientStatus(
         datacenter: 'dc1',
         status: 'ready',
       });
-
-      clients.push(
-        server.create('node', { datacenter: 'dc2', status: 'ready' })
-      );
-      clients.push(
-        server.create('node', { datacenter: 'dc3', status: 'ready' })
-      );
-      clients.push(
-        server.create('node', { datacenter: 'canada-west-1', status: 'ready' })
-      );
       job = jobFactory();
       clients.forEach((c) => {
         server.create('allocation', { jobId: job.id, nodeId: c.id });

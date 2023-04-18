@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: Added support for meta field on sidecar service block
-```

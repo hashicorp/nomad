@@ -103,7 +103,8 @@ capability for the job's namespace.
 Plan a new job that has not been previously submitted:
 
 ```shell-session
-$ nomad job plan example.nomad.hcl
+$ nomad job plan job1.nomad
+nomad job plan example.nomad
 + Job: "example"
 + Task Group: "cache" (1 create)
   + Task: "redis" (forces create)
@@ -114,7 +115,7 @@ Scheduler dry-run:
 Job Modify Index: 0
 To submit the job with version verification run:
 
-nomad job run -check-index 0 example.nomad.hcl
+nomad job run -check-index 0 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -125,7 +126,7 @@ potentially invalid.
 Increase the count of an existing without sufficient cluster capacity:
 
 ```shell-session
-$ nomad job plan example.nomad.hcl
+$ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (7 create, 1 in-place update)
   +/- Count: "1" => "8" (forces create)
@@ -140,7 +141,7 @@ Scheduler dry-run:
 Job Modify Index: 15
 To submit the job with version verification run:
 
-nomad job run -check-index 15 example.nomad.hcl
+nomad job run -check-index 15 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -151,7 +152,7 @@ potentially invalid.
 Update an existing job such that it would cause a rolling update:
 
 ```shell-session
-$ nomad job plan example.nomad.hcl
+$ nomad job plan example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
   +/- Task: "redis" (forces create/destroy update)
@@ -167,7 +168,7 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad job run -check-index 7 example.nomad.hcl
+nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -178,7 +179,7 @@ potentially invalid.
 Add a task to the task group using verbose mode:
 
 ```shell-session
-$ nomad job plan -verbose example.nomad.hcl
+$ nomad job plan -verbose example.nomad
 +/- Job: "example"
 +/- Task Group: "cache" (3 create/destroy update)
   + Task: "my-website" (forces create/destroy update)
@@ -225,7 +226,7 @@ Scheduler dry-run:
 Job Modify Index: 7
 To submit the job with version verification run:
 
-nomad job run -check-index 7 example.nomad.hcl
+nomad job run -check-index 7 example.nomad
 
 When running the job with the check-index flag, the job will only be run if the
 job modify index given matches the server-side version. If the index has
@@ -244,7 +245,7 @@ file. For example, in Linux environments the [`tee`] command can be used for
 this purpose:
 
 ```console
-$ nomad job plan -no-color example.nomad.hcl | tee /dev/stderr | grep 'Job Modify Index:' | awk -F': ' '{ print $2 }' > check-index || true
+$ nomad job plan -no-color example.nomad | tee /dev/stderr | grep 'Job Modify Index:' | awk -F': ' '{ print $2 }' > check-index || true
 ```
 
 The [`-no-color`](#no-color) flag prevents style characters from impacting

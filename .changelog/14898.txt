@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Update github.com/fsouza/go-dockerclient from 1.8.2 to 1.9.0
-```

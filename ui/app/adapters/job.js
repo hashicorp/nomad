@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
@@ -31,11 +26,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
   stop(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
-    return this.ajax(url, 'DELETE');
-  }
-
-  purge(job) {
-    const url = this.urlForFindRecord(job.get('id'), 'job') + '?purge=true';
     return this.ajax(url, 'DELETE');
   }
 

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { action } from '@ember/object';
 import { bind } from '@ember/runloop';
 import codemirror from 'codemirror';
@@ -13,18 +8,8 @@ import 'codemirror/addon/selection/active-line';
 import 'codemirror/addon/lint/lint.js';
 import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/mode/javascript/javascript';
-import 'codemirror/mode/ruby/ruby';
 
 export default class CodeMirrorModifier extends Modifier {
-  get autofocus() {
-    if (Object.hasOwn({ ...this.args.named }, 'autofocus')) {
-      // spread (...) because proxy, and because Ember over-eagerly prevents named prop lookups for modifier args.
-      return this.args.named.autofocus;
-    } else {
-      return !this.args.named.readOnly;
-    }
-  }
-
   didInstall() {
     this._setup();
   }
@@ -63,10 +48,6 @@ export default class CodeMirrorModifier extends Modifier {
         viewportMargin: this.args.named.viewportMargin || '',
         screenReaderLabel: this.args.named.screenReaderLabel || '',
       });
-
-      if (this.autofocus) {
-        editor.focus();
-      }
 
       editor.on('change', bind(this, this._onChange));
 

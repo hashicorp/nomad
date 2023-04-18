@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package acl
 
 import (
@@ -8,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	iradix "github.com/hashicorp/go-immutable-radix/v2"
+	iradix "github.com/hashicorp/go-immutable-radix"
 	glob "github.com/ryanuber/go-glob"
 )
 
@@ -51,21 +48,21 @@ type ACL struct {
 	management bool
 
 	// namespaces maps a namespace to a capabilitySet
-	namespaces *iradix.Tree[capabilitySet]
+	namespaces *iradix.Tree
 
 	// wildcardNamespaces maps a glob pattern of a namespace to a capabilitySet
 	// We use an iradix for the purposes of ordered iteration.
-	wildcardNamespaces *iradix.Tree[capabilitySet]
+	wildcardNamespaces *iradix.Tree
 
 	// hostVolumes maps a named host volume to a capabilitySet
-	hostVolumes *iradix.Tree[capabilitySet]
+	hostVolumes *iradix.Tree
 
 	// wildcardHostVolumes maps a glob pattern of host volume names to a capabilitySet
 	// We use an iradix for the purposes of ordered iteration.
-	wildcardHostVolumes *iradix.Tree[capabilitySet]
+	wildcardHostVolumes *iradix.Tree
 
-	variables         *iradix.Tree[capabilitySet]
-	wildcardVariables *iradix.Tree[capabilitySet]
+	variables         *iradix.Tree
+	wildcardVariables *iradix.Tree
 
 	agent    string
 	node     string
@@ -100,12 +97,12 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 
 	// Create the ACL object
 	acl := &ACL{}
-	nsTxn := iradix.New[capabilitySet]().Txn()
-	wnsTxn := iradix.New[capabilitySet]().Txn()
-	hvTxn := iradix.New[capabilitySet]().Txn()
-	whvTxn := iradix.New[capabilitySet]().Txn()
-	svTxn := iradix.New[capabilitySet]().Txn()
-	wsvTxn := iradix.New[capabilitySet]().Txn()
+	nsTxn := iradix.New().Txn()
+	wnsTxn := iradix.New().Txn()
+	hvTxn := iradix.New().Txn()
+	whvTxn := iradix.New().Txn()
+	svTxn := iradix.New().Txn()
+	wsvTxn := iradix.New().Txn()
 
 	for _, policy := range policies {
 	NAMESPACES:
@@ -119,7 +116,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			if globDefinition {
 				raw, ok := wnsTxn.Get([]byte(ns.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					wnsTxn.Insert([]byte(ns.Name), capabilities)
@@ -127,7 +124,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			} else {
 				raw, ok := nsTxn.Get([]byte(ns.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					nsTxn.Insert([]byte(ns.Name), capabilities)
@@ -141,7 +138,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 					if globDefinition || strings.Contains(pathPolicy.PathSpec, "*") {
 						raw, ok := wsvTxn.Get(key)
 						if ok {
-							svCapabilities = raw
+							svCapabilities = raw.(capabilitySet)
 						} else {
 							svCapabilities = make(capabilitySet)
 						}
@@ -149,7 +146,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 					} else {
 						raw, ok := svTxn.Get(key)
 						if ok {
-							svCapabilities = raw
+							svCapabilities = raw.(capabilitySet)
 						} else {
 							svCapabilities = make(capabilitySet)
 						}
@@ -189,7 +186,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			if globDefinition {
 				raw, ok := whvTxn.Get([]byte(hv.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					whvTxn.Insert([]byte(hv.Name), capabilities)
@@ -197,7 +194,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			} else {
 				raw, ok := hvTxn.Get([]byte(hv.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					hvTxn.Insert([]byte(hv.Name), capabilities)
@@ -411,7 +408,7 @@ func (a *ACL) matchingNamespaceCapabilitySet(ns string) (capabilitySet, bool) {
 	// Check for a concrete matching capability set
 	raw, ok := a.namespaces.Get([]byte(ns))
 	if ok {
-		return raw, true
+		return raw.(capabilitySet), true
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
@@ -439,7 +436,8 @@ func (a *ACL) anyNamespaceAllowsAnyOp() bool {
 func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
 	allow := false
 
-	checkFn := func(_ []byte, v capabilitySet) bool {
+	checkFn := func(_ []byte, iv interface{}) bool {
+		v := iv.(capabilitySet)
 		allow = cb(v)
 		return allow
 	}
@@ -462,7 +460,7 @@ func (a *ACL) matchingHostVolumeCapabilitySet(name string) (capabilitySet, bool)
 	// Check for a concrete matching capability set
 	raw, ok := a.hostVolumes.Get([]byte(name))
 	if ok {
-		return raw, true
+		return raw.(capabilitySet), true
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
@@ -480,9 +478,9 @@ var workloadVariablesCapabilitySet = capabilitySet{"read": struct{}{}, "list": s
 // difference between the namespace and the glob.
 func (a *ACL) matchingVariablesCapabilitySet(ns, path string, claim *ACLClaim) (capabilitySet, bool) {
 	// Check for a concrete matching capability set
-	capSet, ok := a.variables.Get([]byte(ns + "\x00" + path))
+	raw, ok := a.variables.Get([]byte(ns + "\x00" + path))
 	if ok {
-		return capSet, true
+		return raw.(capabilitySet), true
 	}
 	if claim != nil && ns == claim.Namespace {
 		switch path {
@@ -505,7 +503,7 @@ type matchingGlob struct {
 	capabilitySet capabilitySet
 }
 
-func (a *ACL) findClosestMatchingGlob(radix *iradix.Tree[capabilitySet], ns string) (capabilitySet, bool) {
+func (a *ACL) findClosestMatchingGlob(radix *iradix.Tree, ns string) (capabilitySet, bool) {
 	// First, find all globs that match.
 	matchingGlobs := findAllMatchingWildcards(radix, ns)
 
@@ -529,13 +527,14 @@ func (a *ACL) findClosestMatchingGlob(radix *iradix.Tree[capabilitySet], ns stri
 	return matchingGlobs[0].capabilitySet, true
 }
 
-func findAllMatchingWildcards(radix *iradix.Tree[capabilitySet], name string) []matchingGlob {
+func findAllMatchingWildcards(radix *iradix.Tree, name string) []matchingGlob {
 	var matches []matchingGlob
 
 	nsLen := len(name)
 
-	radix.Root().Walk(func(bk []byte, v capabilitySet) bool {
+	radix.Root().Walk(func(bk []byte, iv interface{}) bool {
 		k := string(bk)
+		v := iv.(capabilitySet)
 
 		isMatch := glob.Glob(k, name)
 		if isMatch {

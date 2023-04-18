@@ -75,16 +75,6 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
-- `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
-  should have the suffix `[n]`, where `n` is the allocation index. This allows
-  mounting a unique volume per allocation, so long as the volume's source is
-  named appropriately. For example, with the source `myvolume` and `per_alloc
-  = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
-  volume ID `myvolume[0]`.
-
-  The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
-  that use canaries.
-
 The following fields are only valid for volumes with `type = "csi"`:
 
 - `access_mode` `(string: <required>)` - Defines whether a volume should be
@@ -101,6 +91,16 @@ The following fields are only valid for volumes with `type = "csi"`:
   support `"file-system"`, to mount volumes using the CSI filesystem API. Some
   storage providers will support `"block-device"`, which will mount the volume
   with the CSI block device API within the container.
+
+- `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
+  should have the suffix `[n]`, where `n` is the allocation index. This allows
+  mounting a unique volume per allocation, so long as the volume's source is
+  named appropriately. For example, with the source `myvolume` and `per_alloc
+  = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
+  volume ID `myvolume[0]`.
+
+  The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
+  that use canaries.
 
 - `mount_options` - Options for mounting CSI volumes that have the
   `file-system` [attachment mode]. These options override the `mount_options`

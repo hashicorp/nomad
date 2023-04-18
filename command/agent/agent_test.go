@@ -1,11 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/hashicorp/raft"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -32,7 +27,7 @@ func TestAgent_RPC_Ping(t *testing.T) {
 	defer agent.Shutdown()
 
 	var out struct{}
-	if err := agent.RPC("Status.Ping", &structs.GenericRequest{}, &out); err != nil {
+	if err := agent.RPC("Status.Ping", struct{}{}, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -555,104 +550,6 @@ func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
 	}
 }
 
-func TestAgent_ServerConfig_RaftTrailingLogs(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name   string
-		value  *int
-		expect interface{}
-		isErr  bool
-	}{
-		{
-			name:   "bad",
-			value:  pointer.Of(int(-1)),
-			isErr:  true,
-			expect: "raft_trailing_logs must be non-negative",
-		},
-		{
-			name:   "good",
-			value:  pointer.Of(int(10)),
-			expect: uint64(10),
-		},
-		{
-			name:   "empty",
-			value:  nil,
-			expect: raft.DefaultConfig().TrailingLogs,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-			tc := tc
-			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.RaftTrailingLogs = tc.value
-			nc, err := convertServerConfig(conf)
-
-			if !tc.isErr {
-				must.NoError(t, err)
-				val := tc.expect.(uint64)
-				must.Eq(t, val, nc.RaftConfig.TrailingLogs)
-				return
-			}
-			must.Error(t, err)
-			must.StrContains(t, err.Error(), tc.expect.(string))
-		})
-	}
-}
-
-func TestAgent_ServerConfig_RaftSnapshotThreshold(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name   string
-		value  *int
-		expect interface{}
-		isErr  bool
-	}{
-		{
-			name:   "bad",
-			value:  pointer.Of(int(-1)),
-			isErr:  true,
-			expect: "raft_snapshot_threshold must be non-negative",
-		},
-		{
-			name:   "good",
-			value:  pointer.Of(int(10)),
-			expect: uint64(10),
-		},
-		{
-			name:   "empty",
-			value:  nil,
-			expect: raft.DefaultConfig().SnapshotThreshold,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ci.Parallel(t)
-			tc := tc
-			conf := DevConfig(nil)
-			require.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.RaftSnapshotThreshold = tc.value
-			nc, err := convertServerConfig(conf)
-
-			if !tc.isErr {
-				must.NoError(t, err)
-				val := tc.expect.(uint64)
-				must.Eq(t, val, nc.RaftConfig.SnapshotThreshold)
-				return
-			}
-			must.Error(t, err)
-			must.StrContains(t, err.Error(), tc.expect.(string))
-		})
-	}
-}
-
 func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 	ci.Parallel(t)
 
@@ -678,7 +575,7 @@ func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 	}
 }
 
-func TestAgent_ClientConfig_discovery(t *testing.T) {
+func TestAgent_ClientConfig(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
@@ -730,21 +627,6 @@ func TestAgent_ClientConfig_discovery(t *testing.T) {
 	require.False(t, c.NomadServiceDiscovery)
 }
 
-func TestAgent_ClientConfig_JobMaxSourceSize(t *testing.T) {
-	ci.Parallel(t)
-
-	conf := DevConfig(nil)
-	must.Eq(t, conf.Server.JobMaxSourceSize, pointer.Of("1M"))
-	must.NoError(t, conf.normalizeAddrs())
-
-	// config conversion ensures value is set
-	conf.Server.JobMaxSourceSize = nil
-	agent := &Agent{config: conf}
-	serverConf, err := agent.serverConfig()
-	must.NoError(t, err)
-	must.Eq(t, 1e6, serverConf.JobMaxSourceSize)
-}
-
 func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
@@ -753,14 +635,16 @@ func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
 	conf.Client.Reserved.Cores = "0,2-3"
 	a := &Agent{config: conf}
 	c, err := a.clientConfig()
-	must.NoError(t, err)
-	must.Eq(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
-	must.Eq(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
+	require.NoError(t, err)
+	require.Exactly(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
+	require.Exactly(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
 }
 
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	ci.Parallel(t)
+
+	assert := assert.New(t)
 
 	conf := DefaultConfig()
 	conf.DevMode = true
@@ -768,13 +652,13 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	a := &Agent{config: conf}
 
 	c, err := a.clientConfig()
-	must.NoError(t, err)
+	assert.Nil(err)
 
 	telemetry := conf.Telemetry
 
-	must.Eq(t, c.StatsCollectionInterval, telemetry.collectionInterval)
-	must.Eq(t, c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
-	must.Eq(t, c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
+	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
+	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
+	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
@@ -1584,145 +1468,4 @@ func TestAgent_ProxyRPC_Dev(t *testing.T) {
 			t.Fatalf("was unable to read ClientStats.Stats RPC: %v", err)
 		})
 
-}
-
-func TestAgent_ServerConfig_JobMaxPriority_Ok(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		maxPriority    *int
-		jobMaxPriority int
-	}{
-		{
-			maxPriority:    nil,
-			jobMaxPriority: 100,
-		},
-
-		{
-			maxPriority:    pointer.Of(0),
-			jobMaxPriority: 100,
-		},
-		{
-			maxPriority:    pointer.Of(100),
-			jobMaxPriority: 100,
-		},
-		{
-			maxPriority:    pointer.Of(200),
-			jobMaxPriority: 200,
-		},
-		{
-			maxPriority:    pointer.Of(32766),
-			jobMaxPriority: 32766,
-		},
-	}
-
-	for _, tc := range cases {
-		v := "default"
-		if tc.maxPriority != nil {
-			v = fmt.Sprintf("%v", *tc.maxPriority)
-		}
-		t.Run(v, func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobMaxPriority = tc.maxPriority
-
-			serverConf, err := convertServerConfig(conf)
-			must.NoError(t, err)
-			must.Eq(t, tc.jobMaxPriority, serverConf.JobMaxPriority)
-		})
-	}
-}
-
-func TestAgent_ServerConfig_JobMaxPriority_Bad(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []int{
-		99,
-		math.MaxInt16,
-	}
-
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobMaxPriority = &tc
-
-			_, err := convertServerConfig(conf)
-			must.Error(t, err)
-			must.ErrorContains(t, err, "job_max_priority cannot be")
-		})
-	}
-}
-
-func TestAgent_ServerConfig_JobDefaultPriority_Ok(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		defaultPriority    *int
-		jobDefaultPriority int
-	}{
-		{
-			defaultPriority:    nil,
-			jobDefaultPriority: 50,
-		},
-
-		{
-			defaultPriority:    pointer.Of(0),
-			jobDefaultPriority: 50,
-		},
-		{
-			defaultPriority:    pointer.Of(50),
-			jobDefaultPriority: 50,
-		},
-		{
-			defaultPriority:    pointer.Of(60),
-			jobDefaultPriority: 60,
-		},
-		{
-			defaultPriority:    pointer.Of(99),
-			jobDefaultPriority: 99,
-		},
-	}
-
-	for _, tc := range cases {
-		v := "default"
-		if tc.defaultPriority != nil {
-			v = fmt.Sprintf("%v", *tc.defaultPriority)
-		}
-		t.Run(v, func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobDefaultPriority = tc.defaultPriority
-
-			serverConf, err := convertServerConfig(conf)
-			must.NoError(t, err)
-
-			must.Eq(t, tc.jobDefaultPriority, serverConf.JobDefaultPriority)
-		})
-	}
-}
-
-func TestAgent_ServerConfig_JobDefaultPriority_Bad(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []int{
-		49,
-		100,
-	}
-
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
-			conf := DevConfig(nil)
-			must.NoError(t, conf.normalizeAddrs())
-
-			conf.Server.JobDefaultPriority = &tc
-
-			_, err := convertServerConfig(conf)
-			must.Error(t, err)
-			must.ErrorContains(t, err, "job_default_priority cannot be")
-		})
-	}
 }

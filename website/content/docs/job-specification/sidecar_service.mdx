@@ -49,8 +49,6 @@ job "countdash" {
 - `disable_default_tcp_check` `(bool: false)` - disable the default TCP health
   check.
 
-- `meta` <code>(map&lt;string|string&gt;: nil)</code> - Specifies arbitrary KV metadata pairs.
-
 - `port` `(string: )` - Port label for sidecar service.
 
 - `proxy` <code>([proxy][]: nil)</code> - This is used to configure the
@@ -69,7 +67,7 @@ The following example is a minimal `sidecar_service` block with defaults
   }
 ```
 
-The following example includes specifying upstreams and meta.
+The following example includes specifying upstreams.
 
 ```hcl
    sidecar_service {
@@ -78,9 +76,6 @@ The following example includes specifying upstreams and meta.
          destination_name = "count-api"
          local_bind_port = 8080
        }
-     }
-     meta {
-       "test-key" = "test-value"
      }
    }
 

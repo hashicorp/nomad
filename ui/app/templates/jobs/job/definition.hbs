@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{page-title "Job " this.job.name " definition"}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
@@ -13,7 +8,6 @@
       @context="edit"
       @onCancel={{action this.onCancel}}
       @onSubmit={{action this.onSubmit}}
-      data-test-job-editor
     />
   {{else}}
     <div class="boxed-section">

@@ -1,3 +1,0 @@
-```release-note:improvement
-license: show Terminated field in `license get` command
-```

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
@@ -8,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -807,7 +805,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 			}
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
-			f, err := os.ReadFile(con[1])
+			f, err := ioutil.ReadFile(con[1])
 			if err != nil {
 				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
 			}
@@ -910,12 +908,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
-	// Only windows supports alternative isolations modes
-	isolationMode := driverConfig.Isolation
-	if runtime.GOOS != "windows" && isolationMode != "" {
-		return c, fmt.Errorf("Failed to create container configuration, cannot use isolation mode \"%s\" on %s", isolationMode, runtime.GOOS)
-	}
-
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	var pidsLimit int64
@@ -946,7 +938,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		// used to share data between different tasks in the same task group.
 		Binds: binds,
 
-		Isolation:    driverConfig.Isolation,
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
@@ -1038,7 +1029,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.ShmSize = driverConfig.ShmSize
 	}
 
-	// Setup devices from Docker-specific config
+	// Setup devices
 	for _, device := range driverConfig.Devices {
 		dd, err := device.toDockerDevice()
 		if err != nil {
@@ -1046,8 +1037,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 		hostConfig.Devices = append(hostConfig.Devices, dd)
 	}
-
-	// Setup devices from Nomad device plugins
 	for _, device := range task.Devices {
 		hostConfig.Devices = append(hostConfig.Devices, docker.Device{
 			PathOnHost:        device.HostPath,

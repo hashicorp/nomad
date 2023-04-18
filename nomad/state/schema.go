@@ -1,13 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -21,8 +18,6 @@ const (
 	TableVariablesQuotas      = "variables_quota"
 	TableRootKeyMeta          = "root_key_meta"
 	TableACLRoles             = "acl_roles"
-	TableACLAuthMethods       = "acl_auth_methods"
-	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
 )
 
@@ -38,7 +33,6 @@ const (
 	indexPath          = "path"
 	indexName          = "name"
 	indexSigningKey    = "signing_key"
-	indexAuthMethod    = "auth_method"
 )
 
 var (
@@ -69,7 +63,6 @@ func init() {
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
-		jobSubmissionSchema,
 		deploymentSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
@@ -92,8 +85,6 @@ func init() {
 		variablesQuotasTableSchema,
 		variablesRootKeyMetaSchema,
 		aclRolesTableSchema,
-		aclAuthMethodsTableSchema,
-		bindingRulesTableSchema,
 	}...)
 }
 
@@ -273,52 +264,6 @@ func jobVersionSchema() *memdb.TableSchema {
 
 						&memdb.UintFieldIndex{
 							Field: "Version",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// jobSubmissionSchema returns the memdb table schema of job submissions
-// which contain the original source material of each job, per version.
-// Unique index by Namespace, JobID, and Version.
-func jobSubmissionSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "job_submission",
-		Indexes: map[string]*memdb.IndexSchema{
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-						&memdb.StringFieldIndex{
-							Field:     "JobID",
-							Lowercase: true,
-						},
-						&memdb.UintFieldIndex{
-							Field: "Version",
-						},
-					},
-				},
-			},
-			"by_jobID": {
-				Name:         "by_jobID",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-						&memdb.StringFieldIndex{
-							Field:     "JobID",
-							Lowercase: true,
 						},
 					},
 				},
@@ -1566,46 +1511,6 @@ func aclRolesTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Name",
-				},
-			},
-		},
-	}
-}
-
-func aclAuthMethodsTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: TableACLAuthMethods,
-		Indexes: map[string]*memdb.IndexSchema{
-			indexID: {
-				Name:         indexID,
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Name",
-				},
-			},
-		},
-	}
-}
-
-func bindingRulesTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: TableACLBindingRules,
-		Indexes: map[string]*memdb.IndexSchema{
-			indexID: {
-				Name:         indexID,
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "ID",
-				},
-			},
-			indexAuthMethod: {
-				Name:         indexAuthMethod,
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "AuthMethod",
 				},
 			},
 		},

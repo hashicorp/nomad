@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package client
 
 import (
@@ -98,7 +95,7 @@ func TestClient_RPC(t *testing.T) {
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
 		var out struct{}
-		err := c1.RPC("Status.Ping", &structs.GenericRequest{}, &out)
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
 		return err == nil, err
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -121,7 +118,7 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
 		var out struct{}
-		err := c1.RPC("Status.Ping", &structs.GenericRequest{}, &out)
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
 		return err == nil, err
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -148,7 +145,7 @@ func TestClient_RPC_Passthrough(t *testing.T) {
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
 		var out struct{}
-		err := c1.RPC("Status.Ping", &structs.GenericRequest{}, &out)
+		err := c1.RPC("Status.Ping", struct{}{}, &out)
 		return err == nil, err
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -481,7 +478,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.Job = job
 
 	state := s1.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatal(err)
 	}
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
@@ -578,7 +575,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	state := s1.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatal(err)
 	}
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
@@ -684,7 +681,7 @@ func TestClient_AddAllocError(t *testing.T) {
 	alloc1.TaskResources = nil
 
 	state := s1.State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.Nil(err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
@@ -1739,7 +1736,7 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	runningAlloc.ClientStatus = structs.AllocClientStatusPending
 
 	state := s1.State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.NoError(t, err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(runningAlloc.JobID))

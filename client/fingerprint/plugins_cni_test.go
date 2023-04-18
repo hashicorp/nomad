@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -31,28 +28,6 @@ func TestPluginsCNIFingerprint_Fingerprint_present(t *testing.T) {
 	attrBridge := f.(*PluginsCNIFingerprint).attribute("bridge")
 	must.Eq(t, "v1.2.3", response.Attributes[attrCustom])
 	must.Eq(t, "v1.0.2", response.Attributes[attrBridge])
-}
-
-func TestPluginsCNIFingerprint_Fingerprint_multi(t *testing.T) {
-	ci.Parallel(t)
-
-	f := NewPluginsCNIFingerprint(testlog.HCLogger(t))
-	request := &FingerprintRequest{
-		Config: &config.Config{
-			CNIPath: "./test_fixtures/cni:./test_fixtures/cni2",
-		},
-	}
-	response := new(FingerprintResponse)
-
-	err := f.Fingerprint(request, response)
-	must.NoError(t, err)
-	must.True(t, response.Detected)
-	attrCustom := f.(*PluginsCNIFingerprint).attribute("custom")
-	attrBridge := f.(*PluginsCNIFingerprint).attribute("bridge")
-	attrCustom2 := f.(*PluginsCNIFingerprint).attribute("custom2")
-	must.Eq(t, "v1.2.3", response.Attributes[attrCustom])
-	must.Eq(t, "v1.0.2", response.Attributes[attrBridge])
-	must.Eq(t, "v9.9.9", response.Attributes[attrCustom2])
 }
 
 func TestPluginsCNIFingerprint_Fingerprint_absent(t *testing.T) {

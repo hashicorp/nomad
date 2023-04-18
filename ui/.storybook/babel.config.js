@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-env node */
 
 // Inject the named blocks polyfill into the template compiler (and then into the babel plugin)

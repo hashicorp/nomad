@@ -1,3 +1,0 @@
-``release-note:improvement
-cli: Remove requirement for `list-jobs` capability on several job subcommands that didn't strictly needed it
-```

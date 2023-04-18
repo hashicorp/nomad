@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -47,26 +44,19 @@ func (l *LicenseCommand) Run(args []string) int {
 func OutputLicenseReply(ui cli.Ui, resp *api.LicenseReply) int {
 	now := time.Now()
 	expired := resp.License.ExpirationTime.Before(now)
-	terminated := resp.License.TerminationTime.Before(now)
-	outputLicenseInfo(ui, resp.License, expired, terminated)
+	outputLicenseInfo(ui, resp.License, expired)
 	if expired {
 		return 1
 	}
 	return 0
 }
 
-func outputLicenseInfo(ui cli.Ui, lic *api.License, expired, terminated bool) {
+func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool) {
 	expStr := ""
 	if expired {
 		expStr = fmt.Sprintf("Expired At|%s", lic.ExpirationTime.String())
 	} else {
 		expStr = fmt.Sprintf("Expires At|%s", lic.ExpirationTime.String())
-	}
-	termStr := ""
-	if terminated {
-		termStr = fmt.Sprintf("Terminated At|%s", lic.TerminationTime.String())
-	} else {
-		termStr = fmt.Sprintf("Terminates At|%s", lic.TerminationTime.String())
 	}
 
 	validity := "valid"
@@ -80,7 +70,6 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired, terminated bool) {
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
 		fmt.Sprintf("Issued At|%s", lic.IssueTime),
 		expStr,
-		termStr,
 		fmt.Sprintf("Datacenter|%s", lic.InstallationID),
 	}
 	ui.Output(formatKV(output))

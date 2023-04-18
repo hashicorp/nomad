@@ -203,27 +203,10 @@ template {
 }
 ```
 
-### Task `meta` values
-
-To render values from a task's `meta` config, use the environment variable form
-of the meta variable name.
-
-```hcl
-meta {
-  mykey = "some_value"
-}
-
-template {
-  data = <<EOH
-  {{ env "NOMAD_META_mykey" }}
-EOH
-}
-```
-
 ### Node Variables
 
 Use the `env` function to access the Node's attributes and metadata inside a
-template. Note the `meta.` syntax here applies only to node meta fields.
+template.
 
 ```hcl
 template {

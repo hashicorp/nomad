@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -70,7 +65,7 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.equal(Task.lifecycle, lifecycleName);
 
-    assert.equal(document.title, `Task ${task.name} - Mirage - Nomad`);
+    assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {

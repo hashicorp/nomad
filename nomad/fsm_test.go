@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -16,7 +13,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1766,7 +1762,7 @@ func TestFSM_JobStabilityUpdate(t *testing.T) {
 
 	// Upsert a deployment
 	job := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1811,7 +1807,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, j); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -2259,9 +2255,9 @@ func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
-	state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2439,12 +2435,12 @@ func TestFSM_SnapshotRestore_JobSummary(t *testing.T) {
 	state := fsm.State()
 
 	job1 := mock.Job()
-	state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	ws := memdb.NewWatchSet()
 	js1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 
 	job2 := mock.Job()
-	state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 	js2, _ := state.JobSummaryByID(ws, job2.Namespace, job2.ID)
 
 	// Verify the contents
@@ -2489,10 +2485,10 @@ func TestFSM_SnapshotRestore_JobVersions(t *testing.T) {
 	fsm := testFSM(t)
 	state := fsm.State()
 	job1 := mock.Job()
-	state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	job2 := mock.Job()
 	job2.ID = job1.ID
-	state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 
 	// Verify the contents
 	ws := memdb.NewWatchSet()
@@ -2523,7 +2519,7 @@ func TestFSM_SnapshotRestore_Deployments(t *testing.T) {
 	d1.JobID = j.ID
 	d2.JobID = j.ID
 
-	state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j)
+	state.UpsertJob(structs.MsgTypeTestSetup, 999, j)
 	state.UpsertDeployment(1000, d1)
 	state.UpsertDeployment(1001, d2)
 
@@ -2686,62 +2682,6 @@ func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
 	require.ElementsMatch(t, restoredACLRoles, aclRoles)
 }
 
-func TestFSM_SnapshotRestore_ACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create our initial FSM which will be snapshotted.
-	fsm := testFSM(t)
-	testState := fsm.State()
-
-	// Generate and upsert some ACL auth methods.
-	authMethods := []*structs.ACLAuthMethod{mock.ACLOIDCAuthMethod(), mock.ACLOIDCAuthMethod()}
-	must.NoError(t, testState.UpsertACLAuthMethods(10, authMethods))
-
-	// Perform a snapshot restore.
-	restoredFSM := testSnapshotRestore(t, fsm)
-	restoredState := restoredFSM.State()
-
-	// List the ACL auth methods from restored state and ensure everything is as
-	// expected.
-	iter, err := restoredState.GetACLAuthMethods(memdb.NewWatchSet())
-	must.NoError(t, err)
-
-	var restoredACLAuthMethods []*structs.ACLAuthMethod
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLAuthMethods = append(restoredACLAuthMethods, raw.(*structs.ACLAuthMethod))
-	}
-	must.SliceContainsAll(t, restoredACLAuthMethods, authMethods)
-}
-
-func TestFSM_SnapshotRestore_ACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create our initial FSM which will be snapshotted.
-	fsm := testFSM(t)
-	testState := fsm.State()
-
-	// Generate a some mocked ACL binding rules for testing and upsert these
-	// straight into state.
-	mockedACLBindingRoles := []*structs.ACLBindingRule{mock.ACLBindingRule(), mock.ACLBindingRule()}
-	must.NoError(t, testState.UpsertACLBindingRules(10, mockedACLBindingRoles, true))
-
-	// Perform a snapshot restore.
-	restoredFSM := testSnapshotRestore(t, fsm)
-	restoredState := restoredFSM.State()
-
-	// List the ACL binding rules from restored state and ensure everything is
-	// as expected.
-	iter, err := restoredState.GetACLBindingRules(memdb.NewWatchSet())
-	must.NoError(t, err)
-
-	var restoredACLBindingRules []*structs.ACLBindingRule
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLBindingRules = append(restoredACLBindingRules, raw.(*structs.ACLBindingRule))
-	}
-	must.SliceContainsAll(t, restoredACLBindingRules, mockedACLBindingRoles)
-}
-
 func TestFSM_ReconcileSummaries(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state
@@ -2755,12 +2695,12 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	// Make a job so that none of the tasks can be placed
 	job1 := mock.Job()
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1))
 
 	// make a job which can make partial progress
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1010, nil, alloc.Job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1010, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	// Delete the summaries
@@ -2841,7 +2781,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 		Payload: "random",
 	}
 	job1.TaskGroups[0].Count = 1
-	state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 
 	// Make a child job
 	childJob := job1.Copy()
@@ -2857,7 +2797,7 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	alloc.JobID = childJob.ID
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 
-	state.UpsertJob(structs.MsgTypeTestSetup, 1010, nil, childJob)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1010, childJob)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc})
 
 	// Make the summary incorrect in the state store
@@ -3537,112 +3477,4 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 
 	require.Len(t, events, 1)
 	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
-}
-
-func TestFSM_UpsertACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	am1 := mock.ACLOIDCAuthMethod()
-	am2 := mock.ACLOIDCAuthMethod()
-	req := structs.ACLAuthMethodUpsertRequest{
-		AuthMethods: []*structs.ACLAuthMethod{am1, am2},
-	}
-	buf, err := structs.Encode(structs.ACLAuthMethodsUpsertRequestType, req)
-	must.Nil(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
-	must.Nil(t, err)
-	must.NotNil(t, out)
-
-	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
-	must.Nil(t, err)
-	must.NotNil(t, out)
-}
-
-func TestFSM_DeleteACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	am1 := mock.ACLOIDCAuthMethod()
-	am2 := mock.ACLOIDCAuthMethod()
-	must.Nil(t, fsm.State().UpsertACLAuthMethods(1000, []*structs.ACLAuthMethod{am1, am2}))
-
-	req := structs.ACLAuthMethodDeleteRequest{
-		Names: []string{am1.Name, am2.Name},
-	}
-	buf, err := structs.Encode(structs.ACLAuthMethodsDeleteRequestType, req)
-	must.Nil(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Verify we are NOT registered
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLAuthMethodByName(ws, am1.Name)
-	must.Nil(t, err)
-	must.Nil(t, out)
-
-	out, err = fsm.State().GetACLAuthMethodByName(ws, am2.Name)
-	must.Nil(t, err)
-	must.Nil(t, out)
-}
-
-func TestFSM_UpsertACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	// Create an auth method and upsert so the binding rules can link to this.
-	authMethod := mock.ACLOIDCAuthMethod()
-	must.NoError(t, fsm.state.UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{authMethod}))
-
-	aclBindingRule1 := mock.ACLBindingRule()
-	aclBindingRule1.AuthMethod = authMethod.Name
-	aclBindingRule2 := mock.ACLBindingRule()
-	aclBindingRule2.AuthMethod = authMethod.Name
-
-	req := structs.ACLBindingRulesUpsertRequest{
-		ACLBindingRules: []*structs.ACLBindingRule{aclBindingRule1, aclBindingRule2},
-	}
-	buf, err := structs.Encode(structs.ACLBindingRulesUpsertRequestType, req)
-	must.NoError(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Ensure the ACL binding rules have been upserted correctly.
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLBindingRule(ws, aclBindingRule1.ID)
-	must.Nil(t, err)
-	must.Eq(t, aclBindingRule1, out)
-
-	out, err = fsm.State().GetACLBindingRule(ws, aclBindingRule2.ID)
-	must.Nil(t, err)
-	must.Eq(t, aclBindingRule2, out)
-}
-
-func TestFSM_DeleteACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-	fsm := testFSM(t)
-
-	aclBindingRule1 := mock.ACLBindingRule()
-	aclBindingRule2 := mock.ACLBindingRule()
-	must.NoError(t, fsm.State().UpsertACLBindingRules(
-		10, []*structs.ACLBindingRule{aclBindingRule1, aclBindingRule2}, true))
-
-	req := structs.ACLBindingRulesDeleteRequest{
-		ACLBindingRuleIDs: []string{aclBindingRule1.ID, aclBindingRule2.ID},
-	}
-	buf, err := structs.Encode(structs.ACLBindingRulesDeleteRequestType, req)
-	must.NoError(t, err)
-	must.Nil(t, fsm.Apply(makeLog(buf)))
-
-	// Ensure neither ACL binding rule is now found.
-	ws := memdb.NewWatchSet()
-	out, err := fsm.State().GetACLBindingRule(ws, aclBindingRule1.ID)
-	must.NoError(t, err)
-	must.Nil(t, out)
-
-	out, err = fsm.State().GetACLBindingRule(ws, aclBindingRule2.ID)
-	must.NoError(t, err)
-	must.Nil(t, out)
 }

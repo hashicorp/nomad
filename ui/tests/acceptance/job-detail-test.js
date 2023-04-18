@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-test-module-for */
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
@@ -35,18 +30,6 @@ moduleForJobWithClientStatus(
     })
 );
 
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (system with wildcard dc)',
-  () =>
-    server.create('job', {
-      id: 'system-wildcard-dc',
-      status: 'running',
-      datacenters: ['canada-*-1'],
-      type: 'system',
-      createAllocations: false,
-    })
-);
-
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
   server.create('job', { type: 'sysbatch', shallow: true })
 );
@@ -69,20 +52,6 @@ moduleForJobWithClientStatus(
     return server.create('job', {
       status: 'running',
       datacenters: ['dc1'],
-      type: 'sysbatch',
-      namespaceId: namespace.name,
-      createAllocations: false,
-    });
-  }
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (sysbatch with namespace and wildcard dc)',
-  () => {
-    const namespace = server.create('namespace', { id: 'test' });
-    return server.create('job', {
-      status: 'running',
-      datacenters: ['*'],
       type: 'sysbatch',
       namespaceId: namespace.name,
       createAllocations: false,
@@ -120,20 +89,6 @@ moduleForJobWithClientStatus(
       shallow: true,
       namespaceId: namespace.name,
       datacenters: ['dc1'],
-    });
-    return server.db.jobs.where({ parentId: parent.id })[0];
-  }
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (sysbatch child with namespace and wildcard dc)',
-  () => {
-    const namespace = server.create('namespace', { id: 'test' });
-    const parent = server.create('job', 'periodicSysbatch', {
-      childrenCount: 1,
-      shallow: true,
-      namespaceId: namespace.name,
-      datacenters: ['*'],
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 export const logFrames = [
   'hello world\n',
   'some more output\ngoes here\n\n--> potentially helpful',

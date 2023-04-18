@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package config
 
 import (
@@ -95,7 +92,7 @@ func TestWaitConfig_Copy(t *testing.T) {
 
 	for _, _case := range cases {
 		t.Run(_case.Name, func(t *testing.T) {
-			result := _case.Expected.Equal(_case.Wait.Copy())
+			result := _case.Expected.Equals(_case.Wait.Copy())
 			if !result {
 				t.Logf("\nExpected %v\n   Found %v", _case.Expected, result)
 			}
@@ -178,7 +175,7 @@ func TestWaitConfig_IsEqual(t *testing.T) {
 
 	for _, _case := range cases {
 		t.Run(_case.Name, func(t *testing.T) {
-			require.Equal(t, _case.Expected, _case.Wait.Equal(_case.Other))
+			require.Equal(t, _case.Expected, _case.Wait.Equals(_case.Other))
 		})
 	}
 }
@@ -288,7 +285,7 @@ func TestWaitConfig_Merge(t *testing.T) {
 	for _, _case := range cases {
 		t.Run(_case.Name, func(t *testing.T) {
 			merged := _case.Target.Merge(_case.Other)
-			result := _case.Expected.Equal(merged)
+			result := _case.Expected.Equals(merged)
 			if !result {
 				t.Logf("\nExpected %v\n   Found %v", _case.Expected, merged)
 			}
@@ -394,7 +391,7 @@ func TestRetryConfig_Copy(t *testing.T) {
 
 	for _, _case := range cases {
 		t.Run(_case.Name, func(t *testing.T) {
-			result := _case.Expected.Equal(_case.Retry.Copy())
+			result := _case.Expected.Equals(_case.Retry.Copy())
 			if !result {
 				t.Logf("\nExpected %v\n   Found %v", _case.Expected, result)
 			}
@@ -522,7 +519,7 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 
 	for _, _case := range cases {
 		t.Run(_case.Name, func(t *testing.T) {
-			require.Equal(t, _case.Expected, _case.Retry.Equal(_case.Other))
+			require.Equal(t, _case.Expected, _case.Retry.Equals(_case.Other))
 		})
 	}
 }
@@ -665,7 +662,7 @@ func TestRetryConfig_Merge(t *testing.T) {
 	for _, _case := range cases {
 		t.Run(_case.Name, func(t *testing.T) {
 			merged := _case.Target.Merge(_case.Other)
-			result := _case.Expected.Equal(merged)
+			result := _case.Expected.Equals(merged)
 			if !result {
 				t.Logf("\nExpected %v\n   Found %v", _case.Expected, merged)
 			}

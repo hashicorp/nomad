@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package testutil
 
 // TestServer is a test helper. It uses a fork/exec model to create
@@ -27,6 +24,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
 	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/portal"
 	"github.com/shoenig/test/wait"
@@ -288,7 +286,7 @@ func (s *TestServer) waitForAPI() {
 		}
 		return nil
 	}
-	must.Wait(s.t,
+	test.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),
@@ -315,7 +313,7 @@ func (s *TestServer) waitForLeader() {
 		}
 		return nil
 	}
-	must.Wait(s.t,
+	test.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),
@@ -349,7 +347,7 @@ func (s *TestServer) waitForClient() {
 		}
 		return nil
 	}
-	must.Wait(s.t,
+	test.Wait(s.t,
 		wait.InitialSuccess(
 			wait.ErrorFunc(f),
 			wait.Timeout(10*time.Second),

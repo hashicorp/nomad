@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 // Recommendations is used to query the recommendations endpoints.
@@ -36,7 +33,7 @@ func (r *Recommendations) Info(id string, q *QueryOptions) (*Recommendation, *Qu
 // Upsert is used to create or update a recommendation
 func (r *Recommendations) Upsert(rec *Recommendation, q *WriteOptions) (*Recommendation, *WriteMeta, error) {
 	var resp Recommendation
-	wm, err := r.client.put("/v1/recommendation", rec, &resp, q)
+	wm, err := r.client.write("/v1/recommendation", rec, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,7 +46,7 @@ func (r *Recommendations) Delete(ids []string, q *WriteOptions) (*WriteMeta, err
 		Apply:   []string{},
 		Dismiss: ids,
 	}
-	wm, err := r.client.put("/v1/recommendations/apply", req, nil, q)
+	wm, err := r.client.write("/v1/recommendations/apply", req, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +61,7 @@ func (r *Recommendations) Apply(ids []string, policyOverride bool) (
 		PolicyOverride: policyOverride,
 	}
 	var resp RecommendationApplyResponse
-	wm, err := r.client.put("/v1/recommendations/apply", req, &resp, nil)
+	wm, err := r.client.write("/v1/recommendations/apply", req, &resp, nil)
 	if err != nil {
 		return nil, nil, err
 	}

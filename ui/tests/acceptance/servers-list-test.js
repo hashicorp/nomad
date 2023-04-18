@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -66,7 +61,7 @@ module('Acceptance | servers list', function (hooks) {
       );
     });
 
-    assert.equal(document.title, 'Servers - Mirage - Nomad');
+    assert.equal(document.title, 'Servers - Nomad');
   });
 
   test('each server should show high-level info of the server', async function (assert) {

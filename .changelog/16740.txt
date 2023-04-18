@@ -1,3 +1,0 @@
-```release-note:improvement
-client/fingerprint: detect fastest cpu core during cpu performance fallback
-```

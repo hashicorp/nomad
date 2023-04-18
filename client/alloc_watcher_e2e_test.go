@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package client_test
 
 import (
@@ -58,6 +55,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			CertFile:             clientCertFn,
 			KeyFile:              clientKeyFn,
 		}
+
 		c.Client.Enabled = true
 		c.Client.Servers = []string{server.GetConfig().RPCAddr.String()}
 	}

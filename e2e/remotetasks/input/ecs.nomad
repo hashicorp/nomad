@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 variable "subnets" {
   type        = list(string)
   description = "Subnet IDs task will run in."

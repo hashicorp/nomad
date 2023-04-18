@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package config
 
 import (
@@ -10,30 +7,28 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 func TestArtifactConfigFromAgent(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name   string
-		config *config.ArtifactConfig
-		exp    *ArtifactConfig
-		expErr string
+		name          string
+		config        *config.ArtifactConfig
+		expected      *ArtifactConfig
+		expectedError string
 	}{
 		{
 			name:   "from default",
 			config: config.DefaultArtifactConfig(),
-			exp: &ArtifactConfig{
-				HTTPReadTimeout:             30 * time.Minute,
-				HTTPMaxBytes:                100_000_000_000,
-				GCSTimeout:                  30 * time.Minute,
-				GitTimeout:                  30 * time.Minute,
-				HgTimeout:                   30 * time.Minute,
-				S3Timeout:                   30 * time.Minute,
-				DecompressionLimitFileCount: 4096,
-				DecompressionLimitSize:      100_000_000_000,
+			expected: &ArtifactConfig{
+				HTTPReadTimeout: 30 * time.Minute,
+				HTTPMaxBytes:    100_000_000_000,
+				GCSTimeout:      30 * time.Minute,
+				GitTimeout:      30 * time.Minute,
+				HgTimeout:       30 * time.Minute,
+				S3Timeout:       30 * time.Minute,
 			},
 		},
 		{
@@ -46,7 +41,7 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 				HgTimeout:       pointer.Of("30m"),
 				S3Timeout:       pointer.Of("30m"),
 			},
-			expErr: "error parsing HTTPReadTimeout",
+			expectedError: "error parsing HTTPReadTimeout",
 		},
 		{
 			name: "invalid http max size",
@@ -58,7 +53,7 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 				HgTimeout:       pointer.Of("30m"),
 				S3Timeout:       pointer.Of("30m"),
 			},
-			expErr: "error parsing HTTPMaxSize",
+			expectedError: "error parsing HTTPMaxSize",
 		},
 		{
 			name: "invalid gcs timeout",
@@ -70,7 +65,7 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 				HgTimeout:       pointer.Of("30m"),
 				S3Timeout:       pointer.Of("30m"),
 			},
-			expErr: "error parsing GCSTimeout",
+			expectedError: "error parsing GCSTimeout",
 		},
 		{
 			name: "invalid git timeout",
@@ -82,7 +77,7 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 				HgTimeout:       pointer.Of("30m"),
 				S3Timeout:       pointer.Of("30m"),
 			},
-			expErr: "error parsing GitTimeout",
+			expectedError: "error parsing GitTimeout",
 		},
 		{
 			name: "invalid hg timeout",
@@ -94,7 +89,7 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 				HgTimeout:       pointer.Of("invalid"),
 				S3Timeout:       pointer.Of("30m"),
 			},
-			expErr: "error parsing HgTimeout",
+			expectedError: "error parsing HgTimeout",
 		},
 		{
 			name: "invalid s3 timeout",
@@ -106,7 +101,7 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 				HgTimeout:       pointer.Of("30m"),
 				S3Timeout:       pointer.Of("invalid"),
 			},
-			expErr: "error parsing S3Timeout",
+			expectedError: "error parsing S3Timeout",
 		},
 	}
 
@@ -114,12 +109,12 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := ArtifactConfigFromAgent(tc.config)
 
-			if tc.expErr != "" {
-				must.Error(t, err)
-				must.StrContains(t, err.Error(), tc.expErr)
+			if tc.expectedError != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedError)
 			} else {
-				must.NoError(t, err)
-				must.Eq(t, tc.exp, got)
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, got)
 			}
 		})
 	}
@@ -128,20 +123,18 @@ func TestArtifactConfigFromAgent(t *testing.T) {
 func TestArtifactConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
-	ac := &ArtifactConfig{
-		HTTPReadTimeout:            time.Minute,
-		HTTPMaxBytes:               1000,
-		GCSTimeout:                 2 * time.Minute,
-		GitTimeout:                 time.Second,
-		HgTimeout:                  time.Hour,
-		S3Timeout:                  5 * time.Minute,
-		DisableFilesystemIsolation: true,
-		SetEnvironmentVariables:    "FOO,BAR",
+	config := &ArtifactConfig{
+		HTTPReadTimeout: time.Minute,
+		HTTPMaxBytes:    1000,
+		GCSTimeout:      2 * time.Minute,
+		GitTimeout:      time.Second,
+		HgTimeout:       time.Hour,
+		S3Timeout:       5 * time.Minute,
 	}
 
 	// make sure values are copied.
-	configCopy := ac.Copy()
-	must.Eq(t, ac, configCopy)
+	configCopy := config.Copy()
+	require.Equal(t, config, configCopy)
 
 	// modify copy and make sure original doesn't change.
 	configCopy.HTTPReadTimeout = 5 * time.Minute
@@ -150,17 +143,13 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	configCopy.GitTimeout = 3 * time.Second
 	configCopy.HgTimeout = 2 * time.Hour
 	configCopy.S3Timeout = 10 * time.Minute
-	configCopy.DisableFilesystemIsolation = false
-	configCopy.SetEnvironmentVariables = "BAZ"
 
-	must.Eq(t, &ArtifactConfig{
-		HTTPReadTimeout:            time.Minute,
-		HTTPMaxBytes:               1000,
-		GCSTimeout:                 2 * time.Minute,
-		GitTimeout:                 time.Second,
-		HgTimeout:                  time.Hour,
-		S3Timeout:                  5 * time.Minute,
-		DisableFilesystemIsolation: true,
-		SetEnvironmentVariables:    "FOO,BAR",
-	}, ac)
+	require.Equal(t, &ArtifactConfig{
+		HTTPReadTimeout: time.Minute,
+		HTTPMaxBytes:    1000,
+		GCSTimeout:      2 * time.Minute,
+		GitTimeout:      time.Second,
+		HgTimeout:       time.Hour,
+		S3Timeout:       5 * time.Minute,
+	}, config)
 }

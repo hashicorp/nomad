@@ -45,8 +45,8 @@ reproduce it:
 
 ```shell-session
 $ nomad init
-Example job file written to example.nomad.hcl
-$ nomad job run -output example.nomad.hcl
+Example job file written to example.nomad
+$ nomad job run -output example.nomad
 ```
 
 ```json
@@ -77,7 +77,6 @@ $ nomad job run -output example.nomad.hcl
             "User": "",
             "Lifecycle": null,
             "Config": {
-              "auth_soft_fail": true,
               "image": "redis:7",
               "ports": [
                 "db"
@@ -110,11 +109,7 @@ $ nomad job run -output example.nomad.hcl
             "ShutdownDelay": 0,
             "KillSignal": "",
             "Kind": "",
-            "ScalingPolicies": null,
-            "Identity": {
-              "Env": true,
-              "File": true
-            }
+            "ScalingPolicies": null
           }
         ],
         "Spreads": null,
@@ -156,6 +151,7 @@ $ nomad job run -output example.nomad.hcl
         "Meta": null,
         "Services": [
           {
+            "Id": "",
             "Name": "redis-cache",
             "Tags": [
               "global",
@@ -165,16 +161,14 @@ $ nomad job run -output example.nomad.hcl
             "EnableTagOverride": false,
             "PortLabel": "db",
             "AddressMode": "",
-            "Address": "",
             "Checks": null,
             "CheckRestart": null,
             "Connect": null,
             "Meta": null,
             "CanaryMeta": null,
-            "TaggedAddresses": null,
             "TaskName": "",
             "OnUpdate": "",
-            "Provider": "nomad"
+            "Provider": ""
           }
         ],
         "ShutdownDelay": null,
@@ -458,13 +452,6 @@ The `Task` object supports the following keys:
     }
   }
   ```
-
-- `Identity` - Specifies whether to expose Nomad's [Workload Identity][]
-  to the task.
-
-  - `Env` - If `true` the `NOMAD_TOKEN` environment variable will be set.
-
-  - `File` - If `true` the `secrets/nomad_token` file will be created.
 
 - `KillSignal` - Specifies a configurable kill signal for a task, where the
   default is SIGINT. Note that this is only supported for drivers which accept
@@ -1204,4 +1191,3 @@ The `Scaling` object supports the following keys:
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [drain]: /nomad/docs/commands/node/drain
 [env]: /nomad/docs/runtime/environment 'Nomad Runtime Environment'
-[Workload Identity]: /nomad/docs/concepts/workload-identity 'Nomad Workload Identity'

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { test } from 'qunit';
 import { currentURL, visit } from '@ember/test-helpers';
@@ -92,7 +87,7 @@ export default function browseFilesystem({
         `${pathWithLeadingSlash} - ${getTitleComponent({
           allocation: this.allocation,
           task: this.task,
-        })} - Mirage - Nomad`
+        })} - Nomad`
       );
       assert.equal(
         FS.breadcrumbsText,

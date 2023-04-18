@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -17,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,109 +21,82 @@ import (
 func TestJob_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	tests := []struct {
-		name   string
-		job    *Job
-		expErr []string
-	}{
-		{
-			name: "job is empty",
-			job:  &Job{},
-			expErr: []string{
-				"datacenters",
-				"job ID",
-				"job name",
-				"job region",
-				"job type",
-				"namespace",
-				"task groups",
-			},
-		},
-		{
-			name: "job type is invalid",
-			job: &Job{
-				Type: "invalid-job-type",
-			},
-			expErr: []string{
-				`Invalid job type: "invalid-job-type"`,
-			},
-		},
-		{
-			name: "job periodic specification type is missing",
-			job: &Job{
-				Type: JobTypeService,
-				Periodic: &PeriodicConfig{
-					Enabled: true,
-				},
-			},
-			expErr: []string{
-				`Unknown periodic specification type ""`,
-				"Must specify a spec",
-			},
-		},
-		{
-			name: "job datacenters is empty",
-			job: &Job{
-				Datacenters: []string{""},
-			},
-			expErr: []string{
-				"datacenter must be non-empty string",
-			},
-		},
-		{
-			name: "job task group is type invalid",
-			job: &Job{
-				Region:      "global",
-				ID:          uuid.Generate(),
-				Namespace:   "test",
-				Name:        "my-job",
-				Type:        JobTypeService,
-				Priority:    JobDefaultPriority,
-				Datacenters: []string{"*"},
-				TaskGroups: []*TaskGroup{
-					{
-						Name: "web",
-						RestartPolicy: &RestartPolicy{
-							Interval: 5 * time.Minute,
-							Delay:    10 * time.Second,
-							Attempts: 10,
-						},
-					},
-					{
-						Name: "web",
-						RestartPolicy: &RestartPolicy{
-							Interval: 5 * time.Minute,
-							Delay:    10 * time.Second,
-							Attempts: 10,
-						},
-					},
-					{
-						RestartPolicy: &RestartPolicy{
-							Interval: 5 * time.Minute,
-							Delay:    10 * time.Second,
-							Attempts: 10,
-						},
-					},
-				},
-			},
-			expErr: []string{
-				"2 redefines 'web' from group 1",
-				"group 3 missing name",
-				"Task group web validation failed",
-				"Missing tasks for task group",
-				"Unsupported restart mode",
-				"Task Group web should have a reschedule policy",
-				"Task Group web should have an ephemeral disk object",
-			},
-		},
+	j := &Job{}
+	err := j.Validate()
+	requireErrors(t, err,
+		"datacenters",
+		"job ID",
+		"job name",
+		"job region",
+		"job type",
+		"namespace",
+		"priority",
+		"task groups",
+	)
+
+	j = &Job{
+		Type: "invalid-job-type",
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.job.Validate()
-			requireErrors(t, err, tc.expErr...)
-		})
+	err = j.Validate()
+	if expected := `Invalid job type: "invalid-job-type"`; !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
 	}
 
+	j = &Job{
+		Type: JobTypeService,
+		Periodic: &PeriodicConfig{
+			Enabled: true,
+		},
+	}
+	err = j.Validate()
+	require.Error(t, err, "Periodic")
+
+	j = &Job{
+		Region:      "global",
+		ID:          uuid.Generate(),
+		Namespace:   "test",
+		Name:        "my-job",
+		Type:        JobTypeService,
+		Priority:    50,
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "web",
+				RestartPolicy: &RestartPolicy{
+					Interval: 5 * time.Minute,
+					Delay:    10 * time.Second,
+					Attempts: 10,
+				},
+			},
+			{
+				Name: "web",
+				RestartPolicy: &RestartPolicy{
+					Interval: 5 * time.Minute,
+					Delay:    10 * time.Second,
+					Attempts: 10,
+				},
+			},
+			{
+				RestartPolicy: &RestartPolicy{
+					Interval: 5 * time.Minute,
+					Delay:    10 * time.Second,
+					Attempts: 10,
+				},
+			},
+		},
+	}
+	err = j.Validate()
+	requireErrors(t, err,
+		"2 redefines 'web' from group 1",
+		"group 3 missing name",
+		"Task group web validation failed",
+	)
+	// test for empty datacenters
+	j = &Job{
+		Datacenters: []string{""},
+	}
+	err = j.Validate()
+	require.Error(t, err, "datacenter must be non-empty string")
 }
 
 func TestJob_ValidateScaling(t *testing.T) {
@@ -401,9 +370,9 @@ func testJob() *Job {
 		Namespace:   "test",
 		Name:        "my-job",
 		Type:        JobTypeService,
-		Priority:    JobDefaultPriority,
+		Priority:    50,
 		AllAtOnce:   false,
-		Datacenters: []string{"*"},
+		Datacenters: []string{"dc1"},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",
@@ -459,10 +428,6 @@ func testJob() *Job {
 							{
 								GetterSource: "http://foo.com",
 							},
-						},
-						Identity: &WorkloadIdentity{
-							Env:  true,
-							File: true,
 						},
 						Resources: &Resources{
 							CPU:      500,
@@ -898,12 +863,12 @@ func TestJob_PartEqual(t *testing.T) {
 	ci.Parallel(t)
 
 	ns := &Networks{}
-	require.True(t, ns.Equal(&Networks{}))
+	require.True(t, ns.Equals(&Networks{}))
 
 	ns = &Networks{
 		&NetworkResource{Device: "eth0"},
 	}
-	require.True(t, ns.Equal(&Networks{
+	require.True(t, ns.Equals(&Networks{
 		&NetworkResource{Device: "eth0"},
 	}))
 
@@ -912,7 +877,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&NetworkResource{Device: "eth1"},
 		&NetworkResource{Device: "eth2"},
 	}
-	require.True(t, ns.Equal(&Networks{
+	require.True(t, ns.Equals(&Networks{
 		&NetworkResource{Device: "eth2"},
 		&NetworkResource{Device: "eth0"},
 		&NetworkResource{Device: "eth1"},
@@ -923,7 +888,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Constraint{"left1", "right1", "="},
 		&Constraint{"left2", "right2", "="},
 	}
-	require.True(t, cs.Equal(&Constraints{
+	require.True(t, cs.Equals(&Constraints{
 		&Constraint{"left0", "right0", "="},
 		&Constraint{"left2", "right2", "="},
 		&Constraint{"left1", "right1", "="},
@@ -934,7 +899,7 @@ func TestJob_PartEqual(t *testing.T) {
 		&Affinity{"left1", "right1", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 	}
-	require.True(t, as.Equal(&Affinities{
+	require.True(t, as.Equals(&Affinities{
 		&Affinity{"left0", "right0", "=", 0},
 		&Affinity{"left2", "right2", "=", 0},
 		&Affinity{"left1", "right1", "=", 0},
@@ -1038,374 +1003,322 @@ func TestTaskGroup_UsesConnect(t *testing.T) {
 func TestTaskGroup_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	tests := []struct {
-		name    string
-		tg      *TaskGroup
-		expErr  []string
-		jobType string
-	}{
-		{
-			name: "task group is missing basic specs",
-			tg: &TaskGroup{
-				Count: -1,
-				RestartPolicy: &RestartPolicy{
-					Interval: 5 * time.Minute,
-					Delay:    10 * time.Second,
-					Attempts: 10,
-					Mode:     RestartPolicyModeDelay,
-				},
-				ReschedulePolicy: &ReschedulePolicy{
-					Interval: 5 * time.Minute,
-					Attempts: 5,
-					Delay:    5 * time.Second,
-				},
-			},
-			expErr: []string{
-				"group name",
-				"count can't be negative",
-				"Missing tasks",
-			},
-			jobType: JobTypeService,
+	j := testJob()
+	tg := &TaskGroup{
+		Count: -1,
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
+			Mode:     RestartPolicyModeDelay,
 		},
-		{
-			name: "two tasks using same port",
-			tg: &TaskGroup{
-				Tasks: []*Task{
-					{
-						Name: "task-a",
-						Resources: &Resources{
-							Networks: []*NetworkResource{
-								{
-									ReservedPorts: []Port{{Label: "foo", Value: 123}},
-								},
-							},
-						},
-					},
-					{
-						Name: "task-b",
-						Resources: &Resources{
-							Networks: []*NetworkResource{
-								{
-									ReservedPorts: []Port{{Label: "foo", Value: 123}},
-								},
-							},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 5,
+			Delay:    5 * time.Second,
+		},
+	}
+	err := tg.Validate(j)
+	requireErrors(t, err,
+		"group name",
+		"count can't be negative",
+		"Missing tasks",
+	)
+
+	tg = &TaskGroup{
+		Tasks: []*Task{
+			{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							ReservedPorts: []Port{{Label: "foo", Value: 123}},
 						},
 					},
 				},
 			},
-			expErr: []string{
-				"Static port 123 already reserved by task-a:foo",
+			{
+				Name: "task-b",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							ReservedPorts: []Port{{Label: "foo", Value: 123}},
+						},
+					},
+				},
 			},
-			jobType: JobTypeService,
 		},
-		{
-			name: "one task using same port twice",
-			tg: &TaskGroup{
-				Tasks: []*Task{
-					{
-						Name: "task-a",
-						Resources: &Resources{
-							Networks: []*NetworkResource{
-								{
-									ReservedPorts: []Port{
-										{Label: "foo", Value: 123},
-										{Label: "bar", Value: 123},
-									},
-								},
+	}
+	err = tg.Validate(&Job{})
+	expected := `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Tasks: []*Task{
+			{
+				Name: "task-a",
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							ReservedPorts: []Port{
+								{Label: "foo", Value: 123},
+								{Label: "bar", Value: 123},
 							},
 						},
 					},
 				},
 			},
-			expErr: []string{
-				"Static port 123 already reserved by task-a:foo",
-			},
-			jobType: JobTypeService,
 		},
-		{
-			name: "multiple leaders defined and one empty task",
-			tg: &TaskGroup{
-				Name:  "web",
-				Count: 1,
-				Tasks: []*Task{
-					{Name: "web", Leader: true},
-					{Name: "web", Leader: true},
-					{},
-				},
-				RestartPolicy: &RestartPolicy{
-					Interval: 5 * time.Minute,
-					Delay:    10 * time.Second,
-					Attempts: 10,
-					Mode:     RestartPolicyModeDelay,
-				},
-				ReschedulePolicy: &ReschedulePolicy{
-					Interval:      5 * time.Minute,
-					Attempts:      10,
-					Delay:         5 * time.Second,
-					DelayFunction: "constant",
-				},
-			},
-			expErr: []string{
-				"should have an ephemeral disk object",
-				"2 redefines 'web' from task 1",
-				"Task 3 missing name",
-				"Only one task may be marked as leader",
-				"Task web validation failed",
-			},
-			jobType: JobTypeService,
+	}
+	err = tg.Validate(&Job{})
+	expected = `Static port 123 already reserved by task-a:foo`
+	if !strings.Contains(err.Error(), expected) {
+		t.Errorf("expected %s but found: %v", expected, err)
+	}
+
+	tg = &TaskGroup{
+		Name:  "web",
+		Count: 1,
+		Tasks: []*Task{
+			{Name: "web", Leader: true},
+			{Name: "web", Leader: true},
+			{},
 		},
-		{
-			name: "invalid update block for batch job",
-			tg: &TaskGroup{
-				Name:  "web",
-				Count: 1,
-				Tasks: []*Task{
-					{Name: "web", Leader: true},
-				},
-				Update: DefaultUpdateStrategy.Copy(),
-			},
-			expErr: []string{
-				"does not allow update block",
-			},
-			jobType: JobTypeBatch,
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
+			Mode:     RestartPolicyModeDelay,
 		},
-		{
-			name: "invalid reschedule policy for system job",
-			tg: &TaskGroup{
-				Count: -1,
-				RestartPolicy: &RestartPolicy{
-					Interval: 5 * time.Minute,
-					Delay:    10 * time.Second,
-					Attempts: 10,
-					Mode:     RestartPolicyModeDelay,
-				},
-				ReschedulePolicy: &ReschedulePolicy{
-					Interval: 5 * time.Minute,
-					Attempts: 5,
-					Delay:    5 * time.Second,
-				},
-			},
-			expErr: []string{
-				"System jobs should not have a reschedule policy",
-			},
-			jobType: JobTypeSystem,
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval:      5 * time.Minute,
+			Attempts:      10,
+			Delay:         5 * time.Second,
+			DelayFunction: "constant",
 		},
-		{
-			name: "duplicated por label",
-			tg: &TaskGroup{
-				Networks: []*NetworkResource{
-					{
-						DynamicPorts: []Port{{"http", 0, 80, ""}},
-					},
-				},
-				Tasks: []*Task{
-					{
-						Resources: &Resources{
-							Networks: []*NetworkResource{
-								{
-									DynamicPorts: []Port{{"http", 0, 80, ""}},
-								},
-							},
+	}
+
+	err = tg.Validate(j)
+	requireErrors(t, err,
+		"should have an ephemeral disk object",
+		"2 redefines 'web' from task 1",
+		"Task 3 missing name",
+		"Only one task may be marked as leader",
+		"Task web validation failed",
+	)
+
+	tg = &TaskGroup{
+		Name:  "web",
+		Count: 1,
+		Tasks: []*Task{
+			{Name: "web", Leader: true},
+		},
+		Update: DefaultUpdateStrategy.Copy(),
+	}
+	j.Type = JobTypeBatch
+	err = tg.Validate(j)
+	require.Error(t, err, "does not allow update block")
+
+	tg = &TaskGroup{
+		Count: -1,
+		RestartPolicy: &RestartPolicy{
+			Interval: 5 * time.Minute,
+			Delay:    10 * time.Second,
+			Attempts: 10,
+			Mode:     RestartPolicyModeDelay,
+		},
+		ReschedulePolicy: &ReschedulePolicy{
+			Interval: 5 * time.Minute,
+			Attempts: 5,
+			Delay:    5 * time.Second,
+		},
+	}
+	j.Type = JobTypeSystem
+	err = tg.Validate(j)
+	if !strings.Contains(err.Error(), "System jobs should not have a reschedule policy") {
+		t.Fatalf("err: %s", err)
+	}
+
+	tg = &TaskGroup{
+		Networks: []*NetworkResource{
+			{
+				DynamicPorts: []Port{{"http", 0, 80, ""}},
+			},
+		},
+		Tasks: []*Task{
+			{
+				Resources: &Resources{
+					Networks: []*NetworkResource{
+						{
+							DynamicPorts: []Port{{"http", 0, 80, ""}},
 						},
 					},
 				},
 			},
-			expErr: []string{
-				"Port label http already in use",
-			},
-			jobType: JobTypeService,
 		},
-		{
-			name: "invalid volume type",
-			tg: &TaskGroup{
-				Volumes: map[string]*VolumeRequest{
-					"foo": {
-						Type:   "nothost",
-						Source: "foo",
-					},
-				},
-				Tasks: []*Task{
+	}
+	err = tg.Validate(j)
+	require.Contains(t, err.Error(), "Port label http already in use")
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type:   "nothost",
+				Source: "foo",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `volume has unrecognized type nothost`)
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "host",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `volume has an empty source`)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Update: &UpdateStrategy{
+			Canary: 1,
+		},
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type:     "csi",
+				PerAlloc: true,
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `volume has an empty source`)
+	require.Contains(t, err.Error(), `volume cannot be per_alloc when canaries are in use`)
+	require.Contains(t, err.Error(), `CSI volumes must have an attachment mode`)
+	require.Contains(t, err.Error(), `CSI volumes must have an access mode`)
+
+	tg = &TaskGroup{
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type: "host",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
 					{
-						Name:      "task-a",
-						Resources: &Resources{},
+						Volume: "",
 					},
 				},
 			},
-			expErr: []string{
-				"volume has unrecognized type nothost",
-			},
-			jobType: JobTypeService,
-		},
-		{
-			name: "invalid volume with wrong CSI and canary specs",
-			tg: &TaskGroup{
-				Name: "group-a",
-				Update: &UpdateStrategy{
-					Canary: 1,
-				},
-				Volumes: map[string]*VolumeRequest{
-					"foo": {
-						Type:     "csi",
-						PerAlloc: true,
-					},
-				},
-				Tasks: []*Task{
+			{
+				Name:      "task-b",
+				Resources: &Resources{},
+				VolumeMounts: []*VolumeMount{
 					{
-						Name:      "task-a",
-						Resources: &Resources{},
+						Volume: "foob",
 					},
 				},
 			},
-			expErr: []string{
-				`volume has an empty source`,
-				`volume cannot be per_alloc when canaries are in use`,
-				`CSI volumes must have an attachment mode`,
-				`CSI volumes must have an access mode`,
-			},
-			jobType: JobTypeService,
 		},
-		{
-			name: "invalid task referencing non existent task",
-			tg: &TaskGroup{
-				Name: "group-a",
+	}
+	err = tg.Validate(&Job{})
+	expected = `Task task-a has a volume mount (0) referencing an empty volume`
+	require.Contains(t, err.Error(), expected)
+
+	expected = `Task task-b has a volume mount (0) referencing undefined volume foob`
+	require.Contains(t, err.Error(), expected)
+
+	taskA := &Task{Name: "task-a"}
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "consul",
+				Checks: []*ServiceCheck{
+					{
+						Name:      "check-a",
+						Type:      "tcp",
+						TaskName:  "task-b",
+						PortLabel: "http",
+						Interval:  time.Duration(1 * time.Second),
+						Timeout:   time.Duration(1 * time.Second),
+					},
+				},
+			},
+		},
+		Tasks: []*Task{taskA},
+	}
+	err = tg.Validate(&Job{})
+	expected = `Check check-a invalid: refers to non-existent task task-b`
+	require.Contains(t, err.Error(), expected)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "nomad",
+			},
+			{
+				Name:     "service-b",
+				Provider: "consul",
+			},
+		},
+		Tasks: []*Task{{Name: "task-a"}},
+	}
+	err = tg.Validate(&Job{})
+	expected = "Multiple service providers used: task group services must use the same provider"
+	require.Contains(t, err.Error(), expected)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Services: []*Service{
+			{
+				Name:     "service-a",
+				Provider: "nomad",
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name: "task-a",
 				Services: []*Service{
-					{
-						Name:     "service-a",
-						Provider: "consul",
-						Checks: []*ServiceCheck{
-							{
-								Name:      "check-a",
-								Type:      "tcp",
-								TaskName:  "task-b",
-								PortLabel: "http",
-								Interval:  time.Duration(1 * time.Second),
-								Timeout:   time.Duration(1 * time.Second),
-							},
-						},
-					},
-				},
-				Tasks: []*Task{
-					{Name: "task-a"},
-				},
-			},
-			expErr: []string{
-				"Check check-a invalid: refers to non-existent task task-b",
-			},
-			jobType: JobTypeService,
-		},
-		{
-			name: "invalid volume for tasks",
-			tg: &TaskGroup{
-				Volumes: map[string]*VolumeRequest{
-					"foo": {
-						Type: "host",
-					},
-				},
-				Tasks: []*Task{
-					{
-						Name:      "task-a",
-						Resources: &Resources{},
-						VolumeMounts: []*VolumeMount{
-							{
-								Volume: "",
-							},
-						},
-					},
-					{
-						Name:      "task-b",
-						Resources: &Resources{},
-						VolumeMounts: []*VolumeMount{
-							{
-								Volume: "foob",
-							},
-						},
-					},
-				},
-			},
-			expErr: []string{
-				`Task task-a has a volume mount (0) referencing an empty volume`,
-				`Task task-b has a volume mount (0) referencing undefined volume foob`,
-			},
-			jobType: JobTypeService,
-		},
-		{
-			name: "services inside group using different providers",
-			tg: &TaskGroup{
-				Name: "group-a",
-				Services: []*Service{
-					{
-						Name:     "service-a",
-						Provider: "nomad",
-					},
 					{
 						Name:     "service-b",
 						Provider: "consul",
 					},
 				},
-				Tasks: []*Task{{Name: "task-a"}},
 			},
-			expErr: []string{
-				"Multiple service providers used: task group services must use the same provider",
-			},
-			jobType: JobTypeService,
-		},
-		{
-			name: "conflicting progress deadline and kill timeout",
-			tg: &TaskGroup{
-				Name:  "web",
-				Count: 1,
-				Tasks: []*Task{
-					{
-						Name:        "web",
-						Leader:      true,
-						KillTimeout: DefaultUpdateStrategy.ProgressDeadline + 25*time.Minute,
-					},
-				},
-				Update: DefaultUpdateStrategy.Copy(),
-			},
-			expErr: []string{
-				"Task web has a kill timout (35m0s) longer than the group's progress deadline (10m0s)",
-			},
-			jobType: JobTypeService,
-		},
-		{
-			name: "service and task using different provider",
-			tg: &TaskGroup{
-				Name: "group-a",
-				Services: []*Service{
-					{
-						Name:     "service-a",
-						Provider: "nomad",
-					},
-				},
-				Tasks: []*Task{
-					{
-						Name: "task-a",
-						Services: []*Service{
-							{
-								Name:     "service-b",
-								Provider: "consul",
-							},
-						},
-					},
-				},
-			},
-			expErr: []string{
-				"Multiple service providers used: task group services must use the same provider",
-			},
-			jobType: JobTypeService,
 		},
 	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			j := testJob()
-			j.Type = tc.jobType
-
-			err := tc.tg.Validate(j)
-			requireErrors(t, err, tc.expErr...)
-		})
-	}
+	err = tg.Validate(&Job{})
+	expected = "Multiple service providers used: task group services must use the same provider"
+	require.Contains(t, err.Error(), expected)
 }
 
 func TestTaskGroupNetwork_Validate(t *testing.T) {
@@ -2571,31 +2484,31 @@ func TestLogConfig_Equals(t *testing.T) {
 	t.Run("both nil", func(t *testing.T) {
 		a := (*LogConfig)(nil)
 		b := (*LogConfig)(nil)
-		require.True(t, a.Equal(b))
+		require.True(t, a.Equals(b))
 	})
 
 	t.Run("one nil", func(t *testing.T) {
 		a := new(LogConfig)
 		b := (*LogConfig)(nil)
-		require.False(t, a.Equal(b))
+		require.False(t, a.Equals(b))
 	})
 
 	t.Run("max files", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 2, MaxFileSizeMB: 200}
-		require.False(t, a.Equal(b))
+		require.False(t, a.Equals(b))
 	})
 
 	t.Run("max file size", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 100}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.False(t, a.Equal(b))
+		require.False(t, a.Equals(b))
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
 		b := &LogConfig{MaxFiles: 1, MaxFileSizeMB: 200}
-		require.True(t, a.Equal(b))
+		require.True(t, a.Equals(b))
 	})
 }
 
@@ -2931,74 +2844,49 @@ func TestTaskWaitConfig_Equals(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name string
-		wc1  *WaitConfig
-		wc2  *WaitConfig
-		exp  bool
+		name     string
+		config   *WaitConfig
+		expected *WaitConfig
 	}{
 		{
 			name: "all-fields",
-			wc1: &WaitConfig{
+			config: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
-			wc2: &WaitConfig{
+			expected: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 				Max: pointer.Of(10 * time.Second),
 			},
-			exp: true,
 		},
 		{
-			name: "no-fields",
-			wc1:  &WaitConfig{},
-			wc2:  &WaitConfig{},
-			exp:  true,
+			name:     "no-fields",
+			config:   &WaitConfig{},
+			expected: &WaitConfig{},
 		},
 		{
 			name: "min-only",
-			wc1: &WaitConfig{
+			config: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
-			wc2: &WaitConfig{
+			expected: &WaitConfig{
 				Min: pointer.Of(5 * time.Second),
 			},
-			exp: true,
 		},
 		{
 			name: "max-only",
-			wc1: &WaitConfig{
+			config: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
-			wc2: &WaitConfig{
+			expected: &WaitConfig{
 				Max: pointer.Of(10 * time.Second),
 			},
-			exp: true,
-		},
-		{
-			name: "min-nil-vs-set",
-			wc1: &WaitConfig{
-				Min: pointer.Of(1 * time.Second),
-			},
-			wc2: &WaitConfig{
-				Min: nil,
-			},
-			exp: false,
-		},
-		{
-			name: "max-nil-vs-set",
-			wc1: &WaitConfig{
-				Max: pointer.Of(1 * time.Second),
-			},
-			wc2: &WaitConfig{
-				Max: nil,
-			},
-			exp: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			must.Eq(t, tc.exp, tc.wc1.Equal(tc.wc2))
+			require.True(t, tc.config.Equals(tc.expected))
 		})
 	}
 }
@@ -4411,100 +4299,97 @@ func TestTaskArtifact_Hash(t *testing.T) {
 func TestAllocation_ShouldMigrate(t *testing.T) {
 	ci.Parallel(t)
 
-	testCases := []struct {
-		name   string
-		expect bool
-		alloc  Allocation
-	}{
-		{
-			name:   "should migrate with previous alloc and migrate=true sticky=true",
-			expect: true,
-			alloc: Allocation{
-				PreviousAllocation: "123",
-				TaskGroup:          "foo",
-				Job: &Job{
-					TaskGroups: []*TaskGroup{
-						{
-							Name: "foo",
-							EphemeralDisk: &EphemeralDisk{
-								Migrate: true,
-								Sticky:  true,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:   "should not migrate with migrate=false sticky=false",
-			expect: false,
-			alloc: Allocation{
-				PreviousAllocation: "123",
-				TaskGroup:          "foo",
-				Job: &Job{
-					TaskGroups: []*TaskGroup{
-						{
-							Name:          "foo",
-							EphemeralDisk: &EphemeralDisk{},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:   "should migrate with migrate=true sticky=false",
-			expect: true,
-			alloc: Allocation{
-				PreviousAllocation: "123",
-				TaskGroup:          "foo",
-				Job: &Job{
-					TaskGroups: []*TaskGroup{
-						{
-							Name: "foo",
-							EphemeralDisk: &EphemeralDisk{
-								Sticky:  false,
-								Migrate: true,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:   "should not migrate with nil ephemeral disk",
-			expect: false,
-			alloc: Allocation{
-				PreviousAllocation: "123",
-				TaskGroup:          "foo",
-				Job: &Job{
-					TaskGroups: []*TaskGroup{{Name: "foo"}},
-				},
-			},
-		},
-		{
-			name:   "should not migrate without previous alloc",
-			expect: false,
-			alloc: Allocation{
-				TaskGroup: "foo",
-				Job: &Job{
-					TaskGroups: []*TaskGroup{
-						{
-							Name: "foo",
-							EphemeralDisk: &EphemeralDisk{
-								Migrate: true,
-								Sticky:  true,
-							},
-						},
+	alloc := Allocation{
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
 					},
 				},
 			},
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			must.Eq(t, tc.expect, tc.alloc.ShouldMigrate())
-		})
+	if !alloc.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc1 := Allocation{
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name:          "foo",
+					EphemeralDisk: &EphemeralDisk{},
+				},
+			},
+		},
+	}
+
+	if alloc1.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc2 := Allocation{
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Sticky:  false,
+						Migrate: true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc2.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	alloc3 := Allocation{
+		PreviousAllocation: "123",
+		TaskGroup:          "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+				},
+			},
+		},
+	}
+
+	if alloc3.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc)
+	}
+
+	// No previous
+	alloc4 := Allocation{
+		TaskGroup: "foo",
+		Job: &Job{
+			TaskGroups: []*TaskGroup{
+				{
+					Name: "foo",
+					EphemeralDisk: &EphemeralDisk{
+						Migrate: true,
+						Sticky:  true,
+					},
+				},
+			},
+		},
+	}
+
+	if alloc4.ShouldMigrate() {
+		t.Fatalf("bad: %v", alloc4)
 	}
 }
 
@@ -6445,7 +6330,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 	for _, testCase := range networkResourcesTest {
 		first := testCase.input[0]
 		second := testCase.input[1]
-		require.Equal(testCase.expected, first.Equal(second), testCase.errorMsg)
+		require.Equal(testCase.expected, first.Equals(second), testCase.errorMsg)
 	}
 }
 
@@ -6937,32 +6822,6 @@ func TestNodeResources_Merge(t *testing.T) {
 	}, res)
 }
 
-func TestAllocatedPortMapping_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*AllocatedPortMapping](t, nil, nil)
-	must.NotEqual[*AllocatedPortMapping](t, nil, new(AllocatedPortMapping))
-
-	must.StructEqual(t, &AllocatedPortMapping{
-		Label:  "http",
-		Value:  80,
-		To:     9000,
-		HostIP: "10.0.0.1",
-	}, []must.Tweak[*AllocatedPortMapping]{{
-		Field: "Label",
-		Apply: func(m *AllocatedPortMapping) { m.Label = "https" },
-	}, {
-		Field: "Value",
-		Apply: func(m *AllocatedPortMapping) { m.Value = 443 },
-	}, {
-		Field: "To",
-		Apply: func(m *AllocatedPortMapping) { m.To = 9999 },
-	}, {
-		Field: "HostIP",
-		Apply: func(m *AllocatedPortMapping) { m.HostIP = "10.1.1.1" },
-	}})
-}
-
 func TestAllocatedResources_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
@@ -7257,315 +7116,4 @@ func requireErrors(t *testing.T, err error, expected ...string) {
 	}
 
 	require.Equal(t, expected, found)
-}
-
-func TestEphemeralDisk_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*EphemeralDisk](t, nil, nil)
-	must.NotEqual[*EphemeralDisk](t, nil, new(EphemeralDisk))
-
-	must.StructEqual(t, &EphemeralDisk{
-		Sticky:  true,
-		SizeMB:  42,
-		Migrate: true,
-	}, []must.Tweak[*EphemeralDisk]{{
-		Field: "Sticky",
-		Apply: func(e *EphemeralDisk) { e.Sticky = false },
-	}, {
-		Field: "SizeMB",
-		Apply: func(e *EphemeralDisk) { e.SizeMB = 10 },
-	}, {
-		Field: "Migrate",
-		Apply: func(e *EphemeralDisk) { e.Migrate = false },
-	}})
-}
-
-func TestDNSConfig_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*DNSConfig](t, nil, nil)
-	must.NotEqual[*DNSConfig](t, nil, new(DNSConfig))
-
-	must.StructEqual(t, &DNSConfig{
-		Servers:  []string{"8.8.8.8", "8.8.4.4"},
-		Searches: []string{"org", "local"},
-		Options:  []string{"opt1"},
-	}, []must.Tweak[*DNSConfig]{{
-		Field: "Servers",
-		Apply: func(c *DNSConfig) { c.Servers = []string{"1.1.1.1"} },
-	}, {
-		Field: "Searches",
-		Apply: func(c *DNSConfig) { c.Searches = []string{"localhost"} },
-	}, {
-		Field: "Options",
-		Apply: func(c *DNSConfig) { c.Options = []string{"opt2"} },
-	}})
-}
-
-func TestChangeScript_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*ChangeScript](t, nil, nil)
-	must.NotEqual[*ChangeScript](t, nil, new(ChangeScript))
-
-	must.StructEqual(t, &ChangeScript{
-		Command:     "/bin/sleep",
-		Args:        []string{"infinity"},
-		Timeout:     1 * time.Second,
-		FailOnError: true,
-	}, []must.Tweak[*ChangeScript]{{
-		Field: "Command",
-		Apply: func(c *ChangeScript) { c.Command = "/bin/false" },
-	}, {
-		Field: "Args",
-		Apply: func(c *ChangeScript) { c.Args = []string{"1s"} },
-	}, {
-		Field: "Timeout",
-		Apply: func(c *ChangeScript) { c.Timeout = 2 * time.Second },
-	}, {
-		Field: "FailOnError",
-		Apply: func(c *ChangeScript) { c.FailOnError = false },
-	}})
-}
-
-func TestWaitConfig_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*WaitConfig](t, nil, nil)
-	must.NotEqual[*WaitConfig](t, nil, new(WaitConfig))
-
-	must.StructEqual(t, &WaitConfig{
-		Min: pointer.Of[time.Duration](100),
-		Max: pointer.Of[time.Duration](200),
-	}, []must.Tweak[*WaitConfig]{{
-		Field: "Min",
-		Apply: func(c *WaitConfig) { c.Min = pointer.Of[time.Duration](111) },
-	}, {
-		Field: "Max",
-		Apply: func(c *WaitConfig) { c.Max = pointer.Of[time.Duration](222) },
-	}})
-}
-
-func TestTaskArtifact_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*TaskArtifact](t, nil, nil)
-	must.NotEqual[*TaskArtifact](t, nil, new(TaskArtifact))
-
-	must.StructEqual(t, &TaskArtifact{
-		GetterSource:  "source",
-		GetterOptions: map[string]string{"a": "A"},
-		GetterHeaders: map[string]string{"b": "B"},
-		GetterMode:    "file",
-		RelativeDest:  "./local",
-	}, []must.Tweak[*TaskArtifact]{{
-		Field: "GetterSource",
-		Apply: func(ta *TaskArtifact) { ta.GetterSource = "other" },
-	}, {
-		Field: "GetterOptions",
-		Apply: func(ta *TaskArtifact) { ta.GetterOptions = nil },
-	}, {
-		Field: "GetterHeaders",
-		Apply: func(ta *TaskArtifact) { ta.GetterHeaders = nil },
-	}, {
-		Field: "GetterMode",
-		Apply: func(ta *TaskArtifact) { ta.GetterMode = "directory" },
-	}, {
-		Field: "RelativeDest",
-		Apply: func(ta *TaskArtifact) { ta.RelativeDest = "./alloc" },
-	}})
-}
-
-func TestVault_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Vault](t, nil, nil)
-	must.NotEqual[*Vault](t, nil, new(Vault))
-
-	must.StructEqual(t, &Vault{
-		Policies:     []string{"one"},
-		Namespace:    "global",
-		Env:          true,
-		ChangeMode:   "signal",
-		ChangeSignal: "SIGILL",
-	}, []must.Tweak[*Vault]{{
-		Field: "Policies",
-		Apply: func(v *Vault) { v.Policies = []string{"two"} },
-	}, {
-		Field: "Namespace",
-		Apply: func(v *Vault) { v.Namespace = "regional" },
-	}, {
-		Field: "Env",
-		Apply: func(v *Vault) { v.Env = false },
-	}, {
-		Field: "ChangeMode",
-		Apply: func(v *Vault) { v.ChangeMode = "restart" },
-	}, {
-		Field: "ChangeSignal",
-		Apply: func(v *Vault) { v.ChangeSignal = "SIGTERM" },
-	}})
-}
-
-func TestTemplate_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Template](t, nil, nil)
-	must.NotEqual[*Template](t, nil, new(Template))
-
-	must.StructEqual(t, &Template{
-		SourcePath:   "source",
-		DestPath:     "destination",
-		EmbeddedTmpl: "tmpl",
-		ChangeMode:   "mode",
-		ChangeSignal: "signal",
-		ChangeScript: &ChangeScript{
-			Command:     "/bin/sleep",
-			Args:        []string{"infinity"},
-			Timeout:     1 * time.Second,
-			FailOnError: true,
-		},
-		Splay:      1,
-		Perms:      "perms",
-		Uid:        pointer.Of(1000),
-		Gid:        pointer.Of(1000),
-		LeftDelim:  "{",
-		RightDelim: "}",
-		Envvars:    true,
-		VaultGrace: 1 * time.Second,
-		Wait: &WaitConfig{
-			Min: pointer.Of[time.Duration](1),
-			Max: pointer.Of[time.Duration](2),
-		},
-		ErrMissingKey: true,
-	}, []must.Tweak[*Template]{{
-		Field: "SourcePath",
-		Apply: func(t *Template) { t.SourcePath = "source2" },
-	}, {
-		Field: "DestPath",
-		Apply: func(t *Template) { t.DestPath = "destination2" },
-	}, {
-		Field: "EmbeddedTmpl",
-		Apply: func(t *Template) { t.EmbeddedTmpl = "tmpl2" },
-	}, {
-		Field: "ChangeMode",
-		Apply: func(t *Template) { t.ChangeMode = "mode2" },
-	}, {
-		Field: "ChangeSignal",
-		Apply: func(t *Template) { t.ChangeSignal = "signal2" },
-	}, {
-		Field: "ChangeScript",
-		Apply: func(t *Template) {
-			t.ChangeScript = &ChangeScript{
-				Command:     "/bin/sleep",
-				Args:        []string{"infinity", "plus", "one"},
-				Timeout:     1 * time.Second,
-				FailOnError: true,
-			}
-		},
-	}, {
-		Field: "Splay",
-		Apply: func(t *Template) { t.Splay = 2 },
-	}, {
-		Field: "Perms",
-		Apply: func(t *Template) { t.Perms = "perms2" },
-	}, {
-		Field: "Uid",
-		Apply: func(t *Template) { t.Uid = pointer.Of(0) },
-	}, {
-		Field: "Gid",
-		Apply: func(t *Template) { t.Gid = pointer.Of(0) },
-	}, {
-		Field: "LeftDelim",
-		Apply: func(t *Template) { t.LeftDelim = "[" },
-	}, {
-		Field: "RightDelim",
-		Apply: func(t *Template) { t.RightDelim = "]" },
-	}, {
-		Field: "Envvars",
-		Apply: func(t *Template) { t.Envvars = false },
-	}, {
-		Field: "VaultGrace",
-		Apply: func(t *Template) { t.VaultGrace = 2 * time.Second },
-	}, {
-		Field: "Wait",
-		Apply: func(t *Template) {
-			t.Wait = &WaitConfig{
-				Min: pointer.Of[time.Duration](1),
-				Max: nil,
-			}
-		},
-	}, {
-		Field: "ErrMissingKey",
-		Apply: func(t *Template) { t.ErrMissingKey = false },
-	}})
-}
-
-func TestAffinity_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Affinity](t, nil, nil)
-	must.NotEqual[*Affinity](t, nil, new(Affinity))
-
-	must.StructEqual(t, &Affinity{
-		LTarget: "left",
-		RTarget: "right",
-		Operand: "op",
-		Weight:  100,
-	}, []must.Tweak[*Affinity]{{
-		Field: "LTarget",
-		Apply: func(a *Affinity) { a.LTarget = "left2" },
-	}, {
-		Field: "RTarget",
-		Apply: func(a *Affinity) { a.RTarget = "right2" },
-	}, {
-		Field: "Operand",
-		Apply: func(a *Affinity) { a.Operand = "op2" },
-	}, {
-		Field: "Weight",
-		Apply: func(a *Affinity) { a.Weight = 50 },
-	}})
-}
-
-func TestSpreadTarget_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*SpreadTarget](t, nil, nil)
-	must.NotEqual[*SpreadTarget](t, nil, new(SpreadTarget))
-
-	must.StructEqual(t, &SpreadTarget{
-		Value:   "dc1",
-		Percent: 99,
-	}, []must.Tweak[*SpreadTarget]{{
-		Field: "Value",
-		Apply: func(st *SpreadTarget) { st.Value = "dc2" },
-	}, {
-		Field: "Percent",
-		Apply: func(st *SpreadTarget) { st.Percent = 98 },
-	}})
-}
-
-func TestSpread_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*Spread](t, nil, nil)
-	must.NotEqual[*Spread](t, nil, new(Spread))
-
-	must.StructEqual(t, &Spread{
-		Attribute: "attr",
-		Weight:    100,
-		SpreadTarget: []*SpreadTarget{{
-			Value:   "dc1",
-			Percent: 99,
-		}},
-	}, []must.Tweak[*Spread]{{
-		Field: "Attribute",
-		Apply: func(s *Spread) { s.Attribute = "attr2" },
-	}, {
-		Field: "Weight",
-		Apply: func(s *Spread) { s.Weight = 50 },
-	}, {
-		Field: "SpreadTarget",
-		Apply: func(s *Spread) { s.SpreadTarget = nil },
-	}})
 }

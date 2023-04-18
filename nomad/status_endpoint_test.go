@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -24,7 +21,7 @@ func TestStatusPing(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 
-	arg := &structs.GenericRequest{}
+	arg := struct{}{}
 	var out struct{}
 	if err := msgpackrpc.CallWithCodec(codec, "Status.Ping", arg, &out); err != nil {
 		t.Fatalf("err: %v", err)

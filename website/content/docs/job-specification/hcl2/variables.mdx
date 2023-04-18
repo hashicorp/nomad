@@ -199,7 +199,7 @@ To specify individual variables on the command line, use the `-var` option when
 running the `nomad job run` command:
 
 ```shell-session
-$ nomad job run -var="image_id=nginx:1.19" example.nomad.hcl
+$ nomad job run -var="image_id=nginx:1.19" example.nomad
 ```
 
 The `-var` option can be used any number of times in a single command.
@@ -216,7 +216,7 @@ _variable definitions file_ and then specify that file on the command line with
 `-var-file`:
 
 ```shell-session
-$ nomad job run -var-file="testing.vars" example.nomad.hcl
+$ nomad job run -var-file="testing.vars" example.nomad
 ```
 
 A variable definitions file uses the same HCL basic syntax, but consists only
@@ -252,7 +252,7 @@ at a `bash` prompt on a Unix system:
 
 ```shell-session
 $ export NOMAD_VAR_image_id=nginx:1.19
-$ nomad job run example.nomad.hcl
+$ nomad job run example.nomad
 ...
 ```
 

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package client
 
 import (
@@ -139,7 +136,7 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Restart", &req, &resp)
 		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -326,7 +323,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
 		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -423,7 +420,7 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.Signal", &req, &resp)
 		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure
@@ -529,7 +526,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 		var resp cstructs.AllocStatsResponse
 		err := client.ClientRPC("Allocations.Stats", &req, &resp)
 		require.NotNil(err)
-		require.ErrorContains(err, nstructs.ErrPermissionDenied.Error())
+		require.EqualError(err, nstructs.ErrPermissionDenied.Error())
 	}
 
 	// Try request with an invalid token and expect failure

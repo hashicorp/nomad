@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package framework
 
 import (
@@ -13,8 +10,6 @@ import (
 
 // F is the framework context that is passed to each test.
 // It is used to access the *testing.T context as well as testify helpers
-//
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type F struct {
 	id string
 	*require.Assertions
@@ -49,8 +44,6 @@ func newFWithID(id string, t *testing.T) *F {
 
 // Assert fetches an assert flavor of testify assertions
 // https://godoc.org/github.com/stretchr/testify/assert
-//
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 func (f *F) Assert() *assert.Assertions {
 	return f.assert
 }

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -9,11 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
-
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -24,12 +20,55 @@ import (
 // CSIVolume wraps the structs.CSIVolume with request data and server context
 type CSIVolume struct {
 	srv    *Server
-	ctx    *RPCContext
-	logger hclog.Logger
+	logger log.Logger
 }
 
-func NewCSIVolumeEndpoint(srv *Server, ctx *RPCContext) *CSIVolume {
-	return &CSIVolume{srv: srv, ctx: ctx, logger: srv.logger.Named("csi_volume")}
+// QueryACLObj looks up the ACL token in the request and returns the acl.ACL object
+// - fallback to node secret ids
+func (s *Server) QueryACLObj(args *structs.QueryOptions, allowNodeAccess bool) (*acl.ACL, error) {
+	// Lookup the token
+	aclObj, err := s.ResolveToken(args.AuthToken)
+	if err != nil {
+		// If ResolveToken had an unexpected error return that
+		if !structs.IsErrTokenNotFound(err) {
+			return nil, err
+		}
+
+		// If we don't allow access to this endpoint from Nodes, then return token
+		// not found.
+		if !allowNodeAccess {
+			return nil, structs.ErrTokenNotFound
+		}
+
+		ws := memdb.NewWatchSet()
+		// Attempt to lookup AuthToken as a Node.SecretID since nodes may call
+		// call this endpoint and don't have an ACL token.
+		node, stateErr := s.fsm.State().NodeBySecretID(ws, args.AuthToken)
+		if stateErr != nil {
+			// Return the original ResolveToken error with this err
+			var merr multierror.Error
+			merr.Errors = append(merr.Errors, err, stateErr)
+			return nil, merr.ErrorOrNil()
+		}
+
+		// We did not find a Node for this ID, so return Token Not Found.
+		if node == nil {
+			return nil, structs.ErrTokenNotFound
+		}
+	}
+
+	// Return either the users aclObj, or nil if ACLs are disabled.
+	return aclObj, nil
+}
+
+// WriteACLObj calls QueryACLObj for a WriteRequest
+func (s *Server) WriteACLObj(args *structs.WriteRequest, allowNodeAccess bool) (*acl.ACL, error) {
+	opts := &structs.QueryOptions{
+		Region:    args.RequestRegion(),
+		Namespace: args.RequestNamespace(),
+		AuthToken: args.AuthToken,
+	}
+	return s.QueryACLObj(opts, allowNodeAccess)
 }
 
 const (
@@ -54,21 +93,15 @@ func (s *Server) replySetIndex(table string, reply *structs.QueryMeta) error {
 
 // List replies with CSIVolumes, filtered by ACL access
 func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIVolumeListResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.List", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
 		acl.NamespaceCapabilityCSIReadVolume,
 		acl.NamespaceCapabilityCSIMountVolume,
 		acl.NamespaceCapabilityListJobs)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
@@ -172,20 +205,14 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 
 // Get fetches detailed information about a specific volume
 func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVolumeGetResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Get", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 
 	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIReadVolume,
 		acl.NamespaceCapabilityCSIMountVolume,
 		acl.NamespaceCapabilityReadJob)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, true)
 	if err != nil {
 		return err
 	}
@@ -276,18 +303,12 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 // again with the right settings. This lets us be as strict with
 // validation here as the CreateVolume CSI RPC is expected to be.
 func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *structs.CSIVolumeRegisterResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Register", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -370,18 +391,12 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 // Deregister removes a set of volumes
 func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *structs.CSIVolumeDeregisterResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Deregister", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -410,18 +425,12 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 
 // Claim submits a change to a volume claim
 func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CSIVolumeClaimResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Claim", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {
 		return err
 	}
@@ -595,20 +604,14 @@ func allowCSIMount(aclObj *acl.ACL, namespace string) bool {
 // ControllerUnpublish RPCs to the client. It handles errors according to the
 // current claim state.
 func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *structs.CSIVolumeUnpublishResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Unpublish", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
 	if err != nil {
 		return err
 	}
@@ -936,18 +939,14 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 
 func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.CSIVolumeCreateResponse) error {
 
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Create", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
+
 	defer metrics.MeasureSince([]string{"nomad", "volume", "create"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -1061,19 +1060,14 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 }
 
 func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.Delete", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
+
 	defer metrics.MeasureSince([]string{"nomad", "volume", "delete"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -1143,13 +1137,8 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 
 func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
 
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.ListExternal", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "volume", "list_external"}, time.Now())
 
@@ -1157,7 +1146,7 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 		acl.NamespaceCapabilityCSIReadVolume,
 		acl.NamespaceCapabilityCSIMountVolume,
 		acl.NamespaceCapabilityListJobs)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
@@ -1208,18 +1197,13 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 
 func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply *structs.CSISnapshotCreateResponse) error {
 
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.CreateSnapshot", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "volume", "create_snapshot"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -1304,18 +1288,13 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 
 func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply *structs.CSISnapshotDeleteResponse) error {
 
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.DeleteSnapshot", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "volume", "delete_snapshot"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
 	if err != nil {
 		return err
 	}
@@ -1369,13 +1348,8 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 
 func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *structs.CSISnapshotListResponse) error {
 
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIVolume.ListSnapshots", args, args, reply); done {
 		return err
-	}
-	v.srv.MeasureRPCRate("csi_volume", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "volume", "list_snapshots"}, time.Now())
 
@@ -1383,7 +1357,7 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 		acl.NamespaceCapabilityCSIReadVolume,
 		acl.NamespaceCapabilityCSIMountVolume,
 		acl.NamespaceCapabilityListJobs)
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
@@ -1436,34 +1410,25 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
 type CSIPlugin struct {
 	srv    *Server
-	ctx    *RPCContext
-	logger hclog.Logger
-}
-
-func NewCSIPluginEndpoint(srv *Server, ctx *RPCContext) *CSIPlugin {
-	return &CSIPlugin{srv: srv, ctx: ctx, logger: srv.logger.Named("csi_plugin")}
+	logger log.Logger
 }
 
 // List replies with CSIPlugins, filtered by ACL access
 func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIPluginListResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIPlugin.List", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_plugin", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, time.Now())
 
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
+
 	if !aclObj.AllowPluginList() {
 		return structs.ErrPermissionDenied
 	}
+
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, time.Now())
 
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -1505,27 +1470,23 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 
 // Get fetches detailed information about a specific plugin
 func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPluginGetResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIPlugin.Get", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_plugin", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, time.Now())
 
-	aclObj, err := v.srv.ResolveACL(args)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
 	if err != nil {
 		return err
 	}
+
 	if !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
 	withAllocs := aclObj == nil ||
 		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
@@ -1574,23 +1535,18 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 
 // Delete deletes a plugin if it is unused
 func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.CSIPluginDeleteResponse) error {
-
-	authErr := v.srv.Authenticate(v.ctx, args)
 	if done, err := v.srv.forward("CSIPlugin.Delete", args, args, reply); done {
 		return err
 	}
-	v.srv.MeasureRPCRate("csi_plugin", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, time.Now())
 
 	// Check that it is a management token.
-	if aclObj, err := v.srv.ResolveACL(args); err != nil {
+	if aclObj, err := v.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
+
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")

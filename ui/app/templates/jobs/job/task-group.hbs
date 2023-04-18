@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <Breadcrumb @crumb={{this.breadcrumb}} />
 {{page-title "Task group " this.model.name " - Job " this.model.job.name}}
 <div class="tabs is-subnav">
@@ -75,12 +70,6 @@
           Reserved Disk
         </span>
         {{format-scheduled-bytes this.model.reservedEphemeralDisk start="MiB"}}
-      </span>
-      <span class="pair">
-        <span class="term">
-          Namespace
-        </span>
-        {{this.model.job.namespace.name}}
       </span>
       {{#if this.model.scaling}}
         <span class="pair" data-test-task-group-min>

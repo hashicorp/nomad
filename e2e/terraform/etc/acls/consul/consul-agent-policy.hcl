@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # TODO: because Nomad should own most of these interactions, I think
 # it might be possible to reduce this to:
 #

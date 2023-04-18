@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -1953,7 +1950,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	require.NoError(t, err)
 
 	// has controller
-	c := NewCSIVolumeEndpoint(srv, nil)
+	c := srv.staticEndpoints.CSIVolume
 	plugin, vol, err := c.volAndPluginLookup(structs.DefaultNamespace, id0)
 	require.NotNil(t, plugin)
 	require.NotNil(t, vol)

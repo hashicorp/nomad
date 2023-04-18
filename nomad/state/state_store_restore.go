@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -233,24 +230,6 @@ func (r *StateRestore) RootKeyMetaRestore(quota *structs.RootKeyMeta) error {
 func (r *StateRestore) ACLRoleRestore(aclRole *structs.ACLRole) error {
 	if err := r.txn.Insert(TableACLRoles, aclRole); err != nil {
 		return fmt.Errorf("ACL role insert failed: %v", err)
-	}
-	return nil
-}
-
-// ACLAuthMethodRestore is used to restore a single ACL auth method into the
-// acl_auth_methods table.
-func (r *StateRestore) ACLAuthMethodRestore(aclAuthMethod *structs.ACLAuthMethod) error {
-	if err := r.txn.Insert(TableACLAuthMethods, aclAuthMethod); err != nil {
-		return fmt.Errorf("ACL auth method insert failed: %v", err)
-	}
-	return nil
-}
-
-// ACLBindingRuleRestore is used to restore a single ACL binding rule into the
-// acl_binding_rules table.
-func (r *StateRestore) ACLBindingRuleRestore(aclBindingRule *structs.ACLBindingRule) error {
-	if err := r.txn.Insert(TableACLBindingRules, aclBindingRule); err != nil {
-		return fmt.Errorf("ACL binding rule insert failed: %v", err)
 	}
 	return nil
 }

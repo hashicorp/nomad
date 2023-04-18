@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package main
 
 import (
@@ -150,9 +147,6 @@ var uninteresting = []string{
 	// main
 	".",
 
-	// go embed assets
-	"command/asset",
-
 	// testing helpers
 	"ci",
 	"client/testutil",
@@ -204,3 +198,4 @@ func inCode(root string) ([]string, error) {
 	sort.Strings(packages)
 	return packages, nil
 }
+

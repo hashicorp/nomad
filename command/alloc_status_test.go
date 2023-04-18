@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -27,7 +24,7 @@ func TestAllocStatusCommand_Implements(t *testing.T) {
 func TestAllocStatusCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -89,7 +86,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -137,7 +134,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 func TestAllocStatusCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -205,7 +202,7 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -239,7 +236,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	waitForNodes(t, client)
 
@@ -288,7 +285,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -323,7 +320,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 			},
 		}
 	})
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	state := srv.Agent.Server().State()
 
@@ -375,7 +372,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	state := srv.Agent.Server().State()
 
@@ -451,7 +448,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 func TestAllocStatusCommand_NSD_Checks(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	// wait for nodes
 	waitForNodes(t, client)

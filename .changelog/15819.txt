@@ -1,3 +1,0 @@
-```release-note:improvement
-build: Added hyper-v isolation mode for docker on Windows
-```

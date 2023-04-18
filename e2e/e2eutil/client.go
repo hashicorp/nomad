@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package e2eutil
 
 import (
@@ -8,16 +5,16 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/useragent"
 	vapi "github.com/hashicorp/vault/api"
-	"github.com/shoenig/test/must"
+
+	"github.com/stretchr/testify/require"
 )
 
 // NomadClient creates a default Nomad client based on the env vars
 // from the test environment. Fails the test if it can't be created
 func NomadClient(t *testing.T) *napi.Client {
 	client, err := napi.NewClient(napi.DefaultConfig())
-	must.NoError(t, err)
+	require.NoError(t, err, "could not create Nomad client")
 	return client
 }
 
@@ -25,7 +22,7 @@ func NomadClient(t *testing.T) *napi.Client {
 // from the test environment. Fails the test if it can't be created
 func ConsulClient(t *testing.T) *capi.Client {
 	client, err := capi.NewClient(capi.DefaultConfig())
-	must.NoError(t, err)
+	require.NoError(t, err, "could not create Consul client")
 	return client
 }
 
@@ -33,7 +30,6 @@ func ConsulClient(t *testing.T) *capi.Client {
 // from the test environment. Fails the test if it can't be created
 func VaultClient(t *testing.T) *vapi.Client {
 	client, err := vapi.NewClient(vapi.DefaultConfig())
-	useragent.SetHeaders(client)
-	must.NoError(t, err)
+	require.NoError(t, err, "could not create Vault client")
 	return client
 }

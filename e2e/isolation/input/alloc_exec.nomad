@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "alloc_exec" {
   datacenters = ["dc1"]
   type        = "service"

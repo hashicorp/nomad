@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # Dockerfile for building nomad binaries
 # that mimics Vagrant environment as far as required
 # for building the scripts and running provision scripts
@@ -21,11 +18,11 @@ RUN useradd --create-home vagrant \
     && echo 'vagrant      ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # install priv packages
-COPY ./scripts/linux-priv-config.sh /tmp/scripts/linux-priv-config.sh
-RUN /tmp/scripts/linux-priv-config.sh
+COPY ./scripts/vagrant-linux-priv-config.sh /tmp/scripts/vagrant-linux-priv-config.sh
+RUN /tmp/scripts/vagrant-linux-priv-config.sh
 
-COPY ./scripts/linux-priv-go.sh /tmp/scripts/linux-priv-go.sh
-RUN /tmp/scripts/linux-priv-go.sh
+COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
+RUN /tmp/scripts/vagrant-linux-priv-go.sh
 
 COPY ./scripts/vagrant-linux-priv-buf.sh /tmp/scripts/vagrant-linux-priv-buf.sh
 RUN /tmp/scripts/vagrant-linux-priv-buf.sh

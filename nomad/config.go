@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -14,6 +11,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -66,11 +64,6 @@ type Config struct {
 
 	// EventBufferSize is the amount of events to hold in memory.
 	EventBufferSize int64
-
-	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
-	// before being discarded automatically. A value of zero indicates no job
-	// sources will be stored.
-	JobMaxSourceSize int
 
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
@@ -356,12 +349,6 @@ type Config struct {
 	// publishing Job summary metrics
 	DisableDispatchedJobSummaryMetrics bool
 
-	// DisableRPCRateMetricsLabels drops the label for the identity of the
-	// requester when publishing metrics on RPC rate on the server. This may be
-	// useful to control metrics collection costs in environments where request
-	// rate is well-controlled but cardinality of requesters is high.
-	DisableRPCRateMetricsLabels bool
-
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
 	AutopilotConfig *structs.AutopilotConfig
@@ -380,6 +367,13 @@ type Config struct {
 	// and this value is ignored.
 	DefaultSchedulerConfig structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
 
+	// PluginLoader is used to load plugins.
+	PluginLoader loader.PluginCatalog
+
+	// PluginSingletonLoader is a plugin loader that will returns singleton
+	// instances of the plugins.
+	PluginSingletonLoader loader.PluginCatalog
+
 	// RPCHandshakeTimeout is the deadline by which RPC handshakes must
 	// complete. The RPC handshake includes the first byte read as well as
 	// the TLS handshake and subsequent byte read if TLS is enabled.
@@ -394,8 +388,10 @@ type Config struct {
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
 
-	// LicenseConfig stores information about the Enterprise license loaded for the server.
+	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
+	LicenseEnv    string
+	LicensePath   string
 
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig
@@ -410,12 +406,6 @@ type Config struct {
 	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
 	DeploymentQueryRateLimit float64
-
-	// JobDefaultPriority is the default Job priority if not specified.
-	JobDefaultPriority int
-
-	// JobMaxPriority is an upper bound on the Job priority.
-	JobMaxPriority int
 }
 
 func (c *Config) Copy() *Config {
@@ -533,8 +523,6 @@ func DefaultConfig() *Config {
 			},
 		},
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
-		JobDefaultPriority:       structs.JobDefaultPriority,
-		JobMaxPriority:           structs.JobDefaultMaxPriority,
 	}
 
 	// Enable all known schedulers by default

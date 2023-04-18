@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import d3Format from 'd3-format';
 
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';

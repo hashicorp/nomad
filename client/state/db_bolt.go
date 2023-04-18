@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -46,9 +43,6 @@ drivermanager/
 
 dynamicplugins/
 |--> registry_state -> *dynamicplugins.RegistryState
-
-nodemeta/
-|--> meta -> map[string]*string
 */
 
 var (
@@ -108,13 +102,6 @@ var (
 
 	// registryStateKey is the key at which dynamic plugin registry state is stored
 	registryStateKey = []byte("registry_state")
-
-	// nodeMetaBucket is the bucket name in which dynamically updated node
-	// metadata is stored
-	nodeMetaBucket = []byte("nodemeta")
-
-	// nodeMetaKey is the key at which dynamic node metadata is stored.
-	nodeMetaKey = []byte("meta")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -801,47 +788,6 @@ func (s *BoltStateDB) PurgeCheckResults(allocID string) error {
 		}
 		return bkt.DeletePrefix([]byte(allocID + "_"))
 	})
-}
-
-// PutNodeMeta sets dynamic node metadata for merging with the copy from the
-// Client's config.
-//
-// This overwrites existing dynamic node metadata entirely.
-func (s *BoltStateDB) PutNodeMeta(meta map[string]*string) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(nodeMetaBucket)
-		if err != nil {
-			return err
-		}
-
-		return b.Put(nodeMetaKey, meta)
-	})
-}
-
-// GetNodeMeta retrieves node metadata for merging with the copy from
-// the Client's config.
-func (s *BoltStateDB) GetNodeMeta() (m map[string]*string, err error) {
-	err = s.db.View(func(tx *boltdd.Tx) error {
-		b := tx.Bucket(nodeMetaBucket)
-		if b == nil {
-			return nil
-		}
-
-		m, err = getNodeMeta(b)
-		return err
-	})
-
-	return m, err
-}
-
-func getNodeMeta(b *boltdd.Bucket) (map[string]*string, error) {
-	m := make(map[string]*string)
-	if err := b.Get(nodeMetaKey, m); err != nil {
-		if !boltdd.IsErrNotFound(err) {
-			return nil, err
-		}
-	}
-	return m, nil
 }
 
 // init initializes metadata entries in a newly created state database.

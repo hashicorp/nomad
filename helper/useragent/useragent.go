@@ -1,20 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package useragent
 
 import (
 	"fmt"
-	"net/http"
 	"runtime"
 
 	"github.com/hashicorp/nomad/version"
-)
-
-const (
-	// Header is the User-Agent header key
-	// https://www.rfc-editor.org/rfc/rfc7231#section-5.5.3
-	Header = `User-Agent`
 )
 
 var (
@@ -36,16 +26,4 @@ var (
 func String() string {
 	return fmt.Sprintf("Nomad/%s (+%s; %s)",
 		versionFunc(), projectURL, rt)
-}
-
-// HeaderSetter is anything that implements SetHeaders(http.Header).
-type HeaderSetter interface {
-	SetHeaders(http.Header)
-}
-
-// SetHeaders configures the User-Agent http.Header for the client.
-func SetHeaders(client HeaderSetter) {
-	client.SetHeaders(http.Header{
-		Header: []string{String()},
-	})
 }

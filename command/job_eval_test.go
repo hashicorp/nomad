@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -8,15 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,7 +74,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, job)
 	require.Nil(err)
 
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
@@ -121,7 +115,7 @@ func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -130,122 +124,4 @@ func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	assert.Equal(1, len(res))
 	assert.Equal(j.ID, res[0])
-}
-
-func TestJobEvalCommand_ACL(t *testing.T) {
-	ci.Parallel(t)
-
-	// Start server with ACL enabled.
-	srv, _, url := testServer(t, true, func(c *agent.Config) {
-		c.ACL.Enabled = true
-	})
-	defer srv.Shutdown()
-
-	// Create a job.
-	job := mock.MinJob()
-	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
-	must.NoError(t, err)
-
-	testCases := []struct {
-		name        string
-		jobPrefix   bool
-		aclPolicy   string
-		expectedErr string
-	}{
-		{
-			name:        "no token",
-			aclPolicy:   "",
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "missing submit-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["list-jobs"]
-}
-`,
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "submit-job allowed but can't monitor eval without read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["submit-job"]
-}
-`,
-			expectedErr: "No evaluation with id",
-		},
-		{
-			name: "submit-job allowed and can monitor eval with read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job", "submit-job"]
-}
-`,
-		},
-		{
-			name:      "job prefix requires list-jobs",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["submit-job"]
-}
-`,
-			expectedErr: "job not found",
-		},
-		{
-			name:      "job prefix works with list-jobs but can't monitor eval without read-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["list-jobs", "submit-job"]
-}
-`,
-			expectedErr: "No evaluation with id",
-		},
-		{
-			name:      "job prefix works with list-jobs and can monitor eval with read-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job", "list-jobs", "submit-job"]
-}
-`,
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ui := cli.NewMockUi()
-			cmd := &JobEvalCommand{Meta: Meta{Ui: ui}}
-			args := []string{
-				"-address", url,
-			}
-
-			if tc.aclPolicy != "" {
-				// Create ACL token with test case policy and add it to the
-				// command.
-				policyName := nonAlphaNum.ReplaceAllString(tc.name, "-")
-				token := mock.CreatePolicyAndToken(t, state, uint64(302+i), policyName, tc.aclPolicy)
-				args = append(args, "-token", token.SecretID)
-			}
-
-			// Add job ID or job ID prefix to the command.
-			if tc.jobPrefix {
-				args = append(args, job.ID[:3])
-			} else {
-				args = append(args, job.ID)
-			}
-
-			// Run command.
-			code := cmd.Run(args)
-			if tc.expectedErr == "" {
-				must.Zero(t, code)
-			} else {
-				must.One(t, code)
-				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
-			}
-		})
-	}
 }

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -62,8 +59,6 @@ const (
 	VariablesQuotaSnapshot               SnapshotType = 23
 	RootKeyMetaSnapshot                  SnapshotType = 24
 	ACLRoleSnapshot                      SnapshotType = 25
-	ACLAuthMethodSnapshot                SnapshotType = 26
-	ACLBindingRuleSnapshot               SnapshotType = 27
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -333,14 +328,6 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLRolesDeleteByIDRequestType:
 		return n.applyACLRolesDeleteByID(msgType, buf[1:], log.Index)
-	case structs.ACLAuthMethodsUpsertRequestType:
-		return n.applyACLAuthMethodsUpsert(buf[1:], log.Index)
-	case structs.ACLAuthMethodsDeleteRequestType:
-		return n.applyACLAuthMethodsDelete(buf[1:], log.Index)
-	case structs.ACLBindingRulesUpsertRequestType:
-		return n.applyACLBindingRulesUpsert(buf[1:], log.Index)
-	case structs.ACLBindingRulesDeleteRequestType:
-		return n.applyACLBindingRulesDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -473,19 +460,10 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 			return fmt.Errorf("error looking up ACL token: %v", err)
 		}
 		if token == nil {
-			node, err := n.state.NodeBySecretID(nil, req.AuthToken)
-			if err != nil {
-				n.logger.Error("error looking up node for drain update", "error", err)
-				return fmt.Errorf("error looking up node for drain update: %v", err)
-			}
-			if node == nil {
-				n.logger.Error("token did not exist during node drain update")
-				return fmt.Errorf("token did not exist during node drain update")
-			}
-			accessorId = node.ID
-		} else {
-			accessorId = token.AccessorID
+			n.logger.Error("token did not exist during node drain update")
+			return fmt.Errorf("token did not exist during node drain update")
 		}
+		accessorId = token.AccessorID
 	}
 
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
@@ -556,7 +534,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJob(msgType, index, req.Submission, req.Job); err != nil {
+	if err := n.state.UpsertJob(msgType, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -795,7 +773,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
+		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
 		}
 	}
@@ -1797,29 +1775,6 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := restore.ACLRoleRestore(aclRole); err != nil {
 				return err
 			}
-		case ACLAuthMethodSnapshot:
-			authMethod := new(structs.ACLAuthMethod)
-
-			if err := dec.Decode(authMethod); err != nil {
-				return err
-			}
-
-			// Perform the restoration.
-			if err := restore.ACLAuthMethodRestore(authMethod); err != nil {
-				return err
-			}
-
-		case ACLBindingRuleSnapshot:
-			bindingRule := new(structs.ACLBindingRule)
-
-			if err := dec.Decode(bindingRule); err != nil {
-				return err
-			}
-
-			// Perform the restoration.
-			if err := restore.ACLBindingRuleRestore(bindingRule); err != nil {
-				return err
-			}
 
 		default:
 			// Check if this is an enterprise only object being restored
@@ -2110,66 +2065,6 @@ func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []by
 	return nil
 }
 
-func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_upsert"}, time.Now())
-	var req structs.ACLAuthMethodUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertACLAuthMethods(index, req.AuthMethods); err != nil {
-		n.logger.Error("UpsertACLAuthMethods failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete"}, time.Now())
-	var req structs.ACLAuthMethodDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteACLAuthMethods(index, req.Names); err != nil {
-		n.logger.Error("DeleteACLAuthMethods failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLBindingRulesUpsert(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_binding_rule_upsert"}, time.Now())
-	var req structs.ACLBindingRulesUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertACLBindingRules(index, req.ACLBindingRules, false); err != nil {
-		n.logger.Error("UpsertACLBindingRules failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_binding_rule_delete"}, time.Now())
-	var req structs.ACLBindingRulesDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteACLBindingRules(index, req.ACLBindingRuleIDs); err != nil {
-		n.logger.Error("DeleteACLBindingRules failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
 type FSMFilter struct {
 	evaluator *bexpr.Evaluator
 }
@@ -2372,14 +2267,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLRoles(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLAuthMethods(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLBindingRules(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -3020,62 +2907,21 @@ func (s *nomadSnapshot) persistACLRoles(sink raft.SnapshotSink,
 		return err
 	}
 
-	// Get the next item.
-	for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
+	for {
+		// Get the next item.
+		for raw := aclRolesIter.Next(); raw != nil; raw = aclRolesIter.Next() {
 
-		// Prepare the request struct.
-		role := raw.(*structs.ACLRole)
+			// Prepare the request struct.
+			role := raw.(*structs.ACLRole)
 
-		// Write out an ACL role snapshot.
-		sink.Write([]byte{byte(ACLRoleSnapshot)})
-		if err := encoder.Encode(role); err != nil {
-			return err
+			// Write out an ACL role snapshot.
+			sink.Write([]byte{byte(ACLRoleSnapshot)})
+			if err := encoder.Encode(role); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistACLAuthMethods(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	// Get all the ACL Auth methods.
-	ws := memdb.NewWatchSet()
-	aclAuthMethodsIter, err := s.snap.GetACLAuthMethods(ws)
-	if err != nil {
-		return err
-	}
-
-	for raw := aclAuthMethodsIter.Next(); raw != nil; raw = aclAuthMethodsIter.Next() {
-		method := raw.(*structs.ACLAuthMethod)
-
-		// write the snapshot
-		sink.Write([]byte{byte(ACLAuthMethodSnapshot)})
-		if err := encoder.Encode(method); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *codec.Encoder) error {
-
-	// Get all the ACL binding rules.
-	ws := memdb.NewWatchSet()
-	aclBindingRulesIter, err := s.snap.GetACLBindingRules(ws)
-	if err != nil {
-		return err
-	}
-
-	for raw := aclBindingRulesIter.Next(); raw != nil; raw = aclBindingRulesIter.Next() {
-		bindingRule := raw.(*structs.ACLBindingRule)
-
-		// write the snapshot
-		sink.Write([]byte{byte(ACLBindingRuleSnapshot)})
-		if err := encoder.Encode(bindingRule); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Release is a no-op, as we just need to GC the pointer

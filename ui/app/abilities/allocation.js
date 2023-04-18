@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import AbstractAbility from './abstract';
 import { computed, get } from '@ember/object';
 import { or } from '@ember/object/computed';

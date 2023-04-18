@@ -1,13 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -400,7 +397,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().LocalDir, "output")
-	act, err := os.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
 	}
@@ -527,7 +524,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().SharedAllocDir, file)
-	act, err := os.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
 	}
@@ -1482,10 +1479,10 @@ func TestDockerDriver_DNS(t *testing.T) {
 		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 		_, d, _, cleanup := dockerSetup(t, task, nil)
-		t.Cleanup(cleanup)
+		defer cleanup()
 
 		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-		t.Cleanup(func() { _ = d.DestroyTask(task.ID, true) })
+		defer d.DestroyTask(task.ID, true)
 
 		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
 	}
@@ -2146,7 +2143,7 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 
-		if _, err := os.ReadFile(filepath.Join(task.TaskDir().Dir, fn)); err != nil {
+		if _, err := ioutil.ReadFile(filepath.Join(task.TaskDir().Dir, fn)); err != nil {
 			t.Fatalf("unexpected error reading %s: %v", fn, err)
 		}
 	}
@@ -2204,7 +2201,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if _, err := os.ReadFile(hostpath); err != nil {
+	if _, err := ioutil.ReadFile(hostpath); err != nil {
 		t.Fatalf("unexpected error reading %s: %v", hostpath, err)
 	}
 }
@@ -2474,56 +2471,34 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 		t.Skip("test device mounts only on linux")
 	}
 
-	cases := []struct {
-		Name     string
-		Input    DockerDevice
-		Expected docker.Device
-	}{
-		{
-			Name: "AllSet",
-			Input: DockerDevice{
-				HostPath:          "/dev/random",
-				ContainerPath:     "/dev/hostrandom",
-				CgroupPermissions: "rwm",
-			},
-			Expected: docker.Device{
-				PathOnHost:        "/dev/random",
-				PathInContainer:   "/dev/hostrandom",
-				CgroupPermissions: "rwm",
-			},
-		},
-		{
-			Name: "OnlyHost",
-			Input: DockerDevice{
-				HostPath: "/dev/random",
-			},
-			Expected: docker.Device{
-				PathOnHost:        "/dev/random",
-				PathInContainer:   "/dev/random",
-				CgroupPermissions: "rwm",
-			},
-		},
+	hostPath := "/dev/random"
+	containerPath := "/dev/myrandom"
+	perms := "rwm"
+
+	expectedDevice := docker.Device{
+		PathOnHost:        hostPath,
+		PathInContainer:   containerPath,
+		CgroupPermissions: perms,
+	}
+	config := DockerDevice{
+		HostPath:      hostPath,
+		ContainerPath: containerPath,
 	}
 
-	for i := range cases {
-		tc := cases[i]
-		t.Run(tc.Name, func(t *testing.T) {
-			task, cfg, _ := dockerTask(t)
+	task, cfg, _ := dockerTask(t)
 
-			cfg.Devices = []DockerDevice{tc.Input}
-			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+	cfg.Devices = []DockerDevice{config}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-			client, driver, handle, cleanup := dockerSetup(t, task, nil)
-			defer cleanup()
-			require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
+	client, driver, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
 
-			container, err := client.InspectContainer(handle.containerID)
-			require.NoError(t, err)
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
 
-			require.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
-			require.Equal(t, tc.Expected, container.HostConfig.Devices[0], "Incorrect device ")
-		})
-	}
+	require.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
+	require.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
 }
 
 func TestDockerDriver_Entrypoint(t *testing.T) {

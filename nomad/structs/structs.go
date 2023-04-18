@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -47,15 +44,14 @@ import (
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
-	"github.com/ryanuber/go-glob"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
 var (
-	// ValidPolicyName is used to validate a policy name
-	ValidPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+	// validPolicyName is used to validate a policy name
+	validPolicyName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
 	// b32 is a lowercase base32 encoding for use in URL friendly service hashes
 	b32 = base32.NewEncoding(strings.ToLower("abcdefghijklmnopqrstuvwxyz234567"))
@@ -121,10 +117,6 @@ const (
 	RootKeyMetaDeleteRequestType                 MessageType = 52
 	ACLRolesUpsertRequestType                    MessageType = 53
 	ACLRolesDeleteByIDRequestType                MessageType = 54
-	ACLAuthMethodsUpsertRequestType              MessageType = 55
-	ACLAuthMethodsDeleteRequestType              MessageType = 56
-	ACLBindingRulesUpsertRequestType             MessageType = 57
-	ACLBindingRulesDeleteRequestType             MessageType = 58
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -194,11 +186,6 @@ const (
 	// DefaultBlockingRPCQueryTime is the amount of time we block waiting for a change
 	// if no time is specified. Previously we would wait the MaxBlockingRPCQueryTime.
 	DefaultBlockingRPCQueryTime = 300 * time.Second
-
-	// RateMetric constants are used as labels in RPC rate metrics
-	RateMetricRead  = "read"
-	RateMetricList  = "list"
-	RateMetricWrite = "write"
 )
 
 var (
@@ -284,8 +271,7 @@ type QueryOptions struct {
 	// If set, used as prefix for resource list searches
 	Prefix string
 
-	// AuthToken is secret portion of the ACL token or workload identity used for
-	// the request.
+	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
 	// Filter specifies the go-bexpr filter expression to be used for
@@ -304,8 +290,6 @@ type QueryOptions struct {
 
 	// Reverse is used to reverse the default order of list results.
 	Reverse bool
-
-	identity *AuthenticatedIdentity
 
 	InternalRpcInfo
 }
@@ -351,18 +335,6 @@ func (q QueryOptions) IsRead() bool {
 
 func (q QueryOptions) AllowStaleRead() bool {
 	return q.AllowStale
-}
-
-func (q *QueryOptions) GetAuthToken() string {
-	return q.AuthToken
-}
-
-func (q *QueryOptions) SetIdentity(identity *AuthenticatedIdentity) {
-	q.identity = identity
-}
-
-func (q QueryOptions) GetIdentity() *AuthenticatedIdentity {
-	return q.identity
 }
 
 // AgentPprofRequest is used to request a pprof report for a given node.
@@ -425,8 +397,6 @@ type WriteRequest struct {
 	// IdempotencyToken can be used to ensure the write is idempotent.
 	IdempotencyToken string
 
-	identity *AuthenticatedIdentity
-
 	InternalRpcInfo
 }
 
@@ -461,85 +431,6 @@ func (w WriteRequest) IsRead() bool {
 
 func (w WriteRequest) AllowStaleRead() bool {
 	return false
-}
-
-func (w *WriteRequest) GetAuthToken() string {
-	return w.AuthToken
-}
-
-func (w *WriteRequest) SetIdentity(identity *AuthenticatedIdentity) {
-	w.identity = identity
-}
-
-func (w WriteRequest) GetIdentity() *AuthenticatedIdentity {
-	return w.identity
-}
-
-// AuthenticatedIdentity is returned by the Authenticate method on server to
-// return a wrapper around the various elements that can be resolved as an
-// identity. RPC handlers will use the relevant fields for performing
-// authorization.
-//
-// Keeping these fields independent rather than merging them into an ephemeral
-// ACLToken makes the original of the credential clear to RPC handlers, who may
-// have different behavior for internal vs external origins.
-type AuthenticatedIdentity struct {
-	// ACLToken authenticated. Claims will be nil if this is set.
-	ACLToken *ACLToken
-
-	// Claims authenticated by workload identity. ACLToken will be nil if this is
-	// set.
-	Claims *IdentityClaims
-
-	ClientID string
-	TLSName  string
-	RemoteIP net.IP
-}
-
-func (ai *AuthenticatedIdentity) GetACLToken() *ACLToken {
-	if ai == nil {
-		return nil
-	}
-	return ai.ACLToken
-}
-
-func (ai *AuthenticatedIdentity) GetClaims() *IdentityClaims {
-	if ai == nil {
-		return nil
-	}
-	return ai.Claims
-}
-
-func (ai *AuthenticatedIdentity) String() string {
-	if ai == nil {
-		return "unauthenticated"
-	}
-	if ai.ACLToken != nil {
-		return fmt.Sprintf("token:%s", ai.ACLToken.AccessorID)
-	}
-	if ai.Claims != nil {
-		return fmt.Sprintf("alloc:%s", ai.Claims.AllocationID)
-	}
-	if ai.ClientID != "" {
-		return fmt.Sprintf("client:%s", ai.ClientID)
-	}
-	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
-}
-
-func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
-	// Only ACLTokens currently support expiry so return unexpired if there isn't
-	// one.
-	if ai.ACLToken == nil {
-		return false
-	}
-
-	return ai.ACLToken.IsExpired(now)
-}
-
-type RequestWithIdentity interface {
-	GetAuthToken() string
-	SetIdentity(identity *AuthenticatedIdentity)
-	GetIdentity() *AuthenticatedIdentity
 }
 
 // QueryMeta allows a query response to include potentially
@@ -694,9 +585,6 @@ type NodeSpecificRequest struct {
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
-	Submission *JobSubmission
-
-	// Job is the parsed job, no matter what form the input was in.
 	Job *Job
 
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -793,23 +681,6 @@ type JobEvaluateRequest struct {
 // EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
-}
-
-// JobSubmissionRequest is used to query a JobSubmission object associated with a
-// job at a specific version.
-type JobSubmissionRequest struct {
-	JobID   string
-	Version uint64
-
-	QueryOptions
-}
-
-// JobSubmissionResponse contains a JobSubmission object, which may be nil
-// if no submission data is available.
-type JobSubmissionResponse struct {
-	Submission *JobSubmission
-
-	QueryMeta
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
@@ -2334,15 +2205,6 @@ func (n *Node) ComparableResources() *ComparableResources {
 	}
 }
 
-func (n *Node) IsInAnyDC(datacenters []string) bool {
-	for _, dc := range datacenters {
-		if glob.Glob(dc, n.Datacenter) {
-			return true
-		}
-	}
-	return false
-}
-
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
@@ -2514,10 +2376,10 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
-// Equal Resources.
+// Equals Resources.
 //
 // COMPAT(0.10): Remove in 0.10
-func (r *Resources) Equal(o *Resources) bool {
+func (r *Resources) Equals(o *Resources) bool {
 	if r == o {
 		return true
 	}
@@ -2530,8 +2392,8 @@ func (r *Resources) Equal(o *Resources) bool {
 		r.MemoryMaxMB == o.MemoryMaxMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
-		r.Networks.Equal(&o.Networks) &&
-		r.Devices.Equal(&o.Devices)
+		r.Networks.Equals(&o.Networks) &&
+		r.Devices.Equals(&o.Devices)
 }
 
 // ResourceDevices are part of Resources.
@@ -2539,10 +2401,10 @@ func (r *Resources) Equal(o *Resources) bool {
 // COMPAT(0.10): Remove in 0.10.
 type ResourceDevices []*RequestedDevice
 
-// Equal ResourceDevices as set keyed by Name.
+// Equals ResourceDevices as set keyed by Name.
 //
 // COMPAT(0.10): Remove in 0.10
-func (d *ResourceDevices) Equal(o *ResourceDevices) bool {
+func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	if d == o {
 		return true
 	}
@@ -2558,7 +2420,7 @@ func (d *ResourceDevices) Equal(o *ResourceDevices) bool {
 	}
 	for _, oe := range *o {
 		de, ok := m[oe.Name]
-		if !ok || !de.Equal(oe) {
+		if !ok || !de.Equals(oe) {
 			return false
 		}
 	}
@@ -2675,7 +2537,7 @@ type NodeNetworkResource struct {
 	Addresses []NodeNetworkAddress // not valid for cni, for bridge there will only be 1 ip
 }
 
-func (n *NodeNetworkResource) Equal(o *NodeNetworkResource) bool {
+func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 	return reflect.DeepEqual(n, o)
 }
 
@@ -2726,39 +2588,7 @@ type AllocatedPortMapping struct {
 	HostIP string
 }
 
-func (m *AllocatedPortMapping) Copy() *AllocatedPortMapping {
-	return &AllocatedPortMapping{
-		Label:  m.Label,
-		Value:  m.Value,
-		To:     m.To,
-		HostIP: m.HostIP,
-	}
-}
-
-func (m *AllocatedPortMapping) Equal(o *AllocatedPortMapping) bool {
-	if m == nil || o == nil {
-		return m == o
-	}
-	switch {
-	case m.Label != o.Label:
-		return false
-	case m.Value != o.Value:
-		return false
-	case m.To != o.To:
-		return false
-	case m.HostIP != o.HostIP:
-		return false
-	}
-	return true
-}
-
 type AllocatedPorts []AllocatedPortMapping
-
-func (p AllocatedPorts) Equal(o AllocatedPorts) bool {
-	return slices.EqualFunc(p, o, func(a, b AllocatedPortMapping) bool {
-		return a.Equal(&b)
-	})
-}
 
 func (p AllocatedPorts) Get(label string) (AllocatedPortMapping, bool) {
 	for _, port := range p {
@@ -2795,32 +2625,18 @@ type DNSConfig struct {
 	Options  []string
 }
 
-func (d *DNSConfig) Equal(o *DNSConfig) bool {
-	if d == nil || o == nil {
-		return d == o
-	}
-
-	switch {
-	case !slices.Equal(d.Servers, o.Servers):
-		return false
-	case !slices.Equal(d.Searches, o.Searches):
-		return false
-	case !slices.Equal(d.Options, o.Options):
-		return false
-	}
-
-	return true
-}
-
 func (d *DNSConfig) Copy() *DNSConfig {
 	if d == nil {
 		return nil
 	}
-	return &DNSConfig{
-		Servers:  slices.Clone(d.Servers),
-		Searches: slices.Clone(d.Searches),
-		Options:  slices.Clone(d.Options),
-	}
+	newD := new(DNSConfig)
+	newD.Servers = make([]string, len(d.Servers))
+	copy(newD.Servers, d.Servers)
+	newD.Searches = make([]string, len(d.Searches))
+	copy(newD.Searches, d.Searches)
+	newD.Options = make([]string, len(d.Options))
+	copy(newD.Options, d.Options)
+	return newD
 }
 
 // NetworkResource is used to represent available network
@@ -2852,7 +2668,7 @@ func (n *NetworkResource) Hash() uint32 {
 	return crc32.ChecksumIEEE(data)
 }
 
-func (n *NetworkResource) Equal(other *NetworkResource) bool {
+func (n *NetworkResource) Equals(other *NetworkResource) bool {
 	return n.Hash() == other.Hash()
 }
 
@@ -3000,7 +2816,7 @@ type RequestedDevice struct {
 	Affinities Affinities
 }
 
-func (r *RequestedDevice) Equal(o *RequestedDevice) bool {
+func (r *RequestedDevice) Equals(o *RequestedDevice) bool {
 	if r == o {
 		return true
 	}
@@ -3009,8 +2825,8 @@ func (r *RequestedDevice) Equal(o *RequestedDevice) bool {
 	}
 	return r.Name == o.Name &&
 		r.Count == o.Count &&
-		r.Constraints.Equal(&o.Constraints) &&
-		r.Affinities.Equal(&o.Affinities)
+		r.Constraints.Equals(&o.Constraints) &&
+		r.Affinities.Equals(&o.Affinities)
 }
 
 func (r *RequestedDevice) Copy() *RequestedDevice {
@@ -3197,7 +3013,7 @@ func lookupNetworkByDevice(nets []*NodeNetworkResource, name string) (int, *Node
 	return 0, nil
 }
 
-func (n *NodeResources) Equal(o *NodeResources) bool {
+func (n *NodeResources) Equals(o *NodeResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3206,16 +3022,16 @@ func (n *NodeResources) Equal(o *NodeResources) bool {
 		return false
 	}
 
-	if !n.Cpu.Equal(&o.Cpu) {
+	if !n.Cpu.Equals(&o.Cpu) {
 		return false
 	}
-	if !n.Memory.Equal(&o.Memory) {
+	if !n.Memory.Equals(&o.Memory) {
 		return false
 	}
-	if !n.Disk.Equal(&o.Disk) {
+	if !n.Disk.Equals(&o.Disk) {
 		return false
 	}
-	if !n.Networks.Equal(&o.Networks) {
+	if !n.Networks.Equals(&o.Networks) {
 		return false
 	}
 
@@ -3231,8 +3047,8 @@ func (n *NodeResources) Equal(o *NodeResources) bool {
 	return true
 }
 
-// Equal equates Networks as a set
-func (ns *Networks) Equal(o *Networks) bool {
+// Equals equates Networks as a set
+func (ns *Networks) Equals(o *Networks) bool {
 	if ns == o {
 		return true
 	}
@@ -3245,7 +3061,7 @@ func (ns *Networks) Equal(o *Networks) bool {
 SETEQUALS:
 	for _, ne := range *ns {
 		for _, oe := range *o {
-			if ne.Equal(oe) {
+			if ne.Equals(oe) {
 				continue SETEQUALS
 			}
 		}
@@ -3264,7 +3080,7 @@ func DevicesEquals(d1, d2 []*NodeDeviceResource) bool {
 		idMap[*d.ID()] = d
 	}
 	for _, otherD := range d2 {
-		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equal(otherD) {
+		if d, ok := idMap[*otherD.ID()]; !ok || !d.Equals(otherD) {
 			return false
 		}
 	}
@@ -3282,7 +3098,7 @@ func NodeNetworksEquals(n1, n2 []*NodeNetworkResource) bool {
 		netMap[n.Device] = n
 	}
 	for _, otherN := range n2 {
-		if n, ok := netMap[otherN.Device]; !ok || !n.Equal(otherN) {
+		if n, ok := netMap[otherN.Device]; !ok || !n.Equals(otherN) {
 			return false
 		}
 	}
@@ -3335,7 +3151,7 @@ func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
 	}
 }
 
-func (n *NodeCpuResources) Equal(o *NodeCpuResources) bool {
+func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3383,7 +3199,7 @@ func (n *NodeMemoryResources) Merge(o *NodeMemoryResources) {
 	}
 }
 
-func (n *NodeMemoryResources) Equal(o *NodeMemoryResources) bool {
+func (n *NodeMemoryResources) Equals(o *NodeMemoryResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3414,7 +3230,7 @@ func (n *NodeDiskResources) Merge(o *NodeDiskResources) {
 	}
 }
 
-func (n *NodeDiskResources) Equal(o *NodeDiskResources) bool {
+func (n *NodeDiskResources) Equals(o *NodeDiskResources) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3466,8 +3282,8 @@ func (id *DeviceIdTuple) Matches(other *DeviceIdTuple) bool {
 	return true
 }
 
-// Equal returns if this Device ID is the same as the passed ID.
-func (id *DeviceIdTuple) Equal(o *DeviceIdTuple) bool {
+// Equals returns if this Device ID is the same as the passed ID.
+func (id *DeviceIdTuple) Equals(o *DeviceIdTuple) bool {
 	if id == nil && o == nil {
 		return true
 	} else if id == nil || o == nil {
@@ -3521,7 +3337,7 @@ func (n *NodeDeviceResource) Copy() *NodeDeviceResource {
 	return &nn
 }
 
-func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
+func (n *NodeDeviceResource) Equals(o *NodeDeviceResource) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3557,7 +3373,7 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 		idMap[d.ID] = d
 	}
 	for _, otherD := range o.Instances {
-		if d, ok := idMap[otherD.ID]; !ok || !d.Equal(otherD) {
+		if d, ok := idMap[otherD.ID]; !ok || !d.Equals(otherD) {
 			return false
 		}
 	}
@@ -3582,7 +3398,7 @@ type NodeDevice struct {
 	Locality *NodeDeviceLocality
 }
 
-func (n *NodeDevice) Equal(o *NodeDevice) bool {
+func (n *NodeDevice) Equals(o *NodeDevice) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -3597,7 +3413,7 @@ func (n *NodeDevice) Equal(o *NodeDevice) bool {
 		return false
 	} else if n.HealthDescription != o.HealthDescription {
 		return false
-	} else if !n.Locality.Equal(o.Locality) {
+	} else if !n.Locality.Equals(o.Locality) {
 		return false
 	}
 
@@ -3625,7 +3441,7 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
-func (n *NodeDeviceLocality) Equal(o *NodeDeviceLocality) bool {
+func (n *NodeDeviceLocality) Equals(o *NodeDeviceLocality) bool {
 	if o == nil && n == nil {
 		return true
 	} else if o == nil {
@@ -4115,7 +3931,7 @@ func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
 	}
 
 	for i, o := range a {
-		if o.ID().Equal(d.ID()) {
+		if o.ID().Equals(d.ID()) {
 			return i
 		}
 	}
@@ -4246,19 +4062,17 @@ const (
 	// JobMinPriority is the minimum allowed priority
 	JobMinPriority = 1
 
-	// JobDefaultPriority is the default priority if not specified.
+	// JobDefaultPriority is the default priority if not
+	// not specified.
 	JobDefaultPriority = 50
 
-	// JobDefaultMaxPriority is the default maximum allowed priority
-	JobDefaultMaxPriority = 100
-
-	// JobMaxPriority is the maximum allowed configuration value for maximum job priority
-	JobMaxPriority = math.MaxInt16 - 1
+	// JobMaxPriority is the maximum allowed priority
+	JobMaxPriority = 100
 
 	// CoreJobPriority should be higher than any user
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
-	CoreJobPriority = math.MaxInt16
+	CoreJobPriority = JobMaxPriority * 2
 
 	// JobTrackedVersions is the number of historic job versions that are
 	// kept.
@@ -4268,44 +4082,6 @@ const (
 	// kept for a single task group.
 	JobTrackedScalingEvents = 20
 )
-
-// A JobSubmission contains the original job specification, along with the Variables
-// submitted with the job.
-type JobSubmission struct {
-	// Source contains the original job definition (may be hc1, hcl2, or json)
-	Source string
-
-	// Format indicates whether the original job was hcl1, hcl2, or json.
-	Format string
-
-	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
-	// job (hcl2 only).
-	VariableFlags map[string]string
-
-	// Variables contains the opaque variable blob that was input from the
-	// webUI (hcl2 only).
-	Variables string
-
-	// Namespace is managed internally, do not set.
-	//
-	// The namespace the associated job belongs to.
-	Namespace string
-
-	// JobID is managed internally, not set.
-	//
-	// The job.ID field.
-	JobID string
-
-	// Version is managed internally, not set.
-	//
-	// The version of the Job this submission is associated with.
-	Version uint64
-
-	// JobModifyIndex is managed internally, not set.
-	//
-	// The raft index the Job this submission is associated with.
-	JobModifyIndex uint64
-}
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
@@ -4499,10 +4275,6 @@ func (j *Job) Canonicalize() {
 		j.Namespace = DefaultNamespace
 	}
 
-	if len(j.Datacenters) == 0 {
-		j.Datacenters = []string{"*"}
-	}
-
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
@@ -4575,6 +4347,9 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job type"))
 	default:
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Invalid job type: %q", j.Type))
+	}
+	if j.Priority < JobMinPriority || j.Priority > JobMaxPriority {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Job priority must be between [%d, %d]", JobMinPriority, JobMaxPriority))
 	}
 	if len(j.Datacenters) == 0 && !j.IsMultiregion() {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job datacenters"))
@@ -5196,12 +4971,6 @@ func (u *UpdateStrategy) IsEmpty() bool {
 	if u == nil {
 		return true
 	}
-
-	// When the Job is transformed from api to struct, the Update Strategy block is
-	// copied into the existing task groups, the only things that are passed along
-	// are MaxParallel and Stagger, because they are enforced at job level.
-	// That is why checking if MaxParallel is zero is enough to know if the
-	// update block is empty.
 
 	return u.MaxParallel == 0
 }
@@ -6554,10 +6323,6 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 		tg.EphemeralDisk = DefaultEphemeralDisk()
 	}
 
-	if job.Type == JobTypeSystem && tg.Count == 0 {
-		tg.Count = 1
-	}
-
 	if tg.Scaling != nil {
 		tg.Scaling.Canonicalize()
 	}
@@ -6775,8 +6540,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
-	isTypeService := j.Type == JobTypeService
-
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		// Validate the task does not reference undefined volume mounts
@@ -6796,15 +6559,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
-
-		// Validate the group's Update Strategy does not conflict with the Task's kill_timeout for service type jobs
-		if isTypeService && tg.Update != nil {
-			if task.KillTimeout > tg.Update.ProgressDeadline {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a kill timout (%s) longer than the group's progress deadline (%s)",
-					task.Name, task.KillTimeout.String(), tg.Update.ProgressDeadline.String()))
-			}
-		}
-
 	}
 
 	return mErr.ErrorOrNil()
@@ -7178,7 +6932,7 @@ func (c *CheckRestart) Copy() *CheckRestart {
 	return nc
 }
 
-func (c *CheckRestart) Equal(o *CheckRestart) bool {
+func (c *CheckRestart) Equals(o *CheckRestart) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
@@ -7227,7 +6981,7 @@ type LogConfig struct {
 	MaxFileSizeMB int
 }
 
-func (l *LogConfig) Equal(o *LogConfig) bool {
+func (l *LogConfig) Equals(o *LogConfig) bool {
 	if l == nil || o == nil {
 		return l == o
 	}
@@ -7361,10 +7115,6 @@ type Task struct {
 
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
-
-	// Identity controls if and how the workload identity is exposed to
-	// tasks similar to the Vault block.
-	Identity *WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7425,7 +7175,6 @@ func (t *Task) Copy() *Task {
 	nt.Meta = maps.Clone(nt.Meta)
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
-	nt.Identity = nt.Identity.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -8057,47 +7806,6 @@ func DefaultTemplate() *Template {
 	}
 }
 
-func (t *Template) Equal(o *Template) bool {
-	if t == nil || o == nil {
-		return t == o
-	}
-	switch {
-	case t.SourcePath != o.SourcePath:
-		return false
-	case t.DestPath != o.DestPath:
-		return false
-	case t.EmbeddedTmpl != o.EmbeddedTmpl:
-		return false
-	case t.ChangeMode != o.ChangeMode:
-		return false
-	case t.ChangeSignal != o.ChangeSignal:
-		return false
-	case !t.ChangeScript.Equal(o.ChangeScript):
-		return false
-	case t.Splay != o.Splay:
-		return false
-	case t.Perms != o.Perms:
-		return false
-	case !pointer.Eq(t.Uid, o.Uid):
-		return false
-	case !pointer.Eq(t.Gid, o.Gid):
-		return false
-	case t.LeftDelim != o.LeftDelim:
-		return false
-	case t.RightDelim != o.RightDelim:
-		return false
-	case t.Envvars != o.Envvars:
-		return false
-	case t.VaultGrace != o.VaultGrace:
-		return false
-	case !t.Wait.Equal(o.Wait):
-		return false
-	case t.ErrMissingKey != o.ErrMissingKey:
-		return false
-	}
-	return true
-}
-
 func (t *Template) Copy() *Template {
 	if t == nil {
 		return nil
@@ -8209,33 +7917,18 @@ type ChangeScript struct {
 	FailOnError bool
 }
 
-func (cs *ChangeScript) Equal(o *ChangeScript) bool {
-	if cs == nil || o == nil {
-		return cs == o
-	}
-	switch {
-	case cs.Command != o.Command:
-		return false
-	case !slices.Equal(cs.Args, o.Args):
-		return false
-	case cs.Timeout != o.Timeout:
-		return false
-	case cs.FailOnError != o.FailOnError:
-		return false
-	}
-	return true
-}
-
 func (cs *ChangeScript) Copy() *ChangeScript {
 	if cs == nil {
 		return nil
 	}
-	return &ChangeScript{
-		Command:     cs.Command,
-		Args:        slices.Clone(cs.Args),
-		Timeout:     cs.Timeout,
-		FailOnError: cs.FailOnError,
-	}
+
+	ncs := new(ChangeScript)
+	*ncs = *cs
+
+	// args is a slice!
+	ncs.Args = slices.Clone(cs.Args)
+
+	return ncs
 }
 
 // Validate makes sure all the required fields of ChangeScript are present
@@ -8278,16 +7971,23 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 	return nwc
 }
 
-func (wc *WaitConfig) Equal(o *WaitConfig) bool {
-	if wc == nil || o == nil {
-		return wc == o
-	}
-	switch {
-	case !pointer.Eq(wc.Min, o.Min):
-		return false
-	case !pointer.Eq(wc.Max, o.Max):
+func (wc *WaitConfig) Equals(o *WaitConfig) bool {
+	if wc.Min == nil && o.Min != nil {
 		return false
 	}
+
+	if wc.Max == nil && o.Max != nil {
+		return false
+	}
+
+	if wc.Min != nil && (o.Min == nil || *wc.Min != *o.Min) {
+		return false
+	}
+
+	if wc.Max != nil && (o.Max == nil || *wc.Max != *o.Max) {
+		return false
+	}
+
 	return true
 }
 
@@ -8526,14 +8226,6 @@ const (
 
 	// TaskClientReconnected indicates that the client running the task disconnected.
 	TaskClientReconnected = "Reconnected"
-
-	// TaskWaitingShuttingDownDelay indicates that the task is waiting for
-	// shutdown delay before being TaskKilled
-	TaskWaitingShuttingDownDelay = "Waiting for shutdown delay"
-
-	// TaskSkippingShutdownDelay indicates that the task operation was
-	// configured to ignore the shutdown delay value set for the tas.
-	TaskSkippingShutdownDelay = "Skipping shutdown delay"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data
@@ -8954,25 +8646,6 @@ type TaskArtifact struct {
 	RelativeDest string
 }
 
-func (ta *TaskArtifact) Equal(o *TaskArtifact) bool {
-	if ta == nil || o == nil {
-		return ta == o
-	}
-	switch {
-	case ta.GetterSource != o.GetterSource:
-		return false
-	case !maps.Equal(ta.GetterOptions, o.GetterOptions):
-		return false
-	case !maps.Equal(ta.GetterHeaders, o.GetterHeaders):
-		return false
-	case ta.GetterMode != o.GetterMode:
-		return false
-	case ta.RelativeDest != o.RelativeDest:
-		return false
-	}
-	return true
-}
-
 func (ta *TaskArtifact) Copy() *TaskArtifact {
 	if ta == nil {
 		return nil
@@ -9129,12 +8802,17 @@ type Constraint struct {
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
 }
 
-// Equal checks if two constraints are equal.
-func (c *Constraint) Equal(o *Constraint) bool {
+// Equals checks if two constraints are equal.
+func (c *Constraint) Equals(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
 			c.RTarget == o.RTarget &&
 			c.Operand == o.Operand
+}
+
+// Equal is like Equals but with one less s.
+func (c *Constraint) Equal(o *Constraint) bool {
+	return c.Equals(o)
 }
 
 func (c *Constraint) Copy() *Constraint {
@@ -9214,8 +8892,8 @@ func (c *Constraint) Validate() error {
 
 type Constraints []*Constraint
 
-// Equal compares Constraints as a set
-func (xs *Constraints) Equal(ys *Constraints) bool {
+// Equals compares Constraints as a set
+func (xs *Constraints) Equals(ys *Constraints) bool {
 	if xs == ys {
 		return true
 	}
@@ -9228,7 +8906,7 @@ func (xs *Constraints) Equal(ys *Constraints) bool {
 SETEQUALS:
 	for _, x := range *xs {
 		for _, y := range *ys {
-			if x.Equal(y) {
+			if x.Equals(y) {
 				continue SETEQUALS
 			}
 		}
@@ -9245,22 +8923,17 @@ type Affinity struct {
 	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
 }
 
-// Equal checks if two affinities are equal.
+// Equals checks if two affinities are equal.
+func (a *Affinity) Equals(o *Affinity) bool {
+	return a == o ||
+		a.LTarget == o.LTarget &&
+			a.RTarget == o.RTarget &&
+			a.Operand == o.Operand &&
+			a.Weight == o.Weight
+}
+
 func (a *Affinity) Equal(o *Affinity) bool {
-	if a == nil || o == nil {
-		return a == o
-	}
-	switch {
-	case a.LTarget != o.LTarget:
-		return false
-	case a.RTarget != o.RTarget:
-		return false
-	case a.Operand != o.Operand:
-		return false
-	case a.Weight != o.Weight:
-		return false
-	}
-	return true
+	return a.Equals(o)
 }
 
 func (a *Affinity) Copy() *Affinity {
@@ -9344,25 +9017,10 @@ type Spread struct {
 	str string
 }
 
-func (s *Spread) Equal(o *Spread) bool {
-	if s == nil || o == nil {
-		return s == o
-	}
-	switch {
-	case s.Attribute != o.Attribute:
-		return false
-	case s.Weight != o.Weight:
-		return false
-	case !slices.EqualFunc(s.SpreadTarget, o.SpreadTarget, func(a, b *SpreadTarget) bool { return a.Equal(b) }):
-		return false
-	}
-	return true
-}
-
 type Affinities []*Affinity
 
-// Equal compares Affinities as a set
-func (xs *Affinities) Equal(ys *Affinities) bool {
+// Equals compares Affinities as a set
+func (xs *Affinities) Equals(ys *Affinities) bool {
 	if xs == ys {
 		return true
 	}
@@ -9375,7 +9033,7 @@ func (xs *Affinities) Equal(ys *Affinities) bool {
 SETEQUALS:
 	for _, x := range *xs {
 		for _, y := range *ys {
-			if x.Equal(y) {
+			if x.Equals(y) {
 				continue SETEQUALS
 			}
 		}
@@ -9463,19 +9121,6 @@ func (s *SpreadTarget) String() string {
 	return s.str
 }
 
-func (s *SpreadTarget) Equal(o *SpreadTarget) bool {
-	if s == nil || o == nil {
-		return s == o
-	}
-	switch {
-	case s.Value != o.Value:
-		return false
-	case s.Percent != o.Percent:
-		return false
-	}
-	return true
-}
-
 // EphemeralDisk is an ephemeral disk object
 type EphemeralDisk struct {
 	// Sticky indicates whether the allocation is sticky to a node
@@ -9494,21 +9139,6 @@ func DefaultEphemeralDisk() *EphemeralDisk {
 	return &EphemeralDisk{
 		SizeMB: 300,
 	}
-}
-
-func (d *EphemeralDisk) Equal(o *EphemeralDisk) bool {
-	if d == nil || o == nil {
-		return d == o
-	}
-	switch {
-	case d.Sticky != o.Sticky:
-		return false
-	case d.SizeMB != o.SizeMB:
-		return false
-	case d.Migrate != o.Migrate:
-		return false
-	}
-	return true
 }
 
 // Validate validates EphemeralDisk
@@ -9569,25 +9199,6 @@ func DefaultVaultBlock() *Vault {
 		Env:        true,
 		ChangeMode: VaultChangeModeRestart,
 	}
-}
-
-func (v *Vault) Equal(o *Vault) bool {
-	if v == nil || o == nil {
-		return v == o
-	}
-	switch {
-	case !slices.Equal(v.Policies, o.Policies):
-		return false
-	case v.Namespace != o.Namespace:
-		return false
-	case v.Env != o.Env:
-		return false
-	case v.ChangeMode != o.ChangeMode:
-		return false
-	case v.ChangeSignal != o.ChangeSignal:
-		return false
-	}
-	return true
 }
 
 // Copy returns a copy of this Vault block.
@@ -10703,8 +10314,13 @@ func (a *Allocation) ShouldMigrate() bool {
 		return false
 	}
 
-	// We won't migrate any data if the user hasn't enabled migration
-	return tg.EphemeralDisk.Migrate
+	// We won't migrate any data is the user hasn't enabled migration or the
+	// disk is not marked as sticky
+	if !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
+		return false
+	}
+
+	return true
 }
 
 // SetEventDisplayMessages populates the display message if its not already set,
@@ -10893,10 +10509,10 @@ func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
 		JobID:        a.JobID,
 		AllocationID: a.ID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			// TODO: implement a refresh loop to prevent allocation identities from
-			// expiring before the allocation is terminal. Once that's implemented,
-			// add an ExpiresAt here ExpiresAt: &jwt.NumericDate{}
-			// https://github.com/hashicorp/nomad/issues/16258
+			// TODO: in Nomad 1.5.0 we'll have a refresh loop to
+			// prevent allocation identities from expiring before the
+			// allocation is terminal. Once that's implemented, add an
+			// ExpiresAt here ExpiresAt: &jwt.NumericDate{},
 			NotBefore: now,
 			IssuedAt:  now,
 		},
@@ -12358,7 +11974,7 @@ func (a *ACLPolicy) Stub() *ACLPolicyListStub {
 
 func (a *ACLPolicy) Validate() error {
 	var mErr multierror.Error
-	if !ValidPolicyName.MatchString(a.Name) {
+	if !validPolicyName.MatchString(a.Name) {
 		err := fmt.Errorf("invalid name '%s'", a.Name)
 		mErr.Errors = append(mErr.Errors, err)
 	}
@@ -12517,14 +12133,6 @@ var (
 		Type:       ACLClientToken,
 		Policies:   []string{"anonymous"},
 		Global:     false,
-	}
-
-	// LeaderACLToken is used to represent a leader's own token; this object
-	// never gets used except on the leader
-	LeaderACLToken = &ACLToken{
-		AccessorID: "leader",
-		Name:       "Leader Token",
-		Type:       ACLManagementToken,
 	}
 )
 

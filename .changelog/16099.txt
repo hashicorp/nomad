@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Restyles "toast" notifications in the web UI with the Helios Design System
-```

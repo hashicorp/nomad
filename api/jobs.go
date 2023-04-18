@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -12,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/cronexpr"
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -72,11 +68,6 @@ type JobsParseRequest struct {
 	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
 	HCLv1 bool `json:"hclv1,omitempty"`
 
-	// Variables are HCL2 variables associated with the job. Only works with hcl2.
-	//
-	// Interpreted as if it were the content of a variables file.
-	Variables string
-
 	// Canonicalize is a flag as to if the server should return default values
 	// for unset fields
 	Canonicalize bool
@@ -87,7 +78,7 @@ func (c *Client) Jobs() *Jobs {
 	return &Jobs{client: c}
 }
 
-// ParseHCL is used to convert the HCL representation of a Job to JSON server side.
+// ParseHCL is used to convert the HCL repesentation of a Job to JSON server side.
 // To parse the HCL client side see package github.com/hashicorp/nomad/jobspec
 // Use ParseHCLOpts if you need to customize JobsParseRequest.
 func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
@@ -98,11 +89,13 @@ func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 	return j.ParseHCLOpts(req)
 }
 
-// ParseHCLOpts is used to request the server convert the HCL representation of a
-// Job to JSON on our behalf. Accepts HCL1 or HCL2 jobs as input.
+// ParseHCLOpts is used to convert the HCL representation of a Job to JSON
+// server side. To parse the HCL client side see package
+// github.com/hashicorp/nomad/jobspec.
+// ParseHCL is an alternative convenience API for HCLv2 users.
 func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
 	var job Job
-	_, err := j.client.put("/v1/jobs/parse", req, &job, nil)
+	_, err := j.client.write("/v1/jobs/parse", req, &job, nil)
 	return &job, err
 }
 
@@ -112,7 +105,7 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 	if q != nil {
 		req.WriteRequest = WriteRequest{Region: q.Region}
 	}
-	wm, err := j.client.put("/v1/validate/job", req, &resp, q)
+	wm, err := j.client.write("/v1/validate/job", req, &resp, q)
 	return &resp, wm, err
 }
 
@@ -123,7 +116,6 @@ type RegisterOptions struct {
 	PolicyOverride bool
 	PreserveCounts bool
 	EvalPriority   int
-	Submission     *JobSubmission
 }
 
 // Register is used to register a new job. It returns the ID
@@ -142,7 +134,9 @@ func (j *Jobs) EnforceRegister(job *Job, modifyIndex uint64, q *WriteOptions) (*
 // returns the ID of the evaluation, along with any errors encountered.
 func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 	// Format the request
-	req := &JobRegisterRequest{Job: job}
+	req := &JobRegisterRequest{
+		Job: job,
+	}
 	if opts != nil {
 		if opts.EnforceIndex {
 			req.EnforceIndex = true
@@ -151,11 +145,10 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
 		req.EvalPriority = opts.EvalPriority
-		req.Submission = opts.Submission
 	}
 
 	var resp JobRegisterResponse
-	wm, err := j.client.put("/v1/jobs", req, &resp, q)
+	wm, err := j.client.write("/v1/jobs", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -230,7 +223,7 @@ func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool
 		Meta:    meta,
 	}
 	var resp JobRegisterResponse
-	qm, err := j.client.put(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
+	qm, err := j.client.write(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -257,19 +250,6 @@ func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*J
 		return nil, nil, nil, err
 	}
 	return resp.Versions, resp.Diffs, qm, nil
-}
-
-// Submission is used to retrieve the original submitted source of a job given its
-// namespace, jobID, and version number. The original source might not be available,
-// which case nil is returned with no error.
-func (j *Jobs) Submission(jobID string, version int, q *QueryOptions) (*JobSubmission, *QueryMeta, error) {
-	var sub JobSubmission
-	s := fmt.Sprintf("/v1/job/%s/submission?version=%d", url.PathEscape(jobID), version)
-	qm, err := j.client.query(s, &sub, q)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &sub, qm, nil
 }
 
 // Allocations is used to return the allocs for a given job ID.
@@ -396,7 +376,7 @@ func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOpt
 // ForceEvaluate is used to force-evaluate an existing job.
 func (j *Jobs) ForceEvaluate(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp JobRegisterResponse
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/evaluate", nil, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/evaluate", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -412,7 +392,7 @@ func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions)
 	}
 
 	var resp JobRegisterResponse
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/evaluate", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/evaluate", req, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -422,7 +402,7 @@ func (j *Jobs) EvaluateWithOpts(jobID string, opts EvalOptions, q *WriteOptions)
 // PeriodicForce spawns a new instance of the periodic job and returns the eval ID
 func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta, error) {
 	var resp periodicForceResponse
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/periodic/force", nil, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/periodic/force", nil, &resp, q)
 	if err != nil {
 		return "", nil, err
 	}
@@ -455,7 +435,7 @@ func (j *Jobs) PlanOpts(job *Job, opts *PlanOptions, q *WriteOptions) (*JobPlanR
 	}
 
 	var resp JobPlanResponse
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(*job.ID)+"/plan", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(*job.ID)+"/plan", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -480,7 +460,7 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 		Payload:          payload,
 		IdPrefixTemplate: idPrefixTemplate,
 	}
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -501,7 +481,7 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 		ConsulToken:         consulToken,
 		VaultToken:          vaultToken,
 	}
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -518,7 +498,7 @@ func (j *Jobs) Stable(jobID string, version uint64, stable bool,
 		JobVersion: version,
 		Stable:     stable,
 	}
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/stable", req, &resp, q)
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/stable", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -883,51 +863,6 @@ type ParameterizedJobConfig struct {
 	MetaOptional []string `mapstructure:"meta_optional" hcl:"meta_optional,optional"`
 }
 
-// JobSubmission is used to hold information about the original content of a job
-// specification being submitted to Nomad.
-//
-// At any time a JobSubmission may be nil, indicating no information is known about
-// the job submission.
-type JobSubmission struct {
-	// Source contains the original job definition (may be in the format of
-	// hcl1, hcl2, or json).
-	Source string
-
-	// Format indicates what the Source content was (hcl1, hcl2, or json).
-	Format string
-
-	// VariableFlags contains the CLI "-var" flag arguments as submitted with the
-	// job (hcl2 only).
-	VariableFlags map[string]string
-
-	// Variables contains the opaque variables configuration as coming from
-	// a var-file or the WebUI variables input (hcl2 only).
-	Variables string
-}
-
-func (js *JobSubmission) Canonicalize() {
-	if js == nil {
-		return
-	}
-
-	if len(js.VariableFlags) == 0 {
-		js.VariableFlags = nil
-	}
-}
-
-func (js *JobSubmission) Copy() *JobSubmission {
-	if js == nil {
-		return nil
-	}
-
-	return &JobSubmission{
-		Source:        js.Source,
-		Format:        js.Format,
-		VariableFlags: maps.Clone(js.VariableFlags),
-		Variables:     js.Variables,
-	}
-}
-
 // Job is used to serialize a job.
 type Job struct {
 	/* Fields parsed from HCL config */
@@ -1003,7 +938,7 @@ func (j *Job) Canonicalize() {
 		j.Namespace = pointerOf(DefaultNamespace)
 	}
 	if j.Priority == nil {
-		j.Priority = pointerOf(0)
+		j.Priority = pointerOf(50)
 	}
 	if j.Stop == nil {
 		j.Stop = pointerOf(false)
@@ -1313,9 +1248,7 @@ type JobRevertRequest struct {
 
 // JobRegisterRequest is used to update a job
 type JobRegisterRequest struct {
-	Submission *JobSubmission
-	Job        *Job
-
+	Job *Job
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
 	// register only occurs if the job is new.
@@ -1450,12 +1383,6 @@ type JobDispatchResponse struct {
 type JobVersionsResponse struct {
 	Versions []*Job
 	Diffs    []*JobDiff
-	QueryMeta
-}
-
-// JobSubmissionResponse is used for a job get submission request
-type JobSubmissionResponse struct {
-	Submission *JobSubmission
 	QueryMeta
 }
 

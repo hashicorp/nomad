@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -105,14 +102,6 @@ func (n NoopDB) DeleteCheckResults(allocID string, checkIDs []structs.CheckID) e
 
 func (n NoopDB) PurgeCheckResults(allocID string) error {
 	return nil
-}
-
-func (n NoopDB) PutNodeMeta(map[string]*string) error {
-	return nil
-}
-
-func (n NoopDB) GetNodeMeta() (map[string]*string, error) {
-	return nil, nil
 }
 
 func (n NoopDB) Close() error {

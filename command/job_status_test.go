@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -18,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -265,7 +261,7 @@ func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -372,7 +368,7 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 
 	// Create state store objects for job, alloc and followup eval with a future WaitUntil value
 	j := mock.Job()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, j))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 900, j))
 
 	e := mock.Eval()
 	e.WaitUntil = time.Now().Add(1 * time.Hour)
@@ -394,105 +390,6 @@ func TestJobStatusCommand_RescheduleEvals(t *testing.T) {
 	out := ui.OutputWriter.String()
 	require.Contains(out, "Future Rescheduling Attempts")
 	require.Contains(out, e.ID[:8])
-}
-
-func TestJobStatusCommand_ACL(t *testing.T) {
-	ci.Parallel(t)
-
-	// Start server with ACL enabled.
-	srv, _, url := testServer(t, true, func(c *agent.Config) {
-		c.ACL.Enabled = true
-	})
-	defer srv.Shutdown()
-
-	// Create a job.
-	job := mock.MinJob()
-	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
-	must.NoError(t, err)
-
-	testCases := []struct {
-		name        string
-		jobPrefix   bool
-		aclPolicy   string
-		expectedErr string
-	}{
-		{
-			name:        "no token",
-			aclPolicy:   "",
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "missing read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["submit-job"]
-}
-`,
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "read-job allowed",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job"]
-}
-`,
-		},
-		{
-			name:      "job prefix requires list-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job"]
-}
-`,
-			expectedErr: "job not found",
-		},
-		{
-			name:      "job prefix works with list-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job", "list-jobs"]
-}
-`,
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ui := cli.NewMockUi()
-			cmd := &JobStatusCommand{Meta: Meta{Ui: ui}}
-			args := []string{
-				"-address", url,
-			}
-
-			if tc.aclPolicy != "" {
-				// Create ACL token with test case policy and add it to the
-				// command.
-				policyName := nonAlphaNum.ReplaceAllString(tc.name, "-")
-				token := mock.CreatePolicyAndToken(t, state, uint64(302+i), policyName, tc.aclPolicy)
-				args = append(args, "-token", token.SecretID)
-			}
-
-			// Add job ID or job ID prefix to the command.
-			if tc.jobPrefix {
-				args = append(args, job.ID[:3])
-			} else {
-				args = append(args, job.ID)
-			}
-			code := cmd.Run(args)
-
-			// Run command.
-			if tc.expectedErr == "" {
-				must.Zero(t, code)
-			} else {
-				must.One(t, code)
-				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
-			}
-		})
-	}
 }
 
 func waitForSuccess(ui cli.Ui, client *api.Client, length int, t *testing.T, evalId string) int {

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -13,10 +10,38 @@ import (
 	"strconv"
 	"strings"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
+
+// MergeMultierrorWarnings takes job warnings and canonicalize warnings and
+// merges them into a returnable string. Both the errors may be nil.
+func MergeMultierrorWarnings(errs ...error) string {
+	if len(errs) == 0 {
+		return ""
+	}
+
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, errs...)
+	mErr.ErrorFormat = warningsFormatter
+
+	return mErr.Error()
+}
+
+// warningsFormatter is used to format job warnings
+func warningsFormatter(es []error) string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
+
+	for i := range es {
+		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
+	}
+
+	return sb.String()
+}
 
 // RemoveAllocs is used to remove any allocs with the given IDs
 // from the list of allocations
@@ -411,7 +436,7 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 }
 
 // CompileACLObject compiles a set of ACL policies into an ACL object with a cache
-func CompileACLObject(cache *ACLCache[*acl.ACL], policies []*ACLPolicy) (*acl.ACL, error) {
+func CompileACLObject(cache *lru.TwoQueueCache, policies []*ACLPolicy) (*acl.ACL, error) {
 	// Sort the policies to ensure consistent ordering
 	sort.Slice(policies, func(i, j int) bool {
 		return policies[i].Name < policies[j].Name
@@ -419,9 +444,9 @@ func CompileACLObject(cache *ACLCache[*acl.ACL], policies []*ACLPolicy) (*acl.AC
 
 	// Determine the cache key
 	cacheKey := ACLPolicyListHash(policies)
-	entry, ok := cache.Get(cacheKey)
+	aclRaw, ok := cache.Get(cacheKey)
 	if ok {
-		return entry.Get(), nil
+		return aclRaw.(*acl.ACL), nil
 	}
 
 	// Parse the policies

@@ -1,14 +1,8 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 @import './core';
 
 @import 'ember-power-select';
 
 @import './components';
-@import '@hashicorp/design-system-components';
 @import './charts';
 
 // Only necessary in dev

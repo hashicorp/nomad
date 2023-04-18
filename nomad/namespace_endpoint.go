@@ -1,16 +1,12 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
-
+	metrics "github.com/armon/go-metrics"
+	memdb "github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -18,31 +14,19 @@ import (
 // Namespace endpoint is used for manipulating namespaces
 type Namespace struct {
 	srv *Server
-	ctx *RPCContext
-}
-
-func NewNamespaceEndpoint(srv *Server, ctx *RPCContext) *Namespace {
-	return &Namespace{srv: srv, ctx: ctx}
 }
 
 // UpsertNamespaces is used to upsert a set of namespaces
 func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 	reply *structs.GenericResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
 	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.UpsertNamespaces", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("namespace", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "upsert_namespaces"}, time.Now())
 
 	// Check management permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -75,20 +59,14 @@ func (n *Namespace) UpsertNamespaces(args *structs.NamespaceUpsertRequest,
 
 // DeleteNamespaces is used to delete a namespace
 func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply *structs.GenericResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
 	args.Region = n.srv.config.AuthoritativeRegion
 	if done, err := n.srv.forward("Namespace.DeleteNamespaces", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("namespace", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "delete_namespaces"}, time.Now())
 
 	// Check management permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
@@ -225,19 +203,13 @@ func (n *Namespace) namespaceTerminalInRegion(authToken, namespace, region strin
 
 // ListNamespaces is used to list the namespaces
 func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *structs.NamespaceListResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Namespace.ListNamespaces", args, args, reply); done {
 		return err
-	}
-	n.srv.MeasureRPCRate("namespace", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "list_namespace"}, time.Now())
 
 	// Resolve token to acl to filter namespace list
-	aclObj, err := n.srv.ResolveACL(args)
+	aclObj, err := n.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -292,19 +264,13 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 
 // GetNamespace is used to get a specific namespace
 func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *structs.SingleNamespaceResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Namespace.GetNamespace", args, args, reply); done {
 		return err
-	}
-	n.srv.MeasureRPCRate("namespace", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespace"}, time.Now())
 
 	// Check capabilities for the given namespace permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNamespace(args.Name) {
 		return structs.ErrPermissionDenied
@@ -346,19 +312,13 @@ func (n *Namespace) GetNamespace(args *structs.NamespaceSpecificRequest, reply *
 
 // GetNamespaces is used to get a set of namespaces
 func (n *Namespace) GetNamespaces(args *structs.NamespaceSetRequest, reply *structs.NamespaceSetResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Namespace.GetNamespaces", args, args, reply); done {
 		return err
-	}
-	n.srv.MeasureRPCRate("namespace", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "namespace", "get_namespaces"}, time.Now())
 
 	// Check management permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied

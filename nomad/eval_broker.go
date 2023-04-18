@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -66,15 +63,15 @@ type EvalBroker struct {
 	// jobEvals tracks queued evaluations by a job's ID and namespace to serialize them
 	jobEvals map[structs.NamespacedID]string
 
-	// pending tracks the pending evaluations by JobID in a priority queue
-	pending map[structs.NamespacedID]PendingEvaluations
+	// blocked tracks the blocked evaluations by JobID in a priority queue
+	blocked map[structs.NamespacedID]BlockedEvaluations
 
-	// cancelable tracks previously pending evaluations (for any job) that are
+	// cancelable tracks previously blocked evaluations (for any job) that are
 	// now safe for the Eval.Ack RPC to cancel in batches
 	cancelable []*structs.Evaluation
 
 	// ready tracks the ready jobs by scheduler in a priority queue
-	ready map[string]ReadyEvaluations
+	ready map[string]PendingEvaluations
 
 	// unack is a map of evalID to an un-acknowledged evaluation
 	unack map[string]*unackEval
@@ -122,13 +119,13 @@ type unackEval struct {
 	NackTimer *time.Timer
 }
 
-// ReadyEvaluations is a list of ready evaluations across multiple jobs. We
-// implement the container/heap interface so that this is a priority queue.
-type ReadyEvaluations []*structs.Evaluation
-
-// PendingEvaluations is a list of pending evaluations for a given job. We
+// PendingEvaluations is a list of ready evaluations across multiple jobs. We
 // implement the container/heap interface so that this is a priority queue.
 type PendingEvaluations []*structs.Evaluation
+
+// BlockedEvaluations is a list of blocked evaluations for a given job. We
+// implement the container/heap interface so that this is a priority queue.
+type BlockedEvaluations []*structs.Evaluation
 
 // NewEvalBroker creates a new evaluation broker. This is parameterized
 // with the timeout used for messages that are not acknowledged before we
@@ -149,9 +146,9 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		stats:                new(BrokerStats),
 		evals:                make(map[string]int),
 		jobEvals:             make(map[structs.NamespacedID]string),
-		pending:              make(map[structs.NamespacedID]PendingEvaluations),
+		blocked:              make(map[structs.NamespacedID]BlockedEvaluations),
 		cancelable:           make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest),
-		ready:                make(map[string]ReadyEvaluations),
+		ready:                make(map[string]PendingEvaluations),
 		unack:                make(map[string]*unackEval),
 		waiting:              make(map[string]chan struct{}),
 		requeue:              make(map[string]*structs.Evaluation),
@@ -295,53 +292,53 @@ func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation) {
 }
 
 // enqueueLocked is used to enqueue with the lock held
-func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, sched string) {
+func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 	// Do nothing if not enabled
 	if !b.enabled {
 		return
 	}
 
-	// Check if there is a ready evaluation for this JobID
+	// Check if there is an evaluation for this JobID pending
 	namespacedID := structs.NamespacedID{
 		ID:        eval.JobID,
 		Namespace: eval.Namespace,
 	}
-	readyEval := b.jobEvals[namespacedID]
-	if readyEval == "" {
+	pendingEval := b.jobEvals[namespacedID]
+	if pendingEval == "" {
 		b.jobEvals[namespacedID] = eval.ID
-	} else if readyEval != eval.ID {
-		pending := b.pending[namespacedID]
-		heap.Push(&pending, eval)
-		b.pending[namespacedID] = pending
-		b.stats.TotalPending += 1
+	} else if pendingEval != eval.ID {
+		blocked := b.blocked[namespacedID]
+		heap.Push(&blocked, eval)
+		b.blocked[namespacedID] = blocked
+		b.stats.TotalBlocked += 1
 		return
 	}
 
-	// Find the next ready eval by scheduler class
-	readyQueue, ok := b.ready[sched]
+	// Find the pending by scheduler class
+	pending, ok := b.ready[queue]
 	if !ok {
-		readyQueue = make([]*structs.Evaluation, 0, 16)
-		if _, ok := b.waiting[sched]; !ok {
-			b.waiting[sched] = make(chan struct{}, 1)
+		pending = make([]*structs.Evaluation, 0, 16)
+		if _, ok := b.waiting[queue]; !ok {
+			b.waiting[queue] = make(chan struct{}, 1)
 		}
 	}
 
 	// Push onto the heap
-	heap.Push(&readyQueue, eval)
-	b.ready[sched] = readyQueue
+	heap.Push(&pending, eval)
+	b.ready[queue] = pending
 
 	// Update the stats
 	b.stats.TotalReady += 1
-	bySched, ok := b.stats.ByScheduler[sched]
+	bySched, ok := b.stats.ByScheduler[queue]
 	if !ok {
 		bySched = &SchedulerStats{}
-		b.stats.ByScheduler[sched] = bySched
+		b.stats.ByScheduler[queue] = bySched
 	}
 	bySched.Ready += 1
 
-	// Unblock any pending dequeues
+	// Unblock any blocked dequeues
 	select {
-	case b.waiting[sched] <- struct{}{}:
+	case b.waiting[queue] <- struct{}{}:
 	default:
 	}
 }
@@ -401,14 +398,14 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 	var eligibleSched []string
 	var eligiblePriority int
 	for _, sched := range schedulers {
-		// Get the ready queue for this scheduler
-		readyQueue, ok := b.ready[sched]
+		// Get the pending queue
+		pending, ok := b.ready[sched]
 		if !ok {
 			continue
 		}
 
 		// Peek at the next item
-		ready := readyQueue.Peek()
+		ready := pending.Peek()
 		if ready == nil {
 			continue
 		}
@@ -447,9 +444,10 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 // dequeueForSched is used to dequeue the next work item for a given scheduler.
 // This assumes locks are held and that this scheduler has work
 func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string, error) {
-	readyQueue := b.ready[sched]
-	raw := heap.Pop(&readyQueue)
-	b.ready[sched] = readyQueue
+	// Get the pending queue
+	pending := b.ready[sched]
+	raw := heap.Pop(&pending)
+	b.ready[sched] = pending
 	eval := raw.(*structs.Evaluation)
 
 	// Generate a UUID for the token
@@ -594,29 +592,29 @@ func (b *EvalBroker) Ack(evalID, token string) error {
 	}
 	delete(b.jobEvals, namespacedID)
 
-	// Check if there are any pending evaluations
-	if pending := b.pending[namespacedID]; len(pending) != 0 {
+	// Check if there are any blocked evaluations
+	if blocked := b.blocked[namespacedID]; len(blocked) != 0 {
 
-		// Any pending evaluations with ModifyIndexes older than the just-ack'd
+		// Any blocked evaluations with ModifyIndexes older than the just-ack'd
 		// evaluation are no longer useful, so it's safe to drop them.
-		cancelable := pending.MarkForCancel()
+		cancelable := blocked.MarkForCancel()
 		b.cancelable = append(b.cancelable, cancelable...)
 		b.stats.TotalCancelable = len(b.cancelable)
-		b.stats.TotalPending -= len(cancelable)
+		b.stats.TotalBlocked -= len(cancelable)
 
 		// If any remain, enqueue an eval
-		if len(pending) > 0 {
-			raw := heap.Pop(&pending)
+		if len(blocked) > 0 {
+			raw := heap.Pop(&blocked)
 			eval := raw.(*structs.Evaluation)
-			b.stats.TotalPending -= 1
+			b.stats.TotalBlocked -= 1
 			b.enqueueLocked(eval, eval.Type)
 		}
 
 		// Clean up if there are no more after that
-		if len(pending) > 0 {
-			b.pending[namespacedID] = pending
+		if len(blocked) > 0 {
+			b.blocked[namespacedID] = blocked
 		} else {
-			delete(b.pending, namespacedID)
+			delete(b.blocked, namespacedID)
 		}
 	}
 
@@ -754,16 +752,16 @@ func (b *EvalBroker) flush() {
 	// Reset the broker
 	b.stats.TotalReady = 0
 	b.stats.TotalUnacked = 0
-	b.stats.TotalPending = 0
+	b.stats.TotalBlocked = 0
 	b.stats.TotalWaiting = 0
 	b.stats.TotalCancelable = 0
 	b.stats.DelayedEvals = make(map[string]*structs.Evaluation)
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 	b.evals = make(map[string]int)
 	b.jobEvals = make(map[structs.NamespacedID]string)
-	b.pending = make(map[structs.NamespacedID]PendingEvaluations)
+	b.blocked = make(map[structs.NamespacedID]BlockedEvaluations)
 	b.cancelable = make([]*structs.Evaluation, 0, structs.MaxUUIDsPerWriteRequest)
-	b.ready = make(map[string]ReadyEvaluations)
+	b.ready = make(map[string]PendingEvaluations)
 	b.unack = make(map[string]*unackEval)
 	b.timeWait = make(map[string]*time.Timer)
 	b.delayHeap = delayheap.NewDelayHeap()
@@ -786,8 +784,8 @@ func (d *evalWrapper) Namespace() string {
 	return d.eval.Namespace
 }
 
-// runDelayedEvalsWatcher is a long-lived function that waits till a time
-// deadline is met for pending evaluations before enqueuing them
+// runDelayedEvalsWatcher is a long-lived function that waits till a time deadline is met for
+// pending evaluations before enqueuing them
 func (b *EvalBroker) runDelayedEvalsWatcher(ctx context.Context, updateCh <-chan struct{}) {
 	var timerChannel <-chan time.Time
 	var delayTimer *time.Timer
@@ -853,7 +851,7 @@ func (b *EvalBroker) Stats() *BrokerStats {
 	// Copy all the stats
 	stats.TotalReady = b.stats.TotalReady
 	stats.TotalUnacked = b.stats.TotalUnacked
-	stats.TotalPending = b.stats.TotalPending
+	stats.TotalBlocked = b.stats.TotalBlocked
 	stats.TotalWaiting = b.stats.TotalWaiting
 	stats.TotalCancelable = b.stats.TotalCancelable
 	for id, eval := range b.stats.DelayedEvals {
@@ -867,7 +865,7 @@ func (b *EvalBroker) Stats() *BrokerStats {
 	return stats
 }
 
-// Cancelable retrieves a batch of previously-pending evaluations that are now
+// Cancelable retrieves a batch of previously-blocked evaluations that are now
 // stale and ready to mark for canceling. The eval RPC will call this with a
 // batch size set to avoid sending overly large raft messages.
 func (b *EvalBroker) Cancelable(batchSize int) []*structs.Evaluation {
@@ -898,7 +896,7 @@ func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 			stats := b.Stats()
 			metrics.SetGauge([]string{"nomad", "broker", "total_ready"}, float32(stats.TotalReady))
 			metrics.SetGauge([]string{"nomad", "broker", "total_unacked"}, float32(stats.TotalUnacked))
-			metrics.SetGauge([]string{"nomad", "broker", "total_pending"}, float32(stats.TotalPending))
+			metrics.SetGauge([]string{"nomad", "broker", "total_blocked"}, float32(stats.TotalBlocked))
 			metrics.SetGauge([]string{"nomad", "broker", "total_waiting"}, float32(stats.TotalWaiting))
 			metrics.SetGauge([]string{"nomad", "broker", "total_cancelable"}, float32(stats.TotalCancelable))
 			for _, eval := range stats.DelayedEvals {
@@ -925,7 +923,7 @@ func (b *EvalBroker) EmitStats(period time.Duration, stopCh <-chan struct{}) {
 type BrokerStats struct {
 	TotalReady      int
 	TotalUnacked    int
-	TotalPending    int
+	TotalBlocked    int
 	TotalWaiting    int
 	TotalCancelable int
 	DelayedEvals    map[string]*structs.Evaluation
@@ -939,61 +937,18 @@ type SchedulerStats struct {
 }
 
 // Len is for the sorting interface
-func (r ReadyEvaluations) Len() int {
-	return len(r)
-}
-
-// Less is for the sorting interface. We flip the check
-// so that the "min" in the min-heap is the element with the
-// highest priority
-func (r ReadyEvaluations) Less(i, j int) bool {
-	if r[i].JobID != r[j].JobID && r[i].Priority != r[j].Priority {
-		return !(r[i].Priority < r[j].Priority)
-	}
-	return r[i].CreateIndex < r[j].CreateIndex
-}
-
-// Swap is for the sorting interface
-func (r ReadyEvaluations) Swap(i, j int) {
-	r[i], r[j] = r[j], r[i]
-}
-
-// Push is used to add a new evaluation to the slice
-func (r *ReadyEvaluations) Push(e interface{}) {
-	*r = append(*r, e.(*structs.Evaluation))
-}
-
-// Pop is used to remove an evaluation from the slice
-func (r *ReadyEvaluations) Pop() interface{} {
-	n := len(*r)
-	e := (*r)[n-1]
-	(*r)[n-1] = nil
-	*r = (*r)[:n-1]
-	return e
-}
-
-// Peek is used to peek at the next element that would be popped
-func (r ReadyEvaluations) Peek() *structs.Evaluation {
-	n := len(r)
-	if n == 0 {
-		return nil
-	}
-	return r[n-1]
-}
-
-// Len is for the sorting interface
 func (p PendingEvaluations) Len() int {
 	return len(p)
 }
 
 // Less is for the sorting interface. We flip the check
 // so that the "min" in the min-heap is the element with the
-// highest priority or highest modify index
+// highest priority
 func (p PendingEvaluations) Less(i, j int) bool {
-	if p[i].Priority != p[j].Priority {
+	if p[i].JobID != p[j].JobID && p[i].Priority != p[j].Priority {
 		return !(p[i].Priority < p[j].Priority)
 	}
-	return !(p[i].ModifyIndex < p[j].ModifyIndex)
+	return p[i].CreateIndex < p[j].CreateIndex
 }
 
 // Swap is for the sorting interface
@@ -1001,12 +956,12 @@ func (p PendingEvaluations) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
-// Push implements the heap interface and is used to add a new evaluation to the slice
+// Push is used to add a new evaluation to the slice
 func (p *PendingEvaluations) Push(e interface{}) {
 	*p = append(*p, e.(*structs.Evaluation))
 }
 
-// Pop implements the heap interface and is used to remove an evaluation from the slice
+// Pop is used to remove an evaluation from the slice
 func (p *PendingEvaluations) Pop() interface{} {
 	n := len(*p)
 	e := (*p)[n-1]
@@ -1015,17 +970,60 @@ func (p *PendingEvaluations) Pop() interface{} {
 	return e
 }
 
-// MarkForCancel is used to clear the pending list of all but the one with the
+// Peek is used to peek at the next element that would be popped
+func (p PendingEvaluations) Peek() *structs.Evaluation {
+	n := len(p)
+	if n == 0 {
+		return nil
+	}
+	return p[n-1]
+}
+
+// Len is for the sorting interface
+func (p BlockedEvaluations) Len() int {
+	return len(p)
+}
+
+// Less is for the sorting interface. We flip the check
+// so that the "min" in the min-heap is the element with the
+// highest priority or highest modify index
+func (p BlockedEvaluations) Less(i, j int) bool {
+	if p[i].Priority != p[j].Priority {
+		return !(p[i].Priority < p[j].Priority)
+	}
+	return !(p[i].ModifyIndex < p[j].ModifyIndex)
+}
+
+// Swap is for the sorting interface
+func (p BlockedEvaluations) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+// Push implements the heap interface and is used to add a new evaluation to the slice
+func (p *BlockedEvaluations) Push(e interface{}) {
+	*p = append(*p, e.(*structs.Evaluation))
+}
+
+// Pop implements the heap interface and is used to remove an evaluation from the slice
+func (p *BlockedEvaluations) Pop() interface{} {
+	n := len(*p)
+	e := (*p)[n-1]
+	(*p)[n-1] = nil
+	*p = (*p)[:n-1]
+	return e
+}
+
+// MarkForCancel is used to clear the blocked list of all but the one with the
 // highest modify index and highest priority. It returns a slice of cancelable
 // evals so that Eval.Ack RPCs can write batched raft entries to cancel
 // them. This must be called inside the broker's lock.
-func (p *PendingEvaluations) MarkForCancel() []*structs.Evaluation {
+func (p *BlockedEvaluations) MarkForCancel() []*structs.Evaluation {
 
-	// In pathological cases, we can have a large number of pending evals but
+	// In pathological cases, we can have a large number of blocked evals but
 	// will want to cancel most of them. Using heap.Remove requires we re-sort
 	// for each eval we remove. Because we expect to have at most one remaining,
 	// we'll just create a new heap.
-	retain := PendingEvaluations{(heap.Pop(p)).(*structs.Evaluation)}
+	retain := BlockedEvaluations{(heap.Pop(p)).(*structs.Evaluation)}
 
 	cancelable := make([]*structs.Evaluation, len(*p))
 	copy(cancelable, *p)

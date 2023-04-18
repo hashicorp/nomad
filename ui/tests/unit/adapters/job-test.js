@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { next } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { settled } from '@ember/test-helpers';
@@ -517,20 +512,6 @@ module('Unit | Adapter | Job', function (hooks) {
 
     const request = this.server.pretender.handledRequests[0];
     assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
-    assert.equal(request.method, 'DELETE');
-  });
-
-  test('purge requests include the activeRegion', async function (assert) {
-    const region = 'region-2';
-    const job = await this.initializeWithJob({ region });
-
-    await this.subject().purge(job);
-
-    const request = this.server.pretender.handledRequests[0];
-    assert.equal(
-      request.url,
-      `/v1/job/${job.plainId}?purge=true&region=${region}`
-    );
     assert.equal(request.method, 'DELETE');
   });
 

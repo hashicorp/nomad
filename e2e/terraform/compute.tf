@@ -1,15 +1,12 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 locals {
   ami_prefix = "nomad-e2e-v3"
 }
 
 resource "aws_instance" "server" {
-  ami                    = data.aws_ami.ubuntu_jammy_amd64.image_id
+  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
-  vpc_security_group_ids = [aws_security_group.servers.id] # see also the secondary ENI
+  vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.server_count
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
@@ -22,18 +19,18 @@ resource "aws_instance" "server" {
   }
 }
 
-resource "aws_instance" "client_ubuntu_jammy_amd64" {
-  ami                    = data.aws_ami.ubuntu_jammy_amd64.image_id
+resource "aws_instance" "client_ubuntu_bionic_amd64" {
+  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
-  vpc_security_group_ids = [aws_security_group.clients.id] # see also the secondary ENI
-  count                  = var.client_count_ubuntu_jammy_amd64
+  vpc_security_group_ids = [aws_security_group.primary.id]
+  count                  = var.client_count_ubuntu_bionic_amd64
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
   # Instance tags
   tags = {
-    Name           = "${local.random_name}-client-ubuntu-jammy-amd64-${count.index}"
+    Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
     User           = data.aws_caller_identity.current.arn
   }
@@ -43,7 +40,7 @@ resource "aws_instance" "client_windows_2016_amd64" {
   ami                    = data.aws_ami.windows_2016_amd64.image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
-  vpc_security_group_ids = [aws_security_group.clients.id]
+  vpc_security_group_ids = [aws_security_group.primary.id]
   count                  = var.client_count_windows_2016_amd64
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
@@ -67,13 +64,13 @@ EOT
 
 }
 
-data "aws_ami" "ubuntu_jammy_amd64" {
+data "aws_ami" "ubuntu_bionic_amd64" {
   most_recent = true
   owners      = ["self"]
 
   filter {
     name   = "name"
-    values = ["${local.ami_prefix}-ubuntu-jammy-amd64-*"]
+    values = ["${local.ami_prefix}-ubuntu-bionic-amd64-*"]
   }
 
   filter {

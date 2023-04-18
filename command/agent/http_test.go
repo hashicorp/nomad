@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -555,7 +552,7 @@ func TestParseToken(t *testing.T) {
 		{
 			Name:          "Parses token from X-Nomad-Token",
 			HeaderKey:     "X-Nomad-Token",
-			HeaderValue:   " foobar",
+			HeaderValue:   "foobar",
 			ExpectedToken: "foobar",
 		},
 		{
@@ -1318,7 +1315,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 				c.Limits.HTTPMaxConnsPerClient = tc.limit
 				c.LogLevel = "ERROR"
 			})
-			defer s.Shutdown()
+			defer func() {
+				require.NoError(t, s.Shutdown())
+			}()
 
 			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
 

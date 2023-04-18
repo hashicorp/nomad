@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -12,11 +7,9 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import {
   startJob,
   stopJob,
-  purgeJob,
   expectError,
   expectDeleteRequest,
   expectStartRequest,
-  expectPurgeRequest,
 } from './helpers';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
@@ -133,21 +126,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     await startJob();
 
     await expectError(assert, 'Could Not Start Job');
-  });
-
-  test('Purging a job sends a purge request for the job', async function (assert) {
-    assert.expect(1);
-
-    const mirageJob = makeMirageJob(this.server, { status: 'dead' });
-    await this.store.findAll('job');
-
-    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
-
-    this.setProperties(commonProperties(job));
-    await render(commonTemplate);
-
-    await purgeJob();
-    expectPurgeRequest(assert, this.server, job);
   });
 
   test('Recent allocations shows allocations in the job context', async function (assert) {

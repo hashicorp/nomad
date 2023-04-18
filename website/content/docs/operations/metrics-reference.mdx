@@ -30,7 +30,7 @@ configuration](/nomad/docs/configuration/telemetry).
 Below is sample output of a telemetry dump:
 
 ```text
-[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_pending': 0.000
+[2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.broker.total_blocked': 0.000
 [2015-09-17 16:59:40 -0700 PDT][G] 'nomad.nomad.plan.queue_depth': 0.000
 [2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.malloc_count': 7568.000
 [2015-09-17 16:59:40 -0700 PDT][G] 'nomad.runtime.total_gc_runs': 8.000
@@ -97,7 +97,7 @@ signals.
 | `nomad.runtime.alloc_bytes`                  | Memory utilization                                                                                                                                                                                                | # of bytes                     | Gauge   |
 | `nomad.runtime.heap_objects`                 | Number of objects on the heap. General memory pressure indicator                                                                                                                                                  | # of heap objects              | Gauge   |
 | `nomad.runtime.num_goroutines`               | Number of goroutines and general load pressure indicator                                                                                                                                                          | # of goroutines                | Gauge   |
-| `nomad.nomad.broker.total_pending`           | Evaluations that are pending until an existing evaluation for the same job completes                                                                                                                              | # of evaluations               | Gauge   |
+| `nomad.nomad.broker.total_blocked`           | Evaluations that are blocked until an existing evaluation for the same job completes                                                                                                                              | # of evaluations               | Gauge   |
 | `nomad.nomad.broker.total_ready`             | Number of evaluations ready to be processed                                                                                                                                                                       | # of evaluations               | Gauge   |
 | `nomad.nomad.broker.total_unacked`           | Evaluations dispatched for processing but incomplete                                                                                                                                                              | # of evaluations               | Gauge   |
 | `nomad.nomad.heartbeat.active`               | Number of active heartbeat timers. Each timer represents a Nomad Client connection                                                                                                                                | # of heartbeat timers          | Gauge   |

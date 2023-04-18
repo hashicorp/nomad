@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -15,8 +12,8 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
-
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,11 +24,10 @@ import (
 // "/v1/service{s}" HTTP API.
 type ServiceRegistration struct {
 	srv *Server
-	ctx *RPCContext
-}
 
-func NewServiceRegistrationEndpoint(srv *Server, ctx *RPCContext) *ServiceRegistration {
-	return &ServiceRegistration{srv: srv, ctx: ctx}
+	// ctx provides context regarding the underlying connection, so we can
+	// perform TLS certificate validation on internal only endpoints.
+	ctx *RPCContext
 }
 
 // Upsert creates or updates service registrations held within Nomad. This RPC
@@ -40,18 +36,13 @@ func (s *ServiceRegistration) Upsert(
 	args *structs.ServiceRegistrationUpsertRequest,
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
-	authErr := s.srv.Authenticate(s.ctx, args)
-
 	// Ensure the connection was initiated by a client if TLS is used.
 	if err := validateTLSCertificateLevel(s.srv, s.ctx, tlsCertificateLevelClient); err != nil {
 		return err
 	}
+
 	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
 		return err
-	}
-	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
@@ -107,13 +98,8 @@ func (s *ServiceRegistration) DeleteByID(
 	args *structs.ServiceRegistrationDeleteByIDRequest,
 	reply *structs.ServiceRegistrationDeleteByIDResponse) error {
 
-	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward(structs.ServiceRegistrationDeleteByIDRPCMethod, args, args, reply); done {
 		return err
-	}
-	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "delete_id"}, time.Now())
 
@@ -125,7 +111,7 @@ func (s *ServiceRegistration) DeleteByID(
 	}
 
 	// Perform the ACL token resolution.
-	aclObj, err := s.srv.ResolveACL(args)
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 
 	switch err {
 	case nil:
@@ -200,13 +186,8 @@ func (s *ServiceRegistration) List(
 	args *structs.ServiceRegistrationListRequest,
 	reply *structs.ServiceRegistrationListResponse) error {
 
-	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward(structs.ServiceRegistrationListRPCMethod, args, args, reply); done {
 		return err
-	}
-	s.srv.MeasureRPCRate("service_registration", structs.RateMetricList, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "list"}, time.Now())
 
@@ -216,13 +197,9 @@ func (s *ServiceRegistration) List(
 		return s.listAllServiceRegistrations(args, reply)
 	}
 
-	aclObj, err := s.srv.ResolveClientOrACL(args)
-	if err != nil {
-		return structs.ErrPermissionDenied
-	}
-	if args.GetIdentity().Claims == nil &&
-		!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-		return structs.ErrPermissionDenied
+	// Perform our mixed auth handling.
+	if err := s.handleMixedAuthEndpoint(args.QueryOptions, acl.NamespaceCapabilityReadJob); err != nil {
+		return err
 	}
 
 	// Set up and return the blocking query.
@@ -281,9 +258,9 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 	args *structs.ServiceRegistrationListRequest,
 	reply *structs.ServiceRegistrationListResponse) error {
 
-	// Perform ACL resolution. The request already goes through forwarding
+	// Perform token resolution. The request already goes through forwarding
 	// and metrics setup before being called.
-	aclObj, err := s.srv.ResolveACL(args)
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -371,23 +348,14 @@ func (s *ServiceRegistration) GetService(
 	args *structs.ServiceRegistrationByNameRequest,
 	reply *structs.ServiceRegistrationByNameResponse) error {
 
-	authErr := s.srv.Authenticate(s.ctx, args)
 	if done, err := s.srv.forward(structs.ServiceRegistrationGetServiceRPCMethod, args, args, reply); done {
 		return err
 	}
-	s.srv.MeasureRPCRate("service_registration", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "get_service"}, time.Now())
 
-	aclObj, err := s.srv.ResolveClientOrACL(args)
-	if err != nil {
-		return structs.ErrPermissionDenied
-	}
-	if args.GetIdentity().Claims == nil &&
-		!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-		return structs.ErrPermissionDenied
+	// Perform our mixed auth handling.
+	if err := s.handleMixedAuthEndpoint(args.QueryOptions, acl.NamespaceCapabilityReadJob); err != nil {
+		return err
 	}
 
 	// Set up the blocking query.
@@ -517,4 +485,65 @@ func (*ServiceRegistration) choose(services []*structs.ServiceRegistration, para
 	}
 
 	return chosen, nil
+}
+
+// handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
+// either be called by Nomad nodes, or by external clients.
+func (s *ServiceRegistration) handleMixedAuthEndpoint(args structs.QueryOptions, cap string) error {
+
+	// Perform the initial token resolution.
+	aclObj, err := s.srv.ResolveToken(args.AuthToken)
+
+	switch err {
+	case nil:
+		// Perform our ACL validation. If the object is nil, this means ACLs
+		// are not enabled, otherwise trigger the allowed namespace function.
+		if aclObj != nil {
+			if !aclObj.AllowNsOp(args.RequestNamespace(), cap) {
+				return structs.ErrPermissionDenied
+			}
+		}
+	default:
+		// Attempt to verify the token as a JWT with a workload
+		// identity claim if it's not a secret ID.
+		// COMPAT(1.4.0): we can remove this conditional in 1.5.0
+		if !helper.IsUUID(args.AuthToken) {
+			claims, err := s.srv.VerifyClaim(args.AuthToken)
+			if err != nil {
+				return err
+			}
+			if claims == nil {
+				return structs.ErrPermissionDenied
+			}
+			return nil
+		}
+
+		// COMPAT(1.4.0): Nomad 1.3.0 shipped with authentication by
+		// node secret but that's been replaced with workload identity
+		// in 1.4.0. Leave this here for backwards compatibility
+		// between clients and servers during cluster upgrades, but
+		// remove for 1.5.0
+
+		// In the event we got any error other than ErrTokenNotFound, consider this
+		// terminal.
+		if err != structs.ErrTokenNotFound {
+			return err
+		}
+
+		// Attempt to lookup AuthToken as a Node.SecretID and
+		// return any error wrapped along with the original.
+		node, stateErr := s.srv.fsm.State().NodeBySecretID(nil, args.AuthToken)
+		if stateErr != nil {
+			var mErr multierror.Error
+			mErr.Errors = append(mErr.Errors, err, stateErr)
+			return mErr.ErrorOrNil()
+		}
+		// At this point, we do not have a valid ACL token, nor are we being
+		// called, or able to confirm via the state store, by a node.
+		if node == nil {
+			return structs.ErrTokenNotFound
+		}
+
+	}
+	return nil
 }
