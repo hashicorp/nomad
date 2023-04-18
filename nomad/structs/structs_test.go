@@ -2,6 +2,7 @@ package structs
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -18,6 +19,62 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAuthenticatedIdentity_String(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                       string
+		inputAuthenticatedIdentity *AuthenticatedIdentity
+		expectedOutput             string
+	}{
+		{
+			name:                       "nil",
+			inputAuthenticatedIdentity: nil,
+			expectedOutput:             "unauthenticated",
+		},
+		{
+			name: "ACL token",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				ACLToken: &ACLToken{
+					AccessorID: "my-testing-accessor-id",
+				},
+			},
+			expectedOutput: "token:my-testing-accessor-id",
+		},
+		{
+			name: "alloc claim",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				Claims: &IdentityClaims{
+					AllocationID: "my-testing-alloc-id",
+				},
+			},
+			expectedOutput: "alloc:my-testing-alloc-id",
+		},
+		{
+			name: "client",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				ClientID: "my-testing-client-id",
+			},
+			expectedOutput: "client:my-testing-client-id",
+		},
+		{
+			name: "tls remote IP",
+			inputAuthenticatedIdentity: &AuthenticatedIdentity{
+				TLSName:  "my-testing-tls-name",
+				RemoteIP: net.IPv4(192, 168, 135, 232),
+			},
+			expectedOutput: "my-testing-tls-name:192.168.135.232",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputAuthenticatedIdentity.String()
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
 
 func TestJob_Validate(t *testing.T) {
 	ci.Parallel(t)
