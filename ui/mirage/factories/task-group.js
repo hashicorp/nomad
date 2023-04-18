@@ -118,23 +118,29 @@ export default Factory.extend({
           unknown: 0.25,
           lost: 0.1,
         };
-
-        Array(group.count)
+      
+        const totalAllocations = group.count;
+        const allocationsByStatus = {};
+      
+        Object.entries(statusProbabilities).forEach(([status, prob]) => {
+          allocationsByStatus[status] = Math.round(totalAllocations * prob);
+        });
+      
+        let currentStatusIndex = 0;
+        const statusKeys = Object.keys(allocationsByStatus);
+      
+        Array(totalAllocations)
           .fill(null)
           .forEach((_, i) => {
-            let rand = faker.random.number({ min: 1, max: 100 }) / 100; // emulate Math.random float precision, but observe Faker random seed
-
             let clientStatus;
-
-            Object.entries(statusProbabilities).some(([status, prob]) => {
-              if (rand < prob) {
-                clientStatus = status;
-                return true;
-              }
-              rand -= prob;
-              return false;
-            });
-
+      
+            while (allocationsByStatus[statusKeys[currentStatusIndex]] === 0) {
+              currentStatusIndex++;
+            }
+      
+            clientStatus = statusKeys[currentStatusIndex];
+            allocationsByStatus[clientStatus]--;
+      
             const props = {
               jobId: group.job.id,
               namespace: group.job.namespace,
@@ -152,7 +158,7 @@ export default Factory.extend({
                 Healthy: false,
               },
             };
-
+      
             if (group.withRescheduling) {
               server.create('allocation', 'rescheduled', props);
             } else {

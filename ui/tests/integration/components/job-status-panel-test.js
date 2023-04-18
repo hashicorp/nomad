@@ -44,7 +44,6 @@ module(
 
     test('the latest deployment section shows up for the currently running deployment: Ungrouped Allocations (small cluster)', async function (assert) {
       assert.expect(19);
-      faker.seed(0); // TODO: de-flake. Distribution doesnt look like it's using faker randomness.
 
       this.server.create('node');
 
@@ -52,11 +51,11 @@ module(
       const ALLOCS_PER_GROUP = 10;
       const allocStatusDistribution = {
         running: 0.5,
-        failed: 0.05,
-        unknown: 0.2,
-        lost: 0.1,
+        failed: 0.2,
+        unknown: 0.1,
+        lost: 0,
         complete: 0.1,
-        pending: 0.05,
+        pending: 0.1,
       };
 
       const job = await this.server.create('job', {
@@ -107,11 +106,7 @@ module(
         find('.active-deployment').classList.contains('is-info'),
         'Running deployment gets the is-info class'
       );
-      console.log(
-        'NUMBER OF JOBS IN STORE:',
-        this.store.peekAll('job').length,
-        this.server
-      );
+
       // Half the shown allocations are running, 1 is pending, 1 is failed; none are canaries or healthy.
       // The rest (lost, unknown, etc.) all show up as "Unplaced"
       assert
