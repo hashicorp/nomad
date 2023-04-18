@@ -1,0 +1,3 @@
+```release-note:bug
+client: Prevent a panic when starting jobs without task group network
+```
