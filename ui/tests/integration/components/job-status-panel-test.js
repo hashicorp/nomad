@@ -5,7 +5,6 @@ import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import faker from 'nomad-ui/mirage/faker';
 
 module(
   'Integration | Component | job status panel | active deployment',
