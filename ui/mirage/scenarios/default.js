@@ -120,11 +120,33 @@ function smallCluster(server) {
   });
 
   // Manipulate the above job to show a nice distribution of running, canary, etc. allocs
-  let activelyDeployingJobAllocs = server.schema.allocations.all().filter(a => a.jobId === activelyDeployingJob.id);
-  activelyDeployingJobAllocs.models.filter(a => a.clientStatus === 'running').slice(0,10).forEach(a => a.update({deploymentStatus: { Healthy: false, Canary: true }}) );
-  activelyDeployingJobAllocs.models.filter(a => a.clientStatus === 'running').slice(10,20).forEach(a => a.update({deploymentStatus: { Healthy: true, Canary: true }}) );
-  activelyDeployingJobAllocs.models.filter(a => a.clientStatus === 'running').slice(20,80).forEach(a => a.update({deploymentStatus: { Healthy: true, Canary: false }}) );
-  activelyDeployingJobAllocs.models.filter(a => a.clientStatus === 'pending').slice(0,5).forEach(a => a.update({deploymentStatus: { Healthy: a.deploymentStatus.Healthy, Canary: true }}) );
+  let activelyDeployingJobAllocs = server.schema.allocations
+    .all()
+    .filter((a) => a.jobId === activelyDeployingJob.id);
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(0, 10)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: false, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(10, 20)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(20, 80)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'pending')
+    .slice(0, 5)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+    );
 
   //#endregion Active Deployment
 

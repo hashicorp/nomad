@@ -31,15 +31,20 @@ export default Factory.extend({
 
   afterCreate(deployment, server) {
     const job = server.db.jobs.find(deployment.jobId);
-    const groups = job.taskGroupIds.map((id) =>
-      server.create('deployment-task-group-summary', {
+    const groups = job.taskGroupIds.map((id) => {
+      let summary = server.create('deployment-task-group-summary', {
         deployment,
         name: server.db.taskGroups.find(id).name,
         desiredCanaries: 1,
-        desiredTotal: deployment.groupDesiredTotal || 3,
         promoted: false,
-      })
-    );
+      });
+      if (deployment.groupDesiredTotal) {
+        summary.update({
+          desiredTotal: deployment.groupDesiredTotal,
+        });
+      }
+      return summary;
+    });
 
     deployment.update({
       deploymentTaskGroupSummaryIds: groups.mapBy('id'),
