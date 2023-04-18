@@ -515,15 +515,15 @@ func (ai *AuthenticatedIdentity) String() string {
 		return "unauthenticated"
 	}
 	if ai.ACLToken != nil {
-		return fmt.Sprintf("token:%s", ai.ACLToken.AccessorID)
+		return "token:" + ai.ACLToken.AccessorID
 	}
 	if ai.Claims != nil {
-		return fmt.Sprintf("alloc:%s", ai.Claims.AllocationID)
+		return "alloc:" + ai.Claims.AllocationID
 	}
 	if ai.ClientID != "" {
-		return fmt.Sprintf("client:%s", ai.ClientID)
+		return "client:" + ai.ClientID
 	}
-	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
+	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
 
 func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
