@@ -5,6 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module(
   'Integration | Component | job status panel | active deployment',
@@ -320,6 +321,10 @@ module(
         '25 Running 0 Complete'
       );
 
+      await percySnapshot(
+        "Job Status Panel: 'New' and 'Previous' allocations, initial deploying state"
+      );
+
       // Try setting a few of the old allocs to complete and make sure number ticks down
       await Promise.all(
         this.get('job.allocations')
@@ -366,6 +371,10 @@ module(
           .textContent.trim()
           .replace(/\s\s+/g, ' '),
         '20 Running 5 Complete'
+      );
+
+      await percySnapshot(
+        "Job Status Panel: 'New' and 'Previous' allocations, some old marked complete"
       );
 
       await componentA11yAudit(
