@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -678,7 +675,7 @@ func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 	}
 }
 
-func TestAgent_ClientConfig_discovery(t *testing.T) {
+func TestAgent_ClientConfig(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
 	conf.Client.Enabled = true
@@ -730,21 +727,6 @@ func TestAgent_ClientConfig_discovery(t *testing.T) {
 	require.False(t, c.NomadServiceDiscovery)
 }
 
-func TestAgent_ClientConfig_JobMaxSourceSize(t *testing.T) {
-	ci.Parallel(t)
-
-	conf := DevConfig(nil)
-	must.Eq(t, conf.Server.JobMaxSourceSize, pointer.Of("1M"))
-	must.NoError(t, conf.normalizeAddrs())
-
-	// config conversion ensures value is set
-	conf.Server.JobMaxSourceSize = nil
-	agent := &Agent{config: conf}
-	serverConf, err := agent.serverConfig()
-	must.NoError(t, err)
-	must.Eq(t, 1e6, serverConf.JobMaxSourceSize)
-}
-
 func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
@@ -753,14 +735,16 @@ func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
 	conf.Client.Reserved.Cores = "0,2-3"
 	a := &Agent{config: conf}
 	c, err := a.clientConfig()
-	must.NoError(t, err)
-	must.Eq(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
-	must.Eq(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
+	require.NoError(t, err)
+	require.Exactly(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
+	require.Exactly(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
 }
 
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	ci.Parallel(t)
+
+	assert := assert.New(t)
 
 	conf := DefaultConfig()
 	conf.DevMode = true
@@ -768,13 +752,13 @@ func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	a := &Agent{config: conf}
 
 	c, err := a.clientConfig()
-	must.NoError(t, err)
+	assert.Nil(err)
 
 	telemetry := conf.Telemetry
 
-	must.Eq(t, c.StatsCollectionInterval, telemetry.collectionInterval)
-	must.Eq(t, c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
-	must.Eq(t, c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
+	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
+	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
+	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP

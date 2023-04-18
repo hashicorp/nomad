@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "checks_task_restart" {
   datacenters = ["dc1"]
   type        = "service"

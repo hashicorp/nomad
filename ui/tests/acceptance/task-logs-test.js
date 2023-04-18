@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { click, currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';

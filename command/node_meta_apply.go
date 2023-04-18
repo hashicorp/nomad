@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -37,10 +34,10 @@ Node Meta Apply Options:
     the request will be used by default.
 
   -unset key1,...,keyN
-    Unset the comma separated list of keys.
+    Unset the command separated list of keys.
 
-  Example:
-    $ nomad node meta apply -unset testing,tempvar ready=1 role=preinit-db
+    Example:
+      $ nomad node meta apply -unset testing,tempvar ready=1 role=preinit-db
 `
 	return strings.TrimSpace(helpText)
 }

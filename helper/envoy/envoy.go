@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package envoy provides a high level view of the variables that go into
 // selecting an envoy version.
 package envoy

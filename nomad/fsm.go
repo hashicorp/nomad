@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -556,7 +553,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJob(msgType, index, req.Submission, req.Job); err != nil {
+	if err := n.state.UpsertJob(msgType, index, req.Job); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -795,7 +792,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		stopped := current.Copy()
 		stopped.Stop = true
 
-		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
+		if err := n.state.UpsertJobTxn(index, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
 		}
 	}

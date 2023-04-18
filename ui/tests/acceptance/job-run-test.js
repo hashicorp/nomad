@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import AdapterError from '@ember-data/adapter/error';
 import {
   click,
@@ -357,7 +352,7 @@ module('Acceptance | job run', function (hooks) {
         'We do not navigate away from the page if an error is returned by the API.'
       );
       assert
-        .dom('.flash-message.alert-critical')
+        .dom('.flash-message.alert-error')
         .exists('A toast error message pops up.');
     });
 

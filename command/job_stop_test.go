@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -142,7 +139,7 @@ func TestStopCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -232,7 +229,7 @@ namespace "default" {
 			// Create a job.
 			job := mock.MinJob()
 			state := srv.Agent.Server().State()
-			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), nil, job)
+			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), job)
 			must.NoError(t, err)
 			defer func() {
 				client.Jobs().Deregister(job.ID, true, &api.WriteOptions{

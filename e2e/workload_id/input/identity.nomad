@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "identity" {
   datacenters = ["dc1"]
   type        = "batch"
@@ -17,9 +14,7 @@ job "identity" {
       driver = "docker"
       config {
         image = "bash:5"
-
-        #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
-        args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
+        args  = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done"]
       }
       resources {
         cpu    = 16
@@ -36,9 +31,7 @@ job "identity" {
       driver = "docker"
       config {
         image = "bash:5"
-
-        #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
-        args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
+        args  = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done"]
       }
       resources {
         cpu    = 16
@@ -58,9 +51,7 @@ job "identity" {
       driver = "docker"
       config {
         image = "bash:5"
-
-        #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
-        args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
+        args  = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done"]
       }
       resources {
         cpu    = 16
@@ -79,9 +70,7 @@ job "identity" {
       driver = "docker"
       config {
         image = "bash:5"
-
-        #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
-        args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
+        args  = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done"]
       }
       resources {
         cpu    = 16
@@ -101,9 +90,7 @@ job "identity" {
       driver = "docker"
       config {
         image = "bash:5"
-
-        #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
-        args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
+        args  = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done"]
       }
       resources {
         cpu    = 16

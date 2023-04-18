@@ -1,11 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"golang.org/x/exp/slices"
 )
 
@@ -23,6 +21,8 @@ type LicenseConfig struct {
 
 	// AdditionalPubKeys is a set of public keys to
 	AdditionalPubKeys []string
+
+	Logger hclog.InterceptLogger
 }
 
 func (c *LicenseConfig) Copy() *LicenseConfig {

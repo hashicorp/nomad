@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 region                          = "us-east-1"
 instance_type                   = "t3a.medium"
 server_count                    = "3"

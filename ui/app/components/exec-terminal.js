@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@ember/component';
 import { FitAddon } from 'xterm-addon-fit';
 import WindowResizable from '../mixins/window-resizable';

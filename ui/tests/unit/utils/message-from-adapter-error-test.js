@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { ServerError, ForbiddenError } from '@ember-data/adapter/error';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';

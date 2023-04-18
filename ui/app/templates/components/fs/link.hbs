@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#if this.taskState}}
   {{#if this.path}}
     <LinkTo @route="allocations.allocation.task.fs" @models={{array this.allocation this.taskState this.path}} @activeClass="is-active">

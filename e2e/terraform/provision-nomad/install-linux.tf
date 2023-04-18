@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 resource "local_sensitive_file" "nomad_systemd_unit_file" {
   content         = templatefile("etc/nomad.d/nomad-${var.role}.service", {})
   filename        = "${local.upload_dir}/nomad.d/nomad.service"

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -79,7 +76,7 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -102,7 +99,7 @@ func TestJobInspectCommand_ACL(t *testing.T) {
 	// Create a job
 	job := mock.MinJob()
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	must.NoError(t, err)
 
 	testCases := []struct {

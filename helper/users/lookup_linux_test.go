@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build linux
 
 package users
@@ -41,6 +38,12 @@ func TestLookup_Linux(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLookup_NobodyIDs(t *testing.T) {
+	uid, gid := NobodyIDs()
+	must.Eq(t, 65534, uid) // ubuntu
+	must.Eq(t, 65534, gid) // ubuntu
 }
 
 func TestWriteFileFor_Linux(t *testing.T) {
@@ -87,9 +90,7 @@ func TestSocketFileFor_Linux(t *testing.T) {
 	ln, err := SocketFileFor(logger, path, "nobody")
 	must.NoError(t, err)
 	must.NotNil(t, ln)
-	t.Cleanup(func() {
-		_ = ln.Close()
-	})
+	defer ln.Close()
 
 	stat, err := os.Lstat(path)
 	must.NoError(t, err)

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { computed } from '@ember/object';
 
 // An Ember.Computed property that persists set values in localStorage

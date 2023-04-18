@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import Mixin from '@ember/object/mixin';

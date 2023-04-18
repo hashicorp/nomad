@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package drainer
 
 import (
@@ -37,7 +34,7 @@ func TestNodeDrainWatcher_AddNodes(t *testing.T) {
 	// Create a job with a running alloc on each node
 	job := mock.Job()
 	jobID := structs.NamespacedID{Namespace: job.Namespace, ID: job.ID}
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 101, job))
 
 	alloc1 := mock.Alloc()
 	alloc1.JobID = job.ID
@@ -211,7 +208,7 @@ func testNodeDrainWatcherSetup(
 	job := mock.Job()
 	jobID := structs.NamespacedID{Namespace: job.Namespace, ID: job.ID}
 	index++
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, job))
 
 	// Create draining nodes, each with its own alloc for the job running on that node
 	node := mock.Node()

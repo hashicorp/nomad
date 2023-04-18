@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
@@ -469,11 +464,11 @@ module('Acceptance | allocation detail', function (hooks) {
 
     component.onClick();
 
-    await waitFor('.flash-message.alert-critical');
+    await waitFor('.flash-message.alert-error');
 
     assert.verifySteps(['Transition dispatched.']);
     assert
-      .dom('.flash-message.alert-critical')
+      .dom('.flash-message.alert-error')
       .exists('A toast error message pops up.');
 
     // Clean-up

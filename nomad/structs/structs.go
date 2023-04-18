@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -515,15 +512,15 @@ func (ai *AuthenticatedIdentity) String() string {
 		return "unauthenticated"
 	}
 	if ai.ACLToken != nil {
-		return fmt.Sprintf("token:%s", ai.ACLToken.AccessorID)
+		return "token:" + ai.ACLToken.AccessorID
 	}
 	if ai.Claims != nil {
-		return fmt.Sprintf("alloc:%s", ai.Claims.AllocationID)
+		return "alloc:" + ai.Claims.AllocationID
 	}
 	if ai.ClientID != "" {
-		return fmt.Sprintf("client:%s", ai.ClientID)
+		return "client:" + ai.ClientID
 	}
-	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
+	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
 
 func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
@@ -694,9 +691,6 @@ type NodeSpecificRequest struct {
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
-	Submission *JobSubmission
-
-	// Job is the parsed job, no matter what form the input was in.
 	Job *Job
 
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -793,23 +787,6 @@ type JobEvaluateRequest struct {
 // EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
-}
-
-// JobSubmissionRequest is used to query a JobSubmission object associated with a
-// job at a specific version.
-type JobSubmissionRequest struct {
-	JobID   string
-	Version uint64
-
-	QueryOptions
-}
-
-// JobSubmissionResponse contains a JobSubmission object, which may be nil
-// if no submission data is available.
-type JobSubmissionResponse struct {
-	Submission *JobSubmission
-
-	QueryMeta
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
@@ -4269,44 +4246,6 @@ const (
 	JobTrackedScalingEvents = 20
 )
 
-// A JobSubmission contains the original job specification, along with the Variables
-// submitted with the job.
-type JobSubmission struct {
-	// Source contains the original job definition (may be hc1, hcl2, or json)
-	Source string
-
-	// Format indicates whether the original job was hcl1, hcl2, or json.
-	Format string
-
-	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
-	// job (hcl2 only).
-	VariableFlags map[string]string
-
-	// Variables contains the opaque variable blob that was input from the
-	// webUI (hcl2 only).
-	Variables string
-
-	// Namespace is managed internally, do not set.
-	//
-	// The namespace the associated job belongs to.
-	Namespace string
-
-	// JobID is managed internally, not set.
-	//
-	// The job.ID field.
-	JobID string
-
-	// Version is managed internally, not set.
-	//
-	// The version of the Job this submission is associated with.
-	Version uint64
-
-	// JobModifyIndex is managed internally, not set.
-	//
-	// The raft index the Job this submission is associated with.
-	JobModifyIndex uint64
-}
-
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
 // is further composed of tasks. A task group (TG) is the unit of scheduling
@@ -5196,12 +5135,6 @@ func (u *UpdateStrategy) IsEmpty() bool {
 	if u == nil {
 		return true
 	}
-
-	// When the Job is transformed from api to struct, the Update Strategy block is
-	// copied into the existing task groups, the only things that are passed along
-	// are MaxParallel and Stagger, because they are enforced at job level.
-	// That is why checking if MaxParallel is zero is enough to know if the
-	// update block is empty.
 
 	return u.MaxParallel == 0
 }
@@ -6775,8 +6708,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, outer)
 	}
 
-	isTypeService := j.Type == JobTypeService
-
 	// Validate the tasks
 	for _, task := range tg.Tasks {
 		// Validate the task does not reference undefined volume mounts
@@ -6796,15 +6727,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
-
-		// Validate the group's Update Strategy does not conflict with the Task's kill_timeout for service type jobs
-		if isTypeService && tg.Update != nil {
-			if task.KillTimeout > tg.Update.ProgressDeadline {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a kill timout (%s) longer than the group's progress deadline (%s)",
-					task.Name, task.KillTimeout.String(), tg.Update.ProgressDeadline.String()))
-			}
-		}
-
 	}
 
 	return mErr.ErrorOrNil()

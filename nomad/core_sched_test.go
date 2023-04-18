@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -47,7 +44,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
 	require.Nil(t, err)
 
 	// Insert "dead" alloc
@@ -144,7 +141,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	job := mock.Job()
 	job.ID = eval.JobID
 
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
 	require.Nil(t, err)
 
 	// Insert failed alloc with an old reschedule attempt, can be GCed
@@ -242,7 +239,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	job.ID = eval.JobID
 	job.Stop = true
 
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
 	require.Nil(t, err)
 
 	// Insert failed alloc with a recent reschedule attempt
@@ -321,7 +318,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err := store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, stoppedJob)
 	must.NoError(t, err)
 
 	stoppedJobEval := mock.Eval()
@@ -355,7 +352,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	deadJob := mock.Job()
 	deadJob.Type = structs.JobTypeBatch
 	deadJob.Status = structs.JobStatusDead
-	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, deadJob)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, deadJob)
 	must.NoError(t, err)
 
 	deadJobEval := mock.Eval()
@@ -393,7 +390,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJob := mock.Job()
 	activeJob.Type = structs.JobTypeBatch
 	activeJob.Status = structs.JobStatusDead
-	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, activeJob)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, activeJob)
 	must.NoError(t, err)
 
 	activeJobEval := mock.Eval()
@@ -441,7 +438,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	purgedJob := mock.Job()
 	purgedJob.Type = structs.JobTypeBatch
 	purgedJob.Status = structs.JobStatusDead
-	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, purgedJob)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, purgedJob)
 	must.NoError(t, err)
 
 	purgedJobEval := mock.Eval()
@@ -673,7 +670,7 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
 	require.Nil(t, err)
 
 	// Update the time tables to make this work
@@ -764,7 +761,7 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 				Attempts: 0,
 				Interval: 0 * time.Second,
 			}
-			err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
+			err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
 			require.Nil(t, err)
 
 			// Insert "dead" alloc
@@ -1043,7 +1040,7 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Status = structs.JobStatusDead
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1171,7 +1168,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1312,7 +1309,7 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	store := s1.fsm.State()
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1429,7 +1426,7 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1534,7 +1531,7 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			job := mock.Job()
 			job.Type = structs.JobTypeBatch
 			job.Status = structs.JobStatusDead
-			err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+			err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
@@ -1602,7 +1599,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{
 		Payload: structs.DispatchPayloadRequired,
 	}
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1634,7 +1631,7 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	// Mark the job as stopped and try again
 	job2 := job.Copy()
 	job2.Stop = true
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 2000, nil, job2)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, 2000, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1677,7 +1674,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	// Insert a parameterized job.
 	store := s1.fsm.State()
 	job := mock.PeriodicJob()
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1709,7 +1706,7 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	// Mark the job as stopped and try again
 	job2 := job.Copy()
 	job2.Stop = true
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 2000, nil, job2)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, 2000, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2314,7 +2311,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	job.ID = eval.JobID
 	job.Status = structs.JobStatusRunning
 	index++
-	err = store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job)
+	err = store.UpsertJob(structs.MsgTypeTestSetup, index, job)
 	require.NoError(t, err)
 
 	alloc1, alloc2 := mock.Alloc(), mock.Alloc()

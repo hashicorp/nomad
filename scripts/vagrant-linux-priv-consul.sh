@@ -1,19 +1,9 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 
 set -o errexit
 
-# Minimal effort to support amd64 and arm64 installs.
-ARCH=""
-case $(arch) in
-    x86_64) ARCH="amd64" ;;
-    aarch64) ARCH="arm64" ;;
-esac
-
-VERSION="1.15.1"
-DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_linux_${ARCH}.zip
+VERSION="1.10.3"
+DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_linux_amd64.zip
 
 function install_consul() {
 	if [[ -e /usr/bin/consul ]] ; then

@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#if this.source.length}}
   {{yield (hash
     first=(component "list-pagination/list-pager" test="first" label="First page" page=1 visible=(not (eq this.page 1)))

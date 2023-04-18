@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 set -e
 
 mkdir -p /tmp/nomad-dev-cluster/server{1,2,3} /tmp/nomad-dev-cluster/client{1,2}

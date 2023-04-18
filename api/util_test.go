@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -20,7 +17,9 @@ func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 
 func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 	t.Helper()
-	must.Positive(t, wm.LastIndex, must.Sprint("expected WriteMeta.LastIndex to be > 0"))
+	if wm.LastIndex == 0 {
+		t.Fatalf("bad index: %d", wm.LastIndex)
+	}
 }
 
 func testJob() *Job {

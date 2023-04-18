@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { resolve } from 'rsvp';
 import { test } from 'qunit';
 import sinon from 'sinon';

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -347,11 +344,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")
-
-	// Validate enterprise license before anything stateful happens
-	if err = config.LicenseConfig.Validate(); err != nil {
-		return nil, err
-	}
 
 	// Create the server
 	s := &Server{
@@ -876,11 +868,8 @@ func (s *Server) Reload(newConfig *Config) error {
 		}
 	}
 
-	if newConfig.LicenseConfig.LicenseEnvBytes != "" || newConfig.LicenseConfig.LicensePath != "" {
-		if err = s.EnterpriseState.ReloadLicense(newConfig); err != nil {
-			s.logger.Error("error reloading license", "error", err)
-			_ = multierror.Append(&mErr, err)
-		}
+	if newConfig.LicenseEnv != "" || newConfig.LicensePath != "" {
+		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
 	// Because this is a new configuration, we extract the worker pool arguments without acquiring a lock

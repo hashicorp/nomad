@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -18,6 +15,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -112,9 +110,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 	args.Job = job
-
-	// Run the submission controller
-	warnings = append(warnings, j.submissionController(args))
 
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
@@ -726,10 +721,10 @@ func (j *Job) Evaluate(args *structs.JobEvaluateRequest, reply *structs.JobRegis
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "evaluate"}, time.Now())
 
-	// Check for submit-job permissions
+	// Check for read-job permissions
 	if aclObj, err := j.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1186,52 +1181,6 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	j.srv.setQueryMeta(&reply.QueryMeta)
 
 	return nil
-}
-
-func (j *Job) GetJobSubmission(args *structs.JobSubmissionRequest, reply *structs.JobSubmissionResponse) error {
-	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Job.GetJobSubmission", args, args, reply); done {
-		return err
-	}
-	j.srv.MeasureRPCRate("job_submission", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-	defer metrics.MeasureSince([]string{"nomad", "job", "get_job_submission"}, time.Now())
-
-	// Check for read-job permissions
-	if aclObj, err := j.srv.ResolveACL(args); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-		return structs.ErrPermissionDenied
-	}
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Look for the submission
-			out, err := state.JobSubmission(ws, args.RequestNamespace(), args.JobID, args.Version)
-			if err != nil {
-				return err
-			}
-
-			// Setup the output
-			reply.Submission = out
-			if out != nil {
-				// associate with the index of the job this submission originates from
-				reply.Index = out.JobModifyIndex
-			} else {
-				// if there is no submission context, associate with no index
-				reply.Index = 0
-			}
-
-			// Set the query response
-			j.srv.setQueryMeta(&reply.QueryMeta)
-			return nil
-		}}
-	return j.srv.blockingRPC(&opts)
 }
 
 // GetJob is used to request information about a specific job
@@ -1805,13 +1754,13 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
-			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, nil, args.Job); err != nil {
+			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, args.Job); err != nil {
 				return err
 			}
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
-		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, nil, args.Job)
+		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, args.Job)
 		if err != nil {
 			return err
 		}

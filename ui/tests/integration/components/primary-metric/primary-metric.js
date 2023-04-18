@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import EmberObject, { computed } from '@ember/object';
 import Service from '@ember/service';
 import { find, render, clearRender } from '@ember/test-helpers';

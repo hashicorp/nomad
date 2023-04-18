@@ -135,7 +135,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v1.10.0
+	go install gotest.tools/gotestsum@v1.8.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.0.0
@@ -146,8 +146,9 @@ deps:  ## Install build and development dependencies
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
+## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.6
 

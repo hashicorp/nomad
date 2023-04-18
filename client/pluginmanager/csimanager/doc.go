@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 /*
 *
 csimanager manages locally running CSI Plugins on a Nomad host, and provides a

@@ -1,29 +1,28 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !windows
+// +build !windows
 
 package resolvconf
 
 import (
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/libnetwork/resolvconf"
-	"github.com/shoenig/test/must"
+	dresolvconf "github.com/docker/libnetwork/resolvconf"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_copySystemDNS(t *testing.T) {
-	data, err := os.ReadFile(resolvconf.Path())
-	must.NoError(t, err)
+	require := require.New(t)
+	data, err := ioutil.ReadFile(dresolvconf.Path())
+	require.NoError(err)
 
-	resolvConfFile := filepath.Join(t.TempDir(), "resolv.conf")
+	dest := filepath.Join(t.TempDir(), "resolv.conf")
 
-	must.NoError(t, copySystemDNS(resolvConfFile))
-	must.FileExists(t, resolvConfFile)
+	require.NoError(copySystemDNS(dest))
+	require.FileExists(dest)
 
-	tmpResolv, readErr := os.ReadFile(resolvConfFile)
-	must.NoError(t, readErr)
-	must.Eq(t, data, tmpResolv)
+	tmpResolv, err := ioutil.ReadFile(dest)
+	require.NoError(err)
+	require.Equal(data, tmpResolv)
 }

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build unix
 
 package allocdir
@@ -43,17 +40,14 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return nil
 	}
 
-	u, err := users.Lookup("nobody")
-	if err != nil {
-		return fmt.Errorf("Unable to find nobody user: %w", err)
-	}
+	nobody := users.Nobody()
 
-	uid, err := getUid(u)
+	uid, err := getUid(&nobody)
 	if err != nil {
 		return err
 	}
 
-	gid, err := getGid(u)
+	gid, err := getGid(&nobody)
 	if err != nil {
 		return err
 	}

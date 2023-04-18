@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package jobspec2
 
 import (
@@ -59,19 +56,14 @@ type ParseConfig struct {
 	// Body is the HCL body
 	Body []byte
 
-	// AllowFS enables HCL functions that require file system access
+	// AllowFS enables HCL functions that require file system accecss
 	AllowFS bool
 
 	// ArgVars is the CLI -var arguments
 	ArgVars []string
 
-	// VarFiles is the paths of variable data files that should be read during
-	// parsing.
+	// VarFiles is the paths of variable data files
 	VarFiles []string
-
-	// VarContent is the content of variable data known without reading an
-	// actual var file during parsing.
-	VarContent string
 
 	// Envs represent process environment variable
 	Envs []string
@@ -101,14 +93,6 @@ func decode(c *jobConfig) error {
 
 		config.parsedVarFiles = append(config.parsedVarFiles, parsedVarFile)
 		diags = append(diags, ds...)
-	}
-
-	if config.VarContent != "" {
-		hclFile, hclDiagnostics := parseHCLOrJSON([]byte(config.VarContent), "input.hcl")
-		if hclDiagnostics.HasErrors() {
-			return fmt.Errorf("unable to parse var content: %v", hclDiagnostics.Error())
-		}
-		config.parsedVarFiles = append(config.parsedVarFiles, hclFile)
 	}
 
 	// Return early if the input job or variable files are not valid.

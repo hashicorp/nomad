@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // @ts-check
 import Component from '@ember/component';
 import { task } from 'ember-concurrency';
@@ -15,7 +10,6 @@ import classic from 'ember-classic-decorator';
 @tagName('')
 export default class Title extends Component {
   @service router;
-  @service notifications;
 
   job = null;
   title = null;
@@ -23,18 +17,18 @@ export default class Title extends Component {
   handleError() {}
 
   /**
-   * @param {boolean} withNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
+   * @param {boolean} withNNotifications - Whether to show a toast on success, as when triggered by keyboard shortcut
    */
-  @task(function* (withNotifications = false) {
+  @task(function* (withNNotifications = false) {
     try {
       const job = this.job;
       yield job.stop();
       // Eagerly update the job status to avoid flickering
-      job.set('status', 'dead');
-      if (withNotifications) {
+      this.job.set('status', 'dead');
+      if (withNNotifications) {
         this.notifications.add({
           title: 'Job Stopped',
-          message: `${job.name} has been stopped`,
+          message: `${this.job.name} has been stopped`,
           color: 'success',
         });
       }
@@ -51,10 +45,12 @@ export default class Title extends Component {
     try {
       const job = this.job;
       yield job.purge();
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Job Purged',
-        message: `You have purged ${job.name}`,
-        color: 'success',
+        message: `You have purged ${this.job.name}`,
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
       this.router.transitionTo('jobs');
     } catch (err) {
@@ -84,7 +80,7 @@ export default class Title extends Component {
       if (withNotifications) {
         this.notifications.add({
           title: 'Job Started',
-          message: `${job.name} has started`,
+          message: `${this.job.name} has started`,
           color: 'success',
         });
       }

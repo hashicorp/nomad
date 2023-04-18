@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package alloc_logs provides end-to-end tests for Nomads allocation logging
 // functionality.
 //

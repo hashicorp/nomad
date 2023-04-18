@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@ember/component';
 import { task, timeout } from 'ember-concurrency';
 import { classNames, classNameBindings } from '@ember-decorators/component';

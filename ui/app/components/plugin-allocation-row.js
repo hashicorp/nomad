@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import AllocationRow from 'nomad-ui/components/allocation-row';
 import classic from 'ember-classic-decorator';
 import { attributeBindings } from '@ember-decorators/component';

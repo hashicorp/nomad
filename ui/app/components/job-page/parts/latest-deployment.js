@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@ember/component';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';

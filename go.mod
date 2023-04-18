@@ -25,8 +25,9 @@ require (
 	github.com/creack/pty v1.1.18
 	github.com/docker/cli v23.0.1+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v23.0.3+incompatible
+	github.com/docker/docker v20.10.23+incompatible
 	github.com/docker/go-units v0.5.0
+	github.com/docker/libnetwork v0.8.0-dev.2.0.20210525090646-64b7a4574d14
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
 	github.com/fsouza/go-dockerclient v1.7.9
@@ -107,7 +108,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shirou/gopsutil/v3 v3.23.1
 	github.com/shoenig/go-landlock v0.1.5
-	github.com/shoenig/go-m1cpu v0.1.5
+	github.com/shoenig/go-m1cpu v0.1.4
 	github.com/shoenig/test v0.6.3
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/testify v1.8.1
@@ -115,11 +116,11 @@ require (
 	github.com/zclconf/go-cty v1.12.1
 	github.com/zclconf/go-cty-yaml v1.0.3
 	go.etcd.io/bbolt v1.3.6
-	go.uber.org/goleak v1.2.1
-	golang.org/x/crypto v0.7.0
+	go.uber.org/goleak v1.2.0
+	golang.org/x/crypto v0.5.0
 	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.6.0
+	golang.org/x/sys v0.5.0
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
@@ -153,6 +154,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Masterminds/sprig/v3 v3.2.1
+	github.com/Microsoft/hcsshim v0.9.6 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-cidr v1.0.1 // indirect
@@ -171,6 +173,7 @@ require (
 	github.com/cilium/ebpf v0.9.1 // indirect
 	github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible // indirect
 	github.com/circonus-labs/circonusllhist v0.1.3 // indirect
+	github.com/containerd/cgroups v1.0.4 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/containerd/containerd v1.6.18 // indirect
 	github.com/coreos/go-oidc/v3 v3.1.0 // indirect
@@ -228,8 +231,6 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/pointerstructure v1.2.1
-	github.com/moby/patternmatcher v0.5.0 // indirect
-	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/mrunalp/fileutils v0.5.0 // indirect
 	github.com/muesli/reflow v0.3.0
@@ -269,12 +270,12 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/mod v0.8.0 // indirect
-	golang.org/x/net v0.8.0 // indirect
+	golang.org/x/mod v0.6.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
-	golang.org/x/term v0.6.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/tools v0.2.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.103.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

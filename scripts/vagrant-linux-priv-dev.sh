@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 
 # Install Development utilities
 apt-get install -y \
@@ -23,8 +20,6 @@ hostname=$(hostname)
 sed -i -e "s/.*nomad.*/${ip} ${hostname}/" /etc/hosts
 
 # Ensure we cd into the working directory on login
-if [ -d /home/vagrant/ ] ; then
-  if ! grep "cd /opt/gopath/src/github.com/hashicorp/nomad" /home/vagrant/.profile ; then
-    echo 'cd /opt/gopath/src/github.com/hashicorp/nomad' >> /home/vagrant/.profile
-  fi
+if ! grep "cd /opt/gopath/src/github.com/hashicorp/nomad" /home/vagrant/.profile ; then
+	  echo 'cd /opt/gopath/src/github.com/hashicorp/nomad' >> /home/vagrant/.profile
 fi

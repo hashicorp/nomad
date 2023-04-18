@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 //go:generate codecgen -c github.com/hashicorp/go-msgpack/v2/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go

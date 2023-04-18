@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-observers */
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias } from '@ember/object/computed';
@@ -29,7 +24,7 @@ export default class ClientController extends Controller.extend(
   Sortable,
   Searchable
 ) {
-  @service notifications;
+  @service flashMessages;
 
   queryParams = [
     {
@@ -321,18 +316,21 @@ export default class ClientController extends Controller.extend(
       e.preventDefault();
       await this.model.addMeta({ [key]: value });
 
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Metadata added',
         message: `${key} successfully saved`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 3000,
       });
     } catch (err) {
       const error =
         messageFromAdapterError(err) || 'Could not save new dynamic metadata';
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Error saving Metadata`,
         message: error,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }

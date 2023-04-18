@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import helloWorld from './default_jobs/hello-world';
 import parameterized from './default_jobs/parameterized';
 import serviceDiscovery from './default_jobs/service-discovery';
