@@ -17,7 +17,7 @@ ui {
   enabled =  true
 
   consul {
-    ui_url = "https://consul.example.com:8500/ui"
+    ui_url = "https://consul.example.com:8501/ui"
   }
 
   vault {
@@ -51,7 +51,7 @@ and the configuration is individual to each agent.
 ## `consul` Parameters
 
 - `ui_url` `(string: "")` - Specifies the full base URL to a Consul
-  web UI (for example: `https://consul.example.com:8500/ui`. This URL
+  web UI (for example: `https://consul.example.com:8501/ui`. This URL
   is used to build links from the Nomad web UI to a Consul web
   UI. Note that this URL will not typically be the same one used for
   the agent's [`consul.address`]; the `consul.address` is the URL used
@@ -75,9 +75,10 @@ and the configuration is individual to each agent.
 - `text` `(string: "")` - Specifies the text of the label that will be
   displayed in the header of the Web UI.
 - `background_color` `(string: "")` - The background color of the label to
-  be displayed. The Web UI will default to a black background.
+  be displayed. The Web UI will default to a black background. HEX values  
+  may be used.
 - `text_color` `(string: "")` - The text color of the label to be displayed.
-  The Web UI will default to white text.
+  The Web UI will default to white text. HEX values may be used.
 
 
 
