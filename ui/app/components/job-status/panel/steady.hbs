@@ -1,0 +1,61 @@
+<div class="job-status-panel boxed-section steady-state {{if (eq @statusMode "historical") "historical-state" "current-state"}}" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
+  <div class="boxed-section-head">
+    <h2>Status</h2>
+    <div class="select-mode">
+      <button type="button"
+        data-test-status-mode-current
+        class="button is-small is-borderless {{if (eq @statusMode "current") "is-active"}}"
+        {{on "click" (action (optional @setStatusMode) "current")}}
+      >
+        Current
+      </button>
+      <button type="button"
+        data-test-status-mode-historical
+        class="button is-small is-borderless {{if (eq @statusMode "historical") "is-active"}}"
+        {{on "click" (action (optional @setStatusMode) "historical")}}>
+        Historical
+      </button>
+    </div>
+  </div>
+  <div class="boxed-section-body">
+    {{#if (eq @statusMode "historical")}}
+      <JobPage::Parts::SummaryChart @job={{@job}} />
+    {{else}}
+      <h3 class="title is-4 running-allocs-title"><strong>{{@job.runningAllocs}}/{{this.totalAllocs}}</strong> Allocations Running</h3>
+      <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
+
+      <div class="legend-and-summary">
+        <legend>
+          {{#each this.allocTypes as |type|}}
+            <ConditionalLinkTo
+              @condition={{not (eq type.label "unplaced")}}
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (keys this.versions) ']')}}
+              @class="legend-item {{if (eq (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length") 0) "faded"}}"
+              @label="View {{type.label}} allocations"
+            >
+              <span class="represented-allocation {{type.label}}"></span>
+              {{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}
+            </ConditionalLinkTo>
+          {{/each}}
+        </legend>
+
+        <section class="versions">
+          <h4>Versions</h4>
+          <ul>
+            {{#each-in this.versions as |version allocs|}}
+              <li>
+                <LinkTo @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' version ']')    status=(concat '["running", "pending", "failed"]')         }}>
+                  <Hds::Badge @text={{concat "v" version}} />
+                  <Hds::BadgeCount @text={{allocs.length}} @type="inverted" />
+                </LinkTo>
+              </li>
+            {{/each-in}}
+          </ul>
+        </section>
+
+      </div>
+    {{/if}}
+  </div>
+</div>

@@ -46,6 +46,15 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
+  @attr() deploymentStatus;
+
+  get isCanary() {
+    return this.deploymentStatus?.Canary;
+  }
+
+  get isHealthy() {
+    return this.deploymentStatus?.Healthy;
+  }
 
   @attr healthChecks;
 

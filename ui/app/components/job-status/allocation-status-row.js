@@ -1,21 +1,31 @@
+// @ts-check
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 
-const UNGROUPED_ALLOCS_THRESHOLD = 50;
+const ALLOC_BLOCK_WIDTH = 32;
+const ALLOC_BLOCK_GAP = 10;
 
 export default class JobStatusAllocationStatusRowComponent extends Component {
   @tracked width = 0;
 
   get allocBlockSlots() {
-    return Object.values(this.args.allocBlocks).reduce(
-      (m, n) => m + n.length,
-      0
-    );
+    return Object.values(this.args.allocBlocks)
+      .flatMap((statusObj) => Object.values(statusObj))
+      .flatMap((healthObj) => Object.values(healthObj))
+      .reduce(
+        (totalSlots, allocsByCanary) =>
+          totalSlots + (allocsByCanary ? allocsByCanary.length : 0),
+        0
+      );
   }
 
   get showSummaries() {
-    return this.allocBlockSlots > UNGROUPED_ALLOCS_THRESHOLD;
+    return (
+      this.allocBlockSlots * (ALLOC_BLOCK_WIDTH + ALLOC_BLOCK_GAP) -
+        ALLOC_BLOCK_GAP >
+      this.width
+    );
   }
 
   calcPerc(count) {
