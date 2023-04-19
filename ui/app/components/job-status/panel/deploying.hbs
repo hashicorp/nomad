@@ -36,9 +36,11 @@
     <div class="boxed-section-body">
       <div class="deployment-allocations">
         {{#if this.oldVersionAllocBlockIDs.length}}
-          <h4 class="title is-5">Previous Allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
-          <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
-          <div class="legend-and-summary">
+          <h4 class="title is-5" data-test-old-allocation-tally>Previous allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
+          <div class="previous-allocations">
+            <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
+          </div>
+          <div class="legend-and-summary" data-test-previous-allocations-legend>
             <legend>
               <span class="legend-item {{if (eq (get this.oldRunningHealthyAllocBlocks "length") 0) "faded"}}">
                 <span class="represented-allocation running"></span>
@@ -53,11 +55,13 @@
 
         {{/if}}
 
-        <h4 class="title is-5">New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
-        <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
+        <h4 class="title is-5" data-test-new-allocation-tally>New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
+        <div class="new-allocations">
+          <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
+        </div>
       </div>
 
-      <div class="legend-and-summary">
+      <div class="legend-and-summary" data-test-new-allocations-legend>
 
         {{!-- Legend by Status, then by Health, then by Canary --}}
         <legend>
