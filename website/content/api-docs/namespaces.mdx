@@ -145,6 +145,15 @@ The table below shows this endpoint's support for
 
 - `Quota` `(string: "")` - Specifies an quota to attach to the namespace.
 
+- `Capabilities` `(Capabilities: <optional>)` - Specifies capabilities allowed
+  in the namespace. These values are checked at job submission.
+
+  - `EnabledTaskDrivers` `(array<string>: [])` - List of task drivers allowed
+    in the namespace. If empty all task drivers are allowed.
+
+  - `DisabledTaskDrivers` `(array<string>: [])` - List of task drivers disabled
+    in the namespace.
+
 ### Sample Payload
 
 ```javascript
@@ -154,7 +163,10 @@ The table below shows this endpoint's support for
   "Meta": {
     "contact": "platform-eng@example.com"
   },
-  "Quota": "prod-quota"
+  "Quota": "prod-quota",
+  "Capabilities": {
+    "DisabledTaskDrivers": ["raw_exec"]
+  }
 }
 ```
 
