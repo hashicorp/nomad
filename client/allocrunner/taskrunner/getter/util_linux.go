@@ -63,6 +63,7 @@ func lockdown(allocDir, taskDir string) error {
 		landlock.Dir("/bin", "rx"),
 		landlock.Dir("/usr/bin", "rx"),
 		landlock.Dir("/usr/local/bin", "rx"),
+		landlock.Dir("/usr/libexec", "rx"),
 		landlock.Dir(allocDir, "rwc"),
 		landlock.Dir(taskDir, "rwc"),
 	}
