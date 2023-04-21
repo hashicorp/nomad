@@ -51,7 +51,8 @@ $subNavOffset: 49px;
         overflow: auto;
       }
     }
-    & > div {
+    & > div,
+    h1.title {
       margin: 0;
     }
   }
