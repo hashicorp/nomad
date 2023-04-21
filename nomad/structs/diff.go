@@ -2,8 +2,10 @@ package structs
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/flatmap"
@@ -1360,11 +1362,11 @@ func connectGatewayProxyEnvoyBindAddrsDiff(prev, next map[string]*ConsulGatewayB
 	nextMap := make(map[string]string, len(next))
 
 	for k, v := range prev {
-		prevMap[k] = fmt.Sprintf("%s:%d", v.Address, v.Port)
+		prevMap[k] = net.JoinHostPort(v.Address, strconv.Itoa(v.Port))
 	}
 
 	for k, v := range next {
-		nextMap[k] = fmt.Sprintf("%s:%d", v.Address, v.Port)
+		nextMap[k] = net.JoinHostPort(v.Address, strconv.Itoa(v.Port))
 	}
 
 	oldPrimitiveFlat := flatmap.Flatten(prevMap, nil, false)

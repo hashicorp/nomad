@@ -1021,7 +1021,7 @@ func (b *Builder) SetVaultToken(token, namespace string, inject bool) *Builder {
 // addPort keys and values for other tasks to an env var map
 func addPort(m map[string]string, taskName, ip, portLabel string, port int) {
 	key := fmt.Sprintf("%s%s_%s", AddrPrefix, taskName, portLabel)
-	m[key] = fmt.Sprintf("%s:%d", ip, port)
+	m[key] = net.JoinHostPort(ip, strconv.Itoa(port))
 	key = fmt.Sprintf("%s%s_%s", IpPrefix, taskName, portLabel)
 	m[key] = ip
 	key = fmt.Sprintf("%s%s_%s", PortPrefix, taskName, portLabel)
@@ -1042,8 +1042,9 @@ func addGroupPort(m map[string]string, port structs.Port) {
 
 func addPorts(m map[string]string, ports structs.AllocatedPorts) {
 	for _, p := range ports {
-		m[AddrPrefix+p.Label] = fmt.Sprintf("%s:%d", p.HostIP, p.Value)
-		m[HostAddrPrefix+p.Label] = fmt.Sprintf("%s:%d", p.HostIP, p.Value)
+		port := strconv.Itoa(p.Value)
+		m[AddrPrefix+p.Label] = net.JoinHostPort(p.HostIP, port)
+		m[HostAddrPrefix+p.Label] = net.JoinHostPort(p.HostIP, port)
 		m[IpPrefix+p.Label] = p.HostIP
 		m[HostIpPrefix+p.Label] = p.HostIP
 		if p.To > 0 {
@@ -1056,6 +1057,6 @@ func addPorts(m map[string]string, ports structs.AllocatedPorts) {
 			m[AllocPortPrefix+p.Label] = val
 		}
 
-		m[HostPortPrefix+p.Label] = strconv.Itoa(p.Value)
+		m[HostPortPrefix+p.Label] = port
 	}
 }
