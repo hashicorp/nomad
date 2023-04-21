@@ -159,7 +159,7 @@ func TestHTTP_AgentJoin(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
-		addr := net.JoinHostPort(string(member.Addr), strconv.Itoa(int(member.Port)))
+		addr := net.JoinHostPort(member.Addr.String(), strconv.Itoa(int(member.Port)))
 
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT",
