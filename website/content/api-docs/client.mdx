@@ -603,7 +603,8 @@ fields:
 
 ## Stream Logs
 
-This endpoint streams a task's stderr/stdout logs.
+This endpoint streams a task's stderr/stdout logs. Note that if logging is set
+to [enabled=false][] for the task, this endpoint will return a 404 error.
 
 | Method | Path                           | Produces     |
 | ------ | ------------------------------ | ------------ |
@@ -832,3 +833,4 @@ $ nomad operator api /v1/client/gc
 ```
 
 [api-node-read]: /nomad/api-docs/nodes
+[enabled=false]: /nomad/docs/job-specification/logs#enabled

@@ -2707,6 +2707,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: pointer.Of(10 * time.Second),
 						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
+							Enabled:       pointer.Of(true),
 							MaxFiles:      pointer.Of(10),
 							MaxFileSizeMB: pointer.Of(100),
 						},
@@ -3124,6 +3125,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: 10 * time.Second,
 						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
+							Enabled:       true,
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
 						},
@@ -3280,6 +3282,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: pointer.Of(10 * time.Second),
 						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
+							Enabled:       pointer.Of(true),
 							MaxFiles:      pointer.Of(10),
 							MaxFileSizeMB: pointer.Of(100),
 						},
@@ -3405,6 +3408,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: 10 * time.Second,
 						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
+							Enabled:       true,
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
 						},
@@ -3577,9 +3581,11 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 	ci.Parallel(t)
 	require.Nil(t, apiLogConfigToStructs(nil))
 	require.Equal(t, &structs.LogConfig{
+		Enabled:       true,
 		MaxFiles:      2,
 		MaxFileSizeMB: 8,
 	}, apiLogConfigToStructs(&api.LogConfig{
+		Enabled:       pointer.Of(true),
 		MaxFiles:      pointer.Of(2),
 		MaxFileSizeMB: pointer.Of(8),
 	}))
@@ -3653,6 +3659,7 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		Meta:        meta,
 		KillTimeout: &timeout,
 		LogConfig: &structs.LogConfig{
+			Enabled:       true,
 			MaxFiles:      2,
 			MaxFileSizeMB: 8,
 		},
@@ -3671,6 +3678,7 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		Meta:        meta,
 		KillTimeout: &timeout,
 		LogConfig: &api.LogConfig{
+			Enabled:       pointer.Of(true),
 			MaxFiles:      pointer.Of(2),
 			MaxFileSizeMB: pointer.Of(8),
 		},
