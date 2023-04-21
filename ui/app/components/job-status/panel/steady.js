@@ -84,4 +84,25 @@ export default class JobStatusPanelSteadyComponent extends Component {
         []
       );
   }
+
+  get failedOrLostAllocs() {
+    let allocs = this.job.allocations.filter(
+      (a) =>
+        // a.jobVersion === this.job.latestDeployment.get('versionNumber')
+        true
+        && (a.clientStatus === 'failed' || a.clientStatus === 'lost' || a.clientStatus === 'unknown')
+    );
+    // console.log('before FUE check', allocs);
+    allocs = allocs.filter((a) => {
+      return !a.get('followUpEvaluation.content')
+      // console.log('RESC', a.desiredTransition.Reschedule, a.desiredTransition);
+      if (a.desiredTransition.Reschedule) {
+        console.log('failed alloc', a, 'has a desiredTransition.Reschedule', a.desiredTransition.Reschedule, a.desiredTransition)
+      }
+      return !a.desiredTransition.Reschedule
+    });
+    console.log('preret', allocs);
+    return allocs;
+  }
+
 }

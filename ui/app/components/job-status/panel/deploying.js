@@ -144,6 +144,12 @@ export default class JobStatusPanelDeployingComponent extends Component {
     ];
   }
 
+  get failedOrLostAllocs() {
+    return this.job.allocations.filter(
+      (a) => a.jobVersion === this.deployment.get('versionNumber') && (a.clientStatus === 'failed' || a.clientStatus === 'lost' || a.clientStatus === 'unknown')
+    );
+  }
+
   // #region legend
   get newAllocsByStatus() {
     return Object.entries(this.newVersionAllocBlocks).reduce(

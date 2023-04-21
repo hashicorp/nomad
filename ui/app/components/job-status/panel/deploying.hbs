@@ -102,6 +102,12 @@
           </span>
 
         </legend>
+
+        <JobStatus::FailedOrLost
+          @allocs={{this.failedOrLostAllocs}}
+          @job={{@job}}
+        />
+
       </div>
 
       <div class="history-and-params">

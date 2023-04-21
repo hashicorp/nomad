@@ -46,6 +46,7 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
+  @attr() desiredTransition;
   @attr() deploymentStatus;
 
   get isCanary() {

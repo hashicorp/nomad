@@ -1,0 +1,22 @@
+<section class="failed-or-lost">
+  <h4>
+    Failed or Lost
+    <span
+      class="tooltip multiline text-center"
+      role="tooltip"
+      aria-label="This number shows allocations that have failed or are lost for the most recent deployment. These allocations may have been restarted or rescheduled depending on your configuration. Permanent failures will be shown in the visual above."
+    >
+      <FlightIcon @name="info" />
+    </span>
+  </h4>
+  <ConditionalLinkTo
+    @condition={{@allocs.length}}
+    @route="jobs.job.allocations"
+    @model={{@job}}
+    @query={{hash status=(concat '["failed", "lost", "unknown"]') version=(concat '[' @job.latestDeployment.versionNumber ']')}}
+    @label="View Failed or Lost allocations"
+    @class="failed-or-lost-link"
+  >
+    <span class="failed-or-lost-link">{{@allocs.length}}</span>
+  </ConditionalLinkTo>
+</section>

@@ -41,6 +41,11 @@
           {{/each}}
         </legend>
 
+        <JobStatus::FailedOrLost
+          @allocs={{this.failedOrLostAllocs}}
+          @job={{@job}}
+        />
+
         <section class="versions">
           <h4>Versions</h4>
           <ul>
