@@ -141,6 +141,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	flagSet.StringVar(&c.ca, "ca", "#DOMAIN#-agent-ca.pem", "")
 	flagSet.BoolVar(&c.cli, "cli", false, "")
 	flagSet.BoolVar(&c.client, "client", false, "")
+	// cluster region will be deprecated in the next version
 	flagSet.StringVar(&c.cluster_region, "cluster-region", "", "")
 	flagSet.IntVar(&c.days, "days", 365, "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
@@ -175,7 +176,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	var DNSNames []string
 	var IPAddresses []net.IP
 	var extKeyUsage []x509.ExtKeyUsage
-	var name, regionName, regionUrl, prefix string
+	var name, regionName, prefix string
 
 	for _, d := range c.dnsNames {
 		if len(d) > 0 {
@@ -190,65 +191,24 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	}
 
 	// set region variable to prepare for deprecating cluster_region
-	if c.cluster_region != "" {
+	switch {
+	case c.cluster_region != "":
 		regionName = c.cluster_region
-	} else if c.clientConfig().Region != "" && c.clientConfig().Region != "global" {
+	case c.clientConfig().Region != "" && c.clientConfig().Region != "global":
 		regionName = c.clientConfig().Region
-	} else if c.clientConfig().Region == "" {
+	default:
 		regionName = "global"
-	} else {
-		regionName = c.clientConfig().Region
 	}
-	if c.server {
-		if regionName != "global" && c.domain != "nomad" {
-			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
-			regionUrl = fmt.Sprintf("server.%s.nomad", regionName)
-			DNSNames = append(DNSNames, name, regionUrl, "server.global.nomad")
-		} else if regionName != "global" && c.domain == "nomad" {
-			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
-			DNSNames = append(DNSNames, name, "server.global.nomad")
-		} else if regionName == "global" && c.domain != "nomad" {
-			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
-			DNSNames = append(DNSNames, name, "server.global.nomad")
-		} else {
-			name = fmt.Sprintf("server.%s.%s", regionName, c.domain)
-			DNSNames = append(DNSNames, name)
-		}
-		DNSNames = append(DNSNames, "localhost")
 
-		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
-		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		prefix = fmt.Sprintf("%s-server-%s", regionName, c.domain)
-
-	} else if c.client {
-		if regionName != "global" && c.domain != "nomad" {
-			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
-			regionUrl = fmt.Sprintf("client.%s.nomad", regionName)
-			DNSNames = append(DNSNames, name, regionUrl, "client.global.nomad", "localhost")
-		} else if regionName == "global" && c.domain != "nomad" {
-			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
-			DNSNames = append(DNSNames, name, "client.global.nomad", "localhost")
-		} else if regionName != "global" && c.domain != "nomad" {
-			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
-			DNSNames = append(DNSNames, name, "client.global.nomad", "localhost")
-		} else {
-			name = fmt.Sprintf("client.%s.%s", regionName, c.domain)
-			DNSNames = append(DNSNames, []string{name, "localhost"}...)
-		}
-		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
-		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
-		prefix = fmt.Sprintf("%s-client-%s", regionName, c.domain)
-	} else if c.cli {
-		if c.domain != "nomad" {
-			name = fmt.Sprintf("cli.%s.%s", regionName, c.domain)
-			regionUrl = fmt.Sprintf("cli.%s.nomad", regionName)
-			DNSNames = []string{name, "cli.global.nomad", "localhost"}
-		} else {
-			name = fmt.Sprintf("cli.%s.%s", regionName, c.domain)
-			DNSNames = []string{name, "localhost"}
-		}
-		prefix = fmt.Sprintf("%s-cli-%s", regionName, c.domain)
-	} else {
+	// Set DNSNames and IPAddresses based on whether this is a client, server or cli
+	switch {
+	case c.server:
+		IPAddresses, DNSNames, name, extKeyUsage, prefix = recordPreparation("server", regionName, c.domain, IPAddresses)
+	case c.client:
+		IPAddresses, DNSNames, name, extKeyUsage, prefix = recordPreparation("client", regionName, c.domain, IPAddresses)
+	case c.cli:
+		IPAddresses, DNSNames, name, extKeyUsage, prefix = recordPreparation("cli", regionName, c.domain, IPAddresses)
+	default:
 		c.Ui.Error("Neither client, cli nor server - should not happen")
 		return 1
 	}
@@ -339,4 +299,48 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	}
 
 	return 0
+}
+
+func recordPreparation(certType string, regionName string, domain string, IPAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
+	var (
+		DNSNames                []string
+		extKeyUsage             []x509.ExtKeyUsage
+		name, regionUrl, prefix string
+	)
+	if certType == "server" {
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
+		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
+	} else if certType == "client" {
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
+		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
+	} else if certType == "cli" {
+		extKeyUsage = []x509.ExtKeyUsage{}
+		IPAddresses = append(IPAddresses)
+	}
+
+	prefix = fmt.Sprintf("%s-%s-%s", regionName, certType, domain)
+
+	if regionName != "global" && domain != "nomad" {
+		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
+		regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
+		DNSNames = append(DNSNames, name, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
+	}
+
+	if regionName != "global" && domain == "nomad" {
+		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
+		regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
+		DNSNames = append(DNSNames, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
+	}
+
+	if domain != "nomad" && regionName == "global" {
+		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
+		regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
+		DNSNames = append(DNSNames, fmt.Sprintf("%s.%s.%s", certType, regionName, domain), regionUrl, "localhost")
+	}
+
+	if regionName == "global" && domain == "nomad" {
+		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
+		DNSNames = append(DNSNames, name, "localhost")
+	}
+	return IPAddresses, DNSNames, name, extKeyUsage, prefix
 }
