@@ -301,7 +301,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	return 0
 }
 
-func recordPreparation(certType string, regionName string, domain string, IPAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
+func recordPreparation(certType string, regionName string, domain string, ipAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
 	var (
 		DNSNames                []string
 		extKeyUsage             []x509.ExtKeyUsage
@@ -309,13 +309,12 @@ func recordPreparation(certType string, regionName string, domain string, IPAddr
 	)
 	if certType == "server" {
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
+		ipAddresses = append(ipAddresses, net.ParseIP("127.0.0.1"))
 	} else if certType == "client" {
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
-		IPAddresses = append(IPAddresses, net.ParseIP("127.0.0.1"))
+		ipAddresses = append(ipAddresses, net.ParseIP("127.0.0.1"))
 	} else if certType == "cli" {
 		extKeyUsage = []x509.ExtKeyUsage{}
-		IPAddresses = append(IPAddresses)
 	}
 
 	prefix = fmt.Sprintf("%s-%s-%s", regionName, certType, domain)
@@ -342,5 +341,5 @@ func recordPreparation(certType string, regionName string, domain string, IPAddr
 		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
 		DNSNames = append(DNSNames, name, "localhost")
 	}
-	return IPAddresses, DNSNames, name, extKeyUsage, prefix
+	return ipAddresses, DNSNames, name, extKeyUsage, prefix
 }
