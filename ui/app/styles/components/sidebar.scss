@@ -7,7 +7,7 @@ $subNavOffset: 49px;
   width: 750px;
   padding: 24px;
   right: 0%;
-  overflow: visible;
+  overflow: auto;
   bottom: 0;
   top: $topNavOffset;
   transform: translateX(100%);
@@ -35,6 +35,23 @@ $subNavOffset: 49px;
     left: -16px;
     box-shadow: -5px 0 10px -5px rgb(0 0 0 / 20%);
     border-radius: 16px;
+  }
+
+  &.evaluations-sidebar {
+    display: grid;
+    gap: 1rem;
+    grid-template-rows: auto auto auto auto minmax(200px, 1fr);
+    & > .evaluation-response {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+      & > .boxed-section-body {
+        overflow: auto;
+      }
+    }
+    & > div {
+      margin: 0;
+    }
   }
 }
 
