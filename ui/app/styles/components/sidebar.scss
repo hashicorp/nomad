@@ -38,11 +38,13 @@ $subNavOffset: 49px;
   }
 
   &.evaluations-sidebar {
-    display: grid;
-    gap: 1rem;
-    grid-template-rows: auto auto auto auto minmax(200px, 1fr);
+    display: flex;
+    gap: 1.5rem;
+    flex-direction: column;
+
     & > .evaluation-response {
       display: grid;
+      min-height: 200px;
       grid-template-rows: auto 1fr;
       overflow: hidden;
       & > .boxed-section-body {
