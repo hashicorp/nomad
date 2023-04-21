@@ -234,9 +234,9 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	// Setup the options
-	opts := &api.PlanOptions{}
-	if diff {
-		opts.Diff = true
+	opts := &api.PlanOptions{
+		// Always request the diff so we can tell if there are changes.
+		Diff: true,
 	}
 	if policyOverride {
 		opts.PolicyOverride = true
