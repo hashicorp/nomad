@@ -12,6 +12,10 @@ import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
 
+import { marked } from 'marked';
+
+import { encode } from 'html-entities';
+
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
 @classic
@@ -48,6 +52,20 @@ export default class Job extends Model {
   @computed('periodic', 'parameterized', 'dispatched')
   get hasChildren() {
     return this.periodic || (this.parameterized && !this.dispatched);
+  }
+
+  @computed('renderDescription')
+  get renderDescription(){
+    const renderer = new marked.Renderer();
+
+    renderer.link = function (href, title, text) {
+      return '<a target="_new" href="' + encode(href) + '" title="' + encode(title) + '">' + encode(text) + '</a>';
+    };
+
+    marked.setOptions({renderer: renderer });
+
+    return marked.parse(this.meta.get('description'));
+    
   }
 
   @computed('type')
