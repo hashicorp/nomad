@@ -130,7 +130,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]interface{}) (*docker.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
 	client := newTestDockerClient(t)
 	driver := dockerDriverHarness(t, driverCfg)
-	cleanup := driver.MkAllocDir(task, true)
+	cleanup := driver.MkAllocDir(task, loggingIsEnabled(&DriverConfig{}, task))
 
 	copyImage(t, task.TaskDir(), "busybox.tar")
 	_, _, err := driver.StartTask(task)
@@ -836,6 +836,37 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 
 	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
 	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
+}
+
+// TestDockerDriver_LogCollectionDisabled ensures that logmon isn't configured
+// when log collection is disable, but out-of-band Docker log shipping still
+// works as expected
+func TestDockerDriver_LogCollectionDisabled(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	task.StdoutPath = os.DevNull
+	task.StderrPath = os.DevNull
+
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
+
+	dockerClientConfig["logging"] = LoggingConfig{
+		Type:   "gelf",
+		Config: loggerConfig,
+	}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	t.Cleanup(cleanup)
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+	container, err := client.InspectContainer(handle.containerID)
+	must.NoError(t, err)
+	must.Nil(t, handle.dlogger)
+
+	must.Eq(t, "gelf", container.HostConfig.LogConfig.Type)
+	must.Eq(t, loggerConfig, container.HostConfig.LogConfig.Config)
 }
 
 func TestDockerDriver_HealthchecksDisable(t *testing.T) {

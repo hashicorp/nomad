@@ -347,6 +347,7 @@ func TestParse(t *testing.T) {
 								LogConfig: &api.LogConfig{
 									MaxFiles:      intToPtr(14),
 									MaxFileSizeMB: intToPtr(101),
+									Enabled:       boolToPtr(true),
 								},
 								Artifacts: []*api.TaskArtifact{
 									{
