@@ -7840,6 +7840,34 @@ func TestJobEndpoint_Scale_Priority(t *testing.T) {
 	requireAssertion.NotZero(eval.ModifyTime)
 }
 
+func TestJobEndpoint_Scale_SystemJob(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+	state := testServer.fsm.State()
+
+	mockSystemJob := mock.SystemJob()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 10, nil, mockSystemJob))
+
+	scaleReq := &structs.JobScaleRequest{
+		JobID: mockSystemJob.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: mockSystemJob.TaskGroups[0].Name,
+		},
+		Count: pointer.Of(int64(13)),
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			Namespace: mockSystemJob.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	must.ErrorContains(t, msgpackrpc.CallWithCodec(codec, "Job.Scale", scaleReq, &resp),
+		`400,cannot scale jobs of type "system"`)
+}
+
 func TestJobEndpoint_InvalidCount(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
