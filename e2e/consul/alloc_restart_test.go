@@ -5,11 +5,14 @@ package consul
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func testAllocRestart(t *testing.T) {
@@ -53,7 +56,19 @@ func testAllocRestart(t *testing.T) {
 	must.NoError(t, err)
 
 	// make sure our service is no longer registered
-	services, _, err = cc.Service("alloc-restart-http", "", nil)
-	must.NoError(t, err)
-	must.SliceEmpty(t, services)
+	f := func() error {
+		services, _, err = cc.Service("alloc-restart-http", "", nil)
+		if err != nil {
+			return err
+		}
+		if len(services) != 0 {
+			return errors.New("expected empty services")
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(10*time.Second),
+		wait.Gap(1*time.Second),
+	))
 }
