@@ -253,7 +253,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		net:                   handleState.DriverNetwork,
 	}
 
-	if !d.config.DisableLogCollection {
+	if loggingIsEnabled(d.config, handle.Config) {
 		h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
 		if err != nil {
 			d.logger.Warn("failed to reattach to docker logger process", "error", err)
@@ -282,6 +282,16 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	go h.run()
 
 	return nil
+}
+
+func loggingIsEnabled(driverCfg *DriverConfig, taskCfg *drivers.TaskConfig) bool {
+	if driverCfg.DisableLogCollection {
+		return false
+	}
+	if taskCfg.StderrPath == os.DevNull && taskCfg.StdoutPath == os.DevNull {
+		return false
+	}
+	return true
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
@@ -399,7 +409,7 @@ CREATE:
 		}
 	}
 
-	collectingLogs := !d.config.DisableLogCollection
+	collectingLogs := loggingIsEnabled(d.config, cfg)
 
 	var dlogger docklog.DockerLogger
 	var pluginClient *plugin.Client

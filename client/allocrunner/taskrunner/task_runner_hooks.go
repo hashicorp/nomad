@@ -53,7 +53,7 @@ func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
 
-	tr.logmonHookConfig = newLogMonHookConfig(task.Name, tr.taskDir.LogDir)
+	tr.logmonHookConfig = newLogMonHookConfig(task.Name, task.LogConfig, tr.taskDir.LogDir)
 
 	// Add the hook resources
 	tr.hookResources = &hookResources{}

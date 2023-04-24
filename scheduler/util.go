@@ -304,6 +304,13 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if !at.Identity.Equal(bt.Identity) {
 			return difference("task identity", at.Identity, bt.Identity)
 		}
+
+		// Most LogConfig updates are in-place but if we change Enabled we need
+		// to recreate the task to stop/start log collection and change the
+		// stdout/stderr of the task
+		if at.LogConfig.Enabled != bt.LogConfig.Enabled {
+			return difference("task log enabled", at.LogConfig.Enabled, bt.LogConfig.Enabled)
+		}
 	}
 
 	// none of the fields that trigger a destructive update were modified,

@@ -188,7 +188,17 @@ FieldsLoop:
 	ObjectsLoop:
 		for _, oDiff := range diff.Objects {
 			switch oDiff.Name {
-			case "LogConfig", "Service", "Constraint":
+			case "Service", "Constraint":
+				continue
+			case "LogConfig":
+				for _, fDiff := range oDiff.Fields {
+					switch fDiff.Name {
+					// force a destructive update if logger was enabled or disabled
+					case "Enabled":
+						destructive = true
+						break ObjectsLoop
+					}
+				}
 				continue
 			default:
 				destructive = true
