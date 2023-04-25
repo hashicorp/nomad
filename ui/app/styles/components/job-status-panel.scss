@@ -49,9 +49,10 @@
     // TODO: may revisit this grid-area later, but is currently used in 2 competing ways
     display: grid;
     gap: 0.5rem;
-    grid-template-columns: 50% 25% 25%;
+    grid-template-columns: 55% 15% 15% 15%;
 
-    & > section > h4, & > legend > h4 {
+    & > section > h4,
+    & > legend > h4 {
       // font-size: 1.25rem;
       margin-bottom: 0.5rem;
     }

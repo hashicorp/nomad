@@ -25,10 +25,10 @@ export default class JobStatusPanelSteadyComponent extends Component {
     let availableSlotsToFill = this.totalAllocs;
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     let allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {
-      const jobAllocsOfType = this.args.job.allocations.filterBy(
-        'clientStatus',
-        type.label
-      );
+      const jobAllocsOfType = this.args.job.allocations
+        .sortBy('jobVersion') // Try counting from latest deployment's allocs and work backwards if needed
+        .reverse()
+        .filterBy('clientStatus', type.label);
       if (availableSlotsToFill > 0) {
         blocks[type.label] = {
           healthy: {
@@ -85,24 +85,21 @@ export default class JobStatusPanelSteadyComponent extends Component {
       );
   }
 
-  get failedOrLostAllocs() {
+  get rescheduledAllocs() {
     let allocs = this.job.allocations.filter(
       (a) =>
-        // a.jobVersion === this.job.latestDeployment.get('versionNumber')
-        true
-        && (a.clientStatus === 'failed' || a.clientStatus === 'lost' || a.clientStatus === 'unknown')
+        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
+        a.hasBeenRescheduled
     );
-    // console.log('before FUE check', allocs);
-    allocs = allocs.filter((a) => {
-      return !a.get('followUpEvaluation.content')
-      // console.log('RESC', a.desiredTransition.Reschedule, a.desiredTransition);
-      if (a.desiredTransition.Reschedule) {
-        console.log('failed alloc', a, 'has a desiredTransition.Reschedule', a.desiredTransition.Reschedule, a.desiredTransition)
-      }
-      return !a.desiredTransition.Reschedule
-    });
-    console.log('preret', allocs);
     return allocs;
   }
 
+  get restartedAllocs() {
+    let allocs = this.job.allocations.filter(
+      (a) =>
+        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
+        a.hasBeenRestarted
+    );
+    return allocs;
+  }
 }
