@@ -1054,8 +1054,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 
+	// Perform validation on the job to ensure we have something that can
+	// actually be scaled. This logic can only exist here, as we need access
+	// to the job object.
 	if job == nil {
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
+	}
+	if job.Type == structs.JobTypeSystem {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, `cannot scale jobs of type "system"`)
 	}
 
 	// Since job is going to be mutated we must copy it since state store methods
