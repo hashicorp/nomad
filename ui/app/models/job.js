@@ -219,6 +219,10 @@ export default class Job extends Model {
     return this.store.adapterFor('job').fetchRawDefinition(this);
   }
 
+  fetchRawSpecification() {
+    return this.store.adapterFor('job').fetchRawSpecification(this);
+  }
+
   forcePeriodic() {
     return this.store.adapterFor('job').forcePeriodic(this);
   }
