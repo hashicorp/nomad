@@ -1,0 +1,442 @@
+.job-status-panel {
+  // #region layout
+  &.steady-state.current-state .boxed-section-body {
+    display: grid;
+    grid-template-areas:
+      'title'
+      'allocation-status-row'
+      'legend-and-summary';
+    gap: 1rem;
+    grid-auto-columns: 100%;
+
+    & > h3 {
+      grid-area: title;
+      margin: 0;
+    }
+
+    & > .allocation-status-row {
+      grid-area: allocation-status-row;
+    }
+  }
+
+  &.active-deployment .boxed-section-body {
+    display: grid;
+    grid-template-areas:
+      'deployment-allocations'
+      'legend-and-summary'
+      'history-and-params';
+    gap: 1rem;
+    grid-auto-columns: 100%;
+
+    & > .deployment-allocations {
+      grid-area: deployment-allocations;
+      display: grid;
+      gap: 1rem;
+      grid-auto-columns: 100%;
+
+      & > h4 {
+        margin-bottom: -0.5rem;
+      }
+    }
+
+    & > .history-and-params {
+      grid-area: history-and-params;
+    }
+  }
+
+  .legend-and-summary {
+    // grid-area: legend-and-summary;
+    // TODO: may revisit this grid-area later, but is currently used in 2 competing ways
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 50% 50%;
+
+    legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+    }
+    .versions {
+      display: grid;
+      gap: 0.5rem;
+      & > ul {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, 100px);
+        gap: 0.5rem;
+        & > li {
+          white-space: nowrap;
+          & a {
+            text-decoration: none;
+          }
+        }
+      }
+    }
+  }
+
+  // #endregion layout
+
+  .select-mode {
+    border: 1px solid $grey-blue;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 2px;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr 1fr;
+    padding: 0.25rem 0.5rem;
+    margin-left: 1rem;
+
+    button {
+      height: auto;
+      padding: 0 0.5rem;
+      background: transparent;
+      transition: 0.1s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      &.is-active {
+        background: $white;
+      }
+    }
+  }
+
+  .running-allocs-title {
+    strong {
+      font-weight: 800;
+    }
+  }
+
+  .ungrouped-allocs {
+    display: grid;
+    gap: 10px;
+    grid-auto-flow: column;
+    grid-auto-columns: 32px;
+
+    & > .represented-allocation {
+      width: 32px;
+    }
+  }
+
+  .alloc-status-summaries {
+    display: flex;
+    height: 32px;
+    gap: 1.5rem;
+
+    .allocation-status-block {
+      display: grid;
+      grid-template-columns: auto 50px;
+      gap: 10px;
+
+      &.rest-only {
+        grid-template-columns: auto;
+      }
+
+      & > .ungrouped-allocs {
+        display: grid;
+        grid-auto-flow: column;
+        gap: 10px;
+        grid-auto-columns: unset;
+        & > .represented-allocation {
+          width: 32px;
+        }
+      }
+
+      .represented-allocation.rest {
+        // TODO: we eventually want to establish a minimum width here. However, we need to also include this in the allocation-status-block width computation.
+        font-size: 0.8rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        width: 100%;
+
+        & > .rest-count {
+          position: relative;
+          z-index: 2;
+        }
+
+        &.unplaced {
+          color: black;
+        }
+      }
+    }
+  }
+
+  .represented-allocation {
+    background: $green;
+    border-radius: 4px;
+    height: 32px;
+    width: 32px;
+    color: white;
+    position: relative;
+    display: grid;
+    align-content: center;
+    justify-content: center;
+
+    $queued: $grey;
+    $pending: $grey-lighter;
+    $running: $primary;
+    $complete: $nomad-green-pale;
+    $failed: $danger;
+    $lost: $dark;
+
+    // Client Statuses
+    &.running {
+      background: $running;
+    }
+    &.failed {
+      background: $failed;
+    }
+    &.unknown {
+      background: $unknown;
+    }
+    &.queued {
+      background: $queued;
+    }
+    &.complete {
+      background: $complete;
+      color: black;
+    }
+    &.pending {
+      background: $pending;
+      color: black;
+      position: relative;
+      overflow: hidden;
+
+      &:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(-60deg, $pending, #eee, $pending);
+        animation: shimmer 2s ease-in-out infinite;
+      }
+    }
+    &.lost {
+      background: $lost;
+    }
+
+    &.unplaced {
+      background: $grey-lighter;
+      position: relative;
+      overflow: hidden;
+
+      &:before {
+        background: linear-gradient(-60deg, $pending, #eee, $pending);
+        animation: shimmer 2s ease-in-out infinite;
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      &:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: calc(100% - 4px);
+        height: calc(100% - 4px);
+        margin: 2px;
+        background: white;
+        border-radius: 3px;
+      }
+    }
+
+    &.legend-example {
+      background: #eee;
+    }
+
+    // Health Statuses
+
+    .alloc-health-indicator {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      display: grid;
+      align-content: center;
+      justify-content: center;
+    }
+
+    &.running {
+      .alloc-health-indicator {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        align-content: center;
+        justify-content: center;
+      }
+      &.rest .alloc-health-indicator {
+        top: -7px;
+        right: -7px;
+        border-radius: 20px;
+        background: white;
+        box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.5);
+        width: 20px;
+        height: 20px;
+        box-sizing: border-box;
+        transform: scale(0.75);
+      }
+    }
+
+    // Canary Status
+    &.canary > .alloc-canary-indicator {
+      overflow: hidden;
+      width: 16px;
+      height: 16px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      border-radius: 4px;
+
+      &:after {
+        content: '';
+        position: absolute;
+        left: -8px;
+        bottom: -8px;
+        width: 16px;
+        height: 16px;
+        transform: rotate(45deg);
+        background-color: $orange;
+      }
+    }
+  }
+
+  .legend-item .represented-allocation .flight-icon {
+    animation: none;
+  }
+
+  & > .boxed-section-body > .deployment-allocations {
+    margin-bottom: 1rem;
+  }
+
+  .legend-item {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: auto 1fr;
+
+    &.faded {
+      opacity: 0.5;
+    }
+
+    .represented-allocation {
+      width: 20px;
+      height: 20px;
+      animation: none;
+      &:before,
+      &:after {
+        animation: none;
+      }
+    }
+  }
+
+  .history-and-params {
+    display: grid;
+    grid-template-columns: 70% auto;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .deployment-history {
+    & > header {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: end;
+      & > .search-box {
+        max-width: unset;
+      }
+    }
+    & > ol {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    & > ol > li {
+      @for $i from 1 through 50 {
+        &:nth-child(#{$i}) {
+          animation-name: historyItemSlide;
+          animation-duration: 0.2s;
+          animation-fill-mode: both;
+          animation-delay: 0.1s + (0.05 * $i);
+        }
+
+        &:nth-child(#{$i}) > div {
+          animation-name: historyItemShine;
+          animation-duration: 1s;
+          animation-fill-mode: both;
+          animation-delay: 0.1s + (0.05 * $i);
+        }
+      }
+
+      & > div {
+        gap: 0.5rem;
+      }
+      &.error > div {
+        border: 1px solid $danger;
+        background: rgba($danger, 0.1);
+      }
+    }
+  }
+
+  .update-parameters {
+    & > code {
+      max-height: 300px;
+      overflow-y: auto;
+      display: block;
+    }
+    ul,
+    span.notification {
+      display: block;
+      background: #1a2633;
+      padding: 1rem;
+      color: white;
+      .key {
+        color: #1caeff;
+        &:after {
+          content: '=';
+          color: white;
+          margin-left: 0.5rem;
+        }
+      }
+      .value {
+        color: #06d092;
+      }
+    }
+  }
+}
+
+@keyframes historyItemSlide {
+  from {
+    opacity: 0;
+    top: -40px;
+  }
+  to {
+    opacity: 1;
+    top: 0px;
+  }
+}
+
+@keyframes historyItemShine {
+  from {
+    box-shadow: inset 0 0 0 100px rgba(255, 200, 0, 0.2);
+  }
+  to {
+    box-shadow: inset 0 0 0 100px rgba(255, 200, 0, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  30% {
+    transform: translate3d(100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(100%, 0, 0);
+  }
+}

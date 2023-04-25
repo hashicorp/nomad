@@ -46,12 +46,16 @@ export default class AllocationsController extends Controller.extend(
     {
       qpTaskGroup: 'taskGroup',
     },
+    {
+      qpVersion: 'version',
+    },
     'activeTask',
   ];
 
   qpStatus = '';
   qpClient = '';
   qpTaskGroup = '';
+  qpVersion = '';
   currentPage = 1;
   pageSize = 25;
   activeTask = null;
@@ -75,10 +79,16 @@ export default class AllocationsController extends Controller.extend(
     'allocations.[]',
     'selectionStatus',
     'selectionClient',
-    'selectionTaskGroup'
+    'selectionTaskGroup',
+    'selectionVersion'
   )
   get filteredAllocations() {
-    const { selectionStatus, selectionClient, selectionTaskGroup } = this;
+    const {
+      selectionStatus,
+      selectionClient,
+      selectionTaskGroup,
+      selectionVersion,
+    } = this;
 
     return this.allocations.filter((alloc) => {
       if (
@@ -99,6 +109,12 @@ export default class AllocationsController extends Controller.extend(
       ) {
         return false;
       }
+      if (
+        selectionVersion.length &&
+        !selectionVersion.includes(alloc.jobVersion)
+      ) {
+        return false;
+      }
       return true;
     });
   }
@@ -110,6 +126,7 @@ export default class AllocationsController extends Controller.extend(
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;
   @selection('qpTaskGroup') selectionTaskGroup;
+  @selection('qpVersion') selectionVersion;
 
   @action
   gotoAllocation(allocation) {
@@ -161,6 +178,24 @@ export default class AllocationsController extends Controller.extend(
     });
 
     return taskGroups.sort().map((tg) => ({ key: tg, label: tg }));
+  }
+
+  @computed('model.allocations.[]', 'selectionVersion')
+  get optionsVersions() {
+    const versions = Array.from(
+      new Set(this.model.allocations.mapBy('jobVersion'))
+    ).compact();
+
+    // Update query param when the list of versions changes.
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set(
+        'qpVersion',
+        serialize(intersection(versions, this.selectionVersion))
+      );
+    });
+
+    return versions.sort((a, b) => a - b).map((v) => ({ key: v, label: v }));
   }
 
   setFacetQueryParam(queryParam, selection) {

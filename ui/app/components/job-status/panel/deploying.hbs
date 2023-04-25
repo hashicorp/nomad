@@ -1,0 +1,113 @@
+<div class="job-status-panel boxed-section active-deployment is-info" data-test-job-status-panel>
+  <div class="boxed-section-head">
+    <div class="boxed-section-row"
+      {{did-insert (action this.establishOldAllocBlockIDs)}}
+      >
+        Deployment Status
+        <span class="badge is-white bumper-left" data-test-active-deployment-stat="id">{{@job.latestDeployment.shortId}}</span>
+        <div class="pull-right">
+          {{#if @job.latestDeployment.isRunning}}
+            <TwoStepButton
+              data-test-fail
+              @classes={{hash
+                idleButton="is-danger"
+                confirmationMessage="inherit-color"
+                confirmButton="is-danger"}}
+              @idleText="Fail Deployment"
+              @cancelText="Cancel"
+              @confirmText="Yes, Fail Deployment"
+              @confirmationMessage="Are you sure?"
+              @inlineText={{true}}
+              @awaitingConfirmation={{this.fail.isRunning}}
+              @disabled={{this.fail.isRunning}}
+              @onConfirm={{perform this.fail}} />
+          {{/if}}
+          {{#if @job.latestDeployment.requiresPromotion}}
+            <button
+              data-test-promote-canary
+              type="button"
+              class="button is-warning is-small {{if this.promote.isRunning "is-loading"}}"
+              disabled={{this.promote.isRunning}}
+              onclick={{perform this.promote}}>Promote Canary</button>
+          {{/if}}
+        </div>
+      </div>
+    </div>
+    <div class="boxed-section-body">
+      <div class="deployment-allocations">
+        {{#if this.oldVersionAllocBlockIDs.length}}
+          <h4 class="title is-5" data-test-old-allocation-tally>Previous allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
+          <div class="previous-allocations">
+            <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
+          </div>
+          <div class="legend-and-summary" data-test-previous-allocations-legend>
+            <legend>
+              <span class="legend-item {{if (eq (get this.oldRunningHealthyAllocBlocks "length") 0) "faded"}}">
+                <span class="represented-allocation running"></span>
+                {{get this.oldRunningHealthyAllocBlocks "length"}} Running
+              </span>
+              <span class="legend-item {{if (eq (get this.oldCompleteHealthyAllocBlocks "length") 0) "faded"}}">
+                <span class="represented-allocation complete"></span>
+                {{get this.oldCompleteHealthyAllocBlocks "length"}} Complete
+              </span>
+            </legend>
+          </div>
+
+        {{/if}}
+
+        <h4 class="title is-5" data-test-new-allocation-tally>New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
+        <div class="new-allocations">
+          <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
+        </div>
+      </div>
+
+      <div class="legend-and-summary" data-test-new-allocations-legend>
+
+        {{!-- Legend by Status, then by Health, then by Canary --}}
+        <legend>
+          {{#each-in this.newAllocsByStatus as |status count|}}
+            <ConditionalLinkTo
+              @condition={{not (eq status "unplaced")}}
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{hash status=(concat '["' status '"]') version=(concat '[' this.job.latestDeployment.versionNumber ']')}}
+              @class="legend-item {{if (eq count 0) "faded"}}"
+              @label="View {{status}} allocations"
+            >
+              <span class="represented-allocation {{status}}"></span>
+                {{count}} {{capitalize status}}
+            </ConditionalLinkTo>
+          {{/each-in}}
+
+          {{#each-in this.newAllocsByHealth as |health count|}}
+            <span class="legend-item {{if (eq count 0) "faded"}}">
+              <span class="represented-allocation legend-example">
+                <span class="alloc-health-indicator">
+                  {{#if (eq health "healthy")}}
+                    <FlightIcon @name="check" @color="#25ba81" />
+                  {{else}}
+                    <FlightIcon @name="running" @color="black" class="not-animated" />
+                  {{/if}}
+                </span>
+              </span>
+              {{count}} {{capitalize health}}
+            </span>
+          {{/each-in}}
+
+          <span class="legend-item {{if (eq this.newAllocsByCanary.canary 0) "faded"}}">
+            <span class="represented-allocation legend-example canary">
+              <span class="alloc-canary-indicator" />
+            </span>
+            {{this.newAllocsByCanary.canary}} Canary
+          </span>
+
+        </legend>
+      </div>
+
+      <div class="history-and-params">
+        <JobStatus::DeploymentHistory @deployment={{@job.latestDeployment}} />
+        <JobStatus::UpdateParams @job={{@job}} />
+      </div>
+
+    </div>
+</div>

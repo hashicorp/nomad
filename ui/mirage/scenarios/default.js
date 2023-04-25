@@ -73,6 +73,94 @@ function smallCluster(server) {
     id: 'service-haver',
     namespaceId: 'default',
   });
+  server.create('job', {
+    createAllocations: true,
+    groupTaskCount: 150,
+    shallow: true,
+    allocStatusDistribution: {
+      running: 0.5,
+      failed: 0.05,
+      unknown: 0.2,
+      lost: 0.1,
+      complete: 0.1,
+      pending: 0.05,
+    },
+    name: 'mixed-alloc-job',
+    id: 'mixed-alloc-job',
+    namespaceId: 'default',
+    type: 'service',
+    activeDeployment: true,
+  });
+
+  //#region Active Deployment
+
+  const activelyDeployingJobGroups = 2;
+  const activelyDeployingTasksPerGroup = 100;
+
+  const activelyDeployingJob = server.create('job', {
+    createAllocations: true,
+    groupTaskCount: activelyDeployingTasksPerGroup,
+    shallow: true,
+    resourceSpec: Array(activelyDeployingJobGroups).fill(['M: 257, C: 500']),
+    noDeployments: true, // manually created below
+    activeDeployment: true,
+    allocStatusDistribution: {
+      running: 0.6,
+      failed: 0.05,
+      unknown: 0.05,
+      lost: 0,
+      complete: 0,
+      pending: 0.3,
+    },
+    name: 'actively-deploying-job',
+    id: 'actively-deploying-job',
+    namespaceId: 'default',
+    type: 'service',
+  });
+
+  server.create('deployment', false, 'active', {
+    jobId: activelyDeployingJob.id,
+    groupDesiredTotal: activelyDeployingTasksPerGroup,
+    versionNumber: 1,
+    status: 'running',
+  });
+  server.createList('allocation', 25, {
+    jobId: activelyDeployingJob.id,
+    jobVersion: 0,
+    clientStatus: 'running',
+  });
+
+  // Manipulate the above job to show a nice distribution of running, canary, etc. allocs
+  let activelyDeployingJobAllocs = server.schema.allocations
+    .all()
+    .filter((a) => a.jobId === activelyDeployingJob.id);
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(0, 10)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: false, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(10, 20)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(20, 65)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'pending')
+    .slice(0, 10)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+    );
+
+  //#endregion Active Deployment
+
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
   server.createList('csi-plugin', 2);
