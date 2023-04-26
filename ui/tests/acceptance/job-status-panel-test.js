@@ -449,12 +449,10 @@ module('Acceptance | job status panel', function (hooks) {
       );
   });
 
-  test.only('Restarted/Rescheduled/Failed numbers reflected correctly', async function (assert) {
-    // assert.expect(6);
+  test('Restarted/Rescheduled/Failed numbers reflected correctly', async function (assert) {
+    this.store = this.owner.lookup('service:store');
 
-    // faker.seed(1);
-
-    let groupTaskCount = 20;
+    let groupTaskCount = 10;
 
     let job = server.create('job', {
       status: 'running',
@@ -463,74 +461,64 @@ module('Acceptance | job status panel', function (hooks) {
       resourceSpec: ['M: 256, C: 500'], // a single group
       createAllocations: true,
       allocStatusDistribution: {
-        running: 1,
-        failed: 0,
+        running: 0.5,
+        failed: 0.5,
         unknown: 0,
         lost: 0,
       },
       groupTaskCount,
+      activeDeployment: true,
       shallow: true,
+    });
+
+    let state = server.create('task-state');
+    state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+    server.schema.allocations.where({ jobId: job.id }).update({
+      taskStateIds: [state.id],
+      jobVersion: 0,
     });
 
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
-
-    let jobAllocCount = server.db.allocations.where({
-      jobId: job.id,
-    }).length;
-
     assert
-      .dom('.ungrouped-allocs .represented-allocation.running')
-      .exists(
-        { count: jobAllocCount },
-        `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`
-      );
+      .dom('.failed-or-lost')
+      .exists({ count: 2 }, 'Restarted and Rescheduled cells are both present');
 
-    groupTaskCount = 40;
+    const rescheduledCell = [...findAll('.failed-or-lost')][0];
+    const restartedCell = [...findAll('.failed-or-lost')][1];
 
-    job = server.create('job', {
-      status: 'running',
-      datacenters: ['*'],
-      type: 'service',
-      resourceSpec: ['M: 256, C: 500'], // a single group
-      createAllocations: true,
-      allocStatusDistribution: {
-        running: 1,
-        failed: 0,
-        unknown: 0,
-        lost: 0,
-      },
-      groupTaskCount,
-      shallow: true,
-    });
+    // Check that the title in each cell has the right text
+    assert.dom(rescheduledCell.querySelector('h4')).hasText('Rescheduled');
+    assert.dom(restartedCell.querySelector('h4')).hasText('Restarted');
 
-    await visit(`/jobs/${job.id}`);
-    assert.dom('.job-status-panel').exists();
-
-    jobAllocCount = server.db.allocations.where({
-      jobId: job.id,
-    }).length;
-
-    // At standard test resolution, 40 allocations will attempt to display 20 ungrouped, and 20 grouped.
-    let desiredUngroupedAllocCount = 20;
+    // Check that both values are zero and non-links
     assert
-      .dom('.ungrouped-allocs .represented-allocation.running')
-      .exists(
-        { count: desiredUngroupedAllocCount },
-        `${desiredUngroupedAllocCount} allocations are represented ungrouped`
-      );
-
+      .dom(rescheduledCell.querySelector('a'))
+      .doesNotExist('Rescheduled cell is not a link');
     assert
-      .dom('.represented-allocation.rest')
-      .exists('Allocations are numerous enough that a summary block exists');
+      .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
+      .hasText('0');
     assert
-      .dom('.represented-allocation.rest')
-      .hasText(
-        `+${groupTaskCount - desiredUngroupedAllocCount}`,
-        'Summary block has the correct number of grouped allocs'
-      );
+      .dom(restartedCell.querySelector('a'))
+      .doesNotExist('Restarted cell is not a link');
+    assert
+      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .hasText('0');
 
-    await percySnapshot(assert);
+    // A wild event appears! Change a recent task event to type "Terminated" in a task state:
+    this.store
+      .peekAll('job')
+      .objectAt(0)
+      .get('allocations')
+      .objectAt(0)
+      .get('states')
+      .objectAt(0)
+      .get('events')
+      .objectAt(0)
+      .set('type', 'Terminated');
+    assert
+      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .hasText('1');
   });
 
   module('deployment history', function () {
