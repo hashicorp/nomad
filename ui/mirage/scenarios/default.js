@@ -160,6 +160,7 @@ function smallCluster(server) {
     );
 
   //#endregion Active Deployment
+
   server.create('job', {
     name: 'hcl-definition-job',
     id: 'display-hcl',
