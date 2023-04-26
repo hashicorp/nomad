@@ -18,6 +18,7 @@ export default class DefinitionController extends Controller.extend(
   @alias('model.definition') definition;
   @alias('model.job') job;
   @alias('model.specification') specification;
+  @alias('model.variables') variables;
 
   @tracked view;
   @tracked isEditing = false;

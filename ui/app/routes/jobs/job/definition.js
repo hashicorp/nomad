@@ -14,11 +14,13 @@ export default class DefinitionRoute extends Route {
 
     const specificationResponse = await job.fetchRawSpecification();
     const specification = specificationResponse?.Source ?? null;
+    const variables = specificationResponse?.VariableFlags ?? null;
 
     return {
       job,
       definition,
       specification,
+      variables,
     };
   }
 
