@@ -11,7 +11,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
     'pending',
     'failed',
     // 'unknown',
-    // 'lost',
+    'lost',
     // 'queued',
     // 'complete',
     'unplaced',

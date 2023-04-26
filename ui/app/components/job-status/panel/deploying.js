@@ -82,7 +82,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get newVersionAllocBlocks() {
-    // console.log('============');
     let availableSlotsToFill = this.desiredTotal;
     let allocationsOfDeploymentVersion = this.job.allocations.filter(
       (a) => a.jobVersion === this.deployment.get('versionNumber')
