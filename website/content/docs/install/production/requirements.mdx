@@ -189,9 +189,28 @@ This is not a supported or well-tested configuration. See [GH-13669][] for a
 further discussion and to provide feedback on your experiences trying to run
 rootless Nomad clients.
 
+## Running Nomad in Docker
+
+Running systems as Docker containers has become a common practice. While it's
+possible to run Nomad servers inside containers, Nomad clients require
+extensive access to the underlying host machine, as described in
+[Rootless Nomad Clients][]. Docker containers introduce a non-trivial
+abstraction layer that makes it hard to properly configure clients and task
+drivers therefore **running Nomad clients in Docker containers is not
+officially supported**.
+
+The [`hashicorp/nomad`][nomad_docker_hub] Docker image is intended to be used
+in automated pipelines for [CLI operations][docs_cli], such as
+[`nomad job plan`][], [`nomad fmt`][], and others.
+
 [Security Model]: /nomad/docs/concepts/security
 [production deployment guide]: /nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul#configure-systemd
 [linux capabilities]: #linux-capabilities
 [`capabilities(7)`]: https://man7.org/linux/man-pages/man7/capabilities.7.html
 [overlay filesystem]: https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
 [GH-13669]: https://github.com/hashicorp/nomad/issues/13669
+[Rootless Nomad Clients]: #hardening-nomad
+[nomad_docker_hub]: https://hub.docker.com/r/hashicorp/nomad
+[docs_cli]: /nomad/docs/commands
+[`nomad job plan`]: /nomad/docs/commands/job/plan
+[`nomad fmt`]: /nomad/docs/commands/fmt

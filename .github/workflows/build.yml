@@ -281,41 +281,38 @@ jobs:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
+  build-docker-default:
+    name: Docker ${{ matrix.arch }} default release build
+    needs:
+      - get-product-version
+      - build-linux
+    runs-on: [ custom, linux, xxl, 20.04 ]
+    strategy:
+      matrix:
+        arch: ["arm", "arm64", "386", "amd64"]
+    env:
+      version: ${{needs.get-product-version.outputs.product-version}}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@v1
+        with:
+          smoke_test: |
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" version | awk '/Nomad v/{print $2}')"
+            if [ "${TEST_VERSION}" != "v${version}" ]; then
+              echo "Test FAILED"
+              exit 1
+            fi
+            echo "Test PASSED"
+          version: ${{env.version}}
+          target: release
+          arch: ${{matrix.arch}}
+          tags: |
+            docker.io/hashicorp/${{env.PKG_NAME}}:${{env.version}}
+            986891699432.dkr.ecr.us-east-1.amazonaws.com/hashicorp/${{env.PKG_NAME}}:${{env.version}}
+          dev_tags: |
+            docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-dev
+            docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{ github.sha }}
+
 permissions:
   contents: read
-# This placed here for when the Nomad team is ready to build docker images.
-# Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc.
-
-  # build-docker-default:
-  #   name: Docker ${{ matrix.arch }} default release build
-  #   needs:
-  #     - get-product-version
-  #     - build
-  #   runs-on: [ custom, linux, xxl, 20.04 ]
-  #   strategy:
-  #     matrix:
-  #       arch: ["arm", "arm64", "amd64"]
-  #   env:
-  #     repo: ${{github.event.repository.name}}
-  #     version: ${{needs.get-product-version.outputs.product-version}}
-
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Docker Build (Action)
-  #       uses: hashicorp/actions-docker-build@v1
-  #       with:
-  #         # Add smoke test here. Below is a sample smoke test that runs the built image
-  #         # and validates the version.
-  #         smoke_test: |
-  #           TEST_VERSION="$(docker run "${IMAGE_NAME}" | awk '/CLI version/{print $3}')"
-  #           if [ "${TEST_VERSION}" != "${version}" ]; then
-  #             echo "Test FAILED"
-  #             exit 1
-  #           fi
-  #           echo "Test PASSED"
-  #         version: ${{env.version}}
-  #         target: release-default
-  #         arch: ${{matrix.arch}}
-  #         tags: |
-  #           docker.io/hashicorp/${{env.repo}}:${{env.version}}
-  #           986891699432.dkr.ecr.us-east-1.amazonaws.com/hashicorp/${{env.repo}}:${{env.version}}
