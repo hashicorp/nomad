@@ -25,19 +25,24 @@
         />
     </div>
     {{#if (eq @data.view "job-spec")}}
-    <div>
-        <h1 style="font-size: 2rem; font-weight: 600">Edit HCL Variables</h1>
-        <div
-            data-test-variable-editor
-            {{code-mirror
-            screenReaderLabel="HLC Variables for Job Spec"
-            content=""
-            theme="hashi"
-            onUpdate=@fns.onUpdate
-            type="hclVariables"
-            mode="ruby"
-            }}
-        />
+    <div class="boxed-section" style="margin-top: 10px">
+        <div class="boxed-section-head">
+            Edit HCL Variables
+        </div>
+        <div class="boxed-section-body is-full-bleed">
+            <div
+                class="json-viewer is-variable-editor"
+                data-test-variable-editor
+                {{code-mirror
+                screenReaderLabel="HLC Variables for Job Spec"
+                content=@data.variables
+                theme="hashi"
+                onUpdate=@fns.onUpdate
+                type="hclVariables"
+                mode="ruby"
+                }}
+            />
+        </div>
     </div>
     {{/if}}
 </div>
