@@ -145,7 +145,19 @@ module('display and edit using full specification', function (hooks) {
 
   test('it allows users to select between full specification and JSON definition', async function (assert) {
     assert.expect(3);
+    const specification_response = {
+      Format: 'hcl2',
+      JobID: 'example',
+      JobIndex: 223,
+      Namespace: 'default',
+      Source:
+        'variable "datacenter" {\n  description = "The datacenter to run the job in"\n  type        = string\n  default     = "dc1"\n}\n\njob "example" {\n  datacenters = [var.datacenter]\n\n  group "example-group" {\n    task "example-task" {\n      driver = "docker"\n\n      config {\n        image = "redis:3.2"\n      }\n\n      resources {\n        cpu    = 500\n        memory = 256\n      }\n    }\n  }\n}\n',
+      VariableFlags: { datacenter: 'dc2' },
+      Variables: '',
+      Version: 0,
+    };
     server.get('/job/:id', () => JOB_JSON);
+    server.get('/job/:id/submission', () => specification_response);
 
     await Definition.visit({ id: job.id });
 
@@ -155,7 +167,7 @@ module('display and edit using full specification', function (hooks) {
     let codeMirror = getCodeMirrorInstance('[data-test-editor]');
     assert.equal(
       codeMirror.getValue(),
-      JOB_JSON.Specification.Definition,
+      specification_response.Source,
       'Shows the full definition as written by the user'
     );
 
