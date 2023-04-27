@@ -61,7 +61,6 @@ export default class JobStatusPanelDeployingComponent extends Component {
   fail;
 
   @alias('job.latestDeployment') deployment;
-  // @alias('deployment.desiredTotal') desiredTotal;
   @alias('totalAllocs') desiredTotal;
 
   get oldVersionAllocBlocks() {

@@ -8,6 +8,7 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders', async function (assert) {
+    assert.expect(3);
     let allocs = [
       {
         id: 1,
@@ -29,17 +30,6 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
 
     assert.dom('h4').hasText('Rescheduled');
     assert.dom('.failed-or-lost-link').hasText('2');
-
-    await this.pauseTest();
-    allocs.push({
-      id: 3,
-      name: 'alloc3',
-    });
-
-    this.set('allocs', allocs);
-    await this.pauseTest();
-
-    assert.dom('.failed-or-lost-link').hasText('3');
 
     await componentA11yAudit(this.element, assert);
   });

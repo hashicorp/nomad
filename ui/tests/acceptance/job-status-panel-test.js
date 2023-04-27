@@ -8,6 +8,7 @@ import {
   find,
   findAll,
   fillIn,
+  settled,
   triggerEvent,
 } from '@ember/test-helpers';
 
@@ -484,8 +485,8 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.failed-or-lost')
       .exists({ count: 2 }, 'Restarted and Rescheduled cells are both present');
 
-    const rescheduledCell = [...findAll('.failed-or-lost')][0];
-    const restartedCell = [...findAll('.failed-or-lost')][1];
+    let rescheduledCell = [...findAll('.failed-or-lost')][0];
+    let restartedCell = [...findAll('.failed-or-lost')][1];
 
     // Check that the title in each cell has the right text
     assert.dom(rescheduledCell.querySelector('h4')).hasText('Rescheduled');
@@ -497,13 +498,13 @@ module('Acceptance | job status panel', function (hooks) {
       .doesNotExist('Rescheduled cell is not a link');
     assert
       .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
-      .hasText('0');
+      .hasText('0', 'Rescheduled cell has zero value');
     assert
       .dom(restartedCell.querySelector('a'))
       .doesNotExist('Restarted cell is not a link');
     assert
       .dom(restartedCell.querySelector('.failed-or-lost-link'))
-      .hasText('0');
+      .hasText('0', 'Restarted cell has zero value');
 
     // A wild event appears! Change a recent task event to type "Terminated" in a task state:
     this.store
@@ -516,9 +517,54 @@ module('Acceptance | job status panel', function (hooks) {
       .get('events')
       .objectAt(0)
       .set('type', 'Terminated');
+
+    await settled();
+
     assert
       .dom(restartedCell.querySelector('.failed-or-lost-link'))
-      .hasText('1');
+      .hasText(
+        '1',
+        'Restarted cell updates when a task event with type "Terminated" is added'
+      );
+
+    this.store
+      .peekAll('job')
+      .objectAt(0)
+      .get('allocations')
+      .objectAt(1)
+      .get('states')
+      .objectAt(0)
+      .get('events')
+      .objectAt(0)
+      .set('type', 'Terminated');
+
+    await settled();
+
+    // Trigger a reschedule! Set up a desiredTransition object with a Reschedule property on one of the allocations.
+    assert
+      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .hasText(
+        '2',
+        'Restarted cell updates when a second task event with type "Terminated" is added'
+      );
+
+    this.store
+      .peekAll('job')
+      .objectAt(0)
+      .get('allocations')
+      .objectAt(0)
+      .set('desiredTransition', {
+        Reschedule: true,
+      });
+
+    await settled();
+
+    assert
+      .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
+      .hasText('1', 'Rescheduled cell updates when desiredTransition is set');
+    assert
+      .dom(rescheduledCell.querySelector('a'))
+      .exists('Rescheduled cell with a non-zero number is now a link');
   });
 
   module('deployment history', function () {
