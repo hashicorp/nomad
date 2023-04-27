@@ -244,6 +244,12 @@ artifact {
 }
 ```
 
+## Environment
+
+The `artifact` downloader by default does not have access to the environment variables
+set for the Nomad client. Inheritence of environment variables can be managed through the [`artifact.set_environment_variables`][client_artifact]
+client configuration.
+
 [client_artifact]: /nomad/docs/configuration/client#artifact-parameters
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'
 [go-getter-headers]: https://github.com/hashicorp/go-getter#headers 'HashiCorp go-getter Headers'
