@@ -20,7 +20,7 @@
             content=@data.job._newDefinition
             theme="hashi"
             onUpdate=@fns.onUpdate
-            mode=(if (eq @data.view "job-spec") "ruby" "javascript")
+            mode=(if (eq @data.format "json") "javascript" "ruby")
             }}
         />
     </div>

@@ -86,11 +86,16 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     });
   }
 
-  update(job) {
+  update(job, format) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
     return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
+        Submission: {
+          Source: job.get('_newDefinition'),
+          Format: format,
+          Variables: job.get('_newDefinitionVariables'),
+        },
       },
     });
   }

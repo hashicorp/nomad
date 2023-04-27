@@ -8,7 +8,6 @@ import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
-import hasVariableDeclarations from 'nomad-ui/utils/has-variable-declarations';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { tracked } from '@glimmer/tracking';
 
@@ -79,7 +78,7 @@ export default class JobEditor extends Component {
       if (this.args.context === 'new') {
         yield this.args.job.run();
       } else {
-        yield this.args.job.update();
+        yield this.args.job.update(this.args.format);
       }
 
       const id = this.args.job.plainId;
@@ -164,8 +163,9 @@ export default class JobEditor extends Component {
     return {
       cancelable: this.args.cancelable,
       definition: this.definition,
+      format: this.args.format,
       hasSpecification: !!this.args.specification,
-      hasVariables: hasVariableDeclarations(this.args.specification),
+      hasVariables: !!this.variables,
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,

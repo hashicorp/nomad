@@ -78,7 +78,7 @@ export default class Title extends Component {
 
     try {
       yield job.parse();
-      yield job.update();
+      yield job.update('json');
       // Eagerly update the job status to avoid flickering
       job.set('status', 'running');
       if (withNotifications) {

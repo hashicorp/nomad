@@ -250,9 +250,9 @@ export default class Job extends Model {
     return this.store.adapterFor('job').run(this);
   }
 
-  update() {
+  update(format) {
     assert('A job must be parsed before updated', this._newDefinitionJSON);
-    return this.store.adapterFor('job').update(this);
+    return this.store.adapterFor('job').update(this, format);
   }
 
   parse() {

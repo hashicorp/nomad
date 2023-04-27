@@ -37,10 +37,10 @@
             data-test-job-spec-view 
             {{code-mirror
             content=@data.definition
-            mode="ruby"
+            mode=(if (eq @data.format "json") "javascript" "ruby")
             readOnly=true
             screenReaderLabel="Job specification"          
-            theme="hashi"
+            theme="hashi-read-only"
             }} 
         />
     {{else}}
@@ -55,7 +55,7 @@
         />
     {{/if}}
     </div>
-    {{#if (eq @data.view "job-spec")}}
+    {{#if (and (eq @data.view "job-spec") @data.hasVariables)}}
     <div class="boxed-section" style="margin-top: 10px">
         <div class="boxed-section-head">
             HCL Variables
