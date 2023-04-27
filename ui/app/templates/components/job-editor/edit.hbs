@@ -20,7 +20,7 @@
             content=@data.job._newDefinition
             theme="hashi"
             onUpdate=@fns.onUpdate
-            mode="javascript"
+            mode=(if (eq @data.view "job-spec") "ruby" "javascript")
             }}
         />
     </div>
@@ -33,7 +33,8 @@
             screenReaderLabel="HLC Variables for Job Spec"
             content=""
             theme="hashi"
-            onUpdate=(fn @fns.onUpdate "hclVars")
+            onUpdate=@fns.onUpdate
+            type="hclVariables"
             mode="ruby"
             }}
         />
