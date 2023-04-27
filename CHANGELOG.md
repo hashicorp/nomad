@@ -85,6 +85,8 @@ BREAKING CHANGES:
 * config: the `datacenter` field for agent configuration no longer accepts the `*` character as part of the datacenter name [[GH-11170](https://github.com/hashicorp/nomad/issues/11170)]
 * core: Ensure no leakage of evaluations for batch jobs. Prior to this change allocations and evaluations for batch jobs were never garbage collected until the batch job was explicitly stopped. The new `batch_eval_gc_threshold` server configuration controls how often they are collected. The default threshold is `24h`. [[GH-15097](https://github.com/hashicorp/nomad/issues/15097)]
 * metrics: The metric `nomad.nomad.broker.total_blocked` has been renamed to `nomad.nomad.broker.total_pending` to reduce confusion with the `nomad.blocked_eval.total_blocked` metric. [[GH-15835](https://github.com/hashicorp/nomad/issues/15835)]
+* artifact: Environment variables are no longer inherited by default from the Nomad client [[GH-15514](https://github.com/hashicorp/nomad/issues/15514)]
+* artifact: File size and count limits are now applied by default to artifact downloads [[GH-16151](https://github.com/hashicorp/nomad/issues/16151)]
 
 SECURITY:
 
