@@ -144,6 +144,22 @@ export default class JobEditor extends Component {
     }
   }
 
+  get variables() {
+    function jsonToHcl(obj) {
+      const hclLines = [];
+
+      for (const key in obj) {
+        const value = obj[key];
+        const hclValue = typeof value === 'string' ? `"${value}"` : value;
+        hclLines.push(`${key}=${hclValue}`);
+      }
+
+      return hclLines.join('\n');
+    }
+
+    return jsonToHcl(this.args.variables);
+  }
+
   get data() {
     return {
       cancelable: this.args.cancelable,
@@ -153,6 +169,7 @@ export default class JobEditor extends Component {
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
+      variables: this.variables,
       view: this.args.view,
     };
   }

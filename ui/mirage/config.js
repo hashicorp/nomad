@@ -112,6 +112,10 @@ export default function () {
     return new Response(200, {}, this.serialize(job));
   });
 
+  this.get('/job/:id/submission', function (schema, req) {
+    return new Response(200, {}, JSON.stringify({}));
+  });
+
   this.post('/job/:id/plan', function (schema, req) {
     const body = JSON.parse(req.requestBody);
 
