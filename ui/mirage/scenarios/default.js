@@ -158,6 +158,12 @@ function smallCluster(server) {
     .forEach((a) =>
       a.update({ deploymentStatus: { Healthy: true, Canary: true } })
     );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'failed')
+    .slice(0, 5)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+    );
 
   //#endregion Active Deployment
 
