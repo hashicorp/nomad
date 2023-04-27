@@ -153,21 +153,19 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get rescheduledAllocs() {
-    let allocs = this.job.allocations.filter(
+    return this.job.allocations.filter(
       (a) =>
         a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
         a.hasBeenRescheduled
     );
-    return allocs;
   }
 
   get restartedAllocs() {
-    let allocs = this.job.allocations.filter(
+    return this.job.allocations.filter(
       (a) =>
         a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
         a.hasBeenRestarted
     );
-    return allocs;
   }
 
   // #region legend
