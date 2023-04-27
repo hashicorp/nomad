@@ -4258,6 +4258,8 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 
 }
 
+// TestNode_List_PaginationFiltering asserts that API pagination and filtering
+// works against the Node.List RPC.
 func TestNode_List_PaginationFiltering(t *testing.T) {
 	ci.Parallel(t)
 
@@ -4272,21 +4274,25 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 		id     string
 		dc     string
 		status string
+		meta   map[string]string
 	}{
 		{
 			id:     "aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 			dc:     "dc2",
 			status: structs.NodeStatusDisconnected,
+			meta:   map[string]string{"foo": "bar"},
 		},
 		{
 			id:     "aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			dc:     "dc1",
 			status: structs.NodeStatusReady,
+			meta:   map[string]string{"foo": "bar"},
 		},
 		{
 			id:     "aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
 			dc:     "dc3",
 			status: structs.NodeStatusReady,
+			meta:   map[string]string{"foo": "something else"},
 		},
 		{
 			id:     "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
@@ -4313,6 +4319,7 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 		mockNode.ID = m.id
 		mockNode.Datacenter = m.dc
 		mockNode.Status = m.status
+		mockNode.Meta = m.meta
 		mockNode.CreateIndex = index
 		require.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, index, mockNode))
 	}
@@ -4376,6 +4383,14 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 			expectedIDs: []string{
 				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
 				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:   "filter on meta key",
+			filter: `Meta["foo"] == "bar"`,
+			expectedIDs: []string{
+				"aaaa1111-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
 			},
 		},
 	}
