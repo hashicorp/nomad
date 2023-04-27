@@ -277,7 +277,7 @@ module('Acceptance | job status panel', function (hooks) {
         running: 0.5,
         failed: 0.3,
         pending: 0.1,
-        lost: 0.1,
+        unknown: 0.1,
       },
       groupTaskCount,
       shallow: true,
@@ -291,7 +291,7 @@ module('Acceptance | job status panel', function (hooks) {
     // 25 running: 9 ungrouped, 17 grouped
     // 15 failed: 5 ungrouped, 10 grouped
     // 5 pending: 0 ungrouped, 5 grouped
-    // 5 lost: 0 ungrouped, 5 grouped. Represented as "Unplaced"
+    // 5 unknown: 0 ungrouped, 5 grouped. Represented as "Unplaced"
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
