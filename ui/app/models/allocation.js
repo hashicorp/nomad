@@ -70,14 +70,14 @@ export default class Allocation extends Model {
   }
 
   get hasBeenRescheduled() {
-    return this.desiredTransition?.Reschedule;
+    return this.get('followUpEvaluation.content');
   }
 
   get hasBeenRestarted() {
     return this.states
       .map((s) => s.events.content)
       .flat()
-      .find((e) => e.type === 'Terminated');
+      .find((e) => e.type === 'Restarting');
   }
 
   @attr healthChecks;
