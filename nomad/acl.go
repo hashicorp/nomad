@@ -428,7 +428,11 @@ func (s *Server) resolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*st
 	}
 
 	// Find any policies attached to the job
-	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, alloc.Job.ID)
+	jobId := alloc.Job.ID
+	if alloc.Job.ParentID != "" {
+		jobId = alloc.Job.ParentID
+	}
+	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, jobId)
 	if err != nil {
 		return nil, err
 	}
