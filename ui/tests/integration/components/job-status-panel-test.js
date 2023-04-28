@@ -384,6 +384,88 @@ module(
       ); //keyframe animation fades from opacity 0
     });
 
+    test('non-running allocations are grouped regardless of health', async function (assert) {
+      this.server.create('node');
+
+      const NUMBER_OF_GROUPS = 1;
+      const ALLOCS_PER_GROUP = 100;
+      const allocStatusDistribution = {
+        running: 0.9,
+        failed: 0.1,
+        unknown: 0,
+        lost: 0,
+        complete: 0,
+        pending: 0,
+      };
+
+      const job = await this.server.create('job', {
+        type: 'service',
+        createAllocations: true,
+        noDeployments: true, // manually created below
+        activeDeployment: true,
+        groupTaskCount: ALLOCS_PER_GROUP,
+        shallow: true,
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
+        allocStatusDistribution,
+      });
+
+      const jobRecord = await this.store.find(
+        'job',
+        JSON.stringify([job.id, 'default'])
+      );
+      await this.server.create('deployment', false, 'active', {
+        jobId: job.id,
+        groupDesiredTotal: ALLOCS_PER_GROUP,
+        versionNumber: 1,
+        status: 'failed',
+      });
+
+      let activelyDeployingJobAllocs = server.schema.allocations
+        .all()
+        .filter((a) => a.jobId === job.id);
+
+      activelyDeployingJobAllocs.models
+        .filter((a) => a.clientStatus === 'failed')
+        .slice(0, 10)
+        .forEach((a) =>
+          a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+        );
+
+      this.set('job', jobRecord);
+
+      await this.get('job.latestDeployment');
+      await this.set('job.latestDeployment.status', 'running');
+
+      await this.get('job.allocations');
+
+      await render(hbs`
+        <JobStatus::Panel @job={{this.job}} />
+      `);
+
+      assert
+        .dom('.allocation-status-block .represented-allocation.failed')
+        .exists({ count: 1 }, 'Failed block exists only once');
+      assert
+        .dom('.allocation-status-block .represented-allocation.failed')
+        .hasClass('rest', 'Failed block is a summary block');
+
+      await Promise.all(
+        this.get('job.allocations')
+          .filterBy('clientStatus', 'failed')
+          .slice(0, 3)
+          .map(async (a) => {
+            await a.set('deploymentStatus', { Healthy: false, Canary: true });
+          })
+      );
+
+      assert
+        .dom('.represented-allocation.failed.rest')
+        .exists(
+          { count: 2 },
+          'Now that some are canaries, they still make up two blocks'
+        );
+    });
+
     test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function (assert) {
       this.server.create('job', {
         type: 'service',

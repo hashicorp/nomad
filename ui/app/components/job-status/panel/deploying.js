@@ -100,8 +100,18 @@ export default class JobStatusPanelDeployingComponent extends Component {
         break;
       }
       let status = alloc.clientStatus;
-      let health = alloc.isHealthy ? 'healthy' : 'unhealthy';
       let canary = alloc.isCanary ? 'canary' : 'nonCanary';
+
+      // Health status only matters in the context of a "running" allocation.
+      // However, healthy/unhealthy is never purged when an allocation moves to a different clientStatus
+      // Thus, we should only show something as "healthy" in the event that it is running.
+      // Otherwise, we'd have arbitrary groupings based on previous health status.
+      let health =
+        status === 'running'
+          ? alloc.isHealthy
+            ? 'healthy'
+            : 'unhealthy'
+          : 'unhealthy';
 
       if (allocationCategories[status]) {
         allocationCategories[status][health][canary].push(alloc);
