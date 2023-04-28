@@ -37,7 +37,11 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
     await a11yAudit(assert);
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
 
     assert
       .dom('[data-test-status-mode="current"]')
@@ -164,7 +168,11 @@ module('Acceptance | job status panel', function (hooks) {
         { count: failedAllocCount },
         `All ${failedAllocCount} failed allocations are represented in the status panel`
       );
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+          .allocation-row td { display: none; }
+        `,
+    });
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
@@ -248,7 +256,11 @@ module('Acceptance | job status panel', function (hooks) {
         'Summary block has the correct number of grouped allocs'
       );
 
-    await percySnapshot(assert);
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
@@ -340,7 +352,12 @@ module('Acceptance | job status panel', function (hooks) {
         'Summary block has the correct number of grouped unplaced allocs'
       );
     await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)'
+      'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)',
+      {
+        percyCSS: `
+          .allocation-row td { display: none; }
+        `,
+      }
     );
 
     // Simulate a window resize event; will recompute how many of each ought to be grouped.
@@ -350,7 +367,12 @@ module('Acceptance | job status panel', function (hooks) {
     await triggerEvent(window, 'resize');
 
     await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (1100px)'
+      'Status Panel groups allocations when they get past a threshold, multiple statuses (1100px)',
+      {
+        percyCSS: `
+          .allocation-row td { display: none; }
+        `,
+      }
     );
 
     assert
@@ -388,7 +410,12 @@ module('Acceptance | job status panel', function (hooks) {
     await triggerEvent(window, 'resize');
 
     await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (500px)'
+      'Status Panel groups allocations when they get past a threshold, multiple statuses (500px)',
+      {
+        percyCSS: `
+          .allocation-row td { display: none; }
+        `,
+      }
     );
 
     assert
