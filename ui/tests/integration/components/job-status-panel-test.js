@@ -433,6 +433,7 @@ module(
 
       this.set('job', jobRecord);
 
+      await this.get('job.latestDeployment');
       await this.set('job.latestDeployment.status', 'running');
 
       await this.get('job.allocations');
@@ -442,28 +443,23 @@ module(
       `);
 
       assert
-        .dom('.representative-allocation.failed')
+        .dom('.allocation-status-block .represented-allocation.failed')
         .exists({ count: 1 }, 'Failed block exists only once');
       assert
-        .dom('.representative-allocation.failed')
+        .dom('.allocation-status-block .represented-allocation.failed')
         .hasClass('rest', 'Failed block is a summary block');
 
-      console.log(
-        'ahum',
+      await Promise.all(
         this.get('job.allocations')
           .filterBy('clientStatus', 'failed')
           .slice(0, 3)
+          .map(async (a) => {
+            await a.set('deploymentStatus', { Healthy: false, Canary: true });
+          })
       );
 
-      this.get('job.allocations')
-        .filterBy('clientStatus', 'failed')
-        .slice(0, 3)
-        .forEach((a) => {
-          a.deploymentStatus = { Healthy: false, Canary: true };
-        });
-
       assert
-        .dom('.representative-allocation.failed')
+        .dom('.represented-allocation.failed.rest')
         .exists(
           { count: 2 },
           'Now that some are canaries, they still make up two blocks'
