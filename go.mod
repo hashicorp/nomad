@@ -54,7 +54,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.0.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.5
 	github.com/hashicorp/go-memdb v1.3.4
-	github.com/hashicorp/go-msgpack/v2 v2.0.0
+	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.4.9
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
@@ -70,7 +70,7 @@ require (
 	github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.5.0
-	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.0
+	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20221006174558-2aa7e66bdb52
 	github.com/hashicorp/raft v1.3.11
 	github.com/hashicorp/raft-autopilot v0.1.6
@@ -202,7 +202,6 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
-	github.com/hashicorp/go-msgpack v0.5.5 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect

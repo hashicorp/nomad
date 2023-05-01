@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 
-	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 type Agent struct {
