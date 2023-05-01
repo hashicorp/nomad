@@ -506,7 +506,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell.querySelector('.failed-or-lost-link'))
       .hasText('0', 'Restarted cell has zero value');
 
-    // A wild event appears! Change a recent task event to type "Terminated" in a task state:
+    // A wild event appears! Change a recent task event to type "Restarting" in a task state:
     this.store
       .peekAll('job')
       .objectAt(0)
@@ -516,7 +516,7 @@ module('Acceptance | job status panel', function (hooks) {
       .objectAt(0)
       .get('events')
       .objectAt(0)
-      .set('type', 'Terminated');
+      .set('type', 'Restarting');
 
     await settled();
 
@@ -524,7 +524,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell.querySelector('.failed-or-lost-link'))
       .hasText(
         '1',
-        'Restarted cell updates when a task event with type "Terminated" is added'
+        'Restarted cell updates when a task event with type "Restarting" is added'
       );
 
     this.store
@@ -536,7 +536,7 @@ module('Acceptance | job status panel', function (hooks) {
       .objectAt(0)
       .get('events')
       .objectAt(0)
-      .set('type', 'Terminated');
+      .set('type', 'Restarting');
 
     await settled();
 
@@ -545,7 +545,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell.querySelector('.failed-or-lost-link'))
       .hasText(
         '2',
-        'Restarted cell updates when a second task event with type "Terminated" is added'
+        'Restarted cell updates when a second task event with type "Restarting" is added'
       );
 
     this.store
@@ -553,9 +553,8 @@ module('Acceptance | job status panel', function (hooks) {
       .objectAt(0)
       .get('allocations')
       .objectAt(0)
-      .set('desiredTransition', {
-        Reschedule: true,
-      });
+      .get('followUpEvaluation')
+      .set('content', { 'test-key': 'not-empty' });
 
     await settled();
 
