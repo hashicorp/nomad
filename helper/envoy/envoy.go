@@ -47,12 +47,6 @@ const (
 	// VersionVar will be replaced with the Envoy version string when
 	// used in the meta.connect.sidecar_image variable.
 	VersionVar = "${NOMAD_envoy_version}"
-
-	// FallbackImage is the image set in the node meta by default
-	// to be used by Consul Connect sidecar tasks. As of Nomad 1.0, this value
-	// is only used as a fallback when the version of Consul does not yet support
-	// dynamic envoy versions.
-	FallbackImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 )
 
 // PortLabel creates a consistent port label using the inputs of a prefix,

@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -38,9 +39,8 @@ func newEnvoyVersionHookConfig(alloc *structs.Allocation, proxiesClient consul.S
 
 // envoyVersionHook is used to determine and set the Docker image used for Consul
 // Connect sidecar proxy tasks. It will query Consul for a set of preferred Envoy
-// versions if the task image is unset or references ${NOMAD_envoy_version}. Nomad
-// will fallback the image to the previous default Envoy v1.11.2 if Consul is too old
-// to support the supported proxies API.
+// versions if the task image is unset or references ${NOMAD_envoy_version}. If
+// Consul does not report its supported envoy versions then the hood will fail.
 type envoyVersionHook struct {
 	// alloc is the allocation with the envoy task being rewritten.
 	alloc *structs.Allocation
@@ -165,12 +165,12 @@ func (h *envoyVersionHook) needsVersion(config map[string]interface{}) bool {
 	return strings.Contains(image, envoy.VersionVar)
 }
 
-// tweakImage determines the best Envoy version to use. If supported is nil or empty
-// Nomad will fallback to the legacy envoy image used before Nomad v1.0.
+// tweakImage determines the best Envoy version to use. If no supported versions were
+// detected from the Consul API just return an error.
 func (h *envoyVersionHook) tweakImage(configured string, supported map[string][]string) (string, error) {
 	versions := supported["envoy"]
 	if len(versions) == 0 {
-		return envoy.FallbackImage, nil
+		return "", errors.New("Consul did not report any supported envoy versions")
 	}
 
 	latest, err := semver(versions[0])
