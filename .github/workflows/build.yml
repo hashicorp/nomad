@@ -289,7 +289,7 @@ jobs:
     runs-on: [ custom, linux, xxl, 20.04 ]
     strategy:
       matrix:
-        arch: ["arm", "arm64", "386", "amd64"]
+        arch: ["arm64", "amd64"]
     env:
       version: ${{needs.get-product-version.outputs.product-version}}
     steps:
