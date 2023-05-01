@@ -3,7 +3,7 @@ package structs
 import (
 	"reflect"
 
-	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 // extendFunc is a mapping from one struct to another, to change the shape of the encoded JSON
