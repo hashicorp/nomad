@@ -8,7 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 

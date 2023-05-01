@@ -3,7 +3,7 @@ package hclutils
 import (
 	"testing"
 
-	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
