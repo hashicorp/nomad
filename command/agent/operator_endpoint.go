@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/raft"
 
 	"github.com/hashicorp/nomad/api"
