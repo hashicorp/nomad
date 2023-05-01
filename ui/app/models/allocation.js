@@ -46,6 +46,7 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
+  @attr() desiredTransition;
   @attr() deploymentStatus;
 
   get isCanary() {
@@ -54,6 +55,29 @@ export default class Allocation extends Model {
 
   get isHealthy() {
     return this.deploymentStatus?.Healthy;
+  }
+
+  get willNotRestart() {
+    return this.clientStatus === 'failed' || this.clientStatus === 'lost';
+  }
+
+  get willNotReschedule() {
+    return (
+      this.willNotRestart &&
+      !this.get('nextAllocation.content') &&
+      !this.get('followUpEvaluation.content')
+    );
+  }
+
+  get hasBeenRescheduled() {
+    return this.get('followUpEvaluation.content');
+  }
+
+  get hasBeenRestarted() {
+    return this.states
+      .map((s) => s.events.content)
+      .flat()
+      .find((e) => e.type === 'Restarting');
   }
 
   @attr healthChecks;

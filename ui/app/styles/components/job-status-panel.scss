@@ -49,7 +49,12 @@
     // TODO: may revisit this grid-area later, but is currently used in 2 competing ways
     display: grid;
     gap: 0.5rem;
-    grid-template-columns: 50% 50%;
+    grid-template-columns: 55% 15% 15% 15%;
+
+    & > section > h4,
+    & > legend > h4 {
+      margin-bottom: 0.5rem;
+    }
 
     legend {
       display: grid;
@@ -69,6 +74,14 @@
             text-decoration: none;
           }
         }
+      }
+    }
+
+    .failed-or-lost {
+      .failed-or-lost-link {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: bold;
       }
     }
   }

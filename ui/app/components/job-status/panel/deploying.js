@@ -14,7 +14,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
     'pending',
     'failed',
     // 'unknown',
-    // 'lost',
+    'lost',
     // 'queued',
     // 'complete',
     'unplaced',
@@ -61,7 +61,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
   fail;
 
   @alias('job.latestDeployment') deployment;
-  @alias('deployment.desiredTotal') desiredTotal;
+  @alias('totalAllocs') desiredTotal;
 
   get oldVersionAllocBlocks() {
     return this.job.allocations
@@ -114,6 +114,14 @@ export default class JobStatusPanelDeployingComponent extends Component {
           : 'unhealthy';
 
       if (allocationCategories[status]) {
+        // If status is failed or lost, we only want to show it IF it's used up its restarts/rescheds.
+        // Otherwise, we'd be showing an alloc that had been replaced.
+        if (alloc.willNotRestart) {
+          if (!alloc.willNotReschedule) {
+            // Dont count it
+            continue;
+          }
+        }
         allocationCategories[status][health][canary].push(alloc);
         availableSlotsToFill--;
       }
@@ -142,6 +150,22 @@ export default class JobStatusPanelDeployingComponent extends Component {
       ...this.newVersionAllocBlocks['running']['healthy']['canary'],
       ...this.newVersionAllocBlocks['running']['healthy']['nonCanary'],
     ];
+  }
+
+  get rescheduledAllocs() {
+    return this.job.allocations.filter(
+      (a) =>
+        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
+        a.hasBeenRescheduled
+    );
+  }
+
+  get restartedAllocs() {
+    return this.job.allocations.filter(
+      (a) =>
+        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
+        a.hasBeenRestarted
+    );
   }
 
   // #region legend

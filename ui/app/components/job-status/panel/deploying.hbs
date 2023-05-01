@@ -102,6 +102,21 @@
           </span>
 
         </legend>
+
+        <JobStatus::FailedOrLost
+          @allocs={{this.rescheduledAllocs}}
+          @job={{@job}}
+          @title="Rescheduled"
+          @description="Allocations that have been rescheduled, on another node if possible, due to failure during deployment"
+        />
+
+        <JobStatus::FailedOrLost
+          @allocs={{this.restartedAllocs}}
+          @job={{@job}}
+          @title="Restarted"
+          @description="Allocations that have been restarted in-place due to a task failure during deployment"
+        />
+
       </div>
 
       <div class="history-and-params">

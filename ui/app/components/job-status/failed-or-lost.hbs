@@ -1,0 +1,22 @@
+<section class="failed-or-lost">
+  <h4>
+    {{@title}}
+    <span
+      class="tooltip multiline text-center"
+      role="tooltip"
+      aria-label={{@description}}
+    >
+      <FlightIcon @name="info" />
+    </span>
+  </h4>
+  <ConditionalLinkTo
+    @condition={{this.shouldLinkToAllocations}}
+    @route="jobs.job.allocations"
+    @model={{@job}}
+    @query={{hash status=(concat '["failed", "lost", "unknown"]') version=(concat '[' @job.latestDeployment.versionNumber ']')}}
+    @label="View Allocations"
+    @class="failed-or-lost-link"
+  >
+    {{@allocs.length}}
+  </ConditionalLinkTo>
+</section>

@@ -11,7 +11,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
     'pending',
     'failed',
     // 'unknown',
-    // 'lost',
+    'lost',
     // 'queued',
     // 'complete',
     'unplaced',
@@ -25,10 +25,10 @@ export default class JobStatusPanelSteadyComponent extends Component {
     let availableSlotsToFill = this.totalAllocs;
     // Only fill up to 100% of totalAllocs. Once we've filled up, we can stop counting.
     let allocationsOfShowableType = this.allocTypes.reduce((blocks, type) => {
-      const jobAllocsOfType = this.args.job.allocations.filterBy(
-        'clientStatus',
-        type.label
-      );
+      const jobAllocsOfType = this.args.job.allocations
+        .sortBy('jobVersion') // Try counting from latest deployment's allocs and work backwards if needed
+        .reverse()
+        .filterBy('clientStatus', type.label);
       if (availableSlotsToFill > 0) {
         blocks[type.label] = {
           healthy: {
@@ -83,5 +83,21 @@ export default class JobStatusPanelSteadyComponent extends Component {
         }),
         []
       );
+  }
+
+  get rescheduledAllocs() {
+    return this.job.allocations.filter(
+      (a) =>
+        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
+        a.hasBeenRescheduled
+    );
+  }
+
+  get restartedAllocs() {
+    return this.job.allocations.filter(
+      (a) =>
+        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
+        a.hasBeenRestarted
+    );
   }
 }

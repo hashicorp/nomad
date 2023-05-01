@@ -8,6 +8,7 @@ import {
   find,
   findAll,
   fillIn,
+  settled,
   triggerEvent,
 } from '@ember/test-helpers';
 
@@ -276,7 +277,7 @@ module('Acceptance | job status panel', function (hooks) {
         running: 0.5,
         failed: 0.3,
         pending: 0.1,
-        lost: 0.1,
+        unknown: 0.1,
       },
       groupTaskCount,
       shallow: true,
@@ -290,7 +291,7 @@ module('Acceptance | job status panel', function (hooks) {
     // 25 running: 9 ungrouped, 17 grouped
     // 15 failed: 5 ungrouped, 10 grouped
     // 5 pending: 0 ungrouped, 5 grouped
-    // 5 lost: 0 ungrouped, 5 grouped. Represented as "Unplaced"
+    // 5 unknown: 0 ungrouped, 5 grouped. Represented as "Unplaced"
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
@@ -447,6 +448,122 @@ module('Acceptance | job status panel', function (hooks) {
         '15',
         'Summary block has the correct number of grouped failed allocs'
       );
+  });
+
+  test('Restarted/Rescheduled/Failed numbers reflected correctly', async function (assert) {
+    this.store = this.owner.lookup('service:store');
+
+    let groupTaskCount = 10;
+
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 0.5,
+        failed: 0.5,
+        unknown: 0,
+        lost: 0,
+      },
+      groupTaskCount,
+      activeDeployment: true,
+      shallow: true,
+    });
+
+    let state = server.create('task-state');
+    state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+    server.schema.allocations.where({ jobId: job.id }).update({
+      taskStateIds: [state.id],
+      jobVersion: 0,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+    assert
+      .dom('.failed-or-lost')
+      .exists({ count: 2 }, 'Restarted and Rescheduled cells are both present');
+
+    let rescheduledCell = [...findAll('.failed-or-lost')][0];
+    let restartedCell = [...findAll('.failed-or-lost')][1];
+
+    // Check that the title in each cell has the right text
+    assert.dom(rescheduledCell.querySelector('h4')).hasText('Rescheduled');
+    assert.dom(restartedCell.querySelector('h4')).hasText('Restarted');
+
+    // Check that both values are zero and non-links
+    assert
+      .dom(rescheduledCell.querySelector('a'))
+      .doesNotExist('Rescheduled cell is not a link');
+    assert
+      .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
+      .hasText('0', 'Rescheduled cell has zero value');
+    assert
+      .dom(restartedCell.querySelector('a'))
+      .doesNotExist('Restarted cell is not a link');
+    assert
+      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .hasText('0', 'Restarted cell has zero value');
+
+    // A wild event appears! Change a recent task event to type "Restarting" in a task state:
+    this.store
+      .peekAll('job')
+      .objectAt(0)
+      .get('allocations')
+      .objectAt(0)
+      .get('states')
+      .objectAt(0)
+      .get('events')
+      .objectAt(0)
+      .set('type', 'Restarting');
+
+    await settled();
+
+    assert
+      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .hasText(
+        '1',
+        'Restarted cell updates when a task event with type "Restarting" is added'
+      );
+
+    this.store
+      .peekAll('job')
+      .objectAt(0)
+      .get('allocations')
+      .objectAt(1)
+      .get('states')
+      .objectAt(0)
+      .get('events')
+      .objectAt(0)
+      .set('type', 'Restarting');
+
+    await settled();
+
+    // Trigger a reschedule! Set up a desiredTransition object with a Reschedule property on one of the allocations.
+    assert
+      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .hasText(
+        '2',
+        'Restarted cell updates when a second task event with type "Restarting" is added'
+      );
+
+    this.store
+      .peekAll('job')
+      .objectAt(0)
+      .get('allocations')
+      .objectAt(0)
+      .get('followUpEvaluation')
+      .set('content', { 'test-key': 'not-empty' });
+
+    await settled();
+
+    assert
+      .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
+      .hasText('1', 'Rescheduled cell updates when desiredTransition is set');
+    assert
+      .dom(rescheduledCell.querySelector('a'))
+      .exists('Rescheduled cell with a non-zero number is now a link');
   });
 
   module('deployment history', function () {
