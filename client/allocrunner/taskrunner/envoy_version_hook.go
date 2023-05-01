@@ -122,8 +122,6 @@ func (_ *envoyVersionHook) interpolateImage(task *structs.Task, env *taskenv.Tas
 // its envoy proxy version resolved automatically.
 func (h *envoyVersionHook) skip(request *ifs.TaskPrestartRequest) bool {
 	switch {
-	case request.Task.Driver != "docker":
-		return true
 	case !request.Task.UsesConnectSidecar():
 		return true
 	case !h.needsVersion(request.Task.Config):
@@ -155,6 +153,10 @@ func (h *envoyVersionHook) taskImage(config map[string]interface{}) string {
 // Nomad does not need to query Consul to get the preferred Envoy version, etc.)
 func (h *envoyVersionHook) needsVersion(config map[string]interface{}) bool {
 	if len(config) == 0 {
+		return false
+	}
+
+	if _, exists := config["image"]; !exists {
 		return false
 	}
 

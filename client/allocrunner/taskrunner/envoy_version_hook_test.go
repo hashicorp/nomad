@@ -272,6 +272,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
+	alloc.Job.TaskGroups[0].Tasks[0].Driver = "podman"
 	alloc.Job.TaskGroups[0].Tasks[0].Config["image"] = "custom-${NOMAD_envoy_version}:latest"
 	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
