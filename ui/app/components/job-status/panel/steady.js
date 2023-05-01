@@ -61,13 +61,15 @@ export default class JobStatusPanelSteadyComponent extends Component {
     return allocationsOfShowableType;
   }
 
-  // TODO: eventually we will want this from a new property on a job.
   get totalAllocs() {
-    // v----- Experimental method: Count all allocs. Good for testing but not a realistic representation of "Desired"
-    // return this.allocTypes.reduce((sum, type) => sum + this.args.job[type.property], 0);
-
-    // v----- Realistic method: Tally a job's task groups' "count" property
-    return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
+    if (this.args.job.type === 'service') {
+      return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
+    } else if (this.args.job.type === 'system') {
+      // return this.args.job.allocations.uniqBy('node.id').length
+      return this.args.job.allocations
+        .filter((a) => a.jobVersion === this.args.job.version)
+        .uniqBy('node.id').length;
+    }
   }
 
   get versions() {
