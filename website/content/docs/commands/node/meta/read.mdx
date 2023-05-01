@@ -43,20 +43,20 @@ nomad node meta read [-json] [-node-id ...]
 $ nomad node meta read -node-id 3b58b0a6
 
 All Meta
-connect.gateway_image     = envoyproxy/envoy:v${NOMAD_envoy_version}
+connect.gateway_image     = docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
 connect.log_level         = info
 connect.proxy_concurrency = 1
-connect.sidecar_image     = envoyproxy/envoy:v${NOMAD_envoy_version}
+connect.sidecar_image     = docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
 example                   = a
 
 Dynamic Meta
 example = a
 
 Static Meta
-connect.gateway_image     = envoyproxy/envoy:v${NOMAD_envoy_version}
+connect.gateway_image     = docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
 connect.log_level         = info
 connect.proxy_concurrency = 1
-connect.sidecar_image     = envoyproxy/envoy:v${NOMAD_envoy_version}
+connect.sidecar_image     = docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
 ```
 
 [api]: /nomad/api-docs/client#read-node-metadata
