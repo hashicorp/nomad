@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/acl"

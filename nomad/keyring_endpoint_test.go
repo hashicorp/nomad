@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
