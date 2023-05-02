@@ -230,6 +230,29 @@ func injectPort(group *structs.TaskGroup, label string) {
 	})
 }
 
+// groupConnectGuessTaskDriver will scan the tasks in g and try to decide which
+// task driver to use for the default sidecar proxy task definition.
+//
+// If there is at least one podman task and zero docker tasks, use podman.
+// Otherwise default to docker.
+//
+// If the sidecar_task block is set, that takes precedence and this does not apply.
+func groupConnectGuessTaskDriver(g *structs.TaskGroup) string {
+	foundPodman := false
+	for _, task := range g.Tasks {
+		switch task.Driver {
+		case "docker":
+			return "docker"
+		case "podman":
+			foundPodman = true
+		}
+	}
+	if foundPodman {
+		return "podman"
+	}
+	return "docker"
+}
+
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	// Create an environment interpolator with what we have at submission time.
 	// This should only be used to interpolate connect service names which are
@@ -254,7 +277,8 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
-				task = newConnectSidecarTask(service.Name)
+				driver := groupConnectGuessTaskDriver(g)
+				task = newConnectSidecarTask(service.Name, driver)
 
 				// If there happens to be a task defined with the same name
 				// append an UUID fragment to the task name
@@ -477,12 +501,12 @@ func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) 
 	}
 }
 
-func newConnectSidecarTask(service string) *structs.Task {
+func newConnectSidecarTask(service, driver string) *structs.Task {
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service),
 		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, service),
-		Driver:        "docker",
+		Driver:        driver,
 		Config:        connectSidecarDriverConfig(),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
