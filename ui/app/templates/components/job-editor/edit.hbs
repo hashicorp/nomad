@@ -34,6 +34,7 @@
                 class="json-viewer is-variable-editor"
                 data-test-variable-editor
                 {{code-mirror
+                autofocus=false
                 screenReaderLabel="HLC Variables for Job Spec"
                 content=@data.variables
                 theme="hashi"
@@ -46,7 +47,7 @@
     </div>
     {{/if}}
 </div>
-<div class="is-associative buttonset">
+<div class="is-associative buttonset sticky">
     <Hds::Button
     {{on "click" (perform @fns.onPlan)}}
     disabled={{or @fns.onPlan.isRunning (not @data.job._newDefinition)}}
