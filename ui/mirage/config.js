@@ -113,7 +113,16 @@ export default function () {
   });
 
   this.get('/job/:id/submission', function (schema, req) {
-    return new Response(200, {}, JSON.stringify({}));
+    return new Response(
+      200,
+      {},
+      JSON.stringify({
+        Source: 'the job source v0',
+        Format: 'hcl2',
+        VariableFlags: { X: 'x', Y: '42', Z: 'true' },
+        Variables: 'var file content',
+      })
+    );
   });
 
   this.post('/job/:id/plan', function (schema, req) {
