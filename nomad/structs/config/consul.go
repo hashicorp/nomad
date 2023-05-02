@@ -135,6 +135,10 @@ type ConsulConfig struct {
 	// Namespace sets the Consul namespace used for all calls against the
 	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
 	Namespace string `hcl:"namespace"`
+
+	// ConnectProxyDefaultTaskDriver sets the default task driver to use for Connect
+	// sidecar proxy tasks and Connect gateway tasks. If unset, the default is docker.
+	ConnectProxyDefaultTaskDriver string `hcl:"connect_proxy_default_task_driver"`
 }
 
 // DefaultConsulConfig returns the canonical defaults for the Nomad
@@ -162,6 +166,9 @@ func DefaultConsulConfig() *ConsulConfig {
 		VerifySSL: pointer.Of(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
 		Namespace: def.Namespace,
+
+		// Connect defaults that cannot be set via Client node meta
+		ConnectProxyDefaultTaskDriver: "docker",
 	}
 }
 
@@ -253,6 +260,9 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
+	}
+	if b.ConnectProxyDefaultTaskDriver != "" {
+		result.ConnectProxyDefaultTaskDriver = b.ConnectProxyDefaultTaskDriver
 	}
 	return result
 }

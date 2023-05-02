@@ -115,13 +115,15 @@ func connectListenerConstraint() *structs.Constraint {
 }
 
 // jobConnectHook implements a job Mutating and Validating admission controller
-type jobConnectHook struct{}
+type jobConnectHook struct {
+	srv *Server
+}
 
-func (jobConnectHook) Name() string {
+func (*jobConnectHook) Name() string {
 	return "connect"
 }
 
-func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (j *jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, g := range job.TaskGroups {
 		// TG isn't validated yet, but validation
 		// may depend on mutation results.
@@ -132,7 +134,7 @@ func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 			continue
 		}
 
-		if err := groupConnectHook(job, g); err != nil {
+		if err := j.groupConnectHook(job, g); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -140,7 +142,7 @@ func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	return job, nil, nil
 }
 
-func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
+func (*jobConnectHook) Validate(job *structs.Job) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {
@@ -230,7 +232,7 @@ func injectPort(group *structs.TaskGroup, label string) {
 	})
 }
 
-func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
+func (j *jobConnectHook) groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	// Create an environment interpolator with what we have at submission time.
 	// This should only be used to interpolate connect service names which are
 	// used in sidecar or gateway task names. Note that the service name might
@@ -254,7 +256,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
-				task = newConnectSidecarTask(service.Name)
+				task = j.newConnectSidecarTask(service.Name)
 
 				// If there happens to be a task defined with the same name
 				// append an UUID fragment to the task name
@@ -334,7 +336,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 				netHost := netMode == "host"
 				customizedTLS := service.Connect.IsCustomizedTLS()
 
-				task := newConnectGatewayTask(prefix, service.Name, netHost, customizedTLS)
+				task := j.newConnectGatewayTask(prefix, service.Name, netHost, customizedTLS)
 				g.Tasks = append(g.Tasks, task)
 
 				// the connect.sidecar_task block can also be used to configure
@@ -453,7 +455,7 @@ func gatewayBindAddressesIngressForBridge(ingress *structs.ConsulIngressConfigEn
 	return addresses
 }
 
-func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) *structs.Task {
+func (j *jobConnectHook) newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) *structs.Task {
 	constraints := structs.Constraints{
 		connectGatewayVersionConstraint(),
 		connectListenerConstraint(),
@@ -465,7 +467,7 @@ func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) 
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", prefix, service),
 		Kind:          structs.NewTaskKind(prefix, service),
-		Driver:        "docker",
+		Driver:        j.srv.GetConfig().ConsulConfig.ConnectProxyDefaultTaskDriver,
 		Config:        connectGatewayDriverConfig(netHost),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
@@ -477,12 +479,12 @@ func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) 
 	}
 }
 
-func newConnectSidecarTask(service string) *structs.Task {
+func (j *jobConnectHook) newConnectSidecarTask(service string) *structs.Task {
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service),
 		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, service),
-		Driver:        "docker",
+		Driver:        j.srv.GetConfig().ConsulConfig.ConnectProxyDefaultTaskDriver,
 		Config:        connectSidecarDriverConfig(),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{
