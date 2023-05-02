@@ -338,7 +338,7 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 }
 
 // submissionController is used to protect against job source sizes that exceed
-// the maximum as set in server config as job_max_source_size
+// the maximum as set in server config as max_job_source_size
 //
 // Such jobs will have their source discarded and emit a warning, but the job
 // itself will still continue with being registered.

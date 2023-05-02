@@ -171,7 +171,8 @@ server {
 
 - `raft_boltdb` - This is a nested object that allows configuring options for
   Raft's BoltDB based log store.
-    - `no_freelist_sync` - Setting this to `true` will disable syncing the BoltDB
+
+  - `no_freelist_sync` - Setting this to `true` will disable syncing the BoltDB
     freelist to disk within the `raft.db` file. Not syncing the freelist to disk
     will reduce disk IO required for write operations at the expense of longer
     server startup times.
@@ -254,12 +255,12 @@ server {
   for the Nomad search API.
 
 - `job_max_priority` `(int: 100)` - Specifies the maximum priority that can be assigned to a job.
-   A valid value must be between `100` and `32766`.
+  A valid value must be between `100` and `32766`.
 
 - `job_default_priority` `(int: 50)` - Specifies the default priority assigned to a job.
-   A valid value must be between `50` and `job_max_priority`.
+  A valid value must be between `50` and `job_max_priority`.
 
-- `job_max_source_size` `(string: "1M")` - Specifies the size limit of the associated
+- `max_job_source_size` `(string: "1M")` - Specifies the size limit of the associated
   job source content when registering a job. Note this is not a limit on the actual
   size of a job. If the limit is exceeded, the original source is simply discarded
   and no error is returned from the job API.
@@ -407,7 +408,7 @@ server {
 ## Client Heartbeats ((#client-heartbeats))
 
 ~> This is an advanced topic. It is most beneficial to clusters over 1,000
-   nodes or with unreliable networks or nodes (eg some edge deployments).
+nodes or with unreliable networks or nodes (eg some edge deployments).
 
 Nomad Clients periodically heartbeat to Nomad Servers to confirm they are
 operating as expected. Nomad Clients which do not heartbeat in the specified
