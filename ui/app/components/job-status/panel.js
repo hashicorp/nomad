@@ -10,6 +10,9 @@ export default class JobStatusPanelComponent extends Component {
   }
 
   get nodes() {
+    if (!this.args.job.get('hasClientStatus')) {
+      return [];
+    }
     return this.store.peekAll('node');
   }
 }
