@@ -613,11 +613,6 @@ type ServerConfig struct {
 	// for the EventBufferSize is 1.
 	EventBufferSize *int `hcl:"event_buffer_size"`
 
-	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
-	// before being discarded automatically. If unset, the maximum size defaults
-	// to 1 MB. If the value is zero, no job sources will be stored.
-	JobMaxSourceSize *string `hcl:"max_job_source_size"`
-
 	// LicensePath is the path to search for an enterprise license.
 	LicensePath string `hcl:"license_path"`
 
@@ -666,6 +661,11 @@ type ServerConfig struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority *int `hcl:"job_max_priority"`
+
+	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
+	// before being discarded automatically. If unset, the maximum size defaults
+	// to 1 MB. If the value is zero, no job sources will be stored.
+	JobMaxSourceSize *string `hcl:"job_max_source_size"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
