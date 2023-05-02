@@ -79,9 +79,8 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 	image := envoy.ImageFormat
 
 	t.Run("legacy", func(t *testing.T) {
-		result, err := (*envoyVersionHook)(nil).tweakImage(image, nil)
-		must.NoError(t, err)
-		must.Eq(t, envoy.FallbackImage, result)
+		_, err := (*envoyVersionHook)(nil).tweakImage(image, nil)
+		must.Error(t, err)
 	})
 
 	t.Run("unexpected", func(t *testing.T) {
@@ -350,7 +349,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	must.MapNotContainsKey(t, request.Task.Config, "image")
 }
 
-func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
+func TestTaskRunner_EnvoyVersionHook_Prestart_no_fallback(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -382,10 +381,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
 	var response ifs.TaskPrestartResponse
 
 	// Run the hook
-	must.NoError(t, h.Prestart(context.Background(), request, &response))
-
-	// Assert the Task.Config[image] is the fallback image
-	must.Eq(t, "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09", request.Task.Config["image"])
+	must.Error(t, h.Prestart(context.Background(), request, &response))
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
