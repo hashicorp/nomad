@@ -54,6 +54,11 @@ export default class JobEditor extends Component {
 
   @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
 
+  @action
+  dismissPlanMessage() {
+    this.shouldShowPlanMessage = false;
+  }
+
   @(task(function* () {
     this.reset();
 
@@ -177,6 +182,7 @@ export default class JobEditor extends Component {
   get fns() {
     return {
       onCancel: this.onCancel,
+      onDismissPlanMessage: this.dismissPlanMessage,
       onEdit: this.edit,
       onPlan: this.plan,
       onReset: this.reset,
