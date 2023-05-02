@@ -103,15 +103,11 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get rescheduledAllocs() {
-    return this.job.allocations.filter(
-      (a) => a.jobVersion === this.job.version && a.hasBeenRescheduled
-    );
+    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
   }
 
   get restartedAllocs() {
-    return this.job.allocations.filter(
-      (a) => a.jobVersion === this.job.version && a.hasBeenRestarted
-    );
+    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
   }
 
   get supportsRescheduling() {
