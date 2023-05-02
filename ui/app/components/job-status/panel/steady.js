@@ -1,6 +1,7 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
+import matchGlob from 'nomad-ui/utils/match-glob';
 
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
@@ -61,14 +62,26 @@ export default class JobStatusPanelSteadyComponent extends Component {
     return allocationsOfShowableType;
   }
 
+  get nodes() {
+    return this.args.nodes;
+  }
+
   get totalAllocs() {
     if (this.args.job.type === 'service') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.args.job.type === 'system') {
+      // Filter nodes by the datacenters defined in the job.
+      const filteredNodes = this.nodes.filter((n) => {
+        return this.args.job.datacenters.find((dc) => {
+          return !!matchGlob(dc, n.datacenter);
+        });
+      });
+
+      return filteredNodes.length;
       // return this.args.job.allocations.uniqBy('node.id').length
-      return this.args.job.allocations
-        .filter((a) => a.jobVersion === this.args.job.version)
-        .uniqBy('node.id').length;
+      // return this.args.job.allocations
+      //   .filter((a) => a.jobVersion === this.args.job.version)
+      //   .uniqBy('node.id').length;
     }
   }
 
@@ -97,9 +110,11 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get restartedAllocs() {
     return this.job.allocations.filter(
-      (a) =>
-        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
-        a.hasBeenRestarted
+      (a) => a.jobVersion === this.job.version && a.hasBeenRestarted
     );
+  }
+
+  get supportsRescheduling() {
+    return this.job.type !== 'system';
   }
 }

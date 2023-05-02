@@ -1,5 +1,5 @@
 {{#if this.isActivelyDeploying}}
   <JobStatus::Panel::Deploying @job={{@job}} @handleError={{@handleError}} />
 {{else}}
-  <JobStatus::Panel::Steady @job={{@job}} @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} />
+  <JobStatus::Panel::Steady @job={{@job}} @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} @nodes={{this.nodes}} />
 {{/if}}

@@ -41,12 +41,14 @@
           {{/each}}
         </legend>
 
-        <JobStatus::FailedOrLost
-          @allocs={{this.rescheduledAllocs}}
-          @job={{@job}}
-          @title="Rescheduled"
-          @description="Allocations that have been rescheduled, on another node if possible, due to failure"
-        />
+        {{#if this.supportsRescheduling}}
+          <JobStatus::FailedOrLost
+            @allocs={{this.rescheduledAllocs}}
+            @job={{@job}}
+            @title="Rescheduled"
+            @description="Allocations that have been rescheduled, on another node if possible, due to failure"
+          />
+        {{/if}}
 
         <JobStatus::FailedOrLost
           @allocs={{this.restartedAllocs}}
