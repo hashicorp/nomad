@@ -67,7 +67,7 @@ func (_ *envoyVersionHook) Name() string {
 
 func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestartRequest, _ *ifs.TaskPrestartResponse) error {
 	// First interpolation of the task image. Typically this turns the default
-	// ${meta.connect.sidecar_task} into envoyproxy/envoy:v${NOMAD_envoy_version}
+	// ${meta.connect.sidecar_task} into docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
 	// but could be a no-op or some other value if so configured.
 	h.interpolateImage(request.Task, request.TaskEnv)
 

@@ -42,7 +42,7 @@ const (
 	// Folks wanting to build and use custom images while still having Nomad refer
 	// to specific versions as preferred by Consul would set meta.connect.sidecar_image
 	// to something like: "custom/envoy:${NOMAD_envoy_version}".
-	ImageFormat = "envoyproxy/envoy:v" + VersionVar
+	ImageFormat = "docker.io/envoyproxy/envoy:v" + VersionVar
 
 	// VersionVar will be replaced with the Envoy version string when
 	// used in the meta.connect.sidecar_image variable.

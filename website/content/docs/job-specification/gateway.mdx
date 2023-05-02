@@ -199,7 +199,7 @@ are enabled.
 ### Specify Envoy image
 
 The Docker image used for Connect gateway tasks defaults to the official [Envoy
-Docker] image, `envoyproxy/envoy:v${NOMAD_envoy_version}`, where `${NOMAD_envoy_version}`
+Docker] image, `docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}`, where `${NOMAD_envoy_version}`
 is resolved automatically by a query to Consul. The image to use can be configured
 by setting `meta.connect.gateway_image` in the Nomad job. Custom images can still
 make use of the envoy version interpolation, e.g.
