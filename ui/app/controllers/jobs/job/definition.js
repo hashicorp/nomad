@@ -16,6 +16,7 @@ export default class DefinitionController extends Controller.extend(
   WithNamespaceResetting
 ) {
   @alias('model.definition') definition;
+  @alias('model.format') format;
   @alias('model.job') job;
   @alias('model.specification') specification;
   @alias('model.variables') variables;
