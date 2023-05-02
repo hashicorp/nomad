@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
+
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type testFn func() (bool, error)
@@ -238,6 +239,7 @@ func WaitForVotingMembers(t testing.TB, rpc rpcFn, nPeers int) {
 
 // RegisterJobWithToken registers a job and uses the job's Region and Namespace.
 func RegisterJobWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token string) {
+	t.Helper()
 	WaitForResult(func() (bool, error) {
 		args := &structs.JobRegisterRequest{}
 		args.Job = job
