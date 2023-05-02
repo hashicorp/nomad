@@ -16,6 +16,12 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/kr/pretty"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -41,10 +47,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type MockTaskStateUpdater struct {
@@ -660,6 +662,61 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+}
+
+// TestTaskRunner_MarkFailedKill asserts that MarkFailedKill marks the task as failed
+// and cancels the killCtx so a subsequent Run() will do any necessary task cleanup.
+func TestTaskRunner_MarkFailedKill(t *testing.T) {
+	ci.Parallel(t)
+
+	// set up some taskrunner
+	alloc := mock.MinAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	t.Cleanup(cleanup)
+	tr, err := NewTaskRunner(conf)
+	must.NoError(t, err)
+
+	// side quest: set this lifecycle coordination channel,
+	// so early in tr MAIN, it doesn't randomly follow that route.
+	// test config creates this already closed, but not so in real life.
+	startCh := make(chan struct{})
+	t.Cleanup(func() { close(startCh) })
+	tr.startConditionMetCh = startCh
+
+	// function under test: should mark the task as failed and cancel kill context
+	reason := "because i said so"
+	tr.MarkFailedKill(reason)
+
+	// explicitly check kill context.
+	select {
+	case <-tr.killCtx.Done():
+	default:
+		t.Fatal("kill context should be done")
+	}
+
+	// Run() should now follow the kill path.
+	go tr.Run()
+
+	select { // it should finish up very quickly
+	case <-tr.WaitCh():
+	case <-time.After(time.Second):
+		t.Error("task not killed (or not as fast as expected)")
+	}
+
+	// check state for expected values and events
+	state := tr.TaskState()
+
+	// this gets set directly by MarkFailedKill()
+	test.True(t, state.Failed, test.Sprint("task should have failed"))
+	// this is set in Run()
+	test.Eq(t, structs.TaskStateDead, state.State, test.Sprint("task should be dead"))
+	// reason "because i said so" should be a task event message
+	foundMessages := make(map[string]bool)
+	for _, event := range state.Events {
+		foundMessages[event.DisplayMessage] = true
+	}
+	test.True(t, foundMessages[reason], test.Sprintf("expected '%s' in events: %#v", reason, foundMessages))
 }
 
 // TestTaskRunner_TaskEnv_Interpolated asserts driver configurations are

@@ -14,13 +14,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/config"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/command/agent/host"
+	log "github.com/hashicorp/go-hclog"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 
-	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -319,6 +320,9 @@ type Config struct {
 
 	// Drain configuration from the agent's config file.
 	Drain *DrainConfig
+
+	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
+	ExtraAllocHooks []interfaces.RunnerHook
 }
 
 type APIListenerRegistrar interface {
