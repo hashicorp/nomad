@@ -1,4 +1,4 @@
-  <div style="margin-bottom: 10px">
+  <div class="job-editor-alerts">
     {{#if @data.error}}
       <Hds::Alert @type="inline" @color="critical" data-test-error={{@data.error.type}} as |A|>
           <A.Title data-test-error-title>{{conditionally-capitalize @data.error.type true}}</A.Title>
@@ -20,7 +20,7 @@
         </Hds::Alert>
     {{/if}}
     {{#if (and (eq @data.stage "review") @data.shouldShowPlanMessage)}}
-      <Hds::Alert @type="inline" @onDismiss={{fn (mut @data.showPlanMessage)}} as |A|>
+      <Hds::Alert @type="inline" @onDismiss={{@fns.onDismissPlanMessage}} as |A|>
           <A.Title data-test-plan-help-title>Job Plan</A.Title>
           <A.Description data-test-plan-help-message>This is the impact running this job will have on your cluster</A.Description>
       </Hds::Alert>
