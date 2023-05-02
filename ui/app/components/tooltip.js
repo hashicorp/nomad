@@ -6,6 +6,11 @@
 import Component from '@glimmer/component';
 
 export default class Tooltip extends Component {
+  get condition() {
+    if (this.args.condition === undefined) return true;
+    return this.args.condition;
+  }
+
   get text() {
     const inputText = this.args.text?.toString();
     if (!inputText || inputText.length < 30) {
