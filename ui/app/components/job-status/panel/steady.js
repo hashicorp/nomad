@@ -82,6 +82,8 @@ export default class JobStatusPanelSteadyComponent extends Component {
       // return this.args.job.allocations
       //   .filter((a) => a.jobVersion === this.args.job.version)
       //   .uniqBy('node.id').length;
+    } else {
+      return this.args.job.count; // TODO: this is probably not the correct totalAllocs count for any type.
     }
   }
 
@@ -102,9 +104,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get rescheduledAllocs() {
     return this.job.allocations.filter(
-      (a) =>
-        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
-        a.hasBeenRescheduled
+      (a) => a.jobVersion === this.job.version && a.hasBeenRescheduled
     );
   }
 
