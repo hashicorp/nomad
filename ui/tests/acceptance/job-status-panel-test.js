@@ -548,6 +548,7 @@ module('Acceptance | job status panel', function (hooks) {
       groupTaskCount,
       activeDeployment: true,
       shallow: true,
+      version: 0,
     });
 
     let state = server.create('task-state');
