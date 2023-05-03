@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/assert"
 
