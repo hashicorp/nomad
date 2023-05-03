@@ -84,8 +84,28 @@ export default class JobStatusPanelSteadyComponent extends Component {
       {}
     );
 
+    // First accumulate the Running/Pending allocations
+    for (const alloc of this.job.allocations.filter(
+      (a) =>
+        a.clientStatus === ClientStatus.RUNNING ||
+        a.clientStatus === ClientStatus.PENDING
+    )) {
+      if (availableSlotsToFill === 0) {
+        break;
+      }
+
+      const status = alloc.clientStatus;
+      allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
+      availableSlotsToFill--;
+    }
+
     // Sort all allocs by jobVersion in descending order
     const sortedAllocs = this.args.job.allocations
+      .filter(
+        (a) =>
+          a.clientStatus !== ClientStatus.RUNNING &&
+          a.clientStatus !== ClientStatus.PENDING
+      )
       .sortBy('jobVersion')
       .reverse();
 
@@ -96,23 +116,10 @@ export default class JobStatusPanelSteadyComponent extends Component {
       }
 
       const status = alloc.clientStatus;
-
-      // If the alloc is running or pending, prioritize adding it to the list
-      if (
-        (status === 'running' || status === 'pending') &&
-        allocationsOfShowableType[status].healthy.nonCanary.length <
-          this.totalAllocs
-      ) {
-        allocationsOfShowableType[status].healthy.nonCanary.push(alloc);
-        availableSlotsToFill--;
-      }
       // If the alloc has another clientStatus, add it to the corresponding list
       // as long as we haven't reached the totalAllocs limit for that clientStatus
-      else if (
-        this.allocTypes
-          .filter(({ label }) => !['running', 'pending'].includes(label))
-          .map(({ label }) => label)
-          .includes(status) &&
+      if (
+        this.allocTypes.map(({ label }) => label).includes(status) &&
         allocationsOfShowableType[status].healthy.nonCanary.length <
           this.totalAllocs
       ) {
