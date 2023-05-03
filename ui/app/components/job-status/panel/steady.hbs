@@ -23,8 +23,8 @@
     {{else}}
       <h3 class="title is-4 running-allocs-title">
         <strong>
-          {{@job.runningAllocs}}
-          {{#if this.totalAllocsCanBeKnown}}
+          {{@job.runningAllocs ~}}
+          {{#if this.totalAllocsCanBeKnown ~}}
             /{{this.totalAllocs}}
           {{/if}}
         </strong>
