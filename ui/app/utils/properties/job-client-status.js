@@ -56,9 +56,7 @@ export default function jobClientStatus(nodesKey, jobKey) {
         byStatus: {},
         totalNodes: filteredNodes.length,
       };
-      console.log('calc filgred nodes', filteredNodes);
       filteredNodes.forEach((n) => {
-        console.log('hm', allocsByNodeID[n.id], job.taskGroups.length);
         const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
         result.byNode[n.id] = status;
 
@@ -118,7 +116,6 @@ function jobStatus(allocs, expected) {
   const summary = allocs
     .filter((a) => !a.isOld)
     .reduce((acc, a) => {
-      console.log('---', a.get('node.id'), a.clientStatus);
       const status = a.clientStatus;
       if (!acc[status]) {
         acc[status] = 0;

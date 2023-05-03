@@ -3,47 +3,24 @@ import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import matchGlob from 'nomad-ui/utils/match-glob';
 
-/**
- * @enum {string}
- */
-const ClientStatus = {
-  RUNNING: 'running',
-  PENDING: 'pending',
-  FAILED: 'failed',
-  LOST: 'lost',
-  UNPLACED: 'unplaced',
-};
-
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
 
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
-
   allocTypes = [
-    ClientStatus.RUNNING,
-    ClientStatus.PENDING,
-    ClientStatus.FAILED,
-    ClientStatus.LOST,
-    // ClientStatus.UNPLACED,
+    'running',
+    'pending',
+    'failed',
+    // 'unknown',
+    'lost',
+    // 'queued',
+    // 'complete',
+    'unplaced',
   ].map((type) => {
     return {
       label: type,
     };
   });
-  // allocTypes = [
-  //   'running',
-  //   'pending',
-  //   'failed',
-  //   // 'unknown',
-  //   'lost',
-  //   // 'queued',
-  //   // 'complete',
-  //   'unplaced',
-  // ].map((type) => {
-  //   return {
-  //     label: type,
-  //   };
-  // });
 
   /**
    * @typedef {Object} HealthStatus
@@ -58,7 +35,12 @@ export default class JobStatusPanelSteadyComponent extends Component {
    */
 
   /**
-   * @typedef {Record<keyof typeof ClientStatus, AllocationStatus>} AllocationBlock
+   * @typedef {Object} AllocationBlock
+   * @property {AllocationStatus} [RUNNING]
+   * @property {AllocationStatus} [PENDING]
+   * @property {AllocationStatus} [FAILED]
+   * @property {AllocationStatus} [LOST]
+   * @property {AllocationStatus} [UNPLACED]
    */
 
   /**
@@ -86,9 +68,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
     // First accumulate the Running/Pending allocations
     for (const alloc of this.job.allocations.filter(
-      (a) =>
-        a.clientStatus === ClientStatus.RUNNING ||
-        a.clientStatus === ClientStatus.PENDING
+      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending'
     )) {
       if (availableSlotsToFill === 0) {
         break;
@@ -102,9 +82,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
     // Sort all allocs by jobVersion in descending order
     const sortedAllocs = this.args.job.allocations
       .filter(
-        (a) =>
-          a.clientStatus !== ClientStatus.RUNNING &&
-          a.clientStatus !== ClientStatus.PENDING
+        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
       )
       .sortBy('jobVersion')
       .reverse();
@@ -141,7 +119,6 @@ export default class JobStatusPanelSteadyComponent extends Component {
       };
     }
 
-    console.log('allocationsOfShowableType', allocationsOfShowableType);
     return allocationsOfShowableType;
   }
 
