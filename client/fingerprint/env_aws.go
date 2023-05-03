@@ -238,8 +238,8 @@ func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, ec2meta *ec2
 		return throughput
 	}
 
-	if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
-		for _, n := range request.Node.Resources.Networks {
+	if request.Node.NodeResources != nil && len(request.Node.NodeResources.Networks) > 0 {
+		for _, n := range request.Node.NodeResources.Networks {
 			if n.IP == ip {
 				return n.MBits
 			}

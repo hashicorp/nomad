@@ -222,17 +222,6 @@ func TestServiceSched_JobRegister_MemoryMaxHonored(t *testing.T) {
 			require.Equal(t, int64(c.cpu), alloc.AllocatedResources.Tasks[task].Cpu.CpuShares)
 			require.Equal(t, int64(c.memory), alloc.AllocatedResources.Tasks[task].Memory.MemoryMB)
 			require.Equal(t, int64(c.expectedTaskMemoryMax), alloc.AllocatedResources.Tasks[task].Memory.MemoryMaxMB)
-
-			// checking old deprecated Resources fields
-			require.Equal(t, c.cpu, alloc.TaskResources[task].CPU)
-			require.Equal(t, c.memory, alloc.TaskResources[task].MemoryMB)
-			require.Equal(t, c.expectedTaskMemoryMax, alloc.TaskResources[task].MemoryMaxMB)
-
-			// check total resource fields - alloc.Resources deprecated field, no modern equivalent
-			require.Equal(t, c.cpu, alloc.Resources.CPU)
-			require.Equal(t, c.memory, alloc.Resources.MemoryMB)
-			require.Equal(t, c.expectedTotalMemoryMax, alloc.Resources.MemoryMaxMB)
-
 		})
 	}
 }
@@ -5660,7 +5649,6 @@ func TestServiceSched_Preemption(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	node.Resources = nil
 	node.ReservedResources = nil
 	node.NodeResources = &structs.NodeResources{
 		Cpu: structs.NodeCpuResources{

@@ -339,6 +339,7 @@ OUTER:
 			netIdx.AddReservedPorts(offer)
 
 			// Update the network ask to the offer
+			// TODO(tgross): figure out what this is doing?
 			nwRes := structs.AllocatedPortsToNetworkResouce(ask, offer, option.Node.NodeResources)
 			total.Shared.Networks = []*structs.NetworkResource{nwRes}
 			total.Shared.Ports = offer
@@ -467,7 +468,7 @@ OUTER:
 				// set of all reserved CPUs on the node
 				allocatedCPUSet := cpuset.New()
 				for _, alloc := range proposed {
-					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(alloc.ComparableResources().Flattened.Cpu.ReservedCores...))
+					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores...))
 				}
 
 				// add any cores that were reserved for other tasks

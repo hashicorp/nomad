@@ -904,9 +904,11 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 	// Get Resources
 	var cpu, mem, disk int
 	for _, alloc := range runningAllocs {
-		cpu += *alloc.Resources.CPU
-		mem += *alloc.Resources.MemoryMB
-		disk += *alloc.Resources.DiskMB
+		for _, task := range alloc.AllocatedResources.Tasks {
+			cpu += int(task.Cpu.CpuShares)
+			mem += int(task.Memory.MemoryMB)
+		}
+		disk += int(alloc.AllocatedResources.Shared.DiskMB)
 	}
 
 	resources := make([]string, 2)
@@ -927,14 +929,15 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 func computeNodeTotalResources(node *api.Node) api.Resources {
 	total := api.Resources{}
 
-	r := node.Resources
-	res := node.Reserved
+	r := node.NodeResources
+	res := node.ReservedResources
 	if res == nil {
-		res = &api.Resources{}
+		res = &api.NodeReservedResources{}
 	}
-	total.CPU = pointer.Of(*r.CPU - *res.CPU)
-	total.MemoryMB = pointer.Of(*r.MemoryMB - *res.MemoryMB)
-	total.DiskMB = pointer.Of(*r.DiskMB - *res.DiskMB)
+	// TODO: oof: lots of truncation here
+	total.CPU = pointer.Of(int(r.Cpu.CpuShares - int64(res.Cpu.CpuShares)))
+	total.MemoryMB = pointer.Of(int(r.Memory.MemoryMB - int64(res.Memory.MemoryMB)))
+	total.DiskMB = pointer.Of(int(r.Disk.DiskMB - int64(res.Disk.DiskMB)))
 	return total
 }
 
@@ -996,7 +999,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 	if physical {
 		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|%s/%s",
 			math.Floor(hostStats.CPUTicksConsumed),
-			*node.Resources.CPU,
+			node.NodeResources.Cpu.CpuShares,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			humanize.IBytes(diskUsed),
@@ -1007,7 +1010,7 @@ func getHostResources(hostStats *api.HostStats, node *api.Node) ([]string, error
 		// since nomad doesn't collect the stats data.
 		resources[1] = fmt.Sprintf("%v/%d MHz|%s/%s|(%s)",
 			math.Floor(hostStats.CPUTicksConsumed),
-			*node.Resources.CPU,
+			node.NodeResources.Cpu.CpuShares,
 			humanize.IBytes(hostStats.Memory.Used),
 			humanize.IBytes(hostStats.Memory.Total),
 			storageDevice,

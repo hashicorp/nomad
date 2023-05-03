@@ -665,8 +665,6 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 					networks = tr.Networks
 					devices = tr.Devices
 				}
-			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
-				networks = tr.Networks
 			}
 
 			// Add the networks and devices back
@@ -680,8 +678,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Update the allocation
 		newAlloc.EvalID = eval.ID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,
@@ -908,8 +905,6 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 					networks = tr.Networks
 					devices = tr.Devices
 				}
-			} else if tr, ok := existing.TaskResources[task]; ok {
-				networks = tr.Networks
 			}
 
 			// Add the networks back
@@ -923,8 +918,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 		// Update the allocation
 		newAlloc.EvalID = evalID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,

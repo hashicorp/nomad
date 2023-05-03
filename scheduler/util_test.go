@@ -753,7 +753,6 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
 	}
-	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
@@ -809,7 +808,6 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
 	}
-	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
@@ -869,7 +867,6 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		TaskGroup:     "web",
 	}
-	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
@@ -922,7 +919,6 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		},
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
-	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 

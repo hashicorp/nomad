@@ -213,18 +213,6 @@ func (idx *NetworkIndex) Overcommitted() bool {
 // a client agent refusing to start with an invalid configuration.
 func (idx *NetworkIndex) SetNode(node *Node) error {
 
-	// COMPAT(0.11): Deprecated. taskNetworks are only used for
-	// task.resources.network asks which have been deprecated since before
-	// 0.11.
-	// Grab the network resources, handling both new and old Node layouts
-	// from clients.
-	var taskNetworks []*NetworkResource
-	if node.NodeResources != nil && len(node.NodeResources.Networks) != 0 {
-		taskNetworks = node.NodeResources.Networks
-	} else if node.Resources != nil {
-		taskNetworks = node.Resources.Networks
-	}
-
 	// Reserved ports get merged downward. For example given an agent
 	// config:
 	//
@@ -248,46 +236,6 @@ func (idx *NetworkIndex) SetNode(node *Node) error {
 		globalResPorts = make([]uint, len(resPorts))
 		for i, p := range resPorts {
 			globalResPorts[i] = uint(p)
-		}
-	} else if node.Reserved != nil {
-		// COMPAT(0.11): Remove after 0.11. Nodes stopped reporting
-		// reserved ports under Node.Reserved.Resources in #4750 / v0.9
-		for _, n := range node.Reserved.Networks {
-			used := idx.getUsedPortsFor(n.IP)
-			for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
-				for _, p := range ports {
-					if p.Value > MaxValidPort || p.Value < 0 {
-						// This is a fatal error that
-						// should have been prevented
-						// by validation upstream.
-						return fmt.Errorf("invalid port %d for reserved_ports", p.Value)
-					}
-
-					globalResPorts = append(globalResPorts, uint(p.Value))
-					used.Set(uint(p.Value))
-				}
-			}
-
-			// Reserve mbits
-			if n.Device != "" {
-				idx.UsedBandwidth[n.Device] += n.MBits
-			}
-		}
-	}
-
-	// Filter task networks down to those with a device. For example
-	// taskNetworks may contain a "bridge" interface which has no device
-	// set and cannot be used to fulfill asks.
-	for _, n := range taskNetworks {
-		if n.Device != "" {
-			idx.TaskNetworks = append(idx.TaskNetworks, n)
-			idx.AvailBandwidth[n.Device] = n.MBits
-
-			// Reserve ports
-			used := idx.getUsedPortsFor(n.IP)
-			for _, p := range globalResPorts {
-				used.Set(p)
-			}
 		}
 	}
 
@@ -356,8 +304,6 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason s
 		}
 
 		if alloc.AllocatedResources != nil {
-			// Only look at AllocatedPorts if populated, otherwise use pre 0.12 logic
-			// COMPAT(1.0): Remove when network resources struct is removed.
 			if len(alloc.AllocatedResources.Shared.Ports) > 0 {
 				if c, r := idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports); c {
 					collide = true
@@ -383,18 +329,6 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason s
 						collide = true
 						reason = fmt.Sprintf("collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
 					}
-				}
-			}
-		} else {
-			// COMPAT(0.11): Remove in 0.11
-			for task, resources := range alloc.TaskResources {
-				if len(resources.Networks) == 0 {
-					continue
-				}
-				n := resources.Networks[0]
-				if c, r := idx.AddReserved(n); c {
-					collide = true
-					reason = fmt.Sprintf("(deprecated) collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
 				}
 			}
 		}

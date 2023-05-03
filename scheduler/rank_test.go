@@ -506,15 +506,6 @@ func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 		{
 			Node: &structs.Node{
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					Networks: []*structs.NetworkResource{
-						{
-							Device: "eth0",
-							CIDR:   "192.168.0.100/32",
-							IP:     "192.158.0.100",
-						},
-					},
-				},
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
 						CpuShares: 4096,
@@ -600,15 +591,6 @@ func TestBinPackIterator_Network_NodeError(t *testing.T) {
 		{
 			Node: &structs.Node{
 				ID: uuid.Generate(),
-				Resources: &structs.Resources{
-					Networks: []*structs.NetworkResource{
-						{
-							Device: "eth0",
-							CIDR:   "192.168.0.100/32",
-							IP:     "192.158.0.100",
-						},
-					},
-				},
 				NodeResources: &structs.NodeResources{
 					Cpu: structs.NodeCpuResources{
 						CpuShares: 4096,

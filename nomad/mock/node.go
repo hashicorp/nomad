@@ -34,26 +34,6 @@ func Node() *structs.Node {
 			"consul.version":     "1.11.4",
 		},
 
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-		},
-		Reserved: &structs.Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-			Networks: []*structs.NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
-					MBits:         1,
-				},
-			},
-		},
-
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{
 				CpuShares: 4000,

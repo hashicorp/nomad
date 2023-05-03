@@ -534,7 +534,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		InodeUsageThreshold: cfg.GCInodeUsageThreshold,
 		Interval:            cfg.GCInterval,
 		ParallelDestroys:    cfg.GCParallelDestroys,
-		ReservedDiskMB:      cfg.Node.Reserved.DiskMB,
+		ReservedDiskMB:      int(cfg.Node.ReservedResources.Disk.DiskMB),
 	}
 	c.garbageCollector = NewAllocGarbageCollector(c.logger, statsCollector, c, gcConfig)
 	go c.garbageCollector.Run()
@@ -1505,12 +1505,6 @@ func (c *Client) setupNode() error {
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
 	}
-	if node.Resources == nil {
-		node.Resources = &structs.Resources{}
-	}
-	if node.Reserved == nil {
-		node.Reserved = &structs.Resources{}
-	}
 	if node.Datacenter == "" {
 		node.Datacenter = "dc1"
 	}
@@ -1634,19 +1628,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 			delete(newConfig.Node.Links, name)
 		} else {
 			newConfig.Node.Links[name] = newVal
-		}
-	}
-
-	// COMPAT(0.10): Remove in 0.10
-	// update the response networks with the config
-	// if we still have node changes, merge them
-	if response.Resources != nil {
-		response.Resources.Networks = updateNetworks(
-			response.Resources.Networks,
-			newConfig)
-		if !newConfig.Node.Resources.Equal(response.Resources) {
-			newConfig.Node.Resources.Merge(response.Resources)
-			nodeHasChanged = true
 		}
 	}
 
@@ -3185,7 +3166,7 @@ func (c *Client) labels() []metrics.Label {
 func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {
 	// Unfortunately the allocs only have IP so we need to match them to the
 	// device
-	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.Resources.Networks))
+	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.NodeResources.Networks))
 	for _, n := range selfNode.NodeResources.Networks {
 		_, ipnet, err := net.ParseCIDR(n.CIDR)
 		if err != nil {
@@ -3203,10 +3184,6 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 			continue
 		}
 
-		// Add the resources
-		// COMPAT(0.11): Just use the allocated resources
-		allocated.Add(alloc.ComparableResources())
-
 		// Add the used network
 		if alloc.AllocatedResources != nil {
 			for _, tr := range alloc.AllocatedResources.Tasks {
@@ -3217,16 +3194,6 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 							allocatedDeviceMbits[dev] += allocatedNetwork.MBits
 							break
 						}
-					}
-				}
-			}
-		} else if alloc.Resources != nil {
-			for _, allocatedNetwork := range alloc.Resources.Networks {
-				for cidr, dev := range cidrToDevice {
-					ip := net.ParseIP(allocatedNetwork.IP)
-					if cidr.Contains(ip) {
-						allocatedDeviceMbits[dev] += allocatedNetwork.MBits
-						break
 					}
 				}
 			}

@@ -794,7 +794,7 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 	// Verify the network did not change
 	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
-		for _, resources := range alloc.TaskResources {
+		for _, resources := range alloc.AllocatedResources.Tasks {
 			require.Equal(t, rp, resources.Networks[0].ReservedPorts[0])
 		}
 	}
@@ -1856,17 +1856,6 @@ func TestSystemSched_Preemption(t *testing.T) {
 	nodes := make([]*structs.Node, 0)
 	for i := 0; i < 2; i++ {
 		node := mock.Node()
-		// TODO: remove in 0.11
-		node.Resources = &structs.Resources{
-			CPU:      3072,
-			MemoryMB: 5034,
-			DiskMB:   20 * 1024,
-			Networks: []*structs.NetworkResource{{
-				Device: "eth0",
-				CIDR:   "192.168.0.100/32",
-				MBits:  1000,
-			}},
-		}
 		node.NodeResources = &structs.NodeResources{
 			Cpu:    structs.NodeCpuResources{CpuShares: 3072},
 			Memory: structs.NodeMemoryResources{MemoryMB: 5034},

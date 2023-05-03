@@ -461,24 +461,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 // This method is used when an allocation is being denormalized.
 func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 	structs.DenormalizeAllocationJobs(job, allocs)
-
-	// COMPAT(0.11): Remove in 0.11
-	// Calculate the total resources of allocations. It is pulled out in the
-	// payload to avoid encoding something that can be computed, but should be
-	// denormalized prior to being inserted into MemDB.
-	for _, alloc := range allocs {
-		if alloc.Resources != nil {
-			continue
-		}
-
-		alloc.Resources = new(structs.Resources)
-		for _, task := range alloc.TaskResources {
-			alloc.Resources.Add(task)
-		}
-
-		// Add the shared resources
-		alloc.Resources.Add(alloc.SharedResources)
-	}
 }
 
 // upsertDeploymentUpdates updates the deployments given the passed status

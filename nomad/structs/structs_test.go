@@ -4697,8 +4697,6 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 		DesiredStatus:         AllocDesiredStatusEvict,
 		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
 		AllocatedResources:    alloc.AllocatedResources,
-		TaskResources:         alloc.TaskResources,
-		SharedResources:       alloc.SharedResources,
 	}
 	assert.Equal(t, expectedAlloc, appendedAlloc)
 }
@@ -5791,62 +5789,9 @@ func TestAllocation_NeedsToReconnect(t *testing.T) {
 	}
 }
 
-func TestAllocation_Canonicalize_Old(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := MockAlloc()
-	alloc.AllocatedResources = nil
-	alloc.TaskResources = map[string]*Resources{
-		"web": {
-			CPU:      500,
-			MemoryMB: 256,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{Label: "admin", Value: 5000}},
-					MBits:         50,
-					DynamicPorts:  []Port{{Label: "http", Value: 9876}},
-				},
-			},
-		},
-	}
-	alloc.SharedResources = &Resources{
-		DiskMB: 150,
-	}
-	alloc.Canonicalize()
-
-	expected := &AllocatedResources{
-		Tasks: map[string]*AllocatedTaskResources{
-			"web": {
-				Cpu: AllocatedCpuResources{
-					CpuShares: 500,
-				},
-				Memory: AllocatedMemoryResources{
-					MemoryMB: 256,
-				},
-				Networks: []*NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "192.168.0.100",
-						ReservedPorts: []Port{{Label: "admin", Value: 5000}},
-						MBits:         50,
-						DynamicPorts:  []Port{{Label: "http", Value: 9876}},
-					},
-				},
-			},
-		},
-		Shared: AllocatedSharedResources{
-			DiskMB: 150,
-		},
-	}
-
-	require.Equal(t, expected, alloc.AllocatedResources)
-}
-
-// TestAllocation_Canonicalize_New asserts that an alloc with latest
+// TestAllocation_Canonicalize asserts that an alloc with latest
 // schema isn't modified with Canonicalize
-func TestAllocation_Canonicalize_New(t *testing.T) {
+func TestAllocation_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := MockAlloc()
@@ -6542,31 +6487,6 @@ func TestNode_Copy(t *testing.T) {
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
-		Resources: &Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		},
-		Reserved: &Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
-					MBits:         1,
-				},
-			},
-		},
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
 				CpuShares:          4000,
@@ -6628,8 +6548,6 @@ func TestNode_Copy(t *testing.T) {
 	node2 := node.Copy()
 
 	require.Equal(node.Attributes, node2.Attributes)
-	require.Equal(node.Resources, node2.Resources)
-	require.Equal(node.Reserved, node2.Reserved)
 	require.Equal(node.Links, node2.Links)
 	require.Equal(node.Meta, node2.Meta)
 	require.Equal(node.Events, node2.Events)

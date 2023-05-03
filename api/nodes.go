@@ -546,8 +546,6 @@ type Node struct {
 	HTTPAddr              string
 	TLSEnabled            bool
 	Attributes            map[string]string
-	Resources             *Resources
-	Reserved              *Resources
 	NodeResources         *NodeResources
 	ReservedResources     *NodeReservedResources
 	Links                 map[string]string

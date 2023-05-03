@@ -115,8 +115,8 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	}
 
 	tg.Tasks = append(tg.Tasks, initTask, prestartSidecarTask)
-	a.TaskResources["init_task"] = a.TaskResources["web"]
-	a.TaskResources["prestart_sidecar"] = a.TaskResources["web"]
+	a.AllocatedResources.Tasks["init_task"] = a.AllocatedResources.Tasks["web"]
+	a.AllocatedResources.Tasks["prestart_sidecar"] = a.AllocatedResources.Tasks["web"]
 	a.TaskStates = map[string]*structs.TaskState{
 		"web":              {State: "pending"},
 		"init_task":        {State: "running"},

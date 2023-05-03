@@ -129,7 +129,6 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 
 	// Create a mock node with easy to check resources
 	node := mock.Node()
-	node.Resources = nil // Deprecated in 0.9
 	node.NodeResources.Cpu.CpuShares = 700
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 

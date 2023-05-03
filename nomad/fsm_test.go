@@ -1552,7 +1552,6 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	fsm.evalBroker.SetEnabled(true)
 	// Create the request and create a deployment
 	alloc := mock.Alloc()
-	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	job := alloc.Job
 	alloc.Job = nil
 

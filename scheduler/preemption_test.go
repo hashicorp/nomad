@@ -1536,12 +1536,9 @@ func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resour
 
 func createAllocInner(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource, tgNetwork *structs.NetworkResource) *structs.Allocation {
 	alloc := &structs.Allocation{
-		ID:    id,
-		Job:   job,
-		JobID: job.ID,
-		TaskResources: map[string]*structs.Resources{
-			"web": resource,
-		},
+		ID:            id,
+		Job:           job,
+		JobID:         job.ID,
 		Namespace:     structs.DefaultNamespace,
 		EvalID:        uuid.Generate(),
 		DesiredStatus: structs.AllocDesiredStatusRun,
