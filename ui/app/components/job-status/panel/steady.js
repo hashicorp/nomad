@@ -2,8 +2,10 @@
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import matchGlob from 'nomad-ui/utils/match-glob';
+import { inject as service } from '@ember/service';
 
 export default class JobStatusPanelSteadyComponent extends Component {
+  @service can;
   @alias('args.job') job;
 
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
@@ -70,20 +72,31 @@ export default class JobStatusPanelSteadyComponent extends Component {
     if (this.args.job.type === 'service') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.args.job.type === 'system') {
-      // Filter nodes by the datacenters defined in the job.
-      const filteredNodes = this.nodes.filter((n) => {
-        return this.args.job.datacenters.find((dc) => {
-          return !!matchGlob(dc, n.datacenter);
+      if (this.totalAllocsCanBeKnown) {
+        // Filter nodes by the datacenters defined in the job.
+        const filteredNodes = this.nodes.filter((n) => {
+          return this.args.job.datacenters.find((dc) => {
+            return !!matchGlob(dc, n.datacenter);
+          });
         });
-      });
 
-      return filteredNodes.length;
-      // return this.args.job.allocations.uniqBy('node.id').length
-      // return this.args.job.allocations
-      //   .filter((a) => a.jobVersion === this.args.job.version)
-      //   .uniqBy('node.id').length;
+        return filteredNodes.length;
+      } else {
+        // You don't have node read access, so do the best you can: uniqBy node IDs on the allocs you can see.
+        return this.args.job.allocations.uniqBy('nodeID').length;
+      }
     } else {
       return this.args.job.count; // TODO: this is probably not the correct totalAllocs count for any type.
+    }
+  }
+
+  get totalAllocsCanBeKnown() {
+    // System jobs don't have a group.count, so we depend on reading the overal number of nodes.
+    // If the user lacks "read client" capabilities, this becomes impossible.
+    if (this.args.job.type === 'system') {
+      return this.can.can('read client');
+    } else {
+      return true;
     }
   }
 
