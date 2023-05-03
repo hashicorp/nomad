@@ -56,7 +56,7 @@ export default function moduleForJob(
         await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
       }
 
-      const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
+      const hasClientStatus = ['sysbatch'].includes(job.type);
       if (context === 'allocations' && hasClientStatus) {
         await click("[data-test-accordion-summary-chart='allocation-status']");
       }

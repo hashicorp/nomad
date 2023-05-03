@@ -24,29 +24,6 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
   server.create('job', { type: 'system', shallow: true })
 );
 
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (system)',
-  () =>
-    server.create('job', {
-      status: 'running',
-      datacenters: ['dc1'],
-      type: 'system',
-      createAllocations: false,
-    })
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (system with wildcard dc)',
-  () =>
-    server.create('job', {
-      id: 'system-wildcard-dc',
-      status: 'running',
-      datacenters: ['canada-*-1'],
-      type: 'system',
-      createAllocations: false,
-    })
-);
-
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
   server.create('job', { type: 'sysbatch', shallow: true })
 );
