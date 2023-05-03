@@ -16,6 +16,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -554,67 +555,175 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 	})
 }
 
+// TestClient_SaveRestoreState exercises the allocrunner restore code paths
+// after a client restart. It runs several jobs in different states and asserts
+// the expected final state and server updates.
 func TestClient_SaveRestoreState(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
-	defer cleanupS1()
+	t.Cleanup(cleanupS1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
-	defer cleanupC1()
+	t.Cleanup(func() {
+		for _, ar := range c1.getAllocRunners() {
+			ar.Destroy()
+		}
+		for _, ar := range c1.getAllocRunners() {
+			<-ar.DestroyCh()
+		}
+		cleanupC1()
+	})
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
 
-	// Create mock allocations
-	job := mock.Job()
-	alloc1 := mock.Alloc()
-	alloc1.NodeID = c1.Node().ID
-	alloc1.Job = job
-	alloc1.JobID = job.ID
-	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10s",
-	}
-	alloc1.ClientStatus = structs.AllocClientStatusRunning
+	migrateStrategy := structs.DefaultMigrateStrategy()
+	migrateStrategy.MinHealthyTime = time.Millisecond
+	migrateStrategy.HealthCheck = structs.MigrateStrategyHealthStates
 
-	state := s1.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1}); err != nil {
-		t.Fatalf("err: %v", err)
+	// Create mock jobs and allocations that will start up fast
+
+	setup := func(id string) *structs.Job {
+		job := mock.MinJob()
+		job.ID = id
+		job.TaskGroups[0].Migrate = migrateStrategy
+		must.NoError(t, s1.RPC("Job.Register", &structs.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+		}, &structs.JobRegisterResponse{}))
+		return job
 	}
 
-	// Allocations should get registered
-	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		c1.allocLock.RUnlock()
-		if ar == nil {
-			return false, fmt.Errorf("nil alloc runner")
-		}
-		if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("client status: got %v; want %v", ar.Alloc().ClientStatus, structs.AllocClientStatusRunning)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+	// job1: will be left running
+	// job2: will be stopped before shutdown
+	// job3: will be stopped after shutdown
+	// job4: will be stopped and GC'd after shutdown
+	job1, job2, job3, job4 := setup("job1"), setup("job2"), setup("job3"), setup("job4")
 
-	// Shutdown the client, saves state
-	if err := c1.Shutdown(); err != nil {
-		t.Fatalf("err: %v", err)
+	// Allocations should be placed
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			c1.allocLock.RLock()
+			defer c1.allocLock.RUnlock()
+			if len(c1.allocs) != 4 {
+				return fmt.Errorf("expected 4 alloc runners")
+			}
+			for _, ar := range c1.allocs {
+				if ar.AllocState().ClientStatus != structs.AllocClientStatusRunning {
+					return fmt.Errorf("expected running client status, got %v",
+						ar.AllocState().ClientStatus)
+				}
+			}
+			return nil
+		}),
+		wait.Timeout(time.Second*10),
+		wait.Gap(time.Millisecond*30),
+	))
+
+	store := s1.State()
+
+	allocIDforJob := func(job *structs.Job) string {
+		allocs, err := store.AllocsByJob(nil, job.Namespace, job.ID, false)
+		must.NoError(t, err)
+		must.Len(t, 1, allocs) // we should only ever get 1 in this test
+		return allocs[0].ID
 	}
+	alloc1 := allocIDforJob(job1)
+	alloc2 := allocIDforJob(job2)
+	alloc3 := allocIDforJob(job3)
+	alloc4 := allocIDforJob(job4)
+	t.Logf("alloc1=%s alloc2=%s alloc3=%s alloc4=%s", alloc1, alloc2, alloc3, alloc4)
 
-	// Create a new client
+	// Stop the 2nd job before we shut down
+	must.NoError(t, s1.RPC("Job.Deregister", &structs.JobDeregisterRequest{
+		JobID:        job2.ID,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job2.Namespace},
+	}, &structs.JobDeregisterResponse{}))
+
+	var alloc2ModifyIndex uint64
+	var alloc2AllocModifyIndex uint64
+
+	// Wait till we're sure the client has received the stop and updated the server
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			alloc, err := store.AllocByID(nil, alloc2)
+			must.NotNil(t, alloc)
+			must.NoError(t, err)
+			if alloc.ClientStatus != structs.AllocClientStatusComplete {
+				// note that the allocrunner is non-nil until it's been
+				// client-GC'd, so we're just looking to make sure the client
+				// has updated the server
+				return fmt.Errorf("alloc2 should have been marked completed")
+			}
+			alloc2ModifyIndex = alloc.ModifyIndex
+			alloc2AllocModifyIndex = alloc.AllocModifyIndex
+			return nil
+		}),
+		wait.Timeout(time.Second*20),
+		wait.Gap(time.Millisecond*30),
+	))
+
+	t.Log("shutting down client")
+	must.NoError(t, c1.Shutdown()) // note: this saves the client state DB
+
+	// Stop the 3rd job while we're down
+	must.NoError(t, s1.RPC("Job.Deregister", &structs.JobDeregisterRequest{
+		JobID:        job3.ID,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job3.Namespace},
+	}, &structs.JobDeregisterResponse{}))
+
+	// Stop and purge the 4th job while we're down
+	must.NoError(t, s1.RPC("Job.Deregister", &structs.JobDeregisterRequest{
+		JobID:        job4.ID,
+		Purge:        true,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job4.Namespace},
+	}, &structs.JobDeregisterResponse{}))
+
+	// Ensure the allocation has been deleted as well
+	must.NoError(t, s1.RPC("Eval.Reap", &structs.EvalReapRequest{
+		Allocs:       []string{alloc4},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}, &structs.GenericResponse{}))
+
+	var alloc3AllocModifyIndex uint64
+	var alloc3ModifyIndex uint64
+
+	// Wait till we're sure the scheduler has marked alloc3 for stop and deleted alloc4
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			alloc, err := store.AllocByID(nil, alloc3)
+			must.NotNil(t, alloc)
+			must.NoError(t, err)
+			if alloc.DesiredStatus != structs.AllocDesiredStatusStop {
+				return fmt.Errorf("alloc3 should have been marked for stop")
+			}
+			alloc3ModifyIndex = alloc.ModifyIndex
+			alloc3AllocModifyIndex = alloc.AllocModifyIndex
+
+			alloc, err = store.AllocByID(nil, alloc4)
+			must.NoError(t, err)
+			if alloc != nil {
+				return fmt.Errorf("alloc4 should have been deleted")
+			}
+			return nil
+		}),
+		wait.Timeout(time.Second*5),
+		wait.Gap(time.Millisecond*30),
+	))
+
+	a1, err := store.AllocByID(nil, alloc1)
+	var alloc1AllocModifyIndex uint64
+	var alloc1ModifyIndex uint64
+	alloc1ModifyIndex = a1.ModifyIndex
+	alloc1AllocModifyIndex = a1.AllocModifyIndex
+
+	t.Log("starting new client")
+
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
 	consulCatalog := consul.NewMockCatalog(logger)
@@ -625,34 +734,77 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c1.config.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
 
 	c2, err := NewClient(c1.config, consulCatalog, nil, mockService, nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer c2.Shutdown()
+	must.NoError(t, err)
 
-	// Ensure the allocation is running
-	testutil.WaitForResult(func() (bool, error) {
-		c2.allocLock.RLock()
-		ar := c2.allocs[alloc1.ID]
-		c2.allocLock.RUnlock()
-		status := ar.Alloc().ClientStatus
-		alive := status == structs.AllocClientStatusRunning || status == structs.AllocClientStatusPending
-		if !alive {
-			return false, fmt.Errorf("incorrect client status: %#v", ar.Alloc())
+	t.Cleanup(func() {
+		for _, ar := range c2.getAllocRunners() {
+			ar.Destroy()
 		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
+		for _, ar := range c2.getAllocRunners() {
+			<-ar.DestroyCh()
+		}
+		c2.Shutdown()
 	})
 
-	// Destroy all the allocations
-	for _, ar := range c2.getAllocRunners() {
-		ar.Destroy()
-	}
+	// Ensure only the expected allocation is running
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			c2.allocLock.RLock()
+			defer c2.allocLock.RUnlock()
+			if len(c2.allocs) != 3 {
+				// the GC'd alloc will not have restored AR
+				return fmt.Errorf("expected 3 alloc runners")
+			}
+			for allocID, ar := range c2.allocs {
+				if ar == nil {
+					return fmt.Errorf("nil alloc runner")
+				}
+				switch allocID {
+				case alloc1:
+					if ar.AllocState().ClientStatus != structs.AllocClientStatusRunning {
+						return fmt.Errorf("expected running client status, got %v",
+							ar.AllocState().ClientStatus)
+					}
+				default:
+					if ar.AllocState().ClientStatus != structs.AllocClientStatusComplete {
+						return fmt.Errorf("expected complete client status, got %v",
+							ar.AllocState().ClientStatus)
+					}
+				}
+			}
+			return nil
+		}),
+		wait.Timeout(time.Second*10),
+		wait.Gap(time.Millisecond*30),
+	))
 
-	for _, ar := range c2.getAllocRunners() {
-		<-ar.DestroyCh()
-	}
+	a1, err = store.AllocByID(nil, alloc1)
+	must.NoError(t, err)
+	must.NotNil(t, a1)
+	test.Eq(t, alloc1AllocModifyIndex, a1.AllocModifyIndex)
+	test.Eq(t, alloc1ModifyIndex, a1.ModifyIndex,
+		test.Sprint("alloc still running should not have updated"))
+
+	a2, err := store.AllocByID(nil, alloc2)
+	must.NoError(t, err)
+	must.NotNil(t, a2)
+	test.Eq(t, alloc2AllocModifyIndex, a2.AllocModifyIndex)
+	test.Eq(t, alloc2ModifyIndex, a2.ModifyIndex,
+		test.Sprintf("alloc %s stopped before shutdown should not have updated", a2.ID[:8]))
+
+	a3, err := store.AllocByID(nil, alloc3)
+	must.NoError(t, err)
+	must.NotNil(t, a3)
+	test.Eq(t, alloc3AllocModifyIndex, a3.AllocModifyIndex)
+	test.Greater(t, alloc3ModifyIndex, a3.ModifyIndex,
+		test.Sprintf("alloc %s stopped during shutdown should have updated", a3.ID[:8]))
+
+	// TODO: the alloc has been GC'd so the server will reject any update. It'd
+	// be nice if we could instrument the server here to ensure we didn't send
+	// one either.
+	a4, err := store.AllocByID(nil, alloc4)
+	must.NoError(t, err)
+	test.Nil(t, a4, test.Sprint("garbage collected alloc should not exist"))
 }
 
 func TestClient_AddAllocError(t *testing.T) {

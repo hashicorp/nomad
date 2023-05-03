@@ -4,6 +4,7 @@
 package state
 
 import (
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -43,6 +44,14 @@ type StateDB interface {
 
 	// PutNetworkStatus puts the allocation's network status. It may be nil.
 	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error
+
+	// PutAcknowledgedState stores an allocation's last acknowledged state or
+	// returns an error if it could not be stored.
+	PutAcknowledgedState(string, *arstate.State, ...WriteOption) error
+
+	// GetAcknowledgedState retrieves an allocation's last acknowledged
+	// state. It may be nil even if there's no error
+	GetAcknowledgedState(string) (*arstate.State, error)
 
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an

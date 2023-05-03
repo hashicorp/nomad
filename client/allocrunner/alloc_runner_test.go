@@ -14,8 +14,13 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
@@ -26,9 +31,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
 )
 
 // destroy does a blocking destroy on an alloc runner
@@ -2442,4 +2444,60 @@ func TestAllocRunner_PreKill_RunOnDone(t *testing.T) {
 		wait.Timeout(5*time.Second),
 		wait.Gap(500*time.Millisecond),
 	))
+}
+
+func TestAllocRunner_LastAcknowledgedStateIsCurrent(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{"run_for": "2ms"}
+	alloc.DesiredStatus = "stop"
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
+	t.Cleanup(cleanup)
+
+	ar, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+
+	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "192.168.1.1",
+		DNS:           &structs.DNSConfig{},
+	})
+
+	calloc := ar.clientAlloc(map[string]*structs.TaskState{})
+	ar.AcknowledgeState(&arstate.State{
+		ClientStatus:      calloc.ClientStatus,
+		ClientDescription: calloc.ClientDescription,
+		DeploymentStatus:  calloc.DeploymentStatus,
+		TaskStates:        calloc.TaskStates,
+		NetworkStatus:     calloc.NetworkStatus,
+	})
+
+	must.True(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+
+	// clientAlloc mutates the state, so verify this doesn't break the check
+	// without state having been updated
+	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
+	must.True(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+
+	// make a no-op state update
+	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "192.168.1.1",
+		DNS:           &structs.DNSConfig{},
+	})
+	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
+	must.True(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+
+	// make a state update that should be detected as a change
+	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
+		InterfaceName: "eth0",
+		Address:       "192.168.2.1",
+		DNS:           &structs.DNSConfig{},
+	})
+	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
+	must.False(t, ar.LastAcknowledgedStateIsCurrent(calloc))
 }
