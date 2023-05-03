@@ -833,8 +833,8 @@ github.com/hashicorp/go-immutable-radix v1.3.1/go.mod h1:0y9vanUI8NX6FsYoO3zeMjh
 github.com/hashicorp/go-immutable-radix/v2 v2.0.0 h1:nq9lQ5I71Heg2lRb2/+szuIWKY3Y73d8YKyXyN91WzU=
 github.com/hashicorp/go-immutable-radix/v2 v2.0.0/go.mod h1:hgdqLXA4f6NIjRVisM1TJ9aOJVNRqKZj+xDGF6m7PBw=
 github.com/hashicorp/go-kms-wrapping/entropy/v2 v2.0.0/go.mod h1:xvb32K2keAc+R8DSFG2IwDcydK9DBQE+fGA5fsw6hSk=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.5 h1:rOFDv+3k05mnW0oaDLffhVUwg03Csn0mvfO98Wdd2bE=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.5/go.mod h1:sDQAfwJGv25uGPZA04x87ERglCG6avnRcBT9wYoMII8=
+github.com/hashicorp/go-kms-wrapping/v2 v2.0.8 h1:9Q2lu1YbbmiAgvYZ7Pr31RdlVonUpX+mmDL7Z7qTA2U=
+github.com/hashicorp/go-kms-wrapping/v2 v2.0.8/go.mod h1:qTCjxGig/kjuj3hk1z8pOUrzbse/GxB1tGfbrq8tGJg=
 github.com/hashicorp/go-memdb v1.3.4 h1:XSL3NR682X/cVk2IeV0d70N4DZ9ljI885xAEU8IoK3c=
 github.com/hashicorp/go-memdb v1.3.4/go.mod h1:uBTr1oQbtuMgd1SSGoR8YV27eT3sBHbYiNm53bMpgSg=
 github.com/hashicorp/go-msgpack v0.5.3/go.mod h1:ahLV/dePpqEmjfWmKiqvPkv/twdG7iPBM1vqhUKIvfM=
@@ -930,8 +930,8 @@ github.com/hashicorp/vault/api v1.9.1/go.mod h1:78kktNcQYbBGSrOjQfHjXN32OhhxXnbY
 github.com/hashicorp/vault/api/auth/kubernetes v0.3.0 h1:HkaCmTKzcgLa2tjdiAid1rbmyQNmQGHfnmvIIM2WorY=
 github.com/hashicorp/vault/api/auth/kubernetes v0.3.0/go.mod h1:l1B4MGtLc+P37MabBQiIhP3qd9agj0vqhETmaQjjC/Y=
 github.com/hashicorp/vault/sdk v0.6.0/go.mod h1:+DRpzoXIdMvKc88R4qxr+edwy/RvH5QK8itmxLiDHLc=
-github.com/hashicorp/vault/sdk v0.7.0 h1:2pQRO40R1etpKkia5fb4kjrdYMx3BHklPxl1pxpxDHg=
-github.com/hashicorp/vault/sdk v0.7.0/go.mod h1:KyfArJkhooyba7gYCKSq8v66QdqJmnbAxtV/OX1+JTs=
+github.com/hashicorp/vault/sdk v0.9.0 h1:Cbu9ezaZafZTXnen98QKVmufEPquhZ+r1ORZ7csNLFU=
+github.com/hashicorp/vault/sdk v0.9.0/go.mod h1:VX9d+xF62YBNtiEc4l3Z2aea9HVtAS49EoniuXzHtC4=
 github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 h1:O/pT5C1Q3mVXMyuqg7yuAWUg/jMZR1/0QTzTRdNR6Uw=
 github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443/go.mod h1:bEpDU35nTu0ey1EXjwNwPjI9xErAsoOCmcMb9GKvyxo=
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
