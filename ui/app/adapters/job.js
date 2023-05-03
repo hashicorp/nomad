@@ -79,23 +79,51 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   // Running a job doesn't follow REST create semantics so it's easier to
   // treat it as an action.
   run(job) {
+    let Submission;
+    try {
+      JSON.parse(job.get('_newDefinition'));
+      Submission = {
+        Source: job.get('_newDefinition'),
+        Format: 'json',
+      };
+    } catch {
+      Submission = {
+        Source: job.get('_newDefinition'),
+        Format: 'hcl2',
+        Variables: job.get('_newDefinitionVariables'),
+      };
+    }
+
     return this.ajax(this.urlForCreateRecord('job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
+        Submission,
       },
     });
   }
 
-  update(job, format) {
+  update(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
+
+    let Submission;
+    try {
+      JSON.parse(job.get('_newDefinition'));
+      Submission = {
+        Source: job.get('_newDefinition'),
+        Format: 'json',
+      };
+    } catch {
+      Submission = {
+        Source: job.get('_newDefinition'),
+        Format: 'hcl2',
+        Variables: job.get('_newDefinitionVariables'),
+      };
+    }
+
     return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
-        Submission: {
-          Source: job.get('_newDefinition'),
-          Format: format,
-          Variables: job.get('_newDefinitionVariables'),
-        },
+        Submission,
       },
     });
   }
