@@ -53,7 +53,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return this.ajax(url, 'POST', {
       data: {
         JobHCL: spec,
-        JobVariables: jobVars,
+        Variables: jobVars,
         Canonicalize: true,
       },
     });

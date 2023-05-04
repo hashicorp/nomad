@@ -14,11 +14,13 @@ export default class DefinitionRoute extends Route {
 
     let format = 'json'; // default to json in network request errors
     let specification;
-    let variables;
+    let variableFlags;
+    let variableLiteral;
     try {
       const specificationResponse = await job.fetchRawSpecification();
       specification = specificationResponse?.Source ?? null;
-      variables = specificationResponse?.VariableFlags ?? null;
+      variableFlags = specificationResponse?.VariableFlags ?? null;
+      variableLiteral = specificationResponse?.Variables ?? null;
       format = specificationResponse?.Format ?? 'json';
     } catch (e) {
       // Swallow the error because Nomad job pre-1.6 will not have a specification
@@ -29,7 +31,8 @@ export default class DefinitionRoute extends Route {
       format,
       job,
       specification,
-      variables,
+      variableFlags,
+      variableLiteral,
     };
   }
 

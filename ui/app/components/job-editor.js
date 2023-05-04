@@ -24,6 +24,15 @@ export default class JobEditor extends Component {
     if (this.definition) {
       this.setDefinitionOnModel();
     }
+
+    if (this.args.variables) {
+      this.args.job.set(
+        '_newDefinitionVariables',
+        this.jsonToHcl(this.args.variables.flags).concat(
+          this.args.variables.literal
+        )
+      );
+    }
   }
 
   get isEditing() {
@@ -148,20 +157,16 @@ export default class JobEditor extends Component {
     }
   }
 
-  get variables() {
-    function jsonToHcl(obj) {
-      const hclLines = [];
+  jsonToHcl(obj) {
+    const hclLines = [];
 
-      for (const key in obj) {
-        const value = obj[key];
-        const hclValue = typeof value === 'string' ? `"${value}"` : value;
-        hclLines.push(`${key}=${hclValue}`);
-      }
-
-      return hclLines.join('\n');
+    for (const key in obj) {
+      const value = obj[key];
+      const hclValue = typeof value === 'string' ? `"${value}"` : value;
+      hclLines.push(`${key}=${hclValue}\n`);
     }
 
-    return jsonToHcl(this.args.variables);
+    return hclLines.join('\n');
   }
 
   get data() {
@@ -170,11 +175,11 @@ export default class JobEditor extends Component {
       definition: this.definition,
       format: this.args.format,
       hasSpecification: !!this.args.specification,
-      hasVariables: !!this.variables,
+      hasVariables:
+        !!this.args.variables?.flags || !!this.args.variables?.literal,
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
-      variables: this.variables,
       view: this.args.view,
     };
   }

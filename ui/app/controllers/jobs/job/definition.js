@@ -19,7 +19,8 @@ export default class DefinitionController extends Controller.extend(
   @alias('model.format') format;
   @alias('model.job') job;
   @alias('model.specification') specification;
-  @alias('model.variables') variables;
+  @alias('model.variableFlags') variableFlags;
+  @alias('model.variableLiteral') variableLiteral;
 
   @tracked view;
   @tracked isEditing = false;
