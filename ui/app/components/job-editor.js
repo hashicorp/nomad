@@ -148,20 +148,22 @@ export default class JobEditor extends Component {
     }
   }
 
-  get variables() {
-    function jsonToHcl(obj) {
-      const hclLines = [];
+  jsonToHcl(obj) {
+    const hclLines = [];
 
-      for (const key in obj) {
-        const value = obj[key];
-        const hclValue = typeof value === 'string' ? `"${value}"` : value;
-        hclLines.push(`${key}=${hclValue}`);
-      }
-
-      return hclLines.join('\n');
+    for (const key in obj) {
+      const value = obj[key];
+      const hclValue = typeof value === 'string' ? `"${value}"` : value;
+      hclLines.push(`${key}=${hclValue}\n`);
     }
 
-    return jsonToHcl(this.args.variables);
+    return hclLines.join('\n');
+  }
+
+  get variables() {
+    return this.jsonToHcl(this.args.variables.flags).concat(
+      this.args.variables.literal
+    );
   }
 
   get data() {
