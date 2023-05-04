@@ -3,9 +3,19 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+// @ts-check
 import Route from '@ember/routing/route';
 
+/**
+ * Route for fetching and displaying a job's definition and specification.
+ */
 export default class DefinitionRoute extends Route {
+  /**
+   * Fetch the job's definition, specification, and variables from the API.
+   *
+   * @returns {Promise<Object>} A promise that resolves to an object containing the job, definition, format,
+   *                            specification, variableFlags, and variableLiteral.
+   */
   async model() {
     const job = this.modelFor('jobs.job');
     if (!job) return;
@@ -36,6 +46,12 @@ export default class DefinitionRoute extends Route {
     };
   }
 
+  /**
+   * Reset the controller when exiting the route.
+   *
+   * @param {Controller} controller - The controller instance.
+   * @param {boolean} isExiting - A boolean flag indicating if the route is being exited.
+   */
   resetController(controller, isExiting) {
     if (isExiting) {
       const job = controller.job;
@@ -45,6 +61,12 @@ export default class DefinitionRoute extends Route {
     }
   }
 
+  /**
+   * Set up the controller with the model data and determine the view type.
+   *
+   * @param {Controller} controller - The controller instance.
+   * @param {Object} model - The model data fetched in the `model` method.
+   */
   setupController(controller, model) {
     super.setupController(controller, model);
 

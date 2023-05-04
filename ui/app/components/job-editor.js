@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+// @ts-check
 import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
@@ -11,6 +12,12 @@ import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { tracked } from '@glimmer/tracking';
 
+/**
+ * JobEditor component that provides an interface for editing and managing Nomad jobs.
+ *
+ * @class JobEditor
+ * @extends Component
+ */
 export default class JobEditor extends Component {
   @service config;
   @service store;
@@ -18,6 +25,9 @@ export default class JobEditor extends Component {
   @tracked error = null;
   @tracked planOutput = null;
 
+  /**
+   * Initialize the component, setting the definition and definition variables on the model if available.
+   */
   constructor() {
     super(...arguments);
 
@@ -35,15 +45,26 @@ export default class JobEditor extends Component {
     }
   }
 
+  /**
+   * Check if the component is in editing mode.
+   *
+   * @returns {boolean} True if the component is in 'new' or 'edit' context, otherwise false.
+   */
   get isEditing() {
     return ['new', 'edit'].includes(this.args.context);
   }
 
+  /**
+   * Set the definition on the Job model.
+   */
   @action
   setDefinitionOnModel() {
     this.args.job.set('_newDefinition', this.definition);
   }
 
+  /**
+   * Enter the edit mode and defensively set the definition on the model.
+   */
   @action
   edit() {
     this.setDefinitionOnModel();
@@ -55,12 +76,20 @@ export default class JobEditor extends Component {
     this.args.onToggleEdit(false);
   }
 
+  /**
+   * Determine the current stage of the component based on the plan output and editing state.
+   *
+   * @returns {string} The current stage, either 'review', 'edit', or 'read'.
+   */
   get stage() {
     if (this.planOutput) return 'review';
     if (this.isEditing) return 'edit';
     else return 'read';
   }
 
+  /**
+   * A local storage property that determines whether the plan message should be shown.
+   */
   @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
 
   @action
@@ -68,6 +97,10 @@ export default class JobEditor extends Component {
     this.shouldShowPlanMessage = false;
   }
 
+  /**
+   * A task that performs the job parsing and planning.
+   * On error, it calls the onError method.
+   */
   @(task(function* () {
     this.reset();
 
@@ -87,6 +120,10 @@ export default class JobEditor extends Component {
   }).drop())
   plan;
 
+  /**
+   * A task that submits the job, either running a new job or updating an existing one.
+   * On error, it calls the onError method and resets our planOutput state.
+   */
   @task(function* () {
     try {
       if (this.args.context === 'new') {
@@ -109,24 +146,44 @@ export default class JobEditor extends Component {
   })
   submit;
 
+  /**
+   * Handle errors, setting the error object and scrolling to the error message.
+   *
+   * @param {Error} err - The error object.
+   * @param {string} type - The type of error (e.g., 'parse', 'plan', 'run').
+   * @param {string} actionMsg - A message describing the action that caused the error.
+   */
   onError(err, type, actionMsg) {
     const error = messageFromAdapterError(err, actionMsg);
     this.error = { message: error, type };
     this.scrollToError();
   }
 
+  /**
+   * Reset the planOutput and error properties to their initial state.
+   */
   @action
   reset() {
     this.planOutput = null;
     this.error = null;
   }
 
+  /**
+   * Scroll to the top of the page if not in a test environment.
+   */
   scrollToError() {
     if (!this.config.get('isTest')) {
       window.scrollTo(0, 0);
     }
   }
 
+  /**
+   * Update the job's definition or definition variables based on the provided type.
+   *
+   * @param {string} value - The new value for the job's definition or definition variables.
+   * @param {_codemirror} _codemirror - The CodeMirror instance (not used in this action).
+   * @param {string} [type='job'] - The type of code being updated ('job' or 'hclVariables').
+   */
   @action
   updateCode(value, _codemirror, type = 'job') {
     if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
@@ -138,6 +195,11 @@ export default class JobEditor extends Component {
     }
   }
 
+  /**
+   * Read the content of an uploaded job specification file and update the job's definition.
+   *
+   * @param {Event} event - The input change event containing the selected file.
+   */
   @action
   uploadJobSpec(event) {
     const reader = new FileReader();
@@ -149,6 +211,11 @@ export default class JobEditor extends Component {
     reader.readAsText(file);
   }
 
+  /**
+   * Get the definition or specification based on the view type.
+   *
+   * @returns {string} The definition or specification in JSON or HCL format.
+   */
   get definition() {
     if (this.args.view === 'full-definition') {
       return JSON.stringify(this.args.definition, null, 2);
@@ -157,6 +224,12 @@ export default class JobEditor extends Component {
     }
   }
 
+  /**
+   * Convert a JSON object to an HCL string.
+   *
+   * @param {Object} obj - The JSON object to convert.
+   * @returns {string} The HCL string representation of the JSON object.
+   */
   jsonToHcl(obj) {
     const hclLines = [];
 
