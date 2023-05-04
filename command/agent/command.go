@@ -781,6 +781,12 @@ func (c *Command) Run(args []string) int {
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
 	info["bind addrs"] = c.getBindAddrSynopsis()
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
+	if config.Server.Enabled {
+		serverConfig, err := c.agent.serverConfig()
+		if err == nil {
+			info["node id"] = serverConfig.NodeID
+		}
+	}
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
