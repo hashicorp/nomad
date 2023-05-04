@@ -38,7 +38,7 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('the job definition page starts in read-only view', async function (assert) {
-    assert.dom('[data-test-json-viewer]').exists('Read-only Editor appears.');
+    assert.dom('[data-test-job-spec-view]').exists('Read-only Editor appears.');
   });
 
   test('the job definition page requests the job to display in an unmutated form', async function (assert) {
@@ -71,21 +71,17 @@ module('Acceptance | job definition', function (hooks) {
     await Definition.edit();
 
     await Definition.editor.cancelEditing();
-    assert.dom('[data-test-json-viewer]').exists('Read-only Editor appears.');
+    assert.dom('[data-test-job-spec-view]').exists('Read-only Editor appears.');
     assert.dom('[data-test-job-editor]').doesNotExist('The editor is gone');
   });
 
   test('when in editing mode, the editor is prepopulated with the job definition', async function (assert) {
     const requests = server.pretender.handledRequests;
-    const jobDefinition = requests.findBy(
+    const jobSubmission = requests.findBy(
       'url',
-      `/v1/job/${job.id}`
+      `/v1/job/${job.id}/submission?version=1`
     ).responseText;
-    const formattedJobDefinition = JSON.stringify(
-      JSON.parse(jobDefinition),
-      null,
-      2
-    );
+    const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
     await Definition.edit();
 
@@ -99,7 +95,10 @@ module('Acceptance | job definition', function (hooks) {
   test('when changes are submitted, the site redirects to the job overview page', async function (assert) {
     await Definition.edit();
 
-    await Definition.editor.plan();
+    const cm = getCodeMirrorInstance(['data-test-editor']);
+    cm.setValue(`{}`);
+
+    await click('[data-test-plan]');
     await Definition.editor.run();
     assert.equal(
       currentURL(),
