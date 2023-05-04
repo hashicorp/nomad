@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -36,6 +37,10 @@ func connectSidecarResources() *structs.Resources {
 
 // connectSidecarDriverConfig is the driver configuration used by the injected
 // connect proxy sidecar task.
+//
+// Note: must be compatible with both docker and podman. One could imagine passing
+// in the driver name in the future and switching on that if we need specific
+// configs.
 func connectSidecarDriverConfig() map[string]interface{} {
 	return map[string]interface{}{
 		"image": envoy.SidecarConfigVar,
@@ -238,16 +243,10 @@ func injectPort(group *structs.TaskGroup, label string) {
 //
 // If the sidecar_task block is set, that takes precedence and this does not apply.
 func groupConnectGuessTaskDriver(g *structs.TaskGroup) string {
-	foundPodman := false
-	for _, task := range g.Tasks {
-		switch task.Driver {
-		case "docker":
-			return "docker"
-		case "podman":
-			foundPodman = true
-		}
-	}
-	if foundPodman {
+	drivers := set.FromFunc(g.Tasks, func(t *structs.Task) string {
+		return t.Driver
+	})
+	if drivers.Contains("podman") && !drivers.Contains("docker") {
 		return "podman"
 	}
 	return "docker"
