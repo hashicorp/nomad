@@ -343,7 +343,7 @@ func TestAnnotateTask(t *testing.T) {
 						Fields: []*structs.FieldDiff{
 							{
 								Type: structs.DiffTypeAdded,
-								Name: "Enabled",
+								Name: "Disabled",
 								Old:  "true",
 								New:  "false",
 							},

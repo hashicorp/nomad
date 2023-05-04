@@ -927,7 +927,7 @@ The `Affinity` object supports the following keys:
 The `LogConfig` object configures the log rotation policy for a task's `stdout` and
 `stderr`. The `LogConfig` object supports the following attributes:
 
-- `Enabled` - Enables log collection.
+- `Disabled` - Disables log collection.
 
 - `MaxFiles` - The maximum number of rotated files Nomad will retain for
   `stdout` and `stderr`, each tracked individually.
@@ -942,7 +942,7 @@ a validation error when a job is submitted.
 ```json
 {
   "LogConfig": {
-    "Enabled": true,
+    "Disabled": false,
     "MaxFiles": 3,
     "MaxFileSizeMB": 10
   }

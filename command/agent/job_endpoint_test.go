@@ -2707,7 +2707,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: pointer.Of(10 * time.Second),
 						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
-							Enabled:       pointer.Of(true),
+							Disabled:      pointer.Of(true),
 							MaxFiles:      pointer.Of(10),
 							MaxFileSizeMB: pointer.Of(100),
 						},
@@ -3125,7 +3125,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: 10 * time.Second,
 						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
-							Enabled:       true,
+							Disabled:      true,
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
 						},
@@ -3282,7 +3282,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: pointer.Of(10 * time.Second),
 						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
-							Enabled:       pointer.Of(true),
+							Disabled:      pointer.Of(true),
 							MaxFiles:      pointer.Of(10),
 							MaxFileSizeMB: pointer.Of(100),
 						},
@@ -3408,7 +3408,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: 10 * time.Second,
 						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
-							Enabled:       true,
+							Disabled:      true,
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
 						},
@@ -3579,16 +3579,39 @@ func TestConversion_dereferenceInt(t *testing.T) {
 
 func TestConversion_apiLogConfigToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Nil(t, apiLogConfigToStructs(nil))
-	require.Equal(t, &structs.LogConfig{
-		Enabled:       true,
+	must.Nil(t, apiLogConfigToStructs(nil))
+	must.Eq(t, &structs.LogConfig{
+		Disabled:      true,
 		MaxFiles:      2,
 		MaxFileSizeMB: 8,
 	}, apiLogConfigToStructs(&api.LogConfig{
-		Enabled:       pointer.Of(true),
+		Disabled:      pointer.Of(true),
 		MaxFiles:      pointer.Of(2),
 		MaxFileSizeMB: pointer.Of(8),
 	}))
+
+	// COMPAT(1.6.0): verify backwards compatibility fixes
+	// Note: we're intentionally ignoring the Enabled: false case
+	must.Eq(t, &structs.LogConfig{Disabled: false},
+		apiLogConfigToStructs(&api.LogConfig{
+			Enabled: pointer.Of(false),
+		}))
+	must.Eq(t, &structs.LogConfig{Disabled: false},
+		apiLogConfigToStructs(&api.LogConfig{
+			Enabled: pointer.Of(true),
+		}))
+	must.Eq(t, &structs.LogConfig{Disabled: false},
+		apiLogConfigToStructs(&api.LogConfig{}))
+	must.Eq(t, &structs.LogConfig{Disabled: false},
+		apiLogConfigToStructs(&api.LogConfig{
+			Disabled: pointer.Of(false),
+		}))
+	must.Eq(t, &structs.LogConfig{Disabled: false},
+		apiLogConfigToStructs(&api.LogConfig{
+			Enabled:  pointer.Of(false),
+			Disabled: pointer.Of(false),
+		}))
+
 }
 
 func TestConversion_apiResourcesToStructs(t *testing.T) {
@@ -3659,7 +3682,7 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		Meta:        meta,
 		KillTimeout: &timeout,
 		LogConfig: &structs.LogConfig{
-			Enabled:       true,
+			Disabled:      true,
 			MaxFiles:      2,
 			MaxFileSizeMB: 8,
 		},
@@ -3678,7 +3701,7 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		Meta:        meta,
 		KillTimeout: &timeout,
 		LogConfig: &api.LogConfig{
-			Enabled:       pointer.Of(true),
+			Disabled:      pointer.Of(true),
 			MaxFiles:      pointer.Of(2),
 			MaxFileSizeMB: pointer.Of(8),
 		},
