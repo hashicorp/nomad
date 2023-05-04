@@ -7225,7 +7225,7 @@ const (
 type LogConfig struct {
 	MaxFiles      int
 	MaxFileSizeMB int
-	Enabled       bool
+	Disabled      bool
 }
 
 func (l *LogConfig) Equal(o *LogConfig) bool {
@@ -7241,7 +7241,7 @@ func (l *LogConfig) Equal(o *LogConfig) bool {
 		return false
 	}
 
-	if l.Enabled != o.Enabled {
+	if l.Disabled != o.Disabled {
 		return false
 	}
 
@@ -7255,7 +7255,7 @@ func (l *LogConfig) Copy() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      l.MaxFiles,
 		MaxFileSizeMB: l.MaxFileSizeMB,
-		Enabled:       l.Enabled,
+		Disabled:      l.Disabled,
 	}
 }
 
@@ -7264,13 +7264,13 @@ func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
 		MaxFileSizeMB: 10,
-		Enabled:       true,
+		Disabled:      false,
 	}
 }
 
 // Validate returns an error if the log config specified are less than the
 // minimum allowed. Note that because we have a non-zero default MaxFiles and
-// MaxFileSizeMB, we can't validate that they're unset if Enabled=false
+// MaxFileSizeMB, we can't validate that they're unset if Disabled=true
 func (l *LogConfig) Validate() error {
 	var mErr multierror.Error
 	if l.MaxFiles < 1 {

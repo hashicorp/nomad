@@ -4420,7 +4420,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Enabled:       false,
+					Disabled:      true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -4432,9 +4432,9 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
-								Name: "Enabled",
+								Name: "Disabled",
 								Old:  "",
-								New:  "false",
+								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -4459,7 +4459,7 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Enabled:       false,
+					Disabled:      true,
 				},
 			},
 			New: &Task{},
@@ -4472,8 +4472,8 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeDeleted,
-								Name: "Enabled",
-								Old:  "false",
+								Name: "Disabled",
+								Old:  "true",
 								New:  "",
 							},
 							{
@@ -4499,14 +4499,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Enabled:       false,
+					Disabled:      false,
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      2,
 					MaxFileSizeMB: 20,
-					Enabled:       true,
+					Disabled:      true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -4518,7 +4518,7 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
-								Name: "Enabled",
+								Name: "Disabled",
 								Old:  "false",
 								New:  "true",
 							},
@@ -4546,14 +4546,14 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Enabled:       false,
+					Disabled:      false,
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 20,
-					Enabled:       true,
+					Disabled:      true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -4565,7 +4565,7 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeEdited,
-								Name: "Enabled",
+								Name: "Disabled",
 								Old:  "false",
 								New:  "true",
 							},
