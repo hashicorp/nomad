@@ -31,7 +31,7 @@ job "docs" {
       logs {
         max_files     = 10
         max_file_size = 10
-        enabled       = true
+        disabled      = false
       }
     }
   }
@@ -52,8 +52,8 @@ please see the [`nomad alloc logs`][logs-command] command.
   the total amount of disk space needed to retain the rotated set of files,
   Nomad will return a validation error when a job is submitted.
 
-- `enabled` `(bool: true)` - Specifies that log collection should be enabled for
-  this task. If set to `false`, the task driver will attach stdout/stderr of the
+- `disabled` `(bool: false)` - Specifies that log collection should be enabled for
+  this task. If set to `true`, the task driver will attach stdout/stderr of the
   task to `/dev/null` (or `NUL` on Windows). You should only disable log
   collection if your application has some other way of emitting logs, such as
   writing to a remote syslog server. Note that the `nomad alloc logs` command
@@ -61,7 +61,7 @@ please see the [`nomad alloc logs`][logs-command] command.
 
   Some task drivers such as `docker` support a [`disable_log_collection`][]
   option. If the task driver's `disable_log_collection` option is set to `true`,
-  it will override `enabled=true` in the task's `logs` block.
+  it will override `disabled=false` in the task's `logs` block.
 
 ## `logs` Examples
 
