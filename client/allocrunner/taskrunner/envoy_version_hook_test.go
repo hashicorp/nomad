@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -79,8 +76,9 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 	image := envoy.ImageFormat
 
 	t.Run("legacy", func(t *testing.T) {
-		_, err := (*envoyVersionHook)(nil).tweakImage(image, nil)
-		must.Error(t, err)
+		result, err := (*envoyVersionHook)(nil).tweakImage(image, nil)
+		must.NoError(t, err)
+		must.Eq(t, envoy.FallbackImage, result)
 	})
 
 	t.Run("unexpected", func(t *testing.T) {
@@ -95,7 +93,7 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 			"envoy": {"1.15.0", "1.14.4", "1.13.4", "1.12.6"},
 		})
 		must.NoError(t, err)
-		must.Eq(t, "docker.io/envoyproxy/envoy:v1.15.0", result)
+		must.Eq(t, "envoyproxy/envoy:v1.15.0", result)
 	})
 
 	t.Run("custom image", func(t *testing.T) {
@@ -260,7 +258,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 	must.NoError(t, h.Prestart(context.Background(), request, &response))
 
 	// Assert the Task.Config[image] is concrete
-	must.Eq(t, "docker.io/envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
+	must.Eq(t, "envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
@@ -271,7 +269,6 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	alloc.Job.TaskGroups[0].Tasks[0].Driver = "podman"
 	alloc.Job.TaskGroups[0].Tasks[0].Config["image"] = "custom-${NOMAD_envoy_version}:latest"
 	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
@@ -349,7 +346,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	must.MapNotContainsKey(t, request.Task.Config, "image")
 }
 
-func TestTaskRunner_EnvoyVersionHook_Prestart_no_fallback(t *testing.T) {
+func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
@@ -381,7 +378,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_no_fallback(t *testing.T) {
 	var response ifs.TaskPrestartResponse
 
 	// Run the hook
-	must.Error(t, h.Prestart(context.Background(), request, &response))
+	must.NoError(t, h.Prestart(context.Background(), request, &response))
+
+	// Assert the Task.Config[image] is the fallback image
+	must.Eq(t, "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09", request.Task.Config["image"])
 }
 
 func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
@@ -455,7 +455,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_restart(t *testing.T) {
 
 	// Run the hook and ensure the tasks image has been modified.
 	must.NoError(t, h.Prestart(context.Background(), request, &response))
-	must.Eq(t, "docker.io/envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
+	must.Eq(t, "envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
 
 	// Overwrite the previously modified image. This is the same behaviour that
 	// occurs when the server sends a non-destructive allocation update.
@@ -463,10 +463,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_restart(t *testing.T) {
 
 	// Run the Prestart hook function again, and ensure the image is updated.
 	must.NoError(t, h.Prestart(context.Background(), request, &response))
-	must.Eq(t, "docker.io/envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
+	must.Eq(t, "envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
 
 	// Run the hook again, and ensure the config is still the same mimicking
 	// a non-user initiated restart.
 	must.NoError(t, h.Prestart(context.Background(), request, &response))
-	must.Eq(t, "docker.io/envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
+	must.Eq(t, "envoyproxy/envoy:v1.15.0", request.Task.Config["image"])
 }

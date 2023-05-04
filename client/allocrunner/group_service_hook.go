@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package allocrunner
 
 import (
@@ -119,14 +116,12 @@ func (h *groupServiceHook) Prerun() error {
 	defer func() {
 		// Mark prerun as true to unblock Updates
 		h.prerun = true
-		// Mark deregistered as false to allow de-registration
-		h.deregistered = false
 		h.mu.Unlock()
 	}()
 	return h.preRunLocked()
 }
 
-// caller must hold h.mu
+// caller must hold h.lock
 func (h *groupServiceHook) preRunLocked() error {
 	if len(h.services) == 0 {
 		return nil
@@ -190,8 +185,6 @@ func (h *groupServiceHook) PreTaskRestart() error {
 	defer func() {
 		// Mark prerun as true to unblock Updates
 		h.prerun = true
-		// Mark deregistered as false to allow de-registration
-		h.deregistered = false
 		h.mu.Unlock()
 	}()
 
@@ -205,7 +198,7 @@ func (h *groupServiceHook) PreKill() {
 
 // implements the PreKill hook
 //
-// caller must hold h.mu
+// caller must hold h.lock
 func (h *groupServiceHook) preKillLocked() {
 	// If we have a shutdown delay deregister group services and then wait
 	// before continuing to kill tasks.

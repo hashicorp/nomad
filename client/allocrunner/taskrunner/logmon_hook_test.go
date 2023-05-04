@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -112,7 +109,7 @@ func TestTaskRunner_LogmonHook_Disabled(t *testing.T) {
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.LogConfig.Enabled = false
+	task.LogConfig.Disabled = true
 
 	dir := t.TempDir()
 

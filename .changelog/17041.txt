@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: do not restrict automatic envoy versioning to docker driver
-```

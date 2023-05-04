@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { ForbiddenError } from '@ember-data/adapter/error';
 
 // Returns a single string based on the response the adapter received

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -107,9 +104,6 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/services"):
 		jobID := strings.TrimSuffix(path, "/services")
 		return s.jobServiceRegistrations(resp, req, jobID)
-	case strings.HasSuffix(path, "/submission"):
-		jobID := strings.TrimSuffix(path, "/submission")
-		return s.jobSubmissionCRUD(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -333,42 +327,6 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
-func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
-	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
-	if err != nil {
-		return nil, CodedError(400, "Unable to parse job submission version parameter")
-	}
-	switch req.Method {
-	case "GET":
-		return s.jobSubmissionQuery(resp, req, jobID, version)
-	default:
-		return nil, CodedError(405, ErrInvalidMethod)
-	}
-}
-
-func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Request, jobID string, version uint64) (*structs.JobSubmission, error) {
-	args := structs.JobSubmissionRequest{
-		JobID:   jobID,
-		Version: version,
-	}
-
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
-	}
-
-	var out structs.JobSubmissionResponse
-	if err := s.agent.RPC("Job.GetJobSubmission", &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-	if out.Submission == nil {
-		return nil, CodedError(404, "job source not found")
-	}
-
-	return out.Submission, nil
-}
-
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	switch req.Method {
 	case "GET":
@@ -452,12 +410,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 	}
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
-	submission := apiJobSubmissionToStructs(args.Submission)
-
 	regReq := structs.JobRegisterRequest{
-		Job:        sJob,
-		Submission: submission,
-
+		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
@@ -786,14 +740,10 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:       "input.hcl",
-			Body:       []byte(args.JobHCL),
-			AllowFS:    false,
-			VarContent: args.Variables,
+			Path:    "input.hcl",
+			Body:    []byte(args.JobHCL),
+			AllowFS: false,
 		})
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))
-		}
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
@@ -835,18 +785,6 @@ func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http
 		return nil, CodedError(http.StatusNotFound, jobNotFoundErr)
 	}
 	return reply.Services, nil
-}
-
-func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmission {
-	if submission == nil {
-		return nil
-	}
-	return &structs.JobSubmission{
-		Source:        submission.Source,
-		Format:        submission.Format,
-		VariableFlags: submission.VariableFlags,
-		Variables:     submission.Variables,
-	}
 }
 
 // apiJobAndRequestToStructs parses the query params from the incoming
@@ -1242,11 +1180,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
-	structsTask.LogConfig = &structs.LogConfig{
-		MaxFiles:      *apiTask.LogConfig.MaxFiles,
-		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
-		Enabled:       *apiTask.LogConfig.Enabled,
-	}
+	structsTask.LogConfig = apiLogConfigToStructs(apiTask.LogConfig)
 
 	if len(apiTask.Artifacts) > 0 {
 		structsTask.Artifacts = []*structs.TaskArtifact{}
@@ -1809,11 +1743,19 @@ func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
 	if in == nil {
 		return nil
 	}
+
 	return &structs.LogConfig{
-		Enabled:       *in.Enabled,
+		Disabled:      dereferenceBool(in.Disabled),
 		MaxFiles:      dereferenceInt(in.MaxFiles),
 		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
 	}
+}
+
+func dereferenceBool(in *bool) bool {
+	if in == nil {
+		return false
+	}
+	return *in
 }
 
 func dereferenceInt(in *int) int {

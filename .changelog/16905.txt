@@ -1,3 +1,0 @@
-```release-note:bug
-services: Fixed a bug preventing group service deregistrations after alloc restarts
-```

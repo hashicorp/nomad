@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package volumewatcher
 
 import (
@@ -169,7 +166,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	alloc2.Job = alloc1.Job
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 	index++
-	err := srv.State().UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc1.Job)
+	err := srv.State().UpsertJob(structs.MsgTypeTestSetup, index, alloc1.Job)
 	require.NoError(t, err)
 	index++
 	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2})

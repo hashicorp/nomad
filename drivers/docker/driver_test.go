@@ -1,11 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -400,7 +398,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().LocalDir, "output")
-	act, err := os.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
 	}
@@ -527,7 +525,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().SharedAllocDir, file)
-	act, err := os.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(outputFile)
 	if err != nil {
 		t.Fatalf("Couldn't read expected output: %v", err)
 	}
@@ -1513,10 +1511,10 @@ func TestDockerDriver_DNS(t *testing.T) {
 		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 		_, d, _, cleanup := dockerSetup(t, task, nil)
-		t.Cleanup(cleanup)
+		defer cleanup()
 
 		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-		t.Cleanup(func() { _ = d.DestroyTask(task.ID, true) })
+		defer d.DestroyTask(task.ID, true)
 
 		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
 	}
@@ -2177,7 +2175,7 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 
-		if _, err := os.ReadFile(filepath.Join(task.TaskDir().Dir, fn)); err != nil {
+		if _, err := ioutil.ReadFile(filepath.Join(task.TaskDir().Dir, fn)); err != nil {
 			t.Fatalf("unexpected error reading %s: %v", fn, err)
 		}
 	}
@@ -2235,7 +2233,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 		t.Fatalf("timeout")
 	}
 
-	if _, err := os.ReadFile(hostpath); err != nil {
+	if _, err := ioutil.ReadFile(hostpath); err != nil {
 		t.Fatalf("unexpected error reading %s: %v", hostpath, err)
 	}
 }

@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # Increase log verbosity
 log_level = "DEBUG"
 
@@ -21,9 +18,9 @@ tls {
   http = true
   rpc  = true
 
-  ca_file   = "certs/nomad-agent-ca.pem"
-  cert_file = "certs/foo-server-nomad.pem"
-  key_file  = "certs/foo-server-nomad-key.pem"
+  ca_file   = "certs/nomad-ca.pem"
+  cert_file = "certs/server.pem"
+  key_file  = "certs/server-key.pem"
 
   verify_server_hostname = true
   verify_https_client    = true

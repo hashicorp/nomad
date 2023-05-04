@@ -105,10 +105,10 @@ The `meta.connect.sidecar_image`, `meta.connect.gateway_image`, `meta.connect.lo
 and `meta.connect.proxy_concurrency` variables are [client configurable][nodemeta]
 variables with the following defaults:
 
-- `sidecar_image` - `(string: "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
+- `sidecar_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
   upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
   by a query to Consul.
-- `gateway_image` - `(string: "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
+- `gateway_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
   upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
   by a query to Consul.
 - `log_level` - `(string: "info")` - Envoy sidecar log level. "`debug`" is useful for

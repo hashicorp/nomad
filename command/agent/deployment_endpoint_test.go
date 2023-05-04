@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -111,7 +108,7 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 		a2.TaskStates = make(map[string]*structs.TaskState)
 		a2.TaskStates["test"] = taskState2
 
-		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
 
@@ -178,7 +175,7 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 		j := mock.Job()
 		d := mock.Deployment()
 		d.JobID = j.ID
-		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Create the pause request
@@ -219,7 +216,7 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 		j := mock.Job()
 		d := mock.Deployment()
 		d.JobID = j.ID
-		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Create the pause request
@@ -263,7 +260,7 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		a := mock.Alloc()
 		a.JobID = j.ID
 		a.DeploymentID = d.ID
-		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -305,7 +302,7 @@ func TestHTTP_DeploymentFail(t *testing.T) {
 		j := mock.Job()
 		d := mock.Deployment()
 		d.JobID = j.ID
-		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 
 		// Make the HTTP request

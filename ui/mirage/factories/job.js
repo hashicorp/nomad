@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { assign } from '@ember/polyfills';
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
@@ -222,7 +217,6 @@ export default Factory.extend({
       withTaskServices: job.withTaskServices,
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
-      allocStatusDistribution: job.allocStatusDistribution,
     };
 
     if (job.groupTaskCount) {

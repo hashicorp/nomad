@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@ember/component';
 import { computed as overridable } from 'ember-overridable-computed';
 import { inject as service } from '@ember/service';

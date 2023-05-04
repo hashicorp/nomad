@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import { collect } from '@ember/object/computed';
@@ -13,7 +8,7 @@ import {
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
 export default class AllocationRoute extends Route.extend(WithWatchers) {
-  @service notifications;
+  @service flashMessages;
   @service router;
   @service store;
 
@@ -56,10 +51,11 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     } catch (e) {
       const [allocId, transition] = arguments;
       if (e?.errors[0]?.detail === 'alloc not found' && !!transition.from) {
-        this.notifications.add({
+        this.flashMessages.add({
           title: `Error:  Not Found`,
           message: `Allocation of id:  ${allocId} was not found.`,
-          color: 'critical',
+          type: 'error',
+          destroyOnClick: false,
           sticky: true,
         });
         this.goBackToReferrer(transition.from.name);

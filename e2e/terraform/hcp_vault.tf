@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # Note: the test environment must have the following values set:
 # export HCP_CLIENT_ID=
 # export HCP_CLIENT_SECRET=

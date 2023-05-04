@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import classic from 'ember-classic-decorator';
 

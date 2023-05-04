@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "nomad_provider_service" {
   datacenters = ["dc1"]
   type        = "service"

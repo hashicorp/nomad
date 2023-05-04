@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package paginator
 
 // Filter is the interface that must be implemented to skip values when using

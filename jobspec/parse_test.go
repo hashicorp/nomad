@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package jobspec
 
 import (
@@ -350,7 +347,7 @@ func TestParse(t *testing.T) {
 								LogConfig: &api.LogConfig{
 									MaxFiles:      intToPtr(14),
 									MaxFileSizeMB: intToPtr(101),
-									Enabled:       boolToPtr(true),
+									Disabled:      boolToPtr(false),
 								},
 								Artifacts: []*api.TaskArtifact{
 									{

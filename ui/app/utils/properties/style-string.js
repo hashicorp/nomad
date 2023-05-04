@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { computed, get } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 

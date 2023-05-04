@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 resource "null_resource" "install_nomad_binary_windows" {
   count    = var.platform == "windows" ? 1 : 0
   triggers = { nomad_binary_sha = filemd5(var.nomad_local_binary) }

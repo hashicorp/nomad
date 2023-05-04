@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: update docker to 23.0.3
-```

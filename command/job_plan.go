@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -197,7 +194,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	_, job, err := c.JobGetter.Get(path)
+	job, err := c.JobGetter.Get(path)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
@@ -263,10 +260,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	for _, varFile := range c.JobGetter.VarFiles {
 		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
-	}
-
-	if c.namespace != "" {
-		runArgs.WriteString(fmt.Sprintf("-namespace=%q ", c.namespace))
 	}
 
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package testtask implements a portable set of commands useful as stand-ins
 // for user tasks.
 package testtask

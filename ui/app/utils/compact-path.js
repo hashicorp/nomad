@@ -1,9 +1,4 @@
 /**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
-/**
  * Takes a branch created by our path-tree, and if it has only a single directory as descendent and no files, compacts it down to its terminal folder (the first descendent folder with either files or branching directories)
  * Uses tail recursion
  * @param {import("./path-tree").NestedPathTreeNode} branch

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -502,7 +499,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	// Create a job in one
 	j := mock.Job()
 	j.Namespace = ns1.Name
-	assert.Nil(s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
+	assert.Nil(s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, j))
 
 	// Lookup the namespaces
 	req := &structs.NamespaceDeleteRequest{
@@ -553,7 +550,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing
 	// Create a job in the namespace on the non-authority
 	j := mock.Job()
 	j.Namespace = ns1.Name
-	assert.Nil(s2.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
+	assert.Nil(s2.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, j))
 
 	// Delete the namespaces without the correct permissions
 	req := &structs.NamespaceDeleteRequest{

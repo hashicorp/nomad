@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -66,7 +63,7 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 	// Create a job without an allocation
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 
 	// Should display no match if the job doesn't have allocations
 	code := cmd.Run([]string{"-address=" + url, job.ID})
@@ -109,7 +106,7 @@ func TestJobAllocsCommand_Template(t *testing.T) {
 	// Create a job
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 
 	// Inject a running allocation
 	a := mock.Alloc()
@@ -168,7 +165,7 @@ func TestJobAllocsCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -191,7 +188,7 @@ func TestJobAllocsCommand_ACL(t *testing.T) {
 	// Create a job with an alloc.
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	must.NoError(t, err)
 
 	a := mock.Alloc()

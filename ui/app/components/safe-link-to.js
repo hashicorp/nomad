@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { LinkComponent } from '@ember/legacy-built-in-components';
 import classic from 'ember-classic-decorator';
 

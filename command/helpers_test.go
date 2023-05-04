@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -20,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -272,7 +268,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 
 	j := &JobGetter{}
-	_, aj, err := j.ApiJob(fh.Name())
+	aj, err := j.ApiJob(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -319,7 +315,7 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 			require.NoError(t, err)
 
 			j := &JobGetter{}
-			_, _, err = j.ApiJob(fh.Name())
+			_, err = j.ApiJob(fh.Name())
 			require.Error(t, err)
 
 			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
@@ -370,13 +366,7 @@ job "example" {
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	jg := &JobGetter{
-		Vars:     cliArgs,
-		VarFiles: []string{vf.Name()},
-		Strict:   true,
-	}
-
-	_, j, err := jg.Get(hclf.Name())
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, true)
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -425,13 +415,7 @@ unsedVar2 = "from-varfile"
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	jg := &JobGetter{
-		Vars:     cliArgs,
-		VarFiles: []string{vf.Name()},
-		Strict:   false,
-	}
-
-	_, j, err := jg.Get(hclf.Name())
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, false)
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -450,7 +434,7 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	j := &JobGetter{}
-	_, aj, err := j.ApiJob("http://127.0.0.1:12345/")
+	aj, err := j.ApiJob("http://127.0.0.1:12345/")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -627,22 +611,4 @@ func TestUiErrorWriter(t *testing.T) {
 
 	expectedErr += "and thensome more\n"
 	require.Equal(t, expectedErr, errBuf.String())
-}
-
-func Test_extractVarFlags(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("nil", func(t *testing.T) {
-		result := extractVarFlags(nil)
-		must.MapEmpty(t, result)
-	})
-
-	t.Run("complete", func(t *testing.T) {
-		result := extractVarFlags([]string{"one=1", "two=2", "three"})
-		must.Eq(t, map[string]string{
-			"one":   "1",
-			"two":   "2",
-			"three": "",
-		}, result)
-	})
 }

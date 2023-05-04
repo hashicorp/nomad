@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -346,7 +343,7 @@ func TestAnnotateTask(t *testing.T) {
 						Fields: []*structs.FieldDiff{
 							{
 								Type: structs.DiffTypeAdded,
-								Name: "Enabled",
+								Name: "Disabled",
 								Old:  "true",
 								New:  "false",
 							},

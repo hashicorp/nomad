@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { visit, currentURL, click, typeIn, findAll } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -70,7 +65,7 @@ module('Acceptance | policies', function (hooks) {
     await typeIn('[data-test-policy-name-input]', 'My Fun Policy');
     await click('button[type="submit"]');
     assert
-      .dom('.flash-message.alert-critical')
+      .dom('.flash-message.alert-error')
       .exists('Doesnt let you save a bad name');
     assert.equal(currentURL(), '/policies/new');
     document.querySelector('[data-test-policy-name-input]').value = ''; // clear

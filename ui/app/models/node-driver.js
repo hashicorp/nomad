@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import classic from 'ember-classic-decorator';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { get, computed } from '@ember/object';
