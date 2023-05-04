@@ -24,11 +24,11 @@
       <h3 class="title is-4 running-allocs-title">
         <strong>
           {{@job.runningAllocs ~}}
-          {{#if this.totalAllocsCanBeKnown ~}}
+          {{#unless this.atMostOneAllocPerNode ~}}
             /{{this.totalAllocs}}
-          {{/if}}
+          {{/unless}}
         </strong>
-        Allocations Running</h3>
+        {{pluralize "Allocation" @job.runningAllocs}} Running</h3>
       <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
 
       <div class="legend-and-summary">
