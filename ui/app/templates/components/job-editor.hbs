@@ -6,6 +6,7 @@
 <div>
   <JobEditor::Alert 
     @data={{merge (hash error=this.error stage=this.stage) this.data}}
+    @fns={{this.fns}}
   />
 
     {{#if (eq @context "new")}}
