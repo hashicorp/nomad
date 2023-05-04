@@ -2961,11 +2961,6 @@ type NodeResources struct {
 	// node's default interface.
 	NodeNetworks []*NodeNetworkResource
 
-	// Networks is the node's bridge network and default interface. It is
-	// only used when scheduling jobs with a deprecated
-	// task.resources.network block.
-	Networks Networks
-
 	// MinDynamicPort and MaxDynamicPort represent the inclusive port range
 	// to select dynamic ports from across all networks.
 	MinDynamicPort int
@@ -2980,7 +2975,6 @@ func (n *NodeResources) Copy() *NodeResources {
 	newN := new(NodeResources)
 	*newN = *n
 	newN.Cpu = n.Cpu.Copy()
-	newN.Networks = n.Networks.Copy()
 
 	if n.NodeNetworks != nil {
 		newN.NodeNetworks = make([]*NodeNetworkResource, len(n.NodeNetworks))
@@ -3008,6 +3002,22 @@ func (n *NodeResources) Comparable() *ComparableResources {
 		return nil
 	}
 
+	// TODO(tgross): wat?
+	networks := []*NetworkResource{}
+	for _, nnr := range n.NodeNetworks {
+		networks = append(networks, &NetworkResource{
+			Mode:          nnr.Mode,
+			Device:        nnr.Device,
+			CIDR:          "", // TODO
+			IP:            "", // TODO
+			Hostname:      "", // TODO
+			MBits:         nnr.Speed,
+			DNS:           &DNSConfig{}, //TODO
+			ReservedPorts: []Port{},     // TODO
+			DynamicPorts:  []Port{},     //TODO
+		})
+	}
+
 	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
@@ -3017,7 +3027,7 @@ func (n *NodeResources) Comparable() *ComparableResources {
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
 			},
-			Networks: n.Networks,
+			Networks: networks,
 		},
 		Shared: AllocatedSharedResources{
 			DiskMB: n.Disk.DiskMB,
@@ -3034,10 +3044,6 @@ func (n *NodeResources) Merge(o *NodeResources) {
 	n.Cpu.Merge(&o.Cpu)
 	n.Memory.Merge(&o.Memory)
 	n.Disk.Merge(&o.Disk)
-
-	if len(o.Networks) != 0 {
-		n.Networks = append(n.Networks, o.Networks...)
-	}
 
 	if len(o.Devices) != 0 {
 		n.Devices = o.Devices

@@ -726,18 +726,10 @@ func AllocatedPortsToNetworkResouce(ask *NetworkResource, ports AllocatedPorts, 
 			out.DynamicPorts[i].To = p.To
 		}
 	}
-	if len(node.NodeNetworks) > 0 {
-		for _, nw := range node.NodeNetworks {
-			if nw.Mode == "host" {
-				out.IP = nw.Addresses[0].Address
-				break
-			}
-		}
-	} else {
-		for _, nw := range node.Networks {
-			if nw.Mode == "host" {
-				out.IP = nw.IP
-			}
+	for _, nw := range node.NodeNetworks {
+		if nw.Mode == "host" {
+			out.IP = nw.Addresses[0].Address
+			break
 		}
 	}
 	return out

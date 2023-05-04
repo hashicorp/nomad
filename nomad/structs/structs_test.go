@@ -3258,100 +3258,14 @@ func TestResource_NetIndex(t *testing.T) {
 			{Device: ""},
 		},
 	}
-	if idx := r.NetIndex(&NetworkResource{Device: "eth0"}); idx != 0 {
+	if idx := r.Networks.NetIndex(&NetworkResource{Device: "eth0"}); idx != 0 {
 		t.Fatalf("Bad: %d", idx)
 	}
-	if idx := r.NetIndex(&NetworkResource{Device: "lo0"}); idx != 1 {
+	if idx := r.Networks.NetIndex(&NetworkResource{Device: "lo0"}); idx != 1 {
 		t.Fatalf("Bad: %d", idx)
 	}
-	if idx := r.NetIndex(&NetworkResource{Device: "eth1"}); idx != -1 {
+	if idx := r.Networks.NetIndex(&NetworkResource{Device: "eth1"}); idx != -1 {
 		t.Fatalf("Bad: %d", idx)
-	}
-}
-
-func TestResource_Add(t *testing.T) {
-	ci.Parallel(t)
-
-	r1 := &Resources{
-		CPU:      2000,
-		MemoryMB: 2048,
-		DiskMB:   10000,
-		Networks: []*NetworkResource{
-			{
-				CIDR:          "10.0.0.0/8",
-				MBits:         100,
-				ReservedPorts: []Port{{"ssh", 22, 0, ""}},
-			},
-		},
-	}
-	r2 := &Resources{
-		CPU:      2000,
-		MemoryMB: 1024,
-		DiskMB:   5000,
-		Networks: []*NetworkResource{
-			{
-				IP:            "10.0.0.1",
-				MBits:         50,
-				ReservedPorts: []Port{{"web", 80, 0, ""}},
-			},
-		},
-	}
-
-	r1.Add(r2)
-
-	expect := &Resources{
-		CPU:      3000,
-		MemoryMB: 3072,
-		DiskMB:   15000,
-		Networks: []*NetworkResource{
-			{
-				CIDR:          "10.0.0.0/8",
-				MBits:         150,
-				ReservedPorts: []Port{{"ssh", 22, 0, ""}, {"web", 80, 0, ""}},
-			},
-		},
-	}
-
-	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
-		t.Fatalf("bad: %#v %#v", expect, r1)
-	}
-}
-
-func TestResource_Add_Network(t *testing.T) {
-	ci.Parallel(t)
-
-	r1 := &Resources{}
-	r2 := &Resources{
-		Networks: []*NetworkResource{
-			{
-				MBits:        50,
-				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}},
-			},
-		},
-	}
-	r3 := &Resources{
-		Networks: []*NetworkResource{
-			{
-				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0, 8080, ""}},
-			},
-		},
-	}
-
-	r1.Add(r2)
-	r1.Add(r3)
-
-	expect := &Resources{
-		Networks: []*NetworkResource{
-			{
-				MBits:        75,
-				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
-			},
-		},
-	}
-
-	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
-		t.Fatalf("bad: %#v %#v", expect.Networks[0], r1.Networks[0])
 	}
 }
 
