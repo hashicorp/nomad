@@ -1180,11 +1180,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
-	structsTask.LogConfig = &structs.LogConfig{
-		MaxFiles:      *apiTask.LogConfig.MaxFiles,
-		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
-		Enabled:       *apiTask.LogConfig.Enabled,
-	}
+	structsTask.LogConfig = apiLogConfigToStructs(apiTask.LogConfig)
 
 	if len(apiTask.Artifacts) > 0 {
 		structsTask.Artifacts = []*structs.TaskArtifact{}
@@ -1747,11 +1743,23 @@ func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
 	if in == nil {
 		return nil
 	}
-	return &structs.LogConfig{
-		Enabled:       *in.Enabled,
+	out := &structs.LogConfig{
+		Disabled:      dereferenceBool(in.Disabled),
 		MaxFiles:      dereferenceInt(in.MaxFiles),
 		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
 	}
+	if in.Disabled == nil {
+		// COMPAT(1.7.0): fix for backwards compatibility
+		out.Disabled = !dereferenceBool(in.Enabled)
+	}
+	return out
+}
+
+func dereferenceBool(in *bool) bool {
+	if in == nil {
+		return false
+	}
+	return *in
 }
 
 func dereferenceInt(in *int) int {

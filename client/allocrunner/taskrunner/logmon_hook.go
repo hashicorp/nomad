@@ -43,7 +43,7 @@ type logmonHook struct {
 
 type logmonHookConfig struct {
 	logDir     string
-	enabled    bool
+	disabled   bool
 	stdoutFifo string
 	stderrFifo string
 }
@@ -60,12 +60,12 @@ func newLogMonHook(tr *TaskRunner, logger hclog.Logger) *logmonHook {
 
 func newLogMonHookConfig(taskName string, logCfg *structs.LogConfig, logDir string) *logmonHookConfig {
 	cfg := &logmonHookConfig{
-		logDir:  logDir,
-		enabled: logCfg.Enabled,
+		logDir:   logDir,
+		disabled: logCfg.Disabled,
 	}
 
 	// If logging is disabled configure task's stdout/err to point to devnull
-	if !logCfg.Enabled {
+	if logCfg.Disabled {
 		cfg.stdoutFifo = os.DevNull
 		cfg.stderrFifo = os.DevNull
 		return cfg
@@ -113,7 +113,7 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	if !h.isLoggingEnabled() {
+	if h.isLoggingDisabled() {
 		return nil
 	}
 
@@ -148,10 +148,10 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	}
 }
 
-func (h *logmonHook) isLoggingEnabled() bool {
-	if !h.config.enabled {
+func (h *logmonHook) isLoggingDisabled() bool {
+	if h.config.disabled {
 		h.logger.Debug("log collection is disabled by task")
-		return false
+		return true
 	}
 
 	// internal plugins have access to a capability to disable logging and
@@ -159,16 +159,16 @@ func (h *logmonHook) isLoggingEnabled() bool {
 	// currently only the docker driver exposes this to users.
 	ic, ok := h.runner.driver.(drivers.InternalCapabilitiesDriver)
 	if !ok {
-		return true
+		return false
 	}
 
 	caps := ic.InternalCapabilities()
 	if caps.DisableLogCollection {
 		h.logger.Debug("log collection is disabled by driver")
-		return false
+		return true
 	}
 
-	return true
+	return false
 }
 
 func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPrestartRequest) error {
@@ -216,7 +216,7 @@ func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPr
 }
 
 func (h *logmonHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, _ *interfaces.TaskStopResponse) error {
-	if !h.isLoggingEnabled() {
+	if h.isLoggingDisabled() {
 		return nil
 	}
 

@@ -191,7 +191,7 @@ FieldsLoop:
 				for _, fDiff := range oDiff.Fields {
 					switch fDiff.Name {
 					// force a destructive update if logger was enabled or disabled
-					case "Enabled":
+					case "Disabled":
 						destructive = true
 						break ObjectsLoop
 					}
