@@ -169,23 +169,17 @@ export default class JobEditor extends Component {
     return hclLines.join('\n');
   }
 
-  get variables() {
-    return this.jsonToHcl(this.args.variables.flags).concat(
-      this.args.variables.literal
-    );
-  }
-
   get data() {
     return {
       cancelable: this.args.cancelable,
       definition: this.definition,
       format: this.args.format,
       hasSpecification: !!this.args.specification,
-      hasVariables: !!this.variables,
+      hasVariables:
+        !!this.args.variables?.flags || !!this.args.variables?.literal,
       job: this.args.job,
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
-      variables: this.variables,
       view: this.args.view,
     };
   }
