@@ -259,7 +259,7 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		valid := []string{
 			"max_files",
 			"max_file_size",
-			"enabled",
+			"enabled", // COMPAT(1.6.0): remove in favor of disabled
 			"disabled",
 		}
 		if err := checkHCLKeys(logsBlock.Val, valid); err != nil {

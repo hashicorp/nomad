@@ -639,8 +639,8 @@ type LogConfig struct {
 	MaxFiles      *int `mapstructure:"max_files" hcl:"max_files,optional"`
 	MaxFileSizeMB *int `mapstructure:"max_file_size" hcl:"max_file_size,optional"`
 
-	// COMPAT(1.7.0): Enabled had to be swapped for Disabled to fix a backwards
-	// compatibility bug when restoring pre-1.5.4 jobs. Remove in 1.7.0
+	// COMPAT(1.6.0): Enabled had to be swapped for Disabled to fix a backwards
+	// compatibility bug when restoring pre-1.5.4 jobs. Remove in 1.6.0
 	Enabled *bool `mapstructure:"enabled" hcl:"enabled,optional"`
 
 	Disabled *bool `mapstructure:"disabled" hcl:"disabled,optional"`
