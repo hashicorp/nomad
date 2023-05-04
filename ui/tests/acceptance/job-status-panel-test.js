@@ -176,6 +176,84 @@ module('Acceptance | job status panel', function (hooks) {
     });
   });
 
+  test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
+    assert.expect(9);
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: false,
+      groupTaskCount: 4,
+      shallow: true,
+      version: 5,
+    });
+
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+      jobVersion: 5,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'pending',
+      jobVersion: 5,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+      jobVersion: 3,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'failed',
+      jobVersion: 4,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'lost',
+      jobVersion: 5,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    // We expect to see 4 represented-allocations, since that's the number in our groupTaskCount
+    assert
+      .dom('.ungrouped-allocs .represented-allocation')
+      .exists({ count: 4 });
+
+    // We expect 2 of them to be running, and one to be pending, since running/pending allocations superecede other clientStatuses
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists({ count: 2 });
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.pending')
+      .exists({ count: 1 });
+
+    // We expect the lone other allocation to be lost, since it has the highest jobVersion
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.lost')
+      .exists({ count: 1 });
+
+    // We expect the job versions legend to show 3 at v5 (running, pending, and lost), and 1 at v3 (old running), and none at v4 (failed is not represented)
+    assert.dom('.job-status-panel .versions > ul > li').exists({ count: 2 });
+    assert
+      .dom('.job-status-panel .versions > ul > li > a[data-version="5"]')
+      .exists({ count: 1 });
+    assert
+      .dom('.job-status-panel .versions > ul > li > a[data-version="3"]')
+      .exists({ count: 1 });
+    assert
+      .dom('.job-status-panel .versions > ul > li > a[data-version="4"]')
+      .doesNotExist();
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
+  });
+
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
     assert.expect(6);
 
@@ -470,6 +548,7 @@ module('Acceptance | job status panel', function (hooks) {
       groupTaskCount,
       activeDeployment: true,
       shallow: true,
+      version: 0,
     });
 
     let state = server.create('task-state');
