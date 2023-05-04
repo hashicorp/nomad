@@ -440,4 +440,55 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await componentA11yAudit(this.element, assert);
   });
+
+  test('constructor sets definition and variables correctly', async function (assert) {
+    // Arrange
+    const onSelect = () => {};
+    this.set('onSelect', onSelect);
+    this.set('definition', 'pablo');
+    this.set('variables', {
+      flags: { lastName: 'escobar' },
+      literal: 'isCriminal=true',
+    });
+
+    // Prepare a job object with a set() method
+    const job = {
+      set(key, value) {
+        this[key] = value;
+      },
+    };
+    this.set('job', job);
+
+    // Act
+    await render(hbs`<JobEditor
+      @specification={{this.definition}}
+      @view="job-spec"
+      @variables={{this.variables}}
+      @job={{this.job}}
+      @onSelect={{this.onSelect}} />`);
+
+    // Check if the definition is set on the model
+    assert.equal(job._newDefinition, 'pablo', 'Definition is set on the model');
+
+    // Check if the newDefinitionVariables are set on the model
+    function jsonToHcl(obj) {
+      const hclLines = [];
+
+      for (const key in obj) {
+        const value = obj[key];
+        const hclValue = typeof value === 'string' ? `"${value}"` : value;
+        hclLines.push(`${key}=${hclValue}\n`);
+      }
+
+      return hclLines.join('\n');
+    }
+    const expectedVariables = jsonToHcl(this.variables.flags).concat(
+      this.variables.literal
+    );
+    assert.deepEqual(
+      job._newDefinitionVariables,
+      expectedVariables,
+      'Variables are set on the model'
+    );
+  });
 });

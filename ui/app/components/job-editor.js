@@ -24,6 +24,15 @@ export default class JobEditor extends Component {
     if (this.definition) {
       this.setDefinitionOnModel();
     }
+
+    if (this.args.variables) {
+      this.args.job.set(
+        '_newDefinitionVariables',
+        this.jsonToHcl(this.args.variables.flags).concat(
+          this.args.variables.literal
+        )
+      );
+    }
   }
 
   get isEditing() {
