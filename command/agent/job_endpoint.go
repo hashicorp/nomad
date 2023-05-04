@@ -1805,16 +1805,12 @@ func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
 	if in == nil {
 		return nil
 	}
-	out := &structs.LogConfig{
+
+	return &structs.LogConfig{
 		Disabled:      dereferenceBool(in.Disabled),
 		MaxFiles:      dereferenceInt(in.MaxFiles),
 		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
 	}
-	if in.Disabled == nil {
-		// COMPAT(1.7.0): fix for backwards compatibility
-		out.Disabled = !dereferenceBool(in.Enabled)
-	}
-	return out
 }
 
 func dereferenceBool(in *bool) bool {

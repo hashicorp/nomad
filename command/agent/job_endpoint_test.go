@@ -3650,8 +3650,9 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 		MaxFileSizeMB: pointer.Of(8),
 	}))
 
-	// COMPAT(1.7.0): verify backwards compatibility fixes
-	must.Eq(t, &structs.LogConfig{Disabled: true},
+	// COMPAT(1.6.0): verify backwards compatibility fixes
+	// Note: we're intentionally ignoring the Enabled: false case
+	must.Eq(t, &structs.LogConfig{Disabled: false},
 		apiLogConfigToStructs(&api.LogConfig{
 			Enabled: pointer.Of(false),
 		}))
@@ -3659,7 +3660,8 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 		apiLogConfigToStructs(&api.LogConfig{
 			Enabled: pointer.Of(true),
 		}))
-
+	must.Eq(t, &structs.LogConfig{Disabled: false},
+		apiLogConfigToStructs(&api.LogConfig{}))
 	must.Eq(t, &structs.LogConfig{Disabled: false},
 		apiLogConfigToStructs(&api.LogConfig{
 			Disabled: pointer.Of(false),
