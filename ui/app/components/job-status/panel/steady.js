@@ -1,10 +1,8 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
-import { inject as service } from '@ember/service';
 
 export default class JobStatusPanelSteadyComponent extends Component {
-  @service can;
   @alias('args.job') job;
 
   // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.

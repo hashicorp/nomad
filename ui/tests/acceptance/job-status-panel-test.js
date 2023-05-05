@@ -709,7 +709,6 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   module('System jobs', function () {
-    // TODO
     test('System jobs show restarted but not rescheduled allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
@@ -726,6 +725,7 @@ module('Acceptance | job status panel', function (hooks) {
         },
         noActiveDeployment: true,
         shallow: true,
+        version: 0,
       });
 
       let state = server.create('task-state');
@@ -737,96 +737,92 @@ module('Acceptance | job status panel', function (hooks) {
 
       await visit(`/jobs/${job.id}`);
       assert.dom('.job-status-panel').exists();
-      assert.ok(true);
-      // await this.pauseTest();
-      // assert
-      //   .dom('.failed-or-lost')
-      //   .exists({ count: 2 }, 'Restarted and Rescheduled cells are both present');
+      assert.dom('.failed-or-lost').exists({ count: 1 });
+      assert.dom('.failed-or-lost h4').hasText('Restarted');
+      assert
+        .dom('.failed-or-lost-link')
+        .hasText('0', 'Restarted cell at zero by default');
 
-      // let rescheduledCell = [...findAll('.failed-or-lost')][0];
-      // let restartedCell = [...findAll('.failed-or-lost')][1];
+      // A wild event appears! Change a recent task event to type "Restarting" in a task state:
+      this.store
+        .peekAll('job')
+        .objectAt(0)
+        .get('allocations')
+        .objectAt(0)
+        .get('states')
+        .objectAt(0)
+        .get('events')
+        .objectAt(0)
+        .set('type', 'Restarting');
 
-      // // Check that the title in each cell has the right text
-      // assert.dom(rescheduledCell.querySelector('h4')).hasText('Rescheduled');
-      // assert.dom(restartedCell.querySelector('h4')).hasText('Restarted');
+      await settled();
 
-      // // Check that both values are zero and non-links
-      // assert
-      //   .dom(rescheduledCell.querySelector('a'))
-      //   .doesNotExist('Rescheduled cell is not a link');
-      // assert
-      //   .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
-      //   .hasText('0', 'Rescheduled cell has zero value');
-      // assert
-      //   .dom(restartedCell.querySelector('a'))
-      //   .doesNotExist('Restarted cell is not a link');
-      // assert
-      //   .dom(restartedCell.querySelector('.failed-or-lost-link'))
-      //   .hasText('0', 'Restarted cell has zero value');
-
-      // // A wild event appears! Change a recent task event to type "Restarting" in a task state:
-      // this.store
-      //   .peekAll('job')
-      //   .objectAt(0)
-      //   .get('allocations')
-      //   .objectAt(0)
-      //   .get('states')
-      //   .objectAt(0)
-      //   .get('events')
-      //   .objectAt(0)
-      //   .set('type', 'Restarting');
-
-      // await settled();
-
-      // assert
-      //   .dom(restartedCell.querySelector('.failed-or-lost-link'))
-      //   .hasText(
-      //     '1',
-      //     'Restarted cell updates when a task event with type "Restarting" is added'
-      //   );
-
-      // this.store
-      //   .peekAll('job')
-      //   .objectAt(0)
-      //   .get('allocations')
-      //   .objectAt(1)
-      //   .get('states')
-      //   .objectAt(0)
-      //   .get('events')
-      //   .objectAt(0)
-      //   .set('type', 'Restarting');
-
-      // await settled();
-
-      // // Trigger a reschedule! Set up a desiredTransition object with a Reschedule property on one of the allocations.
-      // assert
-      //   .dom(restartedCell.querySelector('.failed-or-lost-link'))
-      //   .hasText(
-      //     '2',
-      //     'Restarted cell updates when a second task event with type "Restarting" is added'
-      //   );
-
-      // this.store
-      //   .peekAll('job')
-      //   .objectAt(0)
-      //   .get('allocations')
-      //   .objectAt(0)
-      //   .get('followUpEvaluation')
-      //   .set('content', { 'test-key': 'not-empty' });
-
-      // await settled();
-
-      // assert
-      //   .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
-      //   .hasText('1', 'Rescheduled cell updates when desiredTransition is set');
-      // assert
-      //   .dom(rescheduledCell.querySelector('a'))
-      //   .exists('Rescheduled cell with a non-zero number is now a link');
+      assert
+        .dom('.failed-or-lost-link')
+        .hasText(
+          '1',
+          'Restarted cell updates when a task event with type "Restarting" is added'
+        );
     });
 
-    // TODO
-    test("System jobs' totalAllocs count matches the number of nodes that exist", async function (assert) {
-      assert.ok(true);
+    test('System jobs do not have a sense of Desired/Total allocs', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+
+      server.db.nodes.remove();
+
+      server.createList('node', 3, {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      let job = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        createAllocations: false,
+        noActiveDeployment: true,
+        shallow: true,
+        version: 0,
+      });
+
+      // Create an allocation on this job for each node
+      server.schema.nodes.all().models.forEach((node) => {
+        server.create('allocation', {
+          jobId: job.id,
+          jobVersion: 0,
+          clientStatus: 'running',
+          nodeId: node.id,
+        });
+      });
+
+      await visit(`/jobs/${job.id}`);
+      let storedJob = await this.store.find(
+        'job',
+        JSON.stringify([job.id, 'default'])
+      );
+      let summary = await storedJob.get('summary');
+      summary
+        .get('taskGroupSummaries')
+        .objectAt(0)
+        .set(
+          'runningAllocs',
+          server.schema.allocations.where({
+            jobId: job.id,
+            clientStatus: 'running',
+          }).length
+        );
+      await settled();
+
+      assert.dom('.job-status-panel').exists();
+      assert.dom('.running-allocs-title').hasText(
+        `${
+          server.schema.allocations.where({
+            jobId: job.id,
+            clientStatus: 'running',
+          }).length
+        } Allocations Running`
+      );
     });
 
     // TODO, post-https://github.com/hashicorp/nomad/pull/17073 merge
