@@ -579,7 +579,7 @@ BUG FIXES:
 * template: Fixed a bug where the `splay` timeout was not being applied when `change_mode` was set to `script`. [[GH-14749](https://github.com/hashicorp/nomad/issues/14749)]
 * ui: Remove extra space when displaying the version in the menu footer. [[GH-14457](https://github.com/hashicorp/nomad/issues/14457)]
 
-## 1.13.14 (May 02, 2023)
+## 1.3.14 (May 02, 2023)
 
 IMPROVEMENTS:
 
