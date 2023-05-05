@@ -34,6 +34,14 @@ called this endpoint or used this command using tokens with just the `read-job`
 capability or the `read` policy must update their tokens to use the
 `submit-job` capability or the `write` policy.
 
+## Nomad 1.5.5
+
+Nomad 1.5.5 fixed a bug where allocations that are rescheduled for jobs
+registered before the upgrade would no longer collect allocation logs. The
+`logs.enabled` field introduced in 1.5.4 is now deprecated and has been replaced
+by a `logs.disabled` field that defaults to false. The `logs.enabled` field value
+will be ignored in 1.5.5 and will be removed in Nomad 1.6.0.
+
 ## Nomad 1.5.1
 
 #### Artifact Download Regression Fix
