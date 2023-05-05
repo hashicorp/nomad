@@ -1,0 +1,7 @@
+name: install-buf
+runs:
+  using: composite
+  steps:
+  - name: install buf
+    run: sudo ./scripts/vagrant-linux-priv-buf.sh
+    shell: bash
