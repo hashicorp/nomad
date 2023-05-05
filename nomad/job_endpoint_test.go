@@ -7868,6 +7868,44 @@ func TestJobEndpoint_Scale_SystemJob(t *testing.T) {
 		`400,cannot scale jobs of type "system"`)
 }
 
+func TestJobEndpoint_Scale_BatchJob(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+	state := testServer.fsm.State()
+
+	mockBatchJob := mock.BatchJob()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 10, nil, mockBatchJob))
+
+	scaleReq := &structs.JobScaleRequest{
+		JobID: mockBatchJob.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: mockBatchJob.TaskGroups[0].Name,
+		},
+		Count: pointer.Of(int64(13)),
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			Namespace: mockBatchJob.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Scale", scaleReq, &resp))
+
+	// Pull the generated evaluation from state and ensure the detailed type
+	// matches the jobspec.
+	testFMSSnapshot, err := testServer.fsm.State().Snapshot()
+	must.NoError(t, err)
+
+	scaleEval, err := testFMSSnapshot.EvalByID(nil, resp.EvalID)
+	must.NoError(t, err)
+	must.Eq(t, resp.EvalID, scaleEval.ID)
+	must.Eq(t, mockBatchJob.ID, scaleEval.JobID)
+	must.Eq(t, mockBatchJob.Type, scaleEval.Type)
+}
+
 func TestJobEndpoint_InvalidCount(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
