@@ -53,7 +53,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
 
       - name: Setup Git
         run: |
@@ -72,12 +72,12 @@ jobs:
           echo "::set-output name=go-version::$(cat .go-version)"
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ steps.get-go-version.outputs.go-version }}
 
       - name: Setup node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: "14"
           cache-dependency-path: "ui/yarn.lock"
@@ -141,7 +141,7 @@ jobs:
           echo "::set-output name=build-ref::$(git rev-parse HEAD)"
 
       - name: Invoke build workflow
-        uses: benc-uk/workflow-dispatch@v1.1
+        uses: benc-uk/workflow-dispatch@798e70c97009500150087d30d9f11c5444830385 # v1.2.2
         with:
           workflow: build
           token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}

@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2-beta
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           fetch-depth: 0
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: '14'
-      - uses: backspace/ember-asset-size-action@edit-comment
+      - uses: backspace/ember-asset-size-action@edit-comment # TSCCR: GET https://api.github.com/repos/backspace/ember-asset-size-action/releases/latest: 404 Not Found []
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           working-directory: "ui"
