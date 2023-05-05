@@ -1,3 +1,9 @@
+## 1.5.5 (May 05, 2023)
+
+BUG FIXES:
+
+* logging: Fixed a bug where alloc logs would not be collected after an upgrade to 1.5.4 [[GH-17087](https://github.com/hashicorp/nomad/issues/17087)]
+
 ## 1.5.4 (May 02, 2023)
 
 BREAKING CHANGES:
