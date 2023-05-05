@@ -801,6 +801,8 @@ module('Acceptance | job status panel', function (hooks) {
         'job',
         JSON.stringify([job.id, 'default'])
       );
+      // Weird Mirage thing: job summary factory is disconnected from its job and therefore allocations.
+      // So we manually create the number here.
       let summary = await storedJob.get('summary');
       summary
         .get('taskGroupSummaries')
@@ -812,6 +814,7 @@ module('Acceptance | job status panel', function (hooks) {
             clientStatus: 'running',
           }).length
         );
+
       await settled();
 
       assert.dom('.job-status-panel').exists();
@@ -823,11 +826,36 @@ module('Acceptance | job status panel', function (hooks) {
           }).length
         } Allocations Running`
       );
-    });
 
-    // TODO, post-https://github.com/hashicorp/nomad/pull/17073 merge
-    test('System jobs handle node:read permissions', async function (assert) {
-      assert.ok(true);
+      // Let's bring another node online!
+      let newNode = server.create('node', {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      // Let's expect our scheduler to have therefore added an alloc to it
+      server.create('allocation', {
+        jobId: job.id,
+        jobVersion: 0,
+        clientStatus: 'running',
+        nodeId: newNode.id,
+      });
+
+      summary
+        .get('taskGroupSummaries')
+        .objectAt(0)
+        .set(
+          'runningAllocs',
+          server.schema.allocations.where({
+            jobId: job.id,
+            clientStatus: 'running',
+          }).length
+        );
+
+      await settled();
+
+      assert.dom('.running-allocs-title').hasText('4 Allocations Running');
     });
   });
 });
