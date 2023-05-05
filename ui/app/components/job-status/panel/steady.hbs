@@ -21,7 +21,14 @@
     {{#if (eq @statusMode "historical")}}
       <JobPage::Parts::SummaryChart @job={{@job}} />
     {{else}}
-      <h3 class="title is-4 running-allocs-title"><strong>{{@job.runningAllocs}}/{{this.totalAllocs}}</strong> Allocations Running</h3>
+      <h3 class="title is-4 running-allocs-title">
+        <strong>
+          {{@job.runningAllocs ~}}
+          {{#unless this.atMostOneAllocPerNode ~}}
+            /{{this.totalAllocs}}
+          {{/unless}}
+        </strong>
+        {{pluralize "Allocation" @job.runningAllocs}} Running</h3>
       <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
 
       <div class="legend-and-summary">
@@ -41,12 +48,14 @@
           {{/each}}
         </legend>
 
-        <JobStatus::FailedOrLost
-          @allocs={{this.rescheduledAllocs}}
-          @job={{@job}}
-          @title="Rescheduled"
-          @description="Allocations that have been rescheduled, on another node if possible, due to failure"
-        />
+        {{#if this.supportsRescheduling}}
+          <JobStatus::FailedOrLost
+            @allocs={{this.rescheduledAllocs}}
+            @job={{@job}}
+            @title="Rescheduled"
+            @description="Allocations that have been rescheduled, on another node if possible, due to failure"
+          />
+        {{/if}}
 
         <JobStatus::FailedOrLost
           @allocs={{this.restartedAllocs}}
@@ -60,7 +69,7 @@
           <ul>
             {{#each-in this.versions as |version allocs|}}
               <li>
-                <LinkTo @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' version ']')    status=(concat '["running", "pending", "failed"]')         }}>
+                <LinkTo data-version={{version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' version ']')    status=(concat '["running", "pending", "failed"]')         }}>
                   <Hds::Badge @text={{concat "v" version}} />
                   <Hds::BadgeCount @text={{allocs.length}} @type="inverted" />
                 </LinkTo>

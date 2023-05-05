@@ -176,6 +176,84 @@ module('Acceptance | job status panel', function (hooks) {
     });
   });
 
+  test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
+    assert.expect(9);
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: false,
+      groupTaskCount: 4,
+      shallow: true,
+      version: 5,
+    });
+
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+      jobVersion: 5,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'pending',
+      jobVersion: 5,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+      jobVersion: 3,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'failed',
+      jobVersion: 4,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'lost',
+      jobVersion: 5,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+
+    // We expect to see 4 represented-allocations, since that's the number in our groupTaskCount
+    assert
+      .dom('.ungrouped-allocs .represented-allocation')
+      .exists({ count: 4 });
+
+    // We expect 2 of them to be running, and one to be pending, since running/pending allocations superecede other clientStatuses
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists({ count: 2 });
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.pending')
+      .exists({ count: 1 });
+
+    // We expect the lone other allocation to be lost, since it has the highest jobVersion
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.lost')
+      .exists({ count: 1 });
+
+    // We expect the job versions legend to show 3 at v5 (running, pending, and lost), and 1 at v3 (old running), and none at v4 (failed is not represented)
+    assert.dom('.job-status-panel .versions > ul > li').exists({ count: 2 });
+    assert
+      .dom('.job-status-panel .versions > ul > li > a[data-version="5"]')
+      .exists({ count: 1 });
+    assert
+      .dom('.job-status-panel .versions > ul > li > a[data-version="3"]')
+      .exists({ count: 1 });
+    assert
+      .dom('.job-status-panel .versions > ul > li > a[data-version="4"]')
+      .doesNotExist();
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
+  });
+
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
     assert.expect(6);
 
@@ -470,6 +548,7 @@ module('Acceptance | job status panel', function (hooks) {
       groupTaskCount,
       activeDeployment: true,
       shallow: true,
+      version: 0,
     });
 
     let state = server.create('task-state');
@@ -626,6 +705,157 @@ module('Acceptance | job status panel', function (hooks) {
       assert
         .dom('[data-test-history-search-no-match]')
         .exists('No match message is shown');
+    });
+  });
+
+  module('System jobs', function () {
+    test('System jobs show restarted but not rescheduled allocs', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+
+      let job = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        noActiveDeployment: true,
+        shallow: true,
+        version: 0,
+      });
+
+      let state = server.create('task-state');
+      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+      server.schema.allocations.where({ jobId: job.id }).update({
+        taskStateIds: [state.id],
+        jobVersion: 0,
+      });
+
+      await visit(`/jobs/${job.id}`);
+      assert.dom('.job-status-panel').exists();
+      assert.dom('.failed-or-lost').exists({ count: 1 });
+      assert.dom('.failed-or-lost h4').hasText('Restarted');
+      assert
+        .dom('.failed-or-lost-link')
+        .hasText('0', 'Restarted cell at zero by default');
+
+      // A wild event appears! Change a recent task event to type "Restarting" in a task state:
+      this.store
+        .peekAll('job')
+        .objectAt(0)
+        .get('allocations')
+        .objectAt(0)
+        .get('states')
+        .objectAt(0)
+        .get('events')
+        .objectAt(0)
+        .set('type', 'Restarting');
+
+      await settled();
+
+      assert
+        .dom('.failed-or-lost-link')
+        .hasText(
+          '1',
+          'Restarted cell updates when a task event with type "Restarting" is added'
+        );
+    });
+
+    test('System jobs do not have a sense of Desired/Total allocs', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+
+      server.db.nodes.remove();
+
+      server.createList('node', 3, {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      let job = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        createAllocations: false,
+        noActiveDeployment: true,
+        shallow: true,
+        version: 0,
+      });
+
+      // Create an allocation on this job for each node
+      server.schema.nodes.all().models.forEach((node) => {
+        server.create('allocation', {
+          jobId: job.id,
+          jobVersion: 0,
+          clientStatus: 'running',
+          nodeId: node.id,
+        });
+      });
+
+      await visit(`/jobs/${job.id}`);
+      let storedJob = await this.store.find(
+        'job',
+        JSON.stringify([job.id, 'default'])
+      );
+      // Weird Mirage thing: job summary factory is disconnected from its job and therefore allocations.
+      // So we manually create the number here.
+      let summary = await storedJob.get('summary');
+      summary
+        .get('taskGroupSummaries')
+        .objectAt(0)
+        .set(
+          'runningAllocs',
+          server.schema.allocations.where({
+            jobId: job.id,
+            clientStatus: 'running',
+          }).length
+        );
+
+      await settled();
+
+      assert.dom('.job-status-panel').exists();
+      assert.dom('.running-allocs-title').hasText(
+        `${
+          server.schema.allocations.where({
+            jobId: job.id,
+            clientStatus: 'running',
+          }).length
+        } Allocations Running`
+      );
+
+      // Let's bring another node online!
+      let newNode = server.create('node', {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      // Let's expect our scheduler to have therefore added an alloc to it
+      server.create('allocation', {
+        jobId: job.id,
+        jobVersion: 0,
+        clientStatus: 'running',
+        nodeId: newNode.id,
+      });
+
+      summary
+        .get('taskGroupSummaries')
+        .objectAt(0)
+        .set(
+          'runningAllocs',
+          server.schema.allocations.where({
+            jobId: job.id,
+            clientStatus: 'running',
+          }).length
+        );
+
+      await settled();
+
+      assert.dom('.running-allocs-title').hasText('4 Allocations Running');
     });
   });
 });

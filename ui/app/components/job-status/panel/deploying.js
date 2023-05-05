@@ -30,9 +30,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
   // allocations we can track throughout a deployment
   establishOldAllocBlockIDs() {
     this.oldVersionAllocBlockIDs = this.job.allocations.filter(
-      (a) =>
-        a.clientStatus === 'running' &&
-        a.jobVersion !== this.deployment.get('versionNumber')
+      (a) => a.clientStatus === 'running' && a.isOld
     );
   }
 
@@ -84,7 +82,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
   get newVersionAllocBlocks() {
     let availableSlotsToFill = this.desiredTotal;
     let allocationsOfDeploymentVersion = this.job.allocations.filter(
-      (a) => a.jobVersion === this.deployment.get('versionNumber')
+      (a) => !a.isOld
     );
 
     let allocationCategories = this.allocTypes.reduce((categories, type) => {
@@ -153,19 +151,11 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get rescheduledAllocs() {
-    return this.job.allocations.filter(
-      (a) =>
-        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
-        a.hasBeenRescheduled
-    );
+    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
   }
 
   get restartedAllocs() {
-    return this.job.allocations.filter(
-      (a) =>
-        a.jobVersion === this.job.latestDeployment.get('versionNumber') &&
-        a.hasBeenRestarted
-    );
+    return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
   }
 
   // #region legend

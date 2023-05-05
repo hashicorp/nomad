@@ -21,30 +21,11 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
 );
 
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
-  server.create('job', { type: 'system', shallow: true })
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (system)',
-  () =>
-    server.create('job', {
-      status: 'running',
-      datacenters: ['dc1'],
-      type: 'system',
-      createAllocations: false,
-    })
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (system with wildcard dc)',
-  () =>
-    server.create('job', {
-      id: 'system-wildcard-dc',
-      status: 'running',
-      datacenters: ['canada-*-1'],
-      type: 'system',
-      createAllocations: false,
-    })
+  server.create('job', {
+    type: 'system',
+    shallow: true,
+    noActiveDeployment: true,
+  })
 );
 
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
@@ -244,7 +225,7 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () => server.create('job', { type: 'service' }),
+  () => server.create('job', { type: 'service', noActiveDeployment: true }),
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
@@ -285,6 +266,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       type: 'service',
       status: 'running',
       namespaceId: server.db.namespaces[1].name,
+      noActiveDeployment: true,
     });
     server.createList('job', 3, {
       namespaceId: server.db.namespaces[0].name,
@@ -433,6 +415,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       namespaceId: server.db.namespaces[1].name,
       groupsCount: 3,
       createRecommendations: true,
+      noActiveDeployment: true,
     });
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;

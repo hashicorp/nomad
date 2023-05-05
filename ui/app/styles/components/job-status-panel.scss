@@ -159,7 +159,6 @@
         // TODO: we eventually want to establish a minimum width here. However, we need to also include this in the allocation-status-block width computation.
         font-size: 0.8rem;
         font-weight: bold;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
         width: 100%;
 
         & > .rest-count {

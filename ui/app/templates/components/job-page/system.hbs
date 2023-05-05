@@ -9,8 +9,7 @@
     <jobPage.ui.Title />
     <jobPage.ui.StatsBox />
     <jobPage.ui.DasRecommendations />
-    <jobPage.ui.JobClientStatusSummary />
-    <jobPage.ui.Summary @forceCollapsed="true" />
+    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} />
     <jobPage.ui.PlacementFailures />
     <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
     <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />

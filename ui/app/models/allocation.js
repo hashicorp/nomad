@@ -32,6 +32,7 @@ export default class Allocation extends Model {
   @belongsTo('job') job;
   @belongsTo('node') node;
   @attr('string') namespace;
+  @attr('string') nodeID;
   @attr('string') name;
   @attr('string') taskGroupName;
   @fragment('resources') resources;

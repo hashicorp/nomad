@@ -18,7 +18,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
-const jobTypesWithStatusPanel = ['service'];
+const jobTypesWithStatusPanel = ['service', 'system'];
 
 async function switchToHistorical() {
   await JobDetail.statusModes.historical.click();
@@ -56,7 +56,7 @@ export default function moduleForJob(
         await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
       }
 
-      const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
+      const hasClientStatus = ['sysbatch'].includes(job.type);
       if (context === 'allocations' && hasClientStatus) {
         await click("[data-test-accordion-summary-chart='allocation-status']");
       }
