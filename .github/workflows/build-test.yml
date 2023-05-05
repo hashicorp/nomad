@@ -2,7 +2,7 @@ name: hashicorp/nomad/build-test
 on:
   push:
     branches:
-    - main
+      - main
 env:
   PERCY_TOKEN: xxxxxxx
 jobs:
@@ -12,141 +12,143 @@ jobs:
     container:
       image: docker.mirror.hashicorp.services/golang:1.20.4
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-    - run: apt-get update; apt-get install -y sudo unzip zip
-    - run: make deps
-    - uses: "./.github/actions/install-buf"
-    - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-    - name: prepare ui cache
-      run: git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
-    - name: restore_cache
-      uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
-      with:
-        key: v1-binary-ui-assets-linux-{{ checksum "/tmp/ui-sha" }}
-        restore-keys: v1-binary-ui-assets-linux-{{ checksum "/tmp/ui-sha" }}
-        path: "/tmp/ui-assets"
-    - name: prepare ui
-      run: |-
-        if [[ -f /tmp/ui-assets/bindata_assetfs.go ]]; then
-          cp /tmp/ui-assets/bindata_assetfs.go ./command/agent/bindata_assetfs.go
-          exit 0
-        fi
-        ./scripts/vagrant-linux-unpriv-ui.sh
-        export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
-        export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
-        . ~/.nvm/nvm.sh
-        cd ui && yarn install --frozen-lockfile && cd ..
-        JOBS=2 make ember-dist static-assets
-        mkdir -p /tmp/ui-assets
-        cp ./command/agent/bindata_assetfs.go /tmp/ui-assets/bindata_assetfs.go
-    - name: build binaries
-      run: |-
-        export GO_TAGS="ui $(grep -e '^GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
-        make pkg/windows_amd64.zip pkg/linux_amd64.zip
-    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-      with:
-        path: pkg
-    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-      with:
-        path: "/tmp/ui-assets"
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - run: apt-get update; apt-get install -y sudo unzip zip
+      - run: make deps
+      - uses: "./.github/actions/install-buf"
+      - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+      - name: prepare ui cache
+        run: git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
+      - name: restore_cache
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        with:
+          key: v1-binary-ui-assets-linux-{{ checksum "/tmp/ui-sha" }}
+          restore-keys: v1-binary-ui-assets-linux-{{ checksum "/tmp/ui-sha" }}
+          path: "/tmp/ui-assets"
+      - name: prepare ui
+        run: |-
+          if [[ -f /tmp/ui-assets/bindata_assetfs.go ]]; then
+            cp /tmp/ui-assets/bindata_assetfs.go ./command/agent/bindata_assetfs.go
+            exit 0
+          fi
+          ./scripts/vagrant-linux-unpriv-ui.sh
+          export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+          export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+          . ~/.nvm/nvm.sh
+          cd ui && yarn install --frozen-lockfile && cd ..
+          JOBS=2 make ember-dist static-assets
+          mkdir -p /tmp/ui-assets
+          cp ./command/agent/bindata_assetfs.go /tmp/ui-assets/bindata_assetfs.go
+      - name: build binaries
+        run: |-
+          export GO_TAGS="ui $(grep -e '^GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
+          make pkg/windows_amd64.zip pkg/linux_amd64.zip
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: pkg
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: "/tmp/ui-assets"
   test-e2e:
     if: # GitHub does not currently support regular expressions inside if conditions
-#         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads/stable-website'
+    #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads/stable-website'
     runs-on: ubuntu-latest
     container:
       image: docker.mirror.hashicorp.services/golang:1.20.4
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-    - run: apt-get update; apt-get install -y sudo unzip
-    - name: prepare non-root user
-      run: |-
-        groupadd --gid 3434 circleci
-        useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
-        echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
-        echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
-        chown -R circleci:circleci /go
-        # configure git and ssh for the user
-        cp -r ~/.ssh /home/circleci/.ssh
-        chown -R circleci:circleci /home/circleci/.ssh
-        sudo -H -u circleci git config --global url."ssh://git@github.com".insteadOf "https://github.com"
-    - run: sudo -E -H -u circleci PATH=${PATH} make deps
-    - run: sudo -E -H -u circleci PATH=${PATH} make integration-test
-    - run: sudo -E -H -u circleci PATH=${PATH} make e2e-test
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - run: apt-get update; apt-get install -y sudo unzip
+      - name: prepare non-root user
+        run: |-
+          groupadd --gid 3434 circleci
+          useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
+          echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
+          echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
+          chown -R circleci:circleci /go
+          # configure git and ssh for the user
+          cp -r ~/.ssh /home/circleci/.ssh
+          chown -R circleci:circleci /home/circleci/.ssh
+          sudo -H -u circleci git config --global url."ssh://git@github.com".insteadOf "https://github.com"
+      - run: sudo -E -H -u circleci PATH=${PATH} make deps
+      - run: sudo -E -H -u circleci PATH=${PATH} make integration-test
+      - run: sudo -E -H -u circleci PATH=${PATH} make e2e-test
   test-ui:
     if: # GitHub does not currently support regular expressions inside if conditions
-#         github.ref != 'refs/heads/stable-website' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/'
+    #         github.ref != 'refs/heads/stable-website' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/'
     runs-on: ubuntu-latest
     container:
       image: docker.mirror.hashicorp.services/circleci/node:14-browsers
       env:
         JOBS: 2
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-    - name: restore_cache
-      uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
-      with:
-        key: v3-deps-{{ checksum "ui/yarn.lock" }}
-        restore-keys: v3-deps-{{ checksum "ui/yarn.lock" }}
-        path: "./ui/node_modules"
-    - name: yarn install
-      run: cd ui && yarn install --frozen-lockfile
-    - name: lint:js
-      run: cd ui && yarn run lint:js
-    - name: lint:hbs
-      run: cd ui && yarn run lint:hbs
-    - name: Ember tests
-      run: mkdir -p /tmp/test-reports && cd ui && yarn test
-    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-      with:
-        path: "/tmp/test-reports"
-    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-      with:
-        path: "/tmp/test-reports"
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: restore_cache
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        with:
+          key: v3-deps-{{ checksum "ui/yarn.lock" }}
+          restore-keys: v3-deps-{{ checksum "ui/yarn.lock" }}
+          path: "./ui/node_modules"
+      - name: yarn install
+        run: cd ui && yarn install --frozen-lockfile
+      - name: lint:js
+        run: cd ui && yarn run lint:js
+      - name: lint:hbs
+        run: cd ui && yarn run lint:hbs
+      - name: Ember tests
+        run: mkdir -p /tmp/test-reports && cd ui && yarn test
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: "/tmp/test-reports"
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: "/tmp/test-reports"
   test-windows:
     if: # GitHub does not currently support regular expressions inside if conditions
-#         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
+    #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
     runs-on: ubuntu-latest
     steps:
-    - run: git config --global core.autocrlf false
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-    - name: Setup
-      run: |-
-        mkdir -p $GOBIN
-        mkdir -p $GOTESTSUM_PATH
-    - uses: "./.github/actions/install-golang"
-      with:
-        target_directory: 'c:'
-    - name: Show installed Go version
-      run: |-
-        export PATH=/c/go/bin:/c/gopath/bin:$PATH
-        go version
-    - uses: "./.github/actions/install-vault"
-      with:
-        version: "$VAULT_VERSION"
-    - run: vault version
-    - run: choco install make
-    - name: Install golang dependencies
-      run: |-
-        export PATH=/c/go/bin:/c/gopath/bin:$PATH
-        make deps
-    - name: Pre-download docker test image
-      run: docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1
-    - name: Build nomad
-      run: |-
-        export PATH=/c/go/bin:/c/gopath/bin:$PATH
-        go build -o $GOBIN\nomad.exe
-    - name: Run tests with gotestsum
-      run: |-
-        # Only test docker driver tests for now
-        export PATH=/c/go/bin:/c/gopath/bin:$PATH
-        gotestsum --format=short-verbose \
-          --junitfile $GOTESTSUM_PATH/results.xml \
-          github.com/hashicorp/nomad/drivers/docker \
-          github.com/hashicorp/nomad/client/lib/fifo \
-          github.com/hashicorp/nomad/client/logmon
-    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-      with:
-        path: c:\tmp\test-reports
-    - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-      with:
-        path: c:\tmp\test-reports
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: Setup
+        run: |-
+          mkdir -p $GOBIN
+          mkdir -p $GOTESTSUM_PATH
+      - uses: "./.github/actions/install-golang"
+        with:
+          target_directory: 'c:'
+      - name: Show installed Go version
+        run: |-
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          go version
+      - uses: "./.github/actions/install-vault"
+        with:
+          version: "$VAULT_VERSION"
+      - run: vault version
+      - run: choco install make
+      - name: Install golang dependencies
+        run: |-
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          make deps
+      - name: Pre-download docker test image
+        run: docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1
+      - name: Build nomad
+        run: |-
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          go build -o $GOBIN\nomad.exe
+      - name: Run tests with gotestsum
+        run: |-
+          # Only test docker driver tests for now
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          gotestsum --format=short-verbose \
+            --junitfile $GOTESTSUM_PATH/results.xml \
+            github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/client/lib/fifo \
+            github.com/hashicorp/nomad/client/logmon
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: c:\tmp\test-reports
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: c:\tmp\test-reports
+permissions:
+  contents: read

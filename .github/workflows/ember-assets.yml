@@ -1,15 +1,11 @@
 name: Ember Asset Sizes
-
 on:
   pull_request:
     paths:
-    - 'ui/**'
-
+      - 'ui/**'
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
@@ -22,3 +18,5 @@ jobs:
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           working-directory: "ui"
+permissions:
+  contents: read

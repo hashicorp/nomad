@@ -1,12 +1,10 @@
 ---
 name: Backport Assistant Runner
-
 on:
   pull_request_target:
     types:
       - closed
       - labeled
-
 jobs:
   backport:
     if: github.event.pull_request.merged
@@ -69,3 +67,5 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+permissions:
+  contents: read

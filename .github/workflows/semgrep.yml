@@ -1,10 +1,8 @@
 name: Semgrep
-
 on:
   pull_request: {}
   # Skipping push for now since it would run against the entire code base.
   # push:
-
 jobs:
   semgrep:
     name: Semgrep Scan
@@ -16,3 +14,5 @@ jobs:
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: returntocorp/semgrep-action@8689a93eca50c91f8e8cfa61e3c4fb7e96d12bf2 # v1
+permissions:
+  contents: read

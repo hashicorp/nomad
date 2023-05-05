@@ -2,13 +2,11 @@ name: Ember test audit comparison
 on:
   pull_request:
     paths:
-    - '.github/workflows/ember*'
-    - 'ui/**'
-
+      - '.github/workflows/ember*'
+      - 'ui/**'
 defaults:
   run:
     working-directory: ui
-
 # There’s currently no way to share steps between jobs so there’s a lot of duplication
 # for running the audit for the base and PR.
 jobs:
@@ -82,3 +80,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           path: flakiness-report.md
+permissions:
+  contents: read
