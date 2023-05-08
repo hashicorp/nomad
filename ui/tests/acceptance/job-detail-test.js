@@ -17,7 +17,11 @@ import moduleForJob, {
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
-  server.create('job', { type: 'batch', shallow: true })
+  server.create('job', {
+    type: 'batch',
+    shallow: true,
+    noActiveDeployment: true,
+  })
 );
 
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>

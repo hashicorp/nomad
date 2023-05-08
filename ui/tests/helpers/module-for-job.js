@@ -18,7 +18,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
-const jobTypesWithStatusPanel = ['service', 'system'];
+const jobTypesWithStatusPanel = ['service', 'system', 'batch'];
 
 async function switchToHistorical() {
   await JobDetail.statusModes.historical.click();
