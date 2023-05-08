@@ -11,8 +11,6 @@ jobs:
   build-binaries:
     if: github.ref != 'refs/heads/stable-website'
     runs-on: ubuntu-latest
-    container:
-      image: docker.mirror.hashicorp.services/golang:1.20.4
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - run: |-
@@ -56,10 +54,10 @@ jobs:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads/stable-website'
     runs-on: ubuntu-latest
-    container:
-      image: docker.mirror.hashicorp.services/golang:1.20.4
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: Setup go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
       - run: apt-get update; apt-get install -y sudo unzip
       - name: prepare non-root user
         run: |-
@@ -79,10 +77,6 @@ jobs:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads/stable-website' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/'
     runs-on: ubuntu-latest
-    container:
-      image: docker.mirror.hashicorp.services/circleci/node:14-browsers
-      env:
-        JOBS: 2
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: yarn install
@@ -102,7 +96,7 @@ jobs:
   test-windows:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
@@ -110,17 +104,6 @@ jobs:
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version-file: ".go-version"
-      - name: Setup
-        run: |-
-          mkdir -p $GOBIN
-          mkdir -p $GOTESTSUM_PATH
-      - uses: "./.github/actions/install-golang"
-        with:
-          target_directory: 'c:'
-      - name: Show installed Go version
-        run: |-
-          export PATH=/c/go/bin:/c/gopath/bin:$PATH
-          go version
       - uses: "./.github/actions/install-vault"
         with:
           version: "$VAULT_VERSION"
