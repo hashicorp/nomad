@@ -6,22 +6,6 @@ import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
 
-  // // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
-  // allocTypes = [
-  //   'running',
-  //   'pending',
-  //   'failed',
-  //   // 'unknown',
-  //   'lost',
-  //   // 'queued',
-  //   // 'complete',
-  //   'unplaced',
-  // ].map((type) => {
-  //   return {
-  //     label: type,
-  //   };
-  // });
-
   get allocTypes() {
     return jobAllocStatuses[this.args.job.type].map((type) => {
       return {

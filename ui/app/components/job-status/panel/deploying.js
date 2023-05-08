@@ -4,25 +4,19 @@ import { task } from 'ember-concurrency';
 import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
+import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
 
 export default class JobStatusPanelDeployingComponent extends Component {
   @alias('args.job') job;
   @alias('args.handleError') handleError = () => {};
 
-  allocTypes = [
-    'running',
-    'pending',
-    'failed',
-    // 'unknown',
-    'lost',
-    // 'queued',
-    // 'complete',
-    'unplaced',
-  ].map((type) => {
-    return {
-      label: type,
-    };
-  });
+  get allocTypes() {
+    return jobAllocStatuses[this.args.job.type].map((type) => {
+      return {
+        label: type,
+      };
+    });
+  }
 
   @tracked oldVersionAllocBlockIDs = [];
 
