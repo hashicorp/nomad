@@ -4176,6 +4176,14 @@ func TestStateStore_UpsertEvals_CancelBlocked(t *testing.T) {
 		t.Fatalf("bad: %#v %#v", out1, out2)
 	}
 
+	if !strings.Contains(out1.StatusDescription, eval.ID) || !strings.Contains(out2.StatusDescription, eval.ID) {
+		t.Fatalf("bad status description %#v %#v", out1, out2)
+	}
+
+	if out1.ModifyTime != eval.ModifyTime || out2.ModifyTime != eval.ModifyTime {
+		t.Fatalf("bad modify time %#v %#v", out1, out2)
+	}
+
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
