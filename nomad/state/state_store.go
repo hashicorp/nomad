@@ -3119,11 +3119,12 @@ func (s *StateStore) nestedUpsertEval(txn *txn, index uint64, eval *structs.Eval
 		}
 
 		// Go through and update the evals
-		for _, eval := range blocked {
-			newEval := eval.Copy()
+		for _, blockedEval := range blocked {
+			newEval := blockedEval.Copy()
 			newEval.Status = structs.EvalStatusCancelled
-			newEval.StatusDescription = fmt.Sprintf("evaluation %q successful", newEval.ID)
+			newEval.StatusDescription = fmt.Sprintf("evaluation %q successful", eval.ID)
 			newEval.ModifyIndex = index
+			newEval.ModifyTime = eval.ModifyTime
 
 			if err := txn.Insert("evals", newEval); err != nil {
 				return fmt.Errorf("eval insert failed: %v", err)
