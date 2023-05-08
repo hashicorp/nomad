@@ -4,12 +4,14 @@
 package taskrunner
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -299,17 +301,22 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 }
 
 // TestTaskRunner_Restore_Running asserts restoring a running task does not
-// rerun the task.
+// rerun the task. It does this by running a task that outputs the time and
+// asserting that after the task runner is shutdown and restored, no new log
+// output appears.
 func TestTaskRunner_Restore_Running(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("requires bash")
+	}
 
 	alloc := mock.BatchAlloc()
 	alloc.Job.TaskGroups[0].Count = 1
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
+	task.Driver = "raw_exec"
 	task.Config = map[string]interface{}{
-		"run_for": "2s",
+		"command": "bash",
+		"args":    []string{"-c", `echo ok; sleep 999`},
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
@@ -317,39 +324,59 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 
 	// Run the first TaskRunner
 	origTR, err := NewTaskRunner(conf)
-	require.NoError(err)
+	must.NoError(t, err)
 	go origTR.Run()
 	defer origTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
-	// Wait for it to be running
-	testWaitForTaskToStart(t, origTR)
+	// Wait for it to log output
+	var contents []byte
+	stdoutFn := filepath.Join(conf.TaskDir.LogDir, "web.stdout.0")
+	testutil.Wait(t, func() (bool, error) {
+		contents, err = os.ReadFile(stdoutFn)
+		if err != nil {
+			return false, fmt.Errorf("error reading command output: %w", err)
+		}
+		return bytes.Equal(contents, []byte("ok\n")), fmt.Errorf(
+			`expected "ok\n" but found: %s`, string(contents))
+	})
+
+	must.Eq(t, "running", origTR.TaskState().State)
 
 	// Cause TR to exit without shutting down task
 	origTR.Shutdown()
 
 	// Start a new TaskRunner and make sure it does not rerun the task
 	newTR, err := NewTaskRunner(conf)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Do the Restore
-	require.NoError(newTR.Restore())
+	must.NoError(t, newTR.Restore())
 
 	go newTR.Run()
 	defer newTR.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
 
-	// Wait for new task runner to exit when the process does
-	testWaitForTaskToDie(t, newTR)
+	// Assert no new output even after a wait
+	wait := time.Duration(testutil.TestMultiplier()) * time.Second
+	t.Logf("ensuring log output does not change for %s", wait)
+	for end := time.Now().Add(wait); time.Now().Before(end); {
+		newContents, err := os.ReadFile(stdoutFn)
+		must.NoError(t, err)
+		if !bytes.Equal(contents, newContents) {
+			t.Fatalf("unexpected task log mismatch after task runner restore:\n%s", newContents)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	// Assert that the process was only started once
 	started := 0
 	state := newTR.TaskState()
-	require.Equal(structs.TaskStateDead, state.State)
+	must.Eq(t, "running", state.State)
 	for _, ev := range state.Events {
 		if ev.Type == structs.TaskStarted {
 			started++
 		}
 	}
-	assert.Equal(t, 1, started)
+	must.Eq(t, 1, started)
 }
 
 // TestTaskRunner_Restore_Dead asserts that restoring a dead task will place it
@@ -1253,7 +1280,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	tg := alloc.Job.TaskGroups[0]
 	tg.RestartPolicy.Attempts = 2
 	tg.RestartPolicy.Interval = 1 * time.Minute
-	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	tg.RestartPolicy.Delay = 1 * time.Millisecond
 	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
 
 	task := tg.Tasks[0]
@@ -1266,10 +1293,10 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	task.Services[0].Checks[0] = &structs.ServiceCheck{
 		Name:     "test-restarts",
 		Type:     structs.ServiceCheckTCP,
-		Interval: 50 * time.Millisecond,
+		Interval: 1 * time.Millisecond,
 		CheckRestart: &structs.CheckRestart{
-			Limit: 2,
-			Grace: 100 * time.Millisecond,
+			Limit: 1,
+			Grace: 1 * time.Millisecond,
 		},
 	}
 	task.Services[0].Provider = structs.ServiceProviderConsul
@@ -2498,11 +2525,10 @@ func testWaitForTaskToStart(t *testing.T, tr *TaskRunner) {
 
 // testWaitForTaskToDie waits for the task to die or fails the test
 func testWaitForTaskToDie(t *testing.T, tr *TaskRunner) {
-	testutil.WaitForResult(func() (bool, error) {
+	t.Helper()
+	testutil.Wait(t, func() (bool, error) {
 		ts := tr.TaskState()
 		return ts.State == structs.TaskStateDead, fmt.Errorf("expected task to be dead, got %v", ts.State)
-	}, func(err error) {
-		require.NoError(t, err)
 	})
 }
 
