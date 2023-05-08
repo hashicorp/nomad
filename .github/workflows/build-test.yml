@@ -57,20 +57,9 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: Setup go
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
-      - name: prepare non-root user
-        run: |-
-          sudo groupadd --gid 3434 circleci
-          sudo useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
-          sudo echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
-          sudo echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
-          sudo chown -R circleci:circleci /go
-          # configure git and ssh for the user
-          cp -r ~/.ssh /home/circleci/.ssh
-          sudo chown -R circleci:circleci /home/circleci/.ssh
-          sudo -H -u circleci git config --global url."ssh://git@github.com".insteadOf "https://github.com"
-      - run: sudo -E -H -u circleci PATH=${PATH} make deps
-      - run: sudo -E -H -u circleci PATH=${PATH} make integration-test
-      - run: sudo -E -H -u circleci PATH=${PATH} make e2e-test
+      - run: make deps
+      - run: make integration-test
+      - run: make e2e-test
   test-ui:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads/stable-website' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/'
