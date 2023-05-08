@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -495,30 +496,20 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
-// MarkFailedDead marks a task as failed and not to run. Aimed to be invoked
-// when alloc runner prestart hooks failed. Should never be called with Run().
-func (tr *TaskRunner) MarkFailedDead(reason string) {
-	defer close(tr.waitCh)
-
-	tr.stateLock.Lock()
-	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
-		//TODO Nomad will be unable to restore this task; try to kill
-		//     it now and fail? In general we prefer to leave running
-		//     tasks running even if the agent encounters an error.
-		tr.logger.Warn("error persisting local failed task state; may be unable to restore after a Nomad restart",
-			"error", err)
-	}
-	tr.stateLock.Unlock()
-
+// MarkFailedKill marks a task as failed and should be killed.
+// It should be invoked when alloc runner prestart hooks fail.
+// Afterwards, Run() will perform any necessary cleanup.
+func (tr *TaskRunner) MarkFailedKill(reason string) {
+	// Emit an event that fails the task and gives reasons for humans.
 	event := structs.NewTaskEvent(structs.TaskSetupFailure).
+		SetKillReason(structs.TaskRestoreFailed).
 		SetDisplayMessage(reason).
 		SetFailsTask()
-	tr.UpdateState(structs.TaskStateDead, event)
+	tr.EmitEvent(event)
 
-	// Run the stop hooks in case task was a restored task that failed prestart
-	if err := tr.stop(); err != nil {
-		tr.logger.Error("stop failed while marking task dead", "error", err)
-	}
+	// Cancel kill context, so later when allocRunner runs tr.Run(),
+	// we'll follow the usual kill path and do all the appropriate cleanup steps.
+	tr.killCtxCancel()
 }
 
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
