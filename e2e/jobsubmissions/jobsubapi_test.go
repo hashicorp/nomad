@@ -25,6 +25,7 @@ func TestJobSubmissionAPI(t *testing.T) {
 	t.Run("testSubmissionACL", testSubmissionACL)
 	t.Run("testMaxSize", testMaxSize)
 	t.Run("testReversion", testReversion)
+	t.Run("testVarFiles", testVarFiles)
 }
 
 func testParseAPI(t *testing.T) {
@@ -316,4 +317,40 @@ func testReversion(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, expectY[version], sub.VariableFlags["Y"])
 	}
+}
+
+func testVarFiles(t *testing.T) {
+	nomad := e2eutil.NomadClient(t)
+
+	jobID := "job-sub-var-files-" + uuid.Short()
+	jobIDs := []string{jobID}
+	t.Cleanup(e2eutil.MaybeCleanupJobsAndGC(&jobIDs))
+
+	// register the xyz job using x.hcl y.hcl z.hcl var files
+	err := e2eutil.RegisterWithArgs(
+		jobID,
+		"input/xyz.hcl",
+		"-var-file=input/x.hcl",
+		"-var-file=input/y.hcl",
+		"-var-file=input/z.hcl",
+	)
+	must.NoError(t, err)
+
+	const version = 0
+
+	// find our alloc id
+	allocID := e2eutil.SingleAllocID(t, jobID, "", version)
+
+	// wait for alloc to complete
+	_ = e2eutil.WaitForAllocStopped(t, nomad, allocID)
+
+	// get submission
+	sub, _, err := nomad.Jobs().Submission(jobID, version, &api.QueryOptions{
+		Region:    "global",
+		Namespace: "default",
+	})
+	must.NoError(t, err)
+	must.StrContains(t, sub.Variables, `X = "my var file x value"`)
+	must.StrContains(t, sub.Variables, `Y = 700`)
+	must.StrContains(t, sub.Variables, `Z = true`)
 }
