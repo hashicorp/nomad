@@ -13,11 +13,12 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/go-set"
+	"github.com/shoenig/test/must"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/shoenig/test/must"
 )
 
 func fakeContainerList(t *testing.T) (nomadContainer, nonNomadContainer docker.APIContainers) {
@@ -222,6 +223,7 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 			},
 		},
 	})
+
 	must.NoError(t, err)
 	t.Cleanup(func() {
 		_ = dockerClient.RemoveContainer(docker.RemoveContainerOptions{
@@ -244,6 +246,7 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 	must.NotContains[string](t, container.ID, tracked)
 
 	untracked, err := reconciler.untrackedContainers(set.New[string](0), time.Now())
+
 	must.NoError(t, err)
 	must.NotContains[string](t, container.ID, untracked)
 
