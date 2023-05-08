@@ -61,12 +61,12 @@ jobs:
         run: |-
           sudo groupadd --gid 3434 circleci
           sudo useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
-          echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
-          echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
-          chown -R circleci:circleci /go
+          sudo echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
+          sudo echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
+          sudo chown -R circleci:circleci /go
           # configure git and ssh for the user
           cp -r ~/.ssh /home/circleci/.ssh
-          chown -R circleci:circleci /home/circleci/.ssh
+          sudo chown -R circleci:circleci /home/circleci/.ssh
           sudo -H -u circleci git config --global url."ssh://git@github.com".insteadOf "https://github.com"
       - run: sudo -E -H -u circleci PATH=${PATH} make deps
       - run: sudo -E -H -u circleci PATH=${PATH} make integration-test
