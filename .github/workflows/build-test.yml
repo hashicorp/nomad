@@ -106,8 +106,7 @@ jobs:
           go build -o $GOBIN\nomad.exe
       - name: Run tests with gotestsum
         run: |-
-          gotestsum --format=short-verbose \
-            --junitfile $GOTESTSUM_PATH/results.xml \
+          gotestsum --format=short-verbose --junitfile $GOTESTSUM_PATH/results.xml \
             github.com/hashicorp/nomad/drivers/docker \
             github.com/hashicorp/nomad/client/lib/fifo \
             github.com/hashicorp/nomad/client/logmon
