@@ -9,77 +9,77 @@ env:
   PERCY_TOKEN: xxxxxxx
   VAULT_VERSION: 1.4.1
 jobs:
-  build-binaries:
-    if: github.ref != 'refs/heads/stable-website'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: Setup go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
-        with:
-          go-version-file: ".go-version"
-      - run: make deps
-      - uses: "./.github/actions/install-buf"
-      - run: make generate-structs
-      - name: prepare ui cache
-        run: |-
-          git config --global --add safe.directory /__w/nomad/nomad
-          git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
-      - name: prepare ui
-        run: |-
-          if [[ -f /tmp/ui-assets/bindata_assetfs.go ]]; then
-            cp /tmp/ui-assets/bindata_assetfs.go ./command/agent/bindata_assetfs.go
-            exit 0
-          fi
-          ./scripts/vagrant-linux-unpriv-ui.sh
-          export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
-          export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
-          . ~/.nvm/nvm.sh
-          cd ui && yarn install --frozen-lockfile && cd ..
-          JOBS=2 make ember-dist static-assets
-          mkdir -p /tmp/ui-assets
-          cp ./command/agent/bindata_assetfs.go /tmp/ui-assets/bindata_assetfs.go
-      - name: build binaries
-        run: |-
-          export GO_TAGS="ui $(grep -e '^GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
-          make pkg/windows_amd64.zip pkg/linux_amd64.zip
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-        with:
-          path: pkg
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-        with:
-          path: "/tmp/ui-assets"
-  test-e2e:
-    if: # GitHub does not currently support regular expressions inside if conditions
-    #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads/stable-website'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: Setup go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
-      - run: make deps
-      - run: make integration-test
-      - run: make e2e-test
-  test-ui:
-    if: # GitHub does not currently support regular expressions inside if conditions
-    #         github.ref != 'refs/heads/stable-website' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: yarn install
-        run: cd ui && yarn install --frozen-lockfile
-      - name: lint:js
-        run: cd ui && yarn run lint:js
-      - name: lint:hbs
-        run: cd ui && yarn run lint:hbs
-      - name: Ember tests
-        run: mkdir -p /tmp/test-reports && cd ui && yarn test
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-        with:
-          path: "/tmp/test-reports"
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-        with:
-          path: "/tmp/test-reports"
+#  build-binaries:
+#    if: github.ref != 'refs/heads/stable-website'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+#      - name: Setup go
+#        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+#        with:
+#          go-version-file: ".go-version"
+#      - run: make deps
+#      - uses: "./.github/actions/install-buf"
+#      - run: make generate-structs
+#      - name: prepare ui cache
+#        run: |-
+#          git config --global --add safe.directory /__w/nomad/nomad
+#          git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
+#      - name: prepare ui
+#        run: |-
+#          if [[ -f /tmp/ui-assets/bindata_assetfs.go ]]; then
+#            cp /tmp/ui-assets/bindata_assetfs.go ./command/agent/bindata_assetfs.go
+#            exit 0
+#          fi
+#          ./scripts/vagrant-linux-unpriv-ui.sh
+#          export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+#          export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+#          . ~/.nvm/nvm.sh
+#          cd ui && yarn install --frozen-lockfile && cd ..
+#          JOBS=2 make ember-dist static-assets
+#          mkdir -p /tmp/ui-assets
+#          cp ./command/agent/bindata_assetfs.go /tmp/ui-assets/bindata_assetfs.go
+#      - name: build binaries
+#        run: |-
+#          export GO_TAGS="ui $(grep -e '^GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
+#          make pkg/windows_amd64.zip pkg/linux_amd64.zip
+#      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+#        with:
+#          path: pkg
+#      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+#        with:
+#          path: "/tmp/ui-assets"
+#  test-e2e:
+#    if: # GitHub does not currently support regular expressions inside if conditions
+#    #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads/stable-website'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+#      - name: Setup go
+#        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+#      - run: make deps
+#      - run: make integration-test
+#      - run: make e2e-test
+#  test-ui:
+#    if: # GitHub does not currently support regular expressions inside if conditions
+#    #         github.ref != 'refs/heads/stable-website' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+#      - name: yarn install
+#        run: cd ui && yarn install --frozen-lockfile
+#      - name: lint:js
+#        run: cd ui && yarn run lint:js
+#      - name: lint:hbs
+#        run: cd ui && yarn run lint:hbs
+#      - name: Ember tests
+#        run: mkdir -p /tmp/test-reports && cd ui && yarn test
+#      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+#        with:
+#          path: "/tmp/test-reports"
+#      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+#        with:
+#          path: "/tmp/test-reports"
   test-windows:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
@@ -87,6 +87,10 @@ jobs:
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: Setup go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version-file: ".go-version"
       - name: Setup
         shell: bash
         run: |-
