@@ -1,25 +1,34 @@
 // @ts-check
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
+import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
 
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
 
-  // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
-  allocTypes = [
-    'running',
-    'pending',
-    'failed',
-    // 'unknown',
-    'lost',
-    // 'queued',
-    // 'complete',
-    'unplaced',
-  ].map((type) => {
-    return {
-      label: type,
-    };
-  });
+  // // Build note: allocTypes order matters! We will fill up to 100% of totalAllocs in this order.
+  // allocTypes = [
+  //   'running',
+  //   'pending',
+  //   'failed',
+  //   // 'unknown',
+  //   'lost',
+  //   // 'queued',
+  //   // 'complete',
+  //   'unplaced',
+  // ].map((type) => {
+  //   return {
+  //     label: type,
+  //   };
+  // });
+
+  get allocTypes() {
+    return jobAllocStatuses[this.args.job.type].map((type) => {
+      return {
+        label: type,
+      };
+    });
+  }
 
   /**
    * @typedef {Object} HealthStatus
@@ -126,7 +135,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get totalAllocs() {
-    if (this.args.job.type === 'service') {
+    if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.atMostOneAllocPerNode) {
       return this.args.job.allocations.uniqBy('nodeID').length;
