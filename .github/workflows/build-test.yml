@@ -17,17 +17,17 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - run: |-
           apt-get update; apt-get install -y sudo unzip zip
+      - name: Setup go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version-file: ".go-version"
       - run: make deps
       - uses: "./.github/actions/install-buf"
-      - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
+      - run: make generate-structs
       - name: prepare ui cache
-        run: git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
-      - name: restore_cache
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
-        with:
-          key: v1-binary-ui-assets-linux-{{ checksum "/tmp/ui-sha" }}
-          restore-keys: v1-binary-ui-assets-linux-{{ checksum "/tmp/ui-sha" }}
-          path: "/tmp/ui-assets"
+        run: |-
+          git config --global --add safe.directory /__w/nomad/nomad
+          git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
       - name: prepare ui
         run: |-
           if [[ -f /tmp/ui-assets/bindata_assetfs.go ]]; then
@@ -85,12 +85,6 @@ jobs:
         JOBS: 2
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: restore_cache
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
-        with:
-          key: v3-deps-{{ checksum "ui/yarn.lock" }}
-          restore-keys: v3-deps-{{ checksum "ui/yarn.lock" }}
-          path: "./ui/node_modules"
       - name: yarn install
         run: cd ui && yarn install --frozen-lockfile
       - name: lint:js
@@ -112,6 +106,10 @@ jobs:
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: Setup go
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version-file: ".go-version"
       - name: Setup
         run: |-
           mkdir -p $GOBIN
