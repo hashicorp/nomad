@@ -7,14 +7,13 @@ on:
 env:
   #todo
   PERCY_TOKEN: xxxxxxx
+  VAULT_VERSION: 1.4.1
 jobs:
   build-binaries:
     if: github.ref != 'refs/heads/stable-website'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - run: |-
-          apt-get update; apt-get install -y sudo unzip zip
       - name: Setup go
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
@@ -58,7 +57,6 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: Setup go
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
-      - run: apt-get update; apt-get install -y sudo unzip
       - name: prepare non-root user
         run: |-
           groupadd --gid 3434 circleci
@@ -106,7 +104,7 @@ jobs:
           go-version-file: ".go-version"
       - uses: "./.github/actions/install-vault"
         with:
-          version: "$VAULT_VERSION"
+          version: ${{ env.VAULT_VERSION }}
       - run: vault version
       - run: choco install make
       - name: Install golang dependencies
