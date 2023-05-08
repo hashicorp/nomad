@@ -1,6 +1,7 @@
 package jobsubmissions
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ func TestJobSubmissionAPI(t *testing.T) {
 	t.Run("testRunCLIVarFlags", testRunCLIVarFlags)
 	t.Run("testSubmissionACL", testSubmissionACL)
 	t.Run("testMaxSize", testMaxSize)
+	t.Run("testReversion", testReversion)
 }
 
 func testParseAPI(t *testing.T) {
@@ -274,4 +276,44 @@ func testMaxSize(t *testing.T) {
 	})
 	must.ErrorContains(t, err, "job source not found")
 	must.Nil(t, sub)
+}
+
+func testReversion(t *testing.T) {
+	nomad := e2eutil.NomadClient(t)
+
+	jobID := "job-sub-reversion-" + uuid.Short()
+	jobIDs := []string{jobID}
+	t.Cleanup(e2eutil.MaybeCleanupJobsAndGC(&jobIDs))
+
+	// register job 3 times
+	for i := 0; i < 3; i++ {
+		yVar := fmt.Sprintf("-var=Y=%d", i)
+
+		// register the job
+		err := e2eutil.RegisterWithArgs(jobID, "input/xyz.hcl", "-var=X=hello", yVar, "-var=Z=false")
+		must.NoError(t, err)
+
+		// find our alloc id
+		allocID := e2eutil.SingleAllocID(t, jobID, "", i)
+
+		// wait for alloc to complete
+		_ = e2eutil.WaitForAllocStopped(t, nomad, allocID)
+	}
+
+	// revert the job back to version 1
+
+	err := e2eutil.Revert(jobID, "input/xyz.hcl", 1)
+	must.NoError(t, err)
+
+	// there should be a submission for version 3, and it should
+	// contain Y=1 as did the version 1 of the job
+	expectY := []string{"0", "1", "2", "1"}
+	for version := 0; version < 4; version++ {
+		sub, _, err := nomad.Jobs().Submission(jobID, version, &api.QueryOptions{
+			Region:    "global",
+			Namespace: "default",
+		})
+		must.NoError(t, err)
+		must.Eq(t, expectY[version], sub.VariableFlags["Y"])
+	}
 }

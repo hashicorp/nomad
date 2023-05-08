@@ -1681,6 +1681,11 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		if !keepVersion {
 			job.JobModifyIndex = index
 			if job.Version <= existingJob.Version {
+				if sub == nil {
+					// in the reversion case we must set the submission to be
+					// that of the job version we are reverting to
+					sub, _ = s.jobSubmission(nil, job.Namespace, job.ID, job.Version, txn)
+				}
 				job.Version = existingJob.Version + 1
 			}
 		}
