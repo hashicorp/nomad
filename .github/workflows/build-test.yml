@@ -59,8 +59,8 @@ jobs:
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
       - name: prepare non-root user
         run: |-
-          groupadd --gid 3434 circleci
-          useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
+          sudo groupadd --gid 3434 circleci
+          sudo useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci
           echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
           echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
           chown -R circleci:circleci /go
@@ -109,18 +109,14 @@ jobs:
       - run: choco install make
       - name: Install golang dependencies
         run: |-
-          export PATH=/c/go/bin:/c/gopath/bin:$PATH
           make deps
       - name: Pre-download docker test image
         run: docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1
       - name: Build nomad
         run: |-
-          export PATH=/c/go/bin:/c/gopath/bin:$PATH
           go build -o $GOBIN\nomad.exe
       - name: Run tests with gotestsum
         run: |-
-          # Only test docker driver tests for now
-          export PATH=/c/go/bin:/c/gopath/bin:$PATH
           gotestsum --format=short-verbose \
             --junitfile $GOTESTSUM_PATH/results.xml \
             github.com/hashicorp/nomad/drivers/docker \
