@@ -20,7 +20,7 @@ on:
   push:
     branches:
       - main
-      - release-**
+      - release/**
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
