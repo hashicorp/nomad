@@ -94,6 +94,7 @@ jobs:
       - name: Setup
         shell: bash
         run: |-
+          echo $GOBIN
           mkdir -p $GOBIN
           mkdir -p $GOTESTSUM_PATH
       - uses: "./.github/actions/install-golang"
