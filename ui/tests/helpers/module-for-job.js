@@ -88,7 +88,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}/definition`
         : `/jobs/${job.name}/definition`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.ok(decodeURIComponent(currentURL()).startsWith(expectedURL));
     });
 
     test('the subnav links to versions', async function (assert) {

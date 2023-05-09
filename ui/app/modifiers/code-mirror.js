@@ -41,7 +41,11 @@ export default class CodeMirrorModifier extends Modifier {
 
   @action
   _onChange(editor) {
-    this.args.named.onUpdate(editor.getValue(), this._editor);
+    this.args.named.onUpdate(
+      editor.getValue(),
+      this._editor,
+      this.args.named.type
+    );
   }
 
   _setup() {

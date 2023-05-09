@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-import { currentURL } from '@ember/test-helpers';
+import { click, currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
+import { JOB_JSON } from 'nomad-ui/tests/utils/generate-raw-json-job';
 
 let job;
 
@@ -36,8 +37,8 @@ module('Acceptance | job definition', function (hooks) {
     assert.equal(document.title, `Job ${job.name} definition - Nomad`);
   });
 
-  test('the job definition page contains a json viewer component', async function (assert) {
-    assert.ok(Definition.jsonViewer, 'JSON viewer found');
+  test('the job definition page starts in read-only view', async function (assert) {
+    assert.dom('[data-test-job-spec-view]').exists('Read-only Editor appears.');
   });
 
   test('the job definition page requests the job to display in an unmutated form', async function (assert) {
@@ -70,21 +71,17 @@ module('Acceptance | job definition', function (hooks) {
     await Definition.edit();
 
     await Definition.editor.cancelEditing();
-    assert.ok(Definition.jsonViewer, 'The JSON Viewer is back');
+    assert.dom('[data-test-job-spec-view]').exists('Read-only Editor appears.');
     assert.dom('[data-test-job-editor]').doesNotExist('The editor is gone');
   });
 
   test('when in editing mode, the editor is prepopulated with the job definition', async function (assert) {
     const requests = server.pretender.handledRequests;
-    const jobDefinition = requests.findBy(
+    const jobSubmission = requests.findBy(
       'url',
-      `/v1/job/${job.id}`
+      `/v1/job/${job.id}/submission?version=1`
     ).responseText;
-    const formattedJobDefinition = JSON.stringify(
-      JSON.parse(jobDefinition),
-      null,
-      2
-    );
+    const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
     await Definition.edit();
 
@@ -98,7 +95,10 @@ module('Acceptance | job definition', function (hooks) {
   test('when changes are submitted, the site redirects to the job overview page', async function (assert) {
     await Definition.edit();
 
-    await Definition.editor.plan();
+    const cm = getCodeMirrorInstance(['data-test-editor']);
+    cm.setValue(`{}`);
+
+    await click('[data-test-plan]');
     await Definition.editor.run();
     assert.equal(
       currentURL(),
@@ -128,5 +128,50 @@ module('Acceptance | job definition', function (hooks) {
       'Not Found',
       'Error message is for 404'
     );
+  });
+});
+
+module('display and edit using full specification', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+  setupCodeMirror(hooks);
+
+  hooks.beforeEach(async function () {
+    server.create('node');
+    server.create('job');
+    job = server.db.jobs[0];
+  });
+
+  test('it allows users to select between full specification and JSON definition', async function (assert) {
+    assert.expect(3);
+    const specification_response = {
+      Format: 'hcl2',
+      JobID: 'example',
+      JobIndex: 223,
+      Namespace: 'default',
+      Source:
+        'variable "datacenter" {\n  description = "The datacenter to run the job in"\n  type        = string\n  default     = "dc1"\n}\n\njob "example" {\n  datacenters = [var.datacenter]\n\n  group "example-group" {\n    task "example-task" {\n      driver = "docker"\n\n      config {\n        image = "redis:3.2"\n      }\n\n      resources {\n        cpu    = 500\n        memory = 256\n      }\n    }\n  }\n}\n',
+      VariableFlags: { datacenter: 'dc2' },
+      Variables: '',
+      Version: 0,
+    };
+    server.get('/job/:id', () => JOB_JSON);
+    server.get('/job/:id/submission', () => specification_response);
+
+    await Definition.visit({ id: job.id });
+
+    assert
+      .dom('[data-test-select="job-spec"]')
+      .exists('A select button exists and defaults to full definition');
+    let codeMirror = getCodeMirrorInstance('[data-test-editor]');
+    assert.equal(
+      codeMirror.getValue(),
+      specification_response.Source,
+      'Shows the full definition as written by the user'
+    );
+
+    await click('[data-test-select-full]');
+    codeMirror = getCodeMirrorInstance('[data-test-editor]');
+    assert.propContains(JSON.parse(codeMirror.getValue()), JOB_JSON);
   });
 });

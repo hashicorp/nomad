@@ -12,17 +12,61 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import { tracked } from '@glimmer/tracking';
 
 export default class JobEditor extends Component {
-  @service store;
   @service config;
+  @service store;
 
   @tracked error = null;
   @tracked planOutput = null;
 
-  get stage() {
-    return this.planOutput ? 'plan' : 'editor';
+  constructor() {
+    super(...arguments);
+
+    if (this.definition) {
+      this.setDefinitionOnModel();
+    }
+
+    if (this.args.variables) {
+      this.args.job.set(
+        '_newDefinitionVariables',
+        this.jsonToHcl(this.args.variables.flags).concat(
+          this.args.variables.literal
+        )
+      );
+    }
   }
 
-  @localStorageProperty('nomadMessageJobPlan', true) showPlanMessage;
+  get isEditing() {
+    return ['new', 'edit'].includes(this.args.context);
+  }
+
+  @action
+  setDefinitionOnModel() {
+    this.args.job.set('_newDefinition', this.definition);
+  }
+
+  @action
+  edit() {
+    this.setDefinitionOnModel();
+    this.args.onToggleEdit(true);
+  }
+
+  @action
+  onCancel() {
+    this.args.onToggleEdit(false);
+  }
+
+  get stage() {
+    if (this.planOutput) return 'review';
+    if (this.isEditing) return 'edit';
+    else return 'read';
+  }
+
+  @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
+
+  @action
+  dismissPlanMessage() {
+    this.shouldShowPlanMessage = false;
+  }
 
   @(task(function* () {
     this.reset();
@@ -48,7 +92,7 @@ export default class JobEditor extends Component {
       if (this.args.context === 'new') {
         yield this.args.job.run();
       } else {
-        yield this.args.job.update();
+        yield this.args.job.update(this.args.format);
       }
 
       const id = this.args.job.plainId;
@@ -84,9 +128,13 @@ export default class JobEditor extends Component {
   }
 
   @action
-  updateCode(value) {
+  updateCode(value, _codemirror, type = 'job') {
     if (!this.args.job.isDestroying && !this.args.job.isDestroyed) {
-      this.args.job.set('_newDefinition', value);
+      if (type === 'hclVariables') {
+        this.args.job.set('_newDefinitionVariables', value);
+      } else {
+        this.args.job.set('_newDefinition', value);
+      }
     }
   }
 
@@ -99,5 +147,55 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
+  }
+
+  get definition() {
+    if (this.args.view === 'full-definition') {
+      return JSON.stringify(this.args.definition, null, 2);
+    } else {
+      return this.args.specification;
+    }
+  }
+
+  jsonToHcl(obj) {
+    const hclLines = [];
+
+    for (const key in obj) {
+      const value = obj[key];
+      const hclValue = typeof value === 'string' ? `"${value}"` : value;
+      hclLines.push(`${key}=${hclValue}\n`);
+    }
+
+    return hclLines.join('\n');
+  }
+
+  get data() {
+    return {
+      cancelable: this.args.cancelable,
+      definition: this.definition,
+      format: this.args.format,
+      hasSpecification: !!this.args.specification,
+      hasVariables:
+        !!this.args.variables?.flags || !!this.args.variables?.literal,
+      job: this.args.job,
+      planOutput: this.planOutput,
+      shouldShowPlanMessage: this.shouldShowPlanMessage,
+      view: this.args.view,
+    };
+  }
+
+  get fns() {
+    return {
+      onCancel: this.onCancel,
+      onDismissPlanMessage: this.dismissPlanMessage,
+      onEdit: this.edit,
+      onPlan: this.plan,
+      onReset: this.reset,
+      onSaveAs: this.args.handleSaveAsTemplate,
+      onSubmit: this.submit,
+      onSelect: this.args.onSelect,
+      onUpdate: this.updateCode,
+      onUpload: this.uploadJobSpec,
+    };
   }
 }
