@@ -29,7 +29,7 @@ runs:
       else
         rm -rf ${{ inputs.target_directory }}/go
         mkdir -p ${{ inputs.target_directory }}
-        curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GOLANG_VERSION}.windows-amd64.zip
+        curl -SL --fail -o /tmp/go.zip https://dl.google.com/go/go${GO_VERSION}.windows-amd64.zip
         unzip -q -o /tmp/go.zip -d ${{ inputs.target_directory }}
         rm -rf /tmp/go.zip
       fi
