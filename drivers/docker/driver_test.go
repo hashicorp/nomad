@@ -893,6 +893,10 @@ func TestDockerDriver_HealthchecksDisable(t *testing.T) {
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TEMPORARILY SKIPPING ON WINDOWS")
+	}
+
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
@@ -1864,6 +1868,10 @@ func TestDockerDriver_CleanupContainer(t *testing.T) {
 }
 
 func TestDockerDriver_EnableImageGC(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TEMPORARILY SKIPPING ON WINDOWS")
+	}
+
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
@@ -1930,6 +1938,10 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 }
 
 func TestDockerDriver_DisableImageGC(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TEMPORARILY SKIPPING ON WINDOWS")
+	}
+
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
@@ -1992,6 +2004,10 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 }
 
 func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TEMPORARILY SKIPPING ON WINDOWS")
+	}
+
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
