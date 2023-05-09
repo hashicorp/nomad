@@ -84,7 +84,13 @@ jobs:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
     runs-on: windows-latest
+    env:
+      GOPATH: c:\gopath
+      GOBIN: c:\gopath\bin
+      GOTESTSUM_PATH: c:\tmp\test-reports
     steps:
+      - name: Docker Info
+        run: docker version
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: Setup go
@@ -109,7 +115,6 @@ jobs:
       - name: Install golang dependencies
         shell: bash
         run: |-
-          export PATH=/c/go/bin:/c/gopath/bin:$PATH
           make deps
       - name: Pre-download docker test image
         run: |-
@@ -118,9 +123,7 @@ jobs:
       - name: Build nomad
         shell: bash
         run: |-
-          export PATH=/c/go/bin:/c/gopath/bin:$PATH
-          mkdir -p $GOBIN
-          go build -o $GOBIN\nomad.exe
+          go install .
       - name: Run tests with gotestsum
         shell: bash
         run: |-
