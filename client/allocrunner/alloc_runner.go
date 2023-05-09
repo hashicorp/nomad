@@ -8,6 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
@@ -338,17 +339,15 @@ func (ar *allocRunner) Run() {
 			ar.logger.Error("prerun failed", "error", err)
 
 			for _, tr := range ar.tasks {
-				tr.MarkFailedDead(fmt.Sprintf("failed to setup alloc: %v", err))
+				// emit event and mark task to be cleaned up during runTasks()
+				tr.MarkFailedKill(fmt.Sprintf("failed to setup alloc: %v", err))
 			}
-
-			goto POST
 		}
 	}
 
 	// Run the runners (blocks until they exit)
 	ar.runTasks()
 
-POST:
 	if ar.isShuttingDown() {
 		return
 	}
