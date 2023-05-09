@@ -708,6 +708,76 @@ module('Acceptance | job status panel', function (hooks) {
     });
   });
 
+  module('Batch jobs', function () {
+    test('Batch jobs have a valid Completed status', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+
+      let batchJob = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'batch',
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.3,
+          unknown: 0,
+          lost: 0,
+          complete: 0.2,
+        },
+        groupTaskCount: 10,
+        noActiveDeployment: true,
+        shallow: true,
+        version: 0,
+      });
+
+      let serviceJob = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'service',
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.3,
+          unknown: 0,
+          lost: 0,
+          complete: 0.2,
+        },
+        groupTaskCount: 10,
+        noActiveDeployment: true,
+        shallow: true,
+        version: 0,
+      });
+
+      // Batch job should have 5 running, 3 failed, 2 completed
+      await visit(`/jobs/${batchJob.id}`);
+      assert.dom('.job-status-panel').exists();
+      assert.dom('.running-allocs-title').hasText('5/10 Allocations Running');
+      assert
+        .dom('.ungrouped-allocs .represented-allocation.complete')
+        .exists(
+          { count: 2 },
+          `2 complete allocations are represented in the status panel`
+        );
+
+      // Service job should have 5 running, 3 failed, 2 unplaced
+
+      await visit(`/jobs/${serviceJob.id}`);
+      assert.dom('.job-status-panel').exists();
+      assert.dom('.running-allocs-title').hasText('5/10 Allocations Running');
+      assert
+        .dom('.ungrouped-allocs .represented-allocation.complete')
+        .doesNotExist(
+          'For a service job, no copmlete allocations are represented in the status panel'
+        );
+      assert
+        .dom('.ungrouped-allocs .represented-allocation.unplaced')
+        .exists(
+          { count: 2 },
+          `2 unplaced allocations are represented in the status panel`
+        );
+    });
+  });
+
   module('System jobs', function () {
     test('System jobs show restarted but not rescheduled allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
