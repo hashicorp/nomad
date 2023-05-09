@@ -1,6 +1,7 @@
 <div class="boxed-section">
   <div class="boxed-section-head">
     Job Definition
+    {{#if @data.cancelable}}
     <div class="pull-right" style="display: flex">
       <Tooltip
         @condition={{unless @data.hasSpecification true false}}
@@ -31,7 +32,6 @@
           </button>
         </div>
       </Tooltip>
-      {{#if @data.cancelable}}
         <button
           class="button is-light is-compact pull-right"
           onclick={{@fns.onCancel}}
@@ -40,8 +40,8 @@
         >
           Cancel
         </button>
-      {{/if}}
     </div>
+    {{/if}}
   </div>
   <div class="boxed-section-body is-full-bleed">
     <div
