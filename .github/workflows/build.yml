@@ -1,3 +1,4 @@
+# The name of this workflow is magic, don't touch! -- <3 RelEng.
 name: build
 on:
   push:
