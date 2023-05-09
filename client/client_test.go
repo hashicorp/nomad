@@ -11,7 +11,14 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocrunner"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -30,8 +37,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken, func()) {
@@ -1792,4 +1797,90 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.NotNil(t, runner, "expected alloc runner")
 	require.False(t, invalid, "expected alloc to not be marked invalid")
 	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
+}
+
+// TestClient_AllocPrerunErrorDuringRestore ensures that a running allocation,
+// which fails Prerun during Restore on client restart, should be killed.
+func TestClient_AllocPrerunErrorDuringRestore(t *testing.T) {
+	ci.Parallel(t)
+
+	logger := testlog.HCLogger(t)
+
+	// set up server
+	server, _, cleanS1 := testServer(t, nil)
+	t.Cleanup(cleanS1)
+	testutil.WaitForLeader(t, server.RPC)
+
+	// set up first client, which will initially start the job cleanly
+	c1, cleanC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = false // so state persists to client 2
+		c.RPCHandler = server
+	})
+	t.Cleanup(func() {
+		test.NoError(t, cleanC1())
+	})
+	waitTilNodeReady(c1, t)
+
+	// register a happy job to run until we cause it to fail
+	job := mock.MinJob()
+	testutil.RegisterJob(t, server.RPC, job)
+
+	// wait for our alloc to be running
+	testutil.WaitForJobAllocStatus(t, server.RPC, job, map[string]int{
+		structs.AllocClientStatusRunning: 1,
+	})
+	t.Logf("job %s allocs running 👍", job.ID)
+
+	// stop client 1, shutdown will dump state to disk but leave allocs running
+	must.NoError(t, c1.Shutdown())
+
+	// make a new client, using parts from the old one to be able to restore state
+	restoreClient := func() {
+		conf := c1.config.Copy()
+		// we want the prerun hook to fail
+		hook := allocrunner.NewFailHook(logger, t.Name())
+		hook.Fail.Prerun = true
+		conf.ExtraAllocHooks = []interfaces.RunnerHook{hook}
+
+		// this is so in-memory driver handles from client 1 can be restored by client 2
+		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
+
+		// actually make and start the client
+		c2, err := NewClient(conf, c1.consulCatalog, nil, c1.consulService, nil)
+		must.NoError(t, err)
+		t.Cleanup(func() {
+			test.NoError(t, c2.Shutdown())
+		})
+	}
+	restoreClient()
+
+	// wait for the client to pick up the alloc and fail prerun hook
+	testutil.WaitForJobAllocStatus(t, server.RPC, job, map[string]int{
+		structs.AllocClientStatusFailed: 1,
+	})
+	t.Logf("job %s allocs failed 👍", job.ID)
+
+	// ok, final assertions
+	allocs, err := server.State().AllocsByJob(nil, job.Namespace, job.ID, true)
+	must.NoError(t, err)
+
+	ts := allocs[0].TaskStates["t"]
+	test.True(t, ts.Failed)
+	test.Eq(t, structs.TaskStateDead, ts.State)
+
+	expectEvents := []string{
+		// initial successful setup
+		structs.TaskReceived,
+		structs.TaskSetup,
+		structs.TaskStarted,
+		// after prerun error during restore
+		structs.TaskSetupFailure,
+		structs.TaskTerminated, // this whole test is to ensure this happens.
+	}
+	var actual []string
+	for _, event := range ts.Events {
+		actual = append(actual, event.Type)
+	}
+	must.Eq(t, expectEvents, actual)
+	test.StrContains(t, ts.Events[3].DisplayMessage, allocrunner.ErrFailHookError.Error())
 }
