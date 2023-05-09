@@ -83,7 +83,7 @@ jobs:
   test-windows:
     if: # GitHub does not currently support regular expressions inside if conditions
     #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
 #      GOPATH: c:\gopath
 #      GOBIN: c:\gopath\bin
@@ -118,7 +118,20 @@ jobs:
           make deps
       - name: Pre-download docker test image
         run: |-
-          docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1
+          mkdir -p docker.context; pushd docker.context
+          curl -fso busybox.exe https://frippery.org/files/busybox/busybox-w64-FRP-4882-g6e0a6b7e5.exe
+          curl -fso busybox.exe.sig https://frippery.org/files/busybox/busybox-w64-FRP-4882-g6e0a6b7e5.exe.sig
+          # TODO: Actually test the signature https://frippery.org/files/RPM-GPG-KEY-rmy
+          cat <<'EOF' >Dockerfile
+          FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+          RUN mkdir C:\tmp && mkdir C:\bin
+          ADD busybox.exe /bin/busybox.exe
+          USER ContainerAdministrator
+          RUN FOR /f "tokens=*" %i IN ('C:\bin\busybox --list') DO mklink C:\bin\%i.exe C:\bin\busybox.exe
+          RUN setx /M PATH "C:\bin;%PATH%"
+          CMD ["sh"]
+          EOF
+          docker build -t docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1 -f Dockerfile .
           docker inspect docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:server2016-0.1
       - name: Build nomad
         shell: bash
