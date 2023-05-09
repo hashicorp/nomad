@@ -7673,7 +7673,7 @@ func TestJobEndpoint_Scale_BatchJob(t *testing.T) {
 	state := testServer.fsm.State()
 
 	mockBatchJob := mock.BatchJob()
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 10, nil, mockBatchJob))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 10, mockBatchJob))
 
 	scaleReq := &structs.JobScaleRequest{
 		JobID: mockBatchJob.ID,
