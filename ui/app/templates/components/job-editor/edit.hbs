@@ -1,6 +1,26 @@
 <div class="boxed-section">
     <div class="boxed-section-head">
     Job Definition
+        <div class="pull-right" style="display: flex">
+        <Tooltip @condition={{unless @data.hasSpecification true false}} @isFullText={{true}} @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format.">
+            <div class="job-definition-select {{unless @data.hasSpecification " disabled"}}" data-test-select={{@data.view}}>
+                <button 
+                    class="button is-small is-borderless {{if (eq @data.view "job-spec") "is-active"}}"
+                    type="button"
+                    {{on "click" (fn @fns.onSelect "job-spec")}}
+                >
+                    Job Spec
+                </button>
+                <button 
+                    class="button is-small is-borderless {{if (eq @data.view "full-definition") "is-active"}}"
+                    type="button"
+                    {{on "click" (fn @fns.onSelect "full-definition")}}
+                    data-test-select-full
+                >
+                    Full Definition
+                </button>
+            </div>        
+        </Tooltip>
     {{#if @data.cancelable}}
         <button
             class="button is-light is-compact pull-right"
@@ -11,6 +31,7 @@
             Cancel
         </button>
     {{/if}}
+        </div>
     </div>
     <div class="boxed-section-body is-full-bleed">
         <div
