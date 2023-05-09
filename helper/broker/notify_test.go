@@ -37,7 +37,7 @@ func TestGenericNotifier(t *testing.T) {
 	}
 	timeoutWG.Wait()
 
-	// Test that all subscribers recieve an update when a single notification
+	// Test that all subscribers receive an update when a single notification
 	// is sent.
 	var notifiedWG sync.WaitGroup
 
@@ -49,6 +49,10 @@ func TestGenericNotifier(t *testing.T) {
 			wg.Done()
 		}(&notifiedWG)
 	}
+
+	// Ensure the routines have had time to start before sending the notify
+	// signal, otherwise the test is a flake.
+	time.Sleep(500 * time.Millisecond)
 
 	notifier.Notify("we got an update and not a timeout")
 	notifiedWG.Wait()
