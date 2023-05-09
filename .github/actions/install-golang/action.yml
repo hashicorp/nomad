@@ -23,7 +23,7 @@ runs:
       then
         sudo rm -rf ${{ inputs.target_directory }}/go
         sudo mkdir -p ${{ inputs.target_directory }}
-        curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GOLANG_VERSION}.${os}-amd64.tar.gz
+        curl -SL --fail -o /tmp/golang.tar.gz https://dl.google.com/go/go${GO_VERSION}.${os}-amd64.tar.gz
         sudo tar -C ${{ inputs.target_directory }} -xzf /tmp/golang.tar.gz
         rm -rf /tmp/golang.tar.gz
       else
