@@ -121,11 +121,21 @@ export default class JobStatusPanelSteadyComponent extends Component {
   get totalAllocs() {
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
+      // } else if (this.args.job.type === 'batch') {
+      //   return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0) - this.completedAllocs.length;
     } else if (this.atMostOneAllocPerNode) {
       return this.args.job.allocations.uniqBy('nodeID').length;
     } else {
       return this.args.job.count; // TODO: this is probably not the correct totalAllocs count for any type.
     }
+  }
+
+  get totalNonCompletedAllocs() {
+    return this.totalAllocs - this.completedAllocs.length;
+  }
+
+  get allAllocsComplete() {
+    return this.completedAllocs.length && this.totalNonCompletedAllocs === 0;
   }
 
   get atMostOneAllocPerNode() {
@@ -157,6 +167,12 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get restartedAllocs() {
     return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
+  }
+
+  get completedAllocs() {
+    return this.job.allocations.filter(
+      (a) => !a.isOld && a.clientStatus === 'complete'
+    );
   }
 
   get supportsRescheduling() {
