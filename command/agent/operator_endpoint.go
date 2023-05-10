@@ -30,6 +30,8 @@ func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request
 		return s.OperatorRaftConfiguration(resp, req)
 	case strings.HasPrefix(path, "peer"):
 		return s.OperatorRaftPeer(resp, req)
+	case strings.HasPrefix(path, "transfer-leadership"):
+		return s.OperatorRaftTransferLeadership(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -56,8 +58,7 @@ func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *ht
 	return reply, nil
 }
 
-// OperatorRaftPeer supports actions on Raft peers. Currently we only support
-// removing peers by address.
+// OperatorRaftPeer supports actions on Raft peers.
 func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(404, ErrInvalidMethod)
@@ -90,6 +91,46 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 		var reply struct{}
 		args.Address = raft.ServerAddress(params.Get("address"))
 		if err := s.agent.RPC("Operator.RaftRemovePeerByAddress", &args, &reply); err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, nil
+}
+
+// OperatorRaftTransferLeadership supports actions on Raft peers.
+func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	params := req.URL.Query()
+	_, hasID := params["id"]
+	_, hasAddress := params["address"]
+
+	if !hasID && !hasAddress {
+		return nil, CodedError(http.StatusBadRequest, "Must specify either ?id with the destination server's ID or ?address with IP:port of the destination peer")
+	}
+	if hasID && hasAddress {
+		return nil, CodedError(http.StatusBadRequest, "Must specify only one of ?id or ?address")
+	}
+
+	if hasID {
+		var args structs.RaftPeerByIDRequest
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var reply struct{}
+		args.ID = raft.ServerID(params.Get("id"))
+		if err := s.agent.RPC("Operator.TransferLeadershipToServerID", &args, &reply); err != nil {
+			return nil, err
+		}
+	} else {
+		var args structs.RaftPeerByAddressRequest
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var reply struct{}
+		args.Address = raft.ServerAddress(params.Get("address"))
+		if err := s.agent.RPC("Operator.TransferLeadershipToServerAddress", &args, &reply); err != nil {
 			return nil, err
 		}
 	}
