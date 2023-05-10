@@ -893,9 +893,6 @@ func TestDockerDriver_HealthchecksDisable(t *testing.T) {
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("TEMPORARILY SKIPPING ON WINDOWS")
-	}
 
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
