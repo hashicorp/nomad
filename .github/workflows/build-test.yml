@@ -2,8 +2,10 @@ name: build-test
 on:
   push:
     branches:
-      - main
-      - releng/fix-circle-migration
+      - !**-ui*
+      - !docs-*
+      - !backport/docs-*
+      - !stable-website
 env:
   #todo
   PERCY_TOKEN: xxxxxxx
