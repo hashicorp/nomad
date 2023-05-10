@@ -7,6 +7,7 @@ on:
       - '!docs-*'
       - '!backport/docs-*'
       - '!stable-website'
+
 env:
   #todo
   PERCY_TOKEN: xxxxxxx
@@ -84,8 +85,6 @@ jobs:
 #        with:
 #          path: "/tmp/test-reports"
   test-windows:
-    if: # GitHub does not currently support regular expressions inside if conditions
-    #         github.ref != 'refs/heads//^.-ui\b.*/' && github.ref != 'refs/heads//^docs-.*/' && github.ref != 'refs/heads//^backport/docs-.*/' && github.ref != 'refs/heads//^e2e-.*/' && github.ref != 'refs/heads/stable-website'
     runs-on: windows-2022
     env:
 #      GOPATH: c:\gopath
