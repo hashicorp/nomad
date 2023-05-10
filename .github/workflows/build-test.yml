@@ -126,6 +126,8 @@ jobs:
           go install .
       - name: Run tests with gotestsum
         shell: bash
+        env:
+          BUSYBOX_IMAGE=docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:ltsc2022
         run: |-
           # Only test docker driver tests for now
           export PATH=/c/go/bin:/c/gopath/bin:$PATH
