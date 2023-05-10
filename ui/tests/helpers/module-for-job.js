@@ -18,7 +18,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
-const jobTypesWithStatusPanel = ['service', 'system'];
+const jobTypesWithStatusPanel = ['service', 'system', 'batch'];
 
 async function switchToHistorical() {
   await JobDetail.statusModes.historical.click();
@@ -127,7 +127,7 @@ export default function moduleForJob(
 
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function (assert) {
-        if (jobTypesWithStatusPanel.includes(job.type)) {
+        if (!job.parentId && jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
         assert.ok(
@@ -167,7 +167,7 @@ export default function moduleForJob(
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
-        if (jobTypesWithStatusPanel.includes(job.type)) {
+        if (!job.parentId && jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
         const legendItem = find('.legend li.is-clickable');
@@ -188,7 +188,7 @@ export default function moduleForJob(
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
-        if (jobTypesWithStatusPanel.includes(job.type)) {
+        if (!job.parentId && jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
         const slice = JobDetail.allocationsSummary.slices[0];
