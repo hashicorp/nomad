@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -366,6 +367,118 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply)
 		assert.Nil(err)
 	}
+}
+
+func TestOperator_TransferLeadershipToServerAddress_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(3)
+	})
+
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create ACL token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	ports := ci.PortAllocator.Grab(1)
+
+	id := raft.ServerID("e35bde83-4e9c-434f-a6ef-453f44ee21ea")
+	addr := raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0]))
+	arg := structs.RaftPeerByAddressRequest{
+		Address:      addr,
+		WriteRequest: structs.WriteRequest{Region: s1.config.Region},
+	}
+
+	// Add peer manually to Raft.
+	{
+		future := s1.raft.AddVoter(id, addr, 0, 0)
+		must.NoError(t, future.Error())
+	}
+
+	var reply struct{}
+
+	t.Run("no-token", func(t *testing.T) {
+		// Try with no token and expect permission denied
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToServerAddress", &arg, &reply)
+		must.Error(t, err)
+		must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+	})
+
+	t.Run("invalid-token", func(t *testing.T) {
+		// Try with an invalid token and expect permission denied
+		arg.AuthToken = invalidToken.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToServerAddress", &arg, &reply)
+		must.Error(t, err)
+		must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+	})
+
+	t.Run("good-token", func(t *testing.T) {
+		// Try with a management token
+		arg.AuthToken = root.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToServerAddress", &arg, &reply)
+		must.NoError(t, err)
+	})
+}
+
+func TestOperator_TransferLeadershipToServerID_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(3)
+	})
+
+	defer cleanupS1()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create ACL token
+	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+
+	ports := ci.PortAllocator.Grab(1)
+
+	id := raft.ServerID("e35bde83-4e9c-434f-a6ef-453f44ee21ea")
+	addr := raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0]))
+	arg := structs.RaftPeerByIDRequest{
+		ID:           id,
+		WriteRequest: structs.WriteRequest{Region: s1.config.Region},
+	}
+
+	// Add peer manually to Raft.
+	{
+		future := s1.raft.AddVoter(id, addr, 0, 0)
+		must.NoError(t, future.Error())
+	}
+
+	var reply struct{}
+
+	t.Run("no-token", func(t *testing.T) {
+		// Try with no token and expect permission denied
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToServerAddress", &arg, &reply)
+		must.Error(t, err)
+		must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+	})
+
+	t.Run("invalid-token", func(t *testing.T) {
+		// Try with an invalid token and expect permission denied
+		arg.AuthToken = invalidToken.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToServerAddress", &arg, &reply)
+		must.Error(t, err)
+		must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+	})
+
+	t.Run("good-token", func(t *testing.T) {
+		// Try with a management token
+		arg.AuthToken = root.SecretID
+		err := msgpackrpc.CallWithCodec(codec, "Operator.TransferLeadershipToServerAddress", &arg, &reply)
+		must.NoError(t, err)
+	})
 }
 
 func TestOperator_SchedulerGetConfiguration(t *testing.T) {
