@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"strconv"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -124,7 +123,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 
 	if json || len(tmpl) > 0 {
 		for _, member := range srvMembers.Members {
-			member.Tags["Leader"] = strconv.FormatBool(isLeader(member, leaders))
+			member.Tags["Leader"] = fmt.Sprintf("%t", isLeader(member, leaders))
 		}
 		out, err := Format(json, tmpl, srvMembers.Members)
 		if err != nil {
