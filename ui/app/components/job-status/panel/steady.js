@@ -140,18 +140,22 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get versions() {
-    return Object.values(this.allocBlocks)
+    const versions = Object.values(this.allocBlocks)
       .flatMap((allocType) => Object.values(allocType))
       .flatMap((allocHealth) => Object.values(allocHealth))
       .flatMap((allocCanary) => Object.values(allocCanary))
-      .map((a) => (!isNaN(a?.jobVersion) ? a.jobVersion : 'pending')) // "starting" allocs, and possibly others, do not yet have a jobVersion
-      .reduce(
-        (result, item) => ({
-          ...result,
-          [item]: [...(result[item] || []), item],
-        }),
-        []
-      );
+      .map((a) => (!isNaN(a?.jobVersion) ? a.jobVersion : 'unknown')) // "starting" allocs, GC'd allocs, etc. do not have a jobVersion
+      .sort((a, b) => a - b)
+      .reduce((result, item) => {
+        const existingVersion = result.find((v) => v.version === item);
+        if (existingVersion) {
+          existingVersion.allocations.push(item);
+        } else {
+          result.push({ version: item, allocations: [item] });
+        }
+        return result;
+      }, []);
+    return versions;
   }
 
   get rescheduledAllocs() {

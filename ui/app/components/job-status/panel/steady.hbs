@@ -67,14 +67,18 @@
         <section class="versions">
           <h4>Versions</h4>
           <ul>
-            {{#each-in this.versions as |version allocs|}}
+            {{#each this.versions as |versionObj|}}
               <li>
-                <LinkTo data-version={{version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' version ']')    status=(concat '["running", "pending", "failed"]')         }}>
-                  <Hds::Badge @text={{concat "v" version}} />
-                  <Hds::BadgeCount @text={{allocs.length}} @type="inverted" />
+                <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
+                  {{#if (eq versionObj.version "unknown")}}
+                    <Hds::Badge @text="unknown" />
+                  {{else}}
+                    <Hds::Badge @text={{concat "v" versionObj.version}} />
+                  {{/if}}
+                  <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
                 </LinkTo>
               </li>
-            {{/each-in}}
+            {{/each}}
           </ul>
         </section>
 
