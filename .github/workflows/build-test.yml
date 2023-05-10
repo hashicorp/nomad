@@ -2,6 +2,7 @@ name: build-test
 on:
   push:
     branches:
+      - releng/fix-circle-migration
       - !**-ui*
       - !docs-*
       - !backport/docs-*
