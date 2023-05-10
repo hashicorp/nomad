@@ -28,8 +28,7 @@ jobs:
           git log -n 1 --pretty=format:%H ui > /tmp/ui-sha
       - name: prepare ui
         run: |-
-          # shellcheck source=/tmp/ui-assets/bindata_assetfs.go
-          if [[ -f /tmp/ui-assets/bindata_assetfs.go ]]; then
+          if [[ -f ~/tmp/ui-assets/bindata_assetfs.go ]]; then
             cp /tmp/ui-assets/bindata_assetfs.go ./command/agent/bindata_assetfs.go
             exit 0
           fi
