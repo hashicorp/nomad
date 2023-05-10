@@ -121,8 +121,6 @@ export default class JobStatusPanelSteadyComponent extends Component {
   get totalAllocs() {
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
-      // } else if (this.args.job.type === 'batch') {
-      //   return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0) - this.completedAllocs.length;
     } else if (this.atMostOneAllocPerNode) {
       return this.args.job.allocations.uniqBy('nodeID').length;
     } else {
