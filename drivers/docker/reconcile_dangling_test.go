@@ -247,9 +247,6 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 
 	untracked, err := reconciler.untrackedContainers(set.New[string](0), time.Now())
 
-	t.Log("container", container.Name)
-	t.Log("tracked", tracked)
-	t.Log("untracked", untracked)
 	must.NoError(t, err)
 	must.NotContains[string](t, container.ID, untracked)
 
