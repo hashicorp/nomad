@@ -149,6 +149,34 @@ func (s *Server) monitorLeadership() {
 	}
 }
 
+func (s *Server) leadershipTransferToServer(id raft.ServerID, addr raft.ServerAddress) error {
+	if lAddr, lID := s.raft.LeaderWithID(); id == lID && addr == lAddr {
+		s.logger.Debug("leadership transfer to current leader is a no-op")
+		return nil
+	}
+	retryCount := 3
+	for i := 0; i < retryCount; i++ {
+		err := s.raft.LeadershipTransferToServer(id, addr).Error()
+		if err == nil {
+			s.logger.Info("successfully transferred leadership")
+			return nil
+		}
+
+		// Don't retry if the Raft version doesn't support leadership transfer
+		// since this will never succeed.
+		if err == raft.ErrUnsupportedProtocol {
+			return fmt.Errorf("leadership transfer not supported with Raft version lower than 3")
+		}
+
+		s.logger.Error("failed to transfer leadership attempt, will retry",
+			"attempt", i,
+			"retry_limit", retryCount,
+			"error", err,
+		)
+	}
+	return fmt.Errorf("failed to transfer leadership in %d attempts", retryCount)
+}
+
 func (s *Server) leadershipTransfer() error {
 	retryCount := 3
 	for i := 0; i < retryCount; i++ {
