@@ -3,10 +3,10 @@ on:
   push:
     branches:
       - releng/fix-circle-migration
-      - !**-ui*
-      - !docs-*
-      - !backport/docs-*
-      - !stable-website
+      - '!**-ui*'
+      - '!docs-*'
+      - '!backport/docs-*'
+      - '!stable-website'
 env:
   #todo
   PERCY_TOKEN: xxxxxxx
