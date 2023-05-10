@@ -749,6 +749,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator raft transfer-leadership": func() (cli.Command, error) {
+			return &OperatorRaftTransferLeadershipCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator raft info": func() (cli.Command, error) {
 			return &OperatorRaftInfoCommand{
 				Meta: meta,
