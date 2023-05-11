@@ -111,7 +111,8 @@ jobs:
         with:
           path: "/tmp/test-reports"
   test-windows:
-    runs-on: windows-2022
+    #runs-on: windows-2022
+    runs-on: custom-windows-medium
     env:
       GOTESTSUM_PATH: c:\tmp\test-reports
     steps:
