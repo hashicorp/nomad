@@ -10,6 +10,22 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// nodePoolInit creates the reserved node pools that should always be present
+// in the cluster.
+func (s *StateStore) nodePoolInit() error {
+	allNodePool := &structs.NodePool{
+		Name:        structs.NodePoolAll,
+		Description: structs.NodePoolAllDescription,
+	}
+
+	defaultNodePool := &structs.NodePool{
+		Name:        structs.NodePoolDefault,
+		Description: structs.NodePoolDefaultDescription,
+	}
+
+	return s.UpsertNodePools(1, []*structs.NodePool{allNodePool, defaultNodePool})
+}
+
 // NodePools returns an iterator over all node pools.
 func (s *StateStore) NodePools(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -84,6 +100,11 @@ func (s *StateStore) upsertNodePoolTxn(txn *txn, index uint64, pool *structs.Nod
 	}
 
 	if existing != nil {
+		// Prevent changes to reserved node pools.
+		if pool.IsReserved() {
+			return fmt.Errorf("modifying reserved node pool %q is not allowed", pool.Name)
+		}
+
 		exist := existing.(*structs.NodePool)
 		pool.CreateIndex = exist.CreateIndex
 		pool.ModifyIndex = index
@@ -129,6 +150,11 @@ func (s *StateStore) deleteNodePoolTxn(txn *txn, index uint64, name string) erro
 	}
 
 	pool := existing.(*structs.NodePool)
+
+	// Prevent deletion of reserved node pools.
+	if pool.IsReserved() {
+		return fmt.Errorf("deleting reserved node pool %q is not allowed", pool.Name)
+	}
 
 	// Delete node pool.
 	if err := txn.Delete(TableNodePools, pool); err != nil {

@@ -29,15 +29,30 @@ func TestStateStore_NodePools(t *testing.T) {
 	iter, err := state.NodePools(ws)
 	must.NoError(t, err)
 
-	// Verify all test pools are returned.
+	// Verify all pools are returned.
+	foundReserved := map[string]bool{
+		structs.NodePoolAll:     false,
+		structs.NodePoolDefault: false,
+	}
 	got := make([]*structs.NodePool, 0, 10)
+
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		pool := raw.(*structs.NodePool)
+
+		if pool.IsReserved() {
+			must.False(t, foundReserved[pool.Name])
+			foundReserved[pool.Name] = true
+			continue
+		}
+
 		got = append(got, pool)
 	}
 
 	must.SliceContainsAll(t, got, pools)
 	must.False(t, watchFired(ws))
+	for k, v := range foundReserved {
+		must.True(t, v, must.Sprintf("reserved pool %q not found", k))
+	}
 }
 
 func TestStateStore_NodePool_ByName(t *testing.T) {
@@ -60,6 +75,26 @@ func TestStateStore_NodePool_ByName(t *testing.T) {
 			name:     "find a pool",
 			pool:     pools[3].Name,
 			expected: pools[3],
+		},
+		{
+			name: "find reserved pool all",
+			pool: structs.NodePoolAll,
+			expected: &structs.NodePool{
+				Name:        structs.NodePoolAll,
+				Description: structs.NodePoolAllDescription,
+				CreateIndex: 1,
+				ModifyIndex: 1,
+			},
+		},
+		{
+			name: "find reserved pool default",
+			pool: structs.NodePoolDefault,
+			expected: &structs.NodePool{
+				Name:        structs.NodePoolDefault,
+				Description: structs.NodePoolDefaultDescription,
+				CreateIndex: 1,
+				ModifyIndex: 1,
+			},
 		},
 		{
 			name:     "pool not found",
@@ -130,6 +165,8 @@ func TestStateStore_NodePool_ByNamePrefix(t *testing.T) {
 			name:   "empty prefix",
 			prefix: "",
 			expected: []string{
+				"all",
+				"default",
 				"prod-1",
 				"prod-2",
 				"prod-3",
@@ -216,6 +253,26 @@ func TestStateStore_NodePool_Upsert(t *testing.T) {
 			},
 			expectedErr: "missing primary index",
 		},
+		{
+			name: "update reserved pool all",
+			input: []*structs.NodePool{
+				{
+					Name:        structs.NodePoolAll,
+					Description: "changed",
+				},
+			},
+			expectedErr: "not allowed",
+		},
+		{
+			name: "update reserved pool default",
+			input: []*structs.NodePool{
+				{
+					Name:        structs.NodePoolDefault,
+					Description: "changed",
+				},
+			},
+			expectedErr: "not allowed",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -277,6 +334,16 @@ func TestStateStore_NodePool_Delete(t *testing.T) {
 			name:        "delete is atomic",
 			del:         []string{pools[0].Name, "nope"},
 			expectedErr: "not found",
+		},
+		{
+			name:        "delete reserved pool all",
+			del:         []string{structs.NodePoolAll},
+			expectedErr: "not allowed",
+		},
+		{
+			name:        "delete reserved pool default",
+			del:         []string{structs.NodePoolDefault},
+			expectedErr: "not allowed",
 		},
 	}
 

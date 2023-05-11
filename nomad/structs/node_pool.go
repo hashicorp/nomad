@@ -11,6 +11,16 @@ import (
 )
 
 const (
+	// NodePoolAll is a reserved node pool that always includes all nodes in
+	// the cluster.
+	NodePoolAll            = "all"
+	NodePoolAllDescription = "Node pool with all nodes in the cluster."
+
+	// NodePoolDefault is a reserved node pool for nodes that don't specify a
+	// node pool in their configuration.
+	NodePoolDefault            = "default"
+	NodePoolDefaultDescription = "Default node pool."
+
 	// maxNodePoolDescriptionLength is the maximum length allowed for a node
 	// pool description.
 	maxNodePoolDescriptionLength = 256
@@ -68,6 +78,17 @@ func (n *NodePool) Copy() *NodePool {
 	nc.SchedulerConfiguration = n.SchedulerConfiguration.Copy()
 
 	return nc
+}
+
+// IsReserved returns true if the node pool is one of the reserved pools.
+// These pools cannot be deleted or modified.
+func (n *NodePool) IsReserved() bool {
+	switch n.Name {
+	case NodePoolAll, NodePoolDefault:
+		return true
+	default:
+		return false
+	}
 }
 
 // NodePoolSchedulerConfiguration is the scheduler confinguration applied to a

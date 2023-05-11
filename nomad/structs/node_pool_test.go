@@ -93,3 +93,43 @@ func TestNodePool_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestNodePool_IsReserved(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		pool     *NodePool
+		reserved bool
+	}{
+		{
+			name: "all",
+			pool: &NodePool{
+				Name: NodePoolAll,
+			},
+			reserved: true,
+		},
+		{
+			name: "default",
+			pool: &NodePool{
+				Name: NodePoolDefault,
+			},
+			reserved: true,
+		},
+		{
+			name: "not reserved",
+			pool: &NodePool{
+				Name: "not-reserved",
+			},
+			reserved: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.pool.IsReserved()
+			must.Eq(t, tc.reserved, got)
+		})
+	}
+
+}
