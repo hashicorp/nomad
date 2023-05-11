@@ -173,20 +173,20 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	var DNSNames []string
-	var IPAddresses []net.IP
+	var dnsNames []string
+	var ipAddresses []net.IP
 	var extKeyUsage []x509.ExtKeyUsage
 	var name, regionName, prefix string
 
 	for _, d := range c.dnsNames {
 		if len(d) > 0 {
-			DNSNames = append(DNSNames, strings.TrimSpace(d))
+			dnsNames = append(dnsNames, strings.TrimSpace(d))
 		}
 	}
 
 	for _, i := range c.ipAddresses {
 		if len(i) > 0 {
-			IPAddresses = append(IPAddresses, net.ParseIP(strings.TrimSpace(i)))
+			ipAddresses = append(ipAddresses, net.ParseIP(strings.TrimSpace(i)))
 		}
 	}
 
@@ -200,14 +200,14 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		regionName = "global"
 	}
 
-	// Set DNSNames and IPAddresses based on whether this is a client, server or cli
+	// Set dnsNames and ipAddresses based on whether this is a client, server or cli
 	switch {
 	case c.server:
-		IPAddresses, DNSNames, name, extKeyUsage, prefix = recordPreparation("server", regionName, c.domain, IPAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("server", regionName, c.domain, ipAddresses)
 	case c.client:
-		IPAddresses, DNSNames, name, extKeyUsage, prefix = recordPreparation("client", regionName, c.domain, IPAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("client", regionName, c.domain, ipAddresses)
 	case c.cli:
-		IPAddresses, DNSNames, name, extKeyUsage, prefix = recordPreparation("cli", regionName, c.domain, IPAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("cli", regionName, c.domain, ipAddresses)
 	default:
 		c.Ui.Error("Neither client, cli nor server - should not happen")
 		return 1
@@ -261,7 +261,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	}
 	pub, priv, err := tlsutil.GenerateCert(tlsutil.CertOpts{
 		Signer: signer, CA: string(cert), Name: name, Days: c.days,
-		DNSNames: DNSNames, IPAddresses: IPAddresses, ExtKeyUsage: extKeyUsage,
+		DNSNames: dnsNames, IPAddresses: ipAddresses, ExtKeyUsage: extKeyUsage,
 	})
 	if err != nil {
 		c.Ui.Error(err.Error())
@@ -303,43 +303,35 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 
 func recordPreparation(certType string, regionName string, domain string, ipAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
 	var (
-		DNSNames                []string
+		dnsNames                []string
 		extKeyUsage             []x509.ExtKeyUsage
 		name, regionUrl, prefix string
 	)
-	if certType == "server" {
+	if certType == "server" || certType == "client" {
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-		ipAddresses = append(ipAddresses, net.ParseIP("127.0.0.1"))
-	} else if certType == "client" {
-		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
 		ipAddresses = append(ipAddresses, net.ParseIP("127.0.0.1"))
 	} else if certType == "cli" {
 		extKeyUsage = []x509.ExtKeyUsage{}
 	}
-
+	// prefix is used to generate the filename for the certificate before writing to disk.
 	prefix = fmt.Sprintf("%s-%s-%s", regionName, certType, domain)
+	regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
+	name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
 
 	if regionName != "global" && domain != "nomad" {
-		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
-		regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
-		DNSNames = append(DNSNames, name, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
+		dnsNames = append(dnsNames, name, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
 	}
 
 	if regionName != "global" && domain == "nomad" {
-		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
-		regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
-		DNSNames = append(DNSNames, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
+		dnsNames = append(dnsNames, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
 	}
 
-	if domain != "nomad" && regionName == "global" {
-		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
-		regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
-		DNSNames = append(DNSNames, fmt.Sprintf("%s.%s.%s", certType, regionName, domain), regionUrl, "localhost")
+	if regionName == "global" && domain != "nomad" {
+		dnsNames = append(dnsNames, regionUrl, fmt.Sprintf("%s.%s.%s", certType, regionName, domain), "localhost")
 	}
 
 	if regionName == "global" && domain == "nomad" {
-		name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
-		DNSNames = append(DNSNames, name, "localhost")
+		dnsNames = append(dnsNames, name, "localhost")
 	}
-	return ipAddresses, DNSNames, name, extKeyUsage, prefix
+	return ipAddresses, dnsNames, name, extKeyUsage, prefix
 }

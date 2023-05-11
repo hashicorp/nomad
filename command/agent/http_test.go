@@ -733,11 +733,11 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	ci.Parallel(t)
 	const (
 		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	s := makeHTTPServer(t, func(c *Config) {
-		c.Region = "foo" // match the region on foocert
+		c.Region = "regionFoo" // match the region on foocert
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
