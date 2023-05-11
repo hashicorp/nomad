@@ -727,7 +727,7 @@ module('Acceptance | job status panel', function (hooks) {
         groupTaskCount: 10,
         noActiveDeployment: true,
         shallow: true,
-        version: 0,
+        version: 1,
       });
 
       let serviceJob = server.create('job', {
@@ -745,13 +745,18 @@ module('Acceptance | job status panel', function (hooks) {
         groupTaskCount: 10,
         noActiveDeployment: true,
         shallow: true,
-        version: 0,
+        version: 1,
       });
 
       // Batch job should have 5 running, 3 failed, 2 completed
       await visit(`/jobs/${batchJob.id}`);
       assert.dom('.job-status-panel').exists();
-      assert.dom('.running-allocs-title').hasText('5/10 Allocations Running');
+      assert
+        .dom('.running-allocs-title')
+        .hasText(
+          '5/8 Remaining Allocations Running',
+          'Completed allocations do not count toward the Remaining denominator'
+        );
       assert
         .dom('.ungrouped-allocs .represented-allocation.complete')
         .exists(

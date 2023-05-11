@@ -128,6 +128,14 @@ export default class JobStatusPanelSteadyComponent extends Component {
     }
   }
 
+  get totalNonCompletedAllocs() {
+    return this.totalAllocs - this.completedAllocs.length;
+  }
+
+  get allAllocsComplete() {
+    return this.completedAllocs.length && this.totalNonCompletedAllocs === 0;
+  }
+
   get atMostOneAllocPerNode() {
     return this.args.job.type === 'system';
   }
@@ -157,6 +165,12 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get restartedAllocs() {
     return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRestarted);
+  }
+
+  get completedAllocs() {
+    return this.job.allocations.filter(
+      (a) => !a.isOld && a.clientStatus === 'complete'
+    );
   }
 
   get supportsRescheduling() {

@@ -22,13 +22,23 @@
       <JobPage::Parts::SummaryChart @job={{@job}} />
     {{else}}
       <h3 class="title is-4 running-allocs-title">
-        <strong>
-          {{@job.runningAllocs ~}}
-          {{#unless this.atMostOneAllocPerNode ~}}
-            /{{this.totalAllocs}}
-          {{/unless}}
-        </strong>
-        {{pluralize "Allocation" @job.runningAllocs}} Running</h3>
+        {{#if this.allAllocsComplete}}
+          All allocations have completed successfully
+        {{else}}
+          <strong>
+              {{@job.runningAllocs ~}}
+              {{#unless this.atMostOneAllocPerNode ~}}
+                {{#if (eq @job.type "batch") ~}}
+                  /{{this.totalNonCompletedAllocs}}
+                {{else ~}}
+                  /{{this.totalAllocs}}
+                {{/if}}
+              {{/unless}}
+          </strong>
+          {{#if (eq @job.type "batch") ~}}Remaining{{/if}}
+          {{pluralize "Allocation" @job.runningAllocs}} Running
+        {{/if}}
+      </h3>
       <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
 
       <div class="legend-and-summary">
