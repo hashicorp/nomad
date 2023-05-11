@@ -156,7 +156,7 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 					cert.ExtKeyUsage)
 			case "client":
 				require.Equal(t,
-					[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 					cert.ExtKeyUsage)
 			case "cli":
 				require.Len(t, cert.ExtKeyUsage, 0)
@@ -289,7 +289,7 @@ func TestTlsCertCreateAlternateDomainCommand_fileCreate(t *testing.T) {
 					cert.ExtKeyUsage)
 			case "client":
 				require.Equal(t,
-					[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 					cert.ExtKeyUsage)
 			case "cli":
 				require.Len(t, cert.ExtKeyUsage, 0)
