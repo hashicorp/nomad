@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
+	"github.com/hashicorp/nomad/client/config"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
@@ -200,7 +201,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 
 	clientConf.StateDir = path
 
-	conf := &allocrunner.Config{
+	conf := &config.AllocRunnerConfig{
 		Alloc:             alloc,
 		Logger:            clientConf.Logger,
 		ClientConfig:      clientConf,
