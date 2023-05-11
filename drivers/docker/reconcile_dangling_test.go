@@ -255,5 +255,8 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 
 	untracked, err = reconciler.untrackedContainers(set.New[string](0), time.Now())
 	must.NoError(t, err)
+	for _, d := range untracked.Slice() {
+		t.Logf("danglin: %#v", d)
+	}
 	must.Contains[string](t, container.ID, untracked)
 }
