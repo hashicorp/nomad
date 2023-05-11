@@ -527,6 +527,9 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Format: formatJSON,
 		}
 	default:
+		// we are parsing HCL2
+
+		// make a copy of the job file (or stdio)
 		if _, err = io.Copy(&source, jobfile); err != nil {
 			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
 		}
@@ -542,9 +545,20 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Strict:   j.Strict,
 		})
 
+		var varFileCat string
+		var readVarFileErr error
+		if err == nil {
+			// combine any -var-file data into one big blob
+			varFileCat, readVarFileErr = extractVarFiles([]string(j.VarFiles))
+			if readVarFileErr != nil {
+				return nil, nil, fmt.Errorf("Failed to read var file(s): %w", readVarFileErr)
+			}
+		}
+
 		// submit the job with the submission with content from -var flags
 		jobSubmission = &api.JobSubmission{
 			VariableFlags: extractVarFlags(j.Vars),
+			Variables:     varFileCat,
 			Source:        source.String(),
 			Format:        formatHCL2,
 		}
@@ -560,6 +574,21 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	}
 
 	return jobSubmission, jobStruct, nil
+}
+
+// extractVarFiles concatenates the content of each file in filenames and
+// returns it all as one big content blob
+func extractVarFiles(filenames []string) (string, error) {
+	var sb strings.Builder
+	for _, filename := range filenames {
+		b, err := os.ReadFile(filename)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(string(b))
+		sb.WriteString("\n")
+	}
+	return sb.String(), nil
 }
 
 // extractVarFlags is used to parse the values of -var command line arguments
