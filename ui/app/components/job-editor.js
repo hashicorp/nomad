@@ -54,9 +54,6 @@ export default class JobEditor extends Component {
     return ['new', 'edit'].includes(this.args.context);
   }
 
-  /**
-   * Set the definition on the Job model.
-   */
   @action
   setDefinitionOnModel() {
     this.args.job.set('_newDefinition', this.definition);
@@ -79,7 +76,7 @@ export default class JobEditor extends Component {
   /**
    * Determine the current stage of the component based on the plan output and editing state.
    *
-   * @returns {string} The current stage, either 'review', 'edit', or 'read'.
+   * @returns {"review"|"edit"|"read"} The current stage, either 'review', 'edit', or 'read'.
    */
   get stage() {
     if (this.planOutput) return 'review';
@@ -87,9 +84,6 @@ export default class JobEditor extends Component {
     else return 'read';
   }
 
-  /**
-   * A local storage property that determines whether the plan message should be shown.
-   */
   @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
 
   @action
@@ -150,7 +144,7 @@ export default class JobEditor extends Component {
    * Handle errors, setting the error object and scrolling to the error message.
    *
    * @param {Error} err - The error object.
-   * @param {string} type - The type of error (e.g., 'parse', 'plan', 'run').
+   * @param {"parse"|"plan"|"run"} type - The type of error (e.g., 'parse', 'plan', 'run').
    * @param {string} actionMsg - A message describing the action that caused the error.
    */
   onError(err, type, actionMsg) {
@@ -159,18 +153,12 @@ export default class JobEditor extends Component {
     this.scrollToError();
   }
 
-  /**
-   * Reset the planOutput and error properties to their initial state.
-   */
   @action
   reset() {
     this.planOutput = null;
     this.error = null;
   }
 
-  /**
-   * Scroll to the top of the page if not in a test environment.
-   */
   scrollToError() {
     if (!this.config.get('isTest')) {
       window.scrollTo(0, 0);
@@ -182,7 +170,7 @@ export default class JobEditor extends Component {
    *
    * @param {string} value - The new value for the job's definition or definition variables.
    * @param {_codemirror} _codemirror - The CodeMirror instance (not used in this action).
-   * @param {string} [type='job'] - The type of code being updated ('job' or 'hclVariables').
+   * @param {"hclVariables"|"job"} [type='job'] - The type of code being updated ('job' or 'hclVariables').
    */
   @action
   updateCode(value, _codemirror, type = 'job') {

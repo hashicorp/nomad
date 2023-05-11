@@ -35,7 +35,7 @@ export default class DefinitionController extends Controller.extend(
 
   /**
    * Get the context of the controller based on the editing state.
-   * @returns {string} The context, either 'edit' or 'read'.
+   * @returns {"edit"|"read"} The context, either 'edit' or 'read'.
    */
   get context() {
     return this.isEditing ? 'edit' : 'read';
@@ -52,7 +52,7 @@ export default class DefinitionController extends Controller.extend(
 
   /**
    * Update the view based on the selected view.
-   * @param {string} selectedView - The selected view, either 'job-spec' or 'full-definition'.
+   * @param {"job-spec" | "full-definition"} selectedView - The selected view, either 'job-spec' or 'full-definition'.
    */
   @action
   selectView(selectedView) {
