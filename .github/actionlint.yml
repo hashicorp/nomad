@@ -7,3 +7,4 @@ self-hosted-runner:
     - linux
     - xxl
     - 20.04
+    - custom-windows-medium
