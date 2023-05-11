@@ -6,6 +6,7 @@ package state
 import (
 	"fmt"
 
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -50,6 +51,14 @@ func (m *ErrDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, e
 
 func (m *ErrDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error {
 	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutAcknowledgedState(allocID string, state *arstate.State, opts ...WriteOption) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetAcknowledgedState(allocID string) (*arstate.State, error) {
+	return nil, fmt.Errorf("Error!")
 }
 
 func (m *ErrDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {

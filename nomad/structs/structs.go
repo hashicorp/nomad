@@ -2823,6 +2823,13 @@ func (d *DNSConfig) Copy() *DNSConfig {
 	}
 }
 
+func (d *DNSConfig) IsZero() bool {
+	if d == nil {
+		return true
+	}
+	return len(d.Options) == 0 || len(d.Searches) == 0 || len(d.Servers) == 0
+}
+
 // NetworkResource is used to represent available network
 // resources
 type NetworkResource struct {
@@ -8358,6 +8365,16 @@ func (h *TaskHandle) Copy() *TaskHandle {
 	return &newTH
 }
 
+func (h *TaskHandle) Equal(o *TaskHandle) bool {
+	if h == nil || o == nil {
+		return h == o
+	}
+	if h.Version != o.Version {
+		return false
+	}
+	return bytes.Equal(h.DriverState, o.DriverState)
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -8435,6 +8452,37 @@ func (ts *TaskState) Copy() *TaskState {
 // service or system allocation.
 func (ts *TaskState) Successful() bool {
 	return ts.State == TaskStateDead && !ts.Failed
+}
+
+func (ts *TaskState) Equal(o *TaskState) bool {
+	if ts.State != o.State {
+		return false
+	}
+	if ts.Failed != o.Failed {
+		return false
+	}
+	if ts.Restarts != o.Restarts {
+		return false
+	}
+	if ts.LastRestart != o.LastRestart {
+		return false
+	}
+	if ts.StartedAt != o.StartedAt {
+		return false
+	}
+	if ts.FinishedAt != o.FinishedAt {
+		return false
+	}
+	if !slices.EqualFunc(ts.Events, o.Events, func(ts, o *TaskEvent) bool {
+		return ts.Equal(o)
+	}) {
+		return false
+	}
+	if !ts.TaskHandle.Equal(o.TaskHandle) {
+		return false
+	}
+
+	return true
 }
 
 const (
@@ -8767,6 +8815,31 @@ func (e *TaskEvent) GoString() string {
 		return ""
 	}
 	return fmt.Sprintf("%v - %v", e.Time, e.Type)
+}
+
+// Equal on TaskEvent ignores the deprecated fields
+func (e *TaskEvent) Equal(o *TaskEvent) bool {
+	if e == nil || o == nil {
+		return e == o
+	}
+
+	if e.Type != o.Type {
+		return false
+	}
+	if e.Time != o.Time {
+		return false
+	}
+	if e.Message != o.Message {
+		return false
+	}
+	if e.DisplayMessage != o.DisplayMessage {
+		return false
+	}
+	if !maps.Equal(e.Details, o.Details) {
+		return false
+	}
+
+	return true
 }
 
 // SetDisplayMessage sets the display message of TaskEvent
@@ -11257,6 +11330,41 @@ func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
 	}
 }
 
+func (a *AllocNetworkStatus) Equal(o *AllocNetworkStatus) bool {
+	// note: this accounts for when DNSConfig is non-nil but empty
+	switch {
+	case a == nil && o.IsZero():
+		return true
+	case o == nil && a.IsZero():
+		return true
+	case a == nil || o == nil:
+		return a == o
+	}
+
+	switch {
+	case a.InterfaceName != o.InterfaceName:
+		return false
+	case a.Address != o.Address:
+		return false
+	case !a.DNS.Equal(o.DNS):
+		return false
+	}
+	return true
+}
+
+func (a *AllocNetworkStatus) IsZero() bool {
+	if a == nil {
+		return true
+	}
+	if a.InterfaceName != "" || a.Address != "" {
+		return false
+	}
+	if !a.DNS.IsZero() {
+		return false
+	}
+	return true
+}
+
 // NetworkStatus is an interface satisfied by alloc runner, for acquiring the
 // network status of an allocation.
 type NetworkStatus interface {
@@ -11331,6 +11439,24 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	}
 
 	return c
+}
+
+func (a *AllocDeploymentStatus) Equal(o *AllocDeploymentStatus) bool {
+	if a == nil || o == nil {
+		return a == o
+	}
+
+	switch {
+	case !pointer.Eq(a.Healthy, o.Healthy):
+		return false
+	case a.Timestamp != o.Timestamp:
+		return false
+	case a.Canary != o.Canary:
+		return false
+	case a.ModifyIndex != o.ModifyIndex:
+		return false
+	}
+	return true
 }
 
 const (

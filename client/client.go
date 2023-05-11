@@ -160,6 +160,8 @@ type AllocRunner interface {
 	Signal(taskName, signal string) error
 	GetTaskEventHandler(taskName string) drivermanager.EventHandler
 	PersistState() error
+	AcknowledgeState(*arstate.State)
+	LastAcknowledgedStateIsCurrent(*structs.Allocation) bool
 
 	RestartTask(taskName string, taskEvent *structs.TaskEvent) error
 	RestartRunning(taskEvent *structs.TaskEvent) error
@@ -512,7 +514,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.serviceRegWrapper = wrapper.NewHandlerWrapper(c.logger, c.consulService, c.nomadService)
 
 	// Batching of initial fingerprints is done to reduce the number of node
-	// updates sent to the server on startup. This is the first RPC to the servers
+	// updates sent to the server on startup.
 	go c.batchFirstFingerprints()
 
 	// create heartbeatStop. We go after the first attempt to connect to the server, so
@@ -1268,6 +1270,14 @@ func (c *Client) restoreState() error {
 			// Destroy the alloc runner since this is a failed restore
 			ar.Destroy()
 			continue
+		}
+
+		allocState, err := c.stateDB.GetAcknowledgedState(alloc.ID)
+		if err != nil {
+			c.logger.Error("error restoring last acknowledged alloc state, will update again",
+				err, "alloc_id", alloc.ID)
+		} else {
+			ar.AcknowledgeState(allocState)
 		}
 
 		// Maybe mark the alloc for halt on missing server heartbeats
@@ -2144,10 +2154,20 @@ func (c *Client) allocSync() {
 			if len(updates) == 0 {
 				continue
 			}
+			// Ensure we never send an update before we've had at least one sync
+			// from the server
+			select {
+			case <-c.serversContactedCh:
+			default:
+				continue
+			}
 
-			sync := make([]*structs.Allocation, 0, len(updates))
-			for _, alloc := range updates {
-				sync = append(sync, alloc)
+			sync := c.filterAcknowledgedUpdates(updates)
+			if len(sync) == 0 {
+				// No updates to send
+				updates = make(map[string]*structs.Allocation, len(updates))
+				syncTicker.Reset(allocSyncIntv)
+				continue
 			}
 
 			// Send to server.
@@ -2162,10 +2182,23 @@ func (c *Client) allocSync() {
 				// Error updating allocations, do *not* clear
 				// updates and retry after backoff
 				c.logger.Error("error updating allocations", "error", err)
-				syncTicker.Stop()
-				syncTicker = time.NewTicker(c.retryIntv(allocSyncRetryIntv))
+				syncTicker.Reset(c.retryIntv(allocSyncRetryIntv))
 				continue
 			}
+
+			c.allocLock.RLock()
+			for _, update := range sync {
+				if ar, ok := c.allocs[update.ID]; ok {
+					ar.AcknowledgeState(&arstate.State{
+						ClientStatus:      update.ClientStatus,
+						ClientDescription: update.ClientDescription,
+						DeploymentStatus:  update.DeploymentStatus,
+						TaskStates:        update.TaskStates,
+						NetworkStatus:     update.NetworkStatus,
+					})
+				}
+			}
+			c.allocLock.RUnlock()
 
 			// Successfully updated allocs, reset map and ticker.
 			// Always reset ticker to give loop time to receive
@@ -2173,10 +2206,27 @@ func (c *Client) allocSync() {
 			// we may call it in a tight loop before draining
 			// buffered updates.
 			updates = make(map[string]*structs.Allocation, len(updates))
-			syncTicker.Stop()
-			syncTicker = time.NewTicker(allocSyncIntv)
+			syncTicker.Reset(allocSyncIntv)
 		}
 	}
+}
+
+func (c *Client) filterAcknowledgedUpdates(updates map[string]*structs.Allocation) []*structs.Allocation {
+	sync := make([]*structs.Allocation, 0, len(updates))
+	c.allocLock.RLock()
+	defer c.allocLock.RUnlock()
+	for allocID, update := range updates {
+		if ar, ok := c.allocs[allocID]; ok {
+			if !ar.LastAcknowledgedStateIsCurrent(update) {
+				sync = append(sync, update)
+			}
+		} else {
+			// no allocrunner (typically a failed placement), so we need
+			// to send update
+			sync = append(sync, update)
+		}
+	}
+	return sync
 }
 
 // allocUpdates holds the results of receiving updated allocations from the

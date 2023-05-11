@@ -4,6 +4,7 @@
 package state
 
 import (
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -46,6 +47,12 @@ func (n NoopDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, e
 func (n NoopDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus, opts ...WriteOption) error {
 	return nil
 }
+
+func (n NoopDB) PutAcknowledgedState(allocID string, state *arstate.State, opts ...WriteOption) error {
+	return nil
+}
+
+func (n NoopDB) GetAcknowledgedState(allocID string) (*arstate.State, error) { return nil, nil }
 
 func (n NoopDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, nil

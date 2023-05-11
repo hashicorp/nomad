@@ -11,6 +11,7 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -32,6 +33,7 @@ allocations/
    |--> alloc          -> allocEntry{*structs.Allocation}
 	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
+	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
@@ -82,6 +84,9 @@ var (
 	// allocNetworkStatusKey is the key *structs.AllocNetworkStatus is
 	// stored under
 	allocNetworkStatusKey = []byte("network_status")
+
+	// acknowledgedStateKey is the key *arstate.State is stored under
+	acknowledgedStateKey = []byte("acknowledged_state")
 
 	// checkResultsBucket is the bucket name in which check query results are stored
 	checkResultsBucket = []byte("check_results")
@@ -390,6 +395,54 @@ func (s *BoltStateDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkSta
 	}
 
 	return entry.NetworkStatus, nil
+}
+
+// PutAcknowledgedState stores an allocation's last acknowledged state or
+// returns an error if it could not be stored.
+func (s *BoltStateDB) PutAcknowledgedState(allocID string, state *arstate.State, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		allocBkt, err := getAllocationBucket(tx, allocID)
+		if err != nil {
+			return err
+		}
+
+		entry := acknowledgedStateEntry{
+			State: state,
+		}
+		return allocBkt.Put(acknowledgedStateKey, &entry)
+	})
+}
+
+// GetAcknowledgedState retrieves an allocation's last acknowledged state
+func (s *BoltStateDB) GetAcknowledgedState(allocID string) (*arstate.State, error) {
+	var entry acknowledgedStateEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(acknowledgedStateKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.State, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a
@@ -849,6 +902,12 @@ func (s *BoltStateDB) init() error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		return addMeta(tx.BoltTx())
 	})
+}
+
+// acknowledgedStateEntry wraps values in the acknowledged_state bucket, so we
+// can expand it in the future if need be
+type acknowledgedStateEntry struct {
+	State *arstate.State
 }
 
 // updateWithOptions enables adjustments to db.Update operation, including Batch mode.
