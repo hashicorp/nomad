@@ -290,8 +290,11 @@ func jobSubmissionSchema() *memdb.TableSchema {
 			"id": {
 				Name:         "id",
 				AllowMissing: false,
-				Unique:       true, // basically worthless
-				// index by (Namespace, JobID, Version) but uniqueness is DIY.
+				Unique:       true,
+				// index by (Namespace, JobID, Version)
+				// note: uniqueness applies only at the moment of insertion,
+				// if anything modifies one of these fields (as the stored
+				// struct is a pointer, there is no consistency)
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{

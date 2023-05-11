@@ -1908,7 +1908,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
 	// find submissions associated with job
-	remove := *set.NewHashSet[*structs.JobSubmission, string](6)
+	remove := *set.NewHashSet[*structs.JobSubmission, string](structs.JobTrackedVersions)
 
 	iter, err := txn.Get("job_submission", "id_prefix", job.Namespace, job.ID)
 	if err != nil {
