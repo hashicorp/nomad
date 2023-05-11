@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable qunit/require-expect */
 import { currentURL, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -217,7 +222,7 @@ module('Acceptance | task detail', function (hooks) {
       'Event timestamp'
     );
     assert.equal(recentEvent.type, event.type, 'Event type');
-    assert.equal(recentEvent.message, event.displayMessage, 'Event message');
+    assert.equal(recentEvent.message, event.message, 'Event message');
   });
 
   test('when the allocation is not found, the application errors', async function (assert) {

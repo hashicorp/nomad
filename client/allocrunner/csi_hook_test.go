@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package allocrunner
 
 import (
@@ -203,7 +206,7 @@ func TestCSIHook(t *testing.T) {
 					MountConfigs: drivers.MountConfigSupportAll,
 				},
 			}
-			hook := newCSIHook(alloc, logger, mgr, rpcer, ar, ar, "secret")
+			hook := newCSIHook(alloc, logger, mgr, rpcer, ar, ar.res, "secret")
 			hook.minBackoffInterval = 1 * time.Millisecond
 			hook.maxBackoffInterval = 10 * time.Millisecond
 			hook.maxBackoffDuration = 500 * time.Millisecond
@@ -212,11 +215,11 @@ func TestCSIHook(t *testing.T) {
 
 			if tc.expectedClaimErr != nil {
 				require.EqualError(t, hook.Prerun(), tc.expectedClaimErr.Error())
-				mounts := ar.GetAllocHookResources().GetCSIMounts()
+				mounts := ar.res.GetCSIMounts()
 				require.Nil(t, mounts)
 			} else {
 				require.NoError(t, hook.Prerun())
-				mounts := ar.GetAllocHookResources().GetCSIMounts()
+				mounts := ar.res.GetCSIMounts()
 				require.NotNil(t, mounts)
 				require.Equal(t, tc.expectedMounts, mounts)
 				require.NoError(t, hook.Postrun())
@@ -308,16 +311,16 @@ func TestCSIHook_claimVolumesFromAlloc_Validation(t *testing.T) {
 				capFunc: tc.capFunc,
 			}
 
-			hook := newCSIHook(alloc, logger, mgr, rpcer, ar, ar, "secret")
+			hook := newCSIHook(alloc, logger, mgr, rpcer, ar, ar.res, "secret")
 			require.NotNil(t, hook)
 
 			if tc.expectedClaimErr != nil {
 				require.EqualError(t, hook.Prerun(), tc.expectedClaimErr.Error())
-				mounts := ar.GetAllocHookResources().GetCSIMounts()
+				mounts := ar.res.GetCSIMounts()
 				require.Nil(t, mounts)
 			} else {
 				require.NoError(t, hook.Prerun())
-				mounts := ar.GetAllocHookResources().GetCSIMounts()
+				mounts := ar.res.GetCSIMounts()
 				require.NotNil(t, mounts)
 				require.NoError(t, hook.Postrun())
 			}
@@ -417,6 +420,10 @@ type mockPluginManager struct {
 	mounter mockVolumeMounter
 }
 
+func (mgr mockPluginManager) WaitForPlugin(ctx context.Context, pluginType, pluginID string) error {
+	return nil
+}
+
 func (mgr mockPluginManager) MounterForPlugin(ctx context.Context, pluginID string) (csimanager.VolumeMounter, error) {
 	return mgr.mounter, nil
 }
@@ -429,14 +436,6 @@ type mockAllocRunner struct {
 	res     *cstructs.AllocHookResources
 	caps    *drivers.Capabilities
 	capFunc func() (*drivers.Capabilities, error)
-}
-
-func (ar mockAllocRunner) GetAllocHookResources() *cstructs.AllocHookResources {
-	return ar.res
-}
-
-func (ar mockAllocRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
-	ar.res = res
 }
 
 func (ar mockAllocRunner) GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error) {

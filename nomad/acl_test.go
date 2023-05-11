@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -216,6 +219,13 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			testToken:      node.SecretID,
 			expectClientID: node.ID,
 			expectIDKey:    fmt.Sprintf("client:%s", node.ID),
+		},
+		{
+			name:           "from client missing secret", // ex. Node.Register
+			tlsCfg:         clientTLSCfg,
+			expectAccessor: "anonymous",
+			expectTLSName:  "regionFoo.nomad",
+			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
 		},
 		{
 			name:      "from failed workload", // ex. Variables.List

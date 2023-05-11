@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Splits any IP address into an address and a port
 export default function ipParts(ip) {
   const parts = ip ? ip.split(':') : [];

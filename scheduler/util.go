@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package scheduler
 
 import (
@@ -300,6 +303,13 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		// Inspect Identity being exposed
 		if !at.Identity.Equal(bt.Identity) {
 			return difference("task identity", at.Identity, bt.Identity)
+		}
+
+		// Most LogConfig updates are in-place but if we change Disabled we need
+		// to recreate the task to stop/start log collection and change the
+		// stdout/stderr of the task
+		if at.LogConfig.Disabled != bt.LogConfig.Disabled {
+			return difference("task log disabled", at.LogConfig.Disabled, bt.LogConfig.Disabled)
 		}
 	}
 

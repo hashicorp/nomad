@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -368,7 +371,6 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	got, err := e.VerifyClaim(out)
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	require.NoError(t, got.Valid())
 	require.Equal(t, alloc.ID, got.AllocationID)
 	require.Equal(t, alloc.JobID, got.JobID)
 	require.Equal(t, "web", got.TaskName)

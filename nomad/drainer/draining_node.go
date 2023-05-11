@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package drainer
 
 import (
@@ -73,7 +76,7 @@ func (n *drainingNode) IsDone() (bool, error) {
 		}
 
 		// If there is a non-terminal we aren't done
-		if !alloc.TerminalStatus() {
+		if !alloc.ClientTerminalStatus() {
 			return false, nil
 		}
 	}

@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 variable "build_sha" {
   type        = string
   description = "the revision of the packer scripts building this image"

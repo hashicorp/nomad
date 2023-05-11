@@ -1,9 +1,13 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package state
 
 import (
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -24,6 +28,9 @@ type MemDB struct {
 
 	// alloc_id -> value
 	networkStatus map[string]*structs.AllocNetworkStatus
+
+	// alloc_id -> value
+	acknowledgedState map[string]*arstate.State
 
 	// alloc_id -> task_name -> value
 	localTaskState map[string]map[string]*state.LocalState
@@ -52,13 +59,14 @@ type MemDB struct {
 func NewMemDB(logger hclog.Logger) *MemDB {
 	logger = logger.Named("memdb")
 	return &MemDB{
-		allocs:         make(map[string]*structs.Allocation),
-		deployStatus:   make(map[string]*structs.AllocDeploymentStatus),
-		networkStatus:  make(map[string]*structs.AllocNetworkStatus),
-		localTaskState: make(map[string]map[string]*state.LocalState),
-		taskState:      make(map[string]map[string]*structs.TaskState),
-		checks:         make(checks.ClientResults),
-		logger:         logger,
+		allocs:            make(map[string]*structs.Allocation),
+		deployStatus:      make(map[string]*structs.AllocDeploymentStatus),
+		networkStatus:     make(map[string]*structs.AllocNetworkStatus),
+		acknowledgedState: make(map[string]*arstate.State),
+		localTaskState:    make(map[string]map[string]*state.LocalState),
+		taskState:         make(map[string]map[string]*structs.TaskState),
+		checks:            make(checks.ClientResults),
+		logger:            logger,
 	}
 }
 
@@ -113,6 +121,19 @@ func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus,
 	m.networkStatus[allocID] = ns
 	defer m.mu.Unlock()
 	return nil
+}
+
+func (m *MemDB) PutAcknowledgedState(allocID string, state *arstate.State, opts ...WriteOption) error {
+	m.mu.Lock()
+	m.acknowledgedState[allocID] = state
+	defer m.mu.Unlock()
+	return nil
+}
+
+func (m *MemDB) GetAcknowledgedState(allocID string) (*arstate.State, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.acknowledgedState[allocID], nil
 }
 
 func (m *MemDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {

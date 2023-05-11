@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package docker
 
 import (
@@ -204,7 +207,7 @@ var (
 			"type":   hclspec.NewAttr("type", "string", false),
 			"config": hclspec.NewBlockAttrs("config", "string", false),
 		})), hclspec.NewLiteral(`{
-			type = "json-file" 
+			type = "json-file"
 			config = {
 				max-file = "2"
 				max-size = "2m"
@@ -504,6 +507,11 @@ func (d DockerDevice) toDockerDevice() (docker.Device, error) {
 		return dd, fmt.Errorf("host path must be set in configuration for devices")
 	}
 
+	// Docker's CLI defaults to HostPath in this case. See #16754
+	if dd.PathInContainer == "" {
+		dd.PathInContainer = d.HostPath
+	}
+
 	if dd.CgroupPermissions == "" {
 		dd.CgroupPermissions = "rwm"
 	}
@@ -772,6 +780,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	d.danglingReconciler = newReconciler(d)
 
 	d.cpusetFixer = newCpusetFixer(d)
+
+	go d.recoverPauseContainers(d.ctx)
 
 	return nil
 }

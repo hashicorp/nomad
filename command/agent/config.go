@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package agent
 
 import (
@@ -341,6 +344,9 @@ type ClientConfig struct {
 	// Artifact contains the configuration for artifacts.
 	Artifact *config.ArtifactConfig `hcl:"artifact"`
 
+	// Drain specifies whether to drain the client on shutdown; ignored in dev mode.
+	Drain *config.DrainConfig `hcl:"drain_on_shutdown"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -363,6 +369,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.HostNetworks = helper.CopySlice(c.HostNetworks)
 	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
+	nc.Drain = c.Drain.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -654,6 +661,11 @@ type ServerConfig struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority *int `hcl:"job_max_priority"`
+
+	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
+	// before being discarded automatically. If unset, the maximum size defaults
+	// to 1 MB. If the value is zero, no job sources will be stored.
+	JobMaxSourceSize *string `hcl:"job_max_source_size"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -672,6 +684,7 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
 	ns.EnableEventBroker = pointer.Copy(s.EnableEventBroker)
 	ns.EventBufferSize = pointer.Copy(s.EventBufferSize)
+	ns.JobMaxSourceSize = pointer.Copy(s.JobMaxSourceSize)
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
@@ -1057,7 +1070,7 @@ func (a *Addresses) Copy() *Addresses {
 	return &na
 }
 
-// AdvertiseAddrs is used to control the addresses we advertise out for
+// NormalizedAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
 type NormalizedAddrs struct {
@@ -1283,6 +1296,7 @@ func DefaultConfig() *Config {
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
+			Drain:                          nil,
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1306,6 +1320,7 @@ func DefaultConfig() *Config {
 				LimitResults:  100,
 				MinTermLength: 2,
 			},
+			JobMaxSourceSize: pointer.Of("1M"),
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -1975,6 +1990,8 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.EventBufferSize = b.EventBufferSize
 	}
 
+	result.JobMaxSourceSize = pointer.Merge(s.JobMaxSourceSize, b.JobMaxSourceSize)
+
 	if b.PlanRejectionTracker != nil {
 		result.PlanRejectionTracker = result.PlanRejectionTracker.Merge(b.PlanRejectionTracker)
 	}
@@ -2187,6 +2204,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)
+	result.Drain = a.Drain.Merge(b.Drain)
 
 	return &result
 }

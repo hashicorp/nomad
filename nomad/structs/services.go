@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package structs
 
 import (
@@ -799,6 +802,9 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
 	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
 	// (https://tools.ietf.org/html/rfc2782).
+	//  This validation is enforced on Nomad, but not on Consul, however if
+	//  consul-template is being used, service names with dots in them wont be
+	//  admissible.
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
 		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters")
@@ -1101,6 +1107,9 @@ type ConsulSidecarService struct {
 	// DisableDefaultTCPCheck, if true, instructs Nomad to avoid setting a
 	// default TCP check for the sidecar service.
 	DisableDefaultTCPCheck bool
+
+	// Meta specifies arbitrary KV metadata linked to the sidecar service.
+	Meta map[string]string
 }
 
 // HasUpstreams checks if the sidecar service has any upstreams configured
@@ -1118,6 +1127,7 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 		Port:                   s.Port,
 		Proxy:                  s.Proxy.Copy(),
 		DisableDefaultTCPCheck: s.DisableDefaultTCPCheck,
+		Meta:                   maps.Clone(s.Meta),
 	}
 }
 
@@ -1136,6 +1146,10 @@ func (s *ConsulSidecarService) Equal(o *ConsulSidecarService) bool {
 	}
 
 	if !helper.SliceSetEq(s.Tags, o.Tags) {
+		return false
+	}
+
+	if !maps.Equal(s.Meta, o.Meta) {
 		return false
 	}
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package stats
 
 import (
@@ -63,8 +66,9 @@ func Init() error {
 
 			for _, infoStat := range cpuInfoStats {
 				cpuModelName = infoStat.ModelName
-				cpuPowerCoreMHz = uint64(infoStat.Mhz)
-				break
+				if uint64(infoStat.Mhz) > cpuPowerCoreMHz {
+					cpuPowerCoreMHz = uint64(infoStat.Mhz)
+				}
 			}
 
 			// compute ticks using only power core, until we add support for

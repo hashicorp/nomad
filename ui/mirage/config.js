@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import Ember from 'ember';
 import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
@@ -105,6 +110,19 @@ export default function () {
 
     const job = server.create('job', { id: jobName });
     return new Response(200, {}, this.serialize(job));
+  });
+
+  this.get('/job/:id/submission', function (schema, req) {
+    return new Response(
+      200,
+      {},
+      JSON.stringify({
+        Source: 'the job source v0',
+        Format: 'hcl2',
+        VariableFlags: { X: 'x', Y: '42', Z: 'true' },
+        Variables: 'var file content',
+      })
+    );
   });
 
   this.post('/job/:id/plan', function (schema, req) {
@@ -475,6 +493,23 @@ export default function () {
 
     // Client error if it doesn't
     return new Response(400, {}, null);
+  });
+
+  this.post('/acl/login', function (schema, { requestBody }) {
+    const { LoginToken } = JSON.parse(requestBody);
+    const tokenType = LoginToken.endsWith('management')
+      ? 'management'
+      : 'client';
+    const isBad = LoginToken.endsWith('bad');
+
+    if (isBad) {
+      return new Response(403, {}, null);
+    } else {
+      const token = schema.tokens
+        .all()
+        .models.find((token) => token.type === tokenType);
+      return this.serialize(token);
+    }
   });
 
   this.get('/acl/token/:id', function ({ tokens }, req) {

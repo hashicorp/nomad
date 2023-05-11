@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import Route from '@ember/routing/route';
 import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';

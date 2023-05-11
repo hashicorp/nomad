@@ -1,9 +1,18 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // @ts-check
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
 
 export default class AuthMethodModel extends Model {
   @attr('string') name;
+
+  /**
+   * @type {'JWT' | 'OIDC'}
+   */
   @attr('string') type;
   @attr('string') tokenLocality;
   @attr('string') maxTokenTTL;

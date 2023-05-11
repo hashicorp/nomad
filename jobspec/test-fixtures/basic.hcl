@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "binstore-storagelocker" {
   region       = "fooregion"
   namespace    = "foonamespace"
@@ -191,6 +194,7 @@ job "binstore-storagelocker" {
       }
 
       logs {
+        disabled      = false
         max_files     = 14
         max_file_size = 101
       }

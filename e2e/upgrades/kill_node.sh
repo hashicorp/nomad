@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 #/bin/bash
 # This script takes the config file of the node being killed
 # usage ./_kill_node.sh client1

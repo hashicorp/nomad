@@ -75,8 +75,8 @@ Formatted by appending `?pretty` above.
 {
     "Meta": {
         "connect.proxy_concurrency": "1",
-        "connect.sidecar_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
-        "connect.gateway_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.sidecar_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.gateway_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
         "connect.log_level": "debug",
         "foo": "bar"
     },
@@ -86,8 +86,8 @@ Formatted by appending `?pretty` above.
         "connect.log_level": "debug"
     },
     "Static": {
-        "connect.sidecar_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
-        "connect.gateway_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.sidecar_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.gateway_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
         "connect.log_level": "info",
         "connect.proxy_concurrency": "1"
     }
@@ -165,8 +165,8 @@ Formatted by appending `?pretty` above.
 {
     "Meta": {
         "connect.proxy_concurrency": "1",
-        "connect.sidecar_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
-        "connect.gateway_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.sidecar_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.gateway_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
         "connect.log_level": "debug",
         "foo": "bar"
     },
@@ -176,8 +176,8 @@ Formatted by appending `?pretty` above.
         "connect.log_level": "debug"
     },
     "Static": {
-        "connect.sidecar_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
-        "connect.gateway_image": "envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.sidecar_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
+        "connect.gateway_image": "docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}",
         "connect.log_level": "info",
         "connect.proxy_concurrency": "1"
     }
@@ -603,7 +603,8 @@ fields:
 
 ## Stream Logs
 
-This endpoint streams a task's stderr/stdout logs.
+This endpoint streams a task's stderr/stdout logs. Note that if logging is set
+to [disabled=true][] for the task, this endpoint will return a 404 error.
 
 | Method | Path                           | Produces     |
 | ------ | ------------------------------ | ------------ |
@@ -832,3 +833,4 @@ $ nomad operator api /v1/client/gc
 ```
 
 [api-node-read]: /nomad/api-docs/nodes
+[disabled=true]: /nomad/docs/job-specification/logs#disabled

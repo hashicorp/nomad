@@ -48,6 +48,13 @@ Full, comprehensive documentation is available on the Nomad website: https://www
 
 Guides are available on [HashiCorp Learn](https://learn.hashicorp.com/nomad).
 
+Roadmap
+---
+
+A timeline of major features expected for the next release or two can be found in the [Public Roadmap](https://github.com/orgs/hashicorp/projects/202/views/1).
+
+This roadmap is a best guess at any given point, and both release dates and projects in each release are subject to change. Do not take any of these items as commitments, especially ones later than one major release away.
+
 Contributing
 --------------------
 See the [`contributing`](contributing/) directory for more developer documentation.

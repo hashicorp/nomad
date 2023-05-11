@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package command
 
 import (
@@ -64,7 +67,7 @@ func TestACLAuthMethodCreateCommand_Run(t *testing.T) {
 	args := []string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-name=acl-auth-method-cli-test",
 		"-type=OIDC", "-token-locality=global", "-default=true", "-max-token-ttl=3600s",
-		"-config={\"OIDCDiscoveryURL\":\"http://example.com\"}",
+		"-config={\"OIDCDiscoveryURL\":\"http://example.com\", \"ExpirationLeeway\": \"1h\"}",
 	}
 	must.Eq(t, 0, cmd.Run(args))
 	s := ui.OutputWriter.String()

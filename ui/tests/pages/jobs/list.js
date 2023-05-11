@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import {
   attribute,
   create,
@@ -58,6 +63,7 @@ export default create({
     seekHelp: clickable('[data-test-error-message] a'),
     gotoJobs: clickable('[data-test-error-jobs-link]'),
     gotoClients: clickable('[data-test-error-clients-link]'),
+    gotoSignin: clickable('[data-test-error-signin-link]'),
   },
 
   pageSizeSelect: pageSizeSelect(),

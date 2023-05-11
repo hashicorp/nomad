@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -39,7 +44,10 @@ module('Integration | Component | job-page/service', function (hooks) {
       @sortProperty={{sortProperty}}
       @sortDescending={{sortDescending}}
       @currentPage={{currentPage}}
-      @gotoJob={{gotoJob}} />
+      @gotoJob={{gotoJob}}
+      @statusMode={{statusMode}}
+      @setStatusMode={{setStatusMode}}
+      />
   `;
 
   const commonProperties = (job) => ({
@@ -48,6 +56,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     sortDescending: true,
     currentPage: 1,
     gotoJob() {},
+    statusMode: 'current',
+    setStatusMode() {},
   });
 
   const makeMirageJob = (server, props = {}) =>
@@ -267,7 +277,11 @@ module('Integration | Component | job-page/service', function (hooks) {
       'The error message mentions ACLs'
     );
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(
+      this.element,
+      assert,
+      'scrollable-region-focusable'
+    ); //keyframe animation fades from opacity 0
 
     await click('[data-test-job-error-close]');
 
@@ -330,7 +344,11 @@ module('Integration | Component | job-page/service', function (hooks) {
       'The error message mentions ACLs'
     );
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(
+      this.element,
+      assert,
+      'scrollable-region-focusable'
+    ); //keyframe animation fades from opacity 0
 
     await click('[data-test-job-error-close]');
 

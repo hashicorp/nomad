@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package scheduler
 
 import (
@@ -1463,7 +1466,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		Name:  "gpu",
 		Count: 1,
 	}}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), lowPrioJob))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, lowPrioJob))
 
 	allocs := []*structs.Allocation{}
 	allocIDs := map[string]struct{}{}
@@ -1492,7 +1495,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		Name:  "gpu",
 		Count: 2,
 	}}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), highPrioJob))
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, highPrioJob))
 
 	// schedule
 	eval := &structs.Evaluation{

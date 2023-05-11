@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package taskrunner
 
 import (
@@ -8,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"golang.org/x/exp/slices"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -24,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -175,6 +179,9 @@ type TaskRunner struct {
 	// hookResources captures the resources provided by hooks
 	hookResources *hookResources
 
+	// allocHookResources captures the resources provided by the allocrunner hooks
+	allocHookResources *cstructs.AllocHookResources
+
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
 	consulServiceClient serviceregistration.Handler
@@ -253,8 +260,6 @@ type TaskRunner struct {
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
 
-	allocHookResources *cstructs.AllocHookResources
-
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
 	serviceRegWrapper *wrapper.HandlerWrapper
@@ -329,6 +334,10 @@ type Config struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
+
+	// AllocHookResources is how taskrunner hooks can get state written by
+	// allocrunner hooks
+	AllocHookResources *cstructs.AllocHookResources
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -368,6 +377,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		vaultClient:            config.Vault,
 		state:                  tstate,
 		localState:             state.NewLocalState(),
+		allocHookResources:     config.AllocHookResources,
 		stateDB:                config.StateDB,
 		stateUpdater:           config.StateUpdater,
 		deviceStatsReporter:    config.DeviceStatsReporter,
@@ -486,30 +496,20 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
-// MarkFailedDead marks a task as failed and not to run. Aimed to be invoked
-// when alloc runner prestart hooks failed. Should never be called with Run().
-func (tr *TaskRunner) MarkFailedDead(reason string) {
-	defer close(tr.waitCh)
-
-	tr.stateLock.Lock()
-	if err := tr.stateDB.PutTaskRunnerLocalState(tr.allocID, tr.taskName, tr.localState); err != nil {
-		//TODO Nomad will be unable to restore this task; try to kill
-		//     it now and fail? In general we prefer to leave running
-		//     tasks running even if the agent encounters an error.
-		tr.logger.Warn("error persisting local failed task state; may be unable to restore after a Nomad restart",
-			"error", err)
-	}
-	tr.stateLock.Unlock()
-
+// MarkFailedKill marks a task as failed and should be killed.
+// It should be invoked when alloc runner prestart hooks fail.
+// Afterwards, Run() will perform any necessary cleanup.
+func (tr *TaskRunner) MarkFailedKill(reason string) {
+	// Emit an event that fails the task and gives reasons for humans.
 	event := structs.NewTaskEvent(structs.TaskSetupFailure).
+		SetKillReason(structs.TaskRestoreFailed).
 		SetDisplayMessage(reason).
 		SetFailsTask()
-	tr.UpdateState(structs.TaskStateDead, event)
+	tr.EmitEvent(event)
 
-	// Run the stop hooks in case task was a restored task that failed prestart
-	if err := tr.stop(); err != nil {
-		tr.logger.Error("stop failed while marking task dead", "error", err)
-	}
+	// Cancel kill context, so later when allocRunner runs tr.Run(),
+	// we'll follow the usual kill path and do all the appropriate cleanup steps.
+	tr.killCtxCancel()
 }
 
 // Run the TaskRunner. Starts the user's task or reattaches to a restored task.
@@ -1584,10 +1584,6 @@ func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 	return tr.driver.Capabilities()
-}
-
-func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
-	tr.allocHookResources = res
 }
 
 // shutdownDelayCancel is used for testing only and cancels the

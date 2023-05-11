@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import {
@@ -5,12 +10,19 @@ import {
   currentRouteName,
   currentURL,
   visit,
+  find,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
+
+const jobTypesWithStatusPanel = ['service', 'system', 'batch'];
+
+async function switchToHistorical() {
+  await JobDetail.statusModes.historical.click();
+}
 
 // moduleFor is an old Ember-QUnit API that is deprected https://guides.emberjs.com/v1.10.0/testing/unit-test-helpers/
 // this is a misnomer in our context, because we're not using this API, however, the linter does not understand this
@@ -44,7 +56,7 @@ export default function moduleForJob(
         await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
       }
 
-      const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
+      const hasClientStatus = ['sysbatch'].includes(job.type);
       if (context === 'allocations' && hasClientStatus) {
         await click("[data-test-accordion-summary-chart='allocation-status']");
       }
@@ -76,7 +88,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}/definition`
         : `/jobs/${job.name}/definition`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.ok(decodeURIComponent(currentURL()).startsWith(expectedURL));
     });
 
     test('the subnav links to versions', async function (assert) {
@@ -115,6 +127,9 @@ export default function moduleForJob(
 
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function (assert) {
+        if (!job.parentId && jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
         assert.ok(
           JobDetail.allocationsSummary.isPresent,
           'Allocations are shown in the summary section'
@@ -152,9 +167,11 @@ export default function moduleForJob(
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
-        const legendItem =
-          JobDetail.allocationsSummary.legend.clickableItems[1];
-        const status = legendItem.label;
+        if (!job.parentId && jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
+        const legendItem = find('.legend li.is-clickable');
+        const status = legendItem.getAttribute('data-test-legend-label');
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
@@ -171,7 +188,10 @@ export default function moduleForJob(
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
-        const slice = JobDetail.allocationsSummary.slices[1];
+        if (!job.parentId && jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
+        const slice = JobDetail.allocationsSummary.slices[0];
         const status = slice.label;
         await slice.click();
 

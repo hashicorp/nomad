@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable ember/no-controller-access-in-routes */
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';

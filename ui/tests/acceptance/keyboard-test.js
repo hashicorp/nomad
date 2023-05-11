@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -306,9 +311,8 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.equal(
-        currentURL(),
-        `/jobs/${jobID}@default/definition`,
+      assert.ok(
+        currentURL().startsWith(`/jobs/${jobID}@default/definition`),
         'Shift+ArrowRight takes you to the next tab (Definition)'
       );
 

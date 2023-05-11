@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 module "nomad_server" {
   source     = "./provision-nomad"
   depends_on = [aws_instance.server]

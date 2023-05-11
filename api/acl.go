@@ -1,8 +1,12 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -443,18 +447,33 @@ func (a *ACLBindingRules) Get(bindingRuleID string, q *QueryOptions) (*ACLBindin
 }
 
 // ACLOIDC is used to query the ACL OIDC endpoints.
+//
+// Deprecated: ACLOIDC is deprecated, use ACLAuth instead.
 type ACLOIDC struct {
 	client *Client
+	ACLAuth
 }
 
 // ACLOIDC returns a new handle on the ACL auth-methods API client.
+//
+// Deprecated: c.ACLOIDC() is deprecated, use c.ACLAuth() instead.
 func (c *Client) ACLOIDC() *ACLOIDC {
 	return &ACLOIDC{client: c}
 }
 
+// ACLAuth is used to query the ACL auth endpoints.
+type ACLAuth struct {
+	client *Client
+}
+
+// ACLAuth returns a new handle on the ACL auth-methods API client.
+func (c *Client) ACLAuth() *ACLAuth {
+	return &ACLAuth{client: c}
+}
+
 // GetAuthURL generates the OIDC provider authentication URL. This URL should
 // be visited in order to sign in to the provider.
-func (a *ACLOIDC) GetAuthURL(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLOIDCAuthURLResponse, *WriteMeta, error) {
+func (a *ACLAuth) GetAuthURL(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLOIDCAuthURLResponse, *WriteMeta, error) {
 	var resp ACLOIDCAuthURLResponse
 	wm, err := a.client.put("/v1/acl/oidc/auth-url", req, &resp, q)
 	if err != nil {
@@ -465,9 +484,20 @@ func (a *ACLOIDC) GetAuthURL(req *ACLOIDCAuthURLRequest, q *WriteOptions) (*ACLO
 
 // CompleteAuth exchanges the OIDC provider token for a Nomad token with the
 // appropriate claims attached.
-func (a *ACLOIDC) CompleteAuth(req *ACLOIDCCompleteAuthRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+func (a *ACLAuth) CompleteAuth(req *ACLOIDCCompleteAuthRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	var resp ACLToken
 	wm, err := a.client.put("/v1/acl/oidc/complete-auth", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Login exchanges the third party token for a Nomad token with the appropriate
+// claims attached.
+func (a *ACLAuth) Login(req *ACLLoginRequest, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	var resp ACLToken
+	wm, err := a.client.put("/v1/acl/login", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -740,20 +770,6 @@ type ACLAuthMethod struct {
 	ModifyIndex uint64
 }
 
-// ACLAuthMethodConfig is used to store configuration of an auth method.
-type ACLAuthMethodConfig struct {
-	OIDCDiscoveryURL    string
-	OIDCClientID        string
-	OIDCClientSecret    string
-	OIDCScopes          []string
-	BoundAudiences      []string
-	AllowedRedirectURIs []string
-	DiscoveryCaPem      []string
-	SigningAlgs         []string
-	ClaimMappings       map[string]string
-	ListClaimMappings   map[string]string
-}
-
 // MarshalJSON implements the json.Marshaler interface and allows
 // ACLAuthMethod.MaxTokenTTL to be marshaled correctly.
 func (m *ACLAuthMethod) MarshalJSON() ([]byte, error) {
@@ -793,6 +809,138 @@ func (m *ACLAuthMethod) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// ACLAuthMethodConfig is used to store configuration of an auth method.
+type ACLAuthMethodConfig struct {
+	// A list of PEM-encoded public keys to use to authenticate signatures
+	// locally
+	JWTValidationPubKeys []string
+	// JSON Web Key Sets url for authenticating signatures
+	JWKSURL string
+	// The OIDC Discovery URL, without any .well-known component (base path)
+	OIDCDiscoveryURL string
+	// The OAuth Client ID configured with the OIDC provider
+	OIDCClientID string
+	// The OAuth Client Secret configured with the OIDC provider
+	OIDCClientSecret string
+	// List of OIDC scopes
+	OIDCScopes []string
+	// List of auth claims that are valid for login
+	BoundAudiences []string
+	// The value against which to match the iss claim in a JWT
+	BoundIssuer []string
+	// A list of allowed values for redirect_uri
+	AllowedRedirectURIs []string
+	// PEM encoded CA certs for use by the TLS client used to talk with the
+	// OIDC Discovery URL.
+	DiscoveryCaPem []string
+	// PEM encoded CA cert for use by the TLS client used to talk with the JWKS
+	// URL
+	JWKSCACert string
+	// A list of supported signing algorithms
+	SigningAlgs []string
+	// Duration in seconds of leeway when validating expiration of a token to
+	// account for clock skew
+	ExpirationLeeway time.Duration
+	// Duration in seconds of leeway when validating not before values of a
+	// token to account for clock skew.
+	NotBeforeLeeway time.Duration
+	// Duration in seconds of leeway when validating all claims to account for
+	// clock skew.
+	ClockSkewLeeway time.Duration
+	// Mappings of claims (key) that will be copied to a metadata field
+	// (value).
+	ClaimMappings     map[string]string
+	ListClaimMappings map[string]string
+}
+
+// MarshalJSON implements the json.Marshaler interface and allows
+// time.Duration fields to be marshaled correctly.
+func (c *ACLAuthMethodConfig) MarshalJSON() ([]byte, error) {
+	type Alias ACLAuthMethodConfig
+	exported := &struct {
+		ExpirationLeeway string
+		NotBeforeLeeway  string
+		ClockSkewLeeway  string
+		*Alias
+	}{
+		ExpirationLeeway: c.ExpirationLeeway.String(),
+		NotBeforeLeeway:  c.NotBeforeLeeway.String(),
+		ClockSkewLeeway:  c.ClockSkewLeeway.String(),
+		Alias:            (*Alias)(c),
+	}
+	if c.ExpirationLeeway == 0 {
+		exported.ExpirationLeeway = ""
+	}
+	if c.NotBeforeLeeway == 0 {
+		exported.NotBeforeLeeway = ""
+	}
+	if c.ClockSkewLeeway == 0 {
+		exported.ClockSkewLeeway = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// time.Duration fields to be unmarshalled correctly.
+func (c *ACLAuthMethodConfig) UnmarshalJSON(data []byte) error {
+	type Alias ACLAuthMethodConfig
+	aux := &struct {
+		ExpirationLeeway any
+		NotBeforeLeeway  any
+		ClockSkewLeeway  any
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	var err error
+	if aux.ExpirationLeeway != nil {
+		switch v := aux.ExpirationLeeway.(type) {
+		case string:
+			if v != "" {
+				if c.ExpirationLeeway, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			c.ExpirationLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ExpirationLeeway type: %v", v)
+		}
+	}
+	if aux.NotBeforeLeeway != nil {
+		switch v := aux.NotBeforeLeeway.(type) {
+		case string:
+			if v != "" {
+				if c.NotBeforeLeeway, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			c.NotBeforeLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected NotBeforeLeeway type: %v", v)
+		}
+	}
+	if aux.ClockSkewLeeway != nil {
+		switch v := aux.ClockSkewLeeway.(type) {
+		case string:
+			if v != "" {
+				if c.ClockSkewLeeway, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			c.ClockSkewLeeway = time.Duration(v)
+		default:
+			return fmt.Errorf("unexpected ClockSkewLeeway type: %v", v)
+		}
+	}
+	return nil
+}
+
 // ACLAuthMethodListStub is the stub object returned when performing a listing
 // of ACL auth-methods. It is intentionally minimal due to the unauthenticated
 // nature of the list endpoint.
@@ -818,6 +966,10 @@ const (
 	// ACLAuthMethodTypeOIDC the ACLAuthMethod.Type and represents an
 	// auth-method which uses the OIDC protocol.
 	ACLAuthMethodTypeOIDC = "OIDC"
+
+	// ACLAuthMethodTypeJWT the ACLAuthMethod.Type and represents an auth-method
+	// which uses the JWT type.
+	ACLAuthMethodTypeJWT = "JWT"
 )
 
 // ACLBindingRule contains a direct relation to an ACLAuthMethod and represents
@@ -946,4 +1098,14 @@ type ACLOIDCCompleteAuthRequest struct {
 	// RedirectURI is the URL that authorization should redirect to. This is a
 	// required parameter.
 	RedirectURI string
+}
+
+// ACLLoginRequest is the request object to begin auth with an external bearer
+// token provider.
+type ACLLoginRequest struct {
+	// AuthMethodName is the name of the auth method being used to login. This
+	// is a required parameter.
+	AuthMethodName string
+	// LoginToken is the token used to login. This is a required parameter.
+	LoginToken string
 }

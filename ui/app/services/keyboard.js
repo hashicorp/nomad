@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // @ts-check
 import Service from '@ember/service';
 import { inject as service } from '@ember/service';

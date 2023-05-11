@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import {
   attribute,
   create,
@@ -77,6 +82,17 @@ export default create({
     return this.packStats.toArray().findBy('id', id);
   },
 
+  statusModes: {
+    current: {
+      scope: '[data-test-status-mode-current]',
+      click: clickable(),
+    },
+    historical: {
+      scope: '[data-test-status-mode-historical]',
+      click: clickable(),
+    },
+  },
+
   jobClientStatusSummary: {
     scope: '[data-test-job-client-summary]',
     statusBar: jobClientStatusBar('[data-test-job-client-status-bar]'),
@@ -88,10 +104,10 @@ export default create({
     },
   },
   childrenSummary: jobClientStatusBar(
-    '[data-test-job-summary] [data-test-children-status-bar]'
+    '[data-test-children-status-bar]:not(.is-narrow)'
   ),
   allocationsSummary: jobClientStatusBar(
-    '[data-test-job-summary] [data-test-allocation-status-bar]'
+    '[data-test-allocation-status-bar]:not(.is-narrow)'
   ),
   ...taskGroups(),
   ...allocations(),

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 export default `job "service-discovery-example" {
   // Specifies the datacenter where this job should be run
   // This can be omitted and it will default to ["*"]

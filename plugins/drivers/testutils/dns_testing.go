@@ -1,20 +1,22 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package testutils
 
 import (
 	"strings"
 	"testing"
 
-	dresolvconf "github.com/docker/libnetwork/resolvconf"
-	dtypes "github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/resolvconf"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // TestTaskDNSConfig asserts that a task is running with the given DNSConfig
 func TestTaskDNSConfig(t *testing.T, driver *DriverHarness, taskID string, dns *drivers.DNSConfig) {
 	t.Run("dns_config", func(t *testing.T) {
 		caps, err := driver.Capabilities()
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		// FS isolation is used here as a proxy for network isolation.
 		// This is true for the current built-in drivers but it is not necessarily so.
@@ -28,31 +30,31 @@ func TestTaskDNSConfig(t *testing.T, driver *DriverHarness, taskID string, dns *
 		// write to a file and check it presence in host
 		r := execTask(t, driver, taskID, `cat /etc/resolv.conf`,
 			false, "")
-		require.Zero(t, r.exitCode)
+		must.Zero(t, r.exitCode)
 
 		resolvConf := []byte(strings.TrimSpace(r.stdout))
 
 		if dns != nil {
 			if len(dns.Servers) > 0 {
-				require.ElementsMatch(t, dns.Servers, dresolvconf.GetNameservers(resolvConf, dtypes.IP))
+				must.SliceContainsAll(t, dns.Servers, resolvconf.GetNameservers(resolvConf, resolvconf.IP))
 			}
 			if len(dns.Searches) > 0 {
-				require.ElementsMatch(t, dns.Searches, dresolvconf.GetSearchDomains(resolvConf))
+				must.SliceContainsAll(t, dns.Searches, resolvconf.GetSearchDomains(resolvConf))
 			}
 			if len(dns.Options) > 0 {
-				require.ElementsMatch(t, dns.Options, dresolvconf.GetOptions(resolvConf))
+				must.SliceContainsAll(t, dns.Options, resolvconf.GetOptions(resolvConf))
 			}
 		} else {
 			systemPath := "/etc/resolv.conf"
 			if !usesHostNetwork {
-				systemPath = dresolvconf.Path()
+				systemPath = resolvconf.Path()
 			}
 
-			system, err := dresolvconf.GetSpecific(systemPath)
-			require.NoError(t, err)
-			require.ElementsMatch(t, dresolvconf.GetNameservers(system.Content, dtypes.IP), dresolvconf.GetNameservers(resolvConf, dtypes.IP))
-			require.ElementsMatch(t, dresolvconf.GetSearchDomains(system.Content), dresolvconf.GetSearchDomains(resolvConf))
-			require.ElementsMatch(t, dresolvconf.GetOptions(system.Content), dresolvconf.GetOptions(resolvConf))
+			system, specificErr := resolvconf.GetSpecific(systemPath)
+			must.NoError(t, specificErr)
+			must.SliceContainsAll(t, resolvconf.GetNameservers(system.Content, resolvconf.IP), resolvconf.GetNameservers(resolvConf, resolvconf.IP))
+			must.SliceContainsAll(t, resolvconf.GetSearchDomains(system.Content), resolvconf.GetSearchDomains(resolvConf))
+			must.SliceContainsAll(t, resolvconf.GetOptions(system.Content), resolvconf.GetOptions(resolvConf))
 		}
 	})
 }

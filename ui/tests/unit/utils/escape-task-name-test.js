@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 import escapeTaskName from 'nomad-ui/utils/escape-task-name';
 import { module, test } from 'qunit';
 

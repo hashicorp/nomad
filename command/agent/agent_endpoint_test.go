@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package agent
 
 import (
@@ -12,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -155,7 +159,7 @@ func TestHTTP_AgentJoin(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
-		addr := fmt.Sprintf("%s:%d", member.Addr, member.Port)
+		addr := net.JoinHostPort(member.Addr.String(), strconv.Itoa(int(member.Port)))
 
 		// Make the HTTP request
 		req, err := http.NewRequest("PUT",

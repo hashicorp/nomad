@@ -1,7 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package interfaces
 
 import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -31,4 +35,10 @@ type TaskStateHandler interface {
 // allocation
 type AllocStatsReporter interface {
 	LatestAllocStats(taskFilter string) (*cstructs.AllocResourceUsage, error)
+}
+
+// HookResourceSetter is used to communicate between alloc hooks and task hooks
+type HookResourceSetter interface {
+	SetCSIMounts(map[string]*csimanager.MountInfo)
+	GetCSIMounts(map[string]*csimanager.MountInfo)
 }

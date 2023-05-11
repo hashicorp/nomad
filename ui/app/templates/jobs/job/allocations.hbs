@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: MPL-2.0
+~}}
+
 {{page-title "Job " this.job.name " allocations"}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
@@ -32,6 +37,13 @@
             @options={{this.optionsTaskGroups}}
             @selection={{this.selectionTaskGroup}}
             @onSelect={{action this.setFacetQueryParam "qpTaskGroup"}}
+          />
+          <MultiSelectDropdown
+            data-test-allocation-version-facet
+            @label="Job Version"
+            @options={{this.optionsVersions}}
+            @selection={{this.selectionVersion}}
+            @onSelect={{action this.setFacetQueryParam "qpVersion"}}
           />
         </div>
       </div>

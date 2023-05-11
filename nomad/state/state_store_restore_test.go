@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package state
 
 import (
@@ -635,7 +638,7 @@ func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
 
 	// Set up our test registrations and index.
 	expectedIndex := uint64(13)
-	authMethod := mock.ACLAuthMethod()
+	authMethod := mock.ACLOIDCAuthMethod()
 	authMethod.CreateIndex = expectedIndex
 	authMethod.ModifyIndex = expectedIndex
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package consul
 
 import (
@@ -129,6 +132,7 @@ func connectSidecarRegistration(serviceID string, info structs.AllocInfo, css *s
 		Address: cMapping.HostIP,
 		Proxy:   proxy,
 		Checks:  checks,
+		Meta:    maps.Clone(css.Meta),
 	}, nil
 }
 

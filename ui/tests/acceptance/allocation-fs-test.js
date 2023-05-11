@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // Covered in behaviours/fs
 import { module } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -41,7 +46,7 @@ module('Acceptance | jobs list', function (hooks) {
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
     faker.seed(1);
     const jobsCount = JobsList.pageSize + 1;
-    server.createList('job', jobsCount, { createAllocations: false });
+    server.createList('job', jobsCount, { createAllocations: true });
 
     await JobsList.visit();
 

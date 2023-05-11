@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package structs
 
 // ConsulConfigEntries represents Consul ConfigEntry definitions from a job for

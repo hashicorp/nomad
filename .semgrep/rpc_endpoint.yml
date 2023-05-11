@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 rules:
   # Check potentially unauthenticated RPC endpoints. Technically more
   # authorization (authz) oriented than authn, but before Nomad 1.4/1.5 that
@@ -99,6 +102,7 @@ rules:
             - pattern-not: 'structs.ACLListAuthMethodsRPCMethod'
             - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
             - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
+            - pattern-not: 'structs.ACLLoginRPCMethod'
             - pattern-not: '"CSIPlugin.Get"'
             - pattern-not: '"CSIPlugin.List"'
             - pattern-not: '"Status.Leader"'

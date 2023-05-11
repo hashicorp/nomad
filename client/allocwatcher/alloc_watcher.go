@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package allocwatcher
 
 import (
@@ -98,8 +101,8 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 	logger := c.Logger.Named("alloc_migrator").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
 	tasks := tg.Tasks
-	sticky := tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky
 	migrate := tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate
+	sticky := tg.EphemeralDisk != nil && (tg.EphemeralDisk.Sticky || migrate)
 
 	if m != nil {
 		// Local Allocation because there's an alloc runner

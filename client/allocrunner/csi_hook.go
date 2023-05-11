@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package allocrunner
 
 import (
@@ -9,7 +12,9 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -27,7 +32,7 @@ type csiHook struct {
 	// interfaces implemented by the allocRunner
 	rpcClient            RPCer
 	taskCapabilityGetter taskCapabilityGetter
-	updater              hookResourceSetter
+	hookResources        *cstructs.AllocHookResources
 
 	nodeSecret         string
 	volumeRequests     map[string]*volumeAndRequest
@@ -44,7 +49,7 @@ type taskCapabilityGetter interface {
 	GetTaskDriverCapabilities(string) (*drivers.Capabilities, error)
 }
 
-func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, updater hookResourceSetter, nodeSecret string) *csiHook {
+func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, hookResources *cstructs.AllocHookResources, nodeSecret string) *csiHook {
 
 	shutdownCtx, shutdownCancelFn := context.WithCancel(context.Background())
 
@@ -54,7 +59,7 @@ func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.M
 		csimanager:           csi,
 		rpcClient:            rpcClient,
 		taskCapabilityGetter: taskCapabilityGetter,
-		updater:              updater,
+		hookResources:        hookResources,
 		nodeSecret:           nodeSecret,
 		volumeRequests:       map[string]*volumeAndRequest{},
 		minBackoffInterval:   time.Second,
@@ -83,11 +88,15 @@ func (c *csiHook) Prerun() error {
 	mounts := make(map[string]*csimanager.MountInfo, len(volumes))
 	for alias, pair := range volumes {
 
-		// We use this context only to attach hclog to the gRPC
-		// context. The lifetime is the lifetime of the gRPC stream,
-		// not specific RPC timeouts, but we manage the stream
-		// lifetime via Close in the pluginmanager.
-		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, pair.volume.PluginID)
+		// make sure the plugin is ready or becomes so quickly.
+		plugin := pair.volume.PluginID
+		pType := dynamicplugins.PluginTypeCSINode
+		if err := c.csimanager.WaitForPlugin(c.shutdownCtx, pType, plugin); err != nil {
+			return err
+		}
+		c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
+
+		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
 		if err != nil {
 			return err
 		}
@@ -108,9 +117,8 @@ func (c *csiHook) Prerun() error {
 		mounts[alias] = mountInfo
 	}
 
-	res := c.updater.GetAllocHookResources()
-	res.CSIMounts = mounts
-	c.updater.SetAllocHookResources(res)
+	// make the mounts available to the taskrunner's volume_hook
+	c.hookResources.SetCSIMounts(mounts)
 
 	return nil
 }

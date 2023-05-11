@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 //go:build ent
 // +build ent
 
@@ -5,7 +8,6 @@ package command
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -52,23 +54,23 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 	// Create a quota to delete
 	qs := testQuotaSpec()
 	_, err := client.Quotas().Register(qs, nil)
-	must.NoError(t, err)
+	must.NoError(t, err, must.Sprint("unexpected error:", err))
 
 	// Delete a quota
 	code := cmd.Run([]string{"-address=" + url, qs.Name})
 	must.Zero(t, code)
 
 	out := ui.OutputWriter.String()
-	if !strings.Contains(out, "Usages") || !strings.Contains(out, qs.Name) {
-		t.Fatalf("expected quota, got: %s", out)
-	}
+	must.StrContains(t, out, "Usages")
+	must.StrContains(t, out, qs.Name)
 
+	ui.OutputWriter.Reset()
 	// List json
 	must.Zero(t, cmd.Run([]string{"-address=" + url, "-json", qs.Name}))
 
 	outJson := api.QuotaSpec{}
 	err = json.Unmarshal(ui.OutputWriter.Bytes(), &outJson)
-	must.NoError(t, err)
+	must.NoError(t, err, must.Sprint("unexpected error:", err))
 
 	ui.OutputWriter.Reset()
 
@@ -77,7 +79,7 @@ func TestQuotaInspectCommand_Run(t *testing.T) {
 	must.Zero(t, code)
 
 	out = ui.OutputWriter.String()
-	must.StrContains(t, out, "test-quota")
+	must.StrContains(t, out, qs.Name)
 
 	ui.OutputWriter.Reset()
 }
@@ -96,7 +98,7 @@ func TestQuotaInspectCommand_AutocompleteArgs(t *testing.T) {
 	_, err := client.Quotas().Register(qs, nil)
 	must.NoError(t, err)
 
-	args := complete.Args{Last: "t"}
+	args := complete.Args{Last: "q"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)

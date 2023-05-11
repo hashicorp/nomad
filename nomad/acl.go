@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package nomad
 
 import (
@@ -102,12 +105,9 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 
 	// At this point we either have an anonymous token or an invalid one.
 
-	// Previously-connected clients will have a NodeID set on the context, which
-	// is available for all yamux streams over the same yamux session (and TCP
-	// connection). This will be a large portion of the RPCs sent, but we can't
-	// fast-path this at the top of the method, because authenticated HTTP
-	// requests to the clients will come in over to the same session.
-	if ctx.NodeID != "" {
+	// TODO(tgross): remove this entirely in 1.6.0 and enforce that all RPCs
+	// driven by the clients have secret IDs set
+	if ctx.NodeID != "" && secretID != "" {
 		args.SetIdentity(&structs.AuthenticatedIdentity{ClientID: ctx.NodeID})
 		return nil
 	}

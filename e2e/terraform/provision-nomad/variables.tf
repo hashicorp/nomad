@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 variable "nomad_local_binary" {
   type        = string
   description = "Path to local Nomad build (ex. \"/home/me/bin/nomad\")"
