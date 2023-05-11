@@ -36,6 +36,7 @@ jobs:
           ./scripts/vagrant-linux-unpriv-ui.sh
           export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
           export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+          # shellcheck source=~/.nvm/nvm.sh
           . ~/.nvm/nvm.sh
           cd ui && yarn install --frozen-lockfile && cd ..
           JOBS=2 make ember-dist static-assets
