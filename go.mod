@@ -9,6 +9,10 @@ replace (
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
+// Pin dependency with additional logs and defensive code to workaround panic
+// described in https://github.com/hashicorp/nomad/issues/15861.
+replace github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20230509193637-d9ca9af9f1f9
+
 // Nomad is built using the current source of the API module
 replace github.com/hashicorp/nomad/api => ./api
 
