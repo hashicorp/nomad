@@ -283,7 +283,6 @@ func jobVersionSchema() *memdb.TableSchema {
 
 // jobSubmissionSchema returns the memdb table schema of job submissions
 // which contain the original source material of each job, per version.
-// Unique index by Namespace, JobID, and Version.
 func jobSubmissionSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: "job_submission",
@@ -292,33 +291,23 @@ func jobSubmissionSchema() *memdb.TableSchema {
 				Name:         "id",
 				AllowMissing: false,
 				Unique:       true,
+				// index by (Namespace, JobID, Version)
+				// note: uniqueness applies only at the moment of insertion,
+				// if anything modifies one of these fields (as the stored
+				// struct is a pointer, there is no consistency)
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
 							Field: "Namespace",
 						},
+
 						&memdb.StringFieldIndex{
 							Field:     "JobID",
 							Lowercase: true,
 						},
+
 						&memdb.UintFieldIndex{
 							Field: "Version",
-						},
-					},
-				},
-			},
-			"by_jobID": {
-				Name:         "by_jobID",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-						&memdb.StringFieldIndex{
-							Field:     "JobID",
-							Lowercase: true,
 						},
 					},
 				},

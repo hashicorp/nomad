@@ -1907,8 +1907,36 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 }
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
-	_, err := txn.DeleteAll("job_submission", "by_jobID", job.Namespace, job.ID)
-	return err
+	// find submissions associated with job
+	remove := *set.NewHashSet[*structs.JobSubmission, string](structs.JobTrackedVersions)
+
+	iter, err := txn.Get("job_submission", "id_prefix", job.Namespace, job.ID)
+	if err != nil {
+		return err
+	}
+
+	for {
+		obj := iter.Next()
+		if obj == nil {
+			break
+		}
+		sub := obj.(*structs.JobSubmission)
+
+		// iterating by prefix; ensure we have an exact match
+		if sub.Namespace == job.Namespace && sub.JobID == job.ID {
+			remove.Insert(sub)
+		}
+	}
+
+	// now delete the submissions we found associated with the job
+	for _, sub := range remove.Slice() {
+		err := txn.Delete("job_submission", sub)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // deleteJobVersions deletes all versions of the given job.
@@ -5366,6 +5394,10 @@ func (s *StateStore) updateJobScalingPolicies(index uint64, job *structs.Job, tx
 // job structure originates from. It is up to the job submitter to include the source
 // material, and as such sub may be nil, in which case nothing is stored.
 func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmission, namespace, jobID string, version uint64, txn *txn) error {
+	// critical that we operate on a copy; the original must not be modified
+	// e.g. in the case of job gc and its last second version bump
+	sub = sub.Copy()
+
 	switch {
 	case sub == nil:
 		return nil
@@ -5380,7 +5412,18 @@ func (s *StateStore) updateJobSubmission(index uint64, sub *structs.JobSubmissio
 		sub.Version = version
 	}
 
-	// insert the job submission
+	// check if we already have a submission for this (namespace, jobID, version)
+	obj, err := txn.First("job_submission", "id", namespace, jobID, version)
+	if err != nil {
+		return err
+	}
+	if obj != nil {
+		// if we already have a submission for this (namespace, jobID, version)
+		// then there is nothing to do; manually avoid potential for duplicates
+		return nil
+	}
+
+	// insert the job submission for this (namespace, jobID, version)
 	if err := txn.Insert("job_submission", sub); err != nil {
 		return err
 	}
@@ -5395,16 +5438,19 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	// holes in the submissions (or none at all)
 	limit := structs.JobTrackedVersions
 
-	iter, err := txn.Get("job_submission", "by_jobID", namespace, jobID)
+	// iterate through all stored submissions
+	iter, err := txn.Get("job_submission", "id_prefix", namespace, jobID)
 	if err != nil {
 		return err
 	}
 
-	// lookup each stored submission's (modify index, version)
 	stored := make([]lang.Pair[uint64, uint64], 0, limit+1)
 	for next := iter.Next(); next != nil; next = iter.Next() {
 		sub := next.(*structs.JobSubmission)
-		stored = append(stored, lang.Pair[uint64, uint64]{First: sub.JobModifyIndex, Second: sub.Version})
+		// scanning by prefix; make sure we collect exact matches only
+		if sub.Namespace == namespace && sub.JobID == jobID {
+			stored = append(stored, lang.Pair[uint64, uint64]{First: sub.JobModifyIndex, Second: sub.Version})
+		}
 	}
 
 	// if we are still below the limit, nothing to do
