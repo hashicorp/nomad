@@ -20,3 +20,4 @@ jobs:
           working-directory: "ui"
 permissions:
   contents: read
+

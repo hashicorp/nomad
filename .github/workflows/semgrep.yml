@@ -16,3 +16,4 @@ jobs:
       - uses: returntocorp/semgrep-action@8689a93eca50c91f8e8cfa61e3c4fb7e96d12bf2 # v1
 permissions:
   contents: read
+

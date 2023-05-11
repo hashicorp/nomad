@@ -1,12 +1,42 @@
 name: build-test
 on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
   push:
     branches:
-      - releng/fix-circle-migration
-      - '!**-ui*'
-      - '!docs-*'
-      - '!backport/docs-*'
-      - '!stable-website'
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
 
 env:
   VAULT_VERSION: 1.4.1

@@ -128,3 +128,4 @@ jobs:
           sudo -E env "PATH=$PATH" make test-nomad
 permissions:
   contents: read
+

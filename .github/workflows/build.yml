@@ -290,3 +290,4 @@ permissions:
 #         tags: |
 #           docker.io/hashicorp/${{env.repo}}:${{env.version}}
 #           986891699432.dkr.ecr.us-east-1.amazonaws.com/hashicorp/${{env.repo}}:${{env.version}}
+

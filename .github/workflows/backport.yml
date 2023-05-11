@@ -69,3 +69,4 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 permissions:
   contents: read
+
