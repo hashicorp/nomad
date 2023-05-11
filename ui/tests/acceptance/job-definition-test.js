@@ -4,6 +4,7 @@
  */
 
 import { click, currentURL } from '@ember/test-helpers';
+import percySnapshot from '@percy/ember';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -76,6 +77,8 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('when in editing mode, the editor is prepopulated with the job definition', async function (assert) {
+    assert.expect(1);
+
     const requests = server.pretender.handledRequests;
     const jobSubmission = requests.findBy(
       'url',
@@ -84,6 +87,7 @@ module('Acceptance | job definition', function (hooks) {
     const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
     await Definition.edit();
+    await percySnapshot(assert);
 
     assert.equal(
       Definition.editor.editor.contents,
@@ -108,7 +112,9 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('when the job for the definition is not found, an error message is shown, but the URL persists', async function (assert) {
+    assert.expect(4);
     await Definition.visit({ id: 'not-a-real-job' });
+    await percySnapshot(assert);
 
     assert.equal(
       server.pretender.handledRequests
@@ -159,6 +165,7 @@ module('display and edit using full specification', function (hooks) {
     server.get('/job/:id/submission', () => specification_response);
 
     await Definition.visit({ id: job.id });
+    await percySnapshot(assert);
 
     assert
       .dom('[data-test-select="job-spec"]')
