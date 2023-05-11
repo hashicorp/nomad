@@ -34,13 +34,13 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		EnableHTTP:           true,
 		EnableRPC:            true,
 		VerifyServerHostname: true,
-		CAFile:               "../helper/tlsutil/testdata/ca.pem",
-		CertFile:             "../helper/tlsutil/testdata/nomad-foo.pem",
-		KeyFile:              "../helper/tlsutil/testdata/nomad-foo-key.pem",
+		CAFile:               "../helper/tlsutil/testdata/nomad-agent-ca.pem",
+		CertFile:             "../helper/tlsutil/testdata/regionFoo-client-nomad.pem",
+		KeyFile:              "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem",
 	}
 	clientTLSCfg := tlsCfg.Copy()
-	clientTLSCfg.CertFile = "../helper/tlsutil/testdata/nomad-foo-client.pem"
-	clientTLSCfg.KeyFile = "../helper/tlsutil/testdata/nomad-foo-client-key.pem"
+	clientTLSCfg.CertFile = "../helper/tlsutil/testdata/regionFoo-client-nomad-client.pem"
+	clientTLSCfg.KeyFile = "../helper/tlsutil/testdata/regionFoo-client-nomad-client-key.pem"
 
 	setCfg := func(name string, bootstrapExpect int) func(*Config) {
 		return func(c *Config) {

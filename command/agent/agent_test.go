@@ -920,11 +920,12 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 
 	// We will start out with a bad cert and then reload with a good one.
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		badca         = "../../helper/tlsutil/testdata/ca-bad.pem"
+		badcert       = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey        = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocafile     = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		fooclientcert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fooclientkey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
@@ -932,9 +933,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CAFile:               badca,
+			CertFile:             badcert,
+			KeyFile:              badkey,
 		}
 	})
 	defer agent.Shutdown()
@@ -952,9 +953,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert2,
-			KeyFile:              fookey2,
+			CAFile:               foocafile,
+			CertFile:             fooclientcert,
+			KeyFile:              fooclientkey,
 		},
 	}
 
@@ -987,11 +988,12 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		badca         = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		badcert       = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		badkey        = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile        = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		fooclientcert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fooclientkey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	agentConfig := &Config{
@@ -999,9 +1001,9 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CAFile:               badca,
+			CertFile:             badcert,
+			KeyFile:              badkey,
 		},
 	}
 
@@ -1016,8 +1018,8 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert2,
-			KeyFile:              fookey2,
+			CertFile:             fooclientcert,
+			KeyFile:              fooclientkey,
 		},
 	}
 
@@ -1036,11 +1038,11 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
-		foocert2 = "invalid_cert_path"
-		fookey2  = "invalid_key_path"
+		badca      = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		badcert    = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey     = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		newfoocert = "invalid_cert_path"
+		newfookey  = "invalid_key_path"
 	)
 
 	agentConfig := &Config{
@@ -1048,9 +1050,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CAFile:               badca,
+			CertFile:             badcert,
+			KeyFile:              badkey,
 		},
 	}
 
@@ -1064,9 +1066,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 			EnableHTTP:           true,
 			EnableRPC:            true,
 			VerifyServerHostname: true,
-			CAFile:               cafile,
-			CertFile:             foocert2,
-			KeyFile:              fookey2,
+			CAFile:               badca,
+			CertFile:             newfoocert,
+			KeyFile:              newfookey,
 		},
 	}
 
@@ -1123,9 +1125,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	logger := testlog.HCLogger(t)
@@ -1164,9 +1166,9 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	logger := testlog.HCLogger(t)
@@ -1238,9 +1240,9 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	sameAgentConfig := &Config{
@@ -1276,9 +1278,9 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	sameAgentConfig := &Config{
@@ -1314,9 +1316,9 @@ func TestServer_ShouldReload_ReturnTrueForOnlyRPCChanges(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	sameAgentConfig := &Config{
@@ -1352,11 +1354,11 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		badcert = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
@@ -1377,8 +1379,8 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert2,
-			KeyFile:              fookey2,
+			CertFile:             badcert,
+			KeyFile:              badkey,
 		},
 	}
 
@@ -1419,8 +1421,8 @@ func TestServer_ShouldReload_ReturnTrueForFileChanges(t *testing.T) {
 	require.Nil(err)
 
 	const (
-		cafile = "../../helper/tlsutil/testdata/ca.pem"
-		key    = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		key    = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	logger := testlog.HCLogger(t)
@@ -1491,11 +1493,11 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		badcert = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
 
 	sameAgentConfig := &Config{
@@ -1515,8 +1517,8 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert2,
-			KeyFile:              fookey2,
+			CertFile:             badcert,
+			KeyFile:              badkey,
 		}
 	})
 	defer agent.Shutdown()

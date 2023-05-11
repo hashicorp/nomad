@@ -732,9 +732,9 @@ func TestParsePagination(t *testing.T) {
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	ci.Parallel(t)
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 	s := makeHTTPServer(t, func(c *Config) {
 		c.Region = "foo" // match the region on foocert
@@ -860,11 +860,11 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
-		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		badcert = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		badkey  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	agentConfig := &Config{
@@ -872,8 +872,8 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
 			CAFile:            cafile,
-			CertFile:          foocert,
-			KeyFile:           fookey,
+			CertFile:          badcert,
+			KeyFile:           badkey,
 		},
 	}
 
@@ -882,8 +882,8 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
 			CAFile:            cafile,
-			CertFile:          foocert2,
-			KeyFile:           fookey2,
+			CertFile:          foocert,
+			KeyFile:           fookey,
 		},
 	}
 
@@ -933,7 +933,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 		ServerName: "client.regionFoo.nomad",
 		RootCAs:    x509.NewCertPool(),
 		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			c, err := tls.LoadX509KeyPair(foocert2, fookey2)
+			c, err := tls.LoadX509KeyPair(foocert, fookey)
 			if err != nil {
 				return nil, err
 			}
@@ -1053,9 +1053,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile   = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey   = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 		maxConns = 10 // limit must be < this for testing
 		bufSize  = 1  // enough to know if something was written
 	)
