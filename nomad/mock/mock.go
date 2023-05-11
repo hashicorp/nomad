@@ -251,6 +251,17 @@ func Namespace() *structs.Namespace {
 	return ns
 }
 
+func NodePool() *structs.NodePool {
+	return &structs.NodePool{
+		Name:        fmt.Sprintf("pool-%s", uuid.Short()),
+		Description: "test node pool",
+		Meta:        map[string]string{"team": "test"},
+		SchedulerConfiguration: &structs.NodePoolSchedulerConfiguration{
+			SchedulerAlgorithm: structs.SchedulerAlgorithmSpread,
+		},
+	}
+}
+
 // ServiceRegistrations generates an array containing two unique service
 // registrations.
 func ServiceRegistrations() []*structs.ServiceRegistration {

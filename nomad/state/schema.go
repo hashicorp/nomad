@@ -16,6 +16,7 @@ const (
 	tableIndex = "index"
 
 	TableNamespaces           = "namespaces"
+	TableNodePools            = "node_pools"
 	TableServiceRegistrations = "service_registrations"
 	TableVariables            = "variables"
 	TableVariablesQuotas      = "variables_quota"
@@ -66,6 +67,7 @@ func init() {
 	RegisterSchemaFactories([]SchemaFactory{
 		indexTableSchema,
 		nodeTableSchema,
+		nodePoolTableSchema,
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
@@ -156,6 +158,26 @@ func nodeTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.UUIDFieldIndex{
 					Field: "SecretID",
+				},
+			},
+		},
+	}
+}
+
+// nodePoolTableSchema returns the MemDB schema for the node pools table.
+// This table is used to store all the node pools registered in the cluster.
+func nodePoolTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableNodePools,
+		Indexes: map[string]*memdb.IndexSchema{
+			// Name is the primary index used for lookup and is required to be
+			// unique.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "Name",
 				},
 			},
 		},
