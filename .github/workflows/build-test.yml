@@ -10,6 +10,7 @@ on:
 
 env:
   VAULT_VERSION: 1.4.1
+  PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
 jobs:
   build-binaries:
     runs-on: ubuntu-latest
