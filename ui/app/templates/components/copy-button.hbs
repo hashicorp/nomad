@@ -3,7 +3,7 @@
   SPDX-License-Identifier: MPL-2.0
 ~}}
 
-<div class="copy-button">
+<div class="copy-button {{if @inset "inset"}}">
 {{#if (eq this.state 'success')}}
   <div data-test-copy-success class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
     {{#if @inset}}
@@ -29,7 +29,7 @@
 {{else}}
   <AddonCopyButton
     title="Copy"
-    class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}}"
+    class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}} {{if @inset "is-inset"}}"
     @text={{this.text}}
     @onSuccess={{perform this.indicateSuccess}}
     @onError={{action (mut this.state) "error"}}
