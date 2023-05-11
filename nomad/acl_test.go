@@ -35,12 +35,12 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		EnableRPC:            true,
 		VerifyServerHostname: true,
 		CAFile:               "../helper/tlsutil/testdata/nomad-agent-ca.pem",
-		CertFile:             "../helper/tlsutil/testdata/regionFoo-client-nomad.pem",
-		KeyFile:              "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem",
+		CertFile:             "../helper/tlsutil/testdata/regionFoo-server-nomad.pem",
+		KeyFile:              "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem",
 	}
 	clientTLSCfg := tlsCfg.Copy()
-	clientTLSCfg.CertFile = "../helper/tlsutil/testdata/regionFoo-client-nomad-client.pem"
-	clientTLSCfg.KeyFile = "../helper/tlsutil/testdata/regionFoo-client-nomad-client-key.pem"
+	clientTLSCfg.CertFile = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+	clientTLSCfg.KeyFile = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 
 	setCfg := func(name string, bootstrapExpect int) func(*Config) {
 		return func(c *Config) {
@@ -178,7 +178,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		{
 			name:           "from peer to leader without token", // ex. Eval.Dequeue
 			tlsCfg:         tlsCfg,
-			expectTLSName:  "regionFoo.nomad",
+			expectTLSName:  "server.regionFoo.nomad",
 			expectAccessor: "anonymous",
 			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
 			sendFromPeer:   follower,
@@ -190,7 +190,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:           "anonymous forwarded from peer to leader",
 			tlsCfg:         tlsCfg,
 			expectAccessor: "anonymous",
-			expectTLSName:  "regionFoo.nomad",
+			expectTLSName:  "server.regionFoo.nomad",
 			expectIP:       "127.0.0.1",
 			expectIDKey:    "token:anonymous",
 		},
@@ -198,16 +198,16 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:          "invalid token",
 			tlsCfg:        clientTLSCfg,
 			testToken:     uuid.Generate(),
-			expectTLSName: "regionFoo.nomad",
+			expectTLSName: "server.regionFoo.nomad",
 			expectIP:      follower.GetConfig().RPCAddr.IP.String(),
-			expectIDKey:   "regionFoo.nomad:127.0.0.1",
+			expectIDKey:   "server.regionFoo.nomad:127.0.0.1",
 			expectErr:     "rpc error: Permission denied",
 		},
 		{
 			name:           "from peer to leader with leader ACL", // ex. core job GC
 			tlsCfg:         tlsCfg,
 			testToken:      leader.getLeaderAcl(),
-			expectTLSName:  "regionFoo.nomad",
+			expectTLSName:  "server.regionFoo.nomad",
 			expectAccessor: "leader",
 			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
 			sendFromPeer:   follower,
@@ -224,7 +224,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 			name:           "from client missing secret", // ex. Node.Register
 			tlsCfg:         clientTLSCfg,
 			expectAccessor: "anonymous",
-			expectTLSName:  "regionFoo.nomad",
+			expectTLSName:  "server.regionFoo.nomad",
 			expectIP:       follower.GetConfig().RPCAddr.IP.String(),
 		},
 		{
