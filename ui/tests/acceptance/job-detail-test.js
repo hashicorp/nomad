@@ -17,7 +17,14 @@ import moduleForJob, {
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
-  server.create('job', { type: 'batch', shallow: true })
+  server.create('job', {
+    type: 'batch',
+    shallow: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
+  })
 );
 
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
@@ -25,11 +32,23 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
     type: 'system',
     shallow: true,
     noActiveDeployment: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
   })
 );
 
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
-  server.create('job', { type: 'sysbatch', shallow: true })
+  server.create('job', {
+    type: 'sysbatch',
+    shallow: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+      failed: 1,
+    },
+  })
 );
 
 moduleForJobWithClientStatus(
@@ -76,6 +95,10 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
     childrenCount: 1,
     shallow: true,
     datacenters: ['dc1'],
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -206,6 +229,10 @@ moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
   const parent = server.create('job', 'periodic', {
     childrenCount: 1,
     shallow: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -217,6 +244,10 @@ moduleForJob(
     const parent = server.create('job', 'parameterized', {
       childrenCount: 1,
       shallow: true,
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }

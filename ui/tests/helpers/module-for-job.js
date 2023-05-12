@@ -169,14 +169,14 @@ export default function moduleForJob(
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
-        const legendItem = find('.legend li.is-clickable a');
-        if (!legendItem) {
-          console.log('++++ LEGEND ITEM MISSING');
-          console.log(find('.legend li').outerHTML);
-          console.log('+++++');
-          console.log(find('.legend li.is-clickable').outerHTML);
-          // await this.pauseTest();
-        }
+
+        // explicitly setting allocationStatusDistribution when creating the job that gets passed here
+        // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
+        // but we can be redundant for the sake of future-proofing this here.
+        const legendItem = find(
+          '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
+        );
+
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'
         );
