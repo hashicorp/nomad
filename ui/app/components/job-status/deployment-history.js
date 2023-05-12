@@ -5,8 +5,12 @@ import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 
+const MAX_NUMBER_OF_EVENTS = 500;
+
 export default class JobStatusDeploymentHistoryComponent extends Component {
   @service notifications;
+
+  @tracked isHidden = this.args.isHidden;
 
   /**
    * @type { Error }
@@ -36,8 +40,11 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
    * @type { import('../../models/allocation').default[] }
    */
   get deploymentAllocations() {
-    return this.jobAllocations.filter(
-      (alloc) => alloc.jobVersion === this.deploymentVersion
+    return (
+      this.args.allocations ||
+      this.jobAllocations.filter(
+        (alloc) => alloc.jobVersion === this.deploymentVersion
+      )
     );
   }
 
@@ -57,7 +64,8 @@ export default class JobStatusDeploymentHistoryComponent extends Component {
         .flat()
         .filter((a) => this.containsSearchTerm(a))
         .sort((a, b) => a.get('time') - b.get('time'))
-        .reverse();
+        .reverse()
+        .slice(0, MAX_NUMBER_OF_EVENTS);
     } catch (e) {
       this.triggerError(e);
       return [];
