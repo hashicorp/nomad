@@ -143,7 +143,6 @@ export default function moduleForJob(
       test('clicking in an allocation row navigates to that allocation', async function (assert) {
         const allocationRow = JobDetail.allocations[0];
         const allocationId = allocationRow.id;
-
         await allocationRow.visitRow();
 
         assert.equal(
@@ -170,9 +169,11 @@ export default function moduleForJob(
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
-        const legendItem = find('.legend li.is-clickable');
-        const status = legendItem.getAttribute('data-test-legend-label');
-        await click(legendItem.querySelector('a'));
+        const legendItem = find('.legend li.is-clickable a');
+        const status = legendItem.parentElement.getAttribute(
+          'data-test-legend-label'
+        );
+        await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
