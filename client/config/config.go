@@ -241,6 +241,8 @@ type Config struct {
 	// StateDBFactory is used to override stateDB implementations,
 	StateDBFactory state.NewStateDBFunc
 
+	AllocRunnerFactory AllocRunnerFactory
+
 	// CNIPath is the path used to search for CNI plugins. Multiple paths can
 	// be specified with colon delimited
 	CNIPath string

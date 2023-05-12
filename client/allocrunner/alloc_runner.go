@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
-	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -142,10 +141,10 @@ type allocRunner struct {
 
 	// prevAllocWatcher allows waiting for any previous or preempted allocations
 	// to exit
-	prevAllocWatcher allocwatcher.PrevAllocWatcher
+	prevAllocWatcher config.PrevAllocWatcher
 
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
-	prevAllocMigrator allocwatcher.PrevAllocMigrator
+	prevAllocMigrator config.PrevAllocMigrator
 
 	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
 	// plugins).
@@ -180,7 +179,7 @@ type allocRunner struct {
 
 	// rpcClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
-	rpcClient RPCer
+	rpcClient config.RPCer
 
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
@@ -190,13 +189,8 @@ type allocRunner struct {
 	getter cinterfaces.ArtifactGetter
 }
 
-// RPCer is the interface needed by hooks to make RPC calls.
-type RPCer interface {
-	RPC(method string, args interface{}, reply interface{}) error
-}
-
 // NewAllocRunner returns a new allocation runner.
-func NewAllocRunner(config *Config) (*allocRunner, error) {
+func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, error) {
 	alloc := config.Alloc
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
