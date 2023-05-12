@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	// NodePoolAll is a reserved node pool that always includes all nodes in
+	// NodePoolAll is a built-in node pool that always includes all nodes in
 	// the cluster.
 	NodePoolAll            = "all"
 	NodePoolAllDescription = "Node pool with all nodes in the cluster."
 
-	// NodePoolDefault is a reserved node pool for nodes that don't specify a
+	// NodePoolDefault is a built-in node pool for nodes that don't specify a
 	// node pool in their configuration.
 	NodePoolDefault            = "default"
 	NodePoolDefaultDescription = "Default node pool."
@@ -82,9 +82,11 @@ func (n *NodePool) Copy() *NodePool {
 	return nc
 }
 
-// IsReserved returns true if the node pool is one of the reserved pools.
-// These pools cannot be deleted or modified.
-func (n *NodePool) IsReserved() bool {
+// IsBuiltIn returns true if the node pool is one of the built-in pools.
+//
+// Built-in node pools are created automatically by Nomad and can never be
+// deleted or modified so they are always present in the cluster..
+func (n *NodePool) IsBuiltIn() bool {
 	switch n.Name {
 	case NodePoolAll, NodePoolDefault:
 		return true

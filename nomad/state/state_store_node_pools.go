@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// nodePoolInit creates the reserved node pools that should always be present
+// nodePoolInit creates the built-in node pools that should always be present
 // in the cluster.
 func (s *StateStore) nodePoolInit() error {
 	allNodePool := &structs.NodePool{
@@ -100,9 +100,9 @@ func (s *StateStore) upsertNodePoolTxn(txn *txn, index uint64, pool *structs.Nod
 	}
 
 	if existing != nil {
-		// Prevent changes to reserved node pools.
-		if pool.IsReserved() {
-			return fmt.Errorf("modifying reserved node pool %q is not allowed", pool.Name)
+		// Prevent changes to built-in node pools.
+		if pool.IsBuiltIn() {
+			return fmt.Errorf("modifying node pool %q is not allowed", pool.Name)
 		}
 
 		exist := existing.(*structs.NodePool)
@@ -151,9 +151,9 @@ func (s *StateStore) deleteNodePoolTxn(txn *txn, index uint64, name string) erro
 
 	pool := existing.(*structs.NodePool)
 
-	// Prevent deletion of reserved node pools.
-	if pool.IsReserved() {
-		return fmt.Errorf("deleting reserved node pool %q is not allowed", pool.Name)
+	// Prevent deletion of built-in node pools.
+	if pool.IsBuiltIn() {
+		return fmt.Errorf("deleting node pool %q is not allowed", pool.Name)
 	}
 
 	// Delete node pool.

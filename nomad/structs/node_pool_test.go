@@ -96,42 +96,41 @@ func TestNodePool_Validate(t *testing.T) {
 	}
 }
 
-func TestNodePool_IsReserved(t *testing.T) {
+func TestNodePool_IsBuiltIn(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name     string
-		pool     *NodePool
-		reserved bool
+		name    string
+		pool    *NodePool
+		builtIn bool
 	}{
 		{
 			name: "all",
 			pool: &NodePool{
 				Name: NodePoolAll,
 			},
-			reserved: true,
+			builtIn: true,
 		},
 		{
 			name: "default",
 			pool: &NodePool{
 				Name: NodePoolDefault,
 			},
-			reserved: true,
+			builtIn: true,
 		},
 		{
-			name: "not reserved",
+			name: "not built-in",
 			pool: &NodePool{
-				Name: "not-reserved",
+				Name: "not-built-in",
 			},
-			reserved: false,
+			builtIn: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.pool.IsReserved()
-			must.Eq(t, tc.reserved, got)
+			got := tc.pool.IsBuiltIn()
+			must.Eq(t, tc.builtIn, got)
 		})
 	}
-
 }
