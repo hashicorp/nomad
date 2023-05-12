@@ -16,7 +16,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -158,7 +157,7 @@ func mkTestAllocDir(t *testing.T, h *dtestutil.DriverHarness, logger hclog.Logge
 	}
 
 	taskBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, "global")
-	dtestutil.SetEnvvars(taskBuilder, drivers.FSIsolationNone, taskDir, config.DefaultConfig())
+	dtestutil.SetEnvvars(taskBuilder, drivers.FSIsolationNone, taskDir)
 
 	taskEnv := taskBuilder.Build()
 	if tc.Env == nil {
