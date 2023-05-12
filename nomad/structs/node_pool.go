@@ -52,6 +52,18 @@ type NodePool struct {
 	ModifyIndex uint64
 }
 
+// Canonicalize is used to ensure fields are initialized to their expected
+// values. Node pools should be canonicalize at the RPC layer.
+func (n *NodePool) Canonicalize() {
+	if n == nil {
+		return
+	}
+
+	if n.Meta == nil {
+		n.Meta = make(map[string]string)
+	}
+}
+
 // Validate returns an error if the node pool is invalid.
 func (n *NodePool) Validate() error {
 	var mErr *multierror.Error
