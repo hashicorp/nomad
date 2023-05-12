@@ -11,7 +11,6 @@ import {
   currentURL,
   visit,
   find,
-  settled,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -169,7 +168,6 @@ export default function moduleForJob(
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
-          await settled();
         }
         const legendItem = find('.legend li.is-clickable a');
         if (!legendItem) {
@@ -177,6 +175,7 @@ export default function moduleForJob(
           console.log(find('.legend li').outerHTML);
           console.log('+++++');
           console.log(find('.legend li.is-clickable').outerHTML);
+          // await this.pauseTest();
         }
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'
@@ -280,7 +279,11 @@ export function moduleForJobWithClientStatus(
       );
       job = jobFactory();
       clients.forEach((c) => {
-        server.create('allocation', { jobId: job.id, nodeId: c.id });
+        server.create('allocation', {
+          jobId: job.id,
+          nodeId: c.id,
+          clientStatus: 'running',
+        });
       });
     });
 
