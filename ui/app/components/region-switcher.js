@@ -24,4 +24,17 @@ export default class RegionSwitcher extends Component {
       queryParams: { region },
     });
   }
+
+  get keyCommands() {
+    if (this.sortedRegions.length <= 1) {
+      return [];
+    }
+    return this.sortedRegions.map((region, iter) => {
+      return {
+        label: `Switch to ${region} region`,
+        pattern: ['r', `${iter + 1}`],
+        action: () => this.gotoRegion(region),
+      };
+    });
+  }
 }
