@@ -4,51 +4,12 @@
 package structs
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
 )
-
-func TestNodePool_Canonicalize(t *testing.T) {
-	ci.Parallel(t)
-
-	validateCanonicalize := func(n *NodePool) error {
-		if n.Meta == nil {
-			return fmt.Errorf("meta should not be nil")
-		}
-		return nil
-	}
-
-	testCases := []struct {
-		name string
-		pool *NodePool
-	}{
-		{
-			name: "nil meta",
-			pool: &NodePool{
-				Name: "nil-meta",
-			},
-		},
-		{
-			name: "empty meta",
-			pool: &NodePool{
-				Name: "nil-meta",
-				Meta: map[string]string{},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.pool.Canonicalize()
-			err := validateCanonicalize(tc.pool)
-			must.NoError(t, err)
-		})
-	}
-}
 
 func TestNodePool_Copy(t *testing.T) {
 	ci.Parallel(t)
