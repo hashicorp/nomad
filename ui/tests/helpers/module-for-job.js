@@ -172,7 +172,7 @@ export default function moduleForJob(
         }
         const legendItem = find('.legend li.is-clickable');
         const status = legendItem.getAttribute('data-test-legend-label');
-        await legendItem.click();
+        await click(legendItem.querySelector('a'));
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
