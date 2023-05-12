@@ -7,6 +7,8 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -170,7 +172,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 // destroyAllocRunner is used to destroy an allocation runner. It will acquire a
 // lock to restrict parallelism and then destroy the alloc runner, returning
 // once the allocation has been destroyed.
-func (a *AllocGarbageCollector) destroyAllocRunner(allocID string, ar AllocRunner, reason string) {
+func (a *AllocGarbageCollector) destroyAllocRunner(allocID string, ar interfaces.AllocRunner, reason string) {
 	a.logger.Info("garbage collecting allocation", "alloc_id", allocID, "reason", reason)
 
 	// Acquire the destroy lock
@@ -335,7 +337,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 }
 
 // MarkForCollection starts tracking an allocation for Garbage Collection
-func (a *AllocGarbageCollector) MarkForCollection(allocID string, ar AllocRunner) {
+func (a *AllocGarbageCollector) MarkForCollection(allocID string, ar interfaces.AllocRunner) {
 	if a.allocRunners.Push(allocID, ar) {
 		a.logger.Info("marking allocation for GC", "alloc_id", allocID)
 	}
@@ -346,7 +348,7 @@ func (a *AllocGarbageCollector) MarkForCollection(allocID string, ar AllocRunner
 type GCAlloc struct {
 	timeStamp   time.Time
 	allocID     string
-	allocRunner AllocRunner
+	allocRunner interfaces.AllocRunner
 	index       int
 }
 
@@ -400,7 +402,7 @@ func NewIndexedGCAllocPQ() *IndexedGCAllocPQ {
 
 // Push an alloc runner into the GC queue. Returns true if alloc was added,
 // false if the alloc already existed.
-func (i *IndexedGCAllocPQ) Push(allocID string, ar AllocRunner) bool {
+func (i *IndexedGCAllocPQ) Push(allocID string, ar interfaces.AllocRunner) bool {
 	i.pqLock.Lock()
 	defer i.pqLock.Unlock()
 

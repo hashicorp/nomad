@@ -1777,7 +1777,7 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	c1.runAllocs(updates)
 
 	invalid := false
-	var runner AllocRunner
+	var runner interfaces.AllocRunner
 	var finalAlloc *structs.Allocation
 	// Ensure the allocation is not invalid on the client and has been marked
 	// running on the server with the new modify index
