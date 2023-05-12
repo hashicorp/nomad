@@ -170,6 +170,10 @@ export default function moduleForJob(
           await switchToHistorical(job);
         }
         const legendItem = find('.legend li.is-clickable a');
+        if (!legendItem) {
+          console.log('++++ LEGEND ITEM MISSING');
+          console.log(JSON.stringify(find('.legend li')));
+        }
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'
         );
