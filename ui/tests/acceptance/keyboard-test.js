@@ -393,7 +393,7 @@ module('Acceptance | keyboard', function (hooks) {
       triggerEvent('.page-layout', 'keydown', { key: 'r' });
       await triggerEvent('.page-layout', 'keydown', { key: '3' });
       assert.ok(
-        currentURL().includes('region=Halifax'),
+        currentURL().includes('region=Phoenix'),
         'r 3 command takes you to the third region'
       );
     });

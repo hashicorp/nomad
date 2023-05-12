@@ -26,6 +26,9 @@ export default class RegionSwitcher extends Component {
   }
 
   get keyCommands() {
+    if (this.sortedRegions.length <= 1) {
+      return [];
+    }
     return this.sortedRegions.map((region, iter) => {
       return {
         label: `Switch to ${region} region`,
