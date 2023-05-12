@@ -2253,6 +2253,22 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	}
 }
 
+func TestFSM_SnapshotRestore_NodePools(t *testing.T) {
+	ci.Parallel(t)
+
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+	pool := mock.NodePool()
+	state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+
+	// Verify the contents
+	fsm2 := testSnapshotRestore(t, fsm)
+	state2 := fsm2.State()
+	out, _ := state2.NodePoolByName(nil, pool.Name)
+	must.Eq(t, pool, out)
+}
+
 func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state

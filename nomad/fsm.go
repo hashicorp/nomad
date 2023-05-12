@@ -64,6 +64,7 @@ const (
 	ACLRoleSnapshot                      SnapshotType = 25
 	ACLAuthMethodSnapshot                SnapshotType = 26
 	ACLBindingRuleSnapshot               SnapshotType = 27
+	NodePoolSnapshot                     SnapshotType = 28
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -1821,6 +1822,18 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
+		case NodePoolSnapshot:
+			pool := new(structs.NodePool)
+
+			if err := dec.Decode(pool); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.NodePoolRestore(pool); err != nil {
+				return err
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -2279,6 +2292,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
+	if err := s.persistNodePools(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
 	if err := s.persistJobs(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
@@ -2435,6 +2452,27 @@ func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 		// Write out a node registration
 		sink.Write([]byte{byte(NodeSnapshot)})
 		if err := encoder.Encode(node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistNodePools(sink raft.SnapshotSink,
+	encoder *codec.Encoder) error {
+	// Get all node pools.
+	ws := memdb.NewWatchSet()
+	pools, err := s.snap.NodePools(ws)
+	if err != nil {
+		return err
+	}
+
+	// Iterate over all node pools and persist them.
+	for raw := pools.Next(); raw != nil; raw = pools.Next() {
+		pool := raw.(*structs.NodePool)
+
+		sink.Write([]byte{byte(NodePoolSnapshot)})
+		if err := encoder.Encode(pool); err != nil {
 			return err
 		}
 	}

@@ -23,7 +23,11 @@ func (s *StateStore) nodePoolInit() error {
 		Description: structs.NodePoolDefaultDescription,
 	}
 
-	return s.UpsertNodePools(1, []*structs.NodePool{allNodePool, defaultNodePool})
+	return s.UpsertNodePools(
+		structs.NodePoolUpsertRequestType,
+		1,
+		[]*structs.NodePool{allNodePool, defaultNodePool},
+	)
 }
 
 // NodePools returns an iterator over all node pools.
@@ -72,8 +76,8 @@ func (s *StateStore) NodePoolsByNamePrefix(ws memdb.WatchSet, namePrefix string)
 }
 
 // UpsertNodePools inserts or updates the given set of node pools.
-func (s *StateStore) UpsertNodePools(index uint64, pools []*structs.NodePool) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) UpsertNodePools(msgType structs.MessageType, index uint64, pools []*structs.NodePool) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	for _, pool := range pools {
@@ -121,8 +125,8 @@ func (s *StateStore) upsertNodePoolTxn(txn *txn, index uint64, pool *structs.Nod
 }
 
 // DeleteNodePools removes the given set of node pools.
-func (s *StateStore) DeleteNodePools(index uint64, names []string) error {
-	txn := s.db.WriteTxn(index)
+func (s *StateStore) DeleteNodePools(msgType structs.MessageType, index uint64, names []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
 	for _, n := range names {

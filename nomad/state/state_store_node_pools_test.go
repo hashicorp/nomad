@@ -22,7 +22,7 @@ func TestStateStore_NodePools(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		pools[i] = mock.NodePool()
 	}
-	must.NoError(t, state.UpsertNodePools(1000, pools))
+	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools))
 
 	// Create a watchset to test that getters don't cause it to fire.
 	ws := memdb.NewWatchSet()
@@ -64,7 +64,7 @@ func TestStateStore_NodePool_ByName(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		pools[i] = mock.NodePool()
 	}
-	must.NoError(t, state.UpsertNodePools(1000, pools))
+	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools))
 
 	testCases := []struct {
 		name     string
@@ -138,7 +138,7 @@ func TestStateStore_NodePool_ByNamePrefix(t *testing.T) {
 		{Name: "dev-2"},
 		{Name: "qa"},
 	}
-	err := state.UpsertNodePools(1000, existingPools)
+	err := state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, existingPools)
 	must.NoError(t, err)
 
 	testCases := []struct {
@@ -279,10 +279,10 @@ func TestStateStore_NodePool_Upsert(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create test pools.
 			state := testStateStore(t)
-			must.NoError(t, state.UpsertNodePools(1000, existingPools))
+			must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, existingPools))
 
 			// Update pools from test case.
-			err := state.UpsertNodePools(1001, tc.input)
+			err := state.UpsertNodePools(structs.MsgTypeTestSetup, 1001, tc.input)
 
 			if tc.expectedErr != "" {
 				must.ErrorContains(t, err, tc.expectedErr)
@@ -350,9 +350,9 @@ func TestStateStore_NodePool_Delete(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			state := testStateStore(t)
-			must.NoError(t, state.UpsertNodePools(1000, pools))
+			must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools))
 
-			err := state.DeleteNodePools(1001, tc.del)
+			err := state.DeleteNodePools(structs.MsgTypeTestSetup, 1001, tc.del)
 			if tc.expectedErr != "" {
 				must.ErrorContains(t, err, tc.expectedErr)
 
