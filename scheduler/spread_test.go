@@ -11,14 +11,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSpreadIterator_SingleAttribute(t *testing.T) {
@@ -676,6 +678,7 @@ func Test_evenSpreadScoreBoost(t *testing.T) {
 			"dc3": 1,
 		},
 		targetAttribute: "${node.datacenter}",
+		targetValues:    &set.Set[string]{},
 	}
 
 	opt := &structs.Node{
@@ -1020,4 +1023,135 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	processErr := h.Process(NewServiceScheduler, eval)
 	require.NoError(t, processErr, "failed to process eval")
 	require.Len(t, h.Plans, 1)
+}
+
+func TestSpread_ImplicitTargets(t *testing.T) {
+
+	dcs := []string{"dc1", "dc2", "dc3"}
+
+	setupNodes := func(h *Harness) map[string]string {
+		nodesToDcs := map[string]string{}
+		var nodes []*RankedNode
+
+		for i, dc := range dcs {
+			for n := 0; n < 4; n++ {
+				node := mock.Node()
+				node.Datacenter = dc
+				must.NoError(t, h.State.UpsertNode(
+					structs.MsgTypeTestSetup, uint64(100+i), node))
+				nodes = append(nodes, &RankedNode{Node: node})
+				nodesToDcs[node.ID] = node.Datacenter
+			}
+		}
+		return nodesToDcs
+	}
+
+	setupJob := func(h *Harness, testCaseSpread *structs.Spread) *structs.Evaluation {
+		job := mock.MinJob()
+		job.Datacenters = dcs
+		job.TaskGroups[0].Count = 12
+
+		job.TaskGroups[0].Spreads = []*structs.Spread{testCaseSpread}
+		must.NoError(t, h.State.UpsertJob(
+			structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+		eval := &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+			h.NextIndex(), []*structs.Evaluation{eval}))
+
+		return eval
+	}
+
+	testCases := []struct {
+		name   string
+		spread *structs.Spread
+		expect map[string]int
+	}{
+		{
+
+			name: "empty implicit target",
+			spread: &structs.Spread{
+				Weight:    100,
+				Attribute: "${node.datacenter}",
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+				},
+			},
+			expect: map[string]int{"dc1": 6},
+		},
+		{
+			name: "wildcard implicit target",
+			spread: &structs.Spread{
+				Weight:    100,
+				Attribute: "${node.datacenter}",
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+					{
+						Value:   "*",
+						Percent: 50,
+					},
+				},
+			},
+			expect: map[string]int{"dc1": 6},
+		},
+		{
+			name: "explicit targets",
+			spread: &structs.Spread{
+				Weight:    100,
+				Attribute: "${node.datacenter}",
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+					{
+						Value:   "dc2",
+						Percent: 25,
+					},
+					{
+						Value:   "dc3",
+						Percent: 25,
+					},
+				},
+			},
+			expect: map[string]int{"dc1": 6, "dc2": 3, "dc3": 3},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewHarness(t)
+			nodesToDcs := setupNodes(h)
+			eval := setupJob(h, tc.spread)
+			must.NoError(t, h.Process(NewServiceScheduler, eval))
+			must.Len(t, 1, h.Plans)
+
+			plan := h.Plans[0]
+			must.False(t, plan.IsNoOp())
+
+			dcCounts := map[string]int{}
+			for node, allocs := range plan.NodeAllocation {
+				dcCounts[nodesToDcs[node]] += len(allocs)
+			}
+			for dc, expectVal := range tc.expect {
+				// not using test.MapEqual here because we have incomplete
+				// expectations for the implicit DCs on some tests.
+				test.Eq(t, expectVal, dcCounts[dc],
+					test.Sprintf("expected %d in %q", expectVal, dc))
+			}
+
+		})
+	}
 }
