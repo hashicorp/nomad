@@ -70,7 +70,7 @@
     "ember-classic-decorator": "^3.0.0",
     "ember-cli": "~3.28.5",
     "ember-cli-babel": "^7.26.10",
-    "ember-cli-clipboard": "^0.13.0",
+    "ember-cli-clipboard": "^1.0.0",
     "ember-cli-dependency-checker": "^3.2.0",
     "ember-cli-deprecation-workflow": "^2.1.0",
     "ember-cli-flash": "^3.0.0",
@@ -174,6 +174,7 @@
     ]
   },
   "dependencies": {
+    "@babel/helper-string-parser": "^7.19.4",
     "@hashicorp/design-system-components": "^1.5.0",
     "@hashicorp/ember-flight-icons": "^2.0.12",
     "@percy/cli": "^1.6.1",
@@ -186,6 +187,7 @@
     "title-case": "^3.0.3"
   },
   "resolutions": {
-    "ember-auto-import": "^2.4.0"
+    "ember-auto-import": "^2.4.0",
+    "prop-types": "^15.8.1"
   }
 }
