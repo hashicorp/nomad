@@ -12,6 +12,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -30,7 +31,7 @@ type csiHook struct {
 	csimanager csimanager.Manager
 
 	// interfaces implemented by the allocRunner
-	rpcClient            RPCer
+	rpcClient            config.RPCer
 	taskCapabilityGetter taskCapabilityGetter
 	hookResources        *cstructs.AllocHookResources
 
@@ -49,7 +50,7 @@ type taskCapabilityGetter interface {
 	GetTaskDriverCapabilities(string) (*drivers.Capabilities, error)
 }
 
-func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient RPCer, taskCapabilityGetter taskCapabilityGetter, hookResources *cstructs.AllocHookResources, nodeSecret string) *csiHook {
+func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient config.RPCer, taskCapabilityGetter taskCapabilityGetter, hookResources *cstructs.AllocHookResources, nodeSecret string) *csiHook {
 
 	shutdownCtx, shutdownCancelFn := context.WithCancel(context.Background())
 
