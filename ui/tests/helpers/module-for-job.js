@@ -174,7 +174,9 @@ export default function moduleForJob(
         const legendItem = find('.legend li.is-clickable a');
         if (!legendItem) {
           console.log('++++ LEGEND ITEM MISSING');
-          console.log(JSON.stringify(find('.legend li')));
+          console.log(find('.legend li').outerHTML);
+          console.log('+++++');
+          console.log(find('.legend li.is-clickable').outerHTML);
         }
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'
