@@ -28,7 +28,7 @@ const (
 
 var (
 	// validNodePoolName is the rule used to validate a node pool name.
-	validNodePoolName = regexp.MustCompile("^[a-zA-Z0-9]{1,128}$")
+	validNodePoolName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
 )
 
 // NodePool allows partioning infrastructure
