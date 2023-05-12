@@ -1,14 +1,18 @@
 <div class="deployment-history {{if this.isHidden "hidden"}}">
   <header>
     <h4 class="title is-5">
-      <Hds::Button
-        @text={{or @title "Deployment History"}}
+      <button
+        class="button"
         {{on "click" (action (mut this.isHidden) (if this.isHidden false true))}}
-        @color="tertiary"
-        @icon={{if this.isHidden "chevron-down" "chevron-up"}}
-        @iconPosition="trailing"
-        @isFullWidth={{true}}
-      />
+        type="button"
+      >
+        {{or @title "Deployment History"}}
+        {{#if this.isHidden}}
+          {{x-icon "chevron-down"}}
+        {{else}}
+          {{x-icon "chevron-up"}}
+        {{/if}}
+      </button>
     </h4>
     {{#unless this.isHidden}}
       <SearchBox

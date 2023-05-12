@@ -368,14 +368,31 @@
       margin-bottom: 1rem;
       align-items: end;
       & > h4 {
-        margin: 0;
+        margin-bottom: 0;
+        height: 100%;
         & > button {
           justify-content: left;
+          font-size: 1.25rem;
+          width: 100%;
+          color: $blue;
           border: none;
+          box-shadow: none;
+          outline: none;
           padding: 0;
-          background: none;
-          &:hover {
+          font-weight: 600;
+          &:focus {
+            outline: none;
+            box-shadow: none;
+          }
+
+          &:hover,
+          &:focus {
             text-decoration: underline;
+          }
+          & > svg {
+            padding-left: 0.5rem;
+            height: 2rem;
+            width: 2rem;
           }
         }
       }
