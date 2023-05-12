@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/hashicorp/go-multierror"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -75,7 +76,8 @@ func (n *NodePool) Copy() *NodePool {
 
 	nc := new(NodePool)
 	*nc = *n
-	nc.SchedulerConfiguration = n.SchedulerConfiguration.Copy()
+	nc.Meta = maps.Clone(nc.Meta)
+	nc.SchedulerConfiguration = nc.SchedulerConfiguration.Copy()
 
 	return nc
 }

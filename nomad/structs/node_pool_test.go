@@ -30,6 +30,8 @@ func TestNodePool_Copy(t *testing.T) {
 	poolCopy.SchedulerConfiguration.SchedulerAlgorithm = SchedulerAlgorithmBinpack
 
 	must.NotEq(t, pool, poolCopy)
+	must.NotEq(t, pool.Meta, poolCopy.Meta)
+	must.NotEq(t, pool.SchedulerConfiguration, poolCopy.SchedulerConfiguration)
 }
 
 func TestNodePool_Validate(t *testing.T) {
