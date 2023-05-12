@@ -205,8 +205,8 @@ func TestTlsCertCreateAlternateDomainCommand_fileCreate(t *testing.T) {
 			"global-server-foo-key.pem",
 			"server.global.foo",
 			[]string{
-				"server.global.foo",
 				"server.global.nomad",
+				"server.global.foo",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -234,8 +234,8 @@ func TestTlsCertCreateAlternateDomainCommand_fileCreate(t *testing.T) {
 			"global-client-foo-key.pem",
 			"client.global.foo",
 			[]string{
-				"client.global.foo",
 				"client.global.nomad",
+				"client.global.foo",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -263,8 +263,8 @@ func TestTlsCertCreateAlternateDomainCommand_fileCreate(t *testing.T) {
 			"global-cli-foo-key.pem",
 			"cli.global.foo",
 			[]string{
-				"cli.global.foo",
 				"cli.global.nomad",
+				"cli.global.foo",
 				"localhost",
 			},
 			nil,
