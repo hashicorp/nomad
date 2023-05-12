@@ -11,6 +11,7 @@ import {
   currentURL,
   visit,
   find,
+  settled,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -168,6 +169,7 @@ export default function moduleForJob(
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
+          await settled();
         }
         const legendItem = find('.legend li.is-clickable a');
         if (!legendItem) {
