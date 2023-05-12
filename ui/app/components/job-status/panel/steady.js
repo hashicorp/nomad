@@ -176,4 +176,8 @@ export default class JobStatusPanelSteadyComponent extends Component {
   get supportsRescheduling() {
     return this.job.type !== 'system';
   }
+
+  get latestVersionAllocations() {
+    return this.job.allocations.filter((a) => !a.isOld);
+  }
 }

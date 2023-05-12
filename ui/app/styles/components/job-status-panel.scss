@@ -352,13 +352,33 @@
     margin-top: 1rem;
   }
 
+  &.steady-state .history-and-params {
+    grid-template-columns: auto;
+  }
+
   .deployment-history {
+    &.hidden > header {
+      margin-bottom: 0;
+    }
+
     & > header {
       display: grid;
       grid-template-columns: 1fr 2fr;
       gap: 1rem;
       margin-bottom: 1rem;
       align-items: end;
+      & > h4 {
+        margin: 0;
+        & > button {
+          justify-content: left;
+          border: none;
+          padding: 0;
+          background: none;
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
       & > .search-box {
         max-width: unset;
       }
