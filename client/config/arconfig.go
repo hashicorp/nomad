@@ -1,9 +1,15 @@
-package allocrunner
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package config
 
 import (
+	"context"
+
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocwatcher"
-	clientconfig "github.com/hashicorp/nomad/client/config"
+
+	"github.com/hashicorp/nomad/client/allocdir"
+	arinterfaces "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -18,13 +24,24 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Config holds the configuration for creating an allocation runner.
-type Config struct {
+// AllocRunnerFactory returns an AllocRunner interface built from the
+// configuration. Note: the type for config is any because we can't count on
+// test callers being able to make a real allocrunner.Config without an circular
+// import
+type AllocRunnerFactory func(*AllocRunnerConfig) (arinterfaces.AllocRunner, error)
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
+}
+
+// AllocRunnerConfig holds the configuration for creating an allocation runner.
+type AllocRunnerConfig struct {
 	// Logger is the logger for the allocation runner.
 	Logger log.Logger
 
 	// ClientConfig is the clients configuration.
-	ClientConfig *clientconfig.Config
+	ClientConfig *Config
 
 	// Alloc captures the allocation that should be run.
 	Alloc *structs.Allocation
@@ -52,10 +69,10 @@ type Config struct {
 	DeviceStatsReporter interfaces.DeviceStatsReporter
 
 	// PrevAllocWatcher handles waiting on previous or preempted allocations
-	PrevAllocWatcher allocwatcher.PrevAllocWatcher
+	PrevAllocWatcher PrevAllocWatcher
 
 	// PrevAllocMigrator allows the migration of a previous allocations alloc dir
-	PrevAllocMigrator allocwatcher.PrevAllocMigrator
+	PrevAllocMigrator PrevAllocMigrator
 
 	// DynamicRegistry contains all locally registered dynamic plugins (e.g csi
 	// plugins).
@@ -89,4 +106,27 @@ type Config struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter interfaces.ArtifactGetter
+}
+
+// PrevAllocWatcher allows AllocRunners to wait for a previous allocation to
+// terminate whether or not the previous allocation is local or remote.
+// See `PrevAllocMigrator` for migrating workloads.
+type PrevAllocWatcher interface {
+	// Wait for previous alloc to terminate
+	Wait(context.Context) error
+
+	// IsWaiting returns true if a concurrent caller is blocked in Wait
+	IsWaiting() bool
+}
+
+// PrevAllocMigrator allows AllocRunners to migrate a previous allocation
+// whether or not the previous allocation is local or remote.
+type PrevAllocMigrator interface {
+	PrevAllocWatcher
+
+	// IsMigrating returns true if a concurrent caller is in Migrate
+	IsMigrating() bool
+
+	// Migrate data from previous alloc
+	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
 }
