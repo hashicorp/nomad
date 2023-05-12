@@ -6,14 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/logmon"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -145,7 +143,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	}
 
 	taskBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, "global")
-	SetEnvvars(taskBuilder, fsi, taskDir, config.DefaultConfig())
+	SetEnvvars(taskBuilder, fsi, taskDir)
 
 	taskEnv := taskBuilder.Build()
 	if t.Env == nil {
@@ -291,7 +289,7 @@ func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execO
 }
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
-func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir) {
 
 	envBuilder.SetClientTaskRoot(taskDir.Dir)
 	envBuilder.SetClientSharedAllocDir(taskDir.SharedAllocDir)
@@ -314,11 +312,6 @@ func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 
 	// Set the host environment variables for non-image based drivers
 	if fsi != drivers.FSIsolationImage {
-		// COMPAT(1.0) using inclusive language, blacklist is kept for backward compatibility.
-		filter := strings.Split(conf.ReadAlternativeDefault(
-			[]string{"env.denylist", "env.blacklist"},
-			config.DefaultEnvDenylist,
-		), ",")
-		envBuilder.SetHostEnvvars(filter)
+		envBuilder.SetHostEnvvars([]string{"env.denylist"})
 	}
 }
