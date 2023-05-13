@@ -298,6 +298,126 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			node_pool "pool-read-only" {
+				policy = "read"
+			}
+
+			node_pool "pool-read-write" {
+				policy = "write"
+			}
+
+			node_pool "pool-read-upsert" {
+				policy = "read"
+				capabilities = ["write"]
+			}
+
+			node_pool "pool-multiple-capabilities" {
+				policy = "read"
+				capabilities = ["write", "delete"]
+			}
+
+			node_pool "pool-deny-policy" {
+				policy = "deny"
+				capabilities = ["write"]
+			}
+
+			node_pool "pool-deny-capability" {
+				capabilities = ["deny", "read"]
+			}
+
+			node_pool "pool-*" {
+				policy = "read"
+			}
+			`,
+			"",
+			&Policy{
+				NodePools: []*NodePoolPolicy{
+					{
+						Name:   "pool-read-only",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-read-write",
+						Policy: PolicyWrite,
+						Capabilities: []string{
+							NodePoolCapabilityDelete,
+							NodePoolCapabilityRead,
+							NodePoolCapabilityWrite,
+						},
+					},
+					{
+						Name:   "pool-read-upsert",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityWrite,
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-multiple-capabilities",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityWrite,
+							NodePoolCapabilityDelete,
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-deny-policy",
+						Policy: PolicyDeny,
+						Capabilities: []string{
+							NodePoolCapabilityWrite,
+							NodePoolCapabilityDeny,
+						},
+					},
+					{
+						Name:   "pool-deny-capability",
+						Policy: "",
+						Capabilities: []string{
+							NodePoolCapabilityDeny,
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-*",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityRead,
+						},
+					},
+				},
+			},
+		},
+		{
+			`
+			node_pool "" {
+			}
+			`,
+			"Invalid node pool name",
+			nil,
+		},
+		{
+			`
+			node_pool "pool%" {
+			}
+			`,
+			"Invalid node pool name",
+			nil,
+		},
+		{
+			`
+			node_pool "my-pool" {
+				capabilities = ["read", "invalid"]
+			}
+			`,
+			"Invalid node pool capability",
+			nil,
+		},
+		{
+			`
 			host_volume "production-tls-*" {
 				capabilities = ["mount-readonly"]
 			}
