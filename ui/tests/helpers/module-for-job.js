@@ -101,16 +101,6 @@ export default function moduleForJob(
       assert.equal(decodeURIComponent(currentURL()), expectedURL);
     });
 
-    test('the subnav links to evaluations', async function (assert) {
-      await JobDetail.tabFor('evaluations').visit();
-
-      const expectedURL = job.namespace
-        ? `/jobs/${job.name}@${job.namespace}/evaluations`
-        : `/jobs/${job.name}/evaluations`;
-
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
-    });
-
     test('the title buttons are dependent on job status', async function (assert) {
       if (job.status === 'dead') {
         assert.ok(JobDetail.start.isPresent);
@@ -228,6 +218,16 @@ export default function moduleForJob(
           JobDetail.allocationsSummary.isHidden,
           'Allocations are not shown in the summary section'
         );
+      });
+    } else {
+      test('the subnav links to evaluations', async function (assert) {
+        await JobDetail.tabFor('evaluations').visit();
+
+        const expectedURL = job.namespace
+          ? `/jobs/${job.name}@${job.namespace}/evaluations`
+          : `/jobs/${job.name}/evaluations`;
+
+        assert.equal(decodeURIComponent(currentURL()), expectedURL);
       });
     }
 
