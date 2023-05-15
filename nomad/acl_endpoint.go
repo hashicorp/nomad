@@ -641,6 +641,18 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 		return err
 	}
 
+	return a.upsertTokens(args, reply, stateSnapshot)
+}
+
+// upsertTokens is a method that contains common token upsertion logic without
+// the RPC authentication, metrics, etc. Used in other RPC calls that require to
+// upsert tokens.
+func (a *ACL) upsertTokens(
+	args *structs.ACLTokenUpsertRequest,
+	reply *structs.ACLTokenUpsertResponse,
+	stateSnapshot *state.StateSnapshot,
+) error {
+
 	// Validate each token
 	for idx, token := range args.Tokens {
 
@@ -2776,7 +2788,7 @@ func (a *ACL) OIDCCompleteAuth(
 
 	var tokenUpsertReply structs.ACLTokenUpsertResponse
 
-	if err := a.srv.RPC(structs.ACLUpsertTokensRPCMethod, &tokenUpsertRequest, &tokenUpsertReply); err != nil {
+	if err := a.upsertTokens(&tokenUpsertRequest, &tokenUpsertReply, stateSnapshot); err != nil {
 		return err
 	}
 
@@ -2924,7 +2936,7 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 
 	var tokenUpsertReply structs.ACLTokenUpsertResponse
 
-	if err := a.srv.RPC(structs.ACLUpsertTokensRPCMethod, &tokenUpsertRequest, &tokenUpsertReply); err != nil {
+	if err := a.upsertTokens(&tokenUpsertRequest, &tokenUpsertReply, stateSnapshot); err != nil {
 		return err
 	}
 
