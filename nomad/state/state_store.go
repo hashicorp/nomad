@@ -155,9 +155,13 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
 	}
 
-	// Initialize the state store with the default namespace.
+	// Initialize the state store with the default namespace and built-in node
+	// pools.
 	if err := s.namespaceInit(); err != nil {
-		return nil, fmt.Errorf("enterprise state store initialization failed: %v", err)
+		return nil, fmt.Errorf("namespace state store initialization failed: %v", err)
+	}
+	if err := s.nodePoolInit(); err != nil {
+		return nil, fmt.Errorf("node pool state store initialization failed: %w", err)
 	}
 
 	return s, nil

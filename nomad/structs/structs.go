@@ -125,6 +125,8 @@ const (
 	ACLAuthMethodsDeleteRequestType              MessageType = 56
 	ACLBindingRulesUpsertRequestType             MessageType = 57
 	ACLBindingRulesDeleteRequestType             MessageType = 58
+	NodePoolUpsertRequestType                    MessageType = 59
+	NodePoolDeleteRequestType                    MessageType = 60
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
