@@ -76,7 +76,17 @@ export default class JobStatusPanelSteadyComponent extends Component {
       .filter(
         (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
       )
-      .sortBy('jobVersion')
+      .sort((a, b) => {
+        // First sort by jobVersion
+        if (a.jobVersion > b.jobVersion) return -1;
+        if (a.jobVersion < b.jobVersion) return 1;
+
+        // If jobVersion is the same, sort by status order
+        return (
+          jobAllocStatuses[this.args.job.type].indexOf(b.clientStatus) -
+          jobAllocStatuses[this.args.job.type].indexOf(a.clientStatus)
+        );
+      })
       .reverse();
 
     // Iterate over the sorted allocs
