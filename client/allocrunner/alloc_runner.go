@@ -1273,6 +1273,12 @@ func (ar *allocRunner) RestartAll(event *structs.TaskEvent) error {
 
 // restartTasks restarts all task runners concurrently.
 func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEvent, failure bool, force bool) error {
+
+	// ensure we are not trying to restart an alloc that is terminal
+	if !ar.shouldRun() {
+		return fmt.Errorf("restart of an alloc that should not run")
+	}
+
 	waitCh := make(chan struct{})
 	var err *multierror.Error
 	var errMutex sync.Mutex
