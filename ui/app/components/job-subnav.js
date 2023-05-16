@@ -16,4 +16,11 @@ export default class JobSubnav extends Component {
       job?.hasClientStatus && !job?.hasChildren && this.can.can('read client')
     );
   }
+
+  // Periodic and Parameterized jobs "parents" are not jobs unto themselves, but more like summaries.
+  // They should not have tabs for allocations, evaluations, etc.
+  // but their child jobs, and other job types generally, should.
+  get shouldHideNonParentTabs() {
+    return this.args.job?.hasChildren;
+  }
 }
