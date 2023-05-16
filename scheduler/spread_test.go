@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -556,6 +558,104 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 		require.Equal(t, -1.0, rn.FinalScore)
 	}
 
+}
+
+func TestSpreadIterator_NoInfinity(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+	var nodes []*RankedNode
+
+	// Add 3 nodes in different DCs to the state store
+	for i := 1; i < 4; i++ {
+		node := mock.Node()
+		node.Datacenter = fmt.Sprintf("dc%d", i)
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node))
+		nodes = append(nodes, &RankedNode{Node: node})
+	}
+
+	static := NewStaticRankIterator(ctx, nodes)
+
+	job := mock.Job()
+	tg := job.TaskGroups[0]
+	job.TaskGroups[0].Count = 8
+
+	// Create spread target of 50% in dc1, 50% in dc2, and 0% in the implicit target
+	spread := &structs.Spread{
+		Weight:    100,
+		Attribute: "${node.datacenter}",
+		SpreadTarget: []*structs.SpreadTarget{
+			{
+				Value:   "dc1",
+				Percent: 50,
+			},
+			{
+				Value:   "dc2",
+				Percent: 50,
+			},
+			{
+				Value:   "*",
+				Percent: 0,
+			},
+		},
+	}
+	tg.Spreads = []*structs.Spread{spread}
+	spreadIter := NewSpreadIterator(ctx, static)
+	spreadIter.SetJob(job)
+	spreadIter.SetTaskGroup(tg)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, spreadIter)
+
+	out := collectRanked(scoreNorm)
+
+	// Scores should be even between dc1 and dc2 nodes, without an -Inf on dc3
+	must.Len(t, 3, out)
+	test.Eq(t, 0.75, out[0].FinalScore)
+	test.Eq(t, 0.75, out[1].FinalScore)
+	test.Eq(t, -1, out[2].FinalScore)
+
+	// Reset scores
+	for _, node := range nodes {
+		node.Scores = nil
+		node.FinalScore = 0
+	}
+
+	// Create very unbalanced spread target to force large negative scores
+	spread = &structs.Spread{
+		Weight:    100,
+		Attribute: "${node.datacenter}",
+		SpreadTarget: []*structs.SpreadTarget{
+			{
+				Value:   "dc1",
+				Percent: 99,
+			},
+			{
+				Value:   "dc2",
+				Percent: 1,
+			},
+			{
+				Value:   "*",
+				Percent: 0,
+			},
+		},
+	}
+	tg.Spreads = []*structs.Spread{spread}
+	static = NewStaticRankIterator(ctx, nodes)
+	spreadIter = NewSpreadIterator(ctx, static)
+	spreadIter.SetJob(job)
+	spreadIter.SetTaskGroup(tg)
+
+	scoreNorm = NewScoreNormalizationIterator(ctx, spreadIter)
+
+	out = collectRanked(scoreNorm)
+
+	// Scores should heavily favor dc1, with an -Inf on dc3
+	must.Len(t, 3, out)
+	desired := 8 * 0.99 // 8 allocs * 99%
+	test.Eq(t, (desired-1)/desired, out[0].FinalScore)
+	test.Eq(t, -11.5, out[1].FinalScore)
+	test.LessEq(t, out[1].FinalScore, out[2].FinalScore,
+		test.Sprintf("expected implicit dc3 to be <= dc2"))
 }
 
 func Test_evenSpreadScoreBoost(t *testing.T) {
