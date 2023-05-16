@@ -4,11 +4,13 @@
 package mock
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"html/template"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +69,40 @@ func NamespacePolicyWithVariables(namespace string, policy string, capabilities 
 	policyHCL += VariablePolicy(svars)
 	policyHCL += "\n}"
 	return policyHCL
+}
+
+func NodePoolPolicy(pool string, policy string, capabilities []string) string {
+	tmplStr := `
+node_pool "{{.Label}}" {
+  {{- if .Policy}}
+  policy = "{{.Policy}}"
+  {{end -}}
+
+  {{if gt (len .Capabilities) 0}}
+  capabilities = [
+    {{- range .Capabilities}}
+    "{{.}}",
+    {{- end}}
+  ]
+  {{- end}}
+}`
+
+	tmpl, err := template.New(pool).Parse(tmplStr)
+	if err != nil {
+		panic(err)
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct {
+		Label        string
+		Policy       string
+		Capabilities []string
+	}{pool, policy, capabilities})
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.String()
 }
 
 // VariablePolicy is a helper for generating the policy hcl for a given

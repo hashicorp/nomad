@@ -228,6 +228,10 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyStatusUpdate(msgType, buf[1:], log.Index)
 	case structs.NodeUpdateDrainRequestType:
 		return n.applyDrainUpdate(msgType, buf[1:], log.Index)
+	case structs.NodePoolUpsertRequestType:
+		return n.applyNodePoolUpsert(msgType, buf[1:], log.Index)
+	case structs.NodePoolDeleteRequestType:
+		return n.applyNodePoolDelete(msgType, buf[1:], log.Index)
 	case structs.JobRegisterRequestType:
 		return n.applyUpsertJob(msgType, buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
@@ -536,6 +540,36 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf [
 		req.Eligibility == structs.NodeSchedulingEligible {
 		n.blockedEvals.Unblock(node.ComputedClass, index)
 		n.blockedEvals.UnblockNode(req.NodeID, index)
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyNodePoolUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_node_pool_upsert"}, time.Now())
+	var req structs.NodePoolUpsertRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertNodePools(msgType, index, req.NodePools); err != nil {
+		n.logger.Error("UpsertNodePool failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_node_pool_delete"}, time.Now())
+	var req structs.NodePoolDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteNodePools(msgType, index, req.Names); err != nil {
+		n.logger.Error("DeleteNodePools failed", "error", err)
+		return err
 	}
 
 	return nil
@@ -2462,7 +2496,7 @@ func (s *nomadSnapshot) persistNodePools(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all node pools.
 	ws := memdb.NewWatchSet()
-	pools, err := s.snap.NodePools(ws)
+	pools, err := s.snap.NodePools(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}

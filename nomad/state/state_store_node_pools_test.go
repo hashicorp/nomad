@@ -4,6 +4,7 @@
 package state
 
 import (
+	"fmt"
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
@@ -26,7 +27,7 @@ func TestStateStore_NodePools(t *testing.T) {
 
 	// Create a watchset to test that getters don't cause it to fire.
 	ws := memdb.NewWatchSet()
-	iter, err := state.NodePools(ws)
+	iter, err := state.NodePools(ws, SortDefault)
 	must.NoError(t, err)
 
 	// Verify all pools are returned.
@@ -52,6 +53,57 @@ func TestStateStore_NodePools(t *testing.T) {
 	must.False(t, watchFired(ws))
 	for k, v := range foundBuiltIn {
 		must.True(t, v, must.Sprintf("built-in pool %q not found", k))
+	}
+}
+
+func TestStateStore_NodePools_Ordering(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create test node pools with stable sortable names.
+	state := testStateStore(t)
+	pools := make([]*structs.NodePool, 10)
+	for i := 0; i < 5; i++ {
+		pool := mock.NodePool()
+		pool.Name = fmt.Sprintf("%02d", i+1)
+		pools[i] = pool
+	}
+	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools))
+
+	testCases := []struct {
+		name     string
+		order    SortOption
+		expected []string
+	}{
+		{
+			name:     "default order",
+			order:    SortDefault,
+			expected: []string{"01", "02", "03", "04", "05"},
+		},
+		{
+			name:     "reverse order",
+			order:    SortReverse,
+			expected: []string{"05", "04", "03", "02", "01"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ws := memdb.NewWatchSet()
+			iter, err := state.NodePools(ws, tc.order)
+			must.NoError(t, err)
+
+			var got []string
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				pool := raw.(*structs.NodePool)
+				if pool.IsBuiltIn() {
+					continue
+				}
+
+				got = append(got, pool.Name)
+			}
+
+			must.Eq(t, got, tc.expected)
+		})
 	}
 }
 
@@ -145,25 +197,30 @@ func TestStateStore_NodePool_ByNamePrefix(t *testing.T) {
 		name     string
 		prefix   string
 		expected []string
+		order    SortOption
 	}{
 		{
 			name:     "multiple prefix match",
 			prefix:   "prod",
+			order:    SortDefault,
 			expected: []string{"prod-1", "prod-2", "prod-3"},
 		},
 		{
 			name:     "single prefix match",
 			prefix:   "qa",
+			order:    SortDefault,
 			expected: []string{"qa"},
 		},
 		{
 			name:     "no match",
 			prefix:   "nope",
+			order:    SortDefault,
 			expected: []string{},
 		},
 		{
 			name:   "empty prefix",
 			prefix: "",
+			order:  SortDefault,
 			expected: []string{
 				"all",
 				"default",
@@ -175,12 +232,18 @@ func TestStateStore_NodePool_ByNamePrefix(t *testing.T) {
 				"qa",
 			},
 		},
+		{
+			name:     "reverse order",
+			prefix:   "prod",
+			order:    SortReverse,
+			expected: []string{"prod-3", "prod-2", "prod-1"},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ws := memdb.NewWatchSet()
-			iter, err := state.NodePoolsByNamePrefix(ws, tc.prefix)
+			iter, err := state.NodePoolsByNamePrefix(ws, tc.prefix, tc.order)
 			must.NoError(t, err)
 
 			got := []string{}
