@@ -128,6 +128,10 @@ export default class Allocation extends Model {
 
   @belongsTo('evaluation') followUpEvaluation;
 
+  get followUpEvaluationId() {
+    return this.belongsTo('evaluation').id();
+  }
+
   @computed('clientStatus')
   get statusClass() {
     const classMap = {
@@ -199,6 +203,27 @@ export default class Allocation extends Model {
       !this.get('followUpEvaluation.content') &&
       this.clientStatus === 'failed'
     );
+  }
+
+  @computed(
+    'hasStoppedRescheduling',
+    'node.status',
+    'resources.length',
+    'task.{config.errors.length,code.errors.length}'
+  )
+  get failureReason() {
+    switch (this.hasStoppedRescheduling) {
+      case this.node.status === 'failed':
+        return 'the node that the allocation was scheduled on failed.';
+      case this.resources.length === 0:
+        return 'the resources that the allocation was scheduled on were not available.';
+      case this.task.config.errors.length > 0:
+        return "the task or service's configuration was incorrect.";
+      case this.task.code.errors.length > 0:
+        return "there was an error in the task or service's code.";
+      default:
+        return 'of an unknown failure reason.';
+    }
   }
 
   stop() {
