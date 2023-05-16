@@ -174,6 +174,10 @@ type Capabilities struct {
 	// adjust behavior such as propogating task handles between allocations
 	// to avoid downtime when a client is lost.
 	RemoteTasks bool
+
+	// DisableLogCollection indicates this driver has disabled log collection
+	// and the client should not start a logmon process.
+	DisableLogCollection bool
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
