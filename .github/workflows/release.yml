@@ -53,7 +53,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Setup Git
         run: |
@@ -72,12 +72,12 @@ jobs:
           echo "::set-output name=go-version::$(cat .go-version)"
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ steps.get-go-version.outputs.go-version }}
 
       - name: Setup node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: "14"
           cache-dependency-path: "ui/yarn.lock"
