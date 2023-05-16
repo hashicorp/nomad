@@ -12,7 +12,7 @@
   {{/if}}
   {{#if @allocation.hasStoppedRescheduling}}
     <li class="timeline-note" data-test-stop-warning>
-      {{x-icon "alert-triangle" class="is-warning is-text"}} Nomad has stopped attempting to reschedule this allocation.
+      {{x-icon "alert-triangle" class="is-warning is-text"}} Nomad has stopped attempting to reschedule this allocation because {{@allocation.failureReason}}. To debug further try checking out the associated <LinkTo @route="evaluations.index" @query={{@allocation.followUpEvaluationId}}>evaluation</LinkTo>.
     </li>
   {{/if}}
   {{#if (and @allocation.followUpEvaluation.waitUntil (not @allocation.nextAllocation))}}
