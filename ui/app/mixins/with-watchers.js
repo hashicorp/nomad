@@ -41,13 +41,16 @@ export default Mixin.create(WithVisibilityDetection, {
   actions: {
     willTransition(transition) {
       // Don't cancel watchers if transitioning into a sub-route
+      // Make sure, if it starts with the route name, that it's not the same route
       if (
         !transition.intent.name ||
-        !transition.intent.name.startsWith(this.routeName)
+        !(
+          transition.intent.name.startsWith(this.routeName) &&
+          this.routeName !== transition.intent.name
+        )
       ) {
         this.cancelAllWatchers();
       }
-
       // Bubble the action up to the application route
       return true;
     },
