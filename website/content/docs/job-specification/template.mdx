@@ -413,7 +413,6 @@ template {
 {{ range nomadVarList }}
   {{ . }}
 {{ end }}
-}
 EOH
 }
 
@@ -422,7 +421,6 @@ template {
 {{ range nomadVarList }}
   {{ .Path }}
 {{ end }}
-}
 EOH
 }
 ```
@@ -436,7 +434,6 @@ template {
 {{ range nomadVarList "path/to/filter" }}
   {{ . }}
 {{ end }}
-}
 EOH
 }
 ```
@@ -451,7 +448,6 @@ template {
 {{ range nomadVarList "path/to/filter@example_namespace" }}
   {{ . }}
 {{ end }}
-}
 EOH
 }
 ```
