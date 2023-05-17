@@ -91,6 +91,7 @@ export default class IndexController extends Controller.extend(
   get optionsType() {
     return [
       { key: 'batch', label: 'Batch' },
+      { key: 'pack', label: 'Pack' },
       { key: 'parameterized', label: 'Parameterized' },
       { key: 'periodic', label: 'Periodic' },
       { key: 'service', label: 'Service' },
@@ -224,7 +225,13 @@ export default class IndexController extends Controller.extend(
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.visibleJobs.filter((job) => {
-      if (types.length && !types.includes(job.get('displayType'))) {
+      const shouldShowPack = types.includes('pack') && job.displayType.isPack;
+
+      if (types.length && shouldShowPack) {
+        return true;
+      }
+
+      if (types.length && !types.includes(job.get('displayType.type'))) {
         return false;
       }
 
