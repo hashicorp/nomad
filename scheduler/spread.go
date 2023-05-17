@@ -4,6 +4,7 @@
 package scheduler
 
 import (
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -95,6 +96,8 @@ func (iter *SpreadIterator) SetTaskGroup(tg *structs.TaskGroup) {
 		for _, spread := range iter.jobSpreads {
 			pset := NewPropertySet(iter.ctx, iter.job)
 			pset.SetTargetAttribute(spread.Attribute, tg.Name)
+			pset.SetTargetValues(helper.ConvertSlice(spread.SpreadTarget,
+				func(t *structs.SpreadTarget) string { return t.Value }))
 			iter.groupPropertySets[tg.Name] = append(iter.groupPropertySets[tg.Name], pset)
 		}
 
@@ -102,6 +105,8 @@ func (iter *SpreadIterator) SetTaskGroup(tg *structs.TaskGroup) {
 		for _, spread := range tg.Spreads {
 			pset := NewPropertySet(iter.ctx, iter.job)
 			pset.SetTargetAttribute(spread.Attribute, tg.Name)
+			pset.SetTargetValues(helper.ConvertSlice(spread.SpreadTarget,
+				func(t *structs.SpreadTarget) string { return t.Value }))
 			iter.groupPropertySets[tg.Name] = append(iter.groupPropertySets[tg.Name], pset)
 		}
 	}
