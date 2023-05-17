@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: hashicorp/setup-golang@v1
       - name: Get Go modules
         run: |
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           fetch-depth: 0 # needs tags for checkproto
       - uses: hashicorp/setup-golang@v1
@@ -78,7 +78,7 @@ jobs:
     runs-on: ${{matrix.os}}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: hashicorp/setup-golang@v1
       - name: Run make dev
         run: |
@@ -89,7 +89,7 @@ jobs:
     runs-on: [custom, xl, 22.04]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: hashicorp/setup-golang@v1
       - name: Run API tests
         env:
@@ -113,7 +113,7 @@ jobs:
           - drivers
           - quick
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: hashicorp/setup-golang@v1
       - name: Run Matrix Tests
         env:
