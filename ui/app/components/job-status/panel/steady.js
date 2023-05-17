@@ -156,6 +156,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
         }
         return result;
       }, []);
+    console.log('uh versions', versions);
     return versions;
   }
 

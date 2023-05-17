@@ -4,7 +4,7 @@
 ~}}
 
 <BasicDropdown
-  @horizontalPosition="left"
+  @horizontalPosition="auto"
   @onOpen={{action
     (queue (action (mut this.isOpen) true) (action this.capture))
   }}
