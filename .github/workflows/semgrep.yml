@@ -14,5 +14,5 @@ jobs:
     # Skip any PR created by dependabot to avoid permission issues
     if: (github.actor != 'dependabot[bot]')
     steps:
-      - uses: actions/checkout@v3
-      - uses: returntocorp/semgrep-action@v1
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: returntocorp/semgrep-action@v1 # TSCCR: no entry for repository "returntocorp/semgrep-action"
