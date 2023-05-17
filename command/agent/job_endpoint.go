@@ -1200,10 +1200,32 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
 
-	if apiTask.Identity != nil {
+	// Deprecated: Identities should be used instead. This is only for Nomad's
+	// identity, so only convert 1.5 fields.
+	if id := apiTask.Identity; id != nil {
 		structsTask.Identity = &structs.WorkloadIdentity{
-			Env:  apiTask.Identity.Env,
-			File: apiTask.Identity.File,
+			Env:  id.Env,
+			File: id.File,
+		}
+	}
+
+	if ids := apiTask.Identities; len(ids) > 0 {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
+		for i, id := range ids {
+			sid := &structs.WorkloadIdentity{
+				Env:  id.Env,
+				File: id.File,
+			}
+
+			if id.Name != nil {
+				sid.Name = *id.Name
+			}
+
+			if id.Audiences != nil {
+				sid.Audiences = slices.Clone(*id.Audiences)
+			}
+
+			structsTask.Identities[i] = sid
 		}
 	}
 

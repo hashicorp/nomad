@@ -7485,9 +7485,13 @@ type Task struct {
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
 
-	// Identity controls if and how the workload identity is exposed to
-	// tasks similar to the Vault block.
+	// Identity is the default Nomad Workload Identity and will be added to
+	// Identities with the name "default"
+	//
+	// Deprecated: Use Identities instead
 	Identity *WorkloadIdentity
+
+	Identities []*WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7549,6 +7553,7 @@ func (t *Task) Copy() *Task {
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
+	nt.Identities = helper.CopySlice(nt.Identities)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -10439,8 +10444,11 @@ type Allocation struct {
 	// SignedIdentities is a map of task names to signed identity/capability
 	// claim tokens for those tasks. If needed, it is populated in the plan
 	// applier.
+	//
+	// Deprecated: Contains only the *default* workload identity for each task.
 	SignedIdentities map[string]string `json:"-"`
 
+	//TODO(schmichael): Remove along with index in schema
 	// SigningKeyID is the key used to sign the SignedIdentities field.
 	SigningKeyID string
 
@@ -11095,8 +11103,8 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
-	now := jwt.NewNumericDate(time.Now().UTC())
+func (a *Allocation) ToIdentityClaims(job *Job, now time.Time) *IdentityClaims {
+	jwtnow := jwt.NewNumericDate(now.UTC())
 	claims := &IdentityClaims{
 		Namespace:    a.Namespace,
 		JobID:        a.JobID,
@@ -11106,8 +11114,8 @@ func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
 			// expiring before the allocation is terminal. Once that's implemented,
 			// add an ExpiresAt here ExpiresAt: &jwt.NumericDate{}
 			// https://github.com/hashicorp/nomad/issues/16258
-			NotBefore: now,
-			IssuedAt:  now,
+			NotBefore: jwtnow,
+			IssuedAt:  jwtnow,
 		},
 	}
 	if job != nil && job.ParentID != "" {
@@ -11116,8 +11124,8 @@ func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
 	return claims
 }
 
-func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string) *IdentityClaims {
-	claims := a.ToIdentityClaims(job)
+func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string, now time.Time) *IdentityClaims {
+	claims := a.ToIdentityClaims(job, now)
 	if claims != nil {
 		claims.TaskName = taskName
 	}
