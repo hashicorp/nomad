@@ -69,7 +69,7 @@ jobs:
         # version, because "goenv" can react to it automatically.
         run: |
           echo "Building with Go $(cat .go-version)"
-          echo "::set-output name=go-version::$(cat .go-version)"
+          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
       - name: Setup go
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
@@ -138,7 +138,7 @@ jobs:
           else
             echo "no files were updated"
           fi
-          echo "::set-output name=build-ref::$(git rev-parse HEAD)"
+          echo "build-ref=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Invoke build workflow
         uses: benc-uk/workflow-dispatch@798e70c97009500150087d30d9f11c5444830385 # v1.2.2
