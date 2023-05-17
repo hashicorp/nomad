@@ -303,8 +303,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await click('[data-test-active-deployment] [data-test-idle-button]');
-    await click('[data-test-active-deployment] [data-test-confirm-button]');
+    await click('.active-deployment [data-test-idle-button]');
+    await click('.active-deployment [data-test-confirm-button]');
 
     const requests = this.server.pretender.handledRequests;
 
@@ -331,8 +331,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await click('[data-test-active-deployment] [data-test-idle-button]');
-    await click('[data-test-active-deployment] [data-test-confirm-button]');
+    await click('.active-deployment [data-test-idle-button]');
+    await click('.active-deployment [data-test-confirm-button]');
 
     assert.equal(
       find('[data-test-job-error-title]').textContent,
