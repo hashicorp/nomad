@@ -38,6 +38,10 @@ job "docs" {
 }
 ```
 
+Each job's logs will be written to ephemeral disk space. If you increase the total
+amount of logs on disk, you may want to increase ephemeral disk size as well. See
+the [ephemeral disk documentation][] for more information.
+
 For information on how to interact with logs after they have been configured,
 please see the [`nomad alloc logs`][logs-command] command.
 
@@ -93,3 +97,4 @@ logs {
 
 [logs-command]: /nomad/docs/commands/alloc/logs 'Nomad logs command'
 [`disable_log_collection`]: /nomad/docs/drivers/docker#disable_log_collection
+[ephemeral disk documentation]: /nomad/docs/job-specification/ephemeral_disk 'Nomad ephemeral disk Job Specification'
