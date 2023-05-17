@@ -14,36 +14,36 @@ jobs:
   time-base:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.base.sha }}
       - uses: nanasess/setup-chromedriver@master
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '14'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
       - run: npx ember-test-audit 3 --json --output ../base-audit.json
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: base-audit
           path: base-audit.json
   time-pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: nanasess/setup-chromedriver@master
       - name: Use Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '14'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
       - run: npx ember-test-audit 3 --json --output ../pr-audit.json
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: pr-audit
           path: pr-audit.json
