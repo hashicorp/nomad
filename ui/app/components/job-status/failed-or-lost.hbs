@@ -1,36 +1,41 @@
 <section class="failed-or-lost">
-  <h4>
-    {{@title}}
-    <span
-      class="tooltip multiline text-center"
-      role="tooltip"
-      aria-label={{@description}}
-    >
-      <FlightIcon @name="info" />
-    </span>
-  </h4>
-  {{#if (eq @title "Rescheduled")}}
+  <h4>Replaced Allocations</h4>
+  {{#if @supportsRescheduling}}
     <ConditionalLinkTo
-      @condition={{this.shouldLinkToAllocations}}
+      @condition={{@rescheduledAllocs.length}}
       @route="jobs.job.allocations"
       @model={{@job}}
       @query={{hash scheduling='["has-been-rescheduled"]' version=(concat '[' @job.latestDeployment.versionNumber ']')}}
       @label="View Allocations"
       @class="failed-or-lost-link"
     >
-      {{@allocs.length}}
+      <span
+        class="tooltip multiline text-center"
+        role="tooltip"
+        aria-label="Allocations that have been rescheduled, on another node if possible, due to failure"
+      >
+        <FlightIcon @name="info" />
+      </span>
+      {{@rescheduledAllocs.length}} Rescheduled
     </ConditionalLinkTo>
   {{/if}}
-  {{#if (eq @title "Restarted")}}
-    <ConditionalLinkTo
-      @condition={{this.shouldLinkToAllocations}}
-      @route="jobs.job.allocations"
-      @model={{@job}}
-      @query={{hash scheduling='["has-been-restarted"]' version=(concat '[' @job.latestDeployment.versionNumber ']')}}
-      @label="View Allocations"
-      @class="failed-or-lost-link"
+
+  <ConditionalLinkTo
+    @condition={{@restartedAllocs.length}}
+    @route="jobs.job.allocations"
+    @model={{@job}}
+    @query={{hash scheduling='["has-been-restarted"]' version=(concat '[' @job.latestDeployment.versionNumber ']')}}
+    @label="View Allocations"
+    @class="failed-or-lost-link"
+  >
+    <span
+      class="tooltip multiline text-center"
+      role="tooltip"
+      aria-label="Allocations that have been restarted in-place due to a task failure"
     >
-      {{@allocs.length}}
-    </ConditionalLinkTo>
-  {{/if}}
+      <FlightIcon @name="info" />
+    </span>
+    {{@restartedAllocs.length}} Restarted
+  </ConditionalLinkTo>
+
 </section>
