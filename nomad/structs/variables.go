@@ -190,9 +190,10 @@ func (sv *VariableDecrypted) Canonicalize() {
 	}
 }
 
-// GetNamespace returns the variable's namespace. Used for pagination.
+// Copy returns a fully hydrated copy of VariableMetadata that can be
+// manipulated while ensuring the original is not touched.
 func (sv *VariableMetadata) Copy() *VariableMetadata {
-	var out VariableMetadata = *sv
+	var out = *sv
 	return &out
 }
 
