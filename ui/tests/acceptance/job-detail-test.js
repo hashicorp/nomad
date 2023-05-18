@@ -80,6 +80,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
     childrenCount: 1,
     shallow: true,
     datacenters: ['dc1'],
+    noActiveDeployment: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -91,6 +92,7 @@ moduleForJobWithClientStatus(
       childrenCount: 1,
       shallow: true,
       datacenters: ['dc1'],
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -105,6 +107,7 @@ moduleForJobWithClientStatus(
       shallow: true,
       namespaceId: namespace.name,
       datacenters: ['dc1'],
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -119,6 +122,7 @@ moduleForJobWithClientStatus(
       shallow: true,
       namespaceId: namespace.name,
       datacenters: ['*'],
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }

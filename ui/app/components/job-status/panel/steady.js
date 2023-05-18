@@ -147,7 +147,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get atMostOneAllocPerNode() {
-    return this.args.job.type === 'system';
+    return this.args.job.type === 'system' || this.args.job.type === 'sysbatch';
   }
 
   get versions() {

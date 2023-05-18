@@ -12,6 +12,7 @@ export const jobAllocStatuses = {
   service: ['running', 'pending', 'failed', 'lost', 'unplaced'],
   system: ['running', 'pending', 'failed', 'lost', 'unplaced'],
   batch: ['running', 'pending', 'complete', 'failed', 'lost', 'unplaced'],
+  sysbatch: ['running', 'pending', 'complete', 'failed', 'lost', 'unplaced'],
 };
 
-export const jobTypes = ['service', 'system', 'batch'];
+export const jobTypes = ['service', 'system', 'batch', 'sysbatch'];
