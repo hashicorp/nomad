@@ -270,6 +270,7 @@ module('Acceptance | jobs list', function (hooks) {
     paramName: 'type',
     expectedOptions: [
       'Batch',
+      'Pack',
       'Parameterized',
       'Periodic',
       'Service',

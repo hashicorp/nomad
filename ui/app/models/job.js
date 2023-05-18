@@ -31,6 +31,10 @@ export default class Job extends Model {
 
   @fragment('structured-attributes') meta;
 
+  get isPack() {
+    return !!this.meta?.structured?.pack;
+  }
+
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
   @attr('boolean') periodic;
@@ -69,14 +73,14 @@ export default class Job extends Model {
   // A composite of type and other job attributes to determine
   // a better type descriptor for human interpretation rather
   // than for scheduling.
-  @computed('type', 'periodic', 'parameterized')
+  @computed('isPack', 'type', 'periodic', 'parameterized')
   get displayType() {
     if (this.periodic) {
-      return 'periodic';
+      return { type: 'periodic', isPack: this.isPack };
     } else if (this.parameterized) {
-      return 'parameterized';
+      return { type: 'parameterized', isPack: this.isPack };
     }
-    return this.type;
+    return { type: this.type, isPack: this.isPack };
   }
 
   // A composite of type and other job attributes to determine

@@ -192,7 +192,7 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (types.length && !types.includes(job.get('displayType'))) {
+      if (types.length && !types.includes(job.get('displayType.type'))) {
         return false;
       }
 
