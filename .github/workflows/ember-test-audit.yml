@@ -77,8 +77,8 @@ jobs:
           files: "flakiness-report.md"
       - name: comment PR
         if: steps.check_file.outputs.files_exists == 'true'
-        uses: machine-learning-apps/pr-comment@1.0.0 # TSCCR: no entry for repository "machine-learning-apps/pr-comment"
+        uses: mshick/add-pr-comment@v2.8.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path: flakiness-report.md
+          message_path: flakiness-report.md
