@@ -37,8 +37,21 @@ capability or the `read` policy must update their tokens to use the
 #### Command `nomad tls cert create` flag `-cluster-region` deprecated
 
 Nomad 1.6.0 will deprecate the command `nomad tls cert create` flag `-cluster-region`
-in favour of using the standard flag `-region`. The `-cluster-region` flag 
-will be removed in Nomad 1.7.0 
+in favour of using the standard flag `-region`. The `-cluster-region` flag
+will be removed in Nomad 1.7.0
+
+#### 32-bit Intel Builds Deprecated
+
+Starting with Nomad 1.6.0, HashiCorp will no longer release 32-bit Intel builds
+of Nomad and Nomad Enterprise (the builds named `windows_386` and
+`linux_386`). Bug fixes will continue to be backported to the 1.5.x and 1.4.x
+versions so long as those major versions are still supported.
+
+The 32-bit ARM build (`linux_arm` for the armhf architecture) is deprecated and
+may be removed in a future major version of Nomad. The 32-bit ARM build is not
+tested and may include bugs around platform-specific integer sizes. Using 64-bit
+builds for small form-factor hosts such as the RaspberryPi is strongly
+recommended.
 
 ## Nomad 1.5.5
 
