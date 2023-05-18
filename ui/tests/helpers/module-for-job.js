@@ -5,13 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import {
-  click,
-  currentRouteName,
-  currentURL,
-  visit,
-  find,
-} from '@ember/test-helpers';
+import { currentRouteName, currentURL, visit, find } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -19,7 +13,6 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
 const jobTypesWithStatusPanel = ['service', 'system', 'batch', 'sysbatch'];
-
 async function switchToHistorical() {
   await JobDetail.statusModes.historical.click();
 }
@@ -55,11 +48,6 @@ export default function moduleForJob(
       } else {
         await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
       }
-
-      // const hasClientStatus = ['sysbatch'].includes(job.type);
-      // if (context === 'allocations' && hasClientStatus) {
-      //   await click("[data-test-accordion-summary-chart='allocation-status']");
-      // }
     });
 
     test('visiting /jobs/:job_id', async function (assert) {
@@ -299,46 +287,6 @@ export function moduleForJobWithClientStatus(
           : `/jobs/${job.id}/clients`;
 
         assert.equal(currentURL(), expectedURL);
-      });
-
-      test('job status summary is shown in the overview', async function (assert) {
-        assert.ok(
-          JobDetail.jobClientStatusSummary.statusBar.isPresent,
-          'Summary bar is displayed in the Job Status in Client summary section'
-        );
-      });
-
-      test('clicking legend item navigates to a pre-filtered clients table', async function (assert) {
-        const legendItem =
-          JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
-        const status = legendItem.label;
-        await legendItem.click();
-
-        const encodedStatus = encodeURIComponent(JSON.stringify([status]));
-        const expectedURL = new URL(
-          urlWithNamespace(
-            `/jobs/${job.name}/clients?status=${encodedStatus}`,
-            job.namespace
-          ),
-          window.location
-        );
-        const gotURL = new URL(currentURL(), window.location);
-        assert.deepEqual(gotURL.path, expectedURL.path);
-        assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
-      });
-
-      test('clicking in a slice takes you to a pre-filtered clients table', async function (assert) {
-        const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
-        const status = slice.label;
-        await slice.click();
-
-        const encodedStatus = encodeURIComponent(JSON.stringify([status]));
-
-        const expectedURL = job.namespace
-          ? `/jobs/${job.name}@${job.namespace}/clients?status=${encodedStatus}`
-          : `/jobs/${job.name}/clients?status=${encodedStatus}`;
-
-        assert.deepEqual(currentURL(), expectedURL, 'url is correct');
       });
 
       for (var testName in additionalTests) {
