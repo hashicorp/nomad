@@ -14,7 +14,7 @@
       @condition={{this.shouldLinkToAllocations}}
       @route="jobs.job.allocations"
       @model={{@job}}
-      @query={{hash scheduling=(concat '["has-been-rescheduled"]') version=(concat '[' @job.latestDeployment.versionNumber ']')}}
+      @query={{hash scheduling='["has-been-rescheduled"]' version=(concat '[' @job.latestDeployment.versionNumber ']')}}
       @label="View Allocations"
       @class="failed-or-lost-link"
     >
@@ -26,7 +26,7 @@
       @condition={{this.shouldLinkToAllocations}}
       @route="jobs.job.allocations"
       @model={{@job}}
-      @query={{hash scheduling=(concat '["has-been-restarted"]') version=(concat '[' @job.latestDeployment.versionNumber ']')}}
+      @query={{hash scheduling='["has-been-restarted"]' version=(concat '[' @job.latestDeployment.versionNumber ']')}}
       @label="View Allocations"
       @class="failed-or-lost-link"
     >
