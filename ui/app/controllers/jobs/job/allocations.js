@@ -49,6 +49,9 @@ export default class AllocationsController extends Controller.extend(
     {
       qpVersion: 'version',
     },
+    {
+      qpScheduling: 'scheduling',
+    },
     'activeTask',
   ];
 
@@ -56,6 +59,7 @@ export default class AllocationsController extends Controller.extend(
   qpClient = '';
   qpTaskGroup = '';
   qpVersion = '';
+  qpScheduling = '';
   currentPage = 1;
   pageSize = 25;
   activeTask = null;
@@ -80,7 +84,8 @@ export default class AllocationsController extends Controller.extend(
     'selectionStatus',
     'selectionClient',
     'selectionTaskGroup',
-    'selectionVersion'
+    'selectionVersion',
+    'selectionScheduling'
   )
   get filteredAllocations() {
     const {
@@ -88,6 +93,7 @@ export default class AllocationsController extends Controller.extend(
       selectionClient,
       selectionTaskGroup,
       selectionVersion,
+      selectionScheduling,
     } = this;
 
     return this.allocations.filter((alloc) => {
@@ -115,6 +121,35 @@ export default class AllocationsController extends Controller.extend(
       ) {
         return false;
       }
+
+      if (selectionScheduling.length) {
+        if (
+          selectionScheduling.includes('will-not-reschedule') &&
+          !alloc.willNotReschedule
+        ) {
+          return false;
+        }
+        if (
+          selectionScheduling.includes('will-not-restart') &&
+          !alloc.willNotRestart
+        ) {
+          return false;
+        }
+        if (
+          selectionScheduling.includes('has-been-rescheduled') &&
+          !alloc.hasBeenRescheduled
+        ) {
+          return false;
+        }
+        if (
+          selectionScheduling.includes('has-been-restarted') &&
+          !alloc.hasBeenRestarted
+        ) {
+          return false;
+        }
+        return true;
+      }
+
       return true;
     });
   }
@@ -127,6 +162,7 @@ export default class AllocationsController extends Controller.extend(
   @selection('qpClient') selectionClient;
   @selection('qpTaskGroup') selectionTaskGroup;
   @selection('qpVersion') selectionVersion;
+  @selection('qpScheduling') selectionScheduling;
 
   @action
   gotoAllocation(allocation) {
@@ -196,6 +232,28 @@ export default class AllocationsController extends Controller.extend(
     });
 
     return versions.sort((a, b) => a - b).map((v) => ({ key: v, label: v }));
+  }
+
+  @computed('model.allocations.[]', 'selectionScheduling')
+  get optionsScheduling() {
+    return [
+      {
+        key: 'has-been-rescheduled',
+        label: 'Failed & Has Been Rescheduled',
+      },
+      {
+        key: 'will-not-reschedule',
+        label: "Failed & Won't Reschedule",
+      },
+      {
+        key: 'has-been-restarted',
+        label: 'Has Been Restarted',
+      },
+      {
+        key: 'will-not-restart',
+        label: "Won't Restart",
+      },
+    ];
   }
 
   setFacetQueryParam(queryParam, selection) {

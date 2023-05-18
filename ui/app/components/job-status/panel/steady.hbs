@@ -48,7 +48,7 @@
               @condition={{not (eq type.label "unplaced")}}
               @route="jobs.job.allocations"
               @model={{@job}}
-              @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (keys this.versions) ']')}}
+              @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (map-by "version" this.versions) ']')}}
               @class="legend-item {{if (eq (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length") 0) "faded"}}"
               @label="View {{type.label}} allocations"
             >
