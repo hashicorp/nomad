@@ -749,10 +749,31 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	})
 	defer s.Shutdown()
 
+	tlConf := &tls.Config{
+		ServerName: "client.regionFoo.nomad",
+	}
+	cacert, err := os.ReadFile(cafile)
+	if err != nil {
+		t.Fatalf("error reading cacert: %v", err)
+	}
+	tlConf.RootCAs, err = x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("error reading SystemPool: %v", err)
+	}
+	tlConf.RootCAs.AppendCertsFromPEM(cacert)
+	tr := &http.Transport{TLSClientConfig: tlConf}
+	clnt := &http.Client{Transport: tr}
+
 	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
+	request, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		t.Fatalf("error creating request: %v", err)
+	}
+	resp, err := clnt.Do(request)
+
 	// FAIL: Requests that expect 127.0.0.1 as the name should fail
-	resp, err := http.Get(reqURL)
+	// resp, err := http.Get(reqURL)
 	if err == nil {
 		resp.Body.Close()
 		t.Fatalf("expected non-nil error but received: %v", resp.StatusCode)
@@ -767,14 +788,16 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a x509.HostnameError but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
-	if expected := "127.0.0.1"; hostErr.Host != expected {
+	if expected := "client.regionFoo.nomad"; hostErr.Host != expected {
 		t.Fatalf("expected hostname on error to be %q but found %q", expected, hostErr.Host)
 	}
 
 	// FAIL: Requests that specify a valid hostname but not the CA should
 	// fail
+	pool := x509.NewCertPool()
 	tlsConf := &tls.Config{
-		ServerName: "client.regionFoo.nomad",
+		RootCAs:    pool,
+		ServerName: "server.regionFoo.nomad",
 	}
 	transport := &http.Transport{TLSClientConfig: tlsConf}
 	client := &http.Client{Transport: transport}
