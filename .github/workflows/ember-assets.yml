@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: '14'
-      - uses: backspace/ember-asset-size-action@edit-comment # TSCCR: no entry for repository "backspace/ember-asset-size-action"
+      - uses: mainmatter/ember-asset-size-action@255fe534db3d2f731e0d70ce9a5de74b0a6b140a # v3
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           working-directory: "ui"
