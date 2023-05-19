@@ -773,7 +773,6 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	resp, err := clnt.Do(request)
 
 	// FAIL: Requests that expect 127.0.0.1 as the name should fail
-	// resp, err := http.Get(reqURL)
 	if err == nil {
 		resp.Body.Close()
 		t.Fatalf("expected non-nil error but received: %v", resp.StatusCode)
