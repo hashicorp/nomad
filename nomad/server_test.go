@@ -41,8 +41,8 @@ func TestServer_RPC_TLS(t *testing.T) {
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -106,8 +106,8 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 
 	const (
 		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
