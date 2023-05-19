@@ -26,7 +26,6 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
-	"github.com/hashicorp/nomad/ci"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -107,7 +106,7 @@ type ServerConfigCallback func(c *TestServerConfig)
 // defaultServerConfig returns a new TestServerConfig struct pre-populated with
 // usable config for running as server.
 func defaultServerConfig(t testing.T) *TestServerConfig {
-	ports := ci.PortAllocator.Grab(3)
+	ports := PortAllocator.Grab(3)
 
 	logLevel := "ERROR"
 	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
