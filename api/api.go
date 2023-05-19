@@ -901,10 +901,10 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 		if resp.Header.Get("Content-Encoding") == "gzip" {
 			greader, err := gzip.NewReader(resp.Body)
 			if err != nil {
-				return nil, nil, NewUnexpectedResponseError(
-					FromStatusCode(resp.StatusCode),
-					WithExpectedStatuses([]int{http.StatusSwitchingProtocols}),
-					WithError(err))
+				return nil, nil, newUnexpectedResponseError(
+					fromStatusCode(resp.StatusCode),
+					withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+					withError(err))
 			}
 			io.Copy(&buf, greader)
 		} else {
@@ -912,10 +912,10 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 		}
 		resp.Body.Close()
 
-		return nil, nil, NewUnexpectedResponseError(
-			FromStatusCode(resp.StatusCode),
-			WithExpectedStatuses([]int{http.StatusSwitchingProtocols}),
-			WithBody(fmt.Sprint(buf.Bytes())),
+		return nil, nil, newUnexpectedResponseError(
+			fromStatusCode(resp.StatusCode),
+			withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+			withBody(fmt.Sprint(buf.Bytes())),
 		)
 	}
 

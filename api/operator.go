@@ -346,9 +346,9 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, NewUnexpectedResponseError(
-			FromHTTPResponse(resp),
-			WithExpectedStatuses([]int{http.StatusOK, http.StatusNoContent}),
+		return nil, nil, newUnexpectedResponseError(
+			fromHTTPResponse(resp),
+			withExpectedStatuses([]int{http.StatusOK, http.StatusNoContent}),
 		)
 	}
 

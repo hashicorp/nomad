@@ -34,7 +34,7 @@ func (e UnexpectedResponseError) HasError() bool            { return e.err != ni
 func (e UnexpectedResponseError) Unwrap() error             { return e.err }
 func (e UnexpectedResponseError) HasAdditional() bool       { return e.additional != nil }
 func (e UnexpectedResponseError) Additional() error         { return e.additional }
-func NewUnexpectedResponseError(src UnexpectedResponseErrorSource, opts ...UnexpectedResponseErrorOption) UnexpectedResponseError {
+func newUnexpectedResponseError(src unexpectedResponseErrorSource, opts ...unexpectedResponseErrorOption) UnexpectedResponseError {
 	nErr := src()
 	for _, opt := range opts {
 		opt(nErr)
@@ -81,38 +81,38 @@ func (e UnexpectedResponseError) Error() string {
 
 // UnexpectedResponseErrorOptions are functions passed to NewUnexpectedResponseError
 // to customize the created error.
-type UnexpectedResponseErrorOption func(*UnexpectedResponseError)
+type unexpectedResponseErrorOption func(*UnexpectedResponseError)
 
-// WithError allows the addition of a Go error that may have been encountered
+// withError allows the addition of a Go error that may have been encountered
 // while processing the response. For example, if there is an error constructing
 // the gzip reader to process a gzip-encoded response body.
-func WithError(e error) UnexpectedResponseErrorOption {
+func withError(e error) unexpectedResponseErrorOption {
 	return func(u *UnexpectedResponseError) { u.err = e }
 }
 
-// WithBody overwrites the Body value with the provided custom value
-func WithBody(b string) UnexpectedResponseErrorOption {
+// withBody overwrites the Body value with the provided custom value
+func withBody(b string) unexpectedResponseErrorOption {
 	return func(u *UnexpectedResponseError) { u.body = b }
 }
 
-// WithStatusText overwrites the StatusText value the provided custom value
-func WithStatusText(st string) UnexpectedResponseErrorOption {
+// withStatusText overwrites the StatusText value the provided custom value
+func withStatusText(st string) unexpectedResponseErrorOption {
 	return func(u *UnexpectedResponseError) { u.statusText = st }
 }
 
-// WithExpectedStatuses provides a list of statuses that the receiving function
+// withExpectedStatuses provides a list of statuses that the receiving function
 // expected to receive. This can be used by API callers to provide more feedback
 // to end-users.
-func WithExpectedStatuses(s []int) UnexpectedResponseErrorOption {
+func withExpectedStatuses(s []int) unexpectedResponseErrorOption {
 	return func(u *UnexpectedResponseError) { u.expected = slices.Clone(s) }
 }
 
-// UnexpectedResponseErrorSource provides the basis for a NewUnexpectedResponseError.
-type UnexpectedResponseErrorSource func() *UnexpectedResponseError
+// unexpectedResponseErrorSource provides the basis for a NewUnexpectedResponseError.
+type unexpectedResponseErrorSource func() *UnexpectedResponseError
 
-// FromHTTPResponse read an open HTTP response, drains and closes its body as
+// fromHTTPResponse read an open HTTP response, drains and closes its body as
 // the data for the UnexpectedResponseError.
-func FromHTTPResponse(resp *http.Response) UnexpectedResponseErrorSource {
+func fromHTTPResponse(resp *http.Response) unexpectedResponseErrorSource {
 	return func() *UnexpectedResponseError {
 		u := new(UnexpectedResponseError)
 
@@ -136,10 +136,10 @@ func FromHTTPResponse(resp *http.Response) UnexpectedResponseErrorSource {
 	}
 }
 
-// FromStatusCode attempts to resolve the status code to status text using
+// fromStatusCode attempts to resolve the status code to status text using
 // the resolving function provided inside of the NewUnexpectedResponseError
 // implementation.
-func FromStatusCode(sc int) UnexpectedResponseErrorSource {
+func fromStatusCode(sc int) unexpectedResponseErrorSource {
 	return func() *UnexpectedResponseError { return &UnexpectedResponseError{statusCode: sc} }
 }
 
@@ -170,6 +170,6 @@ func requireStatusIn(statuses ...int) doRequestWrapper {
 			}
 		}
 
-		return d, nil, NewUnexpectedResponseError(FromHTTPResponse(resp), WithExpectedStatuses(statuses))
+		return d, nil, newUnexpectedResponseError(fromHTTPResponse(resp), withExpectedStatuses(statuses))
 	}
 }
