@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -247,12 +248,12 @@ func (i httpReqInfo) String() string {
 }
 
 // ipAddrFromRemoteAddr removes the port from the address:port in remote addr
+// in case of a parse error, the original value is returned unparsed
 func ipAddrFromRemoteAddr(s string) string {
-	idx := strings.LastIndex(s, ":")
-	if idx == -1 {
-		return s
+	if ap, err := netip.ParseAddrPort(s); err == nil {
+		return ap.Addr().String()
 	}
-	return s[:idx]
+	return s
 }
 
 // unmock attempts to unmarshal a given mock json body into dst, which should
