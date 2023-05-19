@@ -78,14 +78,18 @@ export default class JobStatusPanelSteadyComponent extends Component {
       )
       .sort((a, b) => {
         // First sort by jobVersion
-        if (a.jobVersion > b.jobVersion) return -1;
-        if (a.jobVersion < b.jobVersion) return 1;
+        if (a.jobVersion > b.jobVersion) return 1;
+        if (a.jobVersion < b.jobVersion) return -1;
 
         // If jobVersion is the same, sort by status order
-        return (
-          jobAllocStatuses[this.args.job.type].indexOf(b.clientStatus) -
-          jobAllocStatuses[this.args.job.type].indexOf(a.clientStatus)
-        );
+        if (a.jobVersion === b.jobVersion) {
+          return (
+            jobAllocStatuses[this.args.job.type].indexOf(b.clientStatus) -
+            jobAllocStatuses[this.args.job.type].indexOf(a.clientStatus)
+          );
+        } else {
+          return 0;
+        }
       })
       .reverse();
 
