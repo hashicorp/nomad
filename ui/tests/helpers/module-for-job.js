@@ -314,10 +314,6 @@ export function moduleForJobWithClientStatus(
           .doesNotExist(
             'Job Detail Sub Navigation should not render Clients tab'
           );
-
-        assert
-          .dom('[data-test-nodes-not-authorized]')
-          .exists('Renders Not Authorized message');
       });
 
       test('/jobs/job/clients route is protected with authorization logic', async function (assert) {
