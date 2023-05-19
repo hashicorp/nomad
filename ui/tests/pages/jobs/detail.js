@@ -93,16 +93,6 @@ export default create({
     },
   },
 
-  jobClientStatusSummary: {
-    scope: '[data-test-job-client-summary]',
-    statusBar: jobClientStatusBar('[data-test-job-client-status-bar]'),
-    toggle: {
-      scope: '[data-test-accordion-head] [data-test-accordion-toggle]',
-      click: clickable(),
-      isDisabled: attribute('disabled'),
-      tooltip: attribute('aria-label'),
-    },
-  },
   childrenSummary: jobClientStatusBar(
     '[data-test-children-status-bar]:not(.is-narrow)'
   ),

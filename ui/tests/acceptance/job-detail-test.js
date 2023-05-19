@@ -33,7 +33,11 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
 );
 
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
-  server.create('job', { type: 'sysbatch', shallow: true })
+  server.create('job', {
+    type: 'sysbatch',
+    shallow: true,
+    noActiveDeployment: true,
+  })
 );
 
 moduleForJobWithClientStatus(
@@ -44,6 +48,7 @@ moduleForJobWithClientStatus(
       datacenters: ['dc1'],
       type: 'sysbatch',
       createAllocations: false,
+      noActiveDeployment: true,
     })
 );
 
@@ -57,6 +62,7 @@ moduleForJobWithClientStatus(
       type: 'sysbatch',
       namespaceId: namespace.name,
       createAllocations: false,
+      noActiveDeployment: true,
     });
   }
 );
@@ -71,6 +77,7 @@ moduleForJobWithClientStatus(
       type: 'sysbatch',
       namespaceId: namespace.name,
       createAllocations: false,
+      noActiveDeployment: true,
     });
   }
 );
@@ -80,6 +87,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
     childrenCount: 1,
     shallow: true,
     datacenters: ['dc1'],
+    noActiveDeployment: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -91,6 +99,7 @@ moduleForJobWithClientStatus(
       childrenCount: 1,
       shallow: true,
       datacenters: ['dc1'],
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -105,6 +114,7 @@ moduleForJobWithClientStatus(
       shallow: true,
       namespaceId: namespace.name,
       datacenters: ['dc1'],
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -119,6 +129,7 @@ moduleForJobWithClientStatus(
       shallow: true,
       namespaceId: namespace.name,
       datacenters: ['*'],
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -168,7 +179,11 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (parameterized)',
   'children',
-  () => server.create('job', 'parameterized', { shallow: true }),
+  () =>
+    server.create('job', 'parameterized', {
+      shallow: true,
+      noActiveDeployment: true,
+    }),
   {
     'the default sort is submitTime descending': async (job, assert) => {
       const mostRecentLaunch = server.db.jobs
@@ -221,6 +236,7 @@ moduleForJob(
     const parent = server.create('job', 'parameterized', {
       childrenCount: 1,
       shallow: true,
+      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }

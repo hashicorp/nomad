@@ -254,6 +254,93 @@ module('Acceptance | job status panel', function (hooks) {
     });
   });
 
+  test('After running/pending allocations are covered, fill in allocs by jobVersion, descending (batch)', async function (assert) {
+    assert.expect(7);
+    let job = server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'batch',
+      resourceSpec: ['M: 256, C: 500'], // a single group
+      createAllocations: false,
+      allocStatusDistribution: {
+        running: 0.5,
+        failed: 0.3,
+        unknown: 0,
+        lost: 0,
+        complete: 0.2,
+      },
+      groupTaskCount: 5,
+      shallow: true,
+      version: 5,
+      noActiveDeployment: true,
+    });
+
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+      jobVersion: 5,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'pending',
+      jobVersion: 5,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+      jobVersion: 3,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'failed',
+      jobVersion: 4,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'complete',
+      jobVersion: 4,
+    });
+    server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'lost',
+      jobVersion: 5,
+    });
+
+    await visit(`/jobs/${job.id}`);
+    assert.dom('.job-status-panel').exists();
+    // We expect to see 5 represented-allocations, since that's the number in our groupTaskCount
+    assert
+      .dom('.ungrouped-allocs .represented-allocation')
+      .exists({ count: 5 });
+
+    // We expect 2 of them to be running, and one to be pending, since running/pending allocations superecede other clientStatuses
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.running')
+      .exists({ count: 2 });
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.pending')
+      .exists({ count: 1 });
+
+    // We expect 1 to be lost, since it has the highest jobVersion
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.lost')
+      .exists({ count: 1 });
+
+    // We expect the remaining one to be complete, rather than failed, since it comes earlier in the jobAllocStatuses.batch constant
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.complete')
+      .exists({ count: 1 });
+    assert
+      .dom('.ungrouped-allocs .represented-allocation.failed')
+      .doesNotExist();
+
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
+  });
+
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
     assert.expect(6);
 
