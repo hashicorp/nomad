@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -50,7 +51,8 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	alloc3.ClientStatus = structs.AllocClientStatusRunning
 	alloc3.Job.Namespace = ns
 	alloc3.Namespace = ns
-	alloc3.Job.ParentID = jobID
+	parentID := uuid.Short()
+	alloc3.Job.ParentID = parentID
 
 	alloc4 := mock.Alloc()
 	alloc4.ClientStatus = structs.AllocClientStatusRunning
@@ -224,7 +226,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 			name:        "WI for dispatch job can read parent secret",
 			token:       idDispatchToken,
 			cap:         acl.PolicyRead,
-			path:        fmt.Sprintf("nomad/jobs/%s", jobID),
+			path:        fmt.Sprintf("nomad/jobs/%s", parentID),
 			expectedErr: nil,
 		},
 
