@@ -15,7 +15,6 @@ import (
 	"github.com/felixge/httpsnoop"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/internal/testutil"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
 )
 
@@ -23,7 +22,7 @@ const mockNamespaceBody = `{"Capabilities":null,"CreateIndex":1,"Description":"D
 
 func TestUnexpectedResponseError(t *testing.T) {
 	testutil.Parallel(t)
-	a := testServer(t)
+	a := mockserver(t)
 	cfg := api.DefaultConfig()
 	cfg.Address = a
 
@@ -36,9 +35,9 @@ func TestUnexpectedResponseError(t *testing.T) {
 		body       *int
 	}
 
-	// ValidateServer ensures that the testServer handles the default namespace
+	// ValidateServer ensures that the mock server handles the default namespace
 	// correctly. This ensures that the routing rule for this path is at least
-	// correct and that the testServer is passing its address to the client
+	// correct and that the mock server is passing its address to the client
 	// properly.
 	t.Run("ValidateServer", func(t *testing.T) {
 		n, _, err := c.Namespaces().Info("default", nil)
@@ -121,10 +120,10 @@ func TestUnexpectedResponseError(t *testing.T) {
 	})
 }
 
-// testServer creates a httptest.Server that can be used to serve simple mock
+// mockserver creates a httptest.Server that can be used to serve simple mock
 // data, which is faster than starting a real Nomad agent.
-func testServer(t *testing.T) string {
-	port := ci.PortAllocator.One()
+func mockserver(t *testing.T) string {
+	port := testutil.PortAllocator.One()
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/namespace/earlyClose", closingHandler(http.StatusInternalServerError, mockNamespaceBody))
@@ -153,9 +152,9 @@ func testServer(t *testing.T) string {
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	must.NoError(t, err)
-	t.Logf("checking testServer, got resp: %s", b)
+	t.Logf("checking mock server, got resp: %s", b)
 
-	// If we get here, the testServer is running and ready for requests.
+	// If we get here, the mock server is running and ready for requests.
 	return ts.URL
 }
 
@@ -215,7 +214,7 @@ func testLogRequestHandler(t *testing.T, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// call the original http.Handler wrapped in a httpsnoop
 		m := httpsnoop.CaptureMetrics(h, w, r)
-		ri := HTTPReqInfo{
+		ri := httpReqInfo{
 			uri:       r.URL.String(),
 			method:    r.Method,
 			ipaddr:    ipAddrFromRemoteAddr(r.RemoteAddr),
@@ -228,8 +227,8 @@ func testLogRequestHandler(t *testing.T, h http.Handler) http.Handler {
 	})
 }
 
-// HTTPReqInfo holds all the information used to log a request to the testserver
-type HTTPReqInfo struct {
+// httpReqInfo holds all the information used to log a request to the mock server
+type httpReqInfo struct {
 	method    string
 	uri       string
 	referer   string
@@ -240,7 +239,7 @@ type HTTPReqInfo struct {
 	userAgent string
 }
 
-func (i HTTPReqInfo) String() string {
+func (i httpReqInfo) String() string {
 	return fmt.Sprintf(
 		"method=%q uri=%q referer=%q ipaddr=%q code=%d size=%d duration=%q userAgent=%q",
 		i.method, i.uri, i.referer, i.ipaddr, i.code, i.size, i.duration, i.userAgent,
