@@ -91,6 +91,10 @@
     "path": "nodes"
   },
   {
+    "title": "Node Pools",
+    "path": "node-pools"
+  },
+  {
     "title": "Metrics",
     "path": "metrics"
   },
