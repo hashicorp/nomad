@@ -272,6 +272,7 @@ module('Acceptance | job status panel', function (hooks) {
       groupTaskCount: 5,
       shallow: true,
       version: 5,
+      noActiveDeployment: true,
     });
 
     server.create('allocation', {
