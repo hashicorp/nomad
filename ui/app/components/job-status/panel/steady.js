@@ -76,7 +76,21 @@ export default class JobStatusPanelSteadyComponent extends Component {
       .filter(
         (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending'
       )
-      .sortBy('jobVersion')
+      .sort((a, b) => {
+        // First sort by jobVersion
+        if (a.jobVersion > b.jobVersion) return 1;
+        if (a.jobVersion < b.jobVersion) return -1;
+
+        // If jobVersion is the same, sort by status order
+        if (a.jobVersion === b.jobVersion) {
+          return (
+            jobAllocStatuses[this.args.job.type].indexOf(b.clientStatus) -
+            jobAllocStatuses[this.args.job.type].indexOf(a.clientStatus)
+          );
+        } else {
+          return 0;
+        }
+      })
       .reverse();
 
     // Iterate over the sorted allocs
@@ -137,7 +151,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get atMostOneAllocPerNode() {
-    return this.args.job.type === 'system';
+    return this.args.job.type === 'system' || this.args.job.type === 'sysbatch';
   }
 
   get versions() {
