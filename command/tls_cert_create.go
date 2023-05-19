@@ -203,11 +203,11 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	// Set dnsNames and ipAddresses based on whether this is a client, server or cli
 	switch {
 	case c.server:
-		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("server", regionName, c.domain, ipAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("server", regionName, c.domain, dnsNames, ipAddresses)
 	case c.client:
-		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("client", regionName, c.domain, ipAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("client", regionName, c.domain, dnsNames, ipAddresses)
 	case c.cli:
-		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("cli", regionName, c.domain, ipAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("cli", regionName, c.domain, dnsNames, ipAddresses)
 	default:
 		c.Ui.Error("Neither client, cli nor server - should not happen")
 		return 1
@@ -301,9 +301,8 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	return 0
 }
 
-func recordPreparation(certType string, regionName string, domain string, ipAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
+func recordPreparation(certType string, regionName string, domain string, dnsNames []string, ipAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
 	var (
-		dnsNames                []string
 		extKeyUsage             []x509.ExtKeyUsage
 		name, regionUrl, prefix string
 	)

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"net"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/testutil"
@@ -171,135 +172,164 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 	}
 }
 
-func TestTlsCertCreateAlternateDomainCommand_fileCreate(t *testing.T) {
-	testDirAlt := t.TempDir()
-	previousDirectory, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(testDirAlt))
-	defer os.Chdir(previousDirectory)
-
-	ui := cli.NewMockUi()
-	caCmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
-
-	// Setup CA keys
-	caCmd.Run([]string{"-name-constraint=true", "-domain=foo"})
-
+func TestTlsRecordPreparation(t *testing.T) {
 	type testcase struct {
-		name      string
-		typ       string
-		args      []string
-		certPath  string
-		keyPath   string
-		expectCN  string
-		expectDNS []string
-		expectIP  []net.IP
-		errOut    string
+		name                string
+		certType            string
+		regionName          string
+		domain              string
+		dnsNames            []string
+		ipAddresses         []string
+		expectedipAddresses []net.IP
+		expectedDNSNames    []string
+		expectedName        string
+		expectedextKeyUsage []x509.ExtKeyUsage
+		expectedPrefix      string
 	}
-
-	// The following subtests must run serially.
+	// The default values are region = global and domain = nomad.
 	cases := []testcase{
-		{"server0-altdomain",
-			"server",
-			[]string{"-server", "-domain", "foo"},
-			"global-server-foo.pem",
-			"global-server-foo-key.pem",
-			"server.global.foo",
-			[]string{
+		{
+			name:                "server0",
+			certType:            "server",
+			regionName:          "global",
+			domain:              "nomad",
+			dnsNames:            []string{},
+			ipAddresses:         []string{},
+			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+			expectedDNSNames: []string{
 				"server.global.nomad",
-				"server.global.foo",
 				"localhost",
 			},
-			[]net.IP{{127, 0, 0, 1}},
-			"==> WARNING: Server Certificates grants authority to become a\n    server and access all state in the cluster including root keys\n    and all ACL tokens. Do not distribute them to production hosts\n    that are not server nodes. Store them as securely as CA keys.\n",
+			expectedName:        "server.global.nomad",
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			expectedPrefix:      "global-server-nomad",
 		},
-		{"server0-region1-altdomain",
-			"server",
-			[]string{"-server", "-region", "region1", "-domain", "foo"},
-			"region1-server-foo.pem",
-			"region1-server-foo-key.pem",
-			"server.region1.foo",
-			[]string{
-				"server.region1.foo",
+		{
+			name:                "server0-region1",
+			certType:            "server",
+			regionName:          "region1",
+			domain:              "nomad",
+			dnsNames:            []string{},
+			ipAddresses:         []string{},
+			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+			expectedDNSNames: []string{
 				"server.region1.nomad",
 				"server.global.nomad",
 				"localhost",
 			},
-			[]net.IP{{127, 0, 0, 1}},
-			"==> WARNING: Server Certificates grants authority to become a\n    server and access all state in the cluster including root keys\n    and all ACL tokens. Do not distribute them to production hosts\n    that are not server nodes. Store them as securely as CA keys.\n",
+			expectedName:        "server.region1.nomad",
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			expectedPrefix:      "region1-server-nomad",
 		},
-		{"client0",
-			"client",
-			[]string{"-client", "-domain", "foo"},
-			"global-client-foo.pem",
-			"global-client-foo-key.pem",
-			"client.global.foo",
-			[]string{
-				"client.global.nomad",
-				"client.global.foo",
+		{
+			name:                "server0-domain1",
+			certType:            "server",
+			regionName:          "global",
+			domain:              "domain1",
+			dnsNames:            []string{},
+			ipAddresses:         []string{},
+			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+			expectedDNSNames: []string{
+				"server.global.nomad",
+				"server.global.domain1",
 				"localhost",
 			},
-			[]net.IP{{127, 0, 0, 1}},
-			"",
+			expectedName:        "server.global.domain1",
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			expectedPrefix:      "global-server-domain1",
 		},
-		{"client0-region2-altdomain",
-			"client",
-			[]string{"-client", "-region", "region2", "-domain", "foo"},
-			"region2-client-foo.pem",
-			"region2-client-foo-key.pem",
-			"client.region2.foo",
-			[]string{
-				"client.region2.foo",
-				"client.region2.nomad",
+		{
+			name:                "server0-dns",
+			certType:            "server",
+			regionName:          "global",
+			domain:              "nomad",
+			dnsNames:            []string{"server.global.foo"},
+			ipAddresses:         []string{},
+			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+			expectedDNSNames: []string{
+				"server.global.foo",
+				"server.global.nomad",
+				"localhost",
+			},
+			expectedName:        "server.global.nomad",
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			expectedPrefix:      "global-server-nomad",
+		},
+		{
+			name:                "server0-ips",
+			certType:            "server",
+			regionName:          "global",
+			domain:              "nomad",
+			dnsNames:            []string{},
+			ipAddresses:         []string{"10.0.0.1"},
+			expectedipAddresses: []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("127.0.0.1")},
+			expectedDNSNames: []string{
+				"server.global.nomad",
+				"localhost",
+			},
+			expectedName:        "server.global.nomad",
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			expectedPrefix:      "global-server-nomad",
+		},
+		{
+			name:                "client0",
+			certType:            "client",
+			regionName:          "global",
+			domain:              "nomad",
+			dnsNames:            []string{},
+			ipAddresses:         []string{},
+			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
+			expectedDNSNames: []string{
 				"client.global.nomad",
 				"localhost",
 			},
-			[]net.IP{{127, 0, 0, 1}},
-			"",
+			expectedName:        "client.global.nomad",
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			expectedPrefix:      "global-client-nomad",
 		},
-		{"cli0",
-			"cli",
-			[]string{"-cli", "-domain", "foo"},
-			"global-cli-foo.pem",
-			"global-cli-foo-key.pem",
-			"cli.global.foo",
-			[]string{
+		{
+			name:                "cli0",
+			certType:            "cli",
+			regionName:          "global",
+			domain:              "nomad",
+			dnsNames:            []string{},
+			ipAddresses:         []string{},
+			expectedipAddresses: []net.IP(nil),
+			expectedDNSNames: []string{
 				"cli.global.nomad",
-				"cli.global.foo",
 				"localhost",
 			},
-			nil,
-			"",
+			expectedName:        "cli.global.nomad",
+			expectedextKeyUsage: []x509.ExtKeyUsage{},
+			expectedPrefix:      "global-cli-nomad",
 		},
 	}
 
 	for _, tc := range cases {
 		tc := tc
 		require.True(t, t.Run(tc.name, func(t *testing.T) {
-			ui := cli.NewMockUi()
-			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
-			require.Equal(t, 0, cmd.Run(tc.args))
-			require.Equal(t, tc.errOut, ui.ErrorWriter.String())
+			var ipAddresses []net.IP
+			for _, i := range tc.ipAddresses {
+				if len(i) > 0 {
+					ipAddresses = append(ipAddresses, net.ParseIP(strings.TrimSpace(i)))
+				}
+			}
 
-			// is a valid cert expects the cert
-			cert := testutil.IsValidCertificate(t, tc.certPath)
-			require.Equal(t, tc.expectCN, cert.Subject.CommonName)
-			require.True(t, cert.BasicConstraintsValid)
-			require.Equal(t, x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment, cert.KeyUsage)
-			switch tc.typ {
+			ipAddresses, dnsNames, name, extKeyUsage, prefix := recordPreparation(tc.certType, tc.regionName, tc.domain, tc.dnsNames, ipAddresses)
+			require.Equal(t, tc.expectedipAddresses, ipAddresses)
+			require.Equal(t, tc.expectedDNSNames, dnsNames)
+			require.Equal(t, tc.expectedName, name)
+			switch tc.certType {
 			case "server":
 				require.Equal(t,
-					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-					cert.ExtKeyUsage)
+					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}, extKeyUsage)
 			case "client":
 				require.Equal(t,
-					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-					cert.ExtKeyUsage)
+					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}, extKeyUsage)
 			case "cli":
-				require.Len(t, cert.ExtKeyUsage, 0)
+				require.Equal(t, []x509.ExtKeyUsage{}, extKeyUsage)
 			}
-			require.False(t, cert.IsCA)
-			require.Equal(t, tc.expectDNS, cert.DNSNames)
-			require.Equal(t, tc.expectIP, cert.IPAddresses)
+			require.Equal(t, tc.expectedPrefix, prefix)
 		}))
 	}
 }
