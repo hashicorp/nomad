@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.pull_request.base.sha }}
-      - uses: nanasess/setup-chromedriver@master # TSCCR: no entry for repository "nanasess/setup-chromedriver"
+      - uses: nanasess/setup-chromedriver@95301782a076fbe8c9ecf54395a4689f7b195285 # v2.0.0
       - name: Use Node.js
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: nanasess/setup-chromedriver@master # TSCCR: no entry for repository "nanasess/setup-chromedriver"
+      - uses: nanasess/setup-chromedriver@95301782a076fbe8c9ecf54395a4689f7b195285 # v2.0.0
       - name: Use Node.js
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
         with:
           name: pr-audit
-      - uses: backspace/ember-test-audit-comparison-action@v2 # TSCCR: no entry for repository "backspace/ember-test-audit-comparison-action"
+      - uses: backspace/ember-test-audit-comparison-action@21e9492d0033bc7e84b6189ae94537a6ed045cfa # v2
         with:
           base-report-path: base-audit.json
           comparison-report-path: pr-audit.json
@@ -72,13 +72,13 @@ jobs:
           path: audit-diff.md
       - name: Check for existence of flakiness report
         id: check_file
-        uses: andstor/file-existence-action@v1 # TSCCR: no entry for repository "andstor/file-existence-action"
+        uses: andstor/file-existence-action@f02338908d150e00a4b8bebc2dad18bd9e5229b0 # v1.1.0
         with:
           files: "flakiness-report.md"
       - name: comment PR
         if: steps.check_file.outputs.files_exists == 'true'
-        uses: machine-learning-apps/pr-comment@1.0.0 # TSCCR: no entry for repository "machine-learning-apps/pr-comment"
+        uses: mshick/add-pr-comment@7c0890544fb33b0bdd2e59467fbacb62e028a096 # v2.8.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path: flakiness-report.md
+          message_path: flakiness-report.md
