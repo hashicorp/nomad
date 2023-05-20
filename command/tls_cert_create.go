@@ -307,7 +307,7 @@ func recordPreparation(certType string, regionName string, domain string, dnsNam
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 		ipAddresses = append(ipAddresses, net.ParseIP("127.0.0.1"))
 	} else if certType == "cli" {
-		extKeyUsage = []x509.ExtKeyUsage{}
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
 	}
 	// prefix is used to generate the filename for the certificate before writing to disk.
 	prefix = fmt.Sprintf("%s-%s-%s", regionName, certType, domain)

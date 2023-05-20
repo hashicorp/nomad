@@ -132,7 +132,7 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 				"cli.global.nomad",
 				"localhost",
 			},
-			nil,
+			[]net.IP(nil),
 			"",
 		},
 	}
@@ -160,7 +160,9 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 					cert.ExtKeyUsage)
 			case "cli":
-				require.Len(t, cert.ExtKeyUsage, 0)
+				require.Equal(t,
+					[]x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+					cert.ExtKeyUsage)
 			}
 			require.False(t, cert.IsCA)
 			require.Equal(t, tc.expectDNS, cert.DNSNames)
@@ -297,7 +299,7 @@ func TestTlsRecordPreparation(t *testing.T) {
 				"localhost",
 			},
 			expectedName:        "cli.global.nomad",
-			expectedextKeyUsage: []x509.ExtKeyUsage{},
+			expectedextKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 			expectedPrefix:      "global-cli-nomad",
 		},
 	}
@@ -316,16 +318,7 @@ func TestTlsRecordPreparation(t *testing.T) {
 			require.Equal(t, tc.expectedipAddresses, ipAddresses)
 			require.Equal(t, tc.expectedDNSNames, dnsNames)
 			require.Equal(t, tc.expectedName, name)
-			switch tc.certType {
-			case "server":
-				require.Equal(t,
-					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}, extKeyUsage)
-			case "client":
-				require.Equal(t,
-					[]x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}, extKeyUsage)
-			case "cli":
-				require.Equal(t, []x509.ExtKeyUsage{}, extKeyUsage)
-			}
+			require.Equal(t, tc.expectedextKeyUsage, extKeyUsage)
 			require.Equal(t, tc.expectedPrefix, prefix)
 		}))
 	}
