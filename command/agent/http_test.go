@@ -767,9 +767,8 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
 	request, err := http.NewRequest("GET", reqURL, nil)
-	if err != nil {
-		t.Fatalf("error creating request: %v", err)
-	}
+	must.NoError(t, err, must.Sprintf("error creating request: %v", err))
+
 	resp, err := clnt.Do(request)
 
 	// FAIL: Requests that expect 127.0.0.1 as the name should fail
@@ -883,8 +882,8 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 
 	const (
 		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		badcert = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badcert = "../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey  = "../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)

@@ -27,8 +27,8 @@ const (
 	fooclientkey  = "./testdata/regionFoo-client-nomad-key.pem"
 	fooservercert = "./testdata/regionFoo-server-nomad.pem"
 	fooserverkey  = "./testdata/regionFoo-server-nomad-key.pem"
-	badcert       = "./testdata/nomad-bad.pem"
-	badkey        = "./testdata/nomad-bad-key.pem"
+	badcert       = "./testdata/badRegion-client-bad.pem"
+	badkey        = "./testdata/badRegion-client-bad-key.pem"
 )
 
 func TestConfig_AppendCA_None(t *testing.T) {
@@ -117,7 +117,7 @@ func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
 
 	require := require.New(t)
 
-	const cacertWhitespace = "./testdata/ca-whitespace.pem"
+	const cacertWhitespace = "./testdata/whitespace-agent-ca.pem"
 	conf := &Config{
 		CAFile: cacertWhitespace,
 	}
