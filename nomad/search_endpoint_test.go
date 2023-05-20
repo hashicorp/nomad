@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -481,6 +482,201 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	require.Equal(t, node.ID, resp.Matches[structs.Nodes][0])
 	require.False(t, resp.Truncations[structs.Nodes])
 	require.Equal(t, uint64(100), resp.Index)
+}
+
+func TestSearch_PrefixSearch_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server.
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools.
+	fsmState := s.fsm.State()
+	dev1 := &structs.NodePool{Name: "dev-1"}
+	dev2 := &structs.NodePool{Name: "dev-2"}
+	prod := &structs.NodePool{Name: "prod"}
+
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{dev1, dev2, prod})
+	must.NoError(t, err)
+
+	// Run test cases.
+	testCases := []struct {
+		name     string
+		prefix   string
+		context  structs.Context
+		expected []string
+	}{
+		{
+			name:     "prefix match",
+			prefix:   "dev",
+			context:  structs.NodePools,
+			expected: []string{dev1.Name, dev2.Name},
+		},
+		{
+			name:     "prefix match - all",
+			prefix:   "dev",
+			context:  structs.All,
+			expected: []string{dev1.Name, dev2.Name},
+		},
+		{
+			name:    "empty prefix",
+			prefix:  "",
+			context: structs.NodePools,
+			expected: []string{
+				structs.NodePoolAll, structs.NodePoolDefault,
+				dev1.Name, dev2.Name, prod.Name,
+			},
+		},
+		{
+			name:     "other context",
+			prefix:   "dev",
+			context:  structs.Jobs,
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.SearchRequest{
+				Prefix:  tc.prefix,
+				Context: tc.context,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			var resp structs.SearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					must.SliceContainsAll(t, v, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
+}
+
+func TestSearch_PrefixSearch_NodePool_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server with ACL.
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools and ACL policies.
+	fsmState := s.fsm.State()
+
+	dev1 := &structs.NodePool{Name: "dev-1"}
+	dev2 := &structs.NodePool{Name: "dev-2"}
+	prod := &structs.NodePool{Name: "prod"}
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{dev1, dev2, prod})
+	must.NoError(t, err)
+
+	devToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "dev-node-pools",
+		mock.NodePoolPolicy("dev-*", "read", nil),
+	)
+	noPolicyToken := mock.CreateToken(t, s.fsm.State(), 1003, nil)
+	allPoolsToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1005, "all-node-pools",
+		mock.NodePoolPolicy("*", "read", nil),
+	)
+	denyDevToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1007, "deny-dev-node-pools",
+		mock.NodePoolPolicy("dev-*", "deny", nil),
+	)
+
+	// Run test cases.
+	testCases := []struct {
+		name     string
+		token    string
+		prefix   string
+		expected []string
+	}{
+		{
+			name:   "management token has access to all",
+			token:  root.SecretID,
+			prefix: "",
+			expected: []string{
+				structs.NodePoolAll, structs.NodePoolDefault,
+				dev1.Name, dev2.Name, prod.Name,
+			},
+		},
+		{
+			name:   "all pools access",
+			token:  allPoolsToken.SecretID,
+			prefix: "",
+			expected: []string{
+				structs.NodePoolAll, structs.NodePoolDefault,
+				dev1.Name, dev2.Name, prod.Name,
+			},
+		},
+		{
+			name:     "only return what token has access",
+			token:    devToken.SecretID,
+			prefix:   "dev",
+			expected: []string{dev1.Name, dev2.Name},
+		},
+		{
+			name:     "no results if token doesn't have access",
+			token:    devToken.SecretID,
+			prefix:   "prod",
+			expected: []string{},
+		},
+		{
+			name:     "no results if token is denied",
+			token:    denyDevToken.SecretID,
+			prefix:   "dev",
+			expected: []string{},
+		},
+		{
+			name:     "no policy",
+			token:    noPolicyToken.SecretID,
+			prefix:   "",
+			expected: []string{},
+		},
+		{
+			name:     "no token",
+			token:    "",
+			prefix:   "",
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.SearchRequest{
+				Prefix:  tc.prefix,
+				Context: structs.NodePools,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			var resp structs.SearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					must.SliceContainsAll(t, v, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
 }
 
 func TestSearch_PrefixSearch_Deployment(t *testing.T) {
@@ -1281,6 +1477,206 @@ func TestSearch_FuzzySearch_Node(t *testing.T) {
 	require.Equal(t, node.Name, resp.Matches[structs.Nodes][0].ID)
 	require.False(t, resp.Truncations[structs.Nodes])
 	require.Equal(t, uint64(100), resp.Index)
+}
+
+func TestSearch_FuzzySearch_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server.
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools.
+	fsmState := s.fsm.State()
+	devEng := &structs.NodePool{Name: "dev-eng"}
+	devInfra := &structs.NodePool{Name: "dev-infra"}
+	prodEng := &structs.NodePool{Name: "prod-eng"}
+
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{devEng, devInfra, prodEng})
+	must.NoError(t, err)
+
+	// Run test cases.
+	testCases := []struct {
+		name        string
+		text        string
+		context     structs.Context
+		expected    []string
+		expectedErr string
+	}{
+		{
+			name:     "fuzzy match",
+			text:     "eng",
+			context:  structs.NodePools,
+			expected: []string{devEng.Name, prodEng.Name},
+		},
+		{
+			name:     "fuzzy match - all",
+			text:     "eng",
+			context:  structs.All,
+			expected: []string{devEng.Name, prodEng.Name},
+		},
+		{
+			name:        "empty prefix",
+			text:        "",
+			context:     structs.NodePools,
+			expectedErr: "search query must be at least 2 characters",
+		},
+		{
+			name:     "other context",
+			text:     "eng",
+			context:  structs.Jobs,
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.FuzzySearchRequest{
+				Text:    tc.text,
+				Context: tc.context,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			var resp structs.FuzzySearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					got := make([]string, len(v))
+					for i, m := range v {
+						got[i] = m.ID
+					}
+					must.SliceContainsAll(t, got, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
+}
+
+func TestSearch_FuzzySearch_NodePool_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server with ACL.
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools and ACL policies.
+	fsmState := s.fsm.State()
+
+	devEng := &structs.NodePool{Name: "dev-eng"}
+	devInfra := &structs.NodePool{Name: "dev-infra"}
+	prodEng := &structs.NodePool{Name: "prod-eng"}
+
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{devEng, devInfra, prodEng})
+	must.NoError(t, err)
+
+	engToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "eng-node-pools",
+		mock.NodePoolPolicy("*eng", "read", nil),
+	)
+	noPolicyToken := mock.CreateToken(t, s.fsm.State(), 1003, nil)
+	allPoolsToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1005, "all-node-pools",
+		mock.NodePoolPolicy("*", "read", nil),
+	)
+	denyEngToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1007, "deny-eng-node-pools",
+		mock.NodePoolPolicy("*eng", "deny", nil),
+	)
+
+	// Run test cases.
+	testCases := []struct {
+		name     string
+		token    string
+		text     string
+		expected []string
+	}{
+		{
+			name:     "management token has access to all",
+			token:    root.SecretID,
+			text:     "dev",
+			expected: []string{devEng.Name, devInfra.Name},
+		},
+		{
+			name:     "all pools access",
+			token:    allPoolsToken.SecretID,
+			text:     "dev",
+			expected: []string{devEng.Name, devInfra.Name},
+		},
+		{
+			name:     "only return what token has access",
+			token:    engToken.SecretID,
+			text:     "eng",
+			expected: []string{devEng.Name, prodEng.Name},
+		},
+		{
+			name:     "no results if token doesn't have access",
+			token:    engToken.SecretID,
+			text:     "infra",
+			expected: []string{},
+		},
+		{
+			name:     "no results if token is denied",
+			token:    denyEngToken.SecretID,
+			text:     "eng",
+			expected: []string{},
+		},
+		{
+			name:     "no policy",
+			token:    noPolicyToken.SecretID,
+			text:     "dev",
+			expected: []string{},
+		},
+		{
+			name:     "no token",
+			token:    "",
+			text:     "dev",
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.FuzzySearchRequest{
+				Text:    tc.text,
+				Context: structs.NodePools,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			var resp structs.FuzzySearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					got := make([]string, len(v))
+					for i, m := range v {
+						got[i] = m.ID
+					}
+					must.SliceContainsAll(t, got, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
 }
 
 func TestSearch_FuzzySearch_Deployment(t *testing.T) {

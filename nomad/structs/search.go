@@ -14,6 +14,7 @@ const (
 	Evals           Context = "evals"
 	Jobs            Context = "jobs"
 	Nodes           Context = "nodes"
+	NodePools       Context = "node_pools"
 	Namespaces      Context = "namespaces"
 	Quotas          Context = "quotas"
 	Recommendations Context = "recommendations"
