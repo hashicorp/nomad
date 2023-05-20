@@ -904,9 +904,9 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 
 	// We will start out with a bad cert and then reload with a good one.
 	const (
-		badca         = "../../helper/tlsutil/testdata/ca-bad.pem"
-		badcert       = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey        = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badca         = "../../helper/tlsutil/testdata/bad-agent-ca.pem"
+		badcert       = "../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey        = "../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 		foocafile     = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
 		fooclientcert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fooclientkey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
@@ -1023,8 +1023,8 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 
 	const (
 		badca      = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		badcert    = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey     = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badcert    = "../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey     = "../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 		newfoocert = "invalid_cert_path"
 		newfookey  = "invalid_key_path"
 	)
@@ -1341,8 +1341,8 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
 		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badcert = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badcert = "../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey  = "../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 	)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
@@ -1480,8 +1480,8 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
 		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badcert = "../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey  = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badcert = "../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey  = "../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 	)
 
 	sameAgentConfig := &Config{

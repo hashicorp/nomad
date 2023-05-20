@@ -305,9 +305,9 @@ func TestClient_BadTLS(t *testing.T) {
 		cafile        = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
 		fooclientcert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fooclientkey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badca         = "../helper/tlsutil/testdata/ca-bad.pem"
-		badcert       = "../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey        = "../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badca         = "../helper/tlsutil/testdata/bad-agent-ca.pem"
+		badcert       = "../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey        = "../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 	)
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{

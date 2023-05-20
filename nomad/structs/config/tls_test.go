@@ -52,8 +52,8 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 		cafile  = "../../../helper/tlsutil/testdata/nomad-agent-ca.pem"
 		foocert = "../../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badcert = "../../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey  = "../../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badcert = "../../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey  = "../../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 	)
 
 	// Assert that both mismatching certificate and key files are considered
@@ -216,8 +216,8 @@ func TestTLS_SetChecksum(t *testing.T) {
 		cafile  = "../../../helper/tlsutil/testdata/nomad-agent-ca.pem"
 		foocert = "../../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
 		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badcert = "../../../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey  = "../../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		badcert = "../../../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey  = "../../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 	)
 
 	a := &TLSConfig{
