@@ -34,6 +34,12 @@ called this endpoint or used this command using tokens with just the `read-job`
 capability or the `read` policy must update their tokens to use the
 `submit-job` capability or the `write` policy.
 
+#### Command `nomad tls cert create` flag `-cluster-region` deprecated
+
+Nomad 1.6.0 will deprecate the command `nomad tls cert create` flag `-cluster-region`
+in favour of using the standard flag `-region`. The `-cluster-region` flag 
+will be removed in Nomad 1.7.0 
+
 ## Nomad 1.5.5
 
 Nomad 1.5.5 fixed a bug where allocations that are rescheduled for jobs
