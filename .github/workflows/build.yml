@@ -80,7 +80,7 @@ jobs:
     strategy:
       matrix:
         goos: [windows]
-        goarch: ["386", "amd64"]
+        goarch: ["amd64"]
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -131,7 +131,7 @@ jobs:
     strategy:
       matrix:
         goos: [linux]
-        goarch: ["arm", "arm64", "386", "amd64"]
+        goarch: ["arm", "arm64", "amd64"]
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -166,12 +166,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
-          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y \
-            libc6-dev-i386 \
-            libpcre3-dev \
-            linux-libc-dev:i386
           sudo apt-get install -y \
             binutils-aarch64-linux-gnu \
             binutils-arm-linux-gnueabihf \
@@ -297,7 +292,7 @@ jobs:
   #   runs-on: [ custom, linux, xxl, 20.04 ]
   #   strategy:
   #     matrix:
-  #       arch: ["arm", "arm64", "386", "amd64"]
+  #       arch: ["arm", "arm64", "amd64"]
   #   env:
   #     repo: ${{github.event.repository.name}}
   #     version: ${{needs.get-product-version.outputs.product-version}}
