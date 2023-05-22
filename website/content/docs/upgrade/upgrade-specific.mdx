@@ -14,6 +14,12 @@ their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
 
+#### Command `nomad tls cert create` flag `-cluster-region` deprecated
+
+Nomad 1.6.0 will deprecate the command `nomad tls cert create` flag `-cluster-region`
+in favour of using the standard flag `-region`. The `-cluster-region` flag 
+will be removed in Nomad 1.7.0 
+
 ## Nomad 1.5.5
 
 Nomad 1.5.5 fixed a bug where allocations that are rescheduled for jobs
