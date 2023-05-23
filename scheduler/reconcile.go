@@ -94,7 +94,7 @@ type allocReconciler struct {
 	// defaults to time.Now, and overridden in unit tests
 	now time.Time
 
-	// result is the results of the reconcile. During computation it can be
+	// result is the results of the reconcile. During computation, it can be
 	// used to store intermediate state
 	result *reconcileResults
 }
@@ -239,47 +239,47 @@ func (a *allocReconciler) computeDeploymentComplete(m allocMatrix) bool {
 }
 
 func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
-	if a.deployment != nil {
-		// Mark the deployment as complete if possible
-		if deploymentComplete {
-			if a.job.IsMultiregion() {
-				// the unblocking/successful states come after blocked, so we
-				// need to make sure we don't revert those states
-				if a.deployment.Status != structs.DeploymentStatusUnblocking &&
-					a.deployment.Status != structs.DeploymentStatusSuccessful {
-					a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
-						DeploymentID:      a.deployment.ID,
-						Status:            structs.DeploymentStatusBlocked,
-						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
-					})
-				}
-			} else {
+	// for nil deployments, return quickly
+	if a.deployment == nil {
+		return
+	}
+
+	// Mark the deployment as complete if possible
+	if deploymentComplete {
+		if a.job.IsMultiregion() {
+			// the unblocking/successful states come after blocked, so we
+			// need to make sure we don't revert those states
+			if a.deployment.Status != structs.DeploymentStatusUnblocking &&
+				a.deployment.Status != structs.DeploymentStatusSuccessful {
 				a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 					DeploymentID:      a.deployment.ID,
-					Status:            structs.DeploymentStatusSuccessful,
-					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+					Status:            structs.DeploymentStatusBlocked,
+					StatusDescription: structs.DeploymentStatusDescriptionBlocked,
 				})
 			}
-		}
-
-		// Mark the deployment as pending since its state is now computed.
-		if a.deployment.Status == structs.DeploymentStatusInitializing {
+		} else {
 			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
-				Status:            structs.DeploymentStatusPending,
-				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
+				Status:            structs.DeploymentStatusSuccessful,
+				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 			})
 		}
 	}
 
+	// Mark the deployment as pending since its state is now computed.
+	if a.deployment.Status == structs.DeploymentStatusInitializing {
+		a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			DeploymentID:      a.deployment.ID,
+			Status:            structs.DeploymentStatusPending,
+			StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
+		})
+	}
 	// Set the description of a created deployment
-	if d := a.result.deployment; d != nil {
-		if d.RequiresPromotion() {
-			if d.HasAutoPromote() {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
-			} else {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-			}
+	if d := a.result.deployment; d != nil && d.RequiresPromotion() {
+		if d.HasAutoPromote() {
+			d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+		} else {
+			d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 		}
 	}
 }
@@ -418,7 +418,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		return true
 	}
 
-	dstate, existingDeployment := a.initializeDeploymentState(groupName, tg)
+	dstate, existingDeployment := a.initializeDeploymentState(groupName, *tg.Update)
 
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
@@ -558,24 +558,18 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	return deploymentComplete
 }
 
-func (a *allocReconciler) initializeDeploymentState(group string, tg *structs.TaskGroup) (*structs.DeploymentState, bool) {
-	var dstate *structs.DeploymentState
-	existingDeployment := false
-
-	if a.deployment != nil {
-		dstate, existingDeployment = a.deployment.TaskGroups[group]
+// initializeDeploymentState fetching the existing deployment for the provided task group or creates
+// a new one if it doesn't already exist. Returns true if an existing deployment state exists.
+func (a *allocReconciler) initializeDeploymentState(group string, strategy structs.UpdateStrategy) (*structs.DeploymentState, bool) {
+	if a.deployment == nil {
+		return structs.NewDeploymentState(strategy), false
 	}
 
-	if !existingDeployment {
-		dstate = &structs.DeploymentState{}
-		if !tg.Update.IsEmpty() {
-			dstate.AutoRevert = tg.Update.AutoRevert
-			dstate.AutoPromote = tg.Update.AutoPromote
-			dstate.ProgressDeadline = tg.Update.ProgressDeadline
-		}
+	if state, existingDeployment := a.deployment.TaskGroups[group]; existingDeployment {
+		return state, true
 	}
 
-	return dstate, existingDeployment
+	return structs.NewDeploymentState(strategy), false
 }
 
 // If we have destructive updates, and have fewer canaries than is desired, we need to create canaries.
