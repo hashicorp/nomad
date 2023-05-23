@@ -107,6 +107,7 @@ func (a allocDestructiveResult) MinJobVersion() uint64    { return 0 }
 func (a allocDestructiveResult) PreviousLost() bool       { return false }
 
 // allocMatrix is a mapping of task groups to their allocation set.
+// an allocation set is a map of allocation ID to allocation.
 type allocMatrix map[string]allocSet
 
 // newAllocMatrix takes a job and the existing allocations for the job and
@@ -133,10 +134,10 @@ func newAllocMatrix(job *structs.Job, allocs []*structs.Allocation) allocMatrix 
 }
 
 // allocSet is a set of allocations with a series of helper functions defined
-// that help reconcile state.
+// that help reconcile state. Key is the allocation ID.
 type allocSet map[string]*structs.Allocation
 
-// GoString provides a human readable view of the set
+// GoString provides a human-readable view of the set
 func (a allocSet) GoString() string {
 	if len(a) == 0 {
 		return "[]"
