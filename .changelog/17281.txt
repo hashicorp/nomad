@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Updated Vault SDK to 0.9.0
+```
