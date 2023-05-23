@@ -98,7 +98,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// create a new factory which will store the container state in the allocDir
 	factory, err := libcontainer.New(
 		path.Join(command.TaskDir, "../alloc/container"),
-		libcontainer.Cgroupfs,
 		// note that os.Args[0] refers to the executor shim typically
 		// and first args arguments is ignored now due
 		// until https://github.com/opencontainers/runc/pull/1888 is merged
