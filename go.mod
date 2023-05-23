@@ -42,7 +42,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosuri/uilive v0.0.4
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/consul v1.7.8
 	github.com/hashicorp/consul-template v0.29.2-0.20220803104536-583050a85eea
 	github.com/hashicorp/consul/api v1.13.0
