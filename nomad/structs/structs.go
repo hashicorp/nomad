@@ -33,6 +33,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/go-version"
+	"github.com/miekg/dns"
+	"github.com/mitchellh/copystructure"
+	"github.com/ryanuber/go-glob"
+	"golang.org/x/crypto/blake2b"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -45,12 +52,6 @@ import (
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/miekg/dns"
-	"github.com/mitchellh/copystructure"
-	"github.com/ryanuber/go-glob"
-	"golang.org/x/crypto/blake2b"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 var (
@@ -10013,6 +10014,18 @@ type DeploymentState struct {
 
 	// UnhealthyAllocs are allocations that have been marked as unhealthy.
 	UnhealthyAllocs int
+}
+
+func NewDeploymentState(strategy UpdateStrategy) *DeploymentState {
+	state := &DeploymentState{}
+
+	if !strategy.IsEmpty() {
+		state.AutoRevert = strategy.AutoRevert
+		state.AutoPromote = strategy.AutoPromote
+		state.ProgressDeadline = strategy.ProgressDeadline
+	}
+
+	return state
 }
 
 func (d *DeploymentState) GoString() string {
