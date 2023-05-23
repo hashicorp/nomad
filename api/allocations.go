@@ -253,6 +253,7 @@ type Allocation struct {
 	AllocModifyIndex      uint64
 	CreateTime            int64
 	ModifyTime            int64
+	NetworkStatus         *AllocNetworkStatus
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
@@ -372,6 +373,15 @@ type AllocDeploymentStatus struct {
 	Timestamp   time.Time
 	Canary      bool
 	ModifyIndex uint64
+}
+
+// AllocNetworkStatus captures the status of an allocation's network during runtime.
+// Depending on the network mode, an allocation's address may need to be known to other
+// systems in Nomad such as service registration.
+type AllocNetworkStatus struct {
+	InterfaceName string
+	Address       string
+	DNS           *DNSConfig
 }
 
 type AllocatedResources struct {
