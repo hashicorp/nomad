@@ -41,7 +41,7 @@
       </h3>
       <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
 
-      <div class="legend-and-summary">
+      <div class="legend-and-summary {{if @job.latestDeployment "has-latest-deployment"}}">
         <legend>
           {{#each this.allocTypes as |type|}}
             <ConditionalLinkTo
@@ -83,6 +83,10 @@
             {{/each}}
           </ul>
         </section>
+
+        {{#if @job.latestDeployment}}
+          <JobStatus::LatestDeployment @job={{@job}} />
+        {{/if}}
 
       </div>
 
