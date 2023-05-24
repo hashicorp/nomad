@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2458,7 +2459,7 @@ func TestAllocRunner_PreKill_RunOnDone(t *testing.T) {
 	))
 }
 
-func TestAllocRunner_LastAcknowledgedStateIsCurrent(t *testing.T) {
+func TestAllocRunner_GetUpdatePriority(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
@@ -2489,12 +2490,12 @@ func TestAllocRunner_LastAcknowledgedStateIsCurrent(t *testing.T) {
 		NetworkStatus:     calloc.NetworkStatus,
 	})
 
-	must.True(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+	must.Eq(t, cstructs.AllocUpdatePriorityNone, ar.GetUpdatePriority(calloc))
 
 	// clientAlloc mutates the state, so verify this doesn't break the check
 	// without state having been updated
 	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.True(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+	must.Eq(t, cstructs.AllocUpdatePriorityNone, ar.GetUpdatePriority(calloc))
 
 	// make a no-op state update
 	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
@@ -2503,14 +2504,19 @@ func TestAllocRunner_LastAcknowledgedStateIsCurrent(t *testing.T) {
 		DNS:           &structs.DNSConfig{},
 	})
 	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.True(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+	must.Eq(t, cstructs.AllocUpdatePriorityNone, ar.GetUpdatePriority(calloc))
 
-	// make a state update that should be detected as a change
+	// make a low priority state update
 	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
 		InterfaceName: "eth0",
-		Address:       "192.168.2.1",
+		Address:       "192.168.1.2",
 		DNS:           &structs.DNSConfig{},
 	})
 	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.False(t, ar.LastAcknowledgedStateIsCurrent(calloc))
+	must.Eq(t, cstructs.AllocUpdatePriorityTypical, ar.GetUpdatePriority(calloc))
+
+	// make a state update that should be detected as high priority
+	ar.SetClientStatus(structs.AllocClientStatusFailed)
+	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
+	must.Eq(t, cstructs.AllocUpdatePriorityUrgent, ar.GetUpdatePriority(calloc))
 }

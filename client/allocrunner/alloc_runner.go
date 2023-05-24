@@ -1420,30 +1420,36 @@ func (ar *allocRunner) persistLastAcknowledgedState(a *state.State) {
 	}
 }
 
-// LastAcknowledgedStateIsCurrent returns true if the current state matches the
-// state that was last acknowledged from a server update. This is called from
-// the client in the same goroutine that called AcknowledgeState so that we
-// can't get a TOCTOU error.
-func (ar *allocRunner) LastAcknowledgedStateIsCurrent(a *structs.Allocation) bool {
+// GetUpdatePriority returns the update priority based the difference between
+// the current state and the state that was last acknowledged from a server
+// update. This is called from the client in the same goroutine that called
+// AcknowledgeState so that we can't get a TOCTOU error.
+func (ar *allocRunner) GetUpdatePriority(a *structs.Allocation) cstructs.AllocUpdatePriority {
 	ar.stateLock.RLock()
 	defer ar.stateLock.RUnlock()
 
 	last := ar.lastAcknowledgedState
 	if last == nil {
-		return false
+		return cstructs.AllocUpdatePriorityTypical
 	}
 
 	switch {
 	case last.ClientStatus != a.ClientStatus:
-		return false
+		return cstructs.AllocUpdatePriorityUrgent
 	case last.ClientDescription != a.ClientDescription:
-		return false
+		return cstructs.AllocUpdatePriorityTypical
 	case !last.DeploymentStatus.Equal(a.DeploymentStatus):
-		return false
+		return cstructs.AllocUpdatePriorityTypical
 	case !last.NetworkStatus.Equal(a.NetworkStatus):
-		return false
+		return cstructs.AllocUpdatePriorityTypical
 	}
-	return maps.EqualFunc(last.TaskStates, a.TaskStates, func(st, o *structs.TaskState) bool {
+
+	if !maps.EqualFunc(last.TaskStates, a.TaskStates, func(st, o *structs.TaskState) bool {
 		return st.Equal(o)
-	})
+
+	}) {
+		return cstructs.AllocUpdatePriorityTypical
+	}
+
+	return cstructs.AllocUpdatePriorityNone
 }

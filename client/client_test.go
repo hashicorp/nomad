@@ -765,6 +765,24 @@ func TestClient_SaveRestoreState(t *testing.T) {
 						return fmt.Errorf("expected running client status, got %v",
 							ar.AllocState().ClientStatus)
 					}
+
+				case alloc3:
+					if ar.AllocState().ClientStatus != structs.AllocClientStatusComplete {
+						return fmt.Errorf("expected complete client status, got %v",
+							ar.AllocState().ClientStatus)
+					}
+
+					// because the client's update will be batched, we need to
+					// ensure we wait for the server update too
+					a3, err := store.AllocByID(nil, alloc3)
+					must.NoError(t, err)
+					must.NotNil(t, a3)
+					if alloc3AllocModifyIndex != a3.AllocModifyIndex ||
+						alloc3ModifyIndex >= a3.ModifyIndex {
+						return fmt.Errorf(
+							"alloc %s stopped during shutdown should have updated", a3.ID[:8])
+					}
+
 				default:
 					if ar.AllocState().ClientStatus != structs.AllocClientStatusComplete {
 						return fmt.Errorf("expected complete client status, got %v",
@@ -778,33 +796,43 @@ func TestClient_SaveRestoreState(t *testing.T) {
 		wait.Gap(time.Millisecond*30),
 	))
 
-	a1, err = store.AllocByID(nil, alloc1)
-	must.NoError(t, err)
-	must.NotNil(t, a1)
-	test.Eq(t, alloc1AllocModifyIndex, a1.AllocModifyIndex)
-	test.Eq(t, alloc1ModifyIndex, a1.ModifyIndex,
-		test.Sprint("alloc still running should not have updated"))
+	// Because we're asserting that no changes have been made, we have to wait a
+	// sufficient amount of time to verify that
+	must.Wait(t, wait.ContinualSuccess(
+		wait.ErrorFunc(func() error {
+			a1, err = store.AllocByID(nil, alloc1)
+			must.NoError(t, err)
+			must.NotNil(t, a1)
 
-	a2, err := store.AllocByID(nil, alloc2)
-	must.NoError(t, err)
-	must.NotNil(t, a2)
-	test.Eq(t, alloc2AllocModifyIndex, a2.AllocModifyIndex)
-	test.Eq(t, alloc2ModifyIndex, a2.ModifyIndex,
-		test.Sprintf("alloc %s stopped before shutdown should not have updated", a2.ID[:8]))
+			if alloc1AllocModifyIndex != a1.AllocModifyIndex ||
+				alloc1ModifyIndex != a1.ModifyIndex {
+				return fmt.Errorf("alloc still running should not have updated")
+			}
 
-	a3, err := store.AllocByID(nil, alloc3)
-	must.NoError(t, err)
-	must.NotNil(t, a3)
-	test.Eq(t, alloc3AllocModifyIndex, a3.AllocModifyIndex)
-	test.Greater(t, alloc3ModifyIndex, a3.ModifyIndex,
-		test.Sprintf("alloc %s stopped during shutdown should have updated", a3.ID[:8]))
+			a2, err := store.AllocByID(nil, alloc2)
+			must.NoError(t, err)
+			must.NotNil(t, a2)
+			if alloc2AllocModifyIndex != a2.AllocModifyIndex ||
+				alloc2ModifyIndex != a2.ModifyIndex {
+				return fmt.Errorf(
+					"alloc %s stopped before shutdown should not have updated", a2.ID[:8])
+			}
 
-	// TODO: the alloc has been GC'd so the server will reject any update. It'd
-	// be nice if we could instrument the server here to ensure we didn't send
-	// one either.
-	a4, err := store.AllocByID(nil, alloc4)
-	must.NoError(t, err)
-	test.Nil(t, a4, test.Sprint("garbage collected alloc should not exist"))
+			// TODO: the alloc has been GC'd so the server will reject any
+			// update. It'd be nice if we could instrument the server here to
+			// ensure we didn't send one either.
+			a4, err := store.AllocByID(nil, alloc4)
+			must.NoError(t, err)
+			if a4 != nil {
+				return fmt.Errorf("garbage collected alloc should not exist")
+			}
+
+			return nil
+		}),
+		wait.Timeout(time.Second*3),
+		wait.Gap(time.Millisecond*100),
+	))
+
 }
 
 func TestClient_AddAllocError(t *testing.T) {
