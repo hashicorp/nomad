@@ -5046,6 +5046,8 @@ type JobSummary struct {
 	// Summary contains the summary per task group for the Job
 	Summary map[string]TaskGroupSummary
 
+	VersionedSummary map[string]VersionedTaskGroupSummary
+
 	// Children contains a summary for the children of this job.
 	Children *JobChildrenSummary
 
@@ -5062,7 +5064,14 @@ func (js *JobSummary) Copy() *JobSummary {
 	for k, v := range js.Summary {
 		newTGSummary[k] = v
 	}
+	// TODO: (PHIL) figure out if I need to do this for VersionedSummary also
+	// Check out maps.clone!
+	newVTGSummary := make(map[string]VersionedTaskGroupSummary, len(js.VersionedSummary))
+	for k, v := range js.VersionedSummary {
+		newVTGSummary[k] = v
+	}
 	newJobSummary.Summary = newTGSummary
+	newJobSummary.VersionedSummary = newVTGSummary
 	newJobSummary.Children = newJobSummary.Children.Copy()
 	return newJobSummary
 }
@@ -5095,6 +5104,19 @@ type TaskGroupSummary struct {
 	Starting int
 	Lost     int
 	Unknown  int
+}
+
+// VersionedTaskGroupSummary roughly matches the format of TaskGroupSummary, but for each status type, provides an object with versions as keys and counts as values.
+type VersionedTaskGroupSummary struct {
+	Queued   map[string]int
+	Complete map[string]int
+	Failed   map[string]int
+	Running  map[string]int
+	Starting map[string]int
+	Lost     map[string]int
+	Unknown  map[string]int
+	// FailedWithoutReplacement map[string]int
+	FailedButReplaced map[string]int
 }
 
 const (
