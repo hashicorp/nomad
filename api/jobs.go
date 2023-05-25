@@ -938,7 +938,7 @@ func (j *Job) Canonicalize() {
 		j.Namespace = pointerOf(DefaultNamespace)
 	}
 	if j.Priority == nil {
-		j.Priority = pointerOf(0)
+		j.Priority = pointerOf(1)
 	}
 	if j.Stop == nil {
 		j.Stop = pointerOf(false)
