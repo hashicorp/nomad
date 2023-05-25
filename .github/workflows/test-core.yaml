@@ -127,3 +127,6 @@ jobs:
           hc-install install -version ${{env.CONSUL_VERSION}} -path ${{env.GOBIN}} consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
+permissions:
+  contents: read
+
