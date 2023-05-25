@@ -148,6 +148,7 @@
             class="delete-row button is-danger is-inverted"
             type="button"
             {{on "click" (action this.deleteRow entry)}}
+            disabled={{eq this.keyValues.length 1}}
           >
             Delete
           </button>

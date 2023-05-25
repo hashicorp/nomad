@@ -14,7 +14,7 @@
     {{else if @job}}
     job <LinkTo @route="jobs.job" @model={{concat @job "@" @namespace}}>{{@job}} <FlightIcon @name="external-link" /></LinkTo>
     {{else}}
-    all nomad jobs
+    all nomad jobs in this namespace
     {{/if}}
 </span>
 </p>
