@@ -135,7 +135,9 @@ export default class VariableFormComponent extends Component {
     let existingVariable = existingVariables
       .without(this.args.model)
       .find(
-        (v) => v.path === pathValue && v.namespace === this.variableNamespace
+        (v) =>
+          v.path === pathValue &&
+          (v.namespace === this.variableNamespace || !this.variableNamespace)
       );
     if (existingVariable) {
       return {
@@ -370,7 +372,8 @@ export default class VariableFormComponent extends Component {
     return (
       this.args.model.pathLinkedEntities?.job ||
       this.args.model.pathLinkedEntities?.group ||
-      this.args.model.pathLinkedEntities?.task
+      this.args.model.pathLinkedEntities?.task ||
+      trimPath([this.path]) === 'nomad/jobs'
     );
   }
 
