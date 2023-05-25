@@ -22,3 +22,5 @@ jobs:
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           working-directory: "ui"
+permissions:
+  contents: read
