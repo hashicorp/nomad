@@ -41,7 +41,7 @@
       </h3>
       <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
 
-      <div class="legend-and-summary">
+      <div class="legend-and-summary {{if @job.latestDeployment "has-latest-deployment"}}">
         <legend>
           {{#each this.allocTypes as |type|}}
             <ConditionalLinkTo
@@ -58,20 +58,12 @@
           {{/each}}
         </legend>
 
-        {{#if this.supportsRescheduling}}
-          <JobStatus::FailedOrLost
-            @allocs={{this.rescheduledAllocs}}
-            @job={{@job}}
-            @title="Rescheduled"
-            @description="Allocations that have been rescheduled, on another node if possible, due to failure"
-          />
-        {{/if}}
 
         <JobStatus::FailedOrLost
-          @allocs={{this.restartedAllocs}}
+          @rescheduledAllocs={{this.rescheduledAllocs}}
+          @restartedAllocs={{this.restartedAllocs}}
           @job={{@job}}
-          @title="Restarted"
-          @description="Allocations that have been restarted in-place due to a task failure"
+          @supportsRescheduling={{this.supportsRescheduling}}
         />
 
         <section class="versions">
@@ -91,6 +83,10 @@
             {{/each}}
           </ul>
         </section>
+
+        {{#if @job.latestDeployment}}
+          <JobStatus::LatestDeployment @job={{@job}} />
+        {{/if}}
 
       </div>
 

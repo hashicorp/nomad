@@ -48,11 +48,15 @@
     // grid-area: legend-and-summary;
     // TODO: may revisit this grid-area later, but is currently used in 2 competing ways
     display: grid;
-    gap: 0.5rem;
-    grid-template-columns: 55% 15% 15% 15%;
+    gap: 1rem;
+    grid-template-columns: 3fr 1fr 1fr;
+    &.has-latest-deployment {
+      grid-template-columns: 3fr 1fr 1fr 1fr;
+    }
 
     & > section > h4,
-    & > legend > h4 {
+    & > legend > h4,
+    & > section > a > h4 {
       margin-bottom: 0.5rem;
     }
 
@@ -62,8 +66,6 @@
       gap: 0.5rem;
     }
     .versions {
-      display: grid;
-      gap: 0.5rem;
       & > ul {
         display: grid;
         grid-template-columns: repeat(auto-fit, 100px);
@@ -76,12 +78,18 @@
         }
       }
     }
+    .latest-deployment {
+      h4 svg {
+        position: relative;
+        top: 3px;
+      }
+    }
 
-    .failed-or-lost {
-      .failed-or-lost-link {
-        display: block;
-        font-size: 1.5rem;
-        font-weight: bold;
+    .failed-or-lost > div {
+      display: grid;
+      gap: 3px;
+      .tooltip {
+        top: 3px;
       }
     }
   }
