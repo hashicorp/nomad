@@ -648,29 +648,29 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
     assert
-      .dom('.failed-or-lost')
+      .dom('.failed-or-lost-links > span')
       .exists({ count: 2 }, 'Restarted and Rescheduled cells are both present');
-
-    let rescheduledCell = [...findAll('.failed-or-lost')][0];
-    let restartedCell = [...findAll('.failed-or-lost')][1];
+    // await this.pauseTest();
+    let rescheduledCell = [...findAll('.failed-or-lost-links > span')][0];
+    let restartedCell = [...findAll('.failed-or-lost-links > span')][1];
 
     // Check that the title in each cell has the right text
-    assert.dom(rescheduledCell.querySelector('h4')).hasText('Rescheduled');
-    assert.dom(restartedCell.querySelector('h4')).hasText('Restarted');
+    assert.dom(rescheduledCell).hasText('0 Rescheduled');
+    assert.dom(restartedCell).hasText('0 Restarted');
 
     // Check that both values are zero and non-links
     assert
       .dom(rescheduledCell.querySelector('a'))
       .doesNotExist('Rescheduled cell is not a link');
     assert
-      .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
-      .hasText('0', 'Rescheduled cell has zero value');
+      .dom(rescheduledCell)
+      .hasText('0 Rescheduled', 'Rescheduled cell has zero value');
     assert
       .dom(restartedCell.querySelector('a'))
       .doesNotExist('Restarted cell is not a link');
     assert
-      .dom(restartedCell.querySelector('.failed-or-lost-link'))
-      .hasText('0', 'Restarted cell has zero value');
+      .dom(restartedCell)
+      .hasText('0 Restarted', 'Restarted cell has zero value');
 
     // A wild event appears! Change a recent task event to type "Restarting" in a task state:
     this.store
@@ -687,9 +687,9 @@ module('Acceptance | job status panel', function (hooks) {
     await settled();
 
     assert
-      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .dom(restartedCell)
       .hasText(
-        '1',
+        '1 Restarted',
         'Restarted cell updates when a task event with type "Restarting" is added'
       );
 
@@ -708,9 +708,9 @@ module('Acceptance | job status panel', function (hooks) {
 
     // Trigger a reschedule! Set up a desiredTransition object with a Reschedule property on one of the allocations.
     assert
-      .dom(restartedCell.querySelector('.failed-or-lost-link'))
+      .dom(restartedCell)
       .hasText(
-        '2',
+        '2 Restarted',
         'Restarted cell updates when a second task event with type "Restarting" is added'
       );
 
@@ -725,8 +725,11 @@ module('Acceptance | job status panel', function (hooks) {
     await settled();
 
     assert
-      .dom(rescheduledCell.querySelector('.failed-or-lost-link'))
-      .hasText('1', 'Rescheduled cell updates when desiredTransition is set');
+      .dom(rescheduledCell)
+      .hasText(
+        '1 Rescheduled',
+        'Rescheduled cell updates when desiredTransition is set'
+      );
     assert
       .dom(rescheduledCell.querySelector('a'))
       .exists('Rescheduled cell with a non-zero number is now a link');
@@ -900,10 +903,10 @@ module('Acceptance | job status panel', function (hooks) {
       await visit(`/jobs/${job.id}`);
       assert.dom('.job-status-panel').exists();
       assert.dom('.failed-or-lost').exists({ count: 1 });
-      assert.dom('.failed-or-lost h4').hasText('Restarted');
+      assert.dom('.failed-or-lost h4').hasText('Replaced Allocations');
       assert
-        .dom('.failed-or-lost-link')
-        .hasText('0', 'Restarted cell at zero by default');
+        .dom('.failed-or-lost-links > span')
+        .hasText('0 Restarted', 'Restarted cell at zero by default');
 
       // A wild event appears! Change a recent task event to type "Restarting" in a task state:
       this.store
@@ -920,9 +923,9 @@ module('Acceptance | job status panel', function (hooks) {
       await settled();
 
       assert
-        .dom('.failed-or-lost-link')
+        .dom('.failed-or-lost-links > span')
         .hasText(
-          '1',
+          '1 Restarted',
           'Restarted cell updates when a task event with type "Restarting" is added'
         );
     });
