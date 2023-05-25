@@ -165,6 +165,7 @@ jobs:
     executor: go-windows
 
     steps:
+      - run: docker version
       - run: git config --global core.autocrlf false
       - checkout
       - run:

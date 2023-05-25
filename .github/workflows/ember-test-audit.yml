@@ -72,7 +72,7 @@ jobs:
           path: audit-diff.md
       - name: Check for existence of flakiness report
         id: check_file
-        uses: andstor/file-existence-action@f02338908d150e00a4b8bebc2dad18bd9e5229b0 # v1.1.0
+        uses: andstor/file-existence-action@20b4d2e596410855db8f9ca21e96fbe18e12930b # v2.0.0
         with:
           files: "flakiness-report.md"
       - name: comment PR
@@ -82,3 +82,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           message_path: flakiness-report.md
+permissions:
+  contents: read
+

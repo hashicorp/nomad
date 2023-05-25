@@ -21,3 +21,6 @@ jobs:
 
             If you have found a problem that seems related to this change, please open a new issue and complete the issue template so we can capture all the details necessary to investigate further.
           pr-lock-inactive-days: '120'
+permissions:
+  contents: read
+
