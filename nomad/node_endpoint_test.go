@@ -4434,3 +4434,23 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 		})
 	}
 }
+
+func TestNode_constructNodeServerInfoResponse_MissingNode(t *testing.T) {
+	ci.Parallel(t)
+
+	s, cleanup := TestServer(t, nil)
+	defer cleanup()
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Create a node that isn't a member of the state to force a not found
+	node := mock.Node()
+	var reply structs.NodeUpdateResponse
+
+	nE := NewNodeEndpoint(s, nil)
+	snap, err := s.State().Snapshot()
+	must.NoError(t, err)
+
+	// call constructNodeServerInfoResponse. Before GH #17316 this would panic
+	require.NoError(t, nE.constructNodeServerInfoResponse(node.ID, snap, &reply))
+	must.NotNil(t, &reply)
+}
