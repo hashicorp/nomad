@@ -263,7 +263,7 @@ func equalDevices(n1, n2 *structs.Node) bool {
 	return reflect.DeepEqual(n1.NodeResources.Devices, n2.NodeResources.Devices)
 }
 
-// updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
+// constructNodeServerInfoResponse assumes the n.srv.peerLock is held for reading.
 func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
 	reply.LeaderRPCAddr = string(n.srv.raft.Leader())
 
@@ -277,16 +277,30 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 			})
 	}
 
+	ws := memdb.NewWatchSet()
+
 	// Add ClientStatus information to heartbeat response.
-	node, _ := snap.NodeByID(nil, nodeID)
-	reply.SchedulingEligibility = node.SchedulingEligibility
+	if node, err := snap.NodeByID(ws, nodeID); err == nil && node != nil {
+		reply.SchedulingEligibility = node.SchedulingEligibility
+	} else if node == nil {
+
+		// If the node is not found, leave reply.SchedulingEligibility as
+		// the empty string. The response handler in the client treats this
+		// as a no-op. As there is no call to action for an operator, log it
+		// at debug level.
+		n.logger.Debug("constructNodeServerInfoResponse: node not found",
+			"node_id", nodeID)
+	} else {
+
+		// This case is likely only reached via a code error in state store
+		return err
+	}
 
 	// TODO(sean@): Use an indexed node count instead
 	//
 	// Snapshot is used only to iterate over all nodes to create a node
 	// count to send back to Nomad Clients in their heartbeat so Clients
 	// can estimate the size of the cluster.
-	ws := memdb.NewWatchSet()
 	iter, err := snap.Nodes(ws)
 	if err == nil {
 		for {
