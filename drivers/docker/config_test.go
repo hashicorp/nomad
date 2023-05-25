@@ -224,6 +224,7 @@ config {
   entrypoint = ["/bin/bash", "-c"]
   extra_hosts = ["127.0.0.1  localhost.example.com"]
   force_pull = true
+  group_add = ["group1", "group2"]
   healthchecks {
     disable = true
   }
@@ -385,6 +386,7 @@ config {
 		Entrypoint:       []string{"/bin/bash", "-c"},
 		ExtraHosts:       []string{"127.0.0.1  localhost.example.com"},
 		ForcePull:        true,
+		GroupAdd:         []string{"group1", "group2"},
 		Healthchecks:     DockerHealthchecks{Disable: true},
 		Hostname:         "self.example.com",
 		Interactive:      true,
