@@ -4438,7 +4438,14 @@ func TestNode_constructNodeServerInfoResponse_MissingNode(t *testing.T) {
 	node := mock.Node()
 	var reply structs.NodeUpdateResponse
 
-	nE := NewNodeEndpoint(s, nil)
+	nE := &Node{
+		srv:     s,
+		ctx:     nil,
+		logger:  s.logger.Named("client"),
+		updates: []*structs.Allocation{},
+		evals:   []*structs.Evaluation{},
+	}
+
 	snap, err := s.State().Snapshot()
 	must.NoError(t, err)
 
