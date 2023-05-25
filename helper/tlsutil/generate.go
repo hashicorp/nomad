@@ -67,6 +67,13 @@ type CAOpts struct {
 	Days                int
 	PermittedDNSDomains []string
 	Domain              string
+	Country             string
+	PostalCode          string
+	Province            string
+	Locality            string
+	StreetAddress       string
+	Organization        string
+	OrganizationalUnit  string
 	Name                string
 }
 
@@ -106,6 +113,7 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 			return "", "", err
 		}
 	}
+
 	name := opts.Name
 	if name == "" {
 		name = fmt.Sprintf("Nomad Agent CA %d", sn)
@@ -116,17 +124,53 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		days = 365
 	}
 
+	country := opts.Country
+	if country == "" {
+		country = ("US")
+	}
+
+	postalCode := opts.PostalCode
+	if postalCode == "" {
+		postalCode = ("94105")
+	}
+
+	province := opts.Province
+	if province == "" {
+		province = ("CA")
+	}
+
+	locality := opts.Locality
+	if locality == "" {
+		locality = ("San Francisco")
+	}
+
+	streetAddress := opts.StreetAddress
+	if streetAddress == "" {
+		streetAddress = ("101 Second Street")
+	}
+
+	organization := opts.Organization
+	if organization == "" {
+		organization = ("HashiCorp Inc.")
+	}
+
+	organizationalUnit := opts.OrganizationalUnit
+	if organizationalUnit == "" {
+		organizationalUnit = ("Nomad")
+	}
+
 	// Create the CA cert
 	template := x509.Certificate{
 		SerialNumber: sn,
 		Subject: pkix.Name{
-			Country:       []string{"US"},
-			PostalCode:    []string{"94105"},
-			Province:      []string{"CA"},
-			Locality:      []string{"San Francisco"},
-			StreetAddress: []string{"101 Second Street"},
-			Organization:  []string{"HashiCorp Inc."},
-			CommonName:    name,
+			Country:            []string{country},
+			PostalCode:         []string{postalCode},
+			Province:           []string{province},
+			Locality:           []string{locality},
+			StreetAddress:      []string{streetAddress},
+			Organization:       []string{organization},
+			OrganizationalUnit: []string{organizationalUnit},
+			CommonName:         name,
 		},
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,

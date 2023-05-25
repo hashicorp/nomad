@@ -34,6 +34,27 @@ type TLSCACreateCommand struct {
 	// additionalDomain provides a list of restricted domains to the CA which
 	// will then reject any domains other than these.
 	additionalDomain flags.StringFlag
+
+	// country is used to set a country code for the CA
+	country string
+
+	// postalCode is used to set a postal code for the CA
+	postalCode string
+
+	// province is used to set a province for the CA
+	province string
+
+	// locality is used to set a locality for the CA
+	locality string
+
+	// streetAddress is used to set a street address for the CA
+	streetAddress string
+
+	// organization is used to set an organization for the CA
+	organization string
+
+	// organizationalUnit is used to set an organizational unit for the CA
+	organizationalUnit string
 }
 
 func (c *TLSCACreateCommand) Help() string {
@@ -53,6 +74,9 @@ CA Create Options:
   -common-name
     Common Name of CA. Defaults to "Nomad Agent CA".
 
+  -country
+    Country of the CA. Defaults to "US".
+
   -days
     Provide number of days the CA is valid for from now on.
     Defaults to 5 years or 1825 days.
@@ -61,12 +85,31 @@ CA Create Options:
     Domain of Nomad cluster. Only used in combination with -name-constraint.
     Defaults to "nomad".
 
+  -locality
+    Locality of the CA. Defaults to "San Francisco".
+
   -name-constraint
     Enables the DNS name restriction functionality to the CA. Results in the CA
     rejecting certificates for any other DNS zone. If enabled, localhost and the
     value of -domain will be added to the allowed DNS zones field. If the UI is
     going to be served over HTTPS its hostname must be added with
     -additional-domain. Defaults to false.
+
+  -organization
+    Organization of the CA. Defaults to "HashiCorp Inc.".
+
+  -organizational-unit
+    Organizational Unit of the CA. Defaults to "Nomad".
+
+  -postal-code
+    Postal Code of the CA. Defaults to "94105".
+
+  -province
+    Province of the CA. Defaults to "CA".
+
+  -street-address
+    Street Address of the CA. Defaults to "101 Second Street".
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -74,11 +117,18 @@ CA Create Options:
 func (c *TLSCACreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-additional-domain": complete.PredictAnything,
-			"-common-name":       complete.PredictAnything,
-			"-days":              complete.PredictAnything,
-			"-domain":            complete.PredictAnything,
-			"-name-constraint":   complete.PredictAnything,
+			"-additional-domain":   complete.PredictAnything,
+			"-common-name":         complete.PredictAnything,
+			"-days":                complete.PredictAnything,
+			"-country":             complete.PredictAnything,
+			"-domain":              complete.PredictAnything,
+			"-locality":            complete.PredictAnything,
+			"-name-constraint":     complete.PredictAnything,
+			"-organization":        complete.PredictAnything,
+			"-organizational-unit": complete.PredictAnything,
+			"-postcode":            complete.PredictAnything,
+			"-province":            complete.PredictAnything,
+			"-street-address":      complete.PredictAnything,
 		})
 }
 
@@ -101,6 +151,13 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	flagSet.BoolVar(&c.constraint, "name-constraint", false, "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
 	flagSet.StringVar(&c.commonName, "common-name", "", "")
+	flagSet.StringVar(&c.country, "country", "", "")
+	flagSet.StringVar(&c.postalCode, "post-code", "", "")
+	flagSet.StringVar(&c.province, "province", "", "")
+	flagSet.StringVar(&c.locality, "locality", "", "")
+	flagSet.StringVar(&c.streetAddress, "street-address", "", "")
+	flagSet.StringVar(&c.organization, "organization", "", "")
+	flagSet.StringVar(&c.organizationalUnit, "organizational-unit", "", "")
 	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}

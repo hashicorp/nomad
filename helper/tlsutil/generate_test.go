@@ -116,6 +116,44 @@ func TestGenerateCA(t *testing.T) {
 
 		require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
 	})
+
+	t.Run("Custom CA", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days:                6,
+			PermittedDNSDomains: []string{"domain1.com"},
+			Domain:              "custdomain.com",
+			Country:             "ZZ",
+			PostalCode:          "0000",
+			Province:            "CustProvince",
+			Locality:            "CustLocality",
+			StreetAddress:       "CustStreet",
+			Organization:        "CustOrg",
+			OrganizationalUnit:  "CustUnit",
+			Name:                "Custom CA",
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, ca)
+		require.NotEmpty(t, pk)
+
+		cert, err := parseCert(ca)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(cert.Subject.CommonName, "Custom CA"))
+		require.True(t, strings.Contains(cert.PermittedDNSDomains[0], "domain1.com"))
+		require.True(t, strings.Contains(cert.Subject.Country[0], "ZZ"))
+		require.True(t, strings.Contains(cert.Subject.PostalCode[0], "0000"))
+		require.True(t, strings.Contains(cert.Subject.Province[0], "CustProvince"))
+		require.True(t, strings.Contains(cert.Subject.Locality[0], "CustLocality"))
+		require.True(t, strings.Contains(cert.Subject.StreetAddress[0], "CustStreet"))
+		require.True(t, strings.Contains(cert.Subject.Organization[0], "CustOrg"))
+		require.True(t, strings.Contains(cert.Subject.OrganizationalUnit[0], "CustUnit"))
+		require.Equal(t, true, cert.IsCA)
+		require.Equal(t, true, cert.BasicConstraintsValid)
+
+		require.WithinDuration(t, cert.NotBefore, time.Now(), time.Minute)
+		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 6), time.Minute)
+
+		require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
+	})
 }
 
 func TestGenerateCert(t *testing.T) {
