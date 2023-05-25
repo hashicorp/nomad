@@ -1942,7 +1942,8 @@ func (c *Client) updateNodeStatus() error {
 	}
 
 	// Check heartbeat response for information about the server-side scheduling
-	// state of this node
+	// state of this node. If there are errors on the server side, this will come
+	// back as an empty string.
 	c.UpdateConfig(func(c *config.Config) {
 		if resp.SchedulingEligibility != "" {
 			c.Node.SchedulingEligibility = resp.SchedulingEligibility
