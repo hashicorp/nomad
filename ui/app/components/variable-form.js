@@ -177,7 +177,10 @@ export default class VariableFormComponent extends Component {
   }
 
   @action appendRow() {
-    this.keyValues.pushObject(copy(EMPTY_KV));
+    // Clear our any entity errors
+    let newRow = copy(EMPTY_KV);
+    newRow.warnings = EmberObject.create();
+    this.keyValues.pushObject(newRow);
   }
 
   @action deleteRow(row) {
