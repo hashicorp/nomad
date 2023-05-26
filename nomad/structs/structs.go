@@ -11093,6 +11093,48 @@ type AllocListStub struct {
 	ModifyTime            int64
 }
 
+// RescheduleEligible returns if the allocation is eligible to be rescheduled according
+// to its ReschedulePolicy and the current state of its reschedule trackers
+func (a *AllocListStub) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
+	if reschedulePolicy == nil {
+		return false
+	}
+	attempts := reschedulePolicy.Attempts
+	enabled := attempts > 0 || reschedulePolicy.Unlimited
+	if !enabled {
+		return false
+	}
+	if reschedulePolicy.Unlimited {
+		return true
+	}
+	// Early return true if there are no attempts yet and the number of allowed attempts is > 0
+	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
+		return true
+	}
+	attempted, _ := a.rescheduleInfo(reschedulePolicy, failTime)
+	return attempted < attempts
+}
+
+func (a *AllocListStub) rescheduleInfo(reschedulePolicy *ReschedulePolicy, failTime time.Time) (int, int) {
+	if reschedulePolicy == nil {
+		return 0, 0
+	}
+	attempts := reschedulePolicy.Attempts
+	interval := reschedulePolicy.Interval
+
+	attempted := 0
+	if a.RescheduleTracker != nil && attempts > 0 {
+		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+			timeDiff := failTime.UTC().UnixNano() - lastAttempt
+			if timeDiff < interval.Nanoseconds() {
+				attempted += 1
+			}
+		}
+	}
+	return attempted, attempts
+}
+
 // SetEventDisplayMessages populates the display message if its not already
 // set, a temporary fix to handle old allocations that don't have it. This
 // method will be removed in a future release.

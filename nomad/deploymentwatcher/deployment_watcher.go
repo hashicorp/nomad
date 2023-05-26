@@ -615,12 +615,30 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
-		// Determine if the update block for this group is progress based
-		progressBased := dstate.ProgressDeadline != 0
+		hasProgressDeadline := dstate.ProgressDeadline != 0
+		failDeployment := false
+
+		// Fail on the first unhealthy allocation if no progress deadline is specified.
+		if !hasProgressDeadline && alloc.DeploymentStatus.IsUnhealthy() {
+			w.logger.Debug("failing deployment because an allocation failed and the deployment is not progress based", alloc.ID)
+			failDeployment = true
+		}
+
+		if hasProgressDeadline && alloc.DeploymentStatus.IsUnhealthy() &&
+			deployment.Active() {
+			reschedulePolicy := w.j.LookupTaskGroup(alloc.TaskGroup).ReschedulePolicy
+			isRescheduleEligible := alloc.RescheduleEligible(reschedulePolicy, time.Unix(alloc.ModifyTime, 0))
+			if !isRescheduleEligible {
+				// We have run out of reschedule attempts: do not wait for the progress deadline to expire because
+				// we can fail early
+				w.logger.Debug("failing deployment because an allocation has failed and the task group has run out of reschedule attempts", alloc.ID)
+				failDeployment = true
+			}
+		}
 
 		// Check if the allocation has failed and we need to mark it for allow
 		// replacements
-		if progressBased && alloc.DeploymentStatus.IsUnhealthy() &&
+		if !failDeployment && alloc.DeploymentStatus.IsUnhealthy() &&
 			deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 			res.allowReplacements = append(res.allowReplacements, alloc.ID)
 			continue
@@ -631,19 +649,12 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			res.createEval = true
 		}
 
-		// If the group is using a progress deadline, we don't have to do anything.
-		if progressBased {
-			continue
-		}
-
-		// Fail on the first bad allocation
-		if alloc.DeploymentStatus.IsUnhealthy() {
+		if failDeployment {
 			// Check if the group has autorevert set
 			if dstate.AutoRevert {
 				res.rollback = true
 			}
 
-			// Since we have an unhealthy allocation, fail the deployment
 			res.failDeployment = true
 		}
 
