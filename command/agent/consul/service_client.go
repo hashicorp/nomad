@@ -1164,6 +1164,7 @@ func apiCheckRegistrationToCheck(r *api.AgentCheckRegistration) *api.AgentServic
 		Body:                   r.Body,
 		TCP:                    r.TCP,
 		Status:                 r.Status,
+		TLSServerName:          r.TLSServerName,
 		TLSSkipVerify:          r.TLSSkipVerify,
 		GRPC:                   r.GRPC,
 		GRPCUseTLS:             r.GRPCUseTLS,
@@ -1653,6 +1654,7 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		if check.TLSSkipVerify {
 			chkReg.TLSSkipVerify = true
 		}
+		chkReg.TLSServerName = check.TLSServerName
 		base := url.URL{
 			Scheme: proto,
 			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
@@ -1681,6 +1683,7 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		if check.TLSSkipVerify {
 			chkReg.TLSSkipVerify = true
 		}
+		chkReg.TLSServerName = check.TLSServerName
 
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)

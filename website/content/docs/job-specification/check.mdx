@@ -157,8 +157,27 @@ job "example" {
   Nomad. For Consul service checks, valid options are `grpc`, `http`, `script`,
   and `tcp`. For Nomad service checks, valid options are `http` and `tcp`.
 
-- `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
-  checks. Only supported in the Consul service provider.
+- `tls_server_name` `(string: "")` - Indicates the ServerName to use for SNI and
+  validation of the certificate presented by the server being checked, when
+  performing TLS enabled checks (`https`, `grpc` + `grpc_use_tls`). If left
+  unspecified, the ServerName will be inferred from the address of the server
+  being checked unless the address is an IP address. There are two common cases
+  where this is beneficial:
+
+    - When the check address is an IP, `tls_server_name` can be specified for
+      SNI. Note: setting tls_server_name will also override the hostname used to
+      verify the certificate presented by the server being checked.
+
+    - When the a hostname in the check address won't be present in the SAN
+      (Subject Alternative Name) field of the certificate presented by the
+      server being checked. Note: setting `tls_server_name` will also override
+      the hostname used for SNI.
+
+  This field is only supported in the Consul service provider. 
+
+- `tls_skip_verify` `(bool: false)` - Skip verification of certificates for
+  `https` and `grpc` + `grpc_use_tls` checks . Only supported in the Consul
+  service provider.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
   evaluated when determining deployment health (including a job's initial

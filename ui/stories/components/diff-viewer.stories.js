@@ -436,6 +436,13 @@ export let DiffViewerWithManyChanges = () => {
                           },
                           {
                             Annotations: null,
+                            Name: 'TLSServerName',
+                            New: '',
+                            Old: '',
+                            Type: 'None',
+                          },
+                          {
+                            Annotations: null,
                             Name: 'TLSSkipVerify',
                             New: 'false',
                             Old: 'false',
