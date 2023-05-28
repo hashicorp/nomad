@@ -32,7 +32,7 @@ require (
 	github.com/docker/docker v23.0.3+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/dustin/go-humanize v1.0.0
-	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
+	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/fsouza/go-dockerclient v1.7.9
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
