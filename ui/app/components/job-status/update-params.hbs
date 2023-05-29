@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: MPL-2.0
+}}
+
 <Trigger @onError={{action this.onError}} @do={{this.fetchJobDefinition}} as |trigger|>
   {{did-insert trigger.fns.do}}
 

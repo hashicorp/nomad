@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # Serve the contents of our CSI volume with a little web server.
 job "web" {
   group "web" {
