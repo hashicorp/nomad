@@ -194,8 +194,9 @@ func (f *ConsulFingerprint) grpc(scheme string) func(info agentconsul.Self) (str
 			return "", false
 		}
 
-		consulVersion, err := version.NewVersion(v)
+		consulVersion, err := version.NewVersion(strings.TrimSpace(v))
 		if err != nil {
+			f.logger.Warn("invalid Consul version", "version", v)
 			return "", false
 		}
 
