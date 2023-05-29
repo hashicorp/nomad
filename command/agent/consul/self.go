@@ -17,7 +17,7 @@ func SKU(info Self) (string, bool) {
 		return "", ok
 	}
 
-	ver, vErr := version.NewVersion(v)
+	ver, vErr := version.NewVersion(strings.TrimSpace(v))
 	if vErr != nil {
 		return "", false
 	}
