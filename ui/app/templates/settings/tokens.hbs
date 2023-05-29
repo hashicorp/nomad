@@ -112,7 +112,7 @@
             <Input
               id="token-input"
               class="input"
-              @type="text"
+              @type="password"
               placeholder="{{if this.hasJWTAuthMethods "36-character token secret or JWT" "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"}}"
               {{autofocus}}
               {{on "input" (action (mut this.secret) value="target.value")}}
