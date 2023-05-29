@@ -1045,7 +1045,7 @@ func (c *JobRestartCommand) monitorReplacementAlloc(
 
 		alloc, qm, err := c.client.Allocations().Info(currentAllocID, q)
 		if err != nil {
-			errCh <- fmt.Errorf("Failed to retrieve allocation %q: %w", limit(alloc.ID, c.length), err)
+			errCh <- fmt.Errorf("Failed to retrieve allocation %q: %w", limit(currentAllocID, c.length), err)
 			return
 		}
 
