@@ -3766,7 +3766,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		return fmt.Errorf("error updating deployment: %v", err)
 	}
 
-	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
+	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn, false); err != nil {
 		return fmt.Errorf("error updating job summary: %v", err)
 	}
 
@@ -3898,7 +3898,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
 
-		if err := s.updateSummaryWithAlloc(index, alloc, exist, txn); err != nil {
+		if err := s.updateSummaryWithAlloc(index, alloc, exist, txn, false); err != nil {
 			return fmt.Errorf("error updating job summary: %v", err)
 		}
 
@@ -3915,6 +3915,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 		}
 
 		if alloc.PreviousAllocation != "" {
+			s.logger.Warn("@@@+++PREV ALLOCATION PRESENT",
+				"alloc_id", alloc.ID, "previousAlloc", alloc.PreviousAllocation)
+
 			prevAlloc, err := txn.First("allocs", "id", alloc.PreviousAllocation)
 			if err != nil {
 				return fmt.Errorf("alloc lookup failed: %v", err)
@@ -3924,6 +3927,14 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				prevAllocCopy := existingPrevAlloc.Copy()
 				prevAllocCopy.NextAllocation = alloc.ID
 				prevAllocCopy.ModifyIndex = index
+
+				// Failed but rescheduled! Note that in the summary!
+				// TODO: (phil) probably not right to have this twice here.
+				// TODO: (phil) seems like this is over-counting failedBUtReplaced. Should not be happening as often as it does.
+				if err := s.updateSummaryWithAlloc(index, prevAllocCopy, existingPrevAlloc, txn, true); err != nil {
+					return fmt.Errorf("error updating job summary: %v", err)
+				}
+
 				if err := txn.Insert("allocs", prevAllocCopy); err != nil {
 					return fmt.Errorf("alloc insert failed: %v", err)
 				}
@@ -5704,7 +5715,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 // updateSummaryWithAlloc updates the job summary when allocations are updated
 // or inserted
 func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocation,
-	existingAlloc *structs.Allocation, txn *txn) error {
+	existingAlloc *structs.Allocation, txn *txn, replacedAlocation bool) error {
 
 	// We don't have to update the summary if the job is missing
 	if alloc.Job == nil {
@@ -5770,6 +5781,21 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			s.logger.Error("new allocation inserted into state store with bad client status",
 				"alloc_id", alloc.ID, "client_status", alloc.ClientStatus)
 		}
+	} else if replacedAlocation {
+		// TODO: (phil)
+		// if they differ by nextAlloc, then we need to update the summary
+		if existingAlloc != nil && existingAlloc.NextAllocation != alloc.NextAllocation {
+			s.logger.Info("###next allocation changed",
+				"alloc_id", alloc.ID, "next_allocation", alloc.NextAllocation, "followup_eval_id", alloc.FollowupEvalID, "clientStatus", alloc.ClientStatus, "jobver", alloc.Job.Version)
+			switch alloc.ClientStatus {
+			case structs.AllocClientStatusFailed:
+				if alloc.NextAllocation != "" {
+					vtgSummary.FailedButReplaced[fmt.Sprint(alloc.Job.Version)] += 1
+				}
+			}
+			summaryChanged = true
+		}
+
 	} else if existingAlloc.ClientStatus != alloc.ClientStatus {
 		// Incrementing the client of the bin of the current state
 		switch alloc.ClientStatus {
