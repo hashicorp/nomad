@@ -370,7 +370,7 @@
               {{else}}
                 <div class="columns is-flush">
                   <div class="dashboard-metric column">
-                    <p data-test-node-count class="metric">
+                    <p data-test-node-count class="metric topo">
                       {{this.model.nodes.length}}
                       <span class="metric-label">
                         Clients
@@ -378,10 +378,18 @@
                     </p>
                   </div>
                   <div class="dashboard-metric column">
-                    <p data-test-alloc-count class="metric">
+                    <p data-test-alloc-count class="metric topo">
                       {{this.scheduledAllocations.length}}
                       <span class="metric-label">
                         Allocations
+                      </span>
+                    </p>
+                  </div>
+                  <div class="dashboard-metric column">
+                    <p data-test-node-pool-count class="metric topo">
+                      {{this.model.nodePools.length}}
+                      <span class="metric-label">
+                        Node Pools
                       </span>
                     </p>
                   </div>
