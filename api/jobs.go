@@ -25,6 +25,9 @@ const (
 	// on all clients.
 	JobTypeSysbatch = "sysbatch"
 
+	// JobDefaultPriority is the default priority if not specified.
+	JobDefaultPriority = 50
+
 	// PeriodicSpecCron is used for a cron spec.
 	PeriodicSpecCron = "cron"
 
@@ -938,7 +941,7 @@ func (j *Job) Canonicalize() {
 		j.Namespace = pointerOf(DefaultNamespace)
 	}
 	if j.Priority == nil {
-		j.Priority = pointerOf(0)
+		j.Priority = pointerOf(JobDefaultPriority)
 	}
 	if j.Stop == nil {
 		j.Stop = pointerOf(false)
