@@ -159,6 +159,14 @@ func TestConsulFingerprint_sku(t *testing.T) {
 		require.Equal(t, "ent", s)
 	})
 
+	t.Run("extra spaces", func(t *testing.T) {
+		v, ok := fp.sku(agentconsul.Self{
+			"Config": {"Version": "   v1.9.5\n"},
+		})
+		require.True(t, ok)
+		require.Equal(t, "oss", v)
+	})
+
 	t.Run("missing", func(t *testing.T) {
 		_, ok := fp.sku(agentconsul.Self{
 			"Config": {},
@@ -365,6 +373,15 @@ func TestConsulFingerprint_grpc(t *testing.T) {
 	t.Run("grpc set post-1.14 https", func(t *testing.T) {
 		s, ok := fp.grpc("https")(agentconsul.Self{
 			"Config":      {"Version": "1.14.0"},
+			"DebugConfig": {"GRPCTLSPort": 8503.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "8503", s)
+	})
+
+	t.Run("version with extra spaces", func(t *testing.T) {
+		s, ok := fp.grpc("https")(agentconsul.Self{
+			"Config":      {"Version": "  1.14.0\n"},
 			"DebugConfig": {"GRPCTLSPort": 8503.0}, // JSON numbers are floats
 		})
 		require.True(t, ok)
