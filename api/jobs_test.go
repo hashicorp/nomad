@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 func TestJobs_Register(t *testing.T) {
@@ -282,7 +283,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Namespace:         pointerOf(DefaultNamespace),
 				Type:              pointerOf("service"),
 				ParentID:          pointerOf(""),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
@@ -377,7 +378,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Namespace:         pointerOf(DefaultNamespace),
 				Type:              pointerOf("batch"),
 				ParentID:          pointerOf(""),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
@@ -455,7 +456,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Region:            pointerOf("global"),
 				Type:              pointerOf("service"),
 				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
@@ -624,7 +625,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ID:                pointerOf("example_template"),
 				Name:              pointerOf("example_template"),
 				ParentID:          pointerOf(""),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				Region:            pointerOf("global"),
 				Type:              pointerOf("service"),
 				AllAtOnce:         pointerOf(false),
@@ -794,7 +795,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Name:              pointerOf("bar"),
 				Region:            pointerOf("global"),
 				Type:              pointerOf("service"),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
@@ -885,7 +886,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Region:            pointerOf("global"),
 				Type:              pointerOf("service"),
 				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
@@ -1061,7 +1062,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Region:            pointerOf("global"),
 				Type:              pointerOf("service"),
 				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
@@ -1232,7 +1233,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Region:            pointerOf("global"),
 				Type:              pointerOf("service"),
 				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(0),
+				Priority:          pointerOf(JobDefaultPriority),
 				AllAtOnce:         pointerOf(false),
 				ConsulToken:       pointerOf(""),
 				ConsulNamespace:   pointerOf(""),
