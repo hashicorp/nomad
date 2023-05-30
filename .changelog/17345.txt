@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: change token input type from text to password
+```
