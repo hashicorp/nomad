@@ -2109,6 +2109,9 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	// NodePool is the node pool the node belongs to.
+	NodePool string
+
 	// ComputedClass is a unique id that identifies nodes with a common set of
 	// attributes and capabilities.
 	ComputedClass string
@@ -2196,6 +2199,10 @@ func (n *Node) Ready() bool {
 func (n *Node) Canonicalize() {
 	if n == nil {
 		return
+	}
+
+	if n.NodePool == "" {
+		n.NodePool = NodePoolDefault
 	}
 
 	// Ensure SchedulingEligibility is correctly set whenever draining so the plan applier and other scheduling logic
@@ -2356,6 +2363,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		Datacenter:            n.Datacenter,
 		Name:                  n.Name,
 		NodeClass:             n.NodeClass,
+		NodePool:              n.NodePool,
 		Version:               n.Attributes["nomad.version"],
 		Drain:                 n.DrainStrategy != nil,
 		SchedulingEligibility: n.SchedulingEligibility,
@@ -2393,6 +2401,7 @@ type NodeListStub struct {
 	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
+	NodePool              string
 	NodeClass             string
 	Version               string
 	Drain                 bool

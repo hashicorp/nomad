@@ -250,7 +250,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			return 0
 		}
 
-		out[0] = "ID|DC|Name|Class|"
+		out[0] = "ID|Node Pool|DC|Name|Class|"
 
 		if c.os {
 			out[0] += "OS|"
@@ -267,8 +267,9 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 
 		for i, node := range nodes {
-			out[i+1] = fmt.Sprintf("%s|%s|%s|%s",
+			out[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s",
 				limit(node.ID, c.length),
+				node.NodePool,
 				node.Datacenter,
 				node.Name,
 				node.NodeClass)
@@ -480,6 +481,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	basic := []string{
 		fmt.Sprintf("ID|%s", node.ID),
 		fmt.Sprintf("Name|%s", node.Name),
+		fmt.Sprintf("Node Pool|%s", node.NodePool),
 		fmt.Sprintf("Class|%s", node.NodeClass),
 		fmt.Sprintf("DC|%s", node.Datacenter),
 		fmt.Sprintf("Drain|%v", formatDrain(node)),

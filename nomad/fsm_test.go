@@ -241,6 +241,98 @@ func TestFSM_UpsertNode_Canonicalize_Ineligible(t *testing.T) {
 	require.Equal(structs.NodeSchedulingIneligible, n.SchedulingEligibility)
 }
 
+func TestFSM_UpsertNode_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	fsm := testFSM(t)
+
+	// Populate state with a test node pool.
+	existingPool := mock.NodePool()
+	err := fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{existingPool})
+	must.NoError(t, err)
+
+	testCases := []struct {
+		name         string
+		previousPool string
+		pool         string
+		validateFn   func(*testing.T, *structs.Node, *structs.NodePool)
+	}{
+		{
+			name: "new node pool",
+			pool: "new",
+			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
+				// Verify node pool was created in the same transaction as the
+				// node registration.
+				must.Eq(t, pool.CreateIndex, node.ModifyIndex)
+			},
+		},
+		{
+			name: "existing node pool",
+			pool: existingPool.Name,
+			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
+				// Verify node pool was not modified.
+				must.NotEq(t, pool.CreateIndex, node.ModifyIndex)
+			},
+		},
+		{
+			name: "built-in node pool",
+			pool: structs.NodePoolDefault,
+			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
+				// Verify node pool was not modified.
+				must.Eq(t, 1, pool.ModifyIndex)
+			},
+		},
+		{
+			name:         "move node to another node pool",
+			previousPool: structs.NodePoolDefault,
+			pool:         "new",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := mock.Node()
+
+			// Pre-create node if test cases specifies if belonged to a
+			// previous node pool.
+			if tc.previousPool != "" {
+				node.NodePool = tc.previousPool
+				err := fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1001, node)
+				must.NoError(t, err)
+			}
+
+			// Set the node pool and apply node register log.
+			node.NodePool = tc.pool
+			req := structs.NodeRegisterRequest{Node: node}
+			buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+			must.NoError(t, err)
+
+			resp := fsm.Apply(makeLog(buf))
+			must.Nil(t, resp)
+
+			// Snapshot the state.
+			s := fsm.State()
+
+			// Verify node exists.
+			got, err := s.NodeByID(nil, node.ID)
+			must.NoError(t, err)
+			must.NotNil(t, got)
+
+			// Verify node pool exists.
+			pool, err := s.NodePoolByName(nil, tc.pool)
+			must.NoError(t, err)
+			must.NotNil(t, pool)
+
+			// Verify node was assigned to node pool.
+			must.Eq(t, pool.Name, got.NodePool)
+
+			if tc.validateFn != nil {
+				tc.validateFn(t, got, pool)
+			}
+		})
+	}
+}
+
 func TestFSM_DeregisterNode(t *testing.T) {
 	ci.Parallel(t)
 	fsm := testFSM(t)

@@ -900,6 +900,14 @@ func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node 
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
+	// Create node pool if necessary.
+	if node.NodePool != "" {
+		_, err := s.fetchOrCreateNodePoolTxn(txn, index, node.NodePool)
+		if err != nil {
+			return err
+		}
+	}
+
 	err := upsertNodeTxn(txn, index, node)
 	if err != nil {
 		return nil

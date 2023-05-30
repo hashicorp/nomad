@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set"
 	vapi "github.com/hashicorp/vault/api"
 	"golang.org/x/sync/errgroup"
 
@@ -134,6 +135,17 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 	if args.Node.SecretID == "" {
 		return fmt.Errorf("missing node secret ID for client registration")
+	}
+	// Validate node pool value if provided. The node is canonicalized in the
+	// FSM, where an empty node pool is set to "default".
+	if args.Node.NodePool != "" {
+		invalidNames := set.From([]string{
+			structs.NodePoolAll,
+		})
+		err := structs.ValidateNodePoolName(args.Node.NodePool, invalidNames)
+		if err != nil {
+			return fmt.Errorf("invalid node pool: %v", err)
+		}
 	}
 
 	// Default the status if none is given

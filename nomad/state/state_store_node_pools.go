@@ -55,7 +55,10 @@ func (s *StateStore) NodePools(ws memdb.WatchSet, sort SortOption) (memdb.Result
 // there is no match.
 func (s *StateStore) NodePoolByName(ws memdb.WatchSet, name string) (*structs.NodePool, error) {
 	txn := s.db.ReadTxn()
+	return s.nodePoolByNameTxn(txn, ws, name)
+}
 
+func (s *StateStore) nodePoolByNameTxn(txn *txn, ws memdb.WatchSet, name string) (*structs.NodePool, error) {
 	watchCh, existing, err := txn.FirstWatch(TableNodePools, "id", name)
 	if err != nil {
 		return nil, fmt.Errorf("node pool lookup failed: %w", err)
@@ -138,6 +141,25 @@ func (s *StateStore) upsertNodePoolTxn(txn *txn, index uint64, pool *structs.Nod
 	}
 
 	return nil
+}
+
+// fetchOrCreateNodePoolTxn returns an existing node pool with the given name
+// or creates a new one if it doesn't exist.
+func (s *StateStore) fetchOrCreateNodePoolTxn(txn *txn, index uint64, name string) (*structs.NodePool, error) {
+	pool, err := s.nodePoolByNameTxn(txn, nil, name)
+	if err != nil {
+		return nil, err
+	}
+
+	if pool == nil {
+		pool = &structs.NodePool{Name: name}
+		err = s.upsertNodePoolTxn(txn, index, pool)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return pool, nil
 }
 
 // DeleteNodePools removes the given set of node pools.
