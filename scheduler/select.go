@@ -35,6 +35,10 @@ func (iter *LimitIterator) SetLimit(limit int) {
 	iter.limit = limit
 }
 
+func (iter *LimitIterator) SetMaxSkip(maxSkip int) {
+	iter.maxSkip = maxSkip
+}
+
 func (iter *LimitIterator) Next() *RankedNode {
 	if iter.seen == iter.limit {
 		return nil

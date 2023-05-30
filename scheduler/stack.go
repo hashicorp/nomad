@@ -167,14 +167,28 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.spread.SetTaskGroup(tg)
 
 	if s.nodeAffinity.hasAffinities() || s.spread.hasSpreads() {
-		// scoring spread across all nodes has quadratic behavior, so
-		// we need to consider a subset of nodes to keep evaluaton times
-		// reasonable but enough to ensure spread is correct. this
-		// value was empirically determined.
-		s.limit.SetLimit(tg.Count)
+		// Scoring for affinity/spread is a soft constraint, so we need to
+		// consider a large enough set of nodes to ensure rough correctness
+		// while keeping evaluation times reasonable and not hitting quadratic
+		// behavior.
+		//
+		// Setting a high maxSkip allows us to skip over nodes with negative
+		// scores without having to continue further once we've found some nodes
+		// with positive scores. The specific values used here were empirically
+		// determined, and won't help when there are many more allocs to place
+		// than feasible nodes
+		s.limit.SetMaxSkip(tg.Count)
+		s.limit.SetLimit(tg.Count / 10)
+
 		if tg.Count < 100 {
-			s.limit.SetLimit(100)
+			s.limit.SetMaxSkip(100)
+			s.limit.SetLimit(10)
 		}
+
+		// s.limit.SetLimit(tg.Count)
+		// if tg.Count < 100 {
+		// 	s.limit.SetLimit(100)
+		// }
 	}
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {

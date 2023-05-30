@@ -751,6 +751,18 @@ func TestSpreadOnLargeCluster(t *testing.T) {
 			racks:     generateUnevenRacks(t, 10000, 500),
 			allocs:    50,
 		},
+		{
+			name:      "nodes=500 small uneven racks dense allocs=5k",
+			nodeCount: 500,
+			racks:     generateUnevenRacks(t, 500, 5),
+			allocs:    2000,
+		},
+		{
+			name:      "nodes=500 many uneven racks dense allocs=5k",
+			nodeCount: 500,
+			racks:     generateUnevenRacks(t, 500, 25),
+			allocs:    2000,
+		},
 	}
 
 	for i := range cases {
@@ -898,12 +910,18 @@ func validateEqualSpread(h *Harness) error {
 		i++
 	}
 
+	totalNodesEvaluated := 0
+
 	// Collapse the count of allocations per node into a list of
 	// counts. The results should be clustered within one of each
 	// other.
 	for nodeID, nodeAllocs := range h.Plans[0].NodeAllocation {
+		for _, nodeAlloc := range nodeAllocs {
+			totalNodesEvaluated += nodeAlloc.Metrics.NodesEvaluated
+		}
 		racksToAllocCount[nodesToRacks[nodeID]] += len(nodeAllocs)
 	}
+
 	countSet := map[int]int{}
 	for _, count := range racksToAllocCount {
 		countSet[count]++
@@ -913,6 +931,8 @@ func validateEqualSpread(h *Harness) error {
 	for count := range countSet {
 		countSlice = append(countSlice, count)
 	}
+
+	h.t.Logf("total nodes evaluated in plan=%d", totalNodesEvaluated)
 
 	switch len(countSlice) {
 	case 1:
