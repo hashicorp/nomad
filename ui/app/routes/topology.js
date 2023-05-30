@@ -23,6 +23,7 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
         namespace: '*',
       }),
       nodes: this.store.query('node', { resources: true }),
+      nodePools: this.store.findAll('node-pool'),
     }).catch(notifyForbidden(this));
   }
 
@@ -32,6 +33,7 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
       controller.model = {
         allocations: [],
         nodes: [],
+        nodePools: [],
       };
     }
 
