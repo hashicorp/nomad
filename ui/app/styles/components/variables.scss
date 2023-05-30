@@ -201,6 +201,9 @@ table.variable-items {
       display: grid;
       grid-template-columns: auto auto 1fr;
       gap: 0.5rem;
+      & > code {
+        white-space: pre-wrap;
+      }
     }
   }
 }
