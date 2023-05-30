@@ -73,6 +73,7 @@ module('Acceptance | job status panel', function (hooks) {
       datacenters: ['*'],
       type: 'service',
       createAllocations: true,
+      noActiveDeployment: true,
     });
 
     await visit(`/jobs/${job.id}?statusMode=historical`);
