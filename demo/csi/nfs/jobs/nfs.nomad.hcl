@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # A test NFS server that serves a host volume for persistent state.
 job "nfs" {
   group "nfs" {

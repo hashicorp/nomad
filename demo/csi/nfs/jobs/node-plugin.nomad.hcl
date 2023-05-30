@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # Node plugins mount the volume on the host to present to other tasks.
 job "node" {
   # node plugins should run anywhere your task might be placed, i.e. ~everywhere
