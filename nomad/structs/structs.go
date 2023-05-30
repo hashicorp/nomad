@@ -10016,14 +10016,15 @@ type DeploymentState struct {
 	UnhealthyAllocs int
 }
 
-func NewDeploymentState(strategy UpdateStrategy) *DeploymentState {
+func NewDeploymentState(strategy *UpdateStrategy) *DeploymentState {
 	state := &DeploymentState{}
-
-	if !strategy.IsEmpty() {
-		state.AutoRevert = strategy.AutoRevert
-		state.AutoPromote = strategy.AutoPromote
-		state.ProgressDeadline = strategy.ProgressDeadline
+	if strategy.IsEmpty() {
+		return state
 	}
+
+	state.AutoRevert = strategy.AutoRevert
+	state.AutoPromote = strategy.AutoPromote
+	state.ProgressDeadline = strategy.ProgressDeadline
 
 	return state
 }

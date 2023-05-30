@@ -418,14 +418,14 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		return true
 	}
 
-	dstate, existingDeployment := a.initializeDeploymentState(groupName, *tg.Update)
+	deploymentState, existingDeployment := a.initializeDeploymentState(groupName, tg.Update)
 
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
 	all, ignore := a.filterOldTerminalAllocs(all)
 	desiredChanges.Ignore += uint64(len(ignore))
 
-	canaries, all := a.cancelUnneededCanaries(all, desiredChanges)
+	canaries, all := a.cancelUnneededCanaries(groupName, all)
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost, disconnecting, reconnecting, ignore := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
@@ -489,7 +489,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
-	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+	isCanarying := deploymentState != nil && deploymentState.DesiredCanaries != 0 && !deploymentState.Promoted
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
@@ -500,7 +500,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	desiredChanges.Ignore += uint64(len(ignore))
 	desiredChanges.InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
-		dstate.DesiredTotal += len(destructive) + len(inplace)
+		deploymentState.DesiredTotal += len(destructive) + len(inplace)
 	}
 
 	// Remove the canaries now that we have handled rescheduling so that we do
@@ -508,13 +508,13 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if isCanarying {
 		untainted = untainted.difference(canaries)
 	}
-	requiresCanaries := a.requiresCanaries(tg, dstate, destructive, canaries)
+	requiresCanaries := a.requiresCanaries(tg, deploymentState, destructive, canaries)
 	if requiresCanaries {
-		a.computeCanaries(tg, dstate, destructive, canaries, desiredChanges, nameIndex)
+		a.computeCanaries(tg, deploymentState, destructive, canaries, desiredChanges, nameIndex)
 	}
 
 	// Determine how many non-canary allocs we can place
-	isCanarying = dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
+	isCanarying = deploymentState != nil && deploymentState.DesiredCanaries != 0 && !deploymentState.Promoted
 	underProvisionedBy := a.computeUnderProvisionedBy(tg, untainted, destructive, migrate, isCanarying)
 
 	// Place if:
@@ -527,7 +527,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	if len(lostLater) == 0 {
 		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
 		if !existingDeployment {
-			dstate.DesiredTotal += len(place)
+			deploymentState.DesiredTotal += len(place)
 		}
 	}
 
@@ -544,7 +544,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	}
 
 	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
-	a.createDeployment(tg.Name, tg.Update, existingDeployment, dstate, all, destructive)
+	a.createDeployment(tg.Name, tg.Update, existingDeployment, deploymentState, all, destructive)
 
 	// Deployments that are still initializing need to be sent in full in the
 	// plan so its internal state can be persisted by the plan applier.
@@ -560,7 +560,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 // initializeDeploymentState fetching the existing deployment for the provided task group or creates
 // a new one if it doesn't already exist. Returns true if an existing deployment state exists.
-func (a *allocReconciler) initializeDeploymentState(group string, strategy structs.UpdateStrategy) (*structs.DeploymentState, bool) {
+func (a *allocReconciler) initializeDeploymentState(group string, strategy *structs.UpdateStrategy) (*structs.DeploymentState, bool) {
 	if a.deployment == nil {
 		return structs.NewDeploymentState(strategy), false
 	}
@@ -619,15 +619,11 @@ func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignor
 	return filtered, ignored
 }
 
-// cancelUnneededCanaries handles the canaries for the group by stopping the
-// unneeded ones and returning the current set of canaries and the updated total
-// set of allocs for the group
-func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChanges *structs.DesiredUpdates) (canaries, all allocSet) {
-	// Stop any canary from an older deployment or from a failed one
+// stopUnneededCanaries given an alloc set determines which allocs and be stopped and marks them as
+// stopped. Returns the set of stopped allocations and the remaining allocs that have not been marked
+// as stopped.
+func (a *allocReconciler) stopUnneededCanaries(groupName string, allocs allocSet) (stopped, remaining allocSet) {
 	var stop []string
-
-	all = original
-
 	// Cancel any non-promoted canaries from the older deployment
 	if a.oldDeployment != nil {
 		for _, dstate := range a.oldDeployment.TaskGroups {
@@ -648,30 +644,42 @@ func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 
 	// stopSet is the allocSet that contains the canaries we desire to stop from
 	// above.
-	stopSet := all.fromKeys(stop)
+	stopSet := allocs.fromKeys(stop)
 	a.markStop(stopSet, "", allocNotNeeded)
-	desiredChanges.Stop += uint64(len(stopSet))
-	all = all.difference(stopSet)
+	if desiredChanges, ok := a.result.desiredTGUpdates[groupName]; ok {
+		desiredChanges.Stop += uint64(len(stopSet))
+	}
+
+	return allocs.difference(stopSet), stopSet
+}
+
+// cancelUnneededCanaries handles the canaries for the group by stopping the
+// unneeded ones and returning the current set of canaries and the updated total
+// set of allocs for the group
+func (a *allocReconciler) cancelUnneededCanaries(groupName string, original allocSet) (canaries, all allocSet) {
+	_, remaining := a.stopUnneededCanaries(groupName, original)
 
 	// Capture our current set of canaries and handle any migrations that are
 	// needed by just stopping them.
-	if a.deployment != nil {
-		var canaryIDs []string
-		for _, dstate := range a.deployment.TaskGroups {
-			canaryIDs = append(canaryIDs, dstate.PlacedCanaries...)
-		}
-
-		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
-		// We don't add these stops to desiredChanges because the deployment is
-		// still active. DesiredChanges is used to report deployment progress/final
-		// state. These transient failures aren't meaningful.
-		a.markStop(migrate, "", allocMigrating)
-		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
-
-		canaries = untainted
-		all = all.difference(migrate, lost)
+	if a.deployment == nil {
+		return nil, remaining
 	}
+
+	var canaryIDs []string
+	for _, dstate := range a.deployment.TaskGroups {
+		canaryIDs = append(canaryIDs, dstate.PlacedCanaries...)
+	}
+
+	canaries = all.fromKeys(canaryIDs)
+	untainted, migrate, lost, _, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
+	// We don't add these stops to desiredChanges because the deployment is
+	// still active. DesiredChanges is used to report deployment progress/final
+	// state. These transient failures aren't meaningful.
+	a.markStop(migrate, "", allocMigrating)
+	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+
+	canaries = untainted
+	all = all.difference(migrate, lost)
 
 	return
 }

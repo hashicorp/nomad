@@ -206,9 +206,9 @@ func (a allocSet) union(others ...allocSet) allocSet {
 
 // fromKeys returns an alloc set matching the passed keys
 func (a allocSet) fromKeys(keys ...[]string) allocSet {
-	from := make(map[string]*structs.Allocation)
-	for _, set := range keys {
-		for _, k := range set {
+	from := make(allocSet)
+	for _, key := range keys {
+		for _, k := range key {
 			if alloc, ok := a[k]; ok {
 				from[k] = alloc
 			}
