@@ -214,6 +214,15 @@ export default Factory.extend({
       });
     }
 
+    if (!job.nodePool) {
+      const nodePool = server.db.nodePools.length
+        ? pickOne(server.db.nodePools).name
+        : server.create('node-pool').name;
+      job.update({
+        nodePool,
+      });
+    }
+
     const groupProps = {
       job,
       createAllocations: job.createAllocations,
@@ -368,6 +377,7 @@ export default Factory.extend({
         datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
+        noActiveDeployment: job.noActiveDeployment,
       });
     }
   },
