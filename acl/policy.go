@@ -6,8 +6,12 @@ package acl
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
-	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/json"
 )
 
 const (
@@ -83,14 +87,14 @@ const (
 
 // Policy represents a parsed HCL or JSON policy.
 type Policy struct {
-	Namespaces  []*NamespacePolicy  `hcl:"namespace,expand"`
-	HostVolumes []*HostVolumePolicy `hcl:"host_volume,expand"`
-	Agent       *AgentPolicy        `hcl:"agent"`
-	Node        *NodePolicy         `hcl:"node"`
-	Operator    *OperatorPolicy     `hcl:"operator"`
-	Quota       *QuotaPolicy        `hcl:"quota"`
-	Plugin      *PluginPolicy       `hcl:"plugin"`
-	Raw         string              `hcl:"-"`
+	Namespaces  []*NamespacePolicy  `hcl:"namespace,block"`
+	HostVolumes []*HostVolumePolicy `hcl:"host_volume,block"`
+	Agent       *AgentPolicy        `hcl:"agent,block"`
+	Node        *NodePolicy         `hcl:"node,block"`
+	Operator    *OperatorPolicy     `hcl:"operator,block"`
+	Quota       *QuotaPolicy        `hcl:"quota,block"`
+	Plugin      *PluginPolicy       `hcl:"plugin,block"`
+	Raw         string
 }
 
 // IsEmpty checks to make sure that at least one policy has been set and is not
@@ -107,46 +111,46 @@ func (p *Policy) IsEmpty() bool {
 
 // NamespacePolicy is the policy for a specific namespace
 type NamespacePolicy struct {
-	Name         string `hcl:",key"`
-	Policy       string
-	Capabilities []string
-	Variables    *VariablesPolicy `hcl:"variables"`
+	Name         string           `hcl:"name,label"`
+	Policy       string           `hcl:"policy,optional"`
+	Capabilities []string         `hcl:"capabilities,optional"`
+	Variables    *VariablesPolicy `hcl:"variables,block"`
 }
 
 type VariablesPolicy struct {
-	Paths []*VariablesPathPolicy `hcl:"path"`
+	Paths []*VariablesPathPolicy `hcl:"path,block"`
 }
 
 type VariablesPathPolicy struct {
-	PathSpec     string `hcl:",key"`
-	Capabilities []string
+	PathSpec     string   `hcl:"name,label"`
+	Capabilities []string `hcl:"capabilities,optional"`
 }
 
 // HostVolumePolicy is the policy for a specific named host volume
 type HostVolumePolicy struct {
-	Name         string `hcl:",key"`
-	Policy       string
-	Capabilities []string
+	Name         string   `hcl:"name,label"`
+	Policy       string   `hcl:"policy,optional"`
+	Capabilities []string `hcl:"capabilities,optional"`
 }
 
 type AgentPolicy struct {
-	Policy string
+	Policy string `hcl:"policy"`
 }
 
 type NodePolicy struct {
-	Policy string
+	Policy string `hcl:"policy"`
 }
 
 type OperatorPolicy struct {
-	Policy string
+	Policy string `hcl:"policy"`
 }
 
 type QuotaPolicy struct {
-	Policy string
+	Policy string `hcl:"policy"`
 }
 
 type PluginPolicy struct {
-	Policy string
+	Policy string `hcl:"policy"`
 }
 
 // isPolicyValid makes sure the given string matches one of the valid policies.
@@ -290,7 +294,7 @@ func expandVariablesCapabilities(caps []string) []string {
 // Parse is used to parse the specified ACL rules into an
 // intermediary set of policies, before being compiled into
 // the ACL
-func Parse(rules string) (*Policy, error) {
+func Parse(name string, rules string) (*Policy, error) {
 	// Decode the rules
 	p := &Policy{Raw: rules}
 	if rules == "" {
@@ -299,7 +303,7 @@ func Parse(rules string) (*Policy, error) {
 	}
 
 	// Attempt to parse
-	if err := hclDecode(p, rules); err != nil {
+	if err := hclDecode(name, p, rules); err != nil {
 		return nil, fmt.Errorf("Failed to parse ACL Policy: %v", err)
 	}
 
@@ -396,12 +400,29 @@ func Parse(rules string) (*Policy, error) {
 }
 
 // hclDecode wraps hcl.Decode function but handles any unexpected panics
-func hclDecode(p *Policy, rules string) (err error) {
+func hclDecode(name string, p *Policy, rules string) (err error) {
 	defer func() {
 		if rerr := recover(); rerr != nil {
 			err = fmt.Errorf("invalid acl policy: %v", rerr)
 		}
 	}()
 
-	return hcl.Decode(p, rules)
+	var file *hcl.File
+	var diags hcl.Diagnostics
+
+	trimmed := strings.TrimSpace(rules)
+	if strings.HasPrefix(trimmed, "{") {
+		file, diags = json.Parse([]byte(rules), name)
+	} else {
+		file, diags = hclsyntax.ParseConfig([]byte(rules), name, hcl.Pos{Line: 1, Column: 1})
+	}
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = gohcl.DecodeBody(file.Body, nil, p)
+	if diags.HasErrors() {
+		return diags
+	}
+	return nil
 }

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestParse(t *testing.T) {
@@ -209,7 +209,7 @@ func TestParse(t *testing.T) {
 			  }
 			}
 			`,
-			"Invalid variable policy: no variable paths in namespace dev",
+			"No labels are expected for variables blocks",
 			nil,
 		},
 		{
@@ -265,7 +265,7 @@ func TestParse(t *testing.T) {
 				"Rules": "anything"
 			}
 			`,
-			"Invalid policy",
+			"Failed to parse ACL Policy",
 			nil,
 		},
 		{
@@ -365,11 +365,54 @@ func TestParse(t *testing.T) {
 			"Invalid plugin policy",
 			nil,
 		},
+		{
+			`
+			namespace {
+			  policy = "read"
+			}
+			`,
+			"All namespace blocks must have 1 label",
+			nil,
+		},
+		{
+			`
+			{
+			  "namespace": {
+			    "default": {
+				  "policy": "read",
+				  "capabilities": [
+				    "submit-job"
+				  ]
+				}
+			  }
+			}
+			`,
+			"",
+			&Policy{
+				Namespaces: []*NamespacePolicy{
+					{
+						Name:   "default",
+						Policy: "read",
+						Capabilities: []string{
+							NamespaceCapabilitySubmitJob,
+							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
+							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for idx, tc := range tcases {
 		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
-			p, err := Parse(tc.Raw)
+			p, err := Parse("", tc.Raw)
 			if err != nil {
 				if tc.ErrStr == "" {
 					t.Fatalf("Unexpected err: %v", err)
@@ -383,7 +426,7 @@ func TestParse(t *testing.T) {
 				t.Fatalf("Missing expected err")
 			}
 			tc.Expect.Raw = tc.Raw
-			assert.EqualValues(t, tc.Expect, p)
+			must.Eq(t, tc.Expect, p)
 		})
 	}
 }
@@ -397,8 +440,8 @@ func TestParse_BadInput(t *testing.T) {
 
 	for i, c := range inputs {
 		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
-			_, err := Parse(c)
-			assert.Error(t, err)
+			_, err := Parse("", c)
+			must.Error(t, err)
 		})
 	}
 }

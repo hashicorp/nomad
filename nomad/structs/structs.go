@@ -12523,7 +12523,7 @@ func (a *ACLPolicy) Validate() error {
 		err := fmt.Errorf("invalid name '%s'", a.Name)
 		mErr.Errors = append(mErr.Errors, err)
 	}
-	if _, err := acl.Parse(a.Rules); err != nil {
+	if _, err := acl.Parse(a.Name, a.Rules); err != nil {
 		err = fmt.Errorf("failed to parse rules: %v", err)
 		mErr.Errors = append(mErr.Errors, err)
 	}
