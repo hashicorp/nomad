@@ -5115,8 +5115,6 @@ type VersionedTaskGroupSummary struct {
 	Starting map[string]int
 	Lost     map[string]int
 	Unknown  map[string]int
-	// FailedWithoutReplacement map[string]int
-	FailedButReplaced map[string]int
 }
 
 const (

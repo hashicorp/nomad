@@ -1131,14 +1131,13 @@ type TaskGroupSummary struct {
 }
 
 type VersionedTaskGroupSummary struct {
-	Queued            map[string]int
-	Complete          map[string]int
-	Failed            map[string]int
-	Running           map[string]int
-	Starting          map[string]int
-	Lost              map[string]int
-	Unknown           map[string]int
-	FailedButReplaced map[string]int
+	Queued   map[string]int
+	Complete map[string]int
+	Failed   map[string]int
+	Running  map[string]int
+	Starting map[string]int
+	Lost     map[string]int
+	Unknown  map[string]int
 }
 
 // JobListStub is used to return a subset of information about
