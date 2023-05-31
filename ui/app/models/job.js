@@ -28,6 +28,7 @@ export default class Job extends Model {
   @attr('number') createIndex;
   @attr('number') modifyIndex;
   @attr('date') submitTime;
+  @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
 
   @fragment('structured-attributes') meta;
 
