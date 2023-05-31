@@ -35,7 +35,7 @@ type AllocRunner interface {
 	AllocState() *state.State
 	PersistState() error
 	AcknowledgeState(*state.State)
-	LastAcknowledgedStateIsCurrent(*structs.Allocation) bool
+	GetUpdatePriority(*structs.Allocation) cstructs.AllocUpdatePriority
 	SetClientStatus(string)
 
 	Signal(taskName, signal string) error
