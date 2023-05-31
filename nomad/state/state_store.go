@@ -5793,21 +5793,29 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		case structs.AllocClientStatusRunning:
 			if tgSummary.Running > 0 {
 				tgSummary.Running -= 1
+			}
+			if vtgSummary.Running[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
 				vtgSummary.Running[fmt.Sprint(existingAlloc.Job.Version)] -= 1
 			}
 		case structs.AllocClientStatusPending:
 			if tgSummary.Starting > 0 {
 				tgSummary.Starting -= 1
+			}
+			if vtgSummary.Starting[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
 				vtgSummary.Starting[fmt.Sprint(existingAlloc.Job.Version)] -= 1
 			}
 		case structs.AllocClientStatusLost:
 			if tgSummary.Lost > 0 {
 				tgSummary.Lost -= 1
+			}
+			if vtgSummary.Lost[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
 				vtgSummary.Lost[fmt.Sprint(existingAlloc.Job.Version)] -= 1
 			}
 		case structs.AllocClientStatusUnknown:
 			if tgSummary.Unknown > 0 {
 				tgSummary.Unknown -= 1
+			}
+			if vtgSummary.Unknown[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
 				vtgSummary.Unknown[fmt.Sprint(existingAlloc.Job.Version)] -= 1
 			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
