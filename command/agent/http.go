@@ -1051,6 +1051,32 @@ func parseNode(req *http.Request, nodeID *string) {
 	}
 }
 
+// parseNodeListStubFields parses query parameters related to node list stubs
+// fields.
+func parseNodeListStubFields(req *http.Request) (*structs.NodeStubFields, error) {
+	fields := &structs.NodeStubFields{}
+
+	// Parse resources field selection.
+	resources, err := parseBool(req, "resources")
+	if err != nil {
+		return nil, err
+	}
+	if resources != nil {
+		fields.Resources = *resources
+	}
+
+	// Parse OS field selection.
+	os, err := parseBool(req, "os")
+	if err != nil {
+		return nil, err
+	}
+	if os != nil {
+		fields.OS = *os
+	}
+
+	return fields, nil
+}
+
 // parseWriteRequest is a convenience method for endpoints that need to parse a
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {

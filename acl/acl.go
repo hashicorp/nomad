@@ -710,6 +710,9 @@ func (a *ACL) AllowAgentWrite() bool {
 // AllowNodeRead checks if read operations are allowed for a node
 func (a *ACL) AllowNodeRead() bool {
 	switch {
+	// a is nil if ACLs are disabled.
+	case a == nil:
+		return true
 	case a.management:
 		return true
 	case a.node == PolicyWrite:

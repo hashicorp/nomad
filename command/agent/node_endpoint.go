@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -21,25 +22,12 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 		return nil, nil
 	}
 
-	args.Fields = &structs.NodeStubFields{}
-	// Parse resources field selection
-	resources, err := parseBool(req, "resources")
+	// Parse fields selection.
+	fields, err := parseNodeListStubFields(req)
 	if err != nil {
-		return nil, err
+		return nil, CodedError(http.StatusBadRequest, fmt.Errorf("Failed to parse node list fields: %v", err).Error())
 	}
-	if resources != nil {
-		args.Fields.Resources = *resources
-	}
-
-	// Parse OS
-	os, err := parseBool(req, "os")
-	if err != nil {
-		return nil, err
-	}
-
-	if os != nil {
-		args.Fields.OS = *os
-	}
+	args.Fields = fields
 
 	var out structs.NodeListResponse
 	if err := s.agent.RPC("Node.List", &args, &out); err != nil {
