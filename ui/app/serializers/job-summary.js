@@ -18,6 +18,7 @@ export default class JobSummary extends ApplicationSerializer {
     // TaskGroupSummary fragment list
 
     const fullSummary = hash.Summary || {};
+    // console.log("incoming and", hash.ID, hash.VersionedSummary);
     hash.TaskGroupSummaries = Object.keys(fullSummary)
       .sort()
       .map((key) => {

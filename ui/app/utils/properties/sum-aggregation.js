@@ -12,7 +12,8 @@ import { computed } from '@ember/object';
 //     sum: sumAggregationProperty('list', 'foo') // 4
 export default function sumAggregationProperty(listKey, propKey) {
   return computed(`${listKey}.@each.${propKey}`, function () {
-    return this.get(listKey)
+    console.log('this, in context', this, listKey, this[listKey]);
+    return (this[listKey] || this.get(listKey))
       .mapBy(propKey)
       .reduce((sum, count) => sum + count, 0);
   });

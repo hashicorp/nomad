@@ -64,10 +64,12 @@
         </em>
       {{/if}}
     {{else}}
-      <AllocationStatusBar
+      <VersionedAllocationStatusBar @job={{this.job}} />
+      {{!-- <AllocationStatusBar
         @allocationContainer={{this.job}}
         @isNarrow={{true}}
-      />
+      /> --}}
+
     {{/if}}
   </div>
 </td>

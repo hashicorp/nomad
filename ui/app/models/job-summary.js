@@ -14,6 +14,8 @@ import classic from 'ember-classic-decorator';
 export default class JobSummary extends Model {
   @belongsTo('job') job;
 
+  @attr() versionedSummary;
+
   @fragmentArray('task-group-summary') taskGroupSummaries;
 
   // Aggregate allocation counts across all summaries

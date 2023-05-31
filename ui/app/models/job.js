@@ -115,6 +115,7 @@ export default class Job extends Model {
   @attr() datacenters;
   @fragmentArray('task-group', { defaultValue: () => [] }) taskGroups;
   @belongsTo('job-summary') summary;
+  @alias('summary.versionedSummary') versionedSummary;
 
   // A job model created from the jobs list response will be lacking
   // task groups. This is an indicator that it needs to be reloaded
