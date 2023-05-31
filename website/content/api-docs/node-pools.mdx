@@ -210,4 +210,136 @@ The table below shows this endpoint's support for
 $ nomad operator api -X DELETE /v1/node/pool/prod-eng
 ```
 
+## List Node Pool Nodes
+
+This endpoint list the nodes in a node pool.
+
+| Method | Path                             | Produces           |
+| ------ | -------------------------------- | ------------------ |
+| `GET`  | `/v1/node/pool/:node_pool/nodes` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required                        |
+| ---------------- | ----------------------------------- |
+| `YES`            | `node:read` <br /> `node_pool:read` |
+
+### Parameters
+
+- `:node_pool` `(string: <required>)`- Specifies the node pool to list nodes.
+
+- `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
+  parameter accepts a string which identifies the next expected node. This
+  value can be obtained from the `X-Nomad-NextToken` header from the previous
+  response.
+
+- `per_page` `(int: 0)` - Specifies a maximum number of nodes to return for
+  this request. If omitted, the response is not paginated. The value of the
+  `X-Nomad-NextToken` header of the last response can be used as the
+  `next_token` of the next request to fetch additional pages.
+
+- `filter` `(string: "")` - Specifies the [expression](/nomad/api-docs#filtering)
+  used to filter the results. Consider using pagination to reduce resource used
+  to serve the request.
+
+- `resources` `(bool: false)` - Specifies whether or not to include the
+  `NodeResources` and `ReservedResources` fields in the response.
+
+- `os` `(bool: false)` - Specifies whether or not to include special attributes
+   such as operating system name in the response.
+
+### Sample Request
+
+```shell-session
+$ nomad operator api /v1/node/pool/prod-eng/nodes
+```
+
+```shell-session
+$ nomad operator api /v1/node/pool/prod-eng/nodes?os=true
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "Address": "10.138.0.5",
+    "Attributes": {
+      "os.name": "ubuntu"
+    },
+    "CreateIndex": 6,
+    "Datacenter": "dc1",
+    "Drain": false,
+    "Drivers": {
+      "java": {
+        "Attributes": {
+          "driver.java.runtime": "OpenJDK Runtime Environment (build 1.8.0_162-8u162-b12-1~deb9u1-b12)",
+          "driver.java.vm": "OpenJDK 64-Bit Server VM (build 25.162-b12, mixed mode)",
+          "driver.java.version": "openjdk version \"1.8.0_162"
+        },
+        "Detected": true,
+        "HealthDescription": "",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:33:48.781948669Z"
+      },
+      "qemu": {
+        "Attributes": null,
+        "Detected": false,
+        "HealthDescription": "",
+        "Healthy": false,
+        "UpdateTime": "2018-04-11T23:33:48.7819898Z"
+      },
+      "rkt": {
+        "Attributes": {
+          "driver.rkt.appc.version": "0.8.11",
+          "driver.rkt.volumes.enabled": "1",
+          "driver.rkt.version": "1.29.0"
+        },
+        "Detected": true,
+        "HealthDescription": "Driver rkt is detected: true",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.81079772Z"
+      },
+      "docker": {
+        "Attributes": {
+          "driver.docker.bridge_ip": "172.17.0.1",
+          "driver.docker.version": "18.03.0-ce",
+          "driver.docker.volumes.enabled": "1"
+        },
+        "Detected": true,
+        "HealthDescription": "Driver is available and responsive",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.713720323Z"
+      },
+      "exec": {
+        "Attributes": {},
+        "Detected": true,
+        "HealthDescription": "Driver exec is detected: true",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:34:48.711026521Z"
+      },
+      "raw_exec": {
+        "Attributes": {},
+        "Detected": true,
+        "HealthDescription": "",
+        "Healthy": true,
+        "UpdateTime": "2018-04-11T23:33:48.710448534Z"
+      }
+    },
+    "ID": "f7476465-4d6e-c0de-26d0-e383c49be941",
+    "LastDrain": null,
+    "ModifyIndex": 2526,
+    "Name": "nomad-4",
+    "NodeClass": "",
+    "NodePool": "prod-eng",
+    "SchedulingEligibility": "eligible",
+    "Status": "ready",
+    "StatusDescription": "",
+    "Version": "0.8.0-rc1"
+  }
+]
+```
+
 [api_scheduler_alog]: /nomad/api-docs/operator/scheduler#scheduleralgorithm
