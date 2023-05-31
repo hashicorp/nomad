@@ -4,7 +4,7 @@
  */
 
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
+import { attr, hasMany } from '@ember-data/model';
 import { computed } from '@ember/object';
 import classic from 'ember-classic-decorator';
 
@@ -14,6 +14,7 @@ export default class NodePool extends Model {
   @attr('string') description;
   @attr() meta;
   @attr() schedulerConfiguration;
+  @hasMany('node') nodes;
 
   @computed('schedulerConfiguration.SchedulerAlgorithm')
   get schedulerAlgorithm() {
