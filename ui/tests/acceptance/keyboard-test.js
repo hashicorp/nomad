@@ -357,5 +357,41 @@ module('Acceptance | keyboard', function (hooks) {
         'Shift+ArrowRight takes you to the first tab in the loop'
       );
     });
+
+    test('Region switching', async function (assert) {
+      ['Detroit', 'Halifax', 'Phoenix', 'Toronto', 'Windsor'].forEach((id) => {
+        server.create('region', { id });
+      });
+
+      await visit('/jobs');
+
+      // Regions are in the keynav modal
+      await triggerEvent('.page-layout', 'keydown', { key: '?' });
+      await triggerEvent('.page-layout', 'keydown', { key: '?' });
+      assert.ok(Layout.keyboard.modalShown);
+      assert
+        .dom('[data-test-command-label="Switch to Detroit region"]')
+        .exists('First created region is in the modal');
+
+      assert
+        .dom('[data-test-command-label="Switch to Windsor region"]')
+        .exists('Last created region is in the modal');
+
+      // Triggers a region switch to Halifax
+      triggerEvent('.page-layout', 'keydown', { key: 'r' });
+      await triggerEvent('.page-layout', 'keydown', { key: '2' });
+      assert.ok(
+        currentURL().includes('region=Halifax'),
+        'r 2 command takes you to the second region'
+      );
+
+      // Triggers a region switch to Phoenix
+      triggerEvent('.page-layout', 'keydown', { key: 'r' });
+      await triggerEvent('.page-layout', 'keydown', { key: '3' });
+      assert.ok(
+        currentURL().includes('region=Phoenix'),
+        'r 3 command takes you to the third region'
+      );
+    });
   });
 });
