@@ -3346,8 +3346,9 @@ func (p *pendingClientUpdates) nextBatch(c *Client, updateTicks int) []*structs.
 
 }
 
-// filteredAcknowledgedUpdatesLocked returns a list of client alloc updates with the
-// already-acknowledged updates removed, and the highest priority of any update.
+// filteredAcknowledgedUpdatesLocked returns a list of client alloc updates with
+// the already-acknowledged updates removed, and the highest priority of any
+// update. note: this method requires that p.lock is held
 func (p *pendingClientUpdates) filterAcknowledgedUpdatesLocked(c *Client) ([]*structs.Allocation, bool) {
 	var urgent bool
 	sync := make([]*structs.Allocation, 0, len(p.updates))
