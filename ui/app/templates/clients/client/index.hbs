@@ -243,6 +243,14 @@
         </span>
         {{this.model.datacenter}}
       </span>
+      {{#if this.model.nodePool}}
+        <span class="pair" data-test-node-pool>
+          <span class="term">
+            Node Pool
+          </span>
+          {{this.model.nodePool}}
+        </span>
+      {{/if}}
       {{#if this.model.nodeClass}}
         <span class="pair" data-test-node-class>
           <span class="term">
