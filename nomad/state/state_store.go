@@ -3924,7 +3924,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				prevAllocCopy := existingPrevAlloc.Copy()
 				prevAllocCopy.NextAllocation = alloc.ID
 				prevAllocCopy.ModifyIndex = index
-
 				if err := txn.Insert("allocs", prevAllocCopy); err != nil {
 					return fmt.Errorf("alloc insert failed: %v", err)
 				}
@@ -5053,11 +5052,9 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			Namespace:        job.Namespace,
 			Summary:          make(map[string]structs.TaskGroupSummary),
 			VersionedSummary: make(map[uint64]structs.VersionedSummary),
-			// VersionedSummary: make(map[string]structs.VersionedTaskGroupSummary),
 		}
 		for _, tg := range job.TaskGroups {
 			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
-			// summary.VersionedSummary[tg.Name] = structs.VersionedTaskGroupSummary{}
 		}
 
 		// Find all the allocations for the jobs
@@ -5099,7 +5096,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			}
 			summary.Summary[alloc.TaskGroup] = tg
 
-			// Make a new versioned summary for the task group if it doesn't exist
+			// Make a new versioned summary if it doesn't exist
 			if _, ok := summary.VersionedSummary[alloc.Job.Version]; !ok {
 				summary.VersionedSummary[alloc.Job.Version] = structs.VersionedSummary{
 					Version: alloc.Job.Version,
@@ -5107,22 +5104,22 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 				}
 			}
 
-			// Update the versioned summary for the task group
+			// Set up a versioned summary for the task group
 			versionedSummary := summary.VersionedSummary[alloc.Job.Version]
 			groupSummary := versionedSummary.Groups[alloc.TaskGroup]
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusFailed:
-				groupSummary.Failed++
+				groupSummary.Failed += 1
 			case structs.AllocClientStatusLost:
-				groupSummary.Lost++
+				groupSummary.Lost += 1
 			case structs.AllocClientStatusUnknown:
-				groupSummary.Unknown++
+				groupSummary.Unknown += 1
 			case structs.AllocClientStatusComplete:
-				groupSummary.Complete++
+				groupSummary.Complete += 1
 			case structs.AllocClientStatusRunning:
-				groupSummary.Running++
+				groupSummary.Running += 1
 			case structs.AllocClientStatusPending:
-				groupSummary.Starting++
+				groupSummary.Starting += 1
 			default:
 				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
@@ -5374,13 +5371,6 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 				Starting: 0,
 			}
 			summary.Summary[tg.Name] = newSummary
-			// newVersionedSummary := structs.VersionedTaskGroupSummary{
-			// 	Complete: make(map[string]int),
-			// 	Failed:   make(map[string]int),
-			// 	Running:  make(map[string]int),
-			// 	Starting: make(map[string]int),
-			// }
-			// summary.VersionedSummary[tg.Name] = newVersionedSummary
 			hasSummaryChanged = true
 		}
 	}
@@ -5392,7 +5382,7 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 				Groups:  make(map[string]structs.TaskGroupSummary),
 			}
 
-			// Initialize a GroupSummary for each task group in this version
+			// Initialize a TaskGroupSummary for each task group in this version
 			for _, tg := range job.TaskGroups {
 				newVersionedSummary.Groups[tg.Name] = structs.TaskGroupSummary{
 					Complete: 0,
@@ -5814,7 +5804,6 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 
 	summaryChanged := false
 	if existingAlloc == nil {
-		// TODO: (Phil) What should I be trying to do with a new alloc in terms of versioned summary? If it has no version, what would I increment/decrement?
 		switch alloc.DesiredStatus {
 		case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
 			s.logger.Error("new allocation inserted into state store with bad desired status",

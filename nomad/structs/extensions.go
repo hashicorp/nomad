@@ -21,29 +21,29 @@ var (
 	}
 )
 
+type ExtendedJobSummary struct {
+	*JobSummary
+	VersionedSummary map[string]VersionedSummary
+}
+
 func jobSummaryExt(v interface{}) interface{} {
-	js := v.(*JobSummary)
+	summary := v.(*JobSummary)
 
-	// Create a new map with string keys
-	versionedSummary := make(map[string]VersionedSummary, len(js.VersionedSummary))
-	for version, summary := range js.VersionedSummary {
-		// Convert the version number to a string
-		versionedSummary[fmt.Sprint(version)] = summary
+	// Create a deep copy of original summary
+	jobSummaryCopy := *summary
+
+	// Create the extended summary
+	extendedSummary := &ExtendedJobSummary{
+		JobSummary: &jobSummaryCopy,
+		VersionedSummary: func() map[string]VersionedSummary {
+			result := make(map[string]VersionedSummary)
+			for key, value := range summary.VersionedSummary {
+				result[fmt.Sprint(key)] = value
+			}
+			return result
+		}(),
 	}
-
-	type EmbeddedJobSummary JobSummary
-
-	// Construct a new struct which includes the original JobSummary fields (embedded)
-	// and the new VersionedSummary representation
-	apiJS := &struct {
-		*EmbeddedJobSummary
-		VersionedSummary map[string]VersionedSummary
-	}{
-		EmbeddedJobSummary: (*EmbeddedJobSummary)(js),
-		VersionedSummary:   versionedSummary,
-	}
-
-	return apiJS
+	return extendedSummary
 }
 
 // nodeExt ensures the node is sanitized and adds the legacy field .Drain back to encoded Node objects
