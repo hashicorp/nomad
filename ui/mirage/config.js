@@ -338,6 +338,10 @@ export default function () {
     return this.serialize(nodes.find(params.id));
   });
 
+  this.get('/node/pools', function ({ nodePools }) {
+    return this.serialize(nodePools.all());
+  });
+
   this.get('/allocations');
 
   this.get('/allocation/:id');

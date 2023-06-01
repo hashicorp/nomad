@@ -57,6 +57,9 @@ export default class IndexController extends Controller.extend(
     {
       qpNamespace: 'namespace',
     },
+    {
+      qpNodePool: 'nodePool',
+    },
   ];
 
   currentPage = 1;
@@ -81,11 +84,13 @@ export default class IndexController extends Controller.extend(
   qpStatus = '';
   qpDatacenter = '';
   qpPrefix = '';
+  qpNodePool = '';
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
+  @selection('qpNodePool') selectionNodePools;
 
   @computed
   get optionsType() {
@@ -194,6 +199,29 @@ export default class IndexController extends Controller.extend(
     return availableNamespaces;
   }
 
+  @computed('selectionNodePools', 'model.nodePools.[]')
+  get optionsNodePools() {
+    const availableNodePools = this.model.nodePools;
+
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set(
+        'qpNodePool',
+        serialize(
+          intersection(
+            availableNodePools.map(({ name }) => name),
+            this.selectionNodePools
+          )
+        )
+      );
+    });
+
+    return availableNodePools.map((nodePool) => ({
+      key: nodePool.name,
+      label: nodePool.name,
+    }));
+  }
+
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
@@ -212,6 +240,7 @@ export default class IndexController extends Controller.extend(
     'selectionType',
     'selectionStatus',
     'selectionDatacenter',
+    'selectionNodePools',
     'selectionPrefix'
   )
   get filteredJobs() {
@@ -220,6 +249,7 @@ export default class IndexController extends Controller.extend(
       selectionStatus: statuses,
       selectionDatacenter: datacenters,
       selectionPrefix: prefixes,
+      selectionNodePools: nodePools,
     } = this;
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
@@ -243,6 +273,10 @@ export default class IndexController extends Controller.extend(
         datacenters.length &&
         !job.get('datacenters').find((dc) => datacenters.includes(dc))
       ) {
+        return false;
+      }
+
+      if (nodePools.length && !nodePools.includes(job.get('nodePool'))) {
         return false;
       }
 

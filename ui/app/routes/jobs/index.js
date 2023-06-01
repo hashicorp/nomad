@@ -30,6 +30,7 @@ export default class IndexRoute extends Route.extend(
         .query('job', { namespace: params.qpNamespace, meta: true })
         .catch(notifyForbidden(this)),
       namespaces: this.store.findAll('namespace'),
+      nodePools: this.store.findAll('node-pool'),
     });
   }
 

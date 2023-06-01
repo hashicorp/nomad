@@ -23,6 +23,7 @@ export default class ClientsRoute extends Route.extend(WithForbiddenState) {
     return RSVP.hash({
       nodes: this.store.findAll('node'),
       agents: this.store.findAll('agent'),
+      nodePools: this.store.findAll('node-pool'),
     }).catch(notifyForbidden(this));
   }
 }
