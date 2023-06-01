@@ -4818,6 +4818,14 @@ func TestJobEndpoint_GetJobSummary(t *testing.T) {
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": {},
 		},
+		VersionedSummary: map[uint64]structs.VersionedSummary{
+			0: {
+				Version: 0,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {},
+				},
+			},
+		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,
 		ModifyIndex: job.CreateIndex,
@@ -4879,6 +4887,14 @@ func TestJobEndpoint_Summary_ACL(t *testing.T) {
 		Namespace: job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": {},
+		},
+		VersionedSummary: map[uint64]structs.VersionedSummary{
+			0: {
+				Version: 0,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {},
+				},
+			},
 		},
 		Children:    new(structs.JobChildrenSummary),
 		CreateIndex: job.CreateIndex,

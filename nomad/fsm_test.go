@@ -2806,8 +2806,9 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 				Queued: 10,
 			},
 		},
-		CreateIndex: 1000,
-		ModifyIndex: out1.ModifyIndex,
+		VersionedSummary: map[uint64]structs.VersionedSummary{},
+		CreateIndex:      1000,
+		ModifyIndex:      out1.ModifyIndex,
 	}
 	if !reflect.DeepEqual(&expected, out1) {
 		t.Fatalf("expected: %#v, actual: %#v", &expected, out1)
@@ -2826,6 +2827,16 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 			"web": {
 				Queued:   9,
 				Starting: 1,
+			},
+		},
+		VersionedSummary: map[uint64]structs.VersionedSummary{
+			0: {
+				Version: 0,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {
+						Starting: 1,
+					},
+				},
 			},
 		},
 		CreateIndex: 1010,
@@ -2896,11 +2907,12 @@ func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out1, _ := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 	expected := structs.JobSummary{
-		JobID:       job1.ID,
-		Namespace:   job1.Namespace,
-		Summary:     make(map[string]structs.TaskGroupSummary),
-		CreateIndex: 1000,
-		ModifyIndex: out1.ModifyIndex,
+		JobID:            job1.ID,
+		Namespace:        job1.Namespace,
+		Summary:          make(map[string]structs.TaskGroupSummary),
+		VersionedSummary: make(map[uint64]structs.VersionedSummary),
+		CreateIndex:      1000,
+		ModifyIndex:      out1.ModifyIndex,
 		Children: &structs.JobChildrenSummary{
 			Running: 1,
 		},

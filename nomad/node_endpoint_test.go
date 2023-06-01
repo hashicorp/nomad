@@ -1580,6 +1580,16 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 					Lost:   1,
 				},
 			},
+			VersionedSummary: map[uint64]structs.VersionedSummary{
+				0: {
+					Version: 0,
+					Groups: map[string]structs.TaskGroupSummary{
+						"web": {
+							Lost: 1,
+						},
+					},
+				},
+			},
 			Children:    new(structs.JobChildrenSummary),
 			CreateIndex: jobResp.JobModifyIndex,
 			ModifyIndex: summary.ModifyIndex,
@@ -1598,6 +1608,16 @@ func TestClientEndpoint_Drain_Down(t *testing.T) {
 			Summary: map[string]structs.TaskGroupSummary{
 				"web": {
 					Lost: 1,
+				},
+			},
+			VersionedSummary: map[uint64]structs.VersionedSummary{
+				0: {
+					Version: 0,
+					Groups: map[string]structs.TaskGroupSummary{
+						"web": {
+							Lost: 1,
+						},
+					},
 				},
 			},
 			Children:    new(structs.JobChildrenSummary),
