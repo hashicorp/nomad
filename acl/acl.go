@@ -410,12 +410,12 @@ func (a *ACL) AllowNodePool(pool string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
-// AllowAnyNodePool returns true if any operation is allowed in at least one
+// AllowNodePoolSearch returns true if any operation is allowed in at least one
 // node pool.
 //
 // This is a very loose check and is expected that callers perform more precise
 // verification later.
-func (a *ACL) AllowAnyNodePool() bool {
+func (a *ACL) AllowNodePoolSearch() bool {
 	// Hot path if ACL is not enabled or token is management.
 	if a == nil || a.management {
 		return true

@@ -534,7 +534,7 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 	}
 }
 
-// nsCapFilter produces a memdb.FilterFunc for removing node pools not
+// nodePoolCapFilter produces a memdb.FilterFunc for removing node pools not
 // accessible by aclObj during a table scan.
 func nodePoolCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 	return func(v interface{}) bool {
@@ -669,7 +669,7 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 	}
 
 	nodeRead := aclObj.AllowNodeRead()
-	allowNodePool := aclObj.AllowAnyNodePool()
+	allowNodePool := aclObj.AllowNodePoolSearch()
 	allowNS := aclObj.AllowNamespace(namespace)
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 	allowEnt := sufficientSearchPermsEnt(aclObj)
@@ -685,10 +685,10 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 	case structs.Nodes:
 		return nodeRead
 	case structs.NodePools:
-		// Just the search term is not enough to determine if the token is
-		// allowed to access node pools since the prefix may not patch the
-		// node pool label in the policy. Node pools will be filters when
-		// iterate over the results.
+		// The search term alone is not enough to determine if the token is
+		// allowed to access the given prefix since it may not match node pool
+		// label in the policy. Node pools will be filtered when iterating over
+		// the results.
 		return true
 	case structs.Namespaces:
 		return allowNS
@@ -935,7 +935,7 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 				available = append(available, c)
 			}
 		case structs.NodePools:
-			if aclObj.AllowAnyNodePool() {
+			if aclObj.AllowNodePoolSearch() {
 				available = append(available, c)
 			}
 		case structs.Volumes:
