@@ -5068,12 +5068,11 @@ func (js *JobSummary) Copy() *JobSummary {
 
 	newVTGSummary := make(map[uint64]VersionedSummary, len(js.VersionedSummary))
 	for k, v := range js.VersionedSummary {
-		uk := uint64(k)
 		newGroupSummary := make(map[string]TaskGroupSummary, len(v.Groups))
 		for groupKey, groupVal := range v.Groups {
 			newGroupSummary[groupKey] = groupVal
 		}
-		newVTGSummary[uk] = VersionedSummary{
+		newVTGSummary[k] = VersionedSummary{
 			Version: v.Version,
 			Groups:  newGroupSummary,
 		}
