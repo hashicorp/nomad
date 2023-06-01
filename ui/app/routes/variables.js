@@ -40,6 +40,7 @@ export default class VariablesRoute extends Route.extend(WithForbiddenState) {
         pathTree: new PathTree(variables),
       };
     } catch (e) {
+      
       notifyForbidden(this)(e);
       return e;
     }
