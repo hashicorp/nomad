@@ -1,0 +1,19 @@
+name: Lint
+on:
+  push:
+    branches:
+      - main
+      - release/*
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  copyright:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Copywrite
+        uses: hashicorp/setup-copywrite@867a1a2a064a0626db322392806428f7dc59cb3e # v1.1.2
+      - name: Check Header Compliance
+        run: copywrite headers --plan
