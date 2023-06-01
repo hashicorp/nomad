@@ -14,6 +14,17 @@
         Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>
     {{/unless}}
+
+    {{#if this.shouldShowLinkedEntities}}
+      <VariableForm::RelatedEntities
+        @new={{true}}
+        @job={{@model.pathLinkedEntities.job}}
+        @group={{@model.pathLinkedEntities.group}}
+        @task={{@model.pathLinkedEntities.task}}
+        @namespace={{this.variableNamespace}}
+      />
+    {{/if}}
+
   {{/if}}
 
   {{#if this.hasConflict}}
@@ -137,6 +148,7 @@
             class="delete-row button is-danger is-inverted"
             type="button"
             {{on "click" (action this.deleteRow entry)}}
+            disabled={{eq this.keyValues.length 1}}
           >
             Delete
           </button>
@@ -148,16 +160,6 @@
         </div>
       {{/each}}
     {{/if}}
-  {{/if}}
-
-  {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
-    <VariableForm::RelatedEntities
-      @new={{true}}
-      @job={{@model.pathLinkedEntities.job}}
-      @group={{@model.pathLinkedEntities.group}}
-      @task={{@model.pathLinkedEntities.task}}
-      @namespace={{this.variableNamespace}}
-    />
   {{/if}}
 
   <footer>
