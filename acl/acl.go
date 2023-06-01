@@ -410,6 +410,35 @@ func (a *ACL) AllowNodePool(pool string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
+// AllowNodePoolSearch returns true if any operation is allowed in at least one
+// node pool.
+//
+// This is a very loose check and is expected that callers perform more precise
+// verification later.
+func (a *ACL) AllowNodePoolSearch() bool {
+	// Hot path if ACL is not enabled or token is management.
+	if a == nil || a.management {
+		return true
+	}
+
+	// Check for any non-deny capabilities.
+	iter := a.nodePools.Root().Iterator()
+	for _, capability, ok := iter.Next(); ok; _, capability, ok = iter.Next() {
+		if !capability.Check(NodePoolCapabilityDeny) {
+			return true
+		}
+	}
+
+	iter = a.wildcardNodePools.Root().Iterator()
+	for _, capability, ok := iter.Next(); ok; _, capability, ok = iter.Next() {
+		if !capability.Check(NodePoolCapabilityDeny) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // AllowHostVolumeOperation checks if a given operation is allowed for a host volume
 func (a *ACL) AllowHostVolumeOperation(hv string, op string) bool {
 	// Hot path management tokens

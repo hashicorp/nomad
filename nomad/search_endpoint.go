@@ -33,6 +33,7 @@ var (
 		structs.Allocs,
 		structs.Jobs,
 		structs.Nodes,
+		structs.NodePools,
 		structs.Evals,
 		structs.Deployments,
 		structs.Plugins,
@@ -75,6 +76,8 @@ func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]s
 			id = t.ID
 		case *structs.Node:
 			id = t.ID
+		case *structs.NodePool:
+			id = t.Name
 		case *structs.Deployment:
 			id = t.ID
 		case *structs.CSIPlugin:
@@ -216,6 +219,10 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 		name = t.Name
 		scope = []string{t.ID}
 		ctx = structs.Nodes
+	case *structs.NodePool:
+		name = t.Name
+		scope = []string{t.Name}
+		ctx = structs.NodePools
 	case *structs.Namespace:
 		name = t.Name
 		ctx = structs.Namespaces
@@ -381,6 +388,15 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		return store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Nodes:
 		return store.NodesByIDPrefix(ws, prefix)
+	case structs.NodePools:
+		iter, err := store.NodePoolsByNamePrefix(ws, prefix, state.SortDefault)
+		if err != nil {
+			return nil, err
+		}
+		if aclObj == nil || aclObj.IsManagement() {
+			return iter, nil
+		}
+		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
 	case structs.Deployments:
 		return store.DeploymentsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Plugins:
@@ -449,6 +465,17 @@ func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespac
 		}
 		return store.Nodes(ws)
 
+	case structs.NodePools:
+		iter, err := store.NodePools(ws, state.SortDefault)
+		if err != nil {
+			return nil, err
+		}
+
+		if aclObj == nil || aclObj.IsManagement() {
+			return iter, nil
+		}
+		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
+
 	case structs.Plugins:
 		if wildcard(namespace) {
 			iter, err := store.CSIPlugins(ws)
@@ -504,6 +531,15 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 		default:
 			return false
 		}
+	}
+}
+
+// nodePoolCapFilter produces a memdb.FilterFunc for removing node pools not
+// accessible by aclObj during a table scan.
+func nodePoolCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
+	return func(v interface{}) bool {
+		pool := v.(*structs.NodePool)
+		return !aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
 	}
 }
 
@@ -633,11 +669,12 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 	}
 
 	nodeRead := aclObj.AllowNodeRead()
+	allowNodePool := aclObj.AllowNodePoolSearch()
 	allowNS := aclObj.AllowNamespace(namespace)
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 	allowEnt := sufficientSearchPermsEnt(aclObj)
 
-	if !nodeRead && !allowNS && !allowEnt && !jobRead {
+	if !nodeRead && !allowNodePool && !allowNS && !allowEnt && !jobRead {
 		return false
 	}
 
@@ -647,6 +684,12 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 	switch context {
 	case structs.Nodes:
 		return nodeRead
+	case structs.NodePools:
+		// The search term alone is not enough to determine if the token is
+		// allowed to access the given prefix since it may not match node pool
+		// label in the policy. Node pools will be filtered when iterating over
+		// the results.
+		return true
 	case structs.Namespaces:
 		return allowNS
 	case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
@@ -673,7 +716,7 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 //
 // These types are available for fuzzy searching:
 //
-//	Nodes, Namespaces, Jobs, Allocs, Plugins
+//	Nodes, Node Pools, Namespaces, Jobs, Allocs, Plugins
 //
 // Jobs are a special case that expand into multiple types, and whose return
 // values include Scope which is a descending list of IDs of parent objects,
@@ -889,6 +932,10 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 			}
 		case structs.Nodes:
 			if aclObj.AllowNodeRead() {
+				available = append(available, c)
+			}
+		case structs.NodePools:
+			if aclObj.AllowNodePoolSearch() {
 				available = append(available, c)
 			}
 		case structs.Volumes:
