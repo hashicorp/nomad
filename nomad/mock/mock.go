@@ -132,6 +132,14 @@ func JobSummary(jobID string) *structs.JobSummary {
 				Starting: 0,
 			},
 		},
+		VersionedSummary: map[uint64]structs.VersionedSummary{
+			0: {
+				Version: 0,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {},
+				},
+			},
+		},
 	}
 }
 

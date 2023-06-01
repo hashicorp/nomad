@@ -165,8 +165,9 @@ func TestSystemEndpoint_ReconcileSummaries(t *testing.T) {
 					Queued: 10,
 				},
 			},
-			ModifyIndex: summary.ModifyIndex,
-			CreateIndex: summary.CreateIndex,
+			VersionedSummary: map[uint64]structs.VersionedSummary{},
+			ModifyIndex:      summary.ModifyIndex,
+			CreateIndex:      summary.CreateIndex,
 		}
 		if !reflect.DeepEqual(&expectedSummary, summary) {
 			return false, fmt.Errorf("expected: %v, actual: %v", expectedSummary, summary)
