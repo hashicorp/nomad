@@ -1,0 +1,57 @@
+---
+layout: docs
+page_title: 'Commands: operator raft transfer-leadership'
+description: |
+  Transfer leadership to a specific a Nomad server.
+---
+
+# Command: operator raft transfer-leadership
+
+Transfer leadership from the current leader to the given server member.
+
+While performing a [rolling upgrade][] of your Nomad cluster, it might be
+advisable to transfer leadership to a specific node in the cluster. For example,
+setting the leader to the first upgraded server in the cluster can prevent
+leadership churn as you upgrade the remaining server nodes.
+
+The target server's ID or address:port are required and can be obtained by
+running the [`nomad operator raft list-peers`][] command or by calling the
+[Read Raft Configuration][] API endpoint.
+
+For an API to perform these operations programmatically, please see the
+documentation for the [Operator][] endpoint.
+
+## Usage
+
+```plaintext
+nomad operator raft transfer-leadership [options]
+```
+
+<Tip title="Required Permissions">
+If ACLs are enabled, this command requires a management token.
+</Tip>
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Transfer Leadership Options
+
+- `-peer-address`: Specifies the Raft **Address** of the target server as
+  provided in the output of the [`nomad operator raft list-peers`][] command or
+  the [Read Raft Configuration] API endpoint.
+
+- `-peer-id`: Specifies the Raft **ID** of the target server as provided in the
+  output of the [`nomad operator raft list-peers`][] command or the
+  [Read Raft Configuration] API endpoint.
+
+  <Note>
+
+  Either `-peer-address` or `-peer-id` must be provided, but not both.
+
+  </Note>
+
+[`nomad operator raft list-peers`]: /nomad/docs/commands/operator/raft/list-peers 'Nomad operator raft list-peers command'
+[operator]: /nomad/api-docs/operator 'Nomad Operator API'
+[rolling upgrade]: /nomad/docs/upgrade#upgrade-process
+[Read Raft Configuration]: /nomad/api-docs/operator/raft#read-raft-configuration

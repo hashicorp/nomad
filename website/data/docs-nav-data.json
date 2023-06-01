@@ -800,6 +800,10 @@
               {
                 "title": "state",
                 "path": "commands/operator/raft/state"
+              },
+              {
+                "title": "transfer-leadership",
+                "path": "commands/operator/raft/transfer-leadership"
               }
             ]
           },
