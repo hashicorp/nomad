@@ -59,6 +59,13 @@
           @onSelect={{action this.setFacetQueryParam "qpType"}}
         />
         <MultiSelectDropdown
+          data-test-node-pool-facet
+          @label="Node Pool"
+          @options={{this.optionsNodePools}}
+          @selection={{this.selectionNodePools}}
+          @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
+        />
+        <MultiSelectDropdown
           data-test-status-facet
           @label="Status"
           @options={{this.optionsStatus}}
@@ -136,6 +143,9 @@
               Namespace
             </t.sort-by>
           {{/if}}
+          <t.sort-by @prop="nodePool">
+              Node Pool
+          </t.sort-by>
           <t.sort-by @prop="status">
             Status
           </t.sort-by>
