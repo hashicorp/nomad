@@ -23,7 +23,7 @@ const (
 
 const (
 	// The following are the fine-grained capabilities that can be granted within a namespace.
-	// The Policy block is a short hand for granting several of these. When capabilities are
+	// The Policy field is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
@@ -59,7 +59,7 @@ const (
 	// The following are the fine-grained capabilities that can be granted for
 	// node volume management.
 	//
-	// The Policy block is a short hand for granting several of these. When
+	// The Policy field is a short hand for granting several of these. When
 	// capabilities are combined we take the union of all capabilities. If the
 	// deny capability is present, it takes precedence and overwrites all other
 	// capabilities.
@@ -76,7 +76,7 @@ var (
 
 const (
 	// The following are the fine-grained capabilities that can be granted for a volume set.
-	// The Policy block is a short hand for granting several of these. When capabilities are
+	// The Policy field is a short hand for granting several of these. When capabilities are
 	// combined we take the union of all capabilities. If the deny capability is present, it
 	// takes precedence and overwrites all other capabilities.
 
@@ -275,7 +275,7 @@ func expandNamespacePolicy(policy string) []string {
 	}
 }
 
-func isNodePoolCapabilityValidd(cap string) bool {
+func isNodePoolCapabilityValid(cap string) bool {
 	switch cap {
 	case NodePoolCapabilityDelete, NodePoolCapabilityRead, NodePoolCapabilityWrite,
 		NodePoolCapabilityDeny:
@@ -409,14 +409,14 @@ func Parse(rules string) (*Policy, error) {
 
 	for _, np := range p.NodePools {
 		if !validNodePool.MatchString(np.Name) {
-			return nil, fmt.Errorf("Invalid node pool name: %#v", np)
+			return nil, fmt.Errorf("Invalid node pool name '%s'", np.Name)
 		}
 		if np.Policy != "" && !isPolicyValid(np.Policy) {
-			return nil, fmt.Errorf("Invalid node pool policy: %#v", np)
+			return nil, fmt.Errorf("Invalid node pool policy '%s' for '%s'", np.Policy, np.Name)
 		}
 		for _, cap := range np.Capabilities {
-			if !isNodePoolCapabilityValidd(cap) {
-				return nil, fmt.Errorf("Invalid node pool capability '%s': %#v", cap, np)
+			if !isNodePoolCapabilityValid(cap) {
+				return nil, fmt.Errorf("Invalid node pool capability '%s' for '%s'", cap, np.Name)
 			}
 		}
 
