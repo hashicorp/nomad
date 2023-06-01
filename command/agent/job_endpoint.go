@@ -965,6 +965,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Priority:       *job.Priority,
 		AllAtOnce:      *job.AllAtOnce,
 		Datacenters:    job.Datacenters,
+		NodePool:       *job.NodePool,
 		Payload:        job.Payload,
 		Meta:           job.Meta,
 		ConsulToken:    *job.ConsulToken,
@@ -1028,6 +1029,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 			r.Name = region.Name
 			r.Count = *region.Count
 			r.Datacenters = region.Datacenters
+			r.NodePool = region.NodePool
 			r.Meta = region.Meta
 			j.Multiregion.Regions = append(j.Multiregion.Regions, r)
 		}

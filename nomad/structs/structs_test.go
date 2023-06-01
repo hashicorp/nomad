@@ -461,6 +461,7 @@ func testJob() *Job {
 		Priority:    JobDefaultPriority,
 		AllAtOnce:   false,
 		Datacenters: []string{"*"},
+		NodePool:    NodePoolDefault,
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",

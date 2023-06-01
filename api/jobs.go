@@ -38,6 +38,9 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
 
+	// NodePoolDefault is the default node pool.
+	NodePoolDefault = "default"
+
 	// For Job configuration, GlobalRegion is a sentinel region value
 	// that users may specify to indicate the job should be run on
 	// the region of the node that the job was submitted to.
@@ -793,9 +796,11 @@ func (m *Multiregion) Copy() *Multiregion {
 		copyRegion.Name = region.Name
 		copyRegion.Count = pointerOf(*region.Count)
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
+		copyRegion.NodePool = region.NodePool
 		for k, v := range region.Meta {
 			copyRegion.Meta[k] = v
 		}
+
 		copy.Regions = append(copy.Regions, copyRegion)
 	}
 	return copy
@@ -810,6 +815,7 @@ type MultiregionRegion struct {
 	Name        string            `hcl:",label"`
 	Count       *int              `hcl:"count,optional"`
 	Datacenters []string          `hcl:"datacenters,optional"`
+	NodePool    string            `hcl:"node_pool,optional"`
 	Meta        map[string]string `hcl:"meta,block"`
 }
 
@@ -943,6 +949,7 @@ type Job struct {
 	Priority         *int                    `hcl:"priority,optional"`
 	AllAtOnce        *bool                   `mapstructure:"all_at_once" hcl:"all_at_once,optional"`
 	Datacenters      []string                `hcl:"datacenters,optional"`
+	NodePool         *string                 `hcl:"node_pool,optional"`
 	Constraints      []*Constraint           `hcl:"constraint,block"`
 	Affinities       []*Affinity             `hcl:"affinity,block"`
 	TaskGroups       []*TaskGroup            `hcl:"group,block"`
@@ -1014,8 +1021,8 @@ func (j *Job) Canonicalize() {
 	if j.Region == nil {
 		j.Region = pointerOf(GlobalRegion)
 	}
-	if j.Namespace == nil {
-		j.Namespace = pointerOf("default")
+	if j.NodePool == nil {
+		j.NodePool = pointerOf(NodePoolDefault)
 	}
 	if j.Type == nil {
 		j.Type = pointerOf("service")

@@ -441,6 +441,76 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			// NodePool added
+			Old: &Job{},
+			New: &Job{
+				NodePool: "default",
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "NodePool",
+						Old:  "",
+						New:  "default",
+					},
+				},
+			},
+		},
+		{
+			// NodePool removed
+			Old: &Job{
+				NodePool: "default",
+			},
+			New: &Job{},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "NodePool",
+						Old:  "default",
+						New:  "",
+					},
+				},
+			},
+		},
+		{
+			// NodePool changed
+			Old: &Job{
+				NodePool: "default",
+			},
+			New: &Job{
+				NodePool: "foo",
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "NodePool",
+						Old:  "default",
+						New:  "foo",
+					},
+				},
+			},
+		},
+		{
+			// NodePool unchanged
+			Old: &Job{
+				NodePool: "foo",
+			},
+			New: &Job{
+				NodePool: "foo",
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeNone,
+			},
+		},
+
 		{
 			// Periodic added
 			Old: &Job{},

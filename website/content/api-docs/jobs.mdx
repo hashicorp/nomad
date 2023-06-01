@@ -152,6 +152,7 @@ The table below shows this endpoint's support for
   "Job": {
     "Datacenters": ["dc1"],
     "ID": "cache",
+    "NodePool": "prod",
     "TaskGroups": [
       {
         "Name": "cache",
@@ -288,6 +289,7 @@ $ curl \
   "ModifyIndex": 0,
   "Name": "my-job",
   "Namespace": "default",
+  "NodePool": "prod",
   "ParameterizedJob": null,
   "ParentID": "",
   "Payload": null,
@@ -357,6 +359,7 @@ $ curl \
   "Priority": 50,
   "AllAtOnce": false,
   "Datacenters": ["dc1"],
+  "NodePool": "prod",
   "Constraints": [
     {
       "LTarget": "${attr.kernel.name}",
@@ -675,6 +678,7 @@ $ curl \
       "Name": "example",
       "Namespace": "default",
       "NomadTokenID": "",
+      "NodePool": "prod",
       "ParameterizedJob": null,
       "ParentID": "",
       "Payload": null,
@@ -888,6 +892,7 @@ $ curl \
       "Multiregion": null,
       "Name": "example",
       "Namespace": "default",
+      "NodePool": "prod",
       "NomadTokenID": "",
       "ParameterizedJob": null,
       "ParentID": "",
@@ -1057,6 +1062,7 @@ $ curl \
       "Multiregion": null,
       "Name": "example",
       "Namespace": "default",
+      "NodePool": "prod",
       "NomadTokenID": "",
       "ParameterizedJob": null,
       "ParentID": "",
