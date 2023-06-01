@@ -1362,6 +1362,39 @@ func TestTaskGroup_Validate(t *testing.T) {
 			jobType: JobTypeService,
 		},
 		{
+			name: "progress_deadline 0 does not conflict with kill_timeout",
+			tg: &TaskGroup{
+				Name:  "web",
+				Count: 1,
+				Tasks: []*Task{
+					{
+						Name:        "web",
+						Driver:      "mock_driver",
+						Leader:      true,
+						KillTimeout: DefaultUpdateStrategy.ProgressDeadline + 25*time.Minute,
+						Resources:   DefaultResources(),
+						LogConfig:   DefaultLogConfig(),
+					},
+				},
+				Update: &UpdateStrategy{
+					Stagger:          30 * time.Second,
+					MaxParallel:      1,
+					HealthCheck:      UpdateStrategyHealthCheck_Checks,
+					MinHealthyTime:   10 * time.Second,
+					HealthyDeadline:  5 * time.Minute,
+					ProgressDeadline: 0,
+					AutoRevert:       false,
+					AutoPromote:      false,
+					Canary:           0,
+				},
+				RestartPolicy:    NewRestartPolicy(JobTypeService),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeService),
+				Migrate:          DefaultMigrateStrategy(),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+			},
+			jobType: JobTypeService,
+		},
+		{
 			name: "service and task using different provider",
 			tg: &TaskGroup{
 				Name: "group-a",
@@ -1396,7 +1429,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 			j.Type = tc.jobType
 
 			err := tc.tg.Validate(j)
-			requireErrors(t, err, tc.expErr...)
+			if len(tc.expErr) > 0 {
+				requireErrors(t, err, tc.expErr...)
+			} else {
+				must.NoError(t, err)
+			}
 		})
 	}
 }
