@@ -6495,12 +6495,13 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 		// Validate the group's Update Strategy does not conflict with the Task's kill_timeout for service type jobs
 		if isTypeService && tg.Update != nil {
-			if task.KillTimeout > tg.Update.ProgressDeadline {
+			// progress_deadline = 0 has a special meaning so it should not be
+			// validated against the task's kill_timeout.
+			if tg.Update.ProgressDeadline > 0 && task.KillTimeout > tg.Update.ProgressDeadline {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a kill timout (%s) longer than the group's progress deadline (%s)",
 					task.Name, task.KillTimeout.String(), tg.Update.ProgressDeadline.String()))
 			}
 		}
-
 	}
 
 	return mErr.ErrorOrNil()
