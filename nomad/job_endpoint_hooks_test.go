@@ -742,6 +742,7 @@ func Test_jobCanonicalizer_Mutate(t *testing.T) {
 			expectedOutputJob: &structs.Job{
 				Namespace:   "default",
 				Datacenters: []string{"*"},
+				NodePool:    structs.NodePoolDefault,
 				Priority:    123,
 			},
 		},
@@ -755,6 +756,7 @@ func Test_jobCanonicalizer_Mutate(t *testing.T) {
 			expectedOutputJob: &structs.Job{
 				Namespace:   "default",
 				Datacenters: []string{"*"},
+				NodePool:    structs.NodePoolDefault,
 				Priority:    serverJobDefaultPriority,
 			},
 		},

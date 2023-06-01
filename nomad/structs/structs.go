@@ -4385,6 +4385,9 @@ type Job struct {
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
 
+	// NodePool specifies the node pool this job is allowed to run on
+	NodePool string
+
 	// Constraints can be specified at a job level and apply to
 	// all the task groups and tasks.
 	Constraints []*Constraint
@@ -4535,6 +4538,10 @@ func (j *Job) Canonicalize() {
 		j.Datacenters = []string{"*"}
 	}
 
+	if j.NodePool == "" {
+		j.NodePool = NodePoolDefault
+	}
+
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
@@ -4617,6 +4624,10 @@ func (j *Job) Validate() error {
 			}
 		}
 	}
+	if j.NodePool == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a node_pool"))
+	}
+
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
 	}
@@ -4827,6 +4838,7 @@ func (j *Job) Stub(summary *JobSummary, fields *JobStubFields) *JobListStub {
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
+		NodePool:          j.NodePool,
 		Multiregion:       j.Multiregion,
 		Type:              j.Type,
 		Priority:          j.Priority,
@@ -5019,6 +5031,7 @@ type JobListStub struct {
 	Name              string
 	Namespace         string `json:",omitempty"`
 	Datacenters       []string
+	NodePool          string
 	Multiregion       *Multiregion
 	Type              string
 	Priority          int
@@ -5279,6 +5292,7 @@ func (m *Multiregion) Copy() *Multiregion {
 			Name:        region.Name,
 			Count:       region.Count,
 			Datacenters: []string{},
+			NodePool:    region.NodePool,
 			Meta:        map[string]string{},
 		}
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
@@ -5299,6 +5313,7 @@ type MultiregionRegion struct {
 	Name        string
 	Count       int
 	Datacenters []string
+	NodePool    string
 	Meta        map[string]string
 }
 
