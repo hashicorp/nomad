@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -11,12 +12,39 @@ var (
 	// extendedTypes is a mapping of extended types to their extension function
 	// TODO: the duplicates could be simplified by looking up the base type in the case of a pointer type in ConvertExt
 	extendedTypes = map[reflect.Type]extendFunc{
-		reflect.TypeOf(Node{}):       nodeExt,
-		reflect.TypeOf(&Node{}):      nodeExt,
-		reflect.TypeOf(CSIVolume{}):  csiVolumeExt,
-		reflect.TypeOf(&CSIVolume{}): csiVolumeExt,
+		reflect.TypeOf(Node{}):        nodeExt,
+		reflect.TypeOf(&Node{}):       nodeExt,
+		reflect.TypeOf(CSIVolume{}):   csiVolumeExt,
+		reflect.TypeOf(&CSIVolume{}):  csiVolumeExt,
+		reflect.TypeOf(JobSummary{}):  jobSummaryExt,
+		reflect.TypeOf(&JobSummary{}): jobSummaryExt,
 	}
 )
+
+func jobSummaryExt(v interface{}) interface{} {
+	js := v.(*JobSummary)
+
+	// Create a new map with string keys
+	versionedSummary := make(map[string]VersionedSummary, len(js.VersionedSummary))
+	for version, summary := range js.VersionedSummary {
+		// Convert the version number to a string
+		versionedSummary[fmt.Sprint(version)] = summary
+	}
+
+	type EmbeddedJobSummary JobSummary
+
+	// Construct a new struct which includes the original JobSummary fields (embedded)
+	// and the new VersionedSummary representation
+	apiJS := &struct {
+		*EmbeddedJobSummary
+		VersionedSummary map[string]VersionedSummary
+	}{
+		EmbeddedJobSummary: (*EmbeddedJobSummary)(js),
+		VersionedSummary:   versionedSummary,
+	}
+
+	return apiJS
+}
 
 // nodeExt ensures the node is sanitized and adds the legacy field .Drain back to encoded Node objects
 func nodeExt(v interface{}) interface{} {

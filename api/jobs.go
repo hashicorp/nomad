@@ -1095,7 +1095,7 @@ type JobSummary struct {
 	JobID            string
 	Namespace        string
 	Summary          map[string]TaskGroupSummary
-	VersionedSummary map[string]VersionedTaskGroupSummary
+	VersionedSummary map[uint64]VersionedSummary
 	Children         *JobChildrenSummary
 
 	// Raft Indexes
@@ -1130,14 +1130,9 @@ type TaskGroupSummary struct {
 	Unknown  int
 }
 
-type VersionedTaskGroupSummary struct {
-	Queued   map[string]int
-	Complete map[string]int
-	Failed   map[string]int
-	Running  map[string]int
-	Starting map[string]int
-	Lost     map[string]int
-	Unknown  map[string]int
+type VersionedSummary struct {
+	Version int
+	Groups  map[string]TaskGroupSummary
 }
 
 // JobListStub is used to return a subset of information about

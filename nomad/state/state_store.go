@@ -5014,7 +5014,7 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 				JobID:            job.ID,
 				Namespace:        job.Namespace,
 				Summary:          make(map[string]structs.TaskGroupSummary),
-				VersionedSummary: make(map[string]structs.VersionedTaskGroupSummary),
+				VersionedSummary: make(map[uint64]structs.VersionedSummary),
 				Children:         &structs.JobChildrenSummary{},
 			}
 
@@ -5052,11 +5052,12 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			JobID:            job.ID,
 			Namespace:        job.Namespace,
 			Summary:          make(map[string]structs.TaskGroupSummary),
-			VersionedSummary: make(map[string]structs.VersionedTaskGroupSummary),
+			VersionedSummary: make(map[uint64]structs.VersionedSummary),
+			// VersionedSummary: make(map[string]structs.VersionedTaskGroupSummary),
 		}
 		for _, tg := range job.TaskGroups {
 			summary.Summary[tg.Name] = structs.TaskGroupSummary{}
-			summary.VersionedSummary[tg.Name] = structs.VersionedTaskGroupSummary{}
+			// summary.VersionedSummary[tg.Name] = structs.VersionedTaskGroupSummary{}
 		}
 
 		// Find all the allocations for the jobs
@@ -5099,38 +5100,34 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			summary.Summary[alloc.TaskGroup] = tg
 
 			// Make a new versioned summary for the task group if it doesn't exist
-			vtg := structs.VersionedTaskGroupSummary{}
-			// if _, ok := summary.VersionedSummary[alloc.TaskGroup]; !ok {
-			// TODO: make this into a constructor; each map will be using make
-			vtg.Failed = make(map[string]int)
-			vtg.Lost = make(map[string]int)
-			vtg.Complete = make(map[string]int)
-			vtg.Running = make(map[string]int)
-			vtg.Starting = make(map[string]int)
-			vtg.Unknown = make(map[string]int)
-			summary.VersionedSummary[alloc.TaskGroup] = vtg
-			// }
+			if _, ok := summary.VersionedSummary[alloc.Job.Version]; !ok {
+				summary.VersionedSummary[alloc.Job.Version] = structs.VersionedSummary{
+					Version: alloc.Job.Version,
+					Groups:  make(map[string]structs.TaskGroupSummary),
+				}
+			}
+
 			// Update the versioned summary for the task group
-			// versionedTg := summary.VersionedSummary[alloc.TaskGroup]
-			versionedTg := vtg
+			versionedSummary := summary.VersionedSummary[alloc.Job.Version]
+			groupSummary := versionedSummary.Groups[alloc.TaskGroup]
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusFailed:
-				versionedTg.Failed[fmt.Sprint(alloc.Job.Version)] += 1
+				groupSummary.Failed++
 			case structs.AllocClientStatusLost:
-				versionedTg.Lost[fmt.Sprint(alloc.Job.Version)] += 1
+				groupSummary.Lost++
 			case structs.AllocClientStatusUnknown:
-				versionedTg.Unknown[fmt.Sprint(alloc.Job.Version)] += 1
+				groupSummary.Unknown++
 			case structs.AllocClientStatusComplete:
-				versionedTg.Complete[fmt.Sprint(alloc.Job.Version)] += 1
+				groupSummary.Complete++
 			case structs.AllocClientStatusRunning:
-				versionedTg.Running[fmt.Sprint(alloc.Job.Version)] += 1
+				groupSummary.Running++
 			case structs.AllocClientStatusPending:
-				versionedTg.Starting[fmt.Sprint(alloc.Job.Version)] += 1
+				groupSummary.Starting++
 			default:
 				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
-			summary.VersionedSummary[alloc.TaskGroup] = versionedTg
-			summary.VersionedSummary = make(map[string]structs.VersionedTaskGroupSummary)
+			versionedSummary.Groups[alloc.TaskGroup] = groupSummary
+			summary.VersionedSummary[alloc.Job.Version] = versionedSummary
 		}
 
 		// Set the create index of the summary same as the job's create index
@@ -5361,7 +5358,7 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 			JobID:            job.ID,
 			Namespace:        job.Namespace,
 			Summary:          make(map[string]structs.TaskGroupSummary),
-			VersionedSummary: make(map[string]structs.VersionedTaskGroupSummary),
+			VersionedSummary: make(map[uint64]structs.VersionedSummary),
 			Children:         new(structs.JobChildrenSummary),
 			CreateIndex:      index,
 		}
@@ -5376,14 +5373,36 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 				Running:  0,
 				Starting: 0,
 			}
-			newVersionedSummary := structs.VersionedTaskGroupSummary{
-				Complete: make(map[string]int),
-				Failed:   make(map[string]int),
-				Running:  make(map[string]int),
-				Starting: make(map[string]int),
-			}
 			summary.Summary[tg.Name] = newSummary
-			summary.VersionedSummary[tg.Name] = newVersionedSummary
+			// newVersionedSummary := structs.VersionedTaskGroupSummary{
+			// 	Complete: make(map[string]int),
+			// 	Failed:   make(map[string]int),
+			// 	Running:  make(map[string]int),
+			// 	Starting: make(map[string]int),
+			// }
+			// summary.VersionedSummary[tg.Name] = newVersionedSummary
+			hasSummaryChanged = true
+		}
+	}
+
+	for v := uint64(0); v <= job.Version; v++ {
+		if _, ok := summary.VersionedSummary[v]; !ok {
+			newVersionedSummary := structs.VersionedSummary{
+				Version: v,
+				Groups:  make(map[string]structs.TaskGroupSummary),
+			}
+
+			// Initialize a GroupSummary for each task group in this version
+			for _, tg := range job.TaskGroups {
+				newVersionedSummary.Groups[tg.Name] = structs.TaskGroupSummary{
+					Complete: 0,
+					Failed:   0,
+					Running:  0,
+					Starting: 0,
+				}
+			}
+
+			summary.VersionedSummary[v] = newVersionedSummary
 			hasSummaryChanged = true
 		}
 	}
@@ -5696,6 +5715,54 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	return nil
 }
 
+// updateGroupSummaryStatus is a convenience method for checking and then incrementing or decrementing
+// versioned summary counts when allocation status changes
+func updateGroupSummaryStatus(vtgSummary *structs.VersionedSummary, taskGroup string, status string, delta int) error {
+	groupSummary, exists := vtgSummary.Groups[taskGroup]
+	if !exists {
+		return fmt.Errorf("task group not found in versioned summary")
+	}
+
+	// Use a switch statement to increment/decrement the correct status
+	switch status {
+	case "Running":
+		groupSummary.Running += delta
+		if groupSummary.Running < 0 {
+			groupSummary.Running = 0
+		}
+	case "Starting":
+		groupSummary.Starting += delta
+		if groupSummary.Starting < 0 {
+			groupSummary.Starting = 0
+		}
+	case "Failed":
+		groupSummary.Failed += delta
+		if groupSummary.Failed < 0 {
+			groupSummary.Failed = 0
+		}
+	case "Complete":
+		groupSummary.Complete += delta
+		if groupSummary.Complete < 0 {
+			groupSummary.Complete = 0
+		}
+	case "Lost":
+		groupSummary.Lost += delta
+		if groupSummary.Lost < 0 {
+			groupSummary.Lost = 0
+		}
+	case "Unknown":
+		groupSummary.Unknown += delta
+		if groupSummary.Unknown < 0 {
+			groupSummary.Unknown = 0
+		}
+	default:
+		return fmt.Errorf("unknown status: %v", status)
+	}
+
+	vtgSummary.Groups[taskGroup] = groupSummary
+	return nil
+}
+
 // updateSummaryWithAlloc updates the job summary when allocations are updated
 // or inserted
 func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocation,
@@ -5740,9 +5807,9 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		return fmt.Errorf("unable to find task group in the job summary: %v", alloc.TaskGroup)
 	}
 
-	vtgSummary, ok := jobSummary.VersionedSummary[alloc.TaskGroup]
+	vtgSummary, ok := jobSummary.VersionedSummary[alloc.Job.Version]
 	if !ok {
-		return fmt.Errorf("unable to find task group in the versioned job summary: %v", alloc.TaskGroup)
+		return fmt.Errorf("unable to find versioned summary for job version: %v", alloc.Job.Version)
 	}
 
 	summaryChanged := false
@@ -5770,22 +5837,34 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		switch alloc.ClientStatus {
 		case structs.AllocClientStatusRunning:
 			tgSummary.Running += 1
-			vtgSummary.Running[fmt.Sprint(alloc.Job.Version)] += 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Running", 1); err != nil {
+				return err
+			}
 		case structs.AllocClientStatusFailed:
 			tgSummary.Failed += 1
-			vtgSummary.Failed[fmt.Sprint(alloc.Job.Version)] += 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Failed", 1); err != nil {
+				return err
+			}
 		case structs.AllocClientStatusPending:
 			tgSummary.Starting += 1
-			vtgSummary.Starting[fmt.Sprint(alloc.Job.Version)] += 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Starting", 1); err != nil {
+				return err
+			}
 		case structs.AllocClientStatusComplete:
 			tgSummary.Complete += 1
-			vtgSummary.Complete[fmt.Sprint(alloc.Job.Version)] += 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Complete", 1); err != nil {
+				return err
+			}
 		case structs.AllocClientStatusLost:
 			tgSummary.Lost += 1
-			vtgSummary.Lost[fmt.Sprint(alloc.Job.Version)] += 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Lost", 1); err != nil {
+				return err
+			}
 		case structs.AllocClientStatusUnknown:
 			tgSummary.Unknown += 1
-			vtgSummary.Unknown[fmt.Sprint(alloc.Job.Version)] += 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Unknown", 1); err != nil {
+				return err
+			}
 		}
 
 		// Decrementing the count of the bin of the last state
@@ -5794,29 +5873,29 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 			if tgSummary.Running > 0 {
 				tgSummary.Running -= 1
 			}
-			if vtgSummary.Running[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
-				vtgSummary.Running[fmt.Sprint(existingAlloc.Job.Version)] -= 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Running", -1); err != nil {
+				return err
 			}
 		case structs.AllocClientStatusPending:
 			if tgSummary.Starting > 0 {
 				tgSummary.Starting -= 1
 			}
-			if vtgSummary.Starting[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
-				vtgSummary.Starting[fmt.Sprint(existingAlloc.Job.Version)] -= 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Starting", -1); err != nil {
+				return err
 			}
 		case structs.AllocClientStatusLost:
 			if tgSummary.Lost > 0 {
 				tgSummary.Lost -= 1
 			}
-			if vtgSummary.Lost[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
-				vtgSummary.Lost[fmt.Sprint(existingAlloc.Job.Version)] -= 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Lost", -1); err != nil {
+				return err
 			}
 		case structs.AllocClientStatusUnknown:
 			if tgSummary.Unknown > 0 {
 				tgSummary.Unknown -= 1
 			}
-			if vtgSummary.Unknown[fmt.Sprint(existingAlloc.Job.Version)] > 0 {
-				vtgSummary.Unknown[fmt.Sprint(existingAlloc.Job.Version)] -= 1
+			if err := updateGroupSummaryStatus(&vtgSummary, alloc.TaskGroup, "Unknown", -1); err != nil {
+				return err
 			}
 		case structs.AllocClientStatusFailed, structs.AllocClientStatusComplete:
 		default:
@@ -5826,7 +5905,7 @@ func (s *StateStore) updateSummaryWithAlloc(index uint64, alloc *structs.Allocat
 		summaryChanged = true
 	}
 	jobSummary.Summary[alloc.TaskGroup] = tgSummary
-	jobSummary.VersionedSummary[alloc.TaskGroup] = vtgSummary
+	jobSummary.VersionedSummary[alloc.Job.Version] = vtgSummary
 
 	if summaryChanged {
 		jobSummary.ModifyIndex = index
