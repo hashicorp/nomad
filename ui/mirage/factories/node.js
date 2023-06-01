@@ -162,8 +162,9 @@ export default Factory.extend({
     });
 
     if (!node.nodePool) {
+      const nodePool = server.create('node-pool');
       node.update({
-        nodePool: server.create('node-pool', { nodes: [node] }),
+        nodePool: nodePool.name,
       });
     }
   },
