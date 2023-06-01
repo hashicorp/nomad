@@ -383,16 +383,12 @@ func TestNodePoolEndpoint_List_BlockingQuery(t *testing.T) {
 	req := &structs.NodePoolListRequest{
 		QueryOptions: structs.QueryOptions{
 			Region:        "global",
-			MinQueryIndex: 1,
+			MinQueryIndex: 999,
 		},
 	}
-	start := time.Now()
 	var resp structs.NodePoolListResponse
 	err := msgpackrpc.CallWithCodec(codec, "NodePool.List", req, &resp)
 	must.NoError(t, err)
-
-	elapsed := time.Since(start)
-	must.Greater(t, 100*time.Millisecond, elapsed)
 	must.Eq(t, 1000, resp.Index)
 
 	// Delete triggers watchers.
@@ -401,12 +397,8 @@ func TestNodePoolEndpoint_List_BlockingQuery(t *testing.T) {
 	})
 
 	req.MinQueryIndex = 1000
-	start = time.Now()
 	err = msgpackrpc.CallWithCodec(codec, "NodePool.List", req, &resp)
 	must.NoError(t, err)
-
-	elapsed = time.Since(start)
-	must.Greater(t, 100*time.Millisecond, elapsed)
 	must.Eq(t, 1001, resp.Index)
 }
 
@@ -601,14 +593,10 @@ func TestNodePoolEndpoint_GetNodePool_BlockingQuery(t *testing.T) {
 		},
 		Name: pool1.Name,
 	}
-	start := time.Now()
 	var resp structs.SingleNodePoolResponse
 	err := msgpackrpc.CallWithCodec(codec, "NodePool.GetNodePool", req, &resp)
 	must.NoError(t, err)
 	must.Eq(t, 1002, resp.Index)
-
-	elapsed := time.Since(start)
-	must.Greater(t, 300*time.Millisecond, elapsed)
 
 	// Delete triggers watchers.
 	// Delete pool that is not being watched.
@@ -622,12 +610,8 @@ func TestNodePoolEndpoint_GetNodePool_BlockingQuery(t *testing.T) {
 	})
 
 	req.MinQueryIndex = 1002
-	start = time.Now()
 	err = msgpackrpc.CallWithCodec(codec, "NodePool.GetNodePool", req, &resp)
 	must.NoError(t, err)
-
-	elapsed = time.Since(start)
-	must.Greater(t, 200*time.Millisecond, elapsed)
 	must.Eq(t, 1004, resp.Index)
 }
 

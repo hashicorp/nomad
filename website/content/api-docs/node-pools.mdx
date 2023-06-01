@@ -30,12 +30,12 @@ The table below shows this endpoint's support for
   name prefix. This is specified as a query string parameter.
 
 - `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
-  parameter accepts a string which identifies the next expected node. This
+  parameter accepts a string which identifies the next expected node pool. This
   value can be obtained from the `X-Nomad-NextToken` header from the previous
   response.
 
-- `per_page` `(int: 0)` - Specifies a maximum number of nodes to return for
-  this request. If omitted, the response is not paginated. The value of the
+- `per_page` `(int: 0)` - Specifies a maximum number of node pools to return
+  for this request. If omitted, the response is not paginated. The value of the
   `X-Nomad-NextToken` header of the last response can be used as the
   `next_token` of the next request to fetch additional pages.
 
@@ -147,9 +147,9 @@ The table below shows this endpoint's support for
 - `Description` `(string: "")` - Specifies the optional human-readable
   description of the node pool. Must have fewer than 256 characters.
 
-  - `Meta` `(object: null)` - Optional object with string keys and values of
-    metadata to attach to the node pool. Node pool metadata is not used by
-    Nomad and is intended for use by operators and third party tools.
+- `Meta` `(object: null)` - Optional object with string keys and values of
+  metadata to attach to the node pool. Node pool metadata is not used by
+  Nomad and is intended for use by operators and third party tools.
 
 - `SchedulerConfiguration` `(SchedulerConfiguration: <optional>)` - Specifies
   custom configuration applied when scheduling allocations in the node pool.

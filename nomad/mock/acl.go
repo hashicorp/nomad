@@ -10,9 +10,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"html/template"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

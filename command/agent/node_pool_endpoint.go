@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) NodePoolsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NodePoolsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case "GET":
 		return s.nodePoolList(resp, req)
@@ -21,7 +21,7 @@ func (s *HTTPServer) NodePoolsRequest(resp http.ResponseWriter, req *http.Reques
 	}
 }
 
-func (s *HTTPServer) NodePoolSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NodePoolSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/node/pool/")
 	switch {
 	default:
@@ -29,7 +29,7 @@ func (s *HTTPServer) NodePoolSpecificRequest(resp http.ResponseWriter, req *http
 	}
 }
 
-func (s *HTTPServer) nodePoolCRUD(resp http.ResponseWriter, req *http.Request, poolName string) (interface{}, error) {
+func (s *HTTPServer) nodePoolCRUD(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	switch req.Method {
 	case "GET":
 		return s.nodePoolQuery(resp, req, poolName)
@@ -42,7 +42,7 @@ func (s *HTTPServer) nodePoolCRUD(resp http.ResponseWriter, req *http.Request, p
 	}
 }
 
-func (s *HTTPServer) nodePoolList(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) nodePoolList(resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := structs.NodePoolListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -60,7 +60,7 @@ func (s *HTTPServer) nodePoolList(resp http.ResponseWriter, req *http.Request) (
 	return out.NodePools, nil
 }
 
-func (s *HTTPServer) nodePoolQuery(resp http.ResponseWriter, req *http.Request, poolName string) (interface{}, error) {
+func (s *HTTPServer) nodePoolQuery(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	args := structs.NodePoolSpecificRequest{
 		Name: poolName,
 	}
@@ -81,7 +81,7 @@ func (s *HTTPServer) nodePoolQuery(resp http.ResponseWriter, req *http.Request, 
 	return out.NodePool, nil
 }
 
-func (s *HTTPServer) nodePoolUpsert(resp http.ResponseWriter, req *http.Request, poolName string) (interface{}, error) {
+func (s *HTTPServer) nodePoolUpsert(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	var pool structs.NodePool
 	if err := decodeBody(req, &pool); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
@@ -105,7 +105,7 @@ func (s *HTTPServer) nodePoolUpsert(resp http.ResponseWriter, req *http.Request,
 	return nil, nil
 }
 
-func (s *HTTPServer) nodePoolDelete(resp http.ResponseWriter, req *http.Request, poolName string) (interface{}, error) {
+func (s *HTTPServer) nodePoolDelete(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	args := structs.NodePoolDeleteRequest{
 		Names: []string{poolName},
 	}
