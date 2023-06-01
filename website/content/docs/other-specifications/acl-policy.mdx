@@ -253,9 +253,8 @@ The `policy` field for the node rule can have one of the following values:
 Node pool rules are defined with a `node_pool` block. An ACL policy can
 include zero, one, or more node pool rules.
 
-<!-- TODO(luiz): add link to node pools API docs -->
-Node pool rule controls access to the Node Pool API such as create, update, and
-list node pools.
+Node pool rule controls access to the [Node Pools API][api_node_pool] such as
+create, update, and list node pools.
 
 Each node pool rule is labeled with the node pool name it applies to. You may
 use wildcard globs (`"*"`) in the label to apply a rule to multiple node pools.
@@ -470,6 +469,7 @@ agent {
 [api_search]: /nomad/api-docs/search
 [api_agent]: /nomad/api-docs/agent/
 [api_node]: /nomad/api-docs/nodes/
+[api_node_pool]: /nomad/api-docs/node-pools/
 [api_operator]: /nomad/api-docs/operator/
 [api_quota]: /nomad/api-docs/quotas/
 [host_volumes]: /nomad/docs/configuration/client#host_volume-block

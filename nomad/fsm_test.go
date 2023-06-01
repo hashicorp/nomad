@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
@@ -553,6 +554,105 @@ func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %s", err)
 	})
+}
+
+func TestFSM_NodePoolDelete(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create FSM and populate state.
+	fsm := testFSM(t)
+	pools := []*structs.NodePool{
+		mock.NodePool(),
+		mock.NodePool(),
+		mock.NodePool(),
+		mock.NodePool(),
+	}
+	err := fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools)
+	must.NoError(t, err)
+
+	// Delete some of the node pools.
+	req := structs.NodePoolDeleteRequest{
+		Names: []string{pools[0].Name, pools[1].Name},
+	}
+	buf, err := structs.Encode(structs.NodePoolDeleteRequestType, req)
+	must.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	must.Nil(t, resp)
+
+	// Verify selected node pools were deleted.
+	ws := memdb.NewWatchSet()
+	for i, pool := range pools {
+		got, err := fsm.State().NodePoolByName(ws, pool.Name)
+		must.NoError(t, err)
+
+		switch i {
+		// Node pools 0 and 1 were deleted.
+		case 0, 1:
+			must.Nil(t, got)
+		default:
+			must.NotNil(t, got)
+		}
+	}
+}
+
+func TestFSM_NodePoolUpsert(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create FSM and create some node pools.
+	fsm := testFSM(t)
+	pools := []*structs.NodePool{
+		mock.NodePool(),
+		mock.NodePool(),
+		mock.NodePool(),
+	}
+	req := structs.NodePoolUpsertRequest{
+		NodePools: pools,
+	}
+	buf, err := structs.Encode(structs.NodePoolUpsertRequestType, req)
+	must.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	must.Nil(t, resp)
+
+	// Verify node pools were created.
+	ws := memdb.NewWatchSet()
+	for _, pool := range pools {
+		got, err := fsm.State().NodePoolByName(ws, pool.Name)
+
+		must.NoError(t, err)
+		must.Eq(t, pool, got, must.Cmp(cmpopts.IgnoreFields(
+			structs.NodePool{},
+			"CreateIndex",
+			"ModifyIndex",
+		)))
+	}
+
+	// Update one of the node pools.
+	updatedPool := pools[0].Copy()
+	updatedPool.Description = "updated"
+	updatedPool.Meta = map[string]string{
+		"update": "true",
+	}
+
+	req = structs.NodePoolUpsertRequest{
+		NodePools: []*structs.NodePool{updatedPool},
+	}
+	buf, err = structs.Encode(structs.NodePoolUpsertRequestType, req)
+	must.NoError(t, err)
+
+	resp = fsm.Apply(makeLog(buf))
+	must.Nil(t, resp)
+
+	// Verify node pool was updated.
+	ws = memdb.NewWatchSet()
+	got, err := fsm.State().NodePoolByName(ws, updatedPool.Name)
+	must.NoError(t, err)
+	must.Eq(t, updatedPool, got, must.Cmp(cmpopts.IgnoreFields(
+		structs.NodePool{},
+		"CreateIndex",
+		"ModifyIndex",
+	)))
 }
 
 func TestFSM_RegisterJob(t *testing.T) {

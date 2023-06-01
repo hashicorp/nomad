@@ -52,6 +52,11 @@ type NodePool struct {
 	ModifyIndex uint64
 }
 
+// GetID implements the IDGetter interface required for pagination.
+func (n *NodePool) GetID() string {
+	return n.Name
+}
+
 // Validate returns an error if the node pool is invalid.
 func (n *NodePool) Validate() error {
 	var mErr *multierror.Error
@@ -132,4 +137,40 @@ func (n *NodePoolSchedulerConfiguration) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// NodePoolListRequest is used to list node pools.
+type NodePoolListRequest struct {
+	QueryOptions
+}
+
+// NodePoolListResponse is the response to node pools list request.
+type NodePoolListResponse struct {
+	NodePools []*NodePool
+	QueryMeta
+}
+
+// NodePoolSpecificRequest is used to make a request for a specific node pool.
+type NodePoolSpecificRequest struct {
+	Name string
+	QueryOptions
+}
+
+// SingleNodePoolResponse is the response to a specific node pool request.
+type SingleNodePoolResponse struct {
+	NodePool *NodePool
+	QueryMeta
+}
+
+// NodePoolUpsertRequest is used to make a request to insert or update a node
+// pool.
+type NodePoolUpsertRequest struct {
+	NodePools []*NodePool
+	WriteRequest
+}
+
+// NodePoolDeleteRequest is used to make a request to delete a node pool.
+type NodePoolDeleteRequest struct {
+	Names []string
+	WriteRequest
 }
