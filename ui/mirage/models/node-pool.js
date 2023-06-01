@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-import { Model, hasMany } from 'ember-cli-mirage';
+import { Model } from 'ember-cli-mirage';
 
-export default Model.extend({
-  nodes: hasMany('node'),
-});
+export default Model.extend({});

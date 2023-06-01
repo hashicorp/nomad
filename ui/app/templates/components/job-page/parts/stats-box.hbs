@@ -31,6 +31,12 @@
         {{@job.namespace.name}}
       </span>
     {{/if}}
+    {{#if @job.nodePool}}
+      <span class="pair" data-test-job-stat="nodePool">
+        <span class="term">Node Pool</span>
+        {{@job.nodePool}}
+      </span>
+    {{/if}}
     {{yield to="after-namespace"}}
   </div>
 

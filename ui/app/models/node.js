@@ -7,7 +7,7 @@ import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr } from '@ember-data/model';
-import { belongsTo, hasMany } from '@ember-data/model';
+import { hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import shortUUIDProperty from '../utils/properties/short-uuid';
@@ -27,6 +27,7 @@ export default class Node extends Model {
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
   @attr('string') version;
+  @attr('string') nodePool;
 
   // Available from single response
   @attr('string') httpAddr;
@@ -55,7 +56,6 @@ export default class Node extends Model {
   }
 
   @hasMany('allocations', { inverse: 'node' }) allocations;
-  @belongsTo('node-pool') nodePool;
 
   @computed('allocations.@each.clientStatus')
   get completeAllocations() {

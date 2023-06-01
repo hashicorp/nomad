@@ -28,6 +28,13 @@
             @onSelect={{action this.setFacetQueryParam "qpClass"}}
           />
           <MultiSelectDropdown
+            data-test-node-pool-facet
+            @label="Node Pool"
+            @options={{this.optionsNodePools}}
+            @selection={{this.selectionNodePools}}
+            @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
+          />
+          <MultiSelectDropdown
             data-test-state-facet
             @label="State"
             @options={{this.optionsState}}
@@ -79,6 +86,7 @@
               @class="is-200px is-truncatable"
               @prop="name"
             >Name</t.sort-by>
+            <t.sort-by @prop="nodePool">Node Pool</t.sort-by>
             <t.sort-by @prop="compositeStatus">State</t.sort-by>
             <th class="is-200px is-truncatable">Address</th>
             <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
