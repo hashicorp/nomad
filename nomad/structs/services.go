@@ -383,6 +383,11 @@ func (sc *ServiceCheck) validateNomad() error {
 		return fmt.Errorf("failures_before_critical may only be set for Consul service checks")
 	}
 
+	// tls_server_name is consul only
+	if sc.TLSServerName != "" {
+		return fmt.Errorf("tls_server_name may only be set for Consul service checks")
+	}
+
 	return nil
 }
 
@@ -470,7 +475,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.TLSSkipVerify, "true")
 
-	// Only include TLSServerName if set.
+	// Only include TLSServerName if set to maintain ID stability with Nomad <1.6.0
 	hashStringIfNonEmpty(h, sc.TLSServerName)
 
 	// maintain artisanal map hashing to maintain ID stability

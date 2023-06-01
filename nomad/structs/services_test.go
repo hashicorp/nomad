@@ -353,6 +353,17 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Body:     "this is a request payload!",
 			},
 		},
+		{
+			name: "http with tls_server_name",
+			sc: &ServiceCheck{
+				Type:          ServiceCheckHTTP,
+				Interval:      3 * time.Second,
+				Timeout:       1 * time.Second,
+				Path:          "/health",
+				TLSServerName: "foo",
+			},
+			exp: `tls_server_name may only be set for Consul service checks`,
+		},
 	}
 
 	for _, testCase := range testCases {
