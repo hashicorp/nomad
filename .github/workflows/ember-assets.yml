@@ -18,7 +18,7 @@ jobs:
       with:
         node-version: '14'
     - name: Install Dependencies
-      run: cd ui && npm ci
+      run: cd ui && npm i && npm ci
     - uses: mainmatter/ember-asset-size-action@255fe534db3d2f731e0d70ce9a5de74b0a6b140a # v3
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
