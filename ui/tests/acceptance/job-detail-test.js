@@ -21,6 +21,10 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
     type: 'batch',
     shallow: true,
     noActiveDeployment: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
   })
 );
 
@@ -29,6 +33,10 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
     type: 'system',
     shallow: true,
     noActiveDeployment: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
   })
 );
 
@@ -37,6 +45,11 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
     type: 'sysbatch',
     shallow: true,
     noActiveDeployment: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+      failed: 1,
+    },
   })
 );
 
@@ -87,6 +100,10 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
     childrenCount: 1,
     shallow: true,
     datacenters: ['dc1'],
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
     noActiveDeployment: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
@@ -225,6 +242,11 @@ moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
   const parent = server.create('job', 'periodic', {
     childrenCount: 1,
     shallow: true,
+    createAllocations: true,
+    allocStatusDistribution: {
+      running: 1,
+    },
+    noActiveDeployment: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -237,6 +259,10 @@ moduleForJob(
       childrenCount: 1,
       shallow: true,
       noActiveDeployment: true,
+      createAllocations: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
