@@ -3,7 +3,10 @@
 
 package api
 
-import "errors"
+import (
+	"errors"
+	"net/url"
+)
 
 const (
 	// NodePoolAll is the node pool that always includes all nodes.
@@ -45,11 +48,11 @@ func (n *NodePools) PrefixList(prefix string, q *QueryOptions) ([]*NodePool, *Qu
 // Info is used to fetch details of a specific node pool.
 func (n *NodePools) Info(name string, q *QueryOptions) (*NodePool, *QueryMeta, error) {
 	if name == "" {
-		return nil, errors.New("missing node pool name")
+		return nil, nil, errors.New("missing node pool name")
 	}
 
 	var resp NodePool
-	qm, err := n.client.query("/v1/node/pool/"+cleanPathString(name), &resp, q)
+	qm, err := n.client.query("/v1/node/pool/"+url.PathEscape(name), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,7 +81,7 @@ func (n *NodePools) Delete(name string, w *WriteOptions) (*WriteMeta, error) {
 		return nil, errors.New("missing node pool name")
 	}
 
-	wm, err := n.client.delete("/v1/node/pool/"+cleanPathString(name), nil, nil, w)
+	wm, err := n.client.delete("/v1/node/pool/"+url.PathEscape(name), nil, nil, w)
 	if err != nil {
 		return nil, err
 	}
