@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -251,4 +252,129 @@ func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *s
 	}
 	reply.Index = index
 	return nil
+}
+
+// ListJobs is used to retrieve a list of jobs for a given node pool. It supports
+// pagination and filtering.
+func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.NodePoolJobsResponse) error {
+	authErr := n.srv.Authenticate(n.ctx, args)
+	if done, err := n.srv.forward("NodePool.ListJobs", args, args, reply); done {
+		return err
+	}
+	n.srv.MeasureRPCRate("node_pool", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "node_pool", "list_jobs"}, time.Now())
+
+	// Resolve ACL token and verify it has read capability for the pool.
+	aclObj, err := n.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNodePoolOperation(args.Name, acl.NodePoolCapabilityRead) {
+		return structs.ErrPermissionDenied
+	}
+	allowNsFunc := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
+	namespace := args.RequestNamespace()
+
+	// Setup the blocking query. This largely mirrors the Jobs.List RPC but with
+	// an additional paginator filter for the node pool.
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			// ensure the node pool exists
+			_, err := store.NodePoolByName(ws, args.Name)
+			if err != nil {
+				return err
+			}
+
+			var iter memdb.ResultIterator
+
+			// Get the namespaces the user is allowed to access.
+			allowableNamespaces, err := allowedNSes(aclObj, store, allowNsFunc)
+			if err == structs.ErrPermissionDenied {
+				// return empty jobs if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Jobs = make([]*structs.JobListStub, 0)
+			} else if err != nil {
+				return err
+			} else {
+				if prefix := args.QueryOptions.Prefix; prefix != "" {
+					iter, err = store.JobsByIDPrefix(ws, namespace, prefix)
+				} else if namespace != structs.AllNamespacesSentinel {
+					iter, err = store.JobsByNamespace(ws, namespace)
+				} else {
+					iter, err = store.Jobs(ws)
+				}
+				if err != nil {
+					return err
+				}
+
+				tokenizer := paginator.NewStructsTokenizer(
+					iter,
+					paginator.StructsTokenizerOptions{
+						WithNamespace: true,
+						WithID:        true,
+					},
+				)
+
+				filters := []paginator.Filter{
+					paginator.NamespaceFilter{
+						AllowableNamespaces: allowableNamespaces,
+					},
+					paginator.GenericFilter{
+						Allow: func(raw interface{}) (bool, error) {
+							job := raw.(*structs.Job)
+							if job == nil || job.NodePool != args.Name {
+								return false, nil
+							}
+							return true, nil
+						},
+					},
+				}
+
+				var jobs []*structs.JobListStub
+				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+					func(raw interface{}) error {
+						job := raw.(*structs.Job)
+						summary, err := store.JobSummaryByID(ws, job.Namespace, job.ID)
+						if err != nil || summary == nil {
+							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+						}
+						jobs = append(jobs, job.Stub(summary, args.Fields))
+						return nil
+					})
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to create result paginator: %v", err)
+				}
+
+				nextToken, err := paginator.Page()
+				if err != nil {
+					return structs.NewErrRPCCodedf(
+						http.StatusBadRequest, "failed to read result page: %v", err)
+				}
+
+				reply.QueryMeta.NextToken = nextToken
+				reply.Jobs = jobs
+			}
+
+			// Use the last index that affected the jobs table or summary
+			jindex, err := store.Index("jobs")
+			if err != nil {
+				return err
+			}
+			sindex, err := store.Index("job_summary")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Max(jindex, sindex)
+
+			// Set the query response
+			n.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
 }

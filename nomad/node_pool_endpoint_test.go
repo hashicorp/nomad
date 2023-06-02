@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -1094,4 +1095,388 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNodePoolEndpoint_ListJobs_ACLs(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	store := s1.fsm.State()
+	index := uint64(1000)
+
+	var err error
+
+	// Populate state with some node pools.
+	poolDev := &structs.NodePool{
+		Name:        "dev-1",
+		Description: "test node pool for dev-1",
+	}
+	poolProd := &structs.NodePool{
+		Name:        "prod-1",
+		Description: "test node pool for prod-1",
+	}
+	err = store.UpsertNodePools(structs.MsgTypeTestSetup, index, []*structs.NodePool{
+		poolDev,
+		poolProd,
+	})
+	must.NoError(t, err)
+
+	// for refering to the jobs in assertions
+	jobIDs := map[string]string{}
+
+	// register jobs in all pools and all namespaces
+	for _, ns := range []string{"engineering", "system", "default"} {
+		index++
+		must.NoError(t, store.UpsertNamespaces(index, []*structs.Namespace{{Name: ns}}))
+
+		for _, pool := range []string{"dev-1", "prod-1", "default"} {
+			job := mock.MinJob()
+			job.Namespace = ns
+			job.NodePool = pool
+			jobIDs[ns+"+"+pool] = job.ID
+			index++
+			must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+		}
+	}
+
+	req := &structs.NodePoolJobsRequest{
+		Name: "dev-1",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.AllNamespacesSentinel},
+	}
+
+	// Expect failure for request without a token
+	var resp structs.NodePoolJobsResponse
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+
+	// Management token can read any namespace / any pool
+	//	var mgmtResp structs.NodePoolJobsResponse
+	req.AuthToken = root.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.NoError(t, err)
+	must.Len(t, 3, resp.Jobs)
+	must.SliceContainsAll(t,
+		helper.ConvertSlice(resp.Jobs, func(j *structs.JobListStub) string { return j.ID }),
+		[]string{jobIDs["engineering+dev-1"], jobIDs["system+dev-1"], jobIDs["default+dev-1"]})
+
+	// Policy that allows access to any pool but one namespace
+	index++
+	devToken := mock.CreatePolicyAndToken(t, store, index, "dev-node-pools",
+		fmt.Sprintf("%s\n%s\n%s\n",
+			mock.NodePoolPolicy("dev-*", "read", nil),
+			mock.NodePoolPolicy("default", "read", nil),
+			mock.NamespacePolicy("engineering", "read", nil)),
+	)
+	req.AuthToken = devToken.SecretID
+
+	// with wildcard namespace
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.NoError(t, err)
+	must.Len(t, 1, resp.Jobs)
+	must.Eq(t, jobIDs["engineering+dev-1"], resp.Jobs[0].ID)
+
+	// with specific allowed namespaces
+	req.Namespace = "engineering"
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.NoError(t, err)
+	must.Len(t, 1, resp.Jobs)
+	must.Eq(t, jobIDs["engineering+dev-1"], resp.Jobs[0].ID)
+
+	// with disallowed namespace
+	req.Namespace = "system"
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.NoError(t, err)
+	must.Len(t, 0, resp.Jobs)
+
+	// with disallowed pool but allowed namespace
+	req.Namespace = "engineering"
+	req.Name = "prod-1"
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
+func TestNodePoolEndpoint_ListJobs_Blocking(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	store := s1.fsm.State()
+	index := uint64(1000)
+
+	var err error
+
+	// Populate state with a node pool and a job in the default pool
+	poolDev := &structs.NodePool{
+		Name:        "dev-1",
+		Description: "test node pool for dev-1",
+	}
+	err = store.UpsertNodePools(structs.MsgTypeTestSetup, index, []*structs.NodePool{poolDev})
+	must.NoError(t, err)
+
+	job := mock.MinJob()
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	t.Logf("[UpsertJob] index=%d", index)
+
+	req := &structs.NodePoolJobsRequest{
+		Name: "default",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.AllNamespacesSentinel},
+	}
+
+	// List the job and get the index
+	var resp structs.NodePoolJobsResponse
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.Len(t, 1, resp.Jobs)
+	must.Eq(t, index, resp.Index)
+	t.Logf("[ListJob] resp.Index=%d", resp.Index)
+
+	// Moving a job into a pool we're watching should trigger a watch
+	index++
+	time.AfterFunc(100*time.Millisecond, func() {
+		job.NodePool = "dev-1"
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	})
+
+	req.Name = "dev-1"
+	req.MinQueryIndex = index
+	req.MaxQueryTime = 500 * time.Millisecond
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.Len(t, 1, resp.Jobs)
+	must.Eq(t, index, resp.Index)
+
+	// Moving a job out of a pool we're watching should trigger a watch
+	index++
+	time.AfterFunc(100*time.Millisecond, func() {
+		job.NodePool = "default"
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	})
+
+	req.Name = "dev-1"
+	req.MinQueryIndex = index
+	req.MaxQueryTime = 500 * time.Millisecond
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+	must.Len(t, 0, resp.Jobs)
+	must.Eq(t, index, resp.Index)
+}
+
+func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	store := s1.fsm.State()
+	index := uint64(1000)
+
+	var err error
+
+	// Populate state with some node pools.
+	poolDev := &structs.NodePool{
+		Name:        "dev-1",
+		Description: "test node pool for dev-1",
+	}
+	poolProd := &structs.NodePool{
+		Name:        "prod-1",
+		Description: "test node pool for prod-1",
+	}
+	err = store.UpsertNodePools(structs.MsgTypeTestSetup, index, []*structs.NodePool{
+		poolDev,
+		poolProd,
+	})
+	must.NoError(t, err)
+
+	index++
+	must.NoError(t, store.UpsertNamespaces(index,
+		[]*structs.Namespace{{Name: "non-default"}, {Name: "other"}}))
+
+	// create a set of jobs. these are in the order that the state store will
+	// return them from the iterator (sorted by key) for ease of writing tests
+	mocks := []struct {
+		name      string
+		pool      string
+		namespace string
+		status    string
+	}{
+		{name: "job-00", pool: "dev-1", namespace: "default", status: structs.JobStatusPending},
+		{name: "job-01", pool: "dev-1", namespace: "default", status: structs.JobStatusPending},
+		{name: "job-02", pool: "default", namespace: "default", status: structs.JobStatusPending},
+		{name: "job-03", pool: "dev-1", namespace: "non-default", status: structs.JobStatusPending},
+		{name: "job-04", pool: "dev-1", namespace: "default", status: structs.JobStatusRunning},
+		{name: "job-05", pool: "dev-1", namespace: "default", status: structs.JobStatusRunning},
+		{name: "job-06", pool: "dev-1", namespace: "other", status: structs.JobStatusPending},
+		// job-07 is missing for missing index assertion
+		{name: "job-08", pool: "prod-1", namespace: "default", status: structs.JobStatusRunning},
+		{name: "job-09", pool: "prod-1", namespace: "non-default", status: structs.JobStatusPending},
+		{name: "job-10", pool: "dev-1", namespace: "default", status: structs.JobStatusPending},
+	}
+	for _, m := range mocks {
+		job := mock.MinJob()
+		job.ID = m.name
+		job.Name = m.name
+		job.NodePool = m.pool
+		job.Status = m.status
+		job.Namespace = m.namespace
+		index++
+		job.CreateIndex = index
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	}
+
+	// Policy that allows access to 2 pools and any namespace
+	index++
+	devToken := mock.CreatePolicyAndToken(t, store, index, "dev-node-pools",
+		fmt.Sprintf("%s\n%s\n%s\n",
+			mock.NodePoolPolicy("dev-*", "read", nil),
+			mock.NodePoolPolicy("default", "read", nil),
+			mock.NamespacePolicy("*", "read", nil)),
+	)
+
+	cases := []struct {
+		name              string
+		pool              string
+		namespace         string
+		prefix            string
+		filter            string
+		nextToken         string
+		pageSize          int32
+		expectedNextToken string
+		expectedIDs       []string
+		expectedError     string
+	}{
+		{
+			name:              "test01 size-2 page-1 dev pool default NS",
+			pool:              "dev-1",
+			pageSize:          2,
+			expectedNextToken: "default.job-04",
+			expectedIDs:       []string{"job-00", "job-01"},
+		},
+		{
+			name:              "test02 size-2 page-1 dev pool default NS with prefix",
+			pool:              "dev-1",
+			prefix:            "job",
+			pageSize:          2,
+			expectedNextToken: "default.job-04",
+			expectedIDs:       []string{"job-00", "job-01"},
+		},
+		{
+			name:              "test03 size-2 page-2 dev pool default NS",
+			pool:              "dev-1",
+			pageSize:          2,
+			nextToken:         "default.job-04",
+			expectedNextToken: "default.job-10",
+			expectedIDs:       []string{"job-04", "job-05"},
+		},
+		{
+			name:              "test04 size-2 page-2 default NS with prefix",
+			pool:              "dev-1",
+			prefix:            "job",
+			pageSize:          2,
+			nextToken:         "default.job-04",
+			expectedNextToken: "default.job-10",
+			expectedIDs:       []string{"job-04", "job-05"},
+		},
+		{
+			name:        "test05 no valid results with filters and prefix",
+			pool:        "dev-1",
+			prefix:      "not-job",
+			pageSize:    2,
+			nextToken:   "",
+			expectedIDs: []string{},
+		},
+		{
+			name:        "test06 go-bexpr filter across namespaces",
+			pool:        "dev-1",
+			namespace:   "*",
+			filter:      `Name matches "job-0[12345]"`,
+			expectedIDs: []string{"job-01", "job-04", "job-05", "job-03"},
+		},
+		{
+			name:              "test07 go-bexpr filter with pagination",
+			pool:              "dev-1",
+			namespace:         "*",
+			filter:            `Name matches "job-0[12345]"`,
+			pageSize:          3,
+			expectedNextToken: "non-default.job-03",
+			expectedIDs:       []string{"job-01", "job-04", "job-05"},
+		},
+		{
+			name:        "test08 go-bexpr filter in namespace",
+			pool:        "dev-1",
+			namespace:   "non-default",
+			filter:      `Status == "pending"`,
+			expectedIDs: []string{"job-03"},
+		},
+		{
+			name:          "test09 go-bexpr invalid expression",
+			pool:          "dev-1",
+			filter:        `NotValid`,
+			expectedError: "failed to read filter expression",
+		},
+		{
+			name:          "test10 go-bexpr invalid field",
+			pool:          "dev-1",
+			filter:        `InvalidField == "value"`,
+			expectedError: "error finding value in datum",
+		},
+		{
+			name:        "test11 missing index",
+			pool:        "dev-1",
+			pageSize:    1,
+			nextToken:   "default.job-07",
+			expectedIDs: []string{"job-10"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.NodePoolJobsRequest{
+				Name: tc.pool,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					Namespace: tc.namespace,
+					Prefix:    tc.prefix,
+					Filter:    tc.filter,
+					PerPage:   tc.pageSize,
+					NextToken: tc.nextToken,
+				},
+			}
+			req.AuthToken = devToken.SecretID
+
+			var resp structs.NodePoolJobsResponse
+			err := msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+			if tc.expectedError == "" {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedError)
+				return
+			}
+
+			gotIDs := []string{}
+			for _, job := range resp.Jobs {
+				gotIDs = append(gotIDs, job.ID)
+			}
+
+			must.SliceContainsAll(t, gotIDs, tc.expectedIDs,
+				must.Sprintf("unexpected page of jobs: %v", gotIDs))
+			must.Eq(t, tc.expectedNextToken, resp.QueryMeta.NextToken,
+				must.Sprint("unexpected NextToken"))
+		})
+	}
+
 }
