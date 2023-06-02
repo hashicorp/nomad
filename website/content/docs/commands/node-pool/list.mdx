@@ -103,7 +103,9 @@ all [<no value>] - Node pool with all nodes in the cluster.
 default [<no value>] - Default node pool.
 dev [development] - Node pool for dev workloads.
 prod [production] - Node pool for production workloads.
+```
 
+```shell-session
 $ nomad node pool info -t "{{.Name}} [{{.Meta.env}}] - {{.Description}}" prod
 prod [production] - Node pool for production workloads.
 ```

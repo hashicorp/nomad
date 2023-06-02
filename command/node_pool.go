@@ -4,9 +4,14 @@
 package command
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 )
 
 type NodePoolCommand struct {
@@ -37,6 +42,10 @@ Usage: nomad node pool <subcommand> [options] [args]
 
     $ nomad node pool list
 
+  Fetch information on an existing node pool:
+
+    $ nomad node info <name>
+
   Delete a node pool:
 
     $ nomad node pool delete <name>
@@ -48,4 +57,45 @@ Usage: nomad node pool <subcommand> [options] [args]
 
 func (c *NodePoolCommand) Run(args []string) int {
 	return cli.RunResultHelp
+}
+
+func formatNodePoolList(pools []*api.NodePool) string {
+	out := make([]string, len(pools)+1)
+	out[0] = "Name|Description"
+	for i, p := range pools {
+		out[i+1] = fmt.Sprintf("%s|%s",
+			p.Name,
+			p.Description,
+		)
+	}
+	return formatList(out)
+}
+
+func nodePoolPredictor(factory ApiClientFactory, filter *set.Set[string]) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.NodePools, nil)
+		if err != nil {
+			return nil
+		}
+
+		results := resp.Matches[contexts.NodePools]
+		if filter == nil {
+			return results
+		}
+
+		filtered := []string{}
+		for _, pool := range resp.Matches[contexts.NodePools] {
+			if filter.Contains(pool) {
+				continue
+			}
+			filtered = append(filtered, pool)
+		}
+
+		return filtered
+	})
 }

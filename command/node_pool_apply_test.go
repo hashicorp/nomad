@@ -39,7 +39,7 @@ func TestNodePoolApplyCommand_Run(t *testing.T) {
 node_pool "dev" {
   description = "dev node pool"
 }`
-	file, err := os.CreateTemp("", "node-pool-test-*.hcl")
+	file, err := os.CreateTemp(t.TempDir(), "node-pool-test-*.hcl")
 	must.NoError(t, err)
 	_, err = file.WriteString(hclTestFile)
 	must.NoError(t, err)
@@ -86,7 +86,7 @@ node_pool "dev" {
   "Description": "prod node pool"
 }`
 
-	file, err = os.CreateTemp("", "node-pool-test-*.json")
+	file, err = os.CreateTemp(t.TempDir(), "node-pool-test-*.json")
 	must.NoError(t, err)
 	_, err = file.WriteString(jsonTestFile)
 	must.NoError(t, err)
@@ -189,7 +189,7 @@ func TestNodePoolApplyCommand_Run_fail(t *testing.T) {
 				ext := filepath.Ext(filename)
 				name, _ := strings.CutSuffix(filename, ext)
 
-				file, err := os.CreateTemp("", fmt.Sprintf("%s-*%s", name, ext))
+				file, err := os.CreateTemp(t.TempDir(), fmt.Sprintf("%s-*%s", name, ext))
 				must.NoError(t, err)
 				_, err = file.WriteString(tc.input)
 				must.NoError(t, err)

@@ -50,8 +50,8 @@ List Options:
     Where to start pagination.
 
   -per-page
-    How many results to show per page. If not specied, or set to 0, all results
-    are returned.
+    How many results to show per page. If not specified, or set to 0, all
+    results are returned.
 
   -t
     Format and display the node pools using a Go template.
@@ -128,7 +128,7 @@ func (c *NodePoolListCommand) Run(args []string) int {
 		return 0
 	}
 
-	c.Ui.Output(c.formatNodePoolList(pools))
+	c.Ui.Output(formatNodePoolList(pools))
 
 	if qm.NextToken != "" {
 		c.Ui.Output(fmt.Sprintf(`

@@ -45,7 +45,7 @@ func (c *NodePoolDeleteCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NodePoolDeleteCommand) AutocompleteArgs() complete.Predictor {
-	return c.NodePoolPredictor(set.From([]string{
+	return nodePoolPredictor(c.Client, set.From([]string{
 		api.NodePoolAll,
 		api.NodePoolDefault,
 	}))

@@ -54,12 +54,10 @@ Scheduler Algorithm = spread`
 
 	dev1JsonOutput := `
 {
-    "CreateIndex": 10,
     "Description": "Test pool",
     "Meta": {
         "env": "test"
     },
-    "ModifyIndex": 10,
     "Name": "dev-1",
     "SchedulerConfiguration": {
         "SchedulerAlgorithm": "spread"
@@ -161,10 +159,13 @@ No scheduler configuration`,
 			// Run command.
 			args := []string{"-address", url}
 			args = append(args, tc.args...)
-
 			code := cmd.Run(args)
+
+			gotStdout := ui.OutputWriter.String()
+			gotStdout = jsonOutputRaftIndexes.ReplaceAllString(gotStdout, "")
+
 			test.Eq(t, tc.expectedCode, code)
-			test.StrContains(t, ui.OutputWriter.String(), strings.TrimSpace(tc.expectedOut))
+			test.StrContains(t, gotStdout, strings.TrimSpace(tc.expectedOut))
 			test.StrContains(t, ui.ErrorWriter.String(), strings.TrimSpace(tc.expectedErr))
 		})
 	}

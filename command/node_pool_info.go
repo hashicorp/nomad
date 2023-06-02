@@ -58,7 +58,7 @@ func (c *NodePoolInfoCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NodePoolInfoCommand) AutocompleteArgs() complete.Predictor {
-	return c.NodePoolPredictor(nil)
+	return nodePoolPredictor(c.Client, nil)
 }
 
 func (c *NodePoolInfoCommand) Run(args []string) int {
@@ -95,7 +95,7 @@ func (c *NodePoolInfoCommand) Run(args []string) int {
 		return 1
 	}
 	if len(possible) != 0 {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple node pools\n\n%s", c.formatNodePoolList(possible)))
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple node pools\n\n%s", formatNodePoolList(possible)))
 		return 1
 	}
 

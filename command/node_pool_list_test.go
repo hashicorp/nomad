@@ -4,7 +4,6 @@
 package command
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -104,10 +103,8 @@ prod-1  <none>`,
 			expectedOut: `
 [
     {
-        "CreateIndex": 11,
         "Description": "",
         "Meta": null,
-        "ModifyIndex": 11,
         "Name": "prod-1",
         "SchedulerConfiguration": null
     }
@@ -144,18 +141,16 @@ prod-1  <none>`,
 			ui := cli.NewMockUi()
 			cmd := &NodePoolListCommand{Meta: Meta{Ui: ui}}
 
-			defer func() {
-				fmt.Println(ui.OutputWriter.String())
-				fmt.Println(ui.ErrorWriter.String())
-			}()
-
 			// Run command.
 			args := []string{"-address", url}
 			args = append(args, tc.args...)
-
 			code := cmd.Run(args)
+
+			gotStdout := ui.OutputWriter.String()
+			gotStdout = jsonOutputRaftIndexes.ReplaceAllString(gotStdout, "")
+
 			test.Eq(t, tc.expectedCode, code)
-			test.StrContains(t, ui.OutputWriter.String(), strings.TrimSpace(tc.expectedOut))
+			test.StrContains(t, gotStdout, strings.TrimSpace(tc.expectedOut))
 			test.StrContains(t, ui.ErrorWriter.String(), strings.TrimSpace(tc.expectedErr))
 		})
 	}

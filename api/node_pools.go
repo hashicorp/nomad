@@ -3,6 +3,8 @@
 
 package api
 
+import "errors"
+
 const (
 	// NodePoolAll is the node pool that always includes all nodes.
 	NodePoolAll = "all"
@@ -16,10 +18,12 @@ type NodePools struct {
 	client *Client
 }
 
+// NodePools returns a handle on the node pools endpoints.
 func (c *Client) NodePools() *NodePools {
 	return &NodePools{client: c}
 }
 
+// List is used to list all node pools.
 func (n *NodePools) List(q *QueryOptions) ([]*NodePool, *QueryMeta, error) {
 	var resp []*NodePool
 	qm, err := n.client.query("/v1/node/pools", &resp, q)
@@ -29,6 +33,7 @@ func (n *NodePools) List(q *QueryOptions) ([]*NodePool, *QueryMeta, error) {
 	return resp, qm, nil
 }
 
+// PrefixList is used to list node pools that match a given prefix.
 func (n *NodePools) PrefixList(prefix string, q *QueryOptions) ([]*NodePool, *QueryMeta, error) {
 	if q == nil {
 		q = &QueryOptions{}
@@ -37,16 +42,29 @@ func (n *NodePools) PrefixList(prefix string, q *QueryOptions) ([]*NodePool, *Qu
 	return n.List(q)
 }
 
+// Info is used to fetch details of a specific node pool.
 func (n *NodePools) Info(name string, q *QueryOptions) (*NodePool, *QueryMeta, error) {
+	if name == "" {
+		return nil, errors.New("missing node pool name")
+	}
+
 	var resp NodePool
-	qm, err := n.client.query("/v1/node/pool/"+name, &resp, q)
+	qm, err := n.client.query("/v1/node/pool/"+cleanPathString(name), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &resp, qm, nil
 }
 
+// Register is used to create or update a node pool.
 func (n *NodePools) Register(pool *NodePool, w *WriteOptions) (*WriteMeta, error) {
+	if pool == nil {
+		return nil, errors.New("missing node pool")
+	}
+	if pool.Name == "" {
+		return nil, errors.New("missing node pool name")
+	}
+
 	wm, err := n.client.put("/v1/node/pools", pool, nil, w)
 	if err != nil {
 		return nil, err
@@ -54,14 +72,20 @@ func (n *NodePools) Register(pool *NodePool, w *WriteOptions) (*WriteMeta, error
 	return wm, nil
 }
 
+// Delete is used to delete a node pool.
 func (n *NodePools) Delete(name string, w *WriteOptions) (*WriteMeta, error) {
-	wm, err := n.client.delete("/v1/node/pool/"+name, nil, nil, w)
+	if name == "" {
+		return nil, errors.New("missing node pool name")
+	}
+
+	wm, err := n.client.delete("/v1/node/pool/"+cleanPathString(name), nil, nil, w)
 	if err != nil {
 		return nil, err
 	}
 	return wm, nil
 }
 
+// NodePool is used to serialize a node pool.
 type NodePool struct {
 	Name                   string                          `hcl:"name,label"`
 	Description            string                          `hcl:"description,optional"`
@@ -71,6 +95,8 @@ type NodePool struct {
 	ModifyIndex            uint64
 }
 
+// NodePoolSchedulerConfiguration is used to serialize the scheduler
+// configuration of a node pool.
 type NodePoolSchedulerConfiguration struct {
 	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm,optional"`
 }
