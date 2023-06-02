@@ -1,0 +1,57 @@
+name: test-ui
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+      - test-ui
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'website/**'
+
+jobs:
+  test-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: yarn install
+        run: cd ui && yarn install --frozen-lockfile
+      - name: lint:js
+        run: cd ui && yarn run lint:js
+      - name: lint:hbs
+        run: cd ui && yarn run lint:hbs
+      - name: Ember tests
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        run: mkdir -p /tmp/test-reports && cd ui && yarn test
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: "/tmp/test-reports"
+permissions:
+  contents: read
