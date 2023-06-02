@@ -3017,6 +3017,12 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
+										Name: "TLSServerName",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
 										Name: "TLSSkipVerify",
 										Old:  "false",
 										New:  "false",
@@ -6554,6 +6560,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "SuccessBeforePassing",
 										Old:  "4",
 										New:  "4",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "TLSServerName",
+										Old:  "",
+										New:  "",
 									},
 									{
 										Type: DiffTypeNone,
