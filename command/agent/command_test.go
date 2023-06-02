@@ -71,6 +71,10 @@ func TestCommand_Args(t *testing.T) {
 			[]string{"-client", "-data-dir=" + tmpDir, "-meta=invalid.=inaccessible-value"},
 			"Invalid Client.Meta key: invalid.",
 		},
+		{
+			[]string{"-client", "-node-pool=not@valid"},
+			"Invalid node pool",
+		},
 	}
 	for _, tc := range tcases {
 		// Make a new command. We preemptively close the shutdownCh
@@ -304,6 +308,26 @@ func TestIsValidConfig(t *testing.T) {
 				DataDir: "foo/bar",
 			},
 			err: "must be given as an absolute",
+		},
+		{
+			name: "InvalidNodePoolChar",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:  true,
+					NodePool: "not@valid",
+				},
+			},
+			err: "Invalid node pool",
+		},
+		{
+			name: "InvalidNodePoolName",
+			conf: Config{
+				Client: &ClientConfig{
+					Enabled:  true,
+					NodePool: structs.NodePoolAll,
+				},
+			},
+			err: "not allowed",
 		},
 		{
 			name: "NegativeMinDynamicPort",

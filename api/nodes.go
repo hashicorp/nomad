@@ -553,6 +553,7 @@ type Node struct {
 	Links                 map[string]string
 	Meta                  map[string]string
 	NodeClass             string
+	NodePool              string
 	CgroupParent          string
 	Drain                 bool
 	DrainStrategy         *DrainStrategy
@@ -914,6 +915,7 @@ type NodeListStub struct {
 	Datacenter            string
 	Name                  string
 	NodeClass             string
+	NodePool              string
 	Version               string
 	Drain                 bool
 	SchedulingEligibility string

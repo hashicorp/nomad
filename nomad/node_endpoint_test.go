@@ -215,6 +215,91 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	}
 }
 
+func TestClientEndpoint_Register_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	testCases := []struct {
+		name        string
+		pool        string
+		expectedErr string
+		validateFn  func(*testing.T, *structs.Node)
+	}{
+		{
+			name:        "invalid node pool name",
+			pool:        "not@valid",
+			expectedErr: "invalid node pool: invalid name",
+		},
+		{
+			name:        "built-in pool all not allowed",
+			pool:        structs.NodePoolAll,
+			expectedErr: `node is not allowed to register in node pool "all"`,
+		},
+		{
+			name: "set default node pool when empty",
+			pool: "",
+			validateFn: func(t *testing.T, node *structs.Node) {
+				state := s.fsm.State()
+				ws := memdb.NewWatchSet()
+
+				// Verify node was registered with default node pool.
+				got, err := state.NodeByID(ws, node.ID)
+				must.NoError(t, err)
+				must.NotNil(t, got)
+				must.Eq(t, structs.NodePoolDefault, got.NodePool)
+			},
+		},
+		{
+			name: "set node pool requested",
+			pool: "my-pool",
+			validateFn: func(t *testing.T, node *structs.Node) {
+				state := s.fsm.State()
+				ws := memdb.NewWatchSet()
+
+				// Verify node was registered.
+				got, err := state.NodeByID(ws, node.ID)
+				must.NoError(t, err)
+				must.NotNil(t, got)
+
+				// Verify node pool was created.
+				pool, err := state.NodePoolByName(ws, "my-pool")
+				must.NoError(t, err)
+				must.NotNil(t, pool)
+
+				// Verify node was added to the pool.
+				must.Eq(t, "my-pool", got.NodePool)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node := mock.Node()
+			node.NodePool = tc.pool
+
+			req := &structs.NodeRegisterRequest{
+				Node:         node,
+				WriteRequest: structs.WriteRequest{Region: "global"},
+			}
+			var resp structs.GenericResponse
+			err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
+
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				must.NoError(t, err)
+				if tc.validateFn != nil {
+					tc.validateFn(t, req.Node)
+				}
+			}
+		})
+	}
+}
+
 // Test the deprecated single node deregistration path
 func TestClientEndpoint_DeregisterOne(t *testing.T) {
 	ci.Parallel(t)

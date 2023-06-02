@@ -204,6 +204,11 @@ type ClientConfig struct {
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
+	// NodePool defines the node pool in which the client is registered. If the
+	// node pool does not exist it will be created automatically when the node
+	// registers.
+	NodePool string `hcl:"node_pool"`
+
 	// Options is used for configuration of nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
@@ -1269,6 +1274,7 @@ func DefaultConfig() *Config {
 		UI:             config.DefaultUIConfig(),
 		Client: &ClientConfig{
 			Enabled:               false,
+			NodePool:              structs.NodePoolDefault,
 			MaxKillTimeout:        "30s",
 			ClientMinPort:         14000,
 			ClientMaxPort:         14512,
@@ -2055,6 +2061,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
+	}
+	if b.NodePool != "" {
+		result.NodePool = b.NodePool
 	}
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
