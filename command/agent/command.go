@@ -1423,7 +1423,7 @@ Client Options:
     similar node types.
 
   -node-pool
-    Register this node under this node pool. If the node pool does not exist it
+    Register this node in this node pool. If the node pool does not exist it
     will be created automatically when the node registers.
 
   -meta
