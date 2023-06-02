@@ -152,9 +152,20 @@ export default function moduleForJob(
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
-        const legendItem =
-          JobDetail.allocationsSummary.legend.clickableItems[1];
-        const status = legendItem.label;
+        if (jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
+
+        // explicitly setting allocationStatusDistribution when creating the job that gets passed here
+        // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
+        // but we can be redundant for the sake of future-proofing this here.
+        const legendItem = find(
+          '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
+        );
+
+        const status = legendItem.parentElement.getAttribute(
+          'data-test-legend-label'
+        );
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
@@ -251,7 +262,11 @@ export function moduleForJobWithClientStatus(
       );
       job = jobFactory();
       clients.forEach((c) => {
-        server.create('allocation', { jobId: job.id, nodeId: c.id });
+        server.create('allocation', {
+          jobId: job.id,
+          nodeId: c.id,
+          clientStatus: 'running',
+        });
       });
     });
 

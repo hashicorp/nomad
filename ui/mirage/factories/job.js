@@ -361,6 +361,7 @@ export default Factory.extend({
         datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
+        noActiveDeployment: job.noActiveDeployment,
       });
     }
   },
