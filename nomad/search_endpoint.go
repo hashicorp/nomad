@@ -689,7 +689,7 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 		// allowed to access the given prefix since it may not match node pool
 		// label in the policy. Node pools will be filtered when iterating over
 		// the results.
-		return true
+		return allowNodePool
 	case structs.Namespaces:
 		return allowNS
 	case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
