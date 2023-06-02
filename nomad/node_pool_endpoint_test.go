@@ -1278,7 +1278,7 @@ func TestNodePoolEndpoint_ListJobs_Blocking(t *testing.T) {
 func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 	ci.Parallel(t)
 
-	s1, _, cleanupS1 := TestACLServer(t, func(c *Config) {
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer cleanupS1()
@@ -1356,12 +1356,13 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 		filter            string
 		nextToken         string
 		pageSize          int32
+		aclToken          string
 		expectedNextToken string
 		expectedIDs       []string
 		expectedError     string
 	}{
 		{
-			name:        "test00 all dev pool default NS",
+			name:        "test00 dev pool default NS",
 			pool:        "dev-1",
 			expectedIDs: []string{"job-00", "job-01", "job-04", "job-05", "job-10"},
 		},
@@ -1447,6 +1448,31 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 			nextToken:   "default.job-07",
 			expectedIDs: []string{"job-10"},
 		},
+		{
+			name:          "test12 all pool wildcard NS",
+			pool:          "all",
+			namespace:     "*",
+			pageSize:      4,
+			expectedError: "Permission denied",
+		},
+		{
+			name:      "test13 all pool wildcard NS",
+			pool:      "all",
+			namespace: "*",
+			aclToken:  root.SecretID,
+			expectedIDs: []string{ // note these are sorted namespace-then-job-ID
+				"job-00", "job-01", "job-02", "job-04", "job-05",
+				"job-08", "job-10", "job-06", "job-03", "job-09",
+			},
+		},
+		{
+			name:              "test14 all pool default NS",
+			pool:              "all",
+			pageSize:          4,
+			aclToken:          root.SecretID,
+			expectedNextToken: "default.job-05",
+			expectedIDs:       []string{"job-00", "job-01", "job-02", "job-04"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1462,6 +1488,9 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 				},
 			}
 			req.AuthToken = devToken.SecretID
+			if tc.aclToken != "" {
+				req.AuthToken = tc.aclToken
+			}
 
 			var resp structs.NodePoolJobsResponse
 			err := msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)

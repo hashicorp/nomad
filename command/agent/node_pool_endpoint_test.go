@@ -420,3 +420,68 @@ func TestHTTP_NodePool_NodesList(t *testing.T) {
 			}
 		})
 }
+
+func TestHTTP_NodePool_JobsList(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+
+		pool1, pool2 := mock.NodePool(), mock.NodePool()
+		npUpReq := structs.NodePoolUpsertRequest{
+			NodePools: []*structs.NodePool{pool1, pool2},
+		}
+		var npUpResp structs.GenericResponse
+		err := s.Agent.RPC("NodePool.UpsertNodePools", &npUpReq, &npUpResp)
+		must.NoError(t, err)
+
+		for _, poolName := range []string{pool1.Name, "default"} {
+			for i := 0; i < 2; i++ {
+				job := mock.MinJob()
+				job.NodePool = poolName
+				jobRegReq := structs.JobRegisterRequest{
+					Job: job,
+					WriteRequest: structs.WriteRequest{
+						Region:    "global",
+						Namespace: structs.DefaultNamespace,
+					},
+				}
+				var jobRegResp structs.JobRegisterResponse
+				must.NoError(t, s.Agent.RPC("Job.Register", &jobRegReq, &jobRegResp))
+			}
+		}
+
+		// Make HTTP request to occupied pool
+		req, err := http.NewRequest(http.MethodGet,
+			fmt.Sprintf("/v1/node/pool/%s/jobs", pool1.Name), nil)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		obj, err := s.Server.NodePoolSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.SliceLen(t, 2, obj.([]*structs.JobListStub))
+
+		// Verify response index.
+		gotIndex, err := strconv.ParseUint(respW.HeaderMap.Get("X-Nomad-Index"), 10, 64)
+		must.NoError(t, err)
+		must.NonZero(t, gotIndex)
+
+		// Make HTTP request to empty pool
+		req, err = http.NewRequest(http.MethodGet,
+			fmt.Sprintf("/v1/node/pool/%s/jobs", pool2.Name), nil)
+		must.NoError(t, err)
+		respW = httptest.NewRecorder()
+
+		obj, err = s.Server.NodePoolSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.SliceLen(t, 0, obj.([]*structs.JobListStub))
+
+		// Make HTTP request to the "all"" pool
+		req, err = http.NewRequest(http.MethodGet, "/v1/node/pool/all/jobs", nil)
+		must.NoError(t, err)
+		respW = httptest.NewRecorder()
+
+		obj, err = s.Server.NodePoolSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.SliceLen(t, 4, obj.([]*structs.JobListStub))
+
+	})
+}
