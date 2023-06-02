@@ -597,10 +597,11 @@ func TestSearch_PrefixSearch_NodePool_ACL(t *testing.T) {
 
 	// Run test cases.
 	testCases := []struct {
-		name     string
-		token    string
-		prefix   string
-		expected []string
+		name        string
+		token       string
+		prefix      string
+		expected    []string
+		expectedErr string
 	}{
 		{
 			name:   "management token has access to all",
@@ -633,22 +634,22 @@ func TestSearch_PrefixSearch_NodePool_ACL(t *testing.T) {
 			expected: []string{},
 		},
 		{
-			name:     "no results if token is denied",
-			token:    denyDevToken.SecretID,
-			prefix:   "dev",
-			expected: []string{},
+			name:        "no results if token is denied",
+			token:       denyDevToken.SecretID,
+			prefix:      "dev",
+			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			name:     "no policy",
-			token:    noPolicyToken.SecretID,
-			prefix:   "",
-			expected: []string{},
+			name:        "no policy",
+			token:       noPolicyToken.SecretID,
+			prefix:      "",
+			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			name:     "no token",
-			token:    "",
-			prefix:   "",
-			expected: []string{},
+			name:        "no token",
+			token:       "",
+			prefix:      "",
+			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
 	}
 
@@ -664,6 +665,11 @@ func TestSearch_PrefixSearch_NodePool_ACL(t *testing.T) {
 			}
 			var resp structs.SearchResponse
 			err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+
 			must.NoError(t, err)
 			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
 
@@ -1599,10 +1605,11 @@ func TestSearch_FuzzySearch_NodePool_ACL(t *testing.T) {
 
 	// Run test cases.
 	testCases := []struct {
-		name     string
-		token    string
-		text     string
-		expected []string
+		name        string
+		token       string
+		text        string
+		expected    []string
+		expectedErr string
 	}{
 		{
 			name:     "management token has access to all",
@@ -1629,22 +1636,22 @@ func TestSearch_FuzzySearch_NodePool_ACL(t *testing.T) {
 			expected: []string{},
 		},
 		{
-			name:     "no results if token is denied",
-			token:    denyEngToken.SecretID,
-			text:     "eng",
-			expected: []string{},
+			name:        "no results if token is denied",
+			token:       denyEngToken.SecretID,
+			text:        "eng",
+			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			name:     "no policy",
-			token:    noPolicyToken.SecretID,
-			text:     "dev",
-			expected: []string{},
+			name:        "no policy",
+			token:       noPolicyToken.SecretID,
+			text:        "dev",
+			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			name:     "no token",
-			token:    "",
-			text:     "dev",
-			expected: []string{},
+			name:        "no token",
+			token:       "",
+			text:        "dev",
+			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
 	}
 
@@ -1660,6 +1667,11 @@ func TestSearch_FuzzySearch_NodePool_ACL(t *testing.T) {
 			}
 			var resp structs.FuzzySearchResponse
 			err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+
 			must.NoError(t, err)
 			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
 
