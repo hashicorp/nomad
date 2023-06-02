@@ -393,6 +393,13 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
+	for _, volumeConfig := range config.Client.HostVolumes {
+		if volumeConfig.Path == "" {
+			c.Ui.Error("Missing path in host_volume config")
+			return false
+		}
+	}
+
 	if config.Client.MinDynamicPort < 0 || config.Client.MinDynamicPort > structs.MaxValidPort {
 		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d", config.Client.MinDynamicPort))
 		return false

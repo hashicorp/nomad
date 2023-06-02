@@ -430,6 +430,48 @@ func TestIsValidConfig(t *testing.T) {
 			},
 			err: "client.artifact block invalid: http_read_timeout must be > 0",
 		},
+		{
+			name: "BadHostVolumeConfig",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+					HostVolumes: []*structs.ClientHostVolumeConfig{
+						{
+							Name:     "test",
+							ReadOnly: true,
+						},
+						{
+							Name:     "test",
+							ReadOnly: true,
+							Path:     "/random/path",
+						},
+					},
+				},
+			},
+			err: "Missing path in host_volume config",
+		},
+		{
+			name: "ValidHostVolumeConfig",
+			conf: Config{
+				DataDir: "/tmp",
+				Client: &ClientConfig{
+					Enabled: true,
+					HostVolumes: []*structs.ClientHostVolumeConfig{
+						{
+							Name:     "test",
+							ReadOnly: true,
+							Path:     "/random/path1",
+						},
+						{
+							Name:     "test",
+							ReadOnly: true,
+							Path:     "/random/path2",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range cases {
