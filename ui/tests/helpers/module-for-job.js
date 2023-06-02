@@ -12,6 +12,11 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
+const jobTypesWithStatusPanel = ['service', 'system', 'batch', 'sysbatch'];
+async function switchToHistorical() {
+  await JobDetail.statusModes.historical.click();
+}
+
 // moduleFor is an old Ember-QUnit API that is deprected https://guides.emberjs.com/v1.10.0/testing/unit-test-helpers/
 // this is a misnomer in our context, because we're not using this API, however, the linter does not understand this
 // the linter warning will go away if we rename this factory function to generateJobDetailsTests
