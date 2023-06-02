@@ -38,9 +38,6 @@ const (
 	// DefaultNamespace is the default namespace.
 	DefaultNamespace = "default"
 
-	// NodePoolDefault is the default node pool.
-	NodePoolDefault = "default"
-
 	// For Job configuration, GlobalRegion is a sentinel region value
 	// that users may specify to indicate the job should be run on
 	// the region of the node that the job was submitted to.
