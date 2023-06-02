@@ -8,7 +8,6 @@ import (
 	"regexp"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
 	"golang.org/x/exp/maps"
 )
 
@@ -34,13 +33,9 @@ var (
 )
 
 // ValidadeNodePoolName returns an error if a node pool name is invalid.
-func ValidateNodePoolName(pool string, invalidNames *set.Set[string]) error {
+func ValidateNodePoolName(pool string) error {
 	if !validNodePoolName.MatchString(pool) {
 		return fmt.Errorf("invalid name %q, must match regex %s", pool, validNodePoolName)
-	}
-
-	if invalidNames != nil && invalidNames.Contains(pool) {
-		return fmt.Errorf("node pool name %q is not allowed", pool)
 	}
 	return nil
 }
@@ -74,7 +69,7 @@ func (n *NodePool) GetID() string {
 func (n *NodePool) Validate() error {
 	var mErr *multierror.Error
 
-	mErr = multierror.Append(mErr, ValidateNodePoolName(n.Name, nil))
+	mErr = multierror.Append(mErr, ValidateNodePoolName(n.Name))
 
 	if len(n.Description) > maxNodePoolDescriptionLength {
 		mErr = multierror.Append(mErr, fmt.Errorf("description longer than %d", maxNodePoolDescriptionLength))

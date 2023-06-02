@@ -110,6 +110,7 @@ func Node() *structs.Node {
 			"version":  "5.6",
 		},
 		NodeClass:             "linux-medium-pci",
+		NodePool:              structs.NodePoolDefault,
 		Status:                structs.NodeStatusReady,
 		SchedulingEligibility: structs.NodeSchedulingEligible,
 	}

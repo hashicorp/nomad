@@ -237,7 +237,7 @@ func TestClientEndpoint_Register_NodePool(t *testing.T) {
 		{
 			name:        "built-in pool all not allowed",
 			pool:        structs.NodePoolAll,
-			expectedErr: `invalid node pool: node pool name "all" is not allowed`,
+			expectedErr: `node is not allowed to register in node pool "all"`,
 		},
 		{
 			name: "set default node pool when empty",

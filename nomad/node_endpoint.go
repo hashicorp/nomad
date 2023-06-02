@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
 	vapi "github.com/hashicorp/vault/api"
 	"golang.org/x/sync/errgroup"
 
@@ -139,12 +138,12 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	// Validate node pool value if provided. The node is canonicalized in the
 	// FSM, where an empty node pool is set to "default".
 	if args.Node.NodePool != "" {
-		invalidNames := set.From([]string{
-			structs.NodePoolAll,
-		})
-		err := structs.ValidateNodePoolName(args.Node.NodePool, invalidNames)
+		err := structs.ValidateNodePoolName(args.Node.NodePool)
 		if err != nil {
 			return fmt.Errorf("invalid node pool: %v", err)
+		}
+		if args.Node.NodePool == structs.NodePoolAll {
+			return fmt.Errorf("node is not allowed to register in node pool %q", structs.NodePoolAll)
 		}
 	}
 

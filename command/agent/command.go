@@ -25,7 +25,6 @@ import (
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
@@ -384,11 +383,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	// Validate node pool name early to prevent agent from starting but the
 	// client failing to register.
 	if pool := config.Client.NodePool; pool != "" {
-		invalidNames := set.From([]string{
-			structs.NodePoolAll,
-		})
-		if err := structs.ValidateNodePoolName(pool, invalidNames); err != nil {
+		if err := structs.ValidateNodePoolName(pool); err != nil {
 			c.Ui.Error(fmt.Sprintf("Invalid node pool: %v", err))
+			return false
+		}
+		if pool == structs.NodePoolAll {
+			c.Ui.Error(fmt.Sprintf("Invalid node pool: node is not allowed to register in node pool %q", structs.NodePoolAll))
 			return false
 		}
 	}
