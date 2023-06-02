@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
@@ -1467,13 +1468,11 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 				return
 			}
 
-			gotIDs := []string{}
-			for _, job := range resp.Jobs {
-				gotIDs = append(gotIDs, job.ID)
-			}
+			got := set.FromFunc(resp.Jobs,
+				func(j *structs.JobListStub) string { return j.ID })
+			must.True(t, got.ContainsSlice(tc.expectedIDs),
+				must.Sprintf("unexpected page of jobs: %v", got))
 
-			must.SliceContainsAll(t, gotIDs, tc.expectedIDs,
-				must.Sprintf("unexpected page of jobs: %v", gotIDs))
 			must.Eq(t, tc.expectedNextToken, resp.QueryMeta.NextToken,
 				must.Sprint("unexpected NextToken"))
 		})

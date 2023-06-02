@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -294,7 +295,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allowNsFunc)
-			if err == structs.ErrPermissionDenied {
+			if errors.Is(err, structs.ErrPermissionDenied) {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
 				reply.Jobs = make([]*structs.JobListStub, 0)
