@@ -203,6 +203,7 @@ type Allocation struct {
 	PreviousAllocation    string
 	NextAllocation        string
 	RescheduleTracker     *RescheduleTracker
+	NetworkStatus         *AllocNetworkStatus
 	PreemptedAllocations  []string
 	PreemptedByAllocation string
 	CreateIndex           uint64
@@ -210,7 +211,6 @@ type Allocation struct {
 	AllocModifyIndex      uint64
 	CreateTime            int64
 	ModifyTime            int64
-	NetworkStatus         *AllocNetworkStatus
 }
 
 // AllocationMetric is used to deserialize allocation metrics.
