@@ -5,10 +5,6 @@ on:
     paths:
     - 'ui/**'
 
-defaults:
-  run:
-    working-directory: ui
-
 jobs:
   build:
 
@@ -22,7 +18,8 @@ jobs:
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: '14'
+      - name: Install Dependencies
+        run: cd ui && npm install
       - uses: mainmatter/ember-asset-size-action@255fe534db3d2f731e0d70ce9a5de74b0a6b140a # v3
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          working-directory: "ui"
