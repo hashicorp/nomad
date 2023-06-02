@@ -960,7 +960,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 		PidsLimit: &pidsLimit,
 
-		Runtime: containerRuntime,
+		Runtime:  containerRuntime,
 		GroupAdd: driverConfig.GroupAdd,
 	}
 
