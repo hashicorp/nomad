@@ -3086,8 +3086,7 @@ func TestDockerDriver_GroupAdd(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	task, cfg, ports := dockerTask(t)
-	defer freeport.Return(ports)
+	task, cfg, _ := dockerTask(t)
 	cfg.GroupAdd = []string{"12345", "9999"}
 	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
