@@ -286,9 +286,12 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// ensure the node pool exists
-			_, err := store.NodePoolByName(ws, args.Name)
+			pool, err := store.NodePoolByName(ws, args.Name)
 			if err != nil {
 				return err
+			}
+			if pool == nil {
+				return nil
 			}
 
 			var iter memdb.ResultIterator
