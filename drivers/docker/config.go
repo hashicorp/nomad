@@ -360,6 +360,7 @@ var (
 		"entrypoint":         hclspec.NewAttr("entrypoint", "list(string)", false),
 		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
 		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
+		"group_add":          hclspec.NewAttr("group_add", "list(string)", false),
 		"healthchecks":       hclspec.NewBlock("healthchecks", false, healthchecksBodySpec),
 		"hostname":           hclspec.NewAttr("hostname", "string", false),
 		"init":               hclspec.NewAttr("init", "bool", false),
@@ -443,6 +444,7 @@ type TaskConfig struct {
 	Entrypoint        []string           `codec:"entrypoint"`
 	ExtraHosts        []string           `codec:"extra_hosts"`
 	ForcePull         bool               `codec:"force_pull"`
+	GroupAdd          []string           `codec:"group_add"`
 	Healthchecks      DockerHealthchecks `codec:"healthchecks"`
 	Hostname          string             `codec:"hostname"`
 	Init              bool               `codec:"init"`
