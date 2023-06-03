@@ -128,6 +128,9 @@ config {
   are mutable. If image's tag is `latest` or omitted, the image will always be pulled
   regardless of this setting.
 
+- `group_add` - (Optional) A list of supplementary groups to be applied
+  to the container user.
+
 - `healthchecks` - (Optional) A configuration block for controlling how the
   docker driver manages HEALTHCHECK directives built into the container. Set
   `healthchecks.disable` to disable any built-in healthcheck.

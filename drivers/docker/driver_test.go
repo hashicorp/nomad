@@ -3087,3 +3087,23 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 		})
 	}
 }
+
+func TestDockerDriver_GroupAdd(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	cfg.GroupAdd = []string{"12345", "9999"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Exactly(t, cfg.GroupAdd, container.HostConfig.GroupAdd)
+}
