@@ -84,4 +84,5 @@ jobs:
           message_path: flakiness-report.md
 permissions:
   contents: read
+  pull-requests: write
 
