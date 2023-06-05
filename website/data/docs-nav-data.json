@@ -673,6 +673,31 @@
         ]
       },
       {
+        "title": "node pool",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "commands/node-pool"
+          },
+          {
+            "title": "apply",
+            "path": "commands/node-pool/apply"
+          },
+          {
+            "title": "delete",
+            "path": "commands/node-pool/delete"
+          },
+          {
+            "title": "info",
+            "path": "commands/node-pool/info"
+          },
+          {
+            "title": "list",
+            "path": "commands/node-pool/list"
+          }
+        ]
+      },
+      {
         "title": "operator",
         "routes": [
           {

@@ -616,6 +616,31 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"node pool": func() (cli.Command, error) {
+			return &NodePoolCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool apply": func() (cli.Command, error) {
+			return &NodePoolApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool delete": func() (cli.Command, error) {
+			return &NodePoolDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool info": func() (cli.Command, error) {
+			return &NodePoolInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool list": func() (cli.Command, error) {
+			return &NodePoolListCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator": func() (cli.Command, error) {
 			return &OperatorCommand{
 				Meta: meta,

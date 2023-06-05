@@ -135,6 +135,17 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if args.Node.SecretID == "" {
 		return fmt.Errorf("missing node secret ID for client registration")
 	}
+	// Validate node pool value if provided. The node is canonicalized in the
+	// FSM, where an empty node pool is set to "default".
+	if args.Node.NodePool != "" {
+		err := structs.ValidateNodePoolName(args.Node.NodePool)
+		if err != nil {
+			return fmt.Errorf("invalid node pool: %v", err)
+		}
+		if args.Node.NodePool == structs.NodePoolAll {
+			return fmt.Errorf("node is not allowed to register in node pool %q", structs.NodePoolAll)
+		}
+	}
 
 	// Default the status if none is given
 	if args.Node.Status == "" {

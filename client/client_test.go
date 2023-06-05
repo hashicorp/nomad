@@ -391,6 +391,82 @@ func TestClient_Register(t *testing.T) {
 	})
 }
 
+func TestClient_Register_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create client with a node pool configured.
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+		c.Node.NodePool = "dev"
+	})
+	defer cleanupC1()
+
+	// Create client with no node pool configured.
+	c2, cleanupC2 := TestClient(t, func(c *config.Config) {
+		c.RPCHandler = s1
+		c.Node.NodePool = ""
+	})
+	defer cleanupC2()
+
+	nodeReq := structs.NodeSpecificRequest{
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var nodeResp structs.SingleNodeResponse
+
+	poolReq := structs.NodePoolSpecificRequest{
+		Name:         "dev",
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var poolResp structs.SingleNodePoolResponse
+
+	// Register should succeed and node pool should be created.
+	// Client without node pool configuration should be in the default pool.
+	testutil.WaitForResult(func() (bool, error) {
+		// Fetch node1.
+		nodeReq.NodeID = c1.Node().ID
+		err := s1.RPC("Node.GetNode", &nodeReq, &nodeResp)
+		if err != nil {
+			return false, err
+		}
+		if nodeResp.Node == nil {
+			return false, fmt.Errorf("c1 is missing")
+		}
+		if nodeResp.Node.NodePool != "dev" {
+			return false, fmt.Errorf("c1 has wrong node pool")
+		}
+
+		// Fetch node1 node pool.
+		err = s1.RPC("NodePool.GetNodePool", &poolReq, &poolResp)
+		if err != nil {
+			return false, err
+		}
+		if poolResp.NodePool == nil {
+			return false, fmt.Errorf("dev node pool is nil")
+		}
+
+		// Fetch node2.
+		nodeReq.NodeID = c2.Node().ID
+		err = s1.RPC("Node.GetNode", &nodeReq, &nodeResp)
+		if err != nil {
+			return false, err
+		}
+		if nodeResp.Node == nil {
+			return false, fmt.Errorf("c2 is missing")
+		}
+		if nodeResp.Node.NodePool != structs.NodePoolDefault {
+			return false, fmt.Errorf("c2 has wrong node pool")
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+}
+
 func TestClient_Heartbeat(t *testing.T) {
 	ci.Parallel(t)
 

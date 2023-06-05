@@ -25,4 +25,7 @@ jobs:
       - uses:  mainmatter/ember-asset-size-action@v3 # v3
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          working-directory: /ui
+          working-directory: "ui"
+permissions:
+  contents: read
+  pull-requests: write

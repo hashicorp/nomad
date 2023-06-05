@@ -109,6 +109,7 @@ func TestConfig_Merge(t *testing.T) {
 			StateDir:  "/tmp/state1",
 			AllocDir:  "/tmp/alloc1",
 			NodeClass: "class1",
+			NodePool:  "dev",
 			Options: map[string]string{
 				"foo": "bar",
 			},
@@ -297,6 +298,7 @@ func TestConfig_Merge(t *testing.T) {
 			StateDir:  "/tmp/state2",
 			AllocDir:  "/tmp/alloc2",
 			NodeClass: "class2",
+			NodePool:  "dev",
 			Servers:   []string{"server2"},
 			Meta: map[string]string{
 				"baz": "zip",

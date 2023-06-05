@@ -32,6 +32,14 @@ var (
 	validNodePoolName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
 )
 
+// ValidadeNodePoolName returns an error if a node pool name is invalid.
+func ValidateNodePoolName(pool string) error {
+	if !validNodePoolName.MatchString(pool) {
+		return fmt.Errorf("invalid name %q, must match regex %s", pool, validNodePoolName)
+	}
+	return nil
+}
+
 // NodePool allows partioning infrastructure
 type NodePool struct {
 	// Name is the node pool name. It must be unique.
@@ -61,9 +69,8 @@ func (n *NodePool) GetID() string {
 func (n *NodePool) Validate() error {
 	var mErr *multierror.Error
 
-	if !validNodePoolName.MatchString(n.Name) {
-		mErr = multierror.Append(mErr, fmt.Errorf("invalid name %q, must match regex %s", n.Name, validNodePoolName))
-	}
+	mErr = multierror.Append(mErr, ValidateNodePoolName(n.Name))
+
 	if len(n.Description) > maxNodePoolDescriptionLength {
 		mErr = multierror.Append(mErr, fmt.Errorf("description longer than %d", maxNodePoolDescriptionLength))
 	}

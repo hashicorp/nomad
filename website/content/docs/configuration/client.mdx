@@ -86,6 +86,11 @@ client {
   group client nodes by user-defined class. This can be used during job
   placement as a filter.
 
+- `node_pool` `(string: "default")` - Specifies the node pool in which the
+  client is registered. If the node pool does not exist yet, it will be created
+  automatically when the node registers with the cluster. If not specified the
+  `default` node pool is used.
+
 - `options` <code>([Options](#options-parameters): nil)</code> - Specifies a
   key-value mapping of internal configuration for clients, such as for driver
   configuration.

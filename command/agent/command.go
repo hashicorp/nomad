@@ -106,6 +106,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
+	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
@@ -379,6 +380,19 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	// Validate node pool name early to prevent agent from starting but the
+	// client failing to register.
+	if pool := config.Client.NodePool; pool != "" {
+		if err := structs.ValidateNodePoolName(pool); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid node pool: %v", err))
+			return false
+		}
+		if pool == structs.NodePoolAll {
+			c.Ui.Error(fmt.Sprintf("Invalid node pool: node is not allowed to register in node pool %q", structs.NodePoolAll))
+			return false
+		}
+	}
+
 	if config.Client.MinDynamicPort < 0 || config.Client.MinDynamicPort > structs.MaxValidPort {
 		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d", config.Client.MinDynamicPort))
 		return false
@@ -629,6 +643,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-state-dir":                     complete.PredictDirs("*"),
 		"-alloc-dir":                     complete.PredictDirs("*"),
 		"-node-class":                    complete.PredictAnything,
+		"-node-pool":                     complete.PredictAnything,
 		"-servers":                       complete.PredictAnything,
 		"-meta":                          complete.PredictAnything,
 		"-config":                        configFilePredictor,
@@ -1406,6 +1421,10 @@ Client Options:
   -node-class
     Mark this node as a member of a node-class. This can be used to label
     similar node types.
+
+  -node-pool
+    Register this node in this node pool. If the node pool does not exist it
+    will be created automatically when the node registers.
 
   -meta
     User specified metadata to associated with the node. Each instance of -meta

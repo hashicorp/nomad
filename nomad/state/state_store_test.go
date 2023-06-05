@@ -1276,6 +1276,136 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 	require.Equal(NodeRegisterEventReregistered, out.Events[1].Message)
 }
 
+func TestStateStore_UpsertNode_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	devPoolName := "dev"
+	nodeWithPoolID := uuid.Generate()
+	nodeWithoutPoolID := uuid.Generate()
+
+	testCases := []struct {
+		name            string
+		nodeID          string
+		poolName        string
+		expectedPool    string
+		expectedNewPool bool
+	}{
+		{
+			name:         "register new node in existing pool",
+			nodeID:       "",
+			poolName:     devPoolName,
+			expectedPool: devPoolName,
+		},
+		{
+			name:            "register new node in new pool",
+			nodeID:          "",
+			poolName:        "new",
+			expectedPool:    "new",
+			expectedNewPool: true,
+		},
+		{
+			name:         "register new node with empty pool in default",
+			nodeID:       "",
+			poolName:     "",
+			expectedPool: structs.NodePoolDefault,
+		},
+		{
+			name:         "update existing node in existing pool",
+			nodeID:       nodeWithPoolID,
+			poolName:     devPoolName,
+			expectedPool: devPoolName,
+		},
+		{
+			name:            "update existing node with new pool",
+			nodeID:          nodeWithPoolID,
+			poolName:        "new",
+			expectedPool:    "new",
+			expectedNewPool: true,
+		},
+		{
+			name:         "update existing node with empty pool in default",
+			nodeID:       nodeWithPoolID,
+			poolName:     "",
+			expectedPool: devPoolName,
+		},
+		{
+			name:         "update legacy node with pool",
+			nodeID:       nodeWithoutPoolID,
+			poolName:     devPoolName,
+			expectedPool: devPoolName,
+		},
+		{
+			name:            "update legacy node with new pool",
+			nodeID:          nodeWithoutPoolID,
+			poolName:        "new",
+			expectedPool:    "new",
+			expectedNewPool: true,
+		},
+		{
+			name:         "update legacy node with empty pool places it in default",
+			nodeID:       nodeWithoutPoolID,
+			poolName:     "",
+			expectedPool: structs.NodePoolDefault,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := testStateStore(t)
+
+			// Populate state with pre-existing node pool.
+			devPool := mock.NodePool()
+			devPool.Name = devPoolName
+			err := state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{devPool})
+			must.NoError(t, err)
+
+			// Populate state with pre-existing node assigned to the
+			// pre-existing node pool.
+			nodeWithPool := mock.Node()
+			nodeWithPool.ID = nodeWithPoolID
+			nodeWithPool.NodePool = devPool.Name
+			err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, nodeWithPool)
+			must.NoError(t, err)
+
+			// Populate state with pre-existing node with nil node pool to
+			// simulate an upgrade path.
+			nodeWithoutPool := mock.Node()
+			nodeWithoutPool.ID = nodeWithoutPoolID
+			err = state.UpsertNode(structs.MsgTypeTestSetup, 1002, nodeWithoutPool)
+			must.NoError(t, err)
+
+			// Upsert test node.
+			var node *structs.Node
+			switch tc.nodeID {
+			case nodeWithPoolID:
+				node = nodeWithPool
+			case nodeWithoutPoolID:
+				node = nodeWithoutPool
+			default:
+				node = mock.Node()
+			}
+			err = state.UpsertNode(structs.MsgTypeTestSetup, 1003, node)
+			must.NoError(t, err)
+
+			// Verify that node is part of the expected pool.
+			must.Eq(t, tc.expectedPool, node.NodePool)
+
+			// Fech pool.
+			pool, err := state.NodePoolByName(nil, tc.expectedPool)
+			must.NoError(t, err)
+			must.NotNil(t, pool)
+
+			if tc.expectedNewPool {
+				// Verify that pool was created along with node registration.
+				must.Eq(t, node.ModifyIndex, pool.CreateIndex)
+			} else {
+				// Verify that pool was not modified.
+				must.Less(t, node.ModifyIndex, pool.ModifyIndex)
+			}
+		})
+	}
+}
+
 func TestStateStore_DeleteNode_Node(t *testing.T) {
 	ci.Parallel(t)
 

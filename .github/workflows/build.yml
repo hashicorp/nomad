@@ -35,9 +35,9 @@ jobs:
         id: get-go-version
         # We use .go-version as our source of truth for current Go
         # version, because "goenv" can react to it automatically.
-        run: |
+        run: |-
           echo "Building with Go $(cat .go-version)"
-          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
+          echo "go-version=$(cat .go-version)" >> "$GITHUB_OUTPUT"
   get-product-version:
     runs-on: ubuntu-20.04
     outputs:
@@ -48,9 +48,9 @@ jobs:
           ref: ${{ github.event.inputs.build-ref }}
       - name: get product version
         id: get-product-version
-        run: |
+        run: |-
           make version
-          echo "product-version=$(make version)" >> $GITHUB_OUTPUT
+          echo "product-version=$(make version)" >> "$GITHUB_OUTPUT"
   generate-metadata-file:
     needs: get-product-version
     runs-on: ubuntu-20.04
@@ -177,9 +177,9 @@ jobs:
       - name: Set gcc
         run: |
           if [ "${{ matrix.goarch }}" == "arm" ]; then
-            echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+            echo "CC=arm-linux-gnueabihf-gcc" >> "$GITHUB_ENV"
           elif [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+            echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
           fi
 
       - name: Build
@@ -216,8 +216,8 @@ jobs:
 
       - name: Set Package Names
         run: |
-          echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
-          echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
+          echo "RPM_PACKAGE=$(basename out/*.rpm)" >> "$GITHUB_ENV"
+          echo "DEB_PACKAGE=$(basename out/*.deb)" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
@@ -281,8 +281,10 @@ jobs:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
-  # This placed here for when the Nomad team is ready to build docker images.
-  # Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc.
+permissions:
+  contents: read
+# This placed here for when the Nomad team is ready to build docker images.
+# Please reach out the RDX team for assistance or refer to the CRT Self-Serve Onboarding doc.
 
   # build-docker-default:
   #   name: Docker ${{ matrix.arch }} default release build
