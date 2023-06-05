@@ -99,3 +99,26 @@ func nodePoolPredictor(factory ApiClientFactory, filter *set.Set[string]) comple
 		return filtered
 	})
 }
+
+// nodePoolByPrefix returns a node pool that matches the given prefix or a list
+// of all matches if an exact match is not found.
+func nodePoolByPrefix(client *api.Client, prefix string) (*api.NodePool, []*api.NodePool, error) {
+	pools, _, err := client.NodePools().PrefixList(prefix, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	switch len(pools) {
+	case 0:
+		return nil, nil, fmt.Errorf("No node pool with prefix %q found", prefix)
+	case 1:
+		return pools[0], nil, nil
+	default:
+		for _, pool := range pools {
+			if pool.Name == prefix {
+				return pool, nil, nil
+			}
+		}
+		return nil, pools, nil
+	}
+}
