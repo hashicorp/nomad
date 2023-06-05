@@ -6,7 +6,6 @@ package command
 import (
 	"crypto/x509"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -57,24 +56,6 @@ func TestCACreateCommand(t *testing.T) {
 				require.ElementsMatch(t, cert.PermittedDNSDomains, []string{"nomad", "foo", "localhost", "bar"})
 			},
 		},
-		{"with common-name",
-			[]string{
-				"-common-name=foo",
-			},
-			"nomad-agent-ca.pem",
-			"nomad-agent-ca-key.pem",
-			func(t *testing.T, cert *x509.Certificate) {
-				require.Equal(t, cert.Subject.CommonName, "foo")
-			},
-		},
-		{"without common-name",
-			[]string{},
-			"nomad-agent-ca.pem",
-			"nomad-agent-ca-key.pem",
-			func(t *testing.T, cert *x509.Certificate) {
-				require.True(t, strings.HasPrefix(cert.Subject.CommonName, "Nomad Agent CA"))
-			},
-		},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -97,5 +78,4 @@ func TestCACreateCommand(t *testing.T) {
 			require.NoError(t, os.Remove(tc.keyPath))
 		})
 	}
-
 }

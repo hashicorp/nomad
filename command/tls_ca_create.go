@@ -126,7 +126,7 @@ func (c *TLSCACreateCommand) AutocompleteFlags() complete.Flags {
 			"-name-constraint":     complete.PredictAnything,
 			"-organization":        complete.PredictAnything,
 			"-organizational-unit": complete.PredictAnything,
-			"-postcode":            complete.PredictAnything,
+			"-postal-code":         complete.PredictAnything,
 			"-province":            complete.PredictAnything,
 			"-street-address":      complete.PredictAnything,
 		})
@@ -147,12 +147,12 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.Var(&c.additionalDomain, "additional-domain", "")
-	flagSet.IntVar(&c.days, "days", 1825, "")
+	flagSet.IntVar(&c.days, "days", 0, "")
 	flagSet.BoolVar(&c.constraint, "name-constraint", false, "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
 	flagSet.StringVar(&c.commonName, "common-name", "", "")
 	flagSet.StringVar(&c.country, "country", "", "")
-	flagSet.StringVar(&c.postalCode, "post-code", "", "")
+	flagSet.StringVar(&c.postalCode, "postal-code", "", "")
 	flagSet.StringVar(&c.province, "province", "", "")
 	flagSet.StringVar(&c.locality, "locality", "", "")
 	flagSet.StringVar(&c.streetAddress, "street-address", "", "")
@@ -200,7 +200,19 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		constraints = append(constraints, c.additionalDomain...)
 	}
 
-	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{Name: c.commonName, Days: c.days, Domain: c.domain, PermittedDNSDomains: constraints})
+	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{
+		Name:                c.commonName,
+		Days:                c.days,
+		Domain:              c.domain,
+		PermittedDNSDomains: constraints,
+		Country:             c.country,
+		PostalCode:          c.postalCode,
+		Province:            c.province,
+		Locality:            c.locality,
+		StreetAddress:       c.streetAddress,
+		Organization:        c.organization,
+		OrganizationalUnit:  c.organizationalUnit,
+	})
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

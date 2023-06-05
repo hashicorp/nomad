@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -88,94 +89,122 @@ type CertOpts struct {
 	ExtKeyUsage []x509.ExtKeyUsage
 }
 
+// Check if any of CAOpts the variables are populated
+func AreCARequiredFieldsEmpty(caOpts CAOpts) bool {
+	return caOpts.Days == 0 &&
+		caOpts.Country == "" &&
+		caOpts.PostalCode == "" &&
+		caOpts.Province == "" &&
+		caOpts.Locality == "" &&
+		caOpts.StreetAddress == "" &&
+		caOpts.Organization == "" &&
+		caOpts.OrganizationalUnit == "" &&
+		caOpts.Name == ""
+}
+
 // GenerateCA generates a new CA for agent TLS (not to be confused with Connect TLS)
 func GenerateCA(opts CAOpts) (string, string, error) {
-	signer := opts.Signer
-	var pk string
-	if signer == nil {
-		var err error
-		signer, pk, err = GeneratePrivateKey()
+	var (
+		id     []byte
+		pk     string
+		err    error
+		signer = opts.Signer
+		sn     = opts.Serial
+	)
+
+	// Check if opts required fields are empty
+	isEmpty := AreCARequiredFieldsEmpty(opts)
+	if isEmpty {
+
+		if signer == nil {
+			var err error
+			signer, pk, err = GeneratePrivateKey()
+			if err != nil {
+				return "", "", err
+			}
+		}
+
+		certKeyId, err := keyID(signer.Public())
 		if err != nil {
 			return "", "", err
 		}
-	}
+		id = certKeyId
 
-	id, err := keyID(signer.Public())
-	if err != nil {
-		return "", "", err
-	}
+		if sn == nil {
+			var err error
+			sn, err = GenerateSerialNumber()
+			if err != nil {
+				return "", "", err
+			}
+		}
+		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
+		opts.Days = 1825
+		opts.Country = "US"
+		opts.PostalCode = "94105"
+		opts.Province = "CA"
+		opts.Locality = "San Francisco"
+		opts.StreetAddress = "101 Second Street"
+		opts.Organization = "HashiCorp Inc."
+		opts.OrganizationalUnit = "Nomad"
 
-	sn := opts.Serial
-	if sn == nil {
-		var err error
-		sn, err = GenerateSerialNumber()
+	} else {
+		if signer == nil {
+			var err error
+			signer, pk, err = GeneratePrivateKey()
+			if err != nil {
+				return "", "", err
+			}
+		}
+
+		certKeyId, err := keyID(signer.Public())
 		if err != nil {
 			return "", "", err
 		}
-	}
+		id = certKeyId
 
-	name := opts.Name
-	if name == "" {
-		name = fmt.Sprintf("Nomad Agent CA %d", sn)
-	}
+		if sn == nil {
+			var err error
+			sn, err = GenerateSerialNumber()
+			if err != nil {
+				return "", "", err
+			}
+		}
 
-	days := opts.Days
-	if opts.Days == 0 {
-		days = 365
-	}
+		if opts.Name == "" {
+			return "", "", errors.New("please provide the -common-name flag when customizing the CA")
+		} else {
+			opts.Name = fmt.Sprintf("%s %d", opts.Name, sn)
+		}
+		if opts.Country == "" {
+			return "", "", errors.New("please provide the -country flag when customizing the CA")
+		}
 
-	country := opts.Country
-	if country == "" {
-		country = ("US")
-	}
+		if opts.Organization == "" {
+			return "", "", errors.New("please provide the -organization flag when customizing the CA")
+		}
 
-	postalCode := opts.PostalCode
-	if postalCode == "" {
-		postalCode = ("94105")
-	}
-
-	province := opts.Province
-	if province == "" {
-		province = ("CA")
-	}
-
-	locality := opts.Locality
-	if locality == "" {
-		locality = ("San Francisco")
-	}
-
-	streetAddress := opts.StreetAddress
-	if streetAddress == "" {
-		streetAddress = ("101 Second Street")
-	}
-
-	organization := opts.Organization
-	if organization == "" {
-		organization = ("HashiCorp Inc.")
-	}
-
-	organizationalUnit := opts.OrganizationalUnit
-	if organizationalUnit == "" {
-		organizationalUnit = ("Nomad")
+		if opts.OrganizationalUnit == "" {
+			return "", "", errors.New("please provide the -organizational-unit flag when customizing the CA")
+		}
 	}
 
 	// Create the CA cert
 	template := x509.Certificate{
 		SerialNumber: sn,
 		Subject: pkix.Name{
-			Country:            []string{country},
-			PostalCode:         []string{postalCode},
-			Province:           []string{province},
-			Locality:           []string{locality},
-			StreetAddress:      []string{streetAddress},
-			Organization:       []string{organization},
-			OrganizationalUnit: []string{organizationalUnit},
-			CommonName:         name,
+			Country:            []string{opts.Country},
+			PostalCode:         []string{opts.PostalCode},
+			Province:           []string{opts.Province},
+			Locality:           []string{opts.Locality},
+			StreetAddress:      []string{opts.StreetAddress},
+			Organization:       []string{opts.Organization},
+			OrganizationalUnit: []string{opts.OrganizationalUnit},
+			CommonName:         opts.Name,
 		},
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
 		IsCA:                  true,
-		NotAfter:              time.Now().AddDate(0, 0, days),
+		NotAfter:              time.Now().AddDate(0, 0, opts.Days),
 		NotBefore:             time.Now(),
 		AuthorityKeyId:        id,
 		SubjectKeyId:          id,
