@@ -22,7 +22,7 @@ jobs:
         run: |
           cd ui
           yarn install --frozen-lockfile
-      - uses: mainmatter/ember-asset-size-action@255fe534db3d2f731e0d70ce9a5de74b0a6b140a # v3
+      - uses:  mainmatter/ember-asset-size-action@v3 # v3
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
-          working-directory: ui
+          working-directory: /ui
