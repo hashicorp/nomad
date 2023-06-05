@@ -24,7 +24,7 @@ func (s *StateStore) nodePoolInit() error {
 	}
 
 	return s.UpsertNodePools(
-		structs.NodePoolUpsertRequestType,
+		structs.SystemInitializationType,
 		1,
 		[]*structs.NodePool{allNodePool, defaultNodePool},
 	)
