@@ -1360,9 +1360,9 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			var node *structs.Node
 			switch tc.nodeID {
 			case nodeWithPoolID:
-				node = nodeWithPool
+				node = nodeWithPool.Copy()
 			case nodeWithoutPoolID:
-				node = nodeWithoutPool
+				node = nodeWithoutPool.Copy()
 			default:
 				node = mock.Node()
 			}
