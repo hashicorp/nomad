@@ -237,6 +237,14 @@ func jobTableSchema() *memdb.TableSchema {
 					Conditional: jobIsPeriodic,
 				},
 			},
+			"pool": {
+				Name:         "pool",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodePool",
+				},
+			},
 		},
 	}
 }

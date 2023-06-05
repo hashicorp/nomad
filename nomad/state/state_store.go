@@ -2287,6 +2287,20 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 	return iter, nil
 }
 
+// JobsByPool returns an iterator over all jobs in a given node pool.
+func (s *StateStore) JobsByPool(ws memdb.WatchSet, pool string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("jobs", "pool", pool)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // JobSummaryByID returns a job summary object which matches a specific id.
 func (s *StateStore) JobSummaryByID(ws memdb.WatchSet, namespace, jobID string) (*structs.JobSummary, error) {
 	txn := s.db.ReadTxn()

@@ -1228,7 +1228,6 @@ func TestNodePoolEndpoint_ListJobs_Blocking(t *testing.T) {
 	job := mock.MinJob()
 	index++
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
-	t.Logf("[UpsertJob] index=%d", index)
 
 	req := &structs.NodePoolJobsRequest{
 		Name: "default",
@@ -1242,11 +1241,12 @@ func TestNodePoolEndpoint_ListJobs_Blocking(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
 	must.Len(t, 1, resp.Jobs)
 	must.Eq(t, index, resp.Index)
-	t.Logf("[ListJob] resp.Index=%d", resp.Index)
+	must.Eq(t, "default", resp.Jobs[0].NodePool)
 
 	// Moving a job into a pool we're watching should trigger a watch
 	index++
 	time.AfterFunc(100*time.Millisecond, func() {
+		job = job.Copy()
 		job.NodePool = "dev-1"
 		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
 	})
@@ -1261,6 +1261,7 @@ func TestNodePoolEndpoint_ListJobs_Blocking(t *testing.T) {
 	// Moving a job out of a pool we're watching should trigger a watch
 	index++
 	time.AfterFunc(100*time.Millisecond, func() {
+		job = job.Copy()
 		job.NodePool = "default"
 		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
 	})
@@ -1269,6 +1270,7 @@ func TestNodePoolEndpoint_ListJobs_Blocking(t *testing.T) {
 	req.MinQueryIndex = index
 	req.MaxQueryTime = 500 * time.Millisecond
 	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListJobs", req, &resp)
+
 	must.Len(t, 0, resp.Jobs)
 	must.Eq(t, index, resp.Index)
 }
@@ -1351,7 +1353,6 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 		name              string
 		pool              string
 		namespace         string
-		prefix            string
 		filter            string
 		nextToken         string
 		pageSize          int32
@@ -1360,6 +1361,11 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 		expectedError     string
 	}{
 		{
+			name:        "test00 all dev pool default NS",
+			pool:        "dev-1",
+			expectedIDs: []string{"job-00", "job-01", "job-04", "job-05", "job-10"},
+		},
+		{
 			name:              "test01 size-2 page-1 dev pool default NS",
 			pool:              "dev-1",
 			pageSize:          2,
@@ -1367,9 +1373,9 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 			expectedIDs:       []string{"job-00", "job-01"},
 		},
 		{
-			name:              "test02 size-2 page-1 dev pool default NS with prefix",
+			name:              "test02 size-2 page-1 dev pool wildcard NS",
 			pool:              "dev-1",
-			prefix:            "job",
+			namespace:         "*",
 			pageSize:          2,
 			expectedNextToken: "default.job-04",
 			expectedIDs:       []string{"job-00", "job-01"},
@@ -1383,20 +1389,20 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 			expectedIDs:       []string{"job-04", "job-05"},
 		},
 		{
-			name:              "test04 size-2 page-2 default NS with prefix",
+			name:              "test04 size-2 page-2 wildcard NS",
 			pool:              "dev-1",
-			prefix:            "job",
+			namespace:         "*",
 			pageSize:          2,
 			nextToken:         "default.job-04",
 			expectedNextToken: "default.job-10",
 			expectedIDs:       []string{"job-04", "job-05"},
 		},
 		{
-			name:        "test05 no valid results with filters and prefix",
+			name:        "test05 no valid results with filters",
 			pool:        "dev-1",
-			prefix:      "not-job",
 			pageSize:    2,
 			nextToken:   "",
+			filter:      `Name matches "not-job"`,
 			expectedIDs: []string{},
 		},
 		{
@@ -1450,7 +1456,6 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					Namespace: tc.namespace,
-					Prefix:    tc.prefix,
 					Filter:    tc.filter,
 					PerPage:   tc.pageSize,
 					NextToken: tc.nextToken,
