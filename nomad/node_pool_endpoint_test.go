@@ -440,7 +440,7 @@ func TestNodePoolEndpoint_GetNodePool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Make node pool list request.
+			// Make node pool fetch request.
 			req := &structs.NodePoolSpecificRequest{
 				QueryOptions: structs.QueryOptions{
 					Region: "global",
@@ -536,7 +536,7 @@ func TestNodePoolEndpoint_GetNodePool_ACL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Make node pool list request.
+			// Make node pool fetch request.
 			req := &structs.NodePoolSpecificRequest{
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
@@ -581,6 +581,7 @@ func TestNodePoolEndpoint_GetNodePool_BlockingQuery(t *testing.T) {
 	})
 
 	// Update first node pool to trigger watcher.
+	pool1 = pool1.Copy()
 	pool1.Meta["updated"] = "true"
 	time.AfterFunc(300*time.Millisecond, func() {
 		s.fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1002, []*structs.NodePool{pool1})

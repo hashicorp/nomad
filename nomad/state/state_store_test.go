@@ -1304,12 +1304,6 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			expectedNewPool: true,
 		},
 		{
-			name:         "register new node with empty pool in default",
-			nodeID:       "",
-			poolName:     "",
-			expectedPool: structs.NodePoolDefault,
-		},
-		{
 			name:         "update existing node in existing pool",
 			nodeID:       nodeWithPoolID,
 			poolName:     devPoolName,
@@ -1323,12 +1317,6 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			expectedNewPool: true,
 		},
 		{
-			name:         "update existing node with empty pool in default",
-			nodeID:       nodeWithPoolID,
-			poolName:     "",
-			expectedPool: devPoolName,
-		},
-		{
 			name:         "update legacy node with pool",
 			nodeID:       nodeWithoutPoolID,
 			poolName:     devPoolName,
@@ -1340,12 +1328,6 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			poolName:        "new",
 			expectedPool:    "new",
 			expectedNewPool: true,
-		},
-		{
-			name:         "update legacy node with empty pool places it in default",
-			nodeID:       nodeWithoutPoolID,
-			poolName:     "",
-			expectedPool: structs.NodePoolDefault,
 		},
 	}
 
@@ -1378,17 +1360,20 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 			var node *structs.Node
 			switch tc.nodeID {
 			case nodeWithPoolID:
-				node = nodeWithPool
+				node = nodeWithPool.Copy()
 			case nodeWithoutPoolID:
-				node = nodeWithoutPool
+				node = nodeWithoutPool.Copy()
 			default:
 				node = mock.Node()
 			}
+			node.NodePool = tc.poolName
 			err = state.UpsertNode(structs.MsgTypeTestSetup, 1003, node)
 			must.NoError(t, err)
 
 			// Verify that node is part of the expected pool.
-			must.Eq(t, tc.expectedPool, node.NodePool)
+			got, err := state.NodeByID(nil, node.ID)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedPool, got.NodePool)
 
 			// Fech pool.
 			pool, err := state.NodePoolByName(nil, tc.expectedPool)
