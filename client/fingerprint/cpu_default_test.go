@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -19,12 +20,20 @@ import (
 func TestCPUFingerprint_Classic(t *testing.T) {
 	ci.Parallel(t)
 
-	f := NewCPUFingerprint(testlog.HCLogger(t))
+	logger := testlog.HCLogger(t)
+
+	// create cpuset manager so we can ensure cgroup tree is correct
+	mgr := cgutil.CreateCPUSetManager("", nil, logger)
+	mgr.Init()
+
+	// create the fingerprinter
+	f := NewCPUFingerprint(logger)
 	node := &structs.Node{Attributes: make(map[string]string)}
 
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 
+	// run the fingerprinter
 	err := f.Fingerprint(request, &response)
 	must.NoError(t, err)
 
