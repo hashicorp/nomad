@@ -2847,6 +2847,126 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 	}
 }
 
+func TestFSM_ReconcileVersionedSummary(t *testing.T) {
+	logger := testlog.HCLogger(t)
+	logger.Info("+++++")
+
+	ci.Parallel(t)
+	// Add some state
+	fsm := testFSM(t)
+	state := fsm.State()
+
+	// Add a node
+	node := mock.Node()
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 800, node))
+
+	// Make a job
+	job1 := mock.Job()
+	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
+
+	// // make a job which can make partial progress
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	// Not sure why, but have to set both .Job and .JobID for this alloc to show up in the job summary??
+	alloc.Job = job1
+	alloc.JobID = job1.ID
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+
+	req := structs.GenericRequest{}
+	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
+
+	resp := fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	ws := memdb.NewWatchSet()
+	out1, err := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	require.NoError(t, err)
+	logger.Info("++++THRU 1", "JOBVERSION", job1.Version, "JOBALLOCS", out1)
+
+	expected := structs.JobSummary{
+		JobID:     job1.ID,
+		Namespace: job1.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Queued: 10,
+				Failed: 1,
+			},
+		},
+		VersionedSummary: map[uint64]structs.VersionedSummary{
+			0: {
+				Version: 0,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {
+						Failed: 1,
+					},
+				},
+			},
+		},
+		CreateIndex: 1000,
+		ModifyIndex: out1.ModifyIndex,
+	}
+	if !reflect.DeepEqual(&expected, out1) {
+		t.Fatalf("expected: %#v, actual: %#v", &expected, out1)
+	}
+
+	// Bump job to 1 and add a couple allocs
+
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1021, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1020, nil, job1))
+
+	// Apply ReconcileJobSummaries request
+	resp = fsm.Apply(makeLog(buf))
+	if resp != nil {
+		t.Fatalf("resp: %v", resp)
+	}
+
+	out2, err := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
+	require.NoError(t, err)
+
+	expected = structs.JobSummary{
+		JobID:     alloc.Job.ID,
+		Namespace: alloc.Job.Namespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"web": {
+				Queued:  9,
+				Running: 1,
+			},
+		},
+		VersionedSummary: map[uint64]structs.VersionedSummary{
+			// TODO: Why doesn't version 0 show up here?
+			// 0: {
+			// 	Version: 0,
+			// 	Groups: map[string]structs.TaskGroupSummary{
+			// 		"web": {},
+			// 	},
+			// },
+			1: {
+				Version: 1,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {
+						Running: 1,
+					},
+				},
+			},
+		},
+		CreateIndex: 1000,
+		ModifyIndex: out2.ModifyIndex,
+	}
+	if !reflect.DeepEqual(&expected, out2) {
+		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
+	}
+
+}
+
 // COMPAT: Remove in 0.11
 func TestFSM_ReconcileParentJobSummary(t *testing.T) {
 	// This test exercises code to handle https://github.com/hashicorp/nomad/issues/3886
