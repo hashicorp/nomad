@@ -192,7 +192,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 		}
 
 		// Stop the container
-		err = h.client.StopContainer(h.containerID, 0)
+		err = h.waitClient.StopContainer(h.containerID, 0)
 	}
 
 	if err != nil {
