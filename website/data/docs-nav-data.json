@@ -698,6 +698,10 @@
           {
             "title": "list",
             "path": "commands/node-pool/list"
+          },
+          {
+            "title": "nodes",
+            "path": "commands/node-pool/nodes"
           }
         ]
       },
