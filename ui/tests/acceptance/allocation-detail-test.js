@@ -23,6 +23,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 import formatHost from 'nomad-ui/utils/format-host';
+import percySnapshot from '@percy/ember';
 
 let job;
 let node;
@@ -741,6 +742,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     console.log('+++++ LOGGING ALLOC DETAILS +++++');
     console.log('Allocs found: ', findAll('tr[data-test-allocation]').length);
     console.log('(locally, 1)');
+    await percySnapshot(assert);
 
     console.log('+++++ END LOGGING ALLOC DETAILS +++++');
 

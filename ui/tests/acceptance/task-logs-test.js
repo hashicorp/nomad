@@ -76,24 +76,17 @@ module('Acceptance | task logs', function (hooks) {
     });
     assert.notOk(TaskLogs.sidebarIsPresent, 'Sidebar is not present');
 
-    console.log('+++++ LOGGING TASK DETAILS +++++');
-    console.log('Task name: ', task.name);
-    console.log('Task state: ', task.state);
-    console.log('Task id: ', task.id);
-    console.log('Parent Job id: ', job.id);
-    console.log(
-      'Log Buttons found: ',
-      findAll('button.logs-sidebar-trigger').length
-    );
-    console.log('Allocs found: ', findAll('tr[data-test-allocation]').length);
-
-    console.log('+++++ END LOGGING TASK DETAILS +++++');
-
     run.later(() => {
       run.cancelTimers();
     }, 500);
 
-    await click('button.logs-sidebar-trigger');
+    const taskRow = [
+      ...findAll('.task-sub-row').filter((row) => {
+        return row.textContent.includes(task.name);
+      }),
+    ][0];
+
+    await click(taskRow.querySelector('button.logs-sidebar-trigger'));
 
     assert.ok(TaskLogs.sidebarIsPresent, 'Sidebar is present');
     assert
