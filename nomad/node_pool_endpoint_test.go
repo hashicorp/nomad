@@ -1482,5 +1482,328 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 				must.Sprint("unexpected NextToken"))
 		})
 	}
+}
 
+func TestNodePoolEndpoint_ListNodes(t *testing.T) {
+	ci.Parallel(t)
+
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test data.
+	pool1 := mock.NodePool()
+	pool2 := mock.NodePool()
+	err := s.fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool1, pool2})
+	must.NoError(t, err)
+
+	// Split test nodes between default, pool1, and pool2.
+	for i := 0; i < 9; i++ {
+		node := mock.Node()
+		switch i % 3 {
+		case 0:
+			node.ID = fmt.Sprintf("00000000-0000-0000-0000-0000000000%02d", i/3)
+			node.NodePool = structs.NodePoolDefault
+		case 1:
+			node.ID = fmt.Sprintf("11111111-0000-0000-0000-0000000000%02d", i/3)
+			node.NodePool = pool1.Name
+		case 2:
+			node.ID = fmt.Sprintf("22222222-0000-0000-0000-0000000000%02d", i/3)
+			node.NodePool = pool2.Name
+		}
+		switch i % 2 {
+		case 0:
+			node.Attributes["os.name"] = "Windows"
+		case 1:
+			node.Attributes["os.name"] = "Linux"
+		}
+		err := s.fsm.State().UpsertNode(structs.MsgTypeTestSetup, uint64(1000+1), node)
+		must.NoError(t, err)
+	}
+
+	testCases := []struct {
+		name              string
+		req               *structs.NodePoolNodesRequest
+		expectedErr       string
+		expected          []string
+		expectedNextToken string
+	}{
+		{
+			name: "nodes in default",
+			req: &structs.NodePoolNodesRequest{
+				Name: structs.NodePoolDefault,
+			},
+			expected: []string{
+				"00000000-0000-0000-0000-000000000000",
+				"00000000-0000-0000-0000-000000000001",
+				"00000000-0000-0000-0000-000000000002",
+			},
+		},
+		{
+			name: "nodes in all",
+			req: &structs.NodePoolNodesRequest{
+				Name: structs.NodePoolAll,
+			},
+			expected: []string{
+				"00000000-0000-0000-0000-000000000000",
+				"00000000-0000-0000-0000-000000000001",
+				"00000000-0000-0000-0000-000000000002",
+				"11111111-0000-0000-0000-000000000000",
+				"11111111-0000-0000-0000-000000000001",
+				"11111111-0000-0000-0000-000000000002",
+				"22222222-0000-0000-0000-000000000000",
+				"22222222-0000-0000-0000-000000000001",
+				"22222222-0000-0000-0000-000000000002",
+			},
+		},
+		{
+			name: "nodes in pool1 with OS",
+			req: &structs.NodePoolNodesRequest{
+				Name: pool1.Name,
+				Fields: &structs.NodeStubFields{
+					OS: true,
+				},
+			},
+			expected: []string{
+				"11111111-0000-0000-0000-000000000000",
+				"11111111-0000-0000-0000-000000000001",
+				"11111111-0000-0000-0000-000000000002",
+			},
+		},
+		{
+			name: "nodes in pool2 filtered by OS",
+			req: &structs.NodePoolNodesRequest{
+				Name: pool2.Name,
+				QueryOptions: structs.QueryOptions{
+					Filter: `Attributes["os.name"] == "Windows"`,
+				},
+			},
+			expected: []string{
+				"22222222-0000-0000-0000-000000000000",
+				"22222222-0000-0000-0000-000000000002",
+			},
+		},
+		{
+			name: "nodes in pool1 paginated with resources",
+			req: &structs.NodePoolNodesRequest{
+				Name: pool1.Name,
+				Fields: &structs.NodeStubFields{
+					Resources: true,
+				},
+				QueryOptions: structs.QueryOptions{
+					PerPage: 2,
+				},
+			},
+			expected: []string{
+				"11111111-0000-0000-0000-000000000000",
+				"11111111-0000-0000-0000-000000000001",
+			},
+			expectedNextToken: "11111111-0000-0000-0000-000000000002",
+		},
+		{
+			name: "nodes in pool1 paginated with resources - page 2",
+			req: &structs.NodePoolNodesRequest{
+				Name: pool1.Name,
+				Fields: &structs.NodeStubFields{
+					Resources: true,
+				},
+				QueryOptions: structs.QueryOptions{
+					PerPage:   2,
+					NextToken: "11111111-0000-0000-0000-000000000002",
+				},
+			},
+			expected: []string{
+				"11111111-0000-0000-0000-000000000002",
+			},
+			expectedNextToken: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Always send the request to the global region.
+			tc.req.Region = "global"
+
+			// Make node pool nodes request.
+			var resp structs.NodePoolNodesResponse
+			err := msgpackrpc.CallWithCodec(codec, "NodePool.ListNodes", tc.req, &resp)
+
+			// Check response.
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				must.SliceEmpty(t, resp.Nodes)
+			} else {
+				must.NoError(t, err)
+
+				got := make([]string, len(resp.Nodes))
+				for i, stub := range resp.Nodes {
+					got[i] = stub.ID
+				}
+				must.Eq(t, tc.expected, got)
+				must.Eq(t, tc.expectedNextToken, resp.NextToken)
+
+				if tc.req.Fields != nil {
+					if tc.req.Fields.Resources {
+						must.NotNil(t, resp.Nodes[0].NodeResources)
+						must.NotNil(t, resp.Nodes[0].ReservedResources)
+					}
+					if tc.req.Fields.OS {
+						must.NotEq(t, "", resp.Nodes[0].Attributes["os.name"])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestNodePoolEndpoint_ListNodes_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state.
+	pool := mock.NodePool()
+	pool.Name = "dev-1"
+	err := s.fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	node := mock.Node()
+	node.NodePool = pool.Name
+	err = s.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1001, node)
+	must.NoError(t, err)
+
+	// Create test ACL tokens.
+	validToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1002, "valid",
+		fmt.Sprintf("%s\n%s", mock.NodePoolPolicy("dev-*", "read", nil), mock.NodePolicy("read")),
+	)
+	poolOnlyToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1004, "pool-only",
+		mock.NodePoolPolicy("dev-*", "read", nil),
+	)
+	nodeOnlyToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1006, "node-only",
+		mock.NodePolicy("read"),
+	)
+	noPolicyToken := mock.CreateToken(t, s.fsm.State(), 1008, nil)
+
+	testCases := []struct {
+		name        string
+		pool        string
+		token       string
+		expected    []string
+		expectedErr string
+	}{
+		{
+			name:     "management token is allowed",
+			token:    root.SecretID,
+			pool:     pool.Name,
+			expected: []string{node.ID},
+		},
+		{
+			name:     "valid token is allowed",
+			token:    validToken.SecretID,
+			pool:     pool.Name,
+			expected: []string{node.ID},
+		},
+		{
+			name:        "pool only not enough",
+			token:       poolOnlyToken.SecretID,
+			pool:        pool.Name,
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "node only not enough",
+			token:       nodeOnlyToken.SecretID,
+			pool:        pool.Name,
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "no policy not allowed",
+			token:       noPolicyToken.SecretID,
+			pool:        pool.Name,
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "token not allowed for pool",
+			token:       validToken.SecretID,
+			pool:        structs.NodePoolDefault,
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Make node pool ndoes request.
+			req := &structs.NodePoolNodesRequest{
+				Name: tc.pool,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			var resp structs.NodePoolNodesResponse
+			err := msgpackrpc.CallWithCodec(codec, "NodePool.ListNodes", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				must.SliceEmpty(t, resp.Nodes)
+			} else {
+				must.NoError(t, err)
+
+				// Check response.
+				got := make([]string, len(resp.Nodes))
+				for i, node := range resp.Nodes {
+					got[i] = node.ID
+				}
+				must.Eq(t, tc.expected, got)
+			}
+		})
+	}
+}
+
+func TestNodePoolEndpoint_ListNodes_BlockingQuery(t *testing.T) {
+	ci.Parallel(t)
+
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with some node pools.
+	pool := mock.NodePool()
+	err := s.fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	// Register node in pool.
+	// Insert triggers watchers.
+	node := mock.Node()
+	node.NodePool = pool.Name
+	time.AfterFunc(100*time.Millisecond, func() {
+		s.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1001, node)
+	})
+
+	req := &structs.NodePoolNodesRequest{
+		Name: pool.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 1000,
+		},
+	}
+	var resp structs.NodePoolNodesResponse
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListNodes", req, &resp)
+	must.NoError(t, err)
+	must.Eq(t, 1001, resp.Index)
+
+	// Delete triggers watchers.
+	time.AfterFunc(100*time.Millisecond, func() {
+		s.fsm.State().DeleteNode(structs.MsgTypeTestSetup, 1002, []string{node.ID})
+	})
+
+	req.MinQueryIndex = 1001
+	err = msgpackrpc.CallWithCodec(codec, "NodePool.ListNodes", req, &resp)
+	must.NoError(t, err)
+	must.Eq(t, 1002, resp.Index)
 }

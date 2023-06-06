@@ -1635,6 +1635,20 @@ func (s *StateStore) NodeBySecretID(ws memdb.WatchSet, secretID string) (*struct
 	return nil, nil
 }
 
+// NodesByNodePool returns an iterator over all nodes that are part of the
+// given node pool.
+func (s *StateStore) NodesByNodePool(ws memdb.WatchSet, pool string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("nodes", "node_pool", pool)
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+	return iter, nil
+}
+
 // Nodes returns an iterator over all the nodes
 func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()

@@ -2012,6 +2012,69 @@ func TestStateStore_NodesByIDPrefix(t *testing.T) {
 	}
 }
 
+func TestStateStore_NodesByNodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	pool := mock.NodePool()
+	err := state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	node1 := mock.Node()
+	node1.NodePool = structs.NodePoolDefault
+	err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, node1)
+	must.NoError(t, err)
+
+	node2 := mock.Node()
+	node2.NodePool = pool.Name
+	err = state.UpsertNode(structs.MsgTypeTestSetup, 1002, node2)
+	must.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		pool     string
+		expected []string
+	}{
+		{
+			name: "default",
+			pool: structs.NodePoolDefault,
+			expected: []string{
+				node1.ID,
+			},
+		},
+		{
+			name: "pool",
+			pool: pool.Name,
+			expected: []string{
+				node2.ID,
+			},
+		},
+		{
+			name:     "empty pool",
+			pool:     "",
+			expected: []string{},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create watcher to test that getters don't cause it to fire.
+			ws := memdb.NewWatchSet()
+
+			iter, err := state.NodesByNodePool(ws, tc.pool)
+			must.NoError(t, err)
+
+			got := []string{}
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				got = append(got, raw.(*structs.Node).ID)
+			}
+
+			must.SliceContainsAll(t, tc.expected, got)
+			must.False(t, watchFired(ws))
+		})
+	}
+}
+
 func TestStateStore_UpsertJob_Job(t *testing.T) {
 	ci.Parallel(t)
 

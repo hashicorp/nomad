@@ -182,6 +182,19 @@ type NodePoolDeleteRequest struct {
 	WriteRequest
 }
 
+// NodePoolNodesRequest is used to list all nodes that are part of a node pool.
+type NodePoolNodesRequest struct {
+	Name   string
+	Fields *NodeStubFields
+	QueryOptions
+}
+
+// NodePoolNodesResponse is used to return a list nodes in the node pool.
+type NodePoolNodesResponse struct {
+	Nodes []*NodeListStub
+	QueryMeta
+}
+
 // NodePoolJobsRequest is used to make a request for the jobs in a specific node pool.
 type NodePoolJobsRequest struct {
 	Name   string

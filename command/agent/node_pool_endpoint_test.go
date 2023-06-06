@@ -312,3 +312,111 @@ func TestHTTP_NodePool_Delete(t *testing.T) {
 		must.Nil(t, got)
 	})
 }
+
+func TestHTTP_NodePool_NodesList(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t,
+		func(c *Config) {
+			// Disable client so it doesn't impact tests since we're registering
+			// our own test nodes.
+			c.Client.Enabled = false
+		},
+		func(s *TestAgent) {
+			// Populate state with test data.
+			pool1 := mock.NodePool()
+			pool2 := mock.NodePool()
+			args := structs.NodePoolUpsertRequest{
+				NodePools: []*structs.NodePool{pool1, pool2},
+			}
+			var resp structs.GenericResponse
+			err := s.Agent.RPC("NodePool.UpsertNodePools", &args, &resp)
+			must.NoError(t, err)
+
+			// Split test nodes between default, pool1, and pool2.
+			nodesByPool := make(map[string][]*structs.Node)
+			for i := 0; i < 10; i++ {
+				node := mock.Node()
+				switch i % 3 {
+				case 0:
+					// Leave node pool value empty so node goes to default.
+				case 1:
+					node.NodePool = pool1.Name
+				case 2:
+					node.NodePool = pool2.Name
+				}
+				nodeRegReq := structs.NodeRegisterRequest{
+					Node: node,
+					WriteRequest: structs.WriteRequest{
+						Region: "global",
+					},
+				}
+				var nodeRegResp structs.NodeUpdateResponse
+				err := s.Agent.RPC("Node.Register", &nodeRegReq, &nodeRegResp)
+				must.NoError(t, err)
+
+				nodesByPool[node.NodePool] = append(nodesByPool[node.NodePool], node)
+			}
+
+			testCases := []struct {
+				name          string
+				pool          string
+				args          string
+				expectedNodes []*structs.Node
+				expectedErr   string
+				validateFn    func(*testing.T, []*structs.NodeListStub)
+			}{
+				{
+					name:          "nodes in default",
+					pool:          structs.NodePoolDefault,
+					expectedNodes: nodesByPool[structs.NodePoolDefault],
+					validateFn: func(t *testing.T, stubs []*structs.NodeListStub) {
+						must.Nil(t, stubs[0].NodeResources)
+					},
+				},
+				{
+					name:          "nodes in pool1 with resources",
+					pool:          pool1.Name,
+					args:          "resources=true",
+					expectedNodes: nodesByPool[pool1.Name],
+					validateFn: func(t *testing.T, stubs []*structs.NodeListStub) {
+						must.NotNil(t, stubs[0].NodeResources)
+					},
+				},
+			}
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					// Make HTTP request.
+					path := fmt.Sprintf("/v1/node/pool/%s/nodes?%s", tc.pool, tc.args)
+					req, err := http.NewRequest("GET", path, nil)
+					must.NoError(t, err)
+					respW := httptest.NewRecorder()
+
+					obj, err := s.Server.NodePoolSpecificRequest(respW, req)
+					if tc.expectedErr != "" {
+						must.ErrorContains(t, err, tc.expectedErr)
+						return
+					}
+					must.NoError(t, err)
+
+					// Verify request only has expected nodes.
+					stubs := obj.([]*structs.NodeListStub)
+					must.Len(t, len(tc.expectedNodes), stubs)
+					for _, node := range tc.expectedNodes {
+						must.SliceContainsFunc(t, stubs, node, func(s *structs.NodeListStub, n *structs.Node) bool {
+							return s.ID == n.ID
+						})
+					}
+
+					// Verify respose.
+					if tc.validateFn != nil {
+						tc.validateFn(t, stubs)
+					}
+
+					// Verify response index.
+					gotIndex, err := strconv.ParseUint(respW.HeaderMap.Get("X-Nomad-Index"), 10, 64)
+					must.NoError(t, err)
+					must.NonZero(t, gotIndex)
+				})
+			}
+		})
+}

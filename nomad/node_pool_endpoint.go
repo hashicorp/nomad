@@ -262,7 +262,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 	if done, err := n.srv.forward("NodePool.ListJobs", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("node_pool", structs.RateMetricRead, args)
+	n.srv.MeasureRPCRate("node_pool", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -378,6 +378,96 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 			reply.Index = helper.Max(jindex, sindex)
 
 			// Set the query response
+			n.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return n.srv.blockingRPC(&opts)
+}
+
+// ListNodes is used to retrieve a list of nodes for a give node pool. It
+// supports pagination and filtering.
+func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.NodePoolNodesResponse) error {
+	authErr := n.srv.Authenticate(n.ctx, args)
+	if done, err := n.srv.forward("NodePool.ListNodes", args, args, reply); done {
+		return err
+	}
+	n.srv.MeasureRPCRate("node_pool", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "node_pool", "list_nodes"}, time.Now())
+
+	// Resolve ACL token and verify it has read capability for nodes and the
+	// node pool.
+	aclObj, err := n.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+
+	allowed := aclObj.AllowNodeRead() &&
+		aclObj.AllowNodePoolOperation(args.Name, acl.NodePoolCapabilityRead)
+	if !allowed {
+		return structs.ErrPermissionDenied
+	}
+
+	// Setup blocking query.
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			// Verify node pool exists.
+			pool, err := store.NodePoolByName(ws, args.Name)
+			if err != nil {
+				return err
+			}
+			if pool == nil {
+				return nil
+			}
+
+			// Fetch nodes in the pool.
+			var iter memdb.ResultIterator
+			if args.Name == structs.NodePoolAll {
+				iter, err = store.Nodes(ws)
+			} else {
+				iter, err = store.NodesByNodePool(ws, args.Name)
+			}
+			if err != nil {
+				return err
+			}
+
+			// Setup paginator by node ID.
+			pageOpts := paginator.StructsTokenizerOptions{
+				WithID: true,
+			}
+			tokenizer := paginator.NewStructsTokenizer(iter, pageOpts)
+
+			var nodes []*structs.NodeListStub
+			pager, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+				func(raw interface{}) error {
+					node := raw.(*structs.Node)
+					nodes = append(nodes, node.Stub(args.Fields))
+					return nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
+
+			nextToken, err := pager.Page()
+			if err != nil {
+				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to read result page: %v", err)
+			}
+
+			reply.QueryMeta.NextToken = nextToken
+			reply.Nodes = nodes
+
+			// Use the last index that affected the nodes table.
+			index, err := store.Index("nodes")
+			if err != nil {
+				return err
+			}
+			reply.Index = helper.Max(1, index)
+
+			// Set the query response.
 			n.srv.setQueryMeta(&reply.QueryMeta)
 			return nil
 		}}
