@@ -2919,9 +2919,18 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 
 	// Bump job to 1 and add a couple allocs
 
-	alloc.ClientStatus = structs.AllocClientStatusRunning
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1021, []*structs.Allocation{alloc}))
+	// alloc.ClientStatus = structs.AllocClientStatusRunning
+
+	// Create a new alloc here, have it be running
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node.ID
+	// Not sure why, but have to set both .Job and .JobID for this alloc to show up in the job summary??
+	alloc2.Job = job1
+	alloc2.JobID = job1.ID
+	alloc2.ClientStatus = structs.AllocClientStatusRunning
+
 	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1020, nil, job1))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1021, []*structs.Allocation{alloc2}))
 
 	// Apply ReconcileJobSummaries request
 	resp = fsm.Apply(makeLog(buf))
@@ -2943,12 +2952,12 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 		},
 		VersionedSummary: map[uint64]structs.VersionedSummary{
 			// TODO: Why doesn't version 0 show up here?
-			// 0: {
-			// 	Version: 0,
-			// 	Groups: map[string]structs.TaskGroupSummary{
-			// 		"web": {},
-			// 	},
-			// },
+			0: {
+				Version: 0,
+				Groups: map[string]structs.TaskGroupSummary{
+					"web": {},
+				},
+			},
 			1: {
 				Version: 1,
 				Groups: map[string]structs.TaskGroupSummary{
@@ -2961,9 +2970,11 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 		CreateIndex: 1000,
 		ModifyIndex: out2.ModifyIndex,
 	}
-	if !reflect.DeepEqual(&expected, out2) {
-		t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
-	}
+
+	must.Eq(t, &expected, out2)
+	// if !reflect.DeepEqual(&expected, out2) {
+	// 	t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
+	// }
 
 }
 
