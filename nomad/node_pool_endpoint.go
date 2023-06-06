@@ -262,7 +262,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 	if done, err := n.srv.forward("NodePool.ListJobs", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("node_pool", structs.RateMetricRead, args)
+	n.srv.MeasureRPCRate("node_pool", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -391,7 +391,7 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 	if done, err := n.srv.forward("NodePool.ListNodes", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("node_pool", structs.RateMetricRead, args)
+	n.srv.MeasureRPCRate("node_pool", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

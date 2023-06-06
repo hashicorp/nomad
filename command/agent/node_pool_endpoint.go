@@ -135,7 +135,7 @@ func (s *HTTPServer) nodePoolNodesList(resp http.ResponseWriter, req *http.Reque
 	// Parse node fields selection.
 	fields, err := parseNodeListStubFields(req)
 	if err != nil {
-		return nil, CodedError(http.StatusBadRequest, fmt.Errorf("Failed to parse node list fields: %v", err).Error())
+		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Failed to parse node list fields: %v", err))
 	}
 	args.Fields = fields
 
