@@ -14,6 +14,19 @@ const (
 
 	// WorkloadIdentityDefaultAud is the audience of the default identity.
 	WorkloadIdentityDefaultAud = "nomadproject.io"
+
+	// WIRejectionReasonMissingAlloc is the WorkloadIdentityRejection.Reason
+	// returned when an allocation longer exists. This may be due to the alloc
+	// being GC'd or the job being updated.
+	WIRejectionReasonMissingAlloc = "allocation not found"
+
+	// WIRejectionReasonMissingTask is the WorkloadIdentityRejection.Reason
+	// returned when the requested task no longer exists on the allocation.
+	WIRejectionReasonMissingTask = "task not found"
+
+	// WIRejectionReasonMissingIdentity is the WorkloadIdentityRejection.Reason
+	// returned when the requested identity does not exist on the allocation.
+	WIRejectionReasonMissingIdentity = "identity not found"
 )
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
@@ -86,4 +99,41 @@ func (wi *WorkloadIdentity) Canonicalize() {
 	if len(wi.Audiences) == 0 {
 		wi.Audiences = []string{wi.Name}
 	}
+}
+
+// WorkloadIdentityRequest encapsulates the 3 parameters used to generated a
+// signed workload identity: the alloc, task, and specific identity's name.
+type WorkloadIdentityRequest struct {
+	AllocID      string
+	TaskName     string
+	IdentityName string
+}
+
+// SignedWorkloadIdentity is the response to a WorkloadIdentityRequest and
+// includes the JWT for the requested workload identity.
+type SignedWorkloadIdentity struct {
+	WorkloadIdentityRequest
+	JWT string
+}
+
+// WorkloadIdentityRejection is the response to a WorkloadIdentityRequest that
+// is rejected and includes a reason.
+type WorkloadIdentityRejection struct {
+	WorkloadIdentityRequest
+	Reason string
+}
+
+// AllocIdentitiesRequest is the RPC arguments for requesting signed workload
+// identities.
+type AllocIdentitiesRequest struct {
+	Identities []WorkloadIdentityRequest
+	QueryOptions
+}
+
+// AllocIdentitiesResponse is the RPC response for requested workload
+// identities including any rejections.
+type AllocIdentitiesResponse struct {
+	SignedIdentities []SignedWorkloadIdentity
+	Rejections       []WorkloadIdentityRejection
+	QueryMeta
 }
