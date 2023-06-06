@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Add check for missing host volume `path` in `nomad config validate` command
+```
