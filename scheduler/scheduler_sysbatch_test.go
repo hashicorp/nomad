@@ -83,6 +83,9 @@ func TestSysBatch_JobRegister(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 10, count, "bad metrics %#v:", out[0].Metrics)
 
+	must.Eq(t, 10, out[0].Metrics.NodesInPool,
+		must.Sprint("expected NodesInPool metric to be set"))
+
 	// Ensure no allocations are queued
 	queued := h.Evals[0].QueuedAllocations["my-sysbatch"]
 	require.Equal(t, 0, queued, "unexpected queued allocations")

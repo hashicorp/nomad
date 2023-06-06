@@ -2357,6 +2357,12 @@ func (n *Node) IsInAnyDC(datacenters []string) bool {
 	return false
 }
 
+// IsInPool returns true if the node is in the pool argument or if the pool
+// argument is the special "all" pool
+func (n *Node) IsInPool(pool string) bool {
+	return pool == NodePoolAll || n.NodePool == pool
+}
+
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
@@ -11140,6 +11146,9 @@ type AllocMetric struct {
 
 	// NodesFiltered is the number of nodes filtered due to a constraint
 	NodesFiltered int
+
+	// NodesInPool is the number of nodes in the node pool used by the job.
+	NodesInPool int
 
 	// NodesAvailable is the number of nodes available for evaluation per DC.
 	NodesAvailable map[string]int

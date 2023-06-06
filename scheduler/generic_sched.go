@@ -509,7 +509,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
 	// Get the base nodes
-	nodes, _, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
+	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, s.job.Datacenters, s.job.NodePool)
 	if err != nil {
 		return err
 	}
@@ -591,6 +591,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
+			s.ctx.Metrics().NodesInPool = len(nodes)
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()

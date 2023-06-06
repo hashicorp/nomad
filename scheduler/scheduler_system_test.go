@@ -84,6 +84,9 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, 10, count, "bad metrics %#v:", out[0].Metrics)
 
+	must.Eq(t, 10, out[0].Metrics.NodesInPool,
+		must.Sprint("expected NodesInPool metric to be set"))
+
 	// Ensure no allocations are queued
 	queued := h.Evals[0].QueuedAllocations["web"]
 	require.Equal(t, 0, queued, "unexpected queued allocations")
@@ -391,6 +394,8 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	if count, ok := out[0].Metrics.NodesAvailable["dc1"]; !ok || count != 10 {
 		t.Fatalf("bad: %#v", out[0].Metrics)
 	}
+	must.Eq(t, 10, out[0].Metrics.NodesInPool,
+		must.Sprint("expected NodesInPool metric to be set"))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
