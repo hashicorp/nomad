@@ -134,6 +134,11 @@ const (
 )
 
 const (
+	// SystemInitializationType is used for messages that initialize parts of
+	// the system, such as the state store. These messages are not included in
+	// the event stream.
+	SystemInitializationType MessageType = 127
+
 	// IgnoreUnknownTypeFlag is set along with a MessageType
 	// to indicate that the message type can be safely ignored
 	// if it is not recognized. This is for future proofing, so

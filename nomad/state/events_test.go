@@ -390,6 +390,62 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	require.Equal(t, structs.NodeStatusDown, event.Node.Status)
 }
 
+func TestEventsFromChanges_NodePoolUpsertRequestType(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	// Create test node pool.
+	pool := mock.NodePool()
+	err := s.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	// Update test node pool.
+	updated := pool.Copy()
+	updated.Meta["updated"] = "true"
+	err = s.UpsertNodePools(structs.NodePoolUpsertRequestType, 1001, []*structs.NodePool{updated})
+	must.NoError(t, err)
+
+	// Wait and verify update event.
+	events := WaitForEvents(t, s, 1001, 1, 1*time.Second)
+	must.Len(t, 1, events)
+
+	e := events[0]
+	must.Eq(t, structs.TopicNodePool, e.Topic)
+	must.Eq(t, structs.TypeNodePoolUpserted, e.Type)
+	must.Eq(t, pool.Name, e.Key)
+
+	payload := e.Payload.(*structs.NodePoolEvent)
+	must.Eq(t, updated, payload.NodePool)
+}
+
+func TestEventsFromChanges_NodePoolDeleteRequestType(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	// Create test node pool.
+	pool := mock.NodePool()
+	err := s.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	// Delete test node pool.
+	err = s.DeleteNodePools(structs.NodePoolDeleteRequestType, 1001, []string{pool.Name})
+	must.NoError(t, err)
+
+	// Wait and verify delete event.
+	events := WaitForEvents(t, s, 1001, 1, 1*time.Second)
+	must.Len(t, 1, events)
+
+	e := events[0]
+	must.Eq(t, structs.TopicNodePool, e.Topic)
+	must.Eq(t, structs.TypeNodePoolDeleted, e.Type)
+	must.Eq(t, pool.Name, e.Key)
+
+	payload := e.Payload.(*structs.NodePoolEvent)
+	must.Eq(t, pool, payload.NodePool)
+}
+
 func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
