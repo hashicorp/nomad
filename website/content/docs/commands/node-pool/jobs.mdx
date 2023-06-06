@@ -41,7 +41,7 @@ be filtered by the namespaces where the token has `read-job` capability.
 List jobs in a specific namespace in the `prod` node pool:
 
 ```shell-session
-$ nomad node pool -namespace default jobs prod
+$ nomad node pool jobs -namespace default prod
 ID       Type     Priority  Status          Submit Date
 job1     service  80        running         07/25/17 15:47:11 UTC
 job2     batch    40        complete        07/24/17 19:22:11 UTC
@@ -51,7 +51,7 @@ job3     service  50        dead (stopped)  07/22/17 16:34:48 UTC
 List jobs in all namespaces in the `prod` node pool:
 
 ```shell-session
-$ nomad node pool -namespace '*' jobs prod
+$ nomad node pool jobs -namespace '*' prod
 ID       Namespace  Type     Priority  Status          Submit Date
 job1     default    service  80        running         07/25/17 15:47:11 UTC
 job2     default    batch    40        complete        07/24/17 19:22:11 UTC
@@ -61,17 +61,16 @@ job3     system     service  50        dead (stopped)  07/22/17 16:34:48 UTC
 Paginate list:
 
 ```shell-session
-$ nomad node pool jobs -per-page 2
+$ nomad node pool jobs -per-page 2 prod
 ID       Type     Priority  Status          Submit Date
 job1     service  80        running         07/25/17 15:47:11 UTC
 job2     batch    40        complete        07/24/17 19:22:11 UTC
 
 Results have been paginated. To get the next page run:
 
-nomad node pool list -per-page 2 -page-token job3
+nomad node pool jobs -per-page 2 -page-token job3 prod
 
-$ nomad node pool list -per-page 2 -page-token job3
-$ nomad node pool -namespace default jobs prod
+$ nomad node pool jobs -per-page 2 -page-token job3 prod
 ID       Type     Priority  Status          Submit Date
 job3     service  50        dead (stopped)  07/22/17 16:34:48 UTC
 ```

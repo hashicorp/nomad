@@ -56,7 +56,7 @@ Node Pool Jobs Options:
     results are returned.
 
   -t
-    Format and display node pool using a Go template.
+    Format and display jobs list using a Go template.
 `
 
 	return strings.TrimSpace(helpText)
@@ -134,27 +134,28 @@ func (c *NodePoolJobsCommand) Run(args []string) int {
 
 	if len(jobs) == 0 {
 		c.Ui.Output("No jobs")
-	} else {
-		// Format output if requested.
-		if json || tmpl != "" {
-			out, err := Format(json, tmpl, jobs)
-			if err != nil {
-				c.Ui.Error(err.Error())
-				return 1
-			}
+		return 0
+	}
 
-			c.Ui.Output(out)
-			return 0
+	// Format output if requested.
+	if json || tmpl != "" {
+		out, err := Format(json, tmpl, jobs)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
 		}
-		c.Ui.Output(createStatusListOutput(jobs, c.allNamespaces()))
 
-		if qm.NextToken != "" {
-			c.Ui.Output(fmt.Sprintf(`
+		c.Ui.Output(out)
+		return 0
+	}
+
+	c.Ui.Output(createStatusListOutput(jobs, c.allNamespaces()))
+
+	if qm.NextToken != "" {
+		c.Ui.Output(fmt.Sprintf(`
  Results have been paginated. To get the next page run:
 
  %s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
-		}
-
 	}
 
 	return 0
