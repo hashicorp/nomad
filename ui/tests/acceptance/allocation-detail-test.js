@@ -13,6 +13,7 @@ import {
   visit,
   triggerEvent,
   waitFor,
+  findAll,
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
@@ -737,6 +738,12 @@ module('Acceptance | allocation detail (services)', function (hooks) {
 
   test('Allocation has a list of services with active checks', async function (assert) {
     await visit('jobs/service-haver@default');
+    console.log('+++++ LOGGING ALLOC DETAILS +++++');
+    console.log('Allocs found: ', findAll('tr[data-test-allocation]').length);
+    console.log('(locally, 1)');
+
+    console.log('+++++ END LOGGING ALLOC DETAILS +++++');
+
     await click('.allocation-row');
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();
