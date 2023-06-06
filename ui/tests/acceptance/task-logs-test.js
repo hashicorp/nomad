@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { click, currentURL } from '@ember/test-helpers';
+import { click, currentURL, findAll } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -75,6 +75,19 @@ module('Acceptance | task logs', function (hooks) {
       name: task.name,
     });
     assert.notOk(TaskLogs.sidebarIsPresent, 'Sidebar is not present');
+
+    console.log('+++++ LOGGING TASK DETAILS +++++');
+    console.log('Task name: ', task.name);
+    console.log('Task state: ', task.state);
+    console.log('Task id: ', task.id);
+    console.log('Parent Job id: ', job.id);
+    console.log(
+      'Log Buttons found: ',
+      findAll('button.logs-sidebar-trigger').length
+    );
+    console.log('Allocs found: ', findAll('tr[data-test-allocation]').length);
+
+    console.log('+++++ END LOGGING TASK DETAILS +++++');
 
     run.later(() => {
       run.cancelTimers();
