@@ -5,6 +5,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 )
 
@@ -86,6 +87,18 @@ func (n *NodePools) Delete(name string, w *WriteOptions) (*WriteMeta, error) {
 		return nil, err
 	}
 	return wm, nil
+}
+
+// ListJobs is used to list all the jobs in a node pool.
+func (n *NodePools) ListJobs(poolName string, q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
+	var resp []*JobListStub
+	qm, err := n.client.query(
+		fmt.Sprintf("/v1/node/pool/%s/jobs", url.PathEscape(poolName)),
+		&resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
 }
 
 // NodePool is used to serialize a node pool.
