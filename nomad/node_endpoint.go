@@ -1643,12 +1643,11 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	var sysJobs []*structs.Job
 	for jobI := sysJobsIter.Next(); jobI != nil; jobI = sysJobsIter.Next() {
 		job := jobI.(*structs.Job)
-		// Avoid creating evals for jobs that don't run in this
-		// datacenter. We could perform an entire feasibility check
-		// here, but datacenter is a good optimization to start with as
-		// datacenter cardinality tends to be low so the check
-		// shouldn't add much work.
-		if node.IsInAnyDC(job.Datacenters) {
+		// Avoid creating evals for jobs that don't run in this datacenter or
+		// node pool. We could perform an entire feasibility check here, but
+		// datacenter/pool is a good optimization to start with as their
+		// cardinality tends to be low so the check shouldn't add much work.
+		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) {
 			sysJobs = append(sysJobs, job)
 		}
 	}

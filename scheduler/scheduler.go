@@ -75,6 +75,9 @@ type State interface {
 	// The type of each result is *structs.Node
 	Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 
+	// NodesByNodePool returns an iterator over all nodes in the node pool
+	NodesByNodePool(ws memdb.WatchSet, poolName string) (memdb.ResultIterator, error)
+
 	// AllocsByJob returns the allocations by JobID
 	AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error)
 

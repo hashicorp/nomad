@@ -44,9 +44,9 @@ func (d *diffResult) Append(other *diffResult) {
 	d.reconnecting = append(d.reconnecting, other.reconnecting...)
 }
 
-// readyNodesInDCs returns all the ready nodes in the given datacenters and a
-// mapping of each data center to the count of ready nodes.
-func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
+// readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
+// and pool, and a mapping of each data center to the count of ready nodes.
+func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
 	dcMap := make(map[string]int)
 
@@ -54,7 +54,15 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]str
 	ws := memdb.NewWatchSet()
 	var out []*structs.Node
 	notReady := map[string]struct{}{}
-	iter, err := state.Nodes(ws)
+
+	var iter memdb.ResultIterator
+	var err error
+
+	if pool == structs.NodePoolAll || pool == "" {
+		iter, err = state.Nodes(ws)
+	} else {
+		iter, err = state.NodesByNodePool(ws, pool)
+	}
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -631,6 +639,10 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		if !node.IsInAnyDC(job.Datacenters) {
 			continue
 		}
+		// The alloc is on a node that's now in an ineligible node pool
+		if !node.IsInPool(job.NodePool) {
+			continue
+		}
 
 		// Set the existing node as the base set
 		stack.SetNodes([]*structs.Node{node})
@@ -873,6 +885,9 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 		// The alloc is on a node that's now in an ineligible DC
 		if !node.IsInAnyDC(newJob.Datacenters) {
+			return false, true, nil
+		}
+		if !node.IsInPool(newJob.NodePool) {
 			return false, true, nil
 		}
 

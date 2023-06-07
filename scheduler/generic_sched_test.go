@@ -1129,6 +1129,9 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	must.False(t, ok, must.Sprintf(
 		"expected NodesAvailable metric to be unpopulated when there are no nodes"))
 
+	must.Zero(t, metrics.NodesInPool, must.Sprint(
+		"expected NodesInPool metric to be unpopulated when there are no nodes"))
+
 	// Check queued allocations
 	queued := outEval.QueuedAllocations["web"]
 	if queued != 10 {
@@ -1233,6 +1236,8 @@ func TestServiceSched_JobRegister_CreateBlockedEval(t *testing.T) {
 	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 2 {
 		t.Fatalf("bad: %#v", metrics)
 	}
+
+	must.Eq(t, 2, metrics.NodesInPool, must.Sprint("expected NodesInPool metric to be set"))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }

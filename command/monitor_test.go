@@ -235,6 +235,7 @@ func TestMonitor_formatAllocMetric(t *testing.T) {
 			Name: "display all possible scores",
 			Metrics: &api.AllocationMetric{
 				NodesEvaluated: 3,
+				NodesInPool:    3,
 				ScoreMetaData: []*api.NodeScoreMeta{
 					{
 						NodeID: "node-1",

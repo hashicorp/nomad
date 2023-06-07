@@ -137,7 +137,8 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Get the ready nodes in the required datacenters
 	if !s.job.Stopped() {
-		s.nodes, s.notReadyNodes, s.nodesByDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
+		s.nodes, s.notReadyNodes, s.nodesByDC, err = readyNodesInDCsAndPool(
+			s.state, s.job.Datacenters, s.job.NodePool)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
@@ -396,6 +397,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = s.nodesByDC
+			s.ctx.Metrics().NodesInPool = len(s.nodes)
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
@@ -417,6 +419,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Store the available nodes by datacenter
 		s.ctx.Metrics().NodesAvailable = s.nodesByDC
+		s.ctx.Metrics().NodesInPool = len(s.nodes)
 
 		// Compute top K scoring node metadata
 		s.ctx.Metrics().PopulateScoreMetaData()
