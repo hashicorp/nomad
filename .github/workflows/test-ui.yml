@@ -49,7 +49,7 @@ jobs:
       - name: Ember tests
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
-        run: mkdir -p /tmp/test-reports && cd ui && yarn test
+        run: mkdir -p /tmp/test-reports && cd ui && yarn exam
       - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           path: "/tmp/test-reports"

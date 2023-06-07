@@ -20,6 +20,7 @@
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint test:*",
+    "exam": "ember exam --split=4 --parallel",
     "test:ember": "percy exec -- ember test",
     "local:qunitdom": "ember test --server --query=dockcontainer",
     "local:exam": "ember exam --server --load-balance --parallel=4",
