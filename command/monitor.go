@@ -324,11 +324,8 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 		out += fmt.Sprintf("%s* No nodes were eligible for evaluation\n", prefix)
 	}
 
-	// Print a helpful message if the user has asked for a DC or pool that has no
+	// Print a helpful message if the user has asked for a DC that has no
 	// available nodes.
-	if metrics.NodesInPool == 0 {
-		out += fmt.Sprintf("%s* No nodes are available in pool\n", prefix)
-	}
 	for dc, available := range metrics.NodesAvailable {
 		if available == 0 {
 			out += fmt.Sprintf("%s* No nodes are available in datacenter %q\n", prefix, dc)
