@@ -73,6 +73,7 @@ func TestHTTP_NodePool_Info(t *testing.T) {
 			// Verify expected pool is returned.
 			must.Eq(t, pool, obj.(*structs.NodePool), must.Cmp(cmpopts.IgnoreFields(
 				structs.NodePool{},
+				"Hash",
 				"CreateIndex",
 				"ModifyIndex",
 			)))
@@ -143,6 +144,7 @@ func TestHTTP_NodePool_Create(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, pool, got, must.Cmp(cmpopts.IgnoreFields(
 			structs.NodePool{},
+			"Hash",
 			"CreateIndex",
 			"ModifyIndex",
 		)))
@@ -193,6 +195,7 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			must.NoError(t, err)
 			must.Eq(t, updated, got, must.Cmp(cmpopts.IgnoreFields(
 				structs.NodePool{},
+				"Hash",
 				"CreateIndex",
 				"ModifyIndex",
 			)))
@@ -239,6 +242,7 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			must.NoError(t, err)
 			must.Eq(t, updated, got, must.Cmp(cmpopts.IgnoreFields(
 				structs.NodePool{},
+				"Hash",
 				"CreateIndex",
 				"ModifyIndex",
 			)))
@@ -278,6 +282,7 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			must.NoError(t, err)
 			must.Eq(t, pool, got, must.Cmp(cmpopts.IgnoreFields(
 				structs.NodePool{},
+				"Hash",
 				"CreateIndex",
 				"ModifyIndex",
 			)))

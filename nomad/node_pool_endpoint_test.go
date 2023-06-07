@@ -730,6 +730,7 @@ func TestNodePoolEndpoint_UpsertNodePools(t *testing.T) {
 					must.NoError(t, err)
 					must.Eq(t, pool, got, must.Cmp(cmpopts.IgnoreFields(
 						structs.NodePool{},
+						"Hash",
 						"CreateIndex",
 						"ModifyIndex",
 					)))
@@ -865,6 +866,7 @@ func TestNodePoolEndpoint_UpsertNodePool_ACL(t *testing.T) {
 					must.NoError(t, err)
 					must.Eq(t, pool, got, must.Cmp(cmpopts.IgnoreFields(
 						structs.NodePool{},
+						"Hash",
 						"CreateIndex",
 						"ModifyIndex",
 					)))

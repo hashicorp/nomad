@@ -252,7 +252,7 @@ func Namespace() *structs.Namespace {
 }
 
 func NodePool() *structs.NodePool {
-	return &structs.NodePool{
+	pool := &structs.NodePool{
 		Name:        fmt.Sprintf("pool-%s", uuid.Short()),
 		Description: "test node pool",
 		Meta:        map[string]string{"team": "test"},
@@ -260,6 +260,8 @@ func NodePool() *structs.NodePool {
 			SchedulerAlgorithm: structs.SchedulerAlgorithmSpread,
 		},
 	}
+	pool.SetHash()
+	return pool
 }
 
 // ServiceRegistrations generates an array containing two unique service

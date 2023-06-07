@@ -429,6 +429,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			go s.replicateACLAuthMethods(stopCh)
 			go s.replicateACLBindingRules(stopCh)
 			go s.replicateNamespaces(stopCh)
+			go s.replicateNodePools(stopCh)
 		}
 	}
 
@@ -595,6 +596,137 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 	for lns := range local {
 		if _, ok := remote[lns]; !ok {
 			delete = append(delete, lns)
+		}
+	}
+	return
+}
+
+// replicateNodePools is used to replicate node pools from the authoritative
+// region to this region.
+func (s *Server) replicateNodePools(stopCh chan struct{}) {
+	req := structs.NodePoolListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
+		},
+	}
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting node pool replication from authoritative region", "region", req.Region)
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		if !ServersMeetMinimumVersion(
+			s.serf.Members(), s.Region(), minNodePoolsVersion, true) {
+			s.logger.Trace(
+				"all servers must be upgraded to 1.6.0 before Node Pools can be replicated")
+			if s.replicationBackoffContinue(stopCh) {
+				continue
+			} else {
+				return
+			}
+		}
+
+		var resp structs.NodePoolListResponse
+		req.AuthToken = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion, "NodePool.List", &req, &resp)
+		if err != nil {
+			s.logger.Error("failed to fetch node pools from authoritative region", "error", err)
+			if s.replicationBackoffContinue(stopCh) {
+				continue
+			} else {
+				return
+			}
+		}
+
+		// Perform a two-way diff
+		delete, update := diffNodePools(s.State(), req.MinQueryIndex, resp.NodePools)
+
+		// Delete node pools that should not exist
+		if len(delete) > 0 {
+			args := &structs.NodePoolDeleteRequest{
+				Names: delete,
+			}
+			_, _, err := s.raftApply(structs.NodePoolDeleteRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to delete node pools", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+		}
+
+		// Update local node pools
+		if len(update) > 0 {
+			args := &structs.NodePoolUpsertRequest{
+				NodePools: update,
+			}
+			_, _, err := s.raftApply(structs.NodePoolUpsertRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to update node pools", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+		}
+
+		// Update the minimum query index, blocks until there is a change.
+		req.MinQueryIndex = resp.Index
+	}
+}
+
+// diffNodePools is used to perform a two-way diff between the local node pools
+// and the remote node pools to determine which node pools need to be deleted or
+// updated.
+func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*structs.NodePool) (delete []string, update []*structs.NodePool) {
+	// Construct a set of the local and remote node pools
+	local := make(map[string][]byte)
+	remote := make(map[string]struct{})
+
+	// Add all the local node pools
+	iter, err := store.NodePools(nil, state.SortDefault)
+	if err != nil {
+		panic("failed to iterate local node pools")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		pool := raw.(*structs.NodePool)
+		local[pool.Name] = pool.Hash
+	}
+
+	for _, rnp := range remoteList {
+		remote[rnp.Name] = struct{}{}
+
+		if localHash, ok := local[rnp.Name]; !ok {
+			// Node pools that are missing locally should be added
+			update = append(update, rnp)
+
+		} else if rnp.ModifyIndex > minIndex && !bytes.Equal(localHash, rnp.Hash) {
+			// Node pools that have been added/updated more recently than the
+			// last index we saw, and have a hash mismatch with what we have
+			// locally, should be updated.
+			update = append(update, rnp)
+		}
+	}
+
+	// Node pools that don't exist on the remote should be deleted
+	for lnp := range local {
+		if _, ok := remote[lnp]; !ok {
+			delete = append(delete, lnp)
 		}
 	}
 	return

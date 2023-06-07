@@ -203,6 +203,8 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		if pool.IsBuiltIn() {
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "modifying node pool %q is not allowed", pool.Name)
 		}
+
+		pool.SetHash()
 	}
 
 	// Update via Raft.

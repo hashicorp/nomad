@@ -6,8 +6,10 @@ package structs
 import (
 	"fmt"
 	"regexp"
+	"sort"
 
 	"github.com/hashicorp/go-multierror"
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/maps"
 )
 
@@ -55,6 +57,10 @@ type NodePool struct {
 	// node pool.
 	SchedulerConfiguration *NodePoolSchedulerConfiguration
 
+	// Hash is the hash of the node pool which is used to efficiently diff when
+	// we replicate pools across regions.
+	Hash []byte
+
 	// Raft indexes.
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -91,6 +97,9 @@ func (n *NodePool) Copy() *NodePool {
 	nc.Meta = maps.Clone(nc.Meta)
 	nc.SchedulerConfiguration = nc.SchedulerConfiguration.Copy()
 
+	nc.Hash = make([]byte, len(n.Hash))
+	copy(nc.Hash, n.Hash)
+
 	return nc
 }
 
@@ -105,6 +114,41 @@ func (n *NodePool) IsBuiltIn() bool {
 	default:
 		return false
 	}
+}
+
+// SetHash is used to compute and set the hash of node pool
+func (n *NodePool) SetHash() []byte {
+	// Initialize a 256bit Blake2 hash (32 bytes)
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Write all the user set fields
+	_, _ = hash.Write([]byte(n.Name))
+	_, _ = hash.Write([]byte(n.Description))
+	if n.SchedulerConfiguration != nil {
+		_, _ = hash.Write([]byte(n.SchedulerConfiguration.SchedulerAlgorithm))
+	}
+
+	// sort keys to ensure hash stability when meta is stored later
+	var keys []string
+	for k := range n.Meta {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		_, _ = hash.Write([]byte(k))
+		_, _ = hash.Write([]byte(n.Meta[k]))
+	}
+
+	// Finalize the hash
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash
+	n.Hash = hashVal
+	return hashVal
 }
 
 // NodePoolSchedulerConfiguration is the scheduler confinguration applied to a
