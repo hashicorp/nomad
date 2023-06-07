@@ -247,6 +247,11 @@ func (c *cpusetManagerV2) cleanup() {
 	}
 
 	if err := filepath.WalkDir(c.parentAbs, func(path string, entry os.DirEntry, err error) error {
+		// skip anything we cannot read
+		if err != nil {
+			return nil
+		}
+
 		// a cgroup is a directory
 		if !entry.IsDir() {
 			return nil
