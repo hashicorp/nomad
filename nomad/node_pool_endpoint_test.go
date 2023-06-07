@@ -883,6 +883,7 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 	defer cleanupS()
 
 	codec := rpcClient(t, s)
+	store := s.fsm.State()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Insert a few node pools that we can delete.
@@ -890,6 +891,16 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		pools = append(pools, mock.NodePool())
 	}
+
+	// Insert a node and job to block deleting
+	node := mock.Node()
+	node.NodePool = pools[3].Name
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
+	job := mock.MinJob()
+	job.NodePool = pools[4].Name
+	job.Status = structs.JobStatusRunning
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job))
 
 	testCases := []struct {
 		name        string
@@ -906,6 +917,18 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 				pools[1].Name,
 				pools[2].Name,
 			},
+		},
+		{
+			name:  "delete pool occupied by node",
+			pools: []string{pools[3].Name},
+			expectedErr: fmt.Sprintf(
+				"node pool %q has nodes in regions: [global]", pools[3].Name),
+		},
+		{
+			name:  "delete pool occupied by job",
+			pools: []string{pools[4].Name},
+			expectedErr: fmt.Sprintf(
+				"node pool %q has non-terminal jobs in regions: [global]", pools[4].Name),
 		},
 		{
 			name:        "pool doesn't exist",
@@ -936,7 +959,7 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := s.fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools)
+			err := store.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools)
 			must.NoError(t, err)
 
 			req := &structs.NodePoolDeleteRequest{
@@ -955,7 +978,7 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 
 				for _, pool := range tc.pools {
 					ws := memdb.NewWatchSet()
-					got, err := s.fsm.State().NodePoolByName(ws, pool)
+					got, err := store.NodePoolByName(ws, pool)
 					must.NoError(t, err)
 					must.Nil(t, got)
 				}
@@ -971,20 +994,21 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 	defer cleanupS()
 
 	codec := rpcClient(t, s)
+	store := s.fsm.State()
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Create test ACL tokens.
-	devToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "dev-node-pools",
+	devToken := mock.CreatePolicyAndToken(t, store, 1001, "dev-node-pools",
 		mock.NodePoolPolicy("dev-*", "write", nil),
 	)
-	devSpecificToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1003, "dev-1-node-pools",
+	devSpecificToken := mock.CreatePolicyAndToken(t, store, 1003, "dev-1-node-pools",
 		mock.NodePoolPolicy("dev-1", "write", nil),
 	)
-	prodToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1005, "prod-node-pools",
+	prodToken := mock.CreatePolicyAndToken(t, store, 1005, "prod-node-pools",
 		mock.NodePoolPolicy("prod-*", "", []string{"delete"}),
 	)
-	noPolicyToken := mock.CreateToken(t, s.fsm.State(), 1007, nil)
-	noDeleteToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1009, "node-pools-no-delete",
+	noPolicyToken := mock.CreateToken(t, store, 1007, nil)
+	noDeleteToken := mock.CreatePolicyAndToken(t, store, 1009, "node-pools-no-delete",
 		mock.NodePoolPolicy("*", "", []string{"read", "write"}),
 	)
 
@@ -1003,6 +1027,16 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 		qaPool.Name = fmt.Sprintf("qa-%d", i)
 		pools = append(pools, qaPool)
 	}
+
+	// Insert a node and job to block deleting
+	node := mock.Node()
+	node.NodePool = "prod-3"
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+
+	job := mock.MinJob()
+	job.NodePool = "prod-4"
+	job.Status = structs.JobStatusRunning
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job))
 
 	testCases := []struct {
 		name        string
@@ -1067,11 +1101,23 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 			pools:       []string{"dev-1"},
 			expectedErr: structs.ErrPermissionDenied.Error(),
 		},
+		{
+			name:        "no delete pool occupied by node",
+			token:       root.SecretID,
+			pools:       []string{"prod-3"},
+			expectedErr: "node pool \"prod-3\" has nodes in regions: [global]",
+		},
+		{
+			name:        "no delete pool occupied by job",
+			token:       root.SecretID,
+			pools:       []string{"prod-4"},
+			expectedErr: "node pool \"prod-4\" has non-terminal jobs in regions: [global]",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := s.fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools)
+			err := store.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools)
 			must.NoError(t, err)
 
 			req := &structs.NodePoolDeleteRequest{
@@ -1091,13 +1137,88 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 
 				for _, pool := range tc.pools {
 					ws := memdb.NewWatchSet()
-					got, err := s.fsm.State().NodePoolByName(ws, pool)
+					got, err := store.NodePoolByName(ws, pool)
 					must.NoError(t, err)
 					must.Nil(t, got)
 				}
 			}
 		})
 	}
+}
+
+func TestNodePoolEndpoint_DeleteNodePools_NonLocal(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.Region = "region1"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+
+	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
+		c.Region = "region2"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+		c.ReplicationBackoff = 20 * time.Millisecond
+		c.ReplicationToken = root.SecretID
+	})
+	defer cleanupS2()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// Write a node pool to the authoritative region
+	np1 := mock.NodePool()
+	index, _ := s1.State().LatestIndex() // we need indexes to be correct here
+	must.NoError(t, s1.State().UpsertNodePools(
+		structs.MsgTypeTestSetup, index, []*structs.NodePool{np1}))
+
+	// Wait for the node pool to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		store := s2.State()
+		out, err := store.NodePoolByName(nil, np1.Name)
+		return out != nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate node pool")
+	})
+
+	// Create a job in the node pool on the non-authoritative region
+	job := mock.SystemJob()
+	job.NodePool = np1.Name
+	index, _ = s1.State().LatestIndex()
+	must.NoError(t, s2.State().UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+	// Deleting the node pool should fail
+	req := &structs.NodePoolDeleteRequest{
+		Names: []string{np1.Name},
+		WriteRequest: structs.WriteRequest{
+			Region:    s1.Region(),
+			AuthToken: root.SecretID,
+		},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "NodePool.DeleteNodePools", req, &resp)
+	must.ErrorContains(t, err, fmt.Sprintf(
+		"node pool %q has non-terminal jobs in regions: [%s]", np1.Name, s2.Region()))
+
+	// Stop the job and now deleting the node pool will work
+	job = job.Copy()
+	job.Stop = true
+	index, _ = s1.State().LatestIndex()
+	index++
+	must.NoError(t, s2.State().UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "NodePool.DeleteNodePools", req, &resp))
+
+	// Wait for the namespace deletion to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		store := s2.State()
+		out, err := store.NodePoolByName(nil, np1.Name)
+		return out == nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate node pool deletion")
+	})
 }
 
 func TestNodePoolEndpoint_ListJobs_ACLs(t *testing.T) {
