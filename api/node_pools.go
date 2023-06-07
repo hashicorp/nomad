@@ -101,6 +101,18 @@ func (n *NodePools) ListJobs(poolName string, q *QueryOptions) ([]*JobListStub, 
 	return resp, qm, nil
 }
 
+// ListNodes is used to list all the nodes in a node pool.
+func (n *NodePools) ListNodes(poolName string, q *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
+	var resp []*NodeListStub
+	qm, err := n.client.query(
+		fmt.Sprintf("/v1/node/pool/%s/nodes", url.PathEscape(poolName)),
+		&resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, qm, nil
+}
+
 // NodePool is used to serialize a node pool.
 type NodePool struct {
 	Name                   string                          `hcl:"name,label"`
