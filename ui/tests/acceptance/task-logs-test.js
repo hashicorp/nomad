@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { click, currentURL } from '@ember/test-helpers';
+import { click, currentURL, findAll } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -80,7 +80,13 @@ module('Acceptance | task logs', function (hooks) {
       run.cancelTimers();
     }, 500);
 
-    await click('button.logs-sidebar-trigger');
+    const taskRow = [
+      ...findAll('.task-sub-row').filter((row) => {
+        return row.textContent.includes(task.name);
+      }),
+    ][0];
+
+    await click(taskRow.querySelector('button.logs-sidebar-trigger'));
 
     assert.ok(TaskLogs.sidebarIsPresent, 'Sidebar is present');
     assert

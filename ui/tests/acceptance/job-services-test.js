@@ -38,11 +38,13 @@ module('Acceptance | job services', function (hooks) {
     const expectedNumAllocs = find(
       '[data-test-service-level="group"]'
     ).getAttribute('data-test-num-allocs');
-    const serviceName = find('[data-test-service-level="group"]').getAttribute(
-      'data-test-service-name'
-    );
+    const serviceName = find(
+      '[data-test-service-level="group"][data-test-service-provider="nomad"]'
+    ).getAttribute('data-test-service-name');
 
-    await find('[data-test-service-level="group"] a').click();
+    await find(
+      '[data-test-service-level="group"][data-test-service-provider="nomad"] a'
+    ).click();
     await settled();
 
     assert.ok(
