@@ -90,7 +90,30 @@ func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreate
 }
 
 func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
-	id := spec.Labels[dockerNetSpecLabelKey]
+
+	var (
+		id  string
+		err error
+	)
+
+	if spec != nil {
+		// if we have the spec we can just read the container id
+		id = spec.Labels[dockerNetSpecLabelKey]
+	} else {
+		// otherwise we need to scan all the containers and find the pause container
+		// associated with this allocation - this happens when the client is
+		// restarted since we do not persist the network spec
+		id, err = d.findPauseContainer(allocID)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if id == "" {
+		d.logger.Debug("failed to find pause container to cleanup", "alloc_id", allocID)
+		return nil
+	}
 
 	// no longer tracking this pause container; even if we fail here we should
 	// let the background reconciliation keep trying
@@ -101,11 +124,16 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 		return fmt.Errorf("failed to connect to docker daemon: %s", err)
 	}
 
+	timeout := uint(1) // this is the pause container, just kill it fast
+	if err := client.StopContainerWithContext(id, timeout, d.ctx); err != nil {
+		d.logger.Warn("failed to stop pause container", "id", id, "error", err)
+	}
+
 	if err := client.RemoveContainer(docker.RemoveContainerOptions{
 		Force: true,
 		ID:    id,
 	}); err != nil {
-		return err
+		return fmt.Errorf("failed to remove pause container: %w", err)
 	}
 
 	if d.config.GC.Image {
