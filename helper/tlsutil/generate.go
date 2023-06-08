@@ -89,17 +89,18 @@ type CertOpts struct {
 	ExtKeyUsage []x509.ExtKeyUsage
 }
 
-// Check if any of CAOpts the variables are populated
-func AreCARequiredFieldsEmpty(caOpts CAOpts) bool {
-	return caOpts.Days == 0 &&
-		caOpts.Country == "" &&
-		caOpts.PostalCode == "" &&
-		caOpts.Province == "" &&
-		caOpts.Locality == "" &&
-		caOpts.StreetAddress == "" &&
-		caOpts.Organization == "" &&
-		caOpts.OrganizationalUnit == "" &&
-		caOpts.Name == ""
+// IsEmpty checks whether any of CAOpts parameters have been populated with
+// non-default values.
+func (c CAOpts) IsEmpty() bool {
+	return c.Days == 0 &&
+		c.Country == "" &&
+		c.PostalCode == "" &&
+		c.Province == "" &&
+		c.Locality == "" &&
+		c.StreetAddress == "" &&
+		c.Organization == "" &&
+		c.OrganizationalUnit == "" &&
+		c.Name == ""
 }
 
 // GenerateCA generates a new CA for agent TLS (not to be confused with Connect TLS)
@@ -112,9 +113,7 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		sn     = opts.Serial
 	)
 
-	// Check if opts required fields are empty
-	isEmpty := AreCARequiredFieldsEmpty(opts)
-	if isEmpty {
+	if opts.IsEmpty() {
 
 		if signer == nil {
 			var err error
