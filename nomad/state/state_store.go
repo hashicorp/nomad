@@ -5078,51 +5078,33 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 			}
 
 			tg := summary.Summary[alloc.TaskGroup]
+			ensureVersionedSummary(summary, alloc.Job.Version)
+			versionedSummary := summary.VersionedSummary[alloc.Job.Version]
+			groupSummary := versionedSummary.Groups[alloc.TaskGroup]
+
 			switch alloc.ClientStatus {
 			case structs.AllocClientStatusFailed:
 				tg.Failed += 1
-			case structs.AllocClientStatusLost:
-				tg.Lost += 1
-			case structs.AllocClientStatusUnknown:
-				tg.Unknown += 1
-			case structs.AllocClientStatusComplete:
-				tg.Complete += 1
-			case structs.AllocClientStatusRunning:
-				tg.Running += 1
-			case structs.AllocClientStatusPending:
-				tg.Starting += 1
-			default:
-				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
-			}
-			summary.Summary[alloc.TaskGroup] = tg
-
-			// Make a new versioned summary if it doesn't exist
-			if _, ok := summary.VersionedSummary[alloc.Job.Version]; !ok {
-				summary.VersionedSummary[alloc.Job.Version] = structs.VersionedSummary{
-					Version: alloc.Job.Version,
-					Groups:  make(map[string]structs.TaskGroupSummary),
-				}
-			}
-
-			// Set up a versioned summary for the task group
-			versionedSummary := summary.VersionedSummary[alloc.Job.Version]
-			groupSummary := versionedSummary.Groups[alloc.TaskGroup]
-			switch alloc.ClientStatus {
-			case structs.AllocClientStatusFailed:
 				groupSummary.Failed += 1
 			case structs.AllocClientStatusLost:
+				tg.Lost += 1
 				groupSummary.Lost += 1
 			case structs.AllocClientStatusUnknown:
+				tg.Unknown += 1
 				groupSummary.Unknown += 1
 			case structs.AllocClientStatusComplete:
+				tg.Complete += 1
 				groupSummary.Complete += 1
 			case structs.AllocClientStatusRunning:
+				tg.Running += 1
 				groupSummary.Running += 1
 			case structs.AllocClientStatusPending:
+				tg.Starting += 1
 				groupSummary.Starting += 1
 			default:
 				s.logger.Error("invalid client status set on allocation", "client_status", alloc.ClientStatus, "alloc_id", alloc.ID)
 			}
+			summary.Summary[alloc.TaskGroup] = tg
 			versionedSummary.Groups[alloc.TaskGroup] = groupSummary
 			summary.VersionedSummary[alloc.Job.Version] = versionedSummary
 		}
@@ -5703,6 +5685,16 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	}
 
 	return nil
+}
+
+// makes sure there's a versionedSummary entry for the given version
+func ensureVersionedSummary(summary *structs.JobSummary, version uint64) {
+	if _, ok := summary.VersionedSummary[version]; !ok {
+		summary.VersionedSummary[version] = structs.VersionedSummary{
+			Version: version,
+			Groups:  make(map[string]structs.TaskGroupSummary),
+		}
+	}
 }
 
 // updateGroupSummaryStatus is a convenience method for checking and then incrementing or decrementing

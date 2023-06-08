@@ -2849,7 +2849,6 @@ func TestFSM_ReconcileSummaries(t *testing.T) {
 
 func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	logger := testlog.HCLogger(t)
-	logger.Info("+++++")
 
 	ci.Parallel(t)
 	// Add some state
@@ -2865,12 +2864,11 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
 
 	// // make a job which can make partial progress
-	alloc := mock.Alloc()
-	alloc.NodeID = node.ID
-	// Not sure why, but have to set both .Job and .JobID for this alloc to show up in the job summary??
-	alloc.Job = job1
-	alloc.JobID = job1.ID
-	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = node.ID
+	alloc1.Job = job1
+	alloc1.JobID = job1.ID
+	alloc1.ClientStatus = structs.AllocClientStatusFailed
 
 	req := structs.GenericRequest{}
 	buf, err := structs.Encode(structs.ReconcileJobSummariesRequestType, req)
@@ -2879,7 +2877,10 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	}
 
 	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc1}))
+
+	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
+	require.NoError(t, state.DeleteJobSummary(1040, alloc1.Namespace, alloc1.Job.ID))
 
 	resp := fsm.Apply(makeLog(buf))
 	if resp != nil {
@@ -2889,7 +2890,6 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out1, err := state.JobSummaryByID(ws, job1.Namespace, job1.ID)
 	require.NoError(t, err)
-	logger.Info("++++THRU 1", "JOBVERSION", job1.Version, "JOBALLOCS", out1)
 
 	expected := structs.JobSummary{
 		JobID:     job1.ID,
@@ -2922,15 +2922,27 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	// alloc.ClientStatus = structs.AllocClientStatusRunning
 
 	// Create a new alloc here, have it be running
+
+	job2 := job1.Copy()
 	alloc2 := mock.Alloc()
+	alloc2.DesiredStatus = structs.AllocClientStatusRunning
 	alloc2.NodeID = node.ID
-	// Not sure why, but have to set both .Job and .JobID for this alloc to show up in the job summary??
-	alloc2.Job = job1
-	alloc2.JobID = job1.ID
+	alloc2.Job = job2
+	alloc2.JobID = job2.ID
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1020, nil, job1))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1021, []*structs.Allocation{alloc2}))
+	// Create a new alloc here, have it be running
+	alloc3 := mock.Alloc()
+	alloc3.NodeID = node.ID
+	alloc3.Job = job2
+	alloc3.JobID = job2.ID
+	alloc3.ClientStatus = structs.AllocClientStatusRunning
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1020, nil, job2))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1021, []*structs.Allocation{alloc2, alloc3}))
+
+	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
+	require.NoError(t, state.DeleteJobSummary(1035, job2.Namespace, job2.ID))
+	require.NoError(t, state.DeleteJobSummary(1040, alloc1.Namespace, alloc1.Job.ID))
 
 	// Apply ReconcileJobSummaries request
 	resp = fsm.Apply(makeLog(buf))
@@ -2942,12 +2954,13 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	require.NoError(t, err)
 
 	expected = structs.JobSummary{
-		JobID:     alloc.Job.ID,
-		Namespace: alloc.Job.Namespace,
+		JobID:     alloc1.Job.ID,
+		Namespace: alloc1.Job.Namespace,
 		Summary: map[string]structs.TaskGroupSummary{
 			"web": {
-				Queued:  9,
-				Running: 1,
+				Queued:  8,
+				Failed:  1,
+				Running: 2,
 			},
 		},
 		VersionedSummary: map[uint64]structs.VersionedSummary{
@@ -2955,14 +2968,16 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 			0: {
 				Version: 0,
 				Groups: map[string]structs.TaskGroupSummary{
-					"web": {},
+					"web": {
+						Failed: 1,
+					},
 				},
 			},
 			1: {
 				Version: 1,
 				Groups: map[string]structs.TaskGroupSummary{
 					"web": {
-						Running: 1,
+						Running: 2,
 					},
 				},
 			},
