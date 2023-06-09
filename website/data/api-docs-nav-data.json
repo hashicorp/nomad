@@ -37,6 +37,10 @@
         "path": "acl/binding-rules"
       },
       {
+        "title": "Login",
+        "path": "acl/login"
+      },
+      {
         "title": "OIDC",
         "path": "acl/oidc"
       },
