@@ -692,6 +692,10 @@
             "path": "commands/node-pool/info"
           },
           {
+            "title": "init",
+            "path": "commands/node-pool/init"
+          },
+          {
             "title": "jobs",
             "path": "commands/node-pool/jobs"
           },
