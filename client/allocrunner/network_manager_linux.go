@@ -149,6 +149,9 @@ func (*defaultNetworkManager) CreateNetwork(allocID string, _ *drivers.NetworkCr
 }
 
 func (*defaultNetworkManager) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
+	if spec == nil {
+		return nil
+	}
 	return nsutil.UnmountNS(spec.Path)
 }
 

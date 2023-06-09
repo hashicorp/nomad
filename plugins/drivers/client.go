@@ -486,6 +486,10 @@ func (d *driverPluginClient) CreateNetwork(allocID string, _ *NetworkCreateReque
 }
 
 func (d *driverPluginClient) DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error {
+	if spec == nil {
+		return nil
+	}
+
 	req := &proto.DestroyNetworkRequest{
 		AllocId:       allocID,
 		IsolationSpec: NetworkIsolationSpecToProto(spec),

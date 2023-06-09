@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/ryanuber/go-glob"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -758,6 +759,39 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	return binds, nil
 }
 
+func (d *Driver) findPauseContainer(allocID string) (string, error) {
+
+	_, dockerClient, err := d.dockerClients()
+	if err != nil {
+		return "", err
+	}
+
+	containers, listErr := dockerClient.ListContainers(docker.ListContainersOptions{
+		Context: d.ctx,
+		All:     false, // running only
+		Filters: map[string][]string{
+			"label": {dockerLabelAllocID},
+		},
+	})
+	if listErr != nil {
+		d.logger.Error("failed to list pause containers for recovery", "error", listErr)
+		return "", listErr
+	}
+
+	for _, c := range containers {
+		if !slices.ContainsFunc(c.Names, func(s string) bool {
+			return strings.HasPrefix(s, "/nomad_init_")
+		}) {
+			continue
+		}
+		if c.Labels[dockerLabelAllocID] == allocID {
+			return c.ID, nil
+		}
+	}
+
+	return "", nil
+}
+
 // recoverPauseContainers gets called when we start up the plugin. On client
 // restarts we need to rebuild the set of pause containers we are
 // tracking. Basically just scan all containers and pull the ID from anything
@@ -777,7 +811,7 @@ func (d *Driver) recoverPauseContainers(ctx context.Context) {
 		},
 	})
 	if listErr != nil && listErr != ctx.Err() {
-		d.logger.Error("failed to list pause containers", "error", listErr)
+		d.logger.Error("failed to list pause containers for recovery", "error", listErr)
 		return
 	}
 
