@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
@@ -2863,7 +2864,7 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	job1 := mock.Job()
 	job1.TaskGroups[0].Tasks[0].Resources.CPU = 5000
 
-	// // make a job which can make partial progress
+	// Make a failed alloc on that job
 	alloc1 := mock.Alloc()
 	alloc1.NodeID = node.ID
 	alloc1.Job = job1
@@ -2879,8 +2880,7 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc1}))
 
-	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
-	require.NoError(t, state.DeleteJobSummary(1040, alloc1.Namespace, alloc1.Job.ID))
+	require.NoError(t, state.DeleteJobSummary(1015, job1.Namespace, job1.ID))
 
 	resp := fsm.Apply(makeLog(buf))
 	if resp != nil {
@@ -2941,8 +2941,6 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1021, []*structs.Allocation{alloc2, alloc3}))
 
 	require.NoError(t, state.DeleteJobSummary(1030, job1.Namespace, job1.ID))
-	require.NoError(t, state.DeleteJobSummary(1035, job2.Namespace, job2.ID))
-	require.NoError(t, state.DeleteJobSummary(1040, alloc1.Namespace, alloc1.Job.ID))
 
 	// Apply ReconcileJobSummaries request
 	resp = fsm.Apply(makeLog(buf))
@@ -2987,9 +2985,43 @@ func TestFSM_ReconcileVersionedSummary(t *testing.T) {
 	}
 
 	must.Eq(t, &expected, out2)
-	// if !reflect.DeepEqual(&expected, out2) {
-	// 	t.Fatalf("Diff % #v", pretty.Diff(&expected, out2))
-	// }
+
+	// Now let's GC an alloc and see how our summary updates
+	alloc3.ClientStatus = structs.AllocClientStatusFailed
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1040, []*structs.Allocation{alloc3}))
+
+	// Make the GC request
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	gcreq := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var gcresp structs.GenericResponse
+	if err := msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", gcreq, &gcresp); err != nil {
+		t.Fatalf("expect err")
+	}
+
+	testutil.WaitForResult(func() (bool, error) {
+		// Does the alloc still exist?
+		alloc2result, _ := state.AllocByID(ws, alloc2.ID)
+		logger.Info("=======checking on result", "alloc2", alloc2result)
+
+		alloc3result, err := state.AllocByID(ws, alloc3.ID)
+		logger.Info("=======checking on result", "alloc3", alloc3result)
+		if err != nil {
+			return false, err
+		}
+		if alloc3result != nil {
+			return false, fmt.Errorf("alloc %+v wasn't garbage collected", alloc3)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 
 }
 
