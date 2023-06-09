@@ -76,7 +76,7 @@ module(
       };
 
       this.set('closeSidebar', () => this.set('service', null));
-      this.set('allocation', { id: 'myAlloc' });
+      this.set('allocation', { id: 'myAlloc', clientStatus: 'running' });
       this.set('service', healthyService);
       await render(
         hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
@@ -91,6 +91,13 @@ module(
         hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
       );
       assert.dom('h1 .aggregate-status').includesText('Unhealthy');
+
+      this.set('service', healthyService);
+      this.set('allocation', { id: 'myAlloc2', clientStatus: 'failed' });
+      await render(
+        hbs`<AllocationServiceSidebar @service={{this.service}} @allocation={{this.allocation}} @fns={{hash closeSidebar=this.closeSidebar}} />`
+      );
+      assert.dom('h1 .aggregate-status').includesText('Health Unknown');
     });
 
     test('it handles Consul services with reduced functionality', async function (assert) {
