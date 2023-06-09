@@ -118,12 +118,12 @@ Create a new ACL Binding Rule where the selector uses a mathing against a
 single `ClaimMapping` which uses `owner` as its value:
 
 ```shell-session
-$ nomad.exe acl binding-rule create \
+$ nomad acl binding-rule create \
     -description "example binding rule" \
-    -auth-method "auth0" \
+    -auth-method "github" \
     -bind-type "role" \
     -bind-name "eng-ro" \
-    -selector="`"project-developer`"
+    -selector="value.owner == user"
 ID           = 698fdad6-dcb3-79dd-dc72-b43374057dea
 Description  = example binding rule
 Auth Method  = github
