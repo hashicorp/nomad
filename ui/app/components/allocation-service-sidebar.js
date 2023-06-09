@@ -33,6 +33,7 @@ export default class AllocationServiceSidebarComponent extends Component {
   }
 
   get aggregateStatus() {
+    if (this.args.allocation?.clientStatus !== 'running') return 'Unknown';
     return this.checks.any((check) => check.Status === 'failure')
       ? 'Unhealthy'
       : 'Healthy';
