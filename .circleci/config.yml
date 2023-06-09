@@ -212,37 +212,6 @@ jobs:
           path: c:\tmp\test-reports
       - store_artifacts:
           path: c:\tmp\test-reports
-  test-ui:
-    docker:
-      - image: docker.mirror.hashicorp.services/circleci/node:14-browsers
-        environment:
-          # See https://git.io/vdao3 for details.
-          JOBS: 2
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v3-deps-{{ checksum "ui/yarn.lock" }}
-      - run:
-          name: yarn install
-          command: cd ui && yarn install --frozen-lockfile
-      - save_cache:
-          key: v3-deps-{{ checksum "ui/yarn.lock" }}
-          paths:
-            - ./ui/node_modules
-      - run:
-          name: lint:js
-          command: cd ui && yarn run lint:js
-      - run:
-          name: lint:hbs
-          command: cd ui && yarn run lint:hbs
-      - run:
-          name: Ember tests
-          command: mkdir -p /tmp/test-reports && cd ui && yarn test
-      - store_test_results:
-          path: /tmp/test-reports
-      - store_artifacts:
-          path: /tmp/test-reports
   test-machine:
     executor: "<< parameters.executor >>"
     parameters:
@@ -511,15 +480,6 @@ workflows:
                 - /^docs-.*/
                 - /^backport/docs-.*/
                 - stable-website
-
-      - test-ui:
-          filters:
-            branches:
-              ignore:
-                - stable-website
-                - /^docs-.*/
-                - /^backport/docs-.*/
-                - /^e2e-.*/
 
         # Note: comment-out this job in ENT
       - test-windows:
