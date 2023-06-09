@@ -77,8 +77,7 @@ var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"
 
 // Any writes to node pools requires that all servers are on version 1.6.0 to
 // prevent older versions of the server from crashing.
-// TODO: this is set to 1.5.7 until we ship the beta
-var minNodePoolsVersion = version.Must(version.NewVersion("1.5.7"))
+var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
