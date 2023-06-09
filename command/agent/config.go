@@ -204,9 +204,12 @@ type ClientConfig struct {
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
-	// NodePool defines the node pool in which the client is registered. If the
-	// node pool does not exist it will be created automatically when the node
-	// registers.
+	// NodePool defines the node pool in which the client is registered.
+	//
+	// If the node pool does not exist, it will be created automatically if the
+	// node registers in the authoritative region. In non-authoritative
+	// regions, the node is kept in the 'initializing' status until the node
+	// pool is created and replicated.
 	NodePool string `hcl:"node_pool"`
 
 	// Options is used for configuration of nomad internals,

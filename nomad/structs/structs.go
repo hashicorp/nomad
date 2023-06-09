@@ -581,6 +581,11 @@ type WriteMeta struct {
 type NodeRegisterRequest struct {
 	Node      *Node
 	NodeEvent *NodeEvent
+
+	// CreateNodePool is used to indicate that the node's node pool should be
+	// create along with the node registration if it doesn't exist.
+	CreateNodePool bool
+
 	WriteRequest
 }
 
@@ -2361,6 +2366,16 @@ func (n *Node) IsInAnyDC(datacenters []string) bool {
 // argument is the special "all" pool
 func (n *Node) IsInPool(pool string) bool {
 	return pool == NodePoolAll || n.NodePool == pool
+}
+
+// HasEvent returns true if the node has the given message in its events list.
+func (n *Node) HasEvent(msg string) bool {
+	for _, ev := range n.Events {
+		if ev.Message == msg {
+			return true
+		}
+	}
+	return false
 }
 
 // Stub returns a summarized version of the node

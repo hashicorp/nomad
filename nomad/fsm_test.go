@@ -244,100 +244,44 @@ func TestFSM_UpsertNode_Canonicalize_Ineligible(t *testing.T) {
 func TestFSM_UpsertNode_NodePool(t *testing.T) {
 	ci.Parallel(t)
 
-	existingPoolName := "dev"
-	nodeWithPoolID := uuid.Generate()
-	nodeWithoutPoolID := uuid.Generate()
-
 	testCases := []struct {
-		name         string
-		nodeID       string
-		pool         string
-		expectedPool string
-		validateFn   func(*testing.T, *structs.Node, *structs.NodePool)
+		name       string
+		setupReqFn func(*structs.NodeRegisterRequest)
+		validateFn func(*testing.T, *structs.Node, *structs.NodePool)
 	}{
 		{
-			name:         "register new node in new node pool",
-			nodeID:       "",
-			pool:         "new",
-			expectedPool: "new",
-			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was created in the same transaction as the
-				// node registration.
-				must.Eq(t, pool.CreateIndex, node.ModifyIndex)
+			name: "node with empty node pool is placed in defualt",
+			setupReqFn: func(req *structs.NodeRegisterRequest) {
+				req.Node.NodePool = ""
 			},
-		},
-		{
-			name:         "register new node in existing node pool",
-			nodeID:       "",
-			pool:         existingPoolName,
-			expectedPool: existingPoolName,
 			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was not modified.
-				must.NotEq(t, pool.CreateIndex, node.ModifyIndex)
-			},
-		},
-		{
-			name:         "register new node in built-in node pool",
-			nodeID:       "",
-			pool:         structs.NodePoolDefault,
-			expectedPool: structs.NodePoolDefault,
-			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was not modified.
+				must.Eq(t, structs.NodePoolDefault, node.NodePool)
 				must.Eq(t, 1, pool.ModifyIndex)
 			},
 		},
 		{
-			name:         "register new node with empty node pool in default",
-			nodeID:       "",
-			pool:         "",
-			expectedPool: structs.NodePoolDefault,
-		},
-		{
-			name:         "move existing node to new node pool",
-			nodeID:       nodeWithPoolID,
-			pool:         "new",
-			expectedPool: "new",
+			name: "create new node pool with node",
+			setupReqFn: func(req *structs.NodeRegisterRequest) {
+				req.Node.NodePool = "new"
+				req.CreateNodePool = true
+			},
 			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was created in the same transaction as the
-				// node was updated.
-				must.Eq(t, pool.CreateIndex, node.ModifyIndex)
+				must.NotNil(t, pool)
+				must.Eq(t, "new", pool.Name)
+				must.Eq(t, pool.Name, node.NodePool)
+				must.Eq(t, node.ModifyIndex, pool.CreateIndex)
 			},
 		},
 		{
-			name:         "move existing node to existing node pool",
-			nodeID:       nodeWithPoolID,
-			pool:         existingPoolName,
-			expectedPool: existingPoolName,
-		},
-		{
-			name:         "move existing node to built-in node pool",
-			nodeID:       nodeWithPoolID,
-			pool:         structs.NodePoolDefault,
-			expectedPool: structs.NodePoolDefault,
-		},
-		{
-			name:         "move existing node with empty node pool to default",
-			nodeID:       nodeWithPoolID,
-			pool:         "",
-			expectedPool: structs.NodePoolDefault,
-		},
-		{
-			name:         "update node without pool to new node pool",
-			nodeID:       nodeWithoutPoolID,
-			pool:         "new",
-			expectedPool: "new",
-		},
-		{
-			name:         "update node without pool to existing node pool",
-			nodeID:       nodeWithoutPoolID,
-			pool:         existingPoolName,
-			expectedPool: existingPoolName,
-		},
-		{
-			name:         "update node without pool with empty string to default",
-			nodeID:       nodeWithoutPoolID,
-			pool:         "",
-			expectedPool: structs.NodePoolDefault,
+			name: "don't create new node pool with node",
+			setupReqFn: func(req *structs.NodeRegisterRequest) {
+				req.Node.NodePool = "new"
+				req.CreateNodePool = false
+			},
+			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
+				must.Nil(t, pool)
+				must.Eq(t, "new", node.NodePool)
+			},
 		},
 	}
 
@@ -345,42 +289,13 @@ func TestFSM_UpsertNode_NodePool(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fsm := testFSM(t)
 
-			// Populate state with a test node pool.
-			existingPool := mock.NodePool()
-			existingPool.Name = existingPoolName
-			err := fsm.State().UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{existingPool})
-			must.NoError(t, err)
-
-			// Populate state with pre-existing node assigned to the
-			// pre-existing node pool.
-			nodeWithPool := mock.Node()
-			nodeWithPool.ID = nodeWithPoolID
-			nodeWithPool.NodePool = existingPool.Name
-
-			err = fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1001, nodeWithPool)
-			must.NoError(t, err)
-
-			// Populate state with pre-existing node with empty node pool to
-			// simulate an upgrade path.
-			nodeWithoutPool := mock.Node()
-			nodeWithoutPool.ID = nodeWithoutPoolID
-			err = fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1002, nodeWithoutPool)
-			must.NoError(t, err)
-
-			// Upsert test node.
-			var node *structs.Node
-			switch tc.nodeID {
-			case nodeWithPoolID:
-				node = nodeWithPool.Copy()
-			case nodeWithoutPoolID:
-				node = nodeWithoutPool.Copy()
-			default:
-				node = mock.Node()
+			node := mock.Node()
+			req := structs.NodeRegisterRequest{
+				Node: node,
 			}
-
-			// Set the node pool and apply node register log.
-			node.NodePool = tc.pool
-			req := structs.NodeRegisterRequest{Node: node}
+			if tc.setupReqFn != nil {
+				tc.setupReqFn(&req)
+			}
 			buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 			must.NoError(t, err)
 
@@ -390,21 +305,14 @@ func TestFSM_UpsertNode_NodePool(t *testing.T) {
 			// Snapshot the state.
 			s := fsm.State()
 
-			// Verify node exists.
-			got, err := s.NodeByID(nil, node.ID)
+			gotNode, err := s.NodeByID(nil, node.ID)
 			must.NoError(t, err)
-			must.NotNil(t, got)
 
-			// Verify node pool exists.
-			pool, err := s.NodePoolByName(nil, tc.expectedPool)
+			gotPool, err := s.NodePoolByName(nil, gotNode.NodePool)
 			must.NoError(t, err)
-			must.NotNil(t, pool)
-
-			// Verify node was assigned to node pool.
-			must.Eq(t, tc.expectedPool, got.NodePool)
 
 			if tc.validateFn != nil {
-				tc.validateFn(t, got, pool)
+				tc.validateFn(t, gotNode, gotPool)
 			}
 		})
 	}

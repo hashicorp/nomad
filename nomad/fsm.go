@@ -390,7 +390,13 @@ func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, inde
 	// Handle upgrade paths
 	req.Node.Canonicalize()
 
-	if err := n.state.UpsertNode(reqType, index, req.Node); err != nil {
+	// Upsert node.
+	var opts []state.NodeUpsertOption
+	if req.CreateNodePool {
+		opts = append(opts, state.NodeUpsertWithNodePool)
+	}
+
+	if err := n.state.UpsertNode(reqType, index, req.Node, opts...); err != nil {
 		n.logger.Error("UpsertNode failed", "error", err)
 		return err
 	}
