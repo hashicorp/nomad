@@ -1848,7 +1848,7 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 			if !ServersMeetMinimumVersion(
 				s.serf.Members(), s.Region(), minACLRoleVersion, true) {
 				s.logger.Trace(
-					"all servers must be upgraded to 1.4.0 before ACL Roles can be replicated")
+					"all servers must be upgraded to 1.4.0 or later before ACL Roles can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
 					continue
 				} else {
@@ -2057,7 +2057,7 @@ func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
 			if !ServersMeetMinimumVersion(
 				s.serf.Members(), s.Region(), minACLAuthMethodVersion, true) {
 				s.logger.Trace(
-					"all servers must be upgraded to 1.5.0 before ACL Auth Methods can be replicated")
+					"all servers must be upgraded to 1.5.0 or later before ACL Auth Methods can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
 					continue
 				} else {
@@ -2263,7 +2263,7 @@ func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
 			if !ServersMeetMinimumVersion(
 				s.serf.Members(), s.Region(), minACLBindingRuleVersion, true) {
 				s.logger.Trace(
-					"all servers must be upgraded to 1.5.0 before ACL Binding Rules can be replicated")
+					"all servers must be upgraded to 1.5.0 or later before ACL Binding Rules can be replicated")
 				if s.replicationBackoffContinue(stopCh) {
 					continue
 				} else {
