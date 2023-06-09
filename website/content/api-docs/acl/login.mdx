@@ -1,0 +1,77 @@
+---
+layout: api
+page_title: ACL Login - HTTP API
+description: The /acl/login endpoint is used to login via an externally issued token.
+---
+
+# ACL Login HTTP API
+
+The `/acl/login` endpoint is used to log in to Nomad via an externally issued
+token.
+
+## Authenticate with an externally issued token
+
+This endpoint creates an ACL Token. The request is always forwarded to the
+authoritative region.
+
+| Method | Path                         | Produces           |
+| ------ | ---------------------------- | ------------------ |
+| `POST` | `/v1/acl/oidc/complete-auth` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `none`       |
+
+### Parameters
+
+- `AuthMethodName` `(string: <required>)` - The name of the ACL authentication
+  method to use.
+
+- `LoginToken` `(string: <required>)` - The externally issued authentication token
+  to be exchanged for a Nomad ACL Token.
+
+### Sample Payload
+
+```json
+{
+  "AuthMethodName": "github",
+  "LoginToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.NHVaYe26MbtOYhSKkoKYdFVomg4i8ZJd8_-RU8VNbftc4TSMb4bXP3l3YlNWACwyXPGffz5aXHc6lty1Y2t4SWRqGteragsVdZufDn5BlnJl9pdR_kdVFUsra2rWKEofkZeIC4yWytE58sMIihvo9H1ScmmVwBcQP6XETqYd0aSHp1gOa9RdUPDvoXQ5oqygTqVtxaDr6wUFKrKItgBMzWIdNZ6y7O9E0DhEPTbE9rfBo6KTFsHAZnMg4k68CDp2woYIaXbmYTWcvbzIuHO7_37GT79XdIwkm95QJ7hYC9RiwrV7mesbY4PAahERJawntho0my942XheVLmGwLMBkQ"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/acl/login
+```
+
+### Sample Response
+
+```json
+{
+  "AccessorID": "cbbc7059-3acf-2ef5-378b-495f5f81f733",
+  "CreateIndex": 18,
+  "CreateTime": "2023-01-18T10:53:29.460987Z",
+  "ExpirationTTL": 600000000000,
+  "ExpirationTime": "2023-01-18T11:03:29.460987Z",
+  "Global": true,
+  "ModifyIndex": 18,
+  "Name": "JWT-github",
+  "Policies": [],
+  "Roles": [
+    {
+      "ID": "10b1a678-f71d-d266-2888-8b3e47e317b8",
+      "Name": "engineering-read"
+    }
+  ],
+  "SecretID": "1fce464c-06d1-4020-8564-631c25201ea7",
+  "Type": "client"
+}
+```
