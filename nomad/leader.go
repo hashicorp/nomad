@@ -649,6 +649,15 @@ func (s *Server) replicateNodePools(stopCh chan struct{}) {
 		// Perform a two-way diff
 		delete, update := diffNodePools(s.State(), req.MinQueryIndex, resp.NodePools)
 
+		// A significant amount of time could pass between the last check
+		// on whether we should stop the replication process. Therefore, do
+		// a check here, before calling Raft.
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
 		// Delete node pools that should not exist
 		if len(delete) > 0 {
 			args := &structs.NodePoolDeleteRequest{
