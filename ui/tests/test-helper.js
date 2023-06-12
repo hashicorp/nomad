@@ -21,7 +21,7 @@ Ember.onerror = function (err) {
   console.log('stringified', JSON.stringify(err));
   console.log('end of onerror event');
   QUnit.assert.ok(false, err);
-  return err;
+  return new Error(err);
 };
 
 setup(QUnit.assert);
