@@ -55,7 +55,7 @@ var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
 // minACLAuthMethodVersion is the Nomad version at which the ACL auth methods
 // table was introduced. It forms the minimum version all federated servers must
 // meet before the feature can be used.
-var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
+var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0"))
 
 // minACLJWTAuthMethodVersion is the Nomad version at which the ACL JWT auth method type
 // was introduced. It forms the minimum version all federated servers must
@@ -65,7 +65,7 @@ var minACLJWTAuthMethodVersion = version.Must(version.NewVersion("1.5.4"))
 // minACLBindingRuleVersion is the Nomad version at which the ACL binding rules
 // table was introduced. It forms the minimum version all federated servers
 // must meet before the feature can be used.
-var minACLBindingRuleVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
+var minACLBindingRuleVersion = version.Must(version.NewVersion("1.5.0"))
 
 // minNomadServiceRegistrationVersion is the Nomad version at which the service
 // registrations table was introduced. It forms the minimum version all local
@@ -1845,6 +1845,17 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLRoleVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.4.0 or later before ACL Roles can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.
 			req.AuthToken = s.ReplicationToken()
@@ -2043,6 +2054,17 @@ func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLAuthMethodVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.5.0 or later before ACL Auth Methods can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.
 			req.AuthToken = s.ReplicationToken()
@@ -2237,6 +2259,17 @@ func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
 			// the error as the context will never be cancelled and the limit
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
+
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLBindingRuleVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.5.0 or later before ACL Binding Rules can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
 
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.
