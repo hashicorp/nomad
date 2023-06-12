@@ -18,8 +18,10 @@ setApplication(Application.create(config.APP));
 Ember.onerror = function (err) {
   console.log('an onerror event has occurred and is being overridden');
   console.error(err);
+  console.log('stringified', JSON.stringify(err));
   console.log('end of onerror event');
   QUnit.assert.ok(false, err);
+  return err;
 };
 
 setup(QUnit.assert);
