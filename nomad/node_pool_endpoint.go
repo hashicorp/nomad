@@ -11,6 +11,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -186,6 +187,11 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		}
 	}
 
+	if !ServersMeetMinimumVersion(
+		n.srv.serf.Members(), n.srv.Region(), minNodePoolsVersion, true) {
+		return fmt.Errorf("all servers must be running version %v or later to upsert node pools", minNodePoolsVersion)
+	}
+
 	// Validate request.
 	if len(args.NodePools) == 0 {
 		return structs.NewErrRPCCodedf(http.StatusBadRequest, "must specify at least one node pool")
@@ -232,6 +238,11 @@ func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *s
 		if !aclObj.AllowNodePoolOperation(name, acl.NodePoolCapabilityDelete) {
 			return structs.ErrPermissionDenied
 		}
+	}
+
+	if !ServersMeetMinimumVersion(
+		n.srv.serf.Members(), n.srv.Region(), minNodePoolsVersion, true) {
+		return fmt.Errorf("all servers must be running version %v or later to delete node pools", minNodePoolsVersion)
 	}
 
 	// Validate request.

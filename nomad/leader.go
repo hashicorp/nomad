@@ -75,6 +75,10 @@ var minACLBindingRuleVersion = version.Must(version.NewVersion("1.5.0"))
 // servers must meet before the feature can be used.
 var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"))
 
+// Any writes to node pools requires that all servers are on version 1.6.0 to
+// prevent older versions of the server from crashing.
+var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
