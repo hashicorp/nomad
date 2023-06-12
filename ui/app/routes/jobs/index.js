@@ -29,6 +29,11 @@ export default class IndexRoute extends Route.extend(
       jobs: this.store
         .query('job', { namespace: params.qpNamespace, meta: true })
         .catch(notifyForbidden(this)),
+      allocations: this.store.query('allocation', {
+        resources: false,
+        task_states: false,
+        namespace: '*',
+      }),
       namespaces: this.store.findAll('namespace'),
     });
   }
@@ -39,9 +44,18 @@ export default class IndexRoute extends Route.extend(
       'modelWatch',
       this.watchJobs.perform({ namespace: controller.qpNamespace, meta: true })
     );
+    controller.set(
+      'allocationsWatch',
+      this.watchAllocations.perform({
+        resources: false,
+        task_states: false,
+        namespace: '*',
+      })
+    );
   }
 
   @watchQuery('job') watchJobs;
+  @watchQuery('allocation') watchAllocations;
   @watchAll('namespace') watchNamespaces;
-  @collect('watchJobs', 'watchNamespaces') watchers;
+  @collect('watchJobs', 'watchNamespaces', 'watchAllocations') watchers;
 }
