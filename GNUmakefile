@@ -8,12 +8,7 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
-ifneq (MSYS_NT,$(THIS_OS))
-# GOPATH supports PATH style multi-paths; assume the first entry is favorable.
-# Necessary because new Circle images override GOPATH with multiple values.
-# See: https://discuss.circleci.com/t/gopath-is-set-to-multiple-directories/7174
-GOPATH := $(shell go env GOPATH | cut -d: -f1)
-endif
+GOPATH := $(shell go env GOPATH)
 
 # Respect $GOBIN if set in environment or via $GOENV file.
 BIN := $(shell go env GOBIN)
