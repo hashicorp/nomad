@@ -1830,6 +1830,17 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLRoleVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.4.0 or later before ACL Roles can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.
 			req.AuthToken = s.ReplicationToken()
