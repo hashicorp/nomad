@@ -35,7 +35,7 @@ resource "azurerm_subnet" "hashistack-sn" {
   name                 = "hashistack-sn"
   resource_group_name  = "${azurerm_resource_group.hashistack.name}"
   virtual_network_name = "${azurerm_virtual_network.hashistack-vn.name}"
-  address_prefix       = "10.0.2.0/24"
+  address_prefixes     = ["10.0.2.0/24"]
 }
 
 resource "azurerm_network_security_group" "hashistack-sg" {
@@ -97,7 +97,7 @@ resource "azurerm_public_ip" "hashistack-server-public-ip" {
   name                         = "hashistack-server-ip-${count.index}"
   location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.hashistack.name}"
-  public_ip_address_allocation = "static"
+  allocation_method            = "static"
 }
 
 resource "azurerm_network_interface" "hashistack-server-ni" {
@@ -114,7 +114,7 @@ resource "azurerm_network_interface" "hashistack-server-ni" {
     public_ip_address_id          = "${element(azurerm_public_ip.hashistack-server-public-ip.*.id, count.index)}"
   }
 
-  tags {
+  tags = {
     ConsulAutoJoin = "auto-join"
   }
 }
@@ -163,8 +163,7 @@ resource "azurerm_virtual_machine" "server" {
 
 data "template_file" "user_data_server" {
   template = "${file("${path.root}/user-data-server.sh")}"
-
-  vars {
+  vars = {
     server_count = "${var.server_count}"
     retry_join   = "${var.retry_join}"
   }
@@ -175,7 +174,7 @@ resource "azurerm_public_ip" "hashistack-client-public-ip" {
   name                         = "hashistack-client-ip-${count.index}"
   location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.hashistack.name}"
-  public_ip_address_allocation = "static"
+  allocation_method            = "static"
 }
 
 resource "azurerm_network_interface" "hashistack-client-ni" {
@@ -192,7 +191,7 @@ resource "azurerm_network_interface" "hashistack-client-ni" {
     public_ip_address_id          = "${element(azurerm_public_ip.hashistack-client-public-ip.*.id, count.index)}"
   }
 
-  tags {
+  tags = {
     ConsulAutoJoin = "auto-join"
   }
 }
@@ -242,8 +241,7 @@ resource "azurerm_virtual_machine" "client" {
 
 data "template_file" "user_data_client" {
   template = "${file("${path.root}/user-data-client.sh")}"
-
-  vars {
+  vars = {
     retry_join = "${var.retry_join}"
   }
 }
