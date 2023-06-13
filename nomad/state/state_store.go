@@ -41,6 +41,15 @@ const (
 	SortReverse SortOption = true
 )
 
+// NodeUpsertOption represents options to configure a NodeUpsert operation.
+type NodeUpsertOption uint8
+
+const (
+	// NodeUpsertWithNodePool indicates that the node pool in the node should
+	// be created if it doesn't exist.
+	NodeUpsertWithNodePool NodeUpsertOption = iota
+)
+
 const (
 	// NodeEligibilityEventPlanRejectThreshold is the message used when the node
 	// is set to ineligible due to multiple plan failures.
@@ -896,15 +905,17 @@ func (s *StateStore) ScalingEventsByJob(ws memdb.WatchSet, namespace, jobID stri
 // UpsertNode is used to register a node or update a node definition
 // This is assumed to be triggered by the client, so we retain the value
 // of drain/eligibility which is set by the scheduler.
-func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node *structs.Node) error {
+func (s *StateStore) UpsertNode(msgType structs.MessageType, index uint64, node *structs.Node, opts ...NodeUpsertOption) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	// Create node pool if necessary.
-	if node.NodePool != "" {
-		_, err := s.fetchOrCreateNodePoolTxn(txn, index, node.NodePool)
-		if err != nil {
-			return err
+	for _, opt := range opts {
+		// Create node pool if necessary.
+		if opt == NodeUpsertWithNodePool && node.NodePool != "" {
+			_, err := s.fetchOrCreateNodePoolTxn(txn, index, node.NodePool)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

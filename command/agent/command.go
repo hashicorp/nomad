@@ -1431,7 +1431,9 @@ Client Options:
 
   -node-pool
     Register this node in this node pool. If the node pool does not exist it
-    will be created automatically when the node registers.
+    will be created automatically if the node registers in the authoritative
+    region. In non-authoritative regions, the node is kept in the
+    'initializing' status until the node pool is created and replicated.
 
   -meta
     User specified metadata to associated with the node. Each instance of -meta

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/rpc"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,6 +29,7 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -298,6 +300,205 @@ func TestClientEndpoint_Register_NodePool(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClientEndpoint_Register_NodePool_Multiregion(t *testing.T) {
+	ci.Parallel(t)
+
+	// Helper function to setup client heartbeat.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	heartbeat := func(ctx context.Context, codec rpc.ClientCodec, req *structs.NodeUpdateStatusRequest) {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			default:
+			}
+
+			var resp structs.NodeUpdateResponse
+			msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
+		}
+	}
+
+	// Create servers in two regions.
+	s1, rootToken1, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.Region = "region-1"
+		c.AuthoritativeRegion = "region-1"
+	})
+	defer cleanupS1()
+	codec1 := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
+		c.Region = "region-2"
+		c.AuthoritativeRegion = "region-1"
+
+		// Speed-up replication for testing.
+		c.ReplicationBackoff = 500 * time.Millisecond
+		c.ReplicationToken = rootToken1.SecretID
+	})
+	defer cleanupS2()
+	codec2 := rpcClient(t, s2)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// Verify that registering a node with a new node pool in the authoritative
+	// region creates the node pool.
+	node1 := mock.Node()
+	node1.Status = ""
+	node1.NodePool = "new-pool-region-1"
+
+	// Register node in region-1.
+	req := &structs.NodeRegisterRequest{
+		Node:         node1,
+		WriteRequest: structs.WriteRequest{Region: "region-1"},
+	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec1, "Node.Register", req, &resp)
+	must.NoError(t, err)
+
+	// Setup heartbeat for node in region-1.
+	go heartbeat(ctx, rpcClient(t, s1), &structs.NodeUpdateStatusRequest{
+		NodeID:       node1.ID,
+		Status:       structs.NodeStatusReady,
+		WriteRequest: structs.WriteRequest{Region: "region-1"},
+	})
+
+	// Verify client becomes ready.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			n, err := s1.State().NodeByID(nil, node1.ID)
+			if err != nil {
+				return err
+			}
+			if n.Status != structs.NodeStatusReady {
+				return fmt.Errorf("expected node to be %s, got %s", structs.NodeStatusReady, n.Status)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(time.Second),
+	))
+
+	// Verify that registering a node with a new node pool in the
+	// non-authoritative region does not create the node pool and the client is
+	// kept in the initializing status.
+	node2 := mock.Node()
+	node2.Status = ""
+	node2.NodePool = "new-pool-region-2"
+
+	// Register node in region-2.
+	req = &structs.NodeRegisterRequest{
+		Node:         node2,
+		WriteRequest: structs.WriteRequest{Region: "region-2"},
+	}
+	err = msgpackrpc.CallWithCodec(codec2, "Node.Register", req, &resp)
+	must.NoError(t, err)
+
+	// Setup heartbeat for node in region-2.
+	go heartbeat(ctx, rpcClient(t, s2), &structs.NodeUpdateStatusRequest{
+		NodeID:       node2.ID,
+		Status:       structs.NodeStatusReady,
+		WriteRequest: structs.WriteRequest{Region: "region-2"},
+	})
+
+	// Verify client is kept at the initializing status and has a node pool
+	// missing event.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			n, err := s2.State().NodeByID(nil, node2.ID)
+			if err != nil {
+				return err
+			}
+			if !n.HasEvent(NodeWaitingForNodePool) {
+				return fmt.Errorf("node pool missing event not found:\n%v", n.Events)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(time.Second),
+	))
+	must.Wait(t, wait.ContinualSuccess(
+		wait.ErrorFunc(func() error {
+			n, err := s2.State().NodeByID(nil, node2.ID)
+			if err != nil {
+				return err
+			}
+			if n.Status != structs.NodeStatusInit {
+				return fmt.Errorf("expected node to be %s, got %s", structs.NodeStatusInit, n.Status)
+			}
+			return nil
+		}),
+		wait.Timeout(time.Second),
+		wait.Gap(time.Second),
+	))
+
+	// Federate regions.
+	TestJoin(t, s1, s2)
+
+	// Verify node pool from authoritative region is replicated.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			poolName := node1.NodePool
+			pool, err := s2.State().NodePoolByName(nil, poolName)
+			if err != nil {
+				return err
+			}
+			if pool == nil {
+				return fmt.Errorf("node pool %s not found in region-2", poolName)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(time.Second),
+	))
+
+	// Create node pool for region-2.
+	nodePoolReq := &structs.NodePoolUpsertRequest{
+		NodePools: []*structs.NodePool{{Name: node2.NodePool}},
+		WriteRequest: structs.WriteRequest{
+			Region:    "region-2",
+			AuthToken: rootToken1.SecretID,
+		},
+	}
+	var nodePoolResp *structs.GenericResponse
+	err = msgpackrpc.CallWithCodec(codec2, "NodePool.UpsertNodePools", nodePoolReq, &nodePoolResp)
+	must.NoError(t, err)
+
+	// Verify node pool exists in both regions and the node in region-2 is now
+	// ready.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			for region, s := range map[string]*state.StateStore{
+				"region-1": s1.State(),
+				"region-2": s2.State(),
+			} {
+				poolName := node2.NodePool
+				pool, err := s.NodePoolByName(nil, poolName)
+				if err != nil {
+					return err
+				}
+				if pool == nil {
+					return fmt.Errorf("expected node pool %s to exist in region %s", poolName, region)
+				}
+			}
+
+			n, err := s2.State().NodeByID(nil, node2.ID)
+			if err != nil {
+				return err
+			}
+			if n.Status != structs.NodeStatusReady {
+				return fmt.Errorf("expected node to be %s, got %s", structs.NodeStatusReady, n.Status)
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(time.Second),
+	))
 }
 
 // Test the deprecated single node deregistration path
