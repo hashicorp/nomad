@@ -10,28 +10,26 @@
   {{#if this.countToShow}}
     <div class="ungrouped-allocs">
       {{#each (range 0 this.countToShow) as |i|}}
-        <Hds::TooltipButton @text="{{get (get @allocs i) "shortId"}}" aria-label="Allocation">
-          <ConditionalLinkTo
-            @condition={{not (eq @status "unplaced")}}
-            @route="allocations.allocation"
-            @model={{get @allocs i}}
-            @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
-            @label="View allocation"
-          >
-            {{#if (and (eq @status "running") (not @steady))}}
-              {{#if (eq @canary "canary")}}
-                <span class="alloc-canary-indicator" />
-              {{/if}}
-              <span class="alloc-health-indicator">
-                {{#if (eq @health "healthy")}}
-                  <FlightIcon @name="check" @color="white" />
+
+                {{#if (eq @status "unplaced")}}
+                  <JobStatus::IndividualAllocation
+                    @allocation={{get @allocs i}}
+                    @status={{@status}}
+                    @health={{@health}}
+                    @canary={{@canary}}
+                    @steady={{@steady}}
+                  />
                 {{else}}
-                  <FlightIcon @name="running" @color="white" />
+                  <Hds::TooltipButton @text="{{get (get @allocs i) "shortId"}}" aria-label="Allocation">
+                    <JobStatus::IndividualAllocation
+                      @allocation={{get @allocs i}}
+                      @status={{@status}}
+                      @health={{@health}}
+                      @canary={{@canary}}
+                      @steady={{@steady}}
+                    />
+                  </Hds::TooltipButton>
                 {{/if}}
-              </span>
-            {{/if}}
-          </ConditionalLinkTo>
-        </Hds::TooltipButton>
       {{/each}}
     </div>
   {{/if}}

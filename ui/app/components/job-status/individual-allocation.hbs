@@ -1,0 +1,22 @@
+<ConditionalLinkTo
+  @condition={{not (eq @status "unplaced")}}
+  @route="allocations.allocation"
+  @model={{@allocation}}
+  @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
+  @label="View allocation"
+>
+  {{#unless @steady}}
+    {{#if (eq @canary "canary")}}
+      <span class="alloc-canary-indicator" />
+    {{/if}}
+    {{#if (eq @status "running")}}
+      <span class="alloc-health-indicator">
+        {{#if (eq @health "healthy")}}
+          <FlightIcon @name="check" @color="white" />
+        {{else}}
+          <FlightIcon @name="running" @color="white" />
+        {{/if}}
+      </span>
+    {{/if}}
+  {{/unless}}
+</ConditionalLinkTo>
