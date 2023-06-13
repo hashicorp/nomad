@@ -56,7 +56,8 @@ func (c *NodePoolInitCommand) Synopsis() string {
 
 func (c *NodePoolInitCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-out": complete.PredictSet("hcl", "json"),
+		"-out":   complete.PredictSet("hcl", "json"),
+		"-quiet": complete.PredictNothing,
 	}
 }
 

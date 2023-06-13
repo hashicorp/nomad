@@ -16,13 +16,15 @@ used as a starting point to customize further.
 nomad node pool init <filename>
 ```
 
-When no filename is supplied, a default filename of "pool.np.hcl" or
-"pool.np.json" will be used depending on the output format.
+When no filename is supplied, a default filename of "pool.nomad.hcl" or
+"pool.nomad.json" will be used depending on the output format.
 
 ## Init Options
 
 - `-out` `(enum: hcl | json)`: Format of generated node pool
   specification. Defaults to `hcl`.
+
+- `-quiet`: Do not print success message.
 
 ## Examples
 
@@ -30,5 +32,5 @@ Create an example node pool specification:
 
 ```shell-session
 $ nomad node pool init
-Example node pool specification written to pool.np.hcl
+Example node pool specification written to pool.nomad.hcl
 ```
