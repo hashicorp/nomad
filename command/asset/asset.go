@@ -16,3 +16,9 @@ var JobConnect []byte
 
 //go:embed connect-short.nomad.hcl
 var JobConnectShort []byte
+
+//go:embed pool.nomad.hcl
+var NodePoolSpec []byte
+
+//go:embed pool.nomad.json
+var NodePoolSpecJSON []byte
