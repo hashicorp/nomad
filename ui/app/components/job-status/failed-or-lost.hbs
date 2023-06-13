@@ -8,7 +8,7 @@
   <div class="failed-or-lost-links">
     {{#if @supportsRescheduling}}
       <span>
-        <Hds::TooltipButton @text="Allocations that have been rescheduled, on another node if possible, due to failure or manual restart">
+        <Hds::TooltipButton @text="Allocations that have been rescheduled, on another node if possible, due to failure or manual restart" aria-label="Info">
           <FlightIcon @name="info" />
         </Hds::TooltipButton>
         <ConditionalLinkTo
@@ -24,7 +24,7 @@
     {{/if}}
 
     <span>
-      <Hds::TooltipButton @text="Allocations that have been restarted in-place due to a task failure or manual restart">
+      <Hds::TooltipButton @text="Allocations that have been restarted in-place due to a task failure or manual restart" aria-label="Info">
         <FlightIcon @name="info" />
       </Hds::TooltipButton>
       <ConditionalLinkTo
