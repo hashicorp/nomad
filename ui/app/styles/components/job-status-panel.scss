@@ -93,7 +93,7 @@
     .failed-or-lost > div {
       display: grid;
       gap: 3px;
-      .tooltip {
+      & > span > button {
         top: 3px;
       }
     }
