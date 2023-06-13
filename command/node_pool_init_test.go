@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/asset"
 )
 
 func TestNodePoolInitCommand_Implements(t *testing.T) {
@@ -23,9 +24,9 @@ func TestNodePoolInitCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	dir := t.TempDir()
 	origDir, err := os.Getwd()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	err = os.Chdir(dir)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	t.Cleanup(func() { os.Chdir(origDir) })
 
 	t.Run("hcl", func(t *testing.T) {
@@ -36,41 +37,41 @@ func TestNodePoolInitCommand_Run(t *testing.T) {
 
 		// Fails on misuse
 		ec := cmd.Run([]string{"some", "bad", "args"})
-		require.Equal(t, 1, ec)
-		require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
-		require.Empty(t, ui.OutputWriter.String())
+		must.Eq(t, 1, ec)
+		must.StrContains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
+		must.Eq(t, "", ui.OutputWriter.String())
 		reset(ui)
 
 		// Works if the file doesn't exist
 		ec = cmd.Run([]string{"-out", "hcl"})
-		require.Empty(t, ui.ErrorWriter.String())
-		require.Equal(t, "Example node pool specification written to pool.np.hcl\n", ui.OutputWriter.String())
-		require.Zero(t, ec)
+		must.Eq(t, "", ui.ErrorWriter.String())
+		must.Eq(t, "Example node pool specification written to pool.nomad.hcl\n", ui.OutputWriter.String())
+		must.Zero(t, ec)
 		reset(ui)
-		t.Cleanup(func() { os.Remove(path.Join(dir, "pool.np.hcl")) })
+		t.Cleanup(func() { os.Remove(path.Join(dir, "pool.nomad.hcl")) })
 
 		content, err := os.ReadFile(DefaultHclNodePoolInitName)
-		require.NoError(t, err)
-		require.Equal(t, defaultHclNodePoolSpec, string(content))
+		must.NoError(t, err)
+		must.Eq(t, asset.NodePoolSpec, content)
 
 		// Fails if the file exists
 		ec = cmd.Run([]string{"-out", "hcl"})
-		require.Contains(t, ui.ErrorWriter.String(), "exists")
-		require.Empty(t, ui.OutputWriter.String())
-		require.Equal(t, 1, ec)
+		must.StrContains(t, ui.ErrorWriter.String(), "exists")
+		must.Eq(t, "", ui.OutputWriter.String())
+		must.Eq(t, 1, ec)
 		reset(ui)
 
 		// Works if file is passed
 		ec = cmd.Run([]string{"-out", "hcl", "myTest.hcl"})
-		require.Empty(t, ui.ErrorWriter.String())
-		require.Equal(t, "Example node pool specification written to myTest.hcl\n", ui.OutputWriter.String())
-		require.Zero(t, ec)
+		must.Eq(t, "", ui.ErrorWriter.String())
+		must.Eq(t, "Example node pool specification written to myTest.hcl\n", ui.OutputWriter.String())
+		must.Zero(t, ec)
 		reset(ui)
 
 		t.Cleanup(func() { os.Remove(path.Join(dir, "myTest.hcl")) })
 		content, err = os.ReadFile("myTest.hcl")
-		require.NoError(t, err)
-		require.Equal(t, defaultHclNodePoolSpec, string(content))
+		must.NoError(t, err)
+		must.Eq(t, asset.NodePoolSpec, content)
 	})
 
 	t.Run("json", func(t *testing.T) {
@@ -81,38 +82,38 @@ func TestNodePoolInitCommand_Run(t *testing.T) {
 
 		// Fails on misuse
 		code := cmd.Run([]string{"some", "bad", "args"})
-		require.Equal(t, 1, code)
-		require.Contains(t, ui.ErrorWriter.String(), "This command takes no arguments or one")
-		require.Empty(t, ui.OutputWriter.String())
+		must.Eq(t, 1, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "This command takes no arguments or one")
+		must.Eq(t, "", ui.OutputWriter.String())
 		reset(ui)
 
 		// Works if the file doesn't exist
 		code = cmd.Run([]string{"-out", "json"})
-		require.Contains(t, ui.OutputWriter.String(), "Example node pool specification written to pool.np.json\n")
-		require.Zero(t, code)
+		must.StrContains(t, ui.OutputWriter.String(), "Example node pool specification written to pool.nomad.json\n")
+		must.Zero(t, code)
 		reset(ui)
 
-		t.Cleanup(func() { os.Remove(path.Join(dir, "pool.np.json")) })
+		t.Cleanup(func() { os.Remove(path.Join(dir, "pool.nomad.json")) })
 		content, err := os.ReadFile(DefaultJsonNodePoolInitName)
-		require.NoError(t, err)
-		require.Equal(t, defaultJsonNodePoolSpec, string(content))
+		must.NoError(t, err)
+		must.Eq(t, asset.NodePoolSpecJSON, content)
 
 		// Fails if the file exists
 		code = cmd.Run([]string{"-out", "json"})
-		require.Contains(t, ui.ErrorWriter.String(), "exists")
-		require.Empty(t, ui.OutputWriter.String())
-		require.Equal(t, 1, code)
+		must.StrContains(t, ui.ErrorWriter.String(), "exists")
+		must.Eq(t, "", ui.OutputWriter.String())
+		must.Eq(t, 1, code)
 		reset(ui)
 
 		// Works if file is passed
 		code = cmd.Run([]string{"-out", "json", "myTest.json"})
-		require.Contains(t, ui.OutputWriter.String(), "Example node pool specification written to myTest.json\n")
-		require.Zero(t, code)
+		must.StrContains(t, ui.OutputWriter.String(), "Example node pool specification written to myTest.json\n")
+		must.Zero(t, code)
 		reset(ui)
 
 		t.Cleanup(func() { os.Remove(path.Join(dir, "myTest.json")) })
 		content, err = os.ReadFile("myTest.json")
-		require.NoError(t, err)
-		require.Equal(t, defaultJsonNodePoolSpec, string(content))
+		must.NoError(t, err)
+		must.Eq(t, asset.NodePoolSpecJSON, content)
 	})
 }

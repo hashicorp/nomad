@@ -10,17 +10,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/command/asset"
 	"github.com/posener/complete"
 )
 
 const (
 	// DefaultHclNodePoolInitName is the default name we use when initializing
 	// the example node pool spec file in HCL format
-	DefaultHclNodePoolInitName = "pool.np.hcl"
+	DefaultHclNodePoolInitName = "pool.nomad.hcl"
 
 	// DefaultJsonNodePoolInitName is the default name we use when initializing
 	// the example node pool spec in JSON format
-	DefaultJsonNodePoolInitName = "pool.np.json"
+	DefaultJsonNodePoolInitName = "pool.nomad.json"
 )
 
 // NodePoolInitCommand generates a new variable specification
@@ -34,13 +35,16 @@ Usage: nomad node pool init <filename>
 
   Creates an example node pool specification file that can be used as a starting
   point to customize further. When no filename is supplied, a default filename
-  of "pool.np.hcl" or "pool.np.json" will be used depending on the output
+  of "pool.nomad.hcl" or "pool.nomad.json" will be used depending on the output
   format.
 
 Init Options:
 
   -out (hcl | json)
     Format of generated node pool specification. Defaults to "hcl".
+
+  -quiet
+    Do not print success message.
 
 `
 	return strings.TrimSpace(helpText)
@@ -69,6 +73,7 @@ func (c *NodePoolInitCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&outFmt, "out", "hcl", "")
+	flags.BoolVar(&quiet, "quiet", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -81,14 +86,15 @@ func (c *NodePoolInitCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	var fileName, fileContent string
+	var fileName string
+	var fileContent []byte
 	switch outFmt {
 	case "hcl":
 		fileName = DefaultHclNodePoolInitName
-		fileContent = defaultHclNodePoolSpec
+		fileContent = asset.NodePoolSpec
 	case "json":
 		fileName = DefaultJsonNodePoolInitName
-		fileContent = defaultJsonNodePoolSpec
+		fileContent = asset.NodePoolSpecJSON
 	}
 
 	if len(args) == 1 {
@@ -107,7 +113,7 @@ func (c *NodePoolInitCommand) Run(args []string) int {
 	}
 
 	// Write out the example
-	err = os.WriteFile(fileName, []byte(fileContent), 0660)
+	err = os.WriteFile(fileName, fileContent, 0660)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to write %q: %v", fileName, err))
 		return 1
@@ -119,44 +125,3 @@ func (c *NodePoolInitCommand) Run(args []string) int {
 	}
 	return 0
 }
-
-var defaultHclNodePoolSpec = strings.TrimSpace(`
-node_pool "example" {
-
-  description = "Example node pool"
-
-  # meta is optional metadata on the node pool, defined as key-value pairs.
-  # The scheduler does not use node pool metadata as part of scheduling.
-  meta {
-    environment = "prod"
-    owner       = "sre"
-  }
-
-  # The scheduler configuration options specific to this node pool. This block
-  # supports a subset of the fields supported in the global scheduler
-  # configuration as described at:
-  # https://developer.hashicorp.com/nomad/docs/commands/operator/scheduler/set-config
-  #
-  # Available only in Nomad Enterprise.
-  scheduler_configuration {
-
-    # scheduler_algorithm is the scheduling algorithm to use for the pool.
-    # If not defined, the global cluster scheduling algorithm is used.
-    scheduler_algorithm = "spread"
-  }
-}
-`) + "\n"
-
-var defaultJsonNodePoolSpec = strings.TrimSpace(`
-{
-  "Name": "example",
-  "Description": "Example node pool",
-  "Meta": {
-    "environment": "prod",
-    "owner": "sre"
-  },
-  "SchedulerConfiguration": {
-    "SchedulerAlgorithm": "spread"
-  }
-}
-`) + "\n"
