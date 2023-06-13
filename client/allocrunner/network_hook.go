@@ -183,6 +183,10 @@ func (h *networkHook) Postrun() error {
 		}
 	}
 
-	// issue driver destroy regardless if we have a spec (e.g. cleanup pause container)
-	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
+	// h.manager is only set on Linux.
+	if h.manager != nil {
+		// issue driver destroy regardless if we have a spec (e.g. cleanup pause container)
+		return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
+	}
+	return nil
 }
