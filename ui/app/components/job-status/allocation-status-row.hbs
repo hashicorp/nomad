@@ -36,16 +36,6 @@
           {{#each-in allocsByHealth as |canary allocsByCanary|}}
             {{#if (gt allocsByCanary.length 0)}}
               {{#each (range 0 allocsByCanary.length) as |i|}}
-                {{#if (eq status "unplaced")}}
-                  <JobStatus::IndividualAllocation
-                    @allocation={{get allocsByCanary i}}
-                    @status={{status}}
-                    @health={{health}}
-                    @canary={{canary}}
-                    @steady={{@steady}}
-                  />
-                {{else}}
-                  <Hds::TooltipButton @text="{{get (get allocsByCanary i) "shortId"}}" aria-label="Allocation">
                     <JobStatus::IndividualAllocation
                       @allocation={{get allocsByCanary i}}
                       @status={{status}}
@@ -53,8 +43,6 @@
                       @canary={{canary}}
                       @steady={{@steady}}
                     />
-                  </Hds::TooltipButton>
-                {{/if}}
               {{/each}}
             {{/if}}
           {{/each-in}}

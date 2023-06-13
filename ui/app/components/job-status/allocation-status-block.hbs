@@ -10,26 +10,13 @@
   {{#if this.countToShow}}
     <div class="ungrouped-allocs">
       {{#each (range 0 this.countToShow) as |i|}}
-
-                {{#if (eq @status "unplaced")}}
-                  <JobStatus::IndividualAllocation
-                    @allocation={{get @allocs i}}
-                    @status={{@status}}
-                    @health={{@health}}
-                    @canary={{@canary}}
-                    @steady={{@steady}}
-                  />
-                {{else}}
-                  <Hds::TooltipButton @text="{{get (get @allocs i) "shortId"}}" aria-label="Allocation">
-                    <JobStatus::IndividualAllocation
-                      @allocation={{get @allocs i}}
-                      @status={{@status}}
-                      @health={{@health}}
-                      @canary={{@canary}}
-                      @steady={{@steady}}
-                    />
-                  </Hds::TooltipButton>
-                {{/if}}
+        <JobStatus::IndividualAllocation
+          @allocation={{get @allocs i}}
+          @status={{@status}}
+          @health={{@health}}
+          @canary={{@canary}}
+          @steady={{@steady}}
+        />
       {{/each}}
     </div>
   {{/if}}
