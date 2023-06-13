@@ -249,6 +249,10 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "server")
 	}
 
+	for _, k := range []string{"preemption_config"} {
+		helper.RemoveEqualFold(&c.Server.ExtraKeysHCL, k)
+	}
+
 	for _, k := range []string{"datadog_tags"} {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
