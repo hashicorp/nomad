@@ -11,6 +11,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -257,15 +258,113 @@ func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *s
 		}
 	}
 
-	// TODO(luiz): verify that the node pool is not being used.
+	// Verify that the node pools we're deleting do not have nodes or
+	// non-terminal jobs in this region or in any federated region.
+	var mErr multierror.Error
+	for _, name := range args.Names {
+		regionsWithNonTerminal, regionsWithNodes, err := n.nodePoolRegionsInUse(args.AuthToken, name)
+		if err != nil {
+			_ = multierror.Append(&mErr, err)
+		}
+		if len(regionsWithNonTerminal) != 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf(
+				"node pool %q has non-terminal jobs in regions: %v", name, regionsWithNonTerminal))
+		}
+		if len(regionsWithNodes) != 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf(
+				"node pool %q has nodes in regions: %v", name, regionsWithNodes))
+		}
+	}
+
+	if err := mErr.ErrorOrNil(); err != nil {
+		return err
+	}
 
 	// Delete via Raft.
 	_, index, err := n.srv.raftApply(structs.NodePoolDeleteRequestType, args)
 	if err != nil {
 		return err
 	}
+
 	reply.Index = index
 	return nil
+}
+
+// nodePoolRegionsInUse returns a list of regions where the node pool is still
+// in use for non-terminal jobs, and a list of regions where it is in use by
+// nodes.
+func (n *NodePool) nodePoolRegionsInUse(token, poolName string) ([]string, []string, error) {
+	regions := n.srv.Regions()
+	thisRegion := n.srv.Region()
+	hasNodes := make([]string, 0, len(regions))
+	hasNonTerminal := make([]string, 0, len(regions))
+
+	// Check if the pool in use in this region
+	snap, err := n.srv.State().Snapshot()
+	if err != nil {
+		return nil, nil, err
+	}
+	iter, err := snap.NodesByNodePool(nil, poolName)
+	if err != nil {
+		return nil, nil, err
+	}
+	found := iter.Next()
+	if found != nil {
+		hasNodes = append(hasNodes, thisRegion)
+	}
+	iter, err = snap.JobsByPool(nil, poolName)
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		job := raw.(*structs.Job)
+		if job.Status != structs.JobStatusDead {
+			hasNonTerminal = append(hasNonTerminal, thisRegion)
+			break
+		}
+	}
+
+	for _, region := range regions {
+		if region == thisRegion {
+			continue
+		}
+
+		nodesReq := &structs.NodePoolNodesRequest{
+			Name: poolName,
+			QueryOptions: structs.QueryOptions{
+				Region:    region,
+				AuthToken: token,
+				PerPage:   1, // we only care if there are any
+			},
+		}
+		var nodesResp structs.NodePoolNodesResponse
+		err := n.srv.RPC("NodePool.ListNodes", nodesReq, &nodesResp)
+		if err != nil {
+			return hasNodes, hasNonTerminal, err
+		}
+		if len(nodesResp.Nodes) != 0 {
+			hasNodes = append(hasNodes, region)
+		}
+
+		jobsReq := &structs.NodePoolJobsRequest{
+			Name: poolName,
+			QueryOptions: structs.QueryOptions{
+				Region:    region,
+				AuthToken: token,
+				PerPage:   1, // we only care if there are any
+				Filter:    `Status != "dead"`,
+			},
+		}
+		var jobsResp structs.NodePoolJobsResponse
+		err = n.srv.RPC("NodePool.ListJobs", jobsReq, &jobsResp)
+		if err != nil {
+			return hasNodes, hasNonTerminal, err
+		}
+
+		if len(jobsResp.Jobs) != 0 {
+			hasNonTerminal = append(hasNonTerminal, region)
+		}
+
+	}
+
+	return hasNonTerminal, hasNodes, err
 }
 
 // ListJobs is used to retrieve a list of jobs for a given node pool. It supports
