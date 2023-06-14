@@ -54,6 +54,10 @@
   .timeline-object {
     margin-bottom: 1em;
 
+    &:last-child {
+      margin-bottom: 0;
+    }
+
     > .boxed-section {
       margin-bottom: 0;
     }

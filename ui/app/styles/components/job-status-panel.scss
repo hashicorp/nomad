@@ -413,33 +413,33 @@
         max-width: unset;
       }
     }
-    & > ol {
+    .timeline-container {
       max-height: 300px;
       overflow-y: auto;
-    }
-    & > ol > li {
-      @for $i from 1 through 50 {
-        &:nth-child(#{$i}) {
-          animation-name: historyItemSlide;
-          animation-duration: 0.2s;
-          animation-fill-mode: both;
-          animation-delay: 0.1s + (0.05 * $i);
+      & > ol > li {
+        @for $i from 1 through 50 {
+          &:nth-child(#{$i}) {
+            animation-name: historyItemSlide;
+            animation-duration: 0.2s;
+            animation-fill-mode: both;
+            animation-delay: 0.1s + (0.05 * $i);
+          }
+
+          &:nth-child(#{$i}) > div {
+            animation-name: historyItemShine;
+            animation-duration: 1s;
+            animation-fill-mode: both;
+            animation-delay: 0.1s + (0.05 * $i);
+          }
         }
 
-        &:nth-child(#{$i}) > div {
-          animation-name: historyItemShine;
-          animation-duration: 1s;
-          animation-fill-mode: both;
-          animation-delay: 0.1s + (0.05 * $i);
+        & > div {
+          gap: 0.5rem;
         }
-      }
-
-      & > div {
-        gap: 0.5rem;
-      }
-      &.error > div {
-        border: 1px solid $danger;
-        background: rgba($danger, 0.1);
+        &.error > div {
+          border: 1px solid $danger;
+          background: lighten($danger, 45%);
+        }
       }
     }
   }
