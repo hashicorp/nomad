@@ -51,7 +51,8 @@ func (c *VarInitCommand) Synopsis() string {
 
 func (c *VarInitCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-out": complete.PredictSet("hcl", "json"),
+		"-out":   complete.PredictSet("hcl", "json"),
+		"-quiet": complete.PredictNothing,
 	}
 }
 
@@ -68,6 +69,7 @@ func (c *VarInitCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&outFmt, "out", "hcl", "")
+	flags.BoolVar(&quiet, "quiet", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
