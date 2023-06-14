@@ -702,7 +702,7 @@ func (w *deploymentWatcher) shouldFailEarly(deployment *structs.Deployment, allo
 
 	// Fail on the first unhealthy allocation if no progress deadline is specified.
 	if dstate.ProgressDeadline == 0 {
-		w.logger.Debug("failing deployment because an allocation failed and the deployment is not progress based", alloc.ID)
+		w.logger.Debug("failing deployment because an allocation failed and the deployment is not progress based", "alloc", alloc.ID)
 		return true
 	}
 
@@ -712,7 +712,7 @@ func (w *deploymentWatcher) shouldFailEarly(deployment *structs.Deployment, allo
 		if !isRescheduleEligible {
 			// We have run out of reschedule attempts: do not wait for the progress deadline to expire because
 			// we know that we will not be able to try to get another allocation healthy
-			w.logger.Debug("failing deployment because an allocation has failed and the task group has run out of reschedule attempts", alloc.ID)
+			w.logger.Debug("failing deployment because an allocation has failed and the task group has run out of reschedule attempts", "alloc", alloc.ID)
 			return true
 		}
 	}
