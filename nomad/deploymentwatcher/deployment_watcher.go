@@ -700,10 +700,8 @@ func (w *deploymentWatcher) shouldFailEarly(deployment *structs.Deployment, allo
 		return false
 	}
 
-	hasProgressDeadline := dstate.ProgressDeadline != 0
-
 	// Fail on the first unhealthy allocation if no progress deadline is specified.
-	if !hasProgressDeadline {
+	if dstate.ProgressDeadline == 0 {
 		w.logger.Debug("failing deployment because an allocation failed and the deployment is not progress based", alloc.ID)
 		return true
 	}
