@@ -322,7 +322,8 @@ func (c *cpusetManagerV2) write(id identity, set cpuset.CPUSet) {
 
 	// set the cpuset value for the cgroup
 	if err = m.Set(&configs.Resources{
-		CpusetCpus: set.String(),
+		CpusetCpus:  set.String(),
+		SkipDevices: true,
 	}); err != nil {
 		c.logger.Error("failed to set cgroup", "path", path, "error", err)
 		return
