@@ -6,5 +6,6 @@ schema_version = 1
 project {
   header_ignore = [
     "command/asset/*.hcl",
+    "command/agent/bindata_assetfs.go",
   ]
 }
