@@ -34,7 +34,9 @@ Usage: nomad namespace apply [options] <input>
   Instead of a file, you may instead pass the namespace name to create
   or update as the only argument.
 
-  If ACLs are enabled, this command requires a management ACL token.
+  If ACLs are enabled, this command requires a management ACL token. In
+  federated clusters, the namespace will be created in the authoritative region
+  and will be replicated to all federated regions.
 
 General Options:
 
