@@ -1,0 +1,3 @@
+```release-note:bug
+cgroups: Fixed a bug removing all DevicesSets when alloc is created/removed
+```
