@@ -41,6 +41,8 @@ Init Options:
   -out (hcl | json)
     Format of generated variable specification. Defaults to "hcl".
 
+  -quiet
+    Do not print success message.
 `
 	return strings.TrimSpace(helpText)
 }
