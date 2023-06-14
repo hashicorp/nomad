@@ -2992,6 +2992,7 @@ func (c *Client) emitStats() {
 		{Name: "node_id", Value: c.NodeID()},
 		{Name: "datacenter", Value: c.Datacenter()},
 		{Name: "node_class", Value: emittedNodeClass},
+		{Name: "node_pool", Value: c.Node().NodePool},
 	}
 
 	// Start collecting host stats right away and then keep collecting every
