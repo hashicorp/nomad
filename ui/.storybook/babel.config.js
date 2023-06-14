@@ -5,11 +5,7 @@
 
 /* eslint-env node */
 
-// Inject the named blocks polyfill into the template compiler (and then into the babel plugin)
 const templateCompiler = require('ember-source/dist/ember-template-compiler');
-const namedBlocksPolyfillPlugin = require('ember-named-blocks-polyfill/lib/named-blocks-polyfill-plugin');
-
-templateCompiler.registerPlugin('ast', namedBlocksPolyfillPlugin);
 
 module.exports = {
   presets: [
@@ -52,10 +48,6 @@ module.exports = {
           'htmlbars-inline-precompile': 'default',
         },
       },
-      // This is an arbitrary label to prevent a collision with the existing htmlbars inline precompile
-      // plugin that comes in from the @storybook/ember defaults.
-      // TODO: After upgrading to Storybook 6.1 this should move into the new emberOptions construct.
-      'override',
     ],
   ],
 };
