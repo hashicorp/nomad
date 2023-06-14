@@ -33,6 +33,18 @@
     gap: 1rem;
     grid-auto-columns: 100%;
 
+    &.requires-promotion {
+      grid-template-areas:
+        'promotion-alert'
+        'deployment-allocations'
+        'legend-and-summary'
+        'history-and-params';
+    }
+
+    & > .promotion-alert {
+      grid-area: promotion-alert;
+    }
+
     & > .deployment-allocations {
       grid-area: deployment-allocations;
       display: grid;
@@ -68,6 +80,7 @@
     legend {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: max-content;
       gap: 0.5rem;
     }
     .versions {

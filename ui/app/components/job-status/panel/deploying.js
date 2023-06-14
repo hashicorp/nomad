@@ -33,6 +33,37 @@ export default class JobStatusPanelDeployingComponent extends Component {
     );
   }
 
+  /**
+   * Promotion of a deployment will error if the canary allocations are not of status "Healthy";
+   * this function will check for that and disable the promote button if necessary.
+   * @returns {boolean}
+   */
+  get canariesHealthy() {
+    const relevantAllocs = this.job.allocations.filter(
+      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
+    );
+    console.log(
+      'relevantAllocs',
+      relevantAllocs,
+      relevantAllocs.mapBy('deploymentStatus')
+    );
+    return relevantAllocs.every(
+      (a) => a.clientStatus === 'running' && a.isHealthy
+    );
+  }
+
+  get someCanariesHaveFailed() {
+    const relevantAllocs = this.job.allocations.filter(
+      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
+    );
+    return relevantAllocs.some(
+      (a) =>
+        a.clientStatus === 'failed' ||
+        a.clientStatus === 'lost' ||
+        a.isUnhealthy
+    );
+  }
+
   @task(function* () {
     try {
       yield this.job.latestDeployment.content.promote();
@@ -70,6 +101,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
           alloGroups[status] = {
             healthy: { nonCanary: [] },
             unhealthy: { nonCanary: [] },
+            'health unknown': { nonCanary: [] },
           };
         }
         alloGroups[status].healthy.nonCanary.push(currentAlloc);
@@ -88,6 +120,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
       categories[type.label] = {
         healthy: { canary: [], nonCanary: [] },
         unhealthy: { canary: [], nonCanary: [] },
+        'health unknown': { canary: [], nonCanary: [] },
       };
       return categories;
     }, {});
@@ -107,8 +140,10 @@ export default class JobStatusPanelDeployingComponent extends Component {
         status === 'running'
           ? alloc.isHealthy
             ? 'healthy'
-            : 'unhealthy'
-          : 'unhealthy';
+            : alloc.isUnhealthy
+            ? 'unhealthy'
+            : 'unknown'
+          : 'unknown';
 
       if (allocationCategories[status]) {
         // If status is failed or lost, we only want to show it IF it's used up its restarts/rescheds.
@@ -129,6 +164,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
       allocationCategories['unplaced'] = {
         healthy: { canary: [], nonCanary: [] },
         unhealthy: { canary: [], nonCanary: [] },
+        'health unknown': { canary: [], nonCanary: [] },
       };
       allocationCategories['unplaced']['healthy']['nonCanary'] = Array(
         availableSlotsToFill
@@ -146,6 +182,13 @@ export default class JobStatusPanelDeployingComponent extends Component {
     return [
       ...this.newVersionAllocBlocks['running']['healthy']['canary'],
       ...this.newVersionAllocBlocks['running']['healthy']['nonCanary'],
+    ];
+  }
+
+  get newRunningUnhealthyAllocBlocks() {
+    return [
+      ...this.newVersionAllocBlocks['running']['unhealthy']['canary'],
+      ...this.newVersionAllocBlocks['running']['unhealthy']['nonCanary'],
     ];
   }
 
@@ -183,8 +226,11 @@ export default class JobStatusPanelDeployingComponent extends Component {
   get newAllocsByHealth() {
     return {
       healthy: this.newRunningHealthyAllocBlocks.length,
+      unhealthy: this.newRunningUnhealthyAllocBlocks.length,
       'health unknown':
-        this.totalAllocs - this.newRunningHealthyAllocBlocks.length,
+        this.totalAllocs -
+        this.newRunningHealthyAllocBlocks.length -
+        this.newRunningUnhealthyAllocBlocks.length,
     };
   }
   // #endregion legend

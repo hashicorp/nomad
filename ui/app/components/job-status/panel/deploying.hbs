@@ -27,18 +27,32 @@
               @disabled={{this.fail.isRunning}}
               @onConfirm={{perform this.fail}} />
           {{/if}}
-          {{#if @job.latestDeployment.requiresPromotion}}
-            <button
-              data-test-promote-canary
-              type="button"
-              class="button is-warning is-small {{if this.promote.isRunning "is-loading"}}"
-              disabled={{this.promote.isRunning}}
-              onclick={{perform this.promote}}>Promote Canary</button>
-          {{/if}}
         </div>
       </div>
     </div>
-    <div class="boxed-section-body">
+    <div class="boxed-section-body {{if @job.latestDeployment.requiresPromotion "requires-promotion"}}">
+      {{#if @job.latestDeployment.requiresPromotion}}
+        {{#if this.canariesHealthy}}
+          <Hds::Alert @type="inline" @color="warning" as |A|>
+            <A.Title>Deployment requires promotion</A.Title>
+            <A.Description>Your deployment requires manual promotion — all canary allocations have passed their health checks.</A.Description>
+            <A.Button @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
+          </Hds::Alert>
+        {{else}}
+          {{#if this.someCanariesHaveFailed}}
+            <Hds::Alert @type="inline" @color="critical" as |A|>
+              <A.Title>Some Canaries have failed</A.Title>
+              <A.Description>Your job requires manual promotion, but your canary allocations have failed their health checks. Please have a look at the error logs and task events for the allocations in question.</A.Description>
+            </Hds::Alert>
+          {{else}}
+            <Hds::Alert @type="inline" @color="highlight" as |A|>
+              <A.Title>Checking Canary health</A.Title>
+              <A.Description>Your job requires manual promotion, and your designated canary allocations are being placed and health-checked.</A.Description>
+            </Hds::Alert>
+          {{/if}}
+        {{/if}}
+      {{/if}}
+
       <div class="deployment-allocations">
         {{#if this.oldVersionAllocBlockIDs.length}}
           <h4 class="title is-5" data-test-old-allocation-tally>Previous allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
@@ -90,6 +104,8 @@
                 <span class="alloc-health-indicator">
                   {{#if (eq health "healthy")}}
                     <FlightIcon @name="check" @color="#25ba81" />
+                  {{else if (eq health "unehalthy")}}
+                    <FlightIcon @name="exclamation" @color="#f5a623" />
                   {{else}}
                     <FlightIcon @name="running" @color="black" class="not-animated" />
                   {{/if}}
