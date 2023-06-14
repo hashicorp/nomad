@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: MPL-2.0
+~}}
+
 <Hds::TooltipButton @text="{{get @allocation "shortId"}}" aria-label="Allocation" @extraTippyOptions={{hash trigger=(if (eq @status "unplaced") "manual")}}>
   <ConditionalLinkTo
     @condition={{not (eq @status "unplaced")}}
