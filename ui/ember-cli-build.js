@@ -5,6 +5,7 @@
 
 /* eslint-env node */
 const EmberApp = require('ember-cli/lib/broccoli/ember-app');
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 
 const environment = EmberApp.env();
 const isProd = environment === 'production';
@@ -12,6 +13,32 @@ const isTest = environment === 'test';
 
 module.exports = function (defaults) {
   let app = new EmberApp(defaults, {
+    autoImport: {
+      webpack: {
+        module: {
+          rules: [
+            {
+              test: /\.(woff|woff2|eot|ttf|otf)$/,
+              use: [
+                {
+                  loader: 'url-loader',
+                  options: {
+                    limit: 8192,
+                    fallback: 'file-loader',
+                    outputPath: 'fonts/',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        plugins: [
+          new MonacoWebpackPlugin({
+            languages: ['hcl'],
+          }),
+        ],
+      },
+    },
     svg: {
       paths: [
         'node_modules/@hashicorp/structure-icons/dist',
