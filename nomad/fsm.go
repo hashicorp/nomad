@@ -535,7 +535,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf [
 		return err
 	}
 
-	if err := n.state.UpdateNodeEligibility(msgType, index, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeEligibility(msgType, index, req.NodeID, req.Eligibility, req.Description, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeEligibility failed", "error", err)
 		return err
 	}

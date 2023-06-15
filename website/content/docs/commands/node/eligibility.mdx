@@ -37,7 +37,8 @@ the eligibility will be adjusted for that node. Otherwise, a list of matching
 nodes and information will be displayed.
 
 It is also required to pass one of `-enable` or `-disable`, depending on which
-operation is desired.
+operation is desired. An optional `description` can be provided when using
+`-disable` flag.
 
 If ACLs are enabled, this option requires a token with the 'node:write'
 capability.
@@ -50,6 +51,7 @@ capability.
 
 - `-enable`: Enable scheduling eligibility.
 - `-disable`: Disable scheduling eligibility.
+- `-description`: Description when marking a node as ineligible for new allocations.
 - `-self`: Set eligibility for the local node.
 - `-yes`: Automatic yes to prompts.
 
@@ -62,10 +64,10 @@ $ nomad node eligibility -enable 574545c5
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: eligible for scheduling
 ```
 
-Disable scheduling eligibility on the local node:
+Disable scheduling eligibility with description on the local node:
 
 ```shell-session
-$ nomad node eligibility -disable -self
+$ nomad node eligibility -disable -description "Marking node as ineligible due to multiple plan rejections" -self
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: ineligible for scheduling
 ```
 

@@ -252,7 +252,7 @@ func (tc *SysBatchSchedulerTest) AfterEach(f *framework.F) {
 	nodesAPI := tc.Nomad().Nodes()
 	nodes, _, _ := nodesAPI.List(nil)
 	for _, node := range nodes {
-		_, _ = nodesAPI.ToggleEligibility(node.ID, true, nil)
+		_, _ = nodesAPI.ToggleEligibility(node.ID, true, "", nil)
 	}
 
 	jobs := nomadClient.Jobs()

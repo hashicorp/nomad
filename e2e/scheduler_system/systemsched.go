@@ -53,7 +53,7 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	// Mark one node as ineligible
 	nodesAPI := tc.Nomad().Nodes()
 	disabledNodeID := allocs[0].NodeID
-	_, err = nodesAPI.ToggleEligibility(disabledNodeID, false, nil)
+	_, err = nodesAPI.ToggleEligibility(disabledNodeID, false, "", nil)
 	require.NoError(t, err)
 
 	// Assert all jobs still running
@@ -124,7 +124,7 @@ func (tc *SystemSchedTest) AfterEach(f *framework.F) {
 	nodesAPI := tc.Nomad().Nodes()
 	nodes, _, _ := nodesAPI.List(nil)
 	for _, node := range nodes {
-		nodesAPI.ToggleEligibility(node.ID, true, nil)
+		nodesAPI.ToggleEligibility(node.ID, true, "", nil)
 	}
 
 	jobs := nomadClient.Jobs()

@@ -393,14 +393,14 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Mark nodes as ineligible.
 	for _, nodeID := range results.IneligibleNodes {
-		s.logger.Warn("marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
+		s.logger.Warn("Marking node as ineligible due to multiple plan rejections, refer to https://www.nomadproject.io/s/port-plan-failure for more information", "node_id", nodeID)
 
 		nodeEvent := structs.NewNodeEvent().
 			SetSubsystem(structs.NodeEventSubsystemScheduler).
 			SetMessage(NodeEligibilityEventPlanRejectThreshold)
 
 		err := s.updateNodeEligibilityImpl(index, nodeID,
-			structs.NodeSchedulingIneligible, results.UpdatedAt, nodeEvent, txn)
+			structs.NodeSchedulingIneligible, "Marking node as ineligible due to multiple plan rejections", results.UpdatedAt, nodeEvent, txn)
 		if err != nil {
 			return err
 		}
@@ -956,6 +956,7 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 		}
 
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
+		node.Description = exist.Description                     // Retain the description
 		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 		node.LastDrain = exist.LastDrain                         // Retain the drain metadata
 
@@ -1216,16 +1217,16 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 }
 
 // UpdateNodeEligibility is used to update the scheduling eligibility of a node
-func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeEligibility(msgType structs.MessageType, index uint64, nodeID string, eligibility, description string, updatedAt int64, event *structs.NodeEvent) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
-	if err := s.updateNodeEligibilityImpl(index, nodeID, eligibility, updatedAt, event, txn); err != nil {
+	if err := s.updateNodeEligibilityImpl(index, nodeID, eligibility, description, updatedAt, event, txn); err != nil {
 		return err
 	}
 	return txn.Commit()
 }
 
-func (s *StateStore) updateNodeEligibilityImpl(index uint64, nodeID string, eligibility string, updatedAt int64, event *structs.NodeEvent, txn *txn) error {
+func (s *StateStore) updateNodeEligibilityImpl(index uint64, nodeID string, eligibility, description string, updatedAt int64, event *structs.NodeEvent, txn *txn) error {
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
 	if err != nil {
@@ -1252,6 +1253,7 @@ func (s *StateStore) updateNodeEligibilityImpl(index uint64, nodeID string, elig
 
 	// Update the eligibility in the copy
 	copyNode.SchedulingEligibility = eligibility
+	copyNode.Description = description
 	copyNode.ModifyIndex = index
 
 	// Insert the node

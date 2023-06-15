@@ -260,7 +260,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 			out[0] += "Address|Version|"
 		}
 
-		out[0] += "Drain|Eligibility|Status"
+		out[0] += "Drain|Eligibility|Description|Status"
 
 		if c.list_allocs {
 			out[0] += "|Running Allocs"
@@ -280,9 +280,10 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				out[i+1] += fmt.Sprintf("|%s|%s",
 					node.Address, node.Version)
 			}
-			out[i+1] += fmt.Sprintf("|%v|%s|%s",
+			out[i+1] += fmt.Sprintf("|%v|%s|%s|%s",
 				node.Drain,
 				node.SchedulingEligibility,
+				node.Description,
 				node.Status)
 
 			if c.list_allocs {

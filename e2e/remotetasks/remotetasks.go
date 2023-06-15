@@ -60,7 +60,7 @@ func (tc *RemoteTasksTest) AfterEach(f *framework.F) {
 	nodesAPI := tc.Nomad().Nodes()
 	nodes, _, _ := nodesAPI.List(nil)
 	for _, node := range nodes {
-		nodesAPI.ToggleEligibility(node.ID, true, nil)
+		nodesAPI.ToggleEligibility(node.ID, true, "", nil)
 	}
 
 	jobs := nomadClient.Jobs()

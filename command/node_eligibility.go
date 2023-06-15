@@ -38,6 +38,9 @@ Node Eligibility Options:
   -disable
     Mark the specified node as ineligible for new allocations.
 
+  -description
+   Description when marking a node as ineligible for new allocations.
+
   -enable
     Mark the specified node as eligible for new allocations.
 
@@ -54,9 +57,10 @@ func (c *NodeEligibilityCommand) Synopsis() string {
 func (c *NodeEligibilityCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-disable": complete.PredictNothing,
-			"-enable":  complete.PredictNothing,
-			"-self":    complete.PredictNothing,
+			"-disable":     complete.PredictNothing,
+			"-description": complete.PredictNothing,
+			"-enable":      complete.PredictNothing,
+			"-self":        complete.PredictNothing,
 		})
 }
 
@@ -79,11 +83,13 @@ func (c *NodeEligibilityCommand) Name() string { return "node eligibility" }
 
 func (c *NodeEligibilityCommand) Run(args []string) int {
 	var enable, disable, self bool
+	var description string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&enable, "enable", false, "Mark node as eligibile for scheduling")
 	flags.BoolVar(&disable, "disable", false, "Mark node as ineligibile for scheduling")
+	flags.StringVar(&description, "description", "", "Description when marking a node as ineligible for new allocations.")
 	flags.BoolVar(&self, "self", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -95,6 +101,16 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 		c.Ui.Error("Either the '-enable' or '-disable' flag must be set")
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+
+	if !disable && description != "" {
+		c.Ui.Error("Description can only be provided when marking a node as ineligible.")
+		return 1
+	}
+
+	// Clear description when marking node back to eligible.
+	if enable {
+		description = ""
 	}
 
 	// Check that we got a node ID
@@ -155,7 +171,7 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 	}
 
 	// Toggle node eligibility
-	if _, err := client.Nodes().ToggleEligibility(node.ID, enable, nil); err != nil {
+	if _, err := client.Nodes().ToggleEligibility(node.ID, enable, description, nil); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating scheduling eligibility: %s", err))
 		return 1
 	}

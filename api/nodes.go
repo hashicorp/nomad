@@ -400,6 +400,7 @@ type NodeUpdateEligibilityRequest struct {
 	// NodeID is the node to update the drain specification for.
 	NodeID      string
 	Eligibility string
+	Description string
 }
 
 // NodeEligibilityUpdateResponse is used to respond to a node eligibility update
@@ -411,7 +412,7 @@ type NodeEligibilityUpdateResponse struct {
 }
 
 // ToggleEligibility is used to update the scheduling eligibility of the node
-func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions) (*NodeEligibilityUpdateResponse, error) {
+func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, description string, q *WriteOptions) (*NodeEligibilityUpdateResponse, error) {
 	e := NodeSchedulingEligible
 	if !eligible {
 		e = NodeSchedulingIneligible
@@ -420,6 +421,7 @@ func (n *Nodes) ToggleEligibility(nodeID string, eligible bool, q *WriteOptions)
 	req := &NodeUpdateEligibilityRequest{
 		NodeID:      nodeID,
 		Eligibility: e,
+		Description: description,
 	}
 
 	var resp NodeEligibilityUpdateResponse
@@ -558,6 +560,7 @@ type Node struct {
 	Drain                 bool
 	DrainStrategy         *DrainStrategy
 	SchedulingEligibility string
+	Description           string
 	Status                string
 	StatusDescription     string
 	StatusUpdatedAt       int64
@@ -919,6 +922,7 @@ type NodeListStub struct {
 	Version               string
 	Drain                 bool
 	SchedulingEligibility string
+	Description           string
 	Status                string
 	StatusDescription     string
 	Drivers               map[string]*DriverInfo
