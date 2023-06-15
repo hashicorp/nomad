@@ -28,6 +28,7 @@
     {{/unless}}
   </header>
   {{#unless this.isHidden}}
+  <div class="timeline-container">
     <ol class="timeline">
       {{#each this.history as |deployment-log|}}
         <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
@@ -71,5 +72,6 @@
         {{/if}}
       {{/each}}
     </ol>
+</div>
   {{/unless}}
 </div>
