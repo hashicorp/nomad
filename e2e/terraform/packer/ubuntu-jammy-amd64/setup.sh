@@ -27,10 +27,11 @@ sudo apt-get upgrade -y
 sudo apt-get install -y \
      software-properties-common \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
-     apt-transport-https ca-certificates gnupg2 golang-go
+     apt-transport-https ca-certificates gnupg2
 
 # Install hc-install
-sudo go install github.com/hashicorp/hc-install/cmd/hc-install@latest
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.5.2/hc-install_0.5.2_linux_amd64.zip
+sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
 # Install sockaddr
 aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
@@ -79,7 +80,6 @@ sudo apt-get install -y docker-ce
 
 # Java
 echo "Installing Java"
-sudo add-apt-repository -y ppa:openjdk-r/ppa
 sudo apt-get install -y openjdk-17-jdk-headless
 
 # CNI
@@ -94,8 +94,7 @@ echo "Installing Podman"
 sudo apt-get -y install podman catatonit
 
 echo "Installing Podman Driver"
-hcpath=$(sudo go env GOPATH)/bin/hc-install
-sudo bash -c "$hcpath install --path ${NOMAD_PLUGIN_DIR} --version 0.4.2 nomad-driver-podman"
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.4.2 nomad-driver-podman
 
 # ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
