@@ -39,6 +39,16 @@
         'deployment-allocations'
         'legend-and-summary'
         'history-and-params';
+
+      & > .canary-promotion-alert {
+        button {
+          background-color: $orange;
+          border-color: darken($orange, 5%);
+          &:hover {
+            background-color: darken($orange, 5%);
+          }
+        }
+      }
     }
 
     & > .promotion-alert {

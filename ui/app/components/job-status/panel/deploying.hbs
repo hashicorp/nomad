@@ -32,29 +32,31 @@
     </div>
     <div class="boxed-section-body {{if @job.latestDeployment.requiresPromotion "requires-promotion"}}">
       {{#if @job.latestDeployment.requiresPromotion}}
-        {{#if this.canariesHealthy}}
-          <Hds::Alert @type="inline" @color="warning" as |A|>
-            <A.Title>Deployment requires promotion</A.Title>
-            <A.Description>Your deployment requires manual promotion — all canary allocations have passed their health checks.</A.Description>
-            <A.Button @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
-          </Hds::Alert>
-        {{else}}
-          {{#if this.someCanariesHaveFailed}}
-            <Hds::Alert @type="inline" @color="critical" as |A|>
-              <A.Title>Some Canaries have failed</A.Title>
-              <A.Description>Your canary allocations have failed their health checks. Please have a look at the error logs and task events for the allocations in question.</A.Description>
+        <div class="canary-promotion-alert">
+          {{#if this.canariesHealthy}}
+            <Hds::Alert @type="inline" @color="warning" as |A|>
+              <A.Title>Deployment requires promotion</A.Title>
+              <A.Description>Your deployment requires manual promotion — all canary allocations have passed their health checks.</A.Description>
+              <A.Button data-test-promote-canary @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
             </Hds::Alert>
           {{else}}
-            <Hds::Alert @type="inline" @color="highlight" as |A|>
-              <A.Title>Checking Canary health</A.Title>
-              {{#if this.deploymentIsAutoPromoted}}
-                <A.Description>Your canary allocations are being placed and health-checked. If they pass, they will be automatically promoted and your deployment will continue.</A.Description>
-              {{else}}
-                <A.Description>Your job requires manual promotion, and your canary allocations are being placed and health-checked.</A.Description>
-              {{/if}}
-            </Hds::Alert>
+            {{#if this.someCanariesHaveFailed}}
+              <Hds::Alert @type="inline" @color="critical" as |A|>
+                <A.Title>Some Canaries have failed</A.Title>
+                <A.Description>Your canary allocations have failed their health checks. Please have a look at the error logs and task events for the allocations in question.</A.Description>
+              </Hds::Alert>
+            {{else}}
+              <Hds::Alert @type="inline" @color="highlight" as |A|>
+                <A.Title>Checking Canary health</A.Title>
+                {{#if this.deploymentIsAutoPromoted}}
+                  <A.Description>Your canary allocations are being placed and health-checked. If they pass, they will be automatically promoted and your deployment will continue.</A.Description>
+                {{else}}
+                  <A.Description>Your job requires manual promotion, and your canary allocations are being placed and health-checked.</A.Description>
+                {{/if}}
+              </Hds::Alert>
+            {{/if}}
           {{/if}}
-        {{/if}}
+        </div>
       {{/if}}
 
       <div class="deployment-allocations">
@@ -108,14 +110,14 @@
                 <span class="alloc-health-indicator">
                   {{#if (eq health "healthy")}}
                     <FlightIcon @name="check" @color="#25ba81" />
-                  {{else if (eq health "unehalthy")}}
-                    <FlightIcon @name="exclamation" @color="#f5a623" />
+                  {{else if (eq health "unhealthy")}}
+                    <FlightIcon @name="x" @color="#c84034" />
                   {{else}}
                     <FlightIcon @name="running" @color="black" class="not-animated" />
                   {{/if}}
                 </span>
               </span>
-              {{count}} {{capitalize health}}
+              {{count}} {{humanize health}}
             </span>
           {{/each-in}}
 
