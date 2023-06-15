@@ -64,6 +64,16 @@ func TestCACreateCommand(t *testing.T) {
 				require.Contains(t, cert.Issuer.CommonName, "CustomCA")
 			},
 		},
+		{"ca custom date",
+			[]string{
+				"-days=365",
+			},
+			"nomad-agent-ca.pem",
+			"nomad-agent-ca-key.pem",
+			func(t *testing.T, cert *x509.Certificate) {
+				require.Equal(t, 365*24*time.Hour, time.Until(cert.NotAfter).Round(24*time.Hour))
+			},
+		},
 	}
 	for _, tc := range cases {
 		tc := tc

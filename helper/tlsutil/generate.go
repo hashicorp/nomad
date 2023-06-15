@@ -67,7 +67,6 @@ type CAOpts struct {
 	Serial              *big.Int
 	Days                int
 	PermittedDNSDomains []string
-	Domain              string
 	Country             string
 	PostalCode          string
 	Province            string
@@ -92,8 +91,7 @@ type CertOpts struct {
 // IsEmpty checks whether any of CAOpts parameters have been populated with
 // non-default values.
 func (c CAOpts) IsEmpty() bool {
-	return c.Days == 0 &&
-		c.Country == "" &&
+	return c.Country == "" &&
 		c.PostalCode == "" &&
 		c.Province == "" &&
 		c.Locality == "" &&
@@ -112,30 +110,28 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		signer = opts.Signer
 		sn     = opts.Serial
 	)
-
-	if opts.IsEmpty() {
-
-		if signer == nil {
-			var err error
-			signer, pk, err = GeneratePrivateKey()
-			if err != nil {
-				return "", "", err
-			}
-		}
-
-		certKeyId, err := keyID(signer.Public())
+	if signer == nil {
+		var err error
+		signer, pk, err = GeneratePrivateKey()
 		if err != nil {
 			return "", "", err
 		}
-		id = certKeyId
+	}
 
-		if sn == nil {
-			var err error
-			sn, err = GenerateSerialNumber()
-			if err != nil {
-				return "", "", err
-			}
+	id, err = keyID(signer.Public())
+	if err != nil {
+		return "", "", err
+	}
+
+	if sn == nil {
+		var err error
+		sn, err = GenerateSerialNumber()
+		if err != nil {
+			return "", "", err
 		}
+	}
+
+	if opts.IsEmpty() && opts.Days == 0 {
 		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
 		opts.Days = 1825
 		opts.Country = "US"
@@ -145,45 +141,31 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		opts.StreetAddress = "101 Second Street"
 		opts.Organization = "HashiCorp Inc."
 		opts.OrganizationalUnit = "Nomad"
-
+	} else if opts.IsEmpty() && opts.Days != 0 {
+		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
+		opts.Country = "US"
+		opts.PostalCode = "94105"
+		opts.Province = "CA"
+		opts.Locality = "San Francisco"
+		opts.StreetAddress = "101 Second Street"
+		opts.Organization = "HashiCorp Inc."
+		opts.OrganizationalUnit = "Nomad"
 	} else {
-		if signer == nil {
-			var err error
-			signer, pk, err = GeneratePrivateKey()
-			if err != nil {
-				return "", "", err
-			}
-		}
-
-		certKeyId, err := keyID(signer.Public())
-		if err != nil {
-			return "", "", err
-		}
-		id = certKeyId
-
-		if sn == nil {
-			var err error
-			sn, err = GenerateSerialNumber()
-			if err != nil {
-				return "", "", err
-			}
-		}
-
 		if opts.Name == "" {
-			return "", "", errors.New("please provide the -common-name flag when customizing the CA")
+			return "", "", errors.New("common name value not provided")
 		} else {
 			opts.Name = fmt.Sprintf("%s %d", opts.Name, sn)
 		}
 		if opts.Country == "" {
-			return "", "", errors.New("please provide the -country flag when customizing the CA")
+			return "", "", errors.New("country value not provided")
 		}
 
 		if opts.Organization == "" {
-			return "", "", errors.New("please provide the -organization flag when customizing the CA")
+			return "", "", errors.New("organization value not provided")
 		}
 
 		if opts.OrganizationalUnit == "" {
-			return "", "", errors.New("please provide the -organizational-unit flag when customizing the CA")
+			return "", "", errors.New("organizational unit value not provided")
 		}
 	}
 

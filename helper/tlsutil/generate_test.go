@@ -121,7 +121,6 @@ func TestGenerateCA(t *testing.T) {
 		ca, pk, err := GenerateCA(CAOpts{
 			Days:                6,
 			PermittedDNSDomains: []string{"domain1.com"},
-			Domain:              "custdomain.com",
 			Country:             "ZZ",
 			PostalCode:          "0000",
 			Province:            "CustProvince",
@@ -155,14 +154,25 @@ func TestGenerateCA(t *testing.T) {
 		require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
 	})
 
+	t.Run("Custom CA Custom Date", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days: 365,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, ca)
+		require.NotEmpty(t, pk)
+
+		cert, err := parseCert(ca)
+		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 365), time.Minute)
+	})
+
 	t.Run("Custom CA No CN", func(t *testing.T) {
 		ca, pk, err := GenerateCA(CAOpts{
 			Days:                6,
 			PermittedDNSDomains: []string{"domain1.com"},
-			Domain:              "custdomain.com",
 			Locality:            "CustLocality",
 		})
-		require.ErrorContains(t, err, "-common-name")
+		require.ErrorContains(t, err, "common name value not provided")
 		require.Empty(t, ca)
 		require.Empty(t, pk)
 	})
@@ -171,11 +181,10 @@ func TestGenerateCA(t *testing.T) {
 		ca, pk, err := GenerateCA(CAOpts{
 			Days:                6,
 			PermittedDNSDomains: []string{"domain1.com"},
-			Domain:              "custdomain.com",
 			Name:                "Custom CA",
 			Locality:            "CustLocality",
 		})
-		require.ErrorContains(t, err, "-country")
+		require.ErrorContains(t, err, "country value not provided")
 		require.Empty(t, ca)
 		require.Empty(t, pk)
 	})
@@ -184,12 +193,11 @@ func TestGenerateCA(t *testing.T) {
 		ca, pk, err := GenerateCA(CAOpts{
 			Days:                6,
 			PermittedDNSDomains: []string{"domain1.com"},
-			Domain:              "custdomain.com",
 			Name:                "Custom CA",
 			Country:             "ZZ",
 			Locality:            "CustLocality",
 		})
-		require.ErrorContains(t, err, "-organization")
+		require.ErrorContains(t, err, "organization value not provided")
 		// require.NoError(t, err)
 		require.Empty(t, ca)
 		require.Empty(t, pk)
@@ -199,13 +207,12 @@ func TestGenerateCA(t *testing.T) {
 		ca, pk, err := GenerateCA(CAOpts{
 			Days:                6,
 			PermittedDNSDomains: []string{"domain1.com"},
-			Domain:              "custdomain.com",
 			Name:                "Custom CA",
 			Country:             "ZZ",
 			Locality:            "CustLocality",
 			Organization:        "CustOrg",
 		})
-		require.ErrorContains(t, err, "-organizational-unit")
+		require.ErrorContains(t, err, "organizational unit value not provided")
 		require.Empty(t, ca)
 		require.Empty(t, pk)
 	})

@@ -149,7 +149,7 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	flagSet.Var(&c.additionalDomain, "additional-domain", "")
 	flagSet.IntVar(&c.days, "days", 0, "")
 	flagSet.BoolVar(&c.constraint, "name-constraint", false, "")
-	flagSet.StringVar(&c.domain, "domain", "nomad", "")
+	flagSet.StringVar(&c.domain, "domain", "", "")
 	flagSet.StringVar(&c.commonName, "common-name", "", "")
 	flagSet.StringVar(&c.country, "country", "", "")
 	flagSet.StringVar(&c.postalCode, "postal-code", "", "")
@@ -168,6 +168,34 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error("This command takes up to one argument")
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+	if c.IsEmpty() {
+		c.domain = "nomad"
+	} else if c.IsEmpty() && c.days != 0 {
+		c.domain = "nomad"
+	} else {
+		if c.commonName == "" {
+			c.Ui.Error("please provide the -common-name flag when customizing the CA")
+			c.Ui.Error(commandErrorText(c))
+			return 1
+		}
+		if c.country == "" {
+			c.Ui.Error("please provide the -country flag when customizing the CA")
+			c.Ui.Error(commandErrorText(c))
+			return 1
+		}
+
+		if c.organization == "" {
+			c.Ui.Error("please provide the -organization flag when customizing the CA")
+			c.Ui.Error(commandErrorText(c))
+			return 1
+		}
+
+		if c.organizationalUnit == "" {
+			c.Ui.Error("please provide the -organizational-unit flag when customizing the CA")
+			c.Ui.Error(commandErrorText(c))
+			return 1
+		}
 	}
 	if c.domain != "" && c.domain != "nomad" && !c.constraint {
 		c.Ui.Error("Please provide the -name-constraint flag to use a custom domain constraint")
@@ -203,7 +231,6 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	ca, pk, err := tlsutil.GenerateCA(tlsutil.CAOpts{
 		Name:                c.commonName,
 		Days:                c.days,
-		Domain:              c.domain,
 		PermittedDNSDomains: constraints,
 		Country:             c.country,
 		PostalCode:          c.postalCode,
@@ -231,4 +258,18 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	c.Ui.Output("==> CA certificate key saved to: " + pkFileName)
 
 	return 0
+}
+
+// IsEmpty checks whether any of TLSCACreateCommand parameters have been populated with
+// non-default values.
+func (c TLSCACreateCommand) IsEmpty() bool {
+	return c.commonName == "" &&
+		c.country == "" &&
+		c.postalCode == "" &&
+		c.province == "" &&
+		c.locality == "" &&
+		c.streetAddress == "" &&
+		c.organization == "" &&
+		c.organizationalUnit == ""
+
 }

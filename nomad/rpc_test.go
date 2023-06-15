@@ -1374,7 +1374,6 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 		Name:               "Nomad CA",
 		Country:            "ZZ",
 		Days:               5,
-		Domain:             "nomad",
 		Organization:       "CustOrgUnit",
 		OrganizationalUnit: "CustOrgUnit",
 	})
