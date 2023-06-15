@@ -187,23 +187,28 @@ The following metrics are emitted for each allocation if allocation metrics
 are enabled. Note that allocation metrics available may be dependent on the
 task driver; not all task drivers can provide all metrics.
 
-| Metric                                        | Description                                                       | Unit        | Type  | Labels                                           |
-| --------------------------------------------- | ----------------------------------------------------------------- | ----------- | ----- | ------------------------------------------------ |
-| `nomad.client.allocs.cpu.allocated`           | Total CPU resources allocated by the task across all cores        | MHz         | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.cpu.system`              | Total CPU resources consumed by the task in system space          | Percentage  | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.cpu.throttled_periods`   | Total number of CPU periods that the task was throttled           | Nanoseconds | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.cpu.throttled_time`      | Total time that the task was throttled                            | Nanoseconds | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.cpu.total_percent`       | Total CPU resources consumed by the task across all cores         | Percentage  | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.cpu.total_ticks`         | CPU ticks consumed by the process in the last collection interval | Integer     | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.cpu.user`                | Total CPU resources consumed by the task in the user space        | Percentage  | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.allocated`        | Amount of memory allocated by the task                            | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.cache`            | Amount of memory cached by the task                               | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.kernel_max_usage` | Maximum amount of memory ever used by the kernel for this task    | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.kernel_usage`     | Amount of memory used by the kernel for this task                 | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.max_usage`        | Maximum amount of memory ever used by the task                    | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.rss`              | Amount of RSS memory consumed by the task                         | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.swap`             | Amount of memory swapped by the task                              | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
-| `nomad.client.allocs.memory.usage`            | Total amount of memory used by the task                           | Bytes       | Gauge | alloc_id, host, job, namespace, task, task_group |
+| Metric                                        | Description                                                       | Unit        | Type    | Labels                                           |
+|-----------------------------------------------|-------------------------------------------------------------------|-------------|---------|--------------------------------------------------|
+| `nomad.client.allocs.complete`                | Number of complete allocations                                    | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.allocated`           | Total CPU resources allocated by the task across all cores        | MHz         | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.system`              | Total CPU resources consumed by the task in system space          | Percentage  | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.throttled_periods`   | Total number of CPU periods that the task was throttled           | Nanoseconds | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.throttled_time`      | Total time that the task was throttled                            | Nanoseconds | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.total_percent`       | Total CPU resources consumed by the task across all cores         | Percentage  | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.total_ticks`         | CPU ticks consumed by the process in the last collection interval | Integer     | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.cpu.user`                | Total CPU resources consumed by the task in the user space        | Percentage  | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.failed`                  | Number of failed allocations                                      | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.allocated`        | Amount of memory allocated by the task                            | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.cache`            | Amount of memory cached by the task                               | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.kernel_max_usage` | Maximum amount of memory ever used by the kernel for this task    | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.kernel_usage`     | Amount of memory used by the kernel for this task                 | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.max_usage`        | Maximum amount of memory ever used by the task                    | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.rss`              | Amount of RSS memory consumed by the task                         | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.swap`             | Amount of memory swapped by the task                              | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.usage`            | Total amount of memory used by the task                           | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.oom_killed`              | Number of oom-killed allocations                                  | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.restart`                 | Number of task restarts                                           | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.running`                 | Number of running allocations                                     | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
 
 ## Job Summary Metrics
 
