@@ -1422,14 +1422,18 @@ func (ar *allocRunner) persistLastAcknowledgedState(a *state.State) {
 
 // GetUpdatePriority returns the update priority based the difference between
 // the current state and the state that was last acknowledged from a server
-// update. This is called from the client in the same goroutine that called
-// AcknowledgeState so that we can't get a TOCTOU error.
+// update, returning urgent priority when the update is critical to marking
+// allocations for rescheduling. This is called from the client in the same
+// goroutine that called AcknowledgeState so that we can't get a TOCTOU error.
 func (ar *allocRunner) GetUpdatePriority(a *structs.Allocation) cstructs.AllocUpdatePriority {
 	ar.stateLock.RLock()
 	defer ar.stateLock.RUnlock()
 
 	last := ar.lastAcknowledgedState
 	if last == nil {
+		if a.ClientStatus == structs.AllocClientStatusFailed {
+			return cstructs.AllocUpdatePriorityUrgent
+		}
 		return cstructs.AllocUpdatePriorityTypical
 	}
 
@@ -1439,6 +1443,9 @@ func (ar *allocRunner) GetUpdatePriority(a *structs.Allocation) cstructs.AllocUp
 	case last.ClientDescription != a.ClientDescription:
 		return cstructs.AllocUpdatePriorityTypical
 	case !last.DeploymentStatus.Equal(a.DeploymentStatus):
+		// TODO: this field gates deployment progress, so we may consider
+		// returning urgent here; right now urgent updates are primarily focused
+		// on recovering from failure
 		return cstructs.AllocUpdatePriorityTypical
 	case !last.NetworkStatus.Equal(a.NetworkStatus):
 		return cstructs.AllocUpdatePriorityTypical
