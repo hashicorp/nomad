@@ -1,8 +1,0 @@
-port=53
-resolv-file=/var/run/dnsmasq/resolv.conf
-bind-interfaces
-interface=docker0
-interface=lo
-interface=eth0
-listen-address=127.0.0.1
-server=/consul/127.0.0.1#8600
