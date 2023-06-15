@@ -101,7 +101,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
           alloGroups[status] = {
             healthy: { nonCanary: [] },
             unhealthy: { nonCanary: [] },
-            'health unknown': { nonCanary: [] },
+            health_unknown: { nonCanary: [] },
           };
         }
         alloGroups[status].healthy.nonCanary.push(currentAlloc);
@@ -120,7 +120,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
       categories[type.label] = {
         healthy: { canary: [], nonCanary: [] },
         unhealthy: { canary: [], nonCanary: [] },
-        'health unknown': { canary: [], nonCanary: [] },
+        health_unknown: { canary: [], nonCanary: [] },
       };
       return categories;
     }, {});
@@ -142,8 +142,8 @@ export default class JobStatusPanelDeployingComponent extends Component {
             ? 'healthy'
             : alloc.isUnhealthy
             ? 'unhealthy'
-            : 'unknown'
-          : 'unknown';
+            : 'health_unknown'
+          : 'health_unknown';
 
       if (allocationCategories[status]) {
         // If status is failed or lost, we only want to show it IF it's used up its restarts/rescheds.
@@ -164,7 +164,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
       allocationCategories['unplaced'] = {
         healthy: { canary: [], nonCanary: [] },
         unhealthy: { canary: [], nonCanary: [] },
-        'health unknown': { canary: [], nonCanary: [] },
+        health_unknown: { canary: [], nonCanary: [] },
       };
       allocationCategories['unplaced']['healthy']['nonCanary'] = Array(
         availableSlotsToFill
@@ -227,7 +227,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
     return {
       healthy: this.newRunningHealthyAllocBlocks.length,
       unhealthy: this.newRunningUnhealthyAllocBlocks.length,
-      'health unknown':
+      health_unknown:
         this.totalAllocs -
         this.newRunningHealthyAllocBlocks.length -
         this.newRunningUnhealthyAllocBlocks.length,
@@ -250,5 +250,9 @@ export default class JobStatusPanelDeployingComponent extends Component {
 
     // v----- Realistic method: Tally a job's task groups' "count" property
     return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
+  }
+
+  get deploymentIsAutoPromoted() {
+    return this.job.latestDeployment?.get('isAutoPromoted');
   }
 }

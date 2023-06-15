@@ -42,12 +42,16 @@
           {{#if this.someCanariesHaveFailed}}
             <Hds::Alert @type="inline" @color="critical" as |A|>
               <A.Title>Some Canaries have failed</A.Title>
-              <A.Description>Your job requires manual promotion, but your canary allocations have failed their health checks. Please have a look at the error logs and task events for the allocations in question.</A.Description>
+              <A.Description>Your canary allocations have failed their health checks. Please have a look at the error logs and task events for the allocations in question.</A.Description>
             </Hds::Alert>
           {{else}}
             <Hds::Alert @type="inline" @color="highlight" as |A|>
               <A.Title>Checking Canary health</A.Title>
-              <A.Description>Your job requires manual promotion, and your designated canary allocations are being placed and health-checked.</A.Description>
+              {{#if this.deploymentIsAutoPromoted}}
+                <A.Description>Your canary allocations are being placed and health-checked. If they pass, they will be automatically promoted and your deployment will continue.</A.Description>
+              {{else}}
+                <A.Description>Your job requires manual promotion, and your canary allocations are being placed and health-checked.</A.Description>
+              {{/if}}
             </Hds::Alert>
           {{/if}}
         {{/if}}

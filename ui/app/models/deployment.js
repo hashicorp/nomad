@@ -36,6 +36,13 @@ export default class Deployment extends Model {
     );
   }
 
+  @computed('taskGroupSummaries.@each.autoPromote')
+  get isAutoPromoted() {
+    return this.taskGroupSummaries
+      .toArray()
+      .every((summary) => summary.get('autoPromote'));
+  }
+
   @attr('string') status;
   @attr('string') statusDescription;
 
