@@ -94,6 +94,12 @@ func (s *StateStore) NodePoolsByNamePrefix(ws memdb.WatchSet, namePrefix string,
 	return iter, nil
 }
 
+// nodePoolExists returs true if a node pool with the give name exists.
+func (s *StateStore) nodePoolExists(txn *txn, pool string) (bool, error) {
+	existing, err := txn.First(TableNodePools, "id", pool)
+	return existing != nil, err
+}
+
 // UpsertNodePools inserts or updates the given set of node pools.
 func (s *StateStore) UpsertNodePools(msgType structs.MessageType, index uint64, pools []*structs.NodePool) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)

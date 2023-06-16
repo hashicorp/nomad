@@ -4420,7 +4420,11 @@ type Job struct {
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
 
-	// NodePool specifies the node pool this job is allowed to run on
+	// NodePool specifies the node pool this job is allowed to run on.
+	//
+	// An empty value is allowed during job registration, in which case the
+	// namespace default node pool is used in Enterprise and the 'default' node
+	// pool in OSS, but a node pool must be set before the job is stored.
 	NodePool string
 
 	// Constraints can be specified at a job level and apply to
@@ -4573,10 +4577,6 @@ func (j *Job) Canonicalize() {
 		j.Datacenters = []string{"*"}
 	}
 
-	if j.NodePool == "" {
-		j.NodePool = NodePoolDefault
-	}
-
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
@@ -4658,9 +4658,6 @@ func (j *Job) Validate() error {
 				mErr.Errors = append(mErr.Errors, errors.New("Job datacenter must be non-empty string"))
 			}
 		}
-	}
-	if j.NodePool == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a node_pool"))
 	}
 
 	if len(j.TaskGroups) == 0 {

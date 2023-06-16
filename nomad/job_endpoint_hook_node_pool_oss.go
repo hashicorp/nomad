@@ -24,5 +24,9 @@ func (c jobNodePoolMutatingHook) Name() string {
 }
 
 func (c jobNodePoolMutatingHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	if job.NodePool == "" {
+		job.NodePool = structs.NodePoolDefault
+	}
+
 	return job, nil, nil
 }

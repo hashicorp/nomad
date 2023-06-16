@@ -1698,6 +1698,17 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		return fmt.Errorf("job %q is in nonexistent namespace %q", job.ID, job.Namespace)
 	}
 
+	// Upgrade path.
+	// Assert the node pool is set and exists.
+	if job.NodePool == "" {
+		job.NodePool = structs.NodePoolDefault
+	}
+	if exists, err := s.nodePoolExists(txn, job.NodePool); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("job %q is in nonexistent node pool %q", job.ID, job.NodePool)
+	}
+
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
 	var existingJob *structs.Job
