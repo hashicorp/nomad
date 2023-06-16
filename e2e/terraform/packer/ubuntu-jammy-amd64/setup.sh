@@ -5,7 +5,7 @@
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 
-set -e
+set -euo pipefail
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
 
@@ -28,6 +28,10 @@ sudo apt-get install -y \
      software-properties-common \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
      apt-transport-https ca-certificates gnupg2
+
+# Install hc-install
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.5.2/hc-install_0.5.2_linux_amd64.zip
+sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
 # Install sockaddr
 aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
@@ -70,49 +74,29 @@ distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
 
-# Java
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-
-# Podman
-. /etc/os-release
-curl -fsSL "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
-sudo add-apt-repository "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /"
-
-sudo apt-get update
-
+# Docker
 echo "Installing Docker"
 sudo apt-get install -y docker-ce
 
+# Java
 echo "Installing Java"
 sudo apt-get install -y openjdk-17-jdk-headless
 
+# CNI
 echo "Installing CNI plugins"
 sudo mkdir -p /opt/cni/bin
 wget -q -O - \
      https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
+# Podman
 echo "Installing Podman"
-sudo apt-get -y install podman
+sudo apt-get -y install podman catatonit
 
-# get catatonit (to check podman --init switch)
-wget -q -P /tmp https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
-mkdir -p /usr/libexec/podman
-sudo mv /tmp/catatonit* /usr/libexec/podman/catatonit
-sudo chmod +x /usr/libexec/podman/catatonit
+echo "Installing Podman Driver"
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.4.2 nomad-driver-podman
 
-echo "Installing latest podman task driver"
-# install nomad-podman-driver and move to plugin dir
-latest_podman=$(curl -s https://releases.hashicorp.com/nomad-driver-podman/index.json | jq --raw-output '.versions |= with_entries(select(.key|match("^\\d+\\.\\d+\\.\\d+$"))) | .versions | keys[]' | sort -rV | head -n1)
-
-wget -q -P /tmp "https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip"
-sudo unzip -q "/tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip" -d "$NOMAD_PLUGIN_DIR"
-sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
-
-# enable varlink socket (not included in ubuntu package)
-sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
-sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
-
+# ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
     echo "Installing nomad-driver-ecs"
     sudo install --mode=0755 --owner=ubuntu /tmp/linux/nomad-driver-ecs "$NOMAD_PLUGIN_DIR"

@@ -22,6 +22,10 @@ Usage: nomad namespace delete [options] <namespace>
 
   If ACLs are enabled, this command requires a management ACL token.
 
+  You cannot delete a namespace that has non-terminal jobs. In federated
+  clusters, you cannot delete a namespace that has non-terminal jobs in any of
+  the federated regions.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)

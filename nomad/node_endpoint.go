@@ -603,7 +603,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 			allocsUpdated := node.LastAllocUpdateIndex > node.LastMissedHeartbeatIndex
 			if len(allocs) > 0 && !allocsUpdated {
-				n.logger.Debug("marking node as %s due to outdated allocation information", structs.NodeStatusInit)
+				n.logger.Debug(fmt.Sprintf("marking node as %s due to outdated allocation information", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
 			}
 
@@ -614,7 +614,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 				return fmt.Errorf("failed to query node pool: %v", err)
 			}
 			if pool == nil {
-				n.logger.Debug("marking node as %s due to missing node pool", structs.NodeStatusInit)
+				n.logger.Debug(fmt.Sprintf("marking node as %s due to missing node pool", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
 				if !node.HasEvent(NodeWaitingForNodePool) {
 					args.NodeEvent = structs.NewNodeEvent().
