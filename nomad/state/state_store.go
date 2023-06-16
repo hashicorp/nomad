@@ -6687,6 +6687,8 @@ func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namesp
 	defer txn.Abort()
 
 	for _, ns := range namespaces {
+		// Handle upgrade path.
+		ns.Canonicalize()
 		if err := s.upsertNamespaceImpl(index, txn, ns); err != nil {
 			return err
 		}

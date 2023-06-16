@@ -23,6 +23,173 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNamespace_Validate(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		Test      string
+		Namespace *Namespace
+		Expected  string
+	}{
+		{
+			Test: "empty name",
+			Namespace: &Namespace{
+				Name: "",
+			},
+			Expected: "invalid name",
+		},
+		{
+			Test: "slashes in name",
+			Namespace: &Namespace{
+				Name: "foo/bar",
+			},
+			Expected: "invalid name",
+		},
+		{
+			Test: "too long name",
+			Namespace: &Namespace{
+				Name: strings.Repeat("a", 200),
+			},
+			Expected: "invalid name",
+		},
+		{
+			Test: "too long description",
+			Namespace: &Namespace{
+				Name:        "foo",
+				Description: strings.Repeat("a", 300),
+			},
+			Expected: "description longer than",
+		},
+		{
+			Test: "valid",
+			Namespace: &Namespace{
+				Name:        "foo",
+				Description: "bar",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Test, func(t *testing.T) {
+			err := c.Namespace.Validate()
+			if err == nil {
+				if c.Expected == "" {
+					return
+				}
+
+				t.Fatalf("Expected error %q; got nil", c.Expected)
+			} else if c.Expected == "" {
+				t.Fatalf("Unexpected error %v", err)
+			} else if !strings.Contains(err.Error(), c.Expected) {
+				t.Fatalf("Expected error %q; got %v", c.Expected, err)
+			}
+		})
+	}
+}
+
+func TestNamespace_SetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	ns := &Namespace{
+		Name:        "foo",
+		Description: "bar",
+		Quota:       "q1",
+		Capabilities: &NamespaceCapabilities{
+			EnabledTaskDrivers:  []string{"docker"},
+			DisabledTaskDrivers: []string{"raw_exec"},
+		},
+		NodePoolConfiguration: &NamespaceNodePoolConfiguration{
+			Default: "dev",
+			Allowed: []string{"default"},
+		},
+		Meta: map[string]string{
+			"a": "b",
+			"c": "d",
+		},
+	}
+	out1 := ns.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out1, ns.Hash)
+
+	ns.Description = "bam"
+	out2 := ns.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out2, ns.Hash)
+	must.NotEq(t, out1, out2)
+
+	ns.Quota = "q2"
+	out3 := ns.SetHash()
+	must.NotNil(t, out3)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out3, ns.Hash)
+	must.NotEq(t, out2, out3)
+
+	ns.Meta["a"] = "c"
+	delete(ns.Meta, "c")
+	ns.Meta["d"] = "e"
+	out4 := ns.SetHash()
+	must.NotNil(t, out4)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out4, ns.Hash)
+	must.NotEq(t, out3, out4)
+
+	ns.Capabilities.EnabledTaskDrivers = []string{"docker", "podman"}
+	ns.Capabilities.DisabledTaskDrivers = []string{}
+	out5 := ns.SetHash()
+	must.NotNil(t, out5)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out5, ns.Hash)
+	must.NotEq(t, out4, out5)
+
+	ns.NodePoolConfiguration.Default = "default"
+	ns.NodePoolConfiguration.Allowed = []string{}
+	ns.NodePoolConfiguration.Denied = []string{"all"}
+	out6 := ns.SetHash()
+	must.NotNil(t, out6)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out6, ns.Hash)
+	must.NotEq(t, out5, out6)
+}
+
+func TestNamespace_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	ns := &Namespace{
+		Name:        "foo",
+		Description: "bar",
+		Quota:       "q1",
+		Capabilities: &NamespaceCapabilities{
+			EnabledTaskDrivers:  []string{"docker"},
+			DisabledTaskDrivers: []string{"raw_exec"},
+		},
+		NodePoolConfiguration: &NamespaceNodePoolConfiguration{
+			Default: "dev",
+			Allowed: []string{"default"},
+		},
+		Meta: map[string]string{
+			"a": "b",
+			"c": "d",
+		},
+	}
+	ns.SetHash()
+
+	nsCopy := ns.Copy()
+	nsCopy.Name = "bar"
+	nsCopy.Description = "foo"
+	nsCopy.Quota = "q2"
+	nsCopy.Capabilities.EnabledTaskDrivers = []string{"exec"}
+	nsCopy.Capabilities.DisabledTaskDrivers = []string{"java"}
+	nsCopy.NodePoolConfiguration.Default = "default"
+	nsCopy.NodePoolConfiguration.Allowed = []string{}
+	nsCopy.NodePoolConfiguration.Denied = []string{"dev"}
+	nsCopy.Meta["a"] = "z"
+	must.NotEq(t, ns, nsCopy)
+
+	nsCopy2 := ns.Copy()
+	must.Eq(t, ns, nsCopy2)
+}
+
 func TestAuthenticatedIdentity_String(t *testing.T) {
 	ci.Parallel(t)
 

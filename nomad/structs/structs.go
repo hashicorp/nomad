@@ -5367,6 +5367,10 @@ type Namespace struct {
 	// Capabilities is the set of capabilities allowed for this namespace
 	Capabilities *NamespaceCapabilities
 
+	// NodePoolConfiguration is the namespace configuration for handling node
+	// pools.
+	NodePoolConfiguration *NamespaceNodePoolConfiguration
+
 	// Meta is the set of metadata key/value pairs that attached to the namespace
 	Meta map[string]string
 
@@ -5386,6 +5390,26 @@ type NamespaceCapabilities struct {
 	DisabledTaskDrivers []string
 }
 
+// NamespaceNodePoolConfiguration stores configuration about node pools for a
+// namespace.
+type NamespaceNodePoolConfiguration struct {
+	// Default is the node pool used by jobs in this namespace that don't
+	// specify a node pool of their own.
+	Default string
+
+	// Allowed is a list of glob patterns to match node pool names that jobs in
+	// this namespace are allowed to use. If defined, node pools that do not
+	// match any of these patterns are not allowed to be used.
+	// Conflicts with Denied.
+	Allowed []string
+
+	// Denied is a list of glob patterns to match node pool names that jobs in
+	// this namespace are not allowed to use. If defined, any node pool is
+	// allowed to be used except for those that match any of these patterns.
+	// Conflicts with Allowed.
+	Denied []string
+}
+
 func (n *Namespace) Validate() error {
 	var mErr multierror.Error
 
@@ -5397,6 +5421,16 @@ func (n *Namespace) Validate() error {
 	if len(n.Description) > maxNamespaceDescriptionLength {
 		err := fmt.Errorf("description longer than %d", maxNamespaceDescriptionLength)
 		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	err := n.NodePoolConfiguration.Validate()
+	switch e := err.(type) {
+	case *multierror.Error:
+		for _, npErr := range e.Errors {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", npErr))
+		}
+	case error:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", e))
 	}
 
 	return mErr.ErrorOrNil()
@@ -5420,6 +5454,15 @@ func (n *Namespace) SetHash() []byte {
 		}
 		for _, driver := range n.Capabilities.DisabledTaskDrivers {
 			_, _ = hash.Write([]byte(driver))
+		}
+	}
+	if n.NodePoolConfiguration != nil {
+		_, _ = hash.Write([]byte(n.NodePoolConfiguration.Default))
+		for _, pool := range n.NodePoolConfiguration.Allowed {
+			_, _ = hash.Write([]byte(pool))
+		}
+		for _, pool := range n.NodePoolConfiguration.Denied {
+			_, _ = hash.Write([]byte(pool))
 		}
 	}
 
@@ -5453,6 +5496,12 @@ func (n *Namespace) Copy() *Namespace {
 		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
+	}
+	if n.NodePoolConfiguration != nil {
+		np := new(NamespaceNodePoolConfiguration)
+		*np = *n.NodePoolConfiguration
+		np.Allowed = slices.Clone(n.NodePoolConfiguration.Allowed)
+		np.Denied = slices.Clone(n.NodePoolConfiguration.Denied)
 	}
 	if n.Meta != nil {
 		nc.Meta = make(map[string]string, len(n.Meta))

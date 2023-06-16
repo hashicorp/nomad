@@ -247,6 +247,7 @@ func Namespace() *structs.Namespace {
 		CreateIndex: 100,
 		ModifyIndex: 200,
 	}
+	ns.Canonicalize()
 	ns.SetHash()
 	return ns
 }
