@@ -187,6 +187,13 @@ export default class JobStatusPanelDeployingComponent extends Component {
     ];
   }
 
+  get newRunningHealthUnknownAllocBlocks() {
+    return [
+      ...this.newVersionAllocBlocks['running']['health_unknown']['canary'],
+      ...this.newVersionAllocBlocks['running']['health_unknown']['nonCanary'],
+    ];
+  }
+
   get rescheduledAllocs() {
     return this.job.allocations.filter((a) => !a.isOld && a.hasBeenRescheduled);
   }
@@ -222,10 +229,7 @@ export default class JobStatusPanelDeployingComponent extends Component {
     return {
       healthy: this.newRunningHealthyAllocBlocks.length,
       unhealthy: this.newRunningUnhealthyAllocBlocks.length,
-      health_unknown:
-        this.totalAllocs -
-        this.newRunningHealthyAllocBlocks.length -
-        this.newRunningUnhealthyAllocBlocks.length,
+      health_unknown: this.newRunningHealthUnknownAllocBlocks.length,
     };
   }
   // #endregion legend
