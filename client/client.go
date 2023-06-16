@@ -1839,14 +1839,6 @@ func (c *Client) periodicSnapshot() {
 // run is a long lived goroutine used to run the client. Shutdown() stops it first
 func (c *Client) run() {
 
-	// Block until we've registered at least once so that we know the server has
-	// our node secret and we can authenticate
-	select {
-	case <-c.registeredCh:
-	case <-c.shutdownCh:
-		return
-	}
-
 	// Watch for changes in allocations
 	allocUpdates := make(chan *allocUpdates, 8)
 	go c.watchAllocations(allocUpdates)
@@ -1941,8 +1933,11 @@ func (c *Client) triggerNodeEvent(nodeEvent *structs.NodeEvent) {
 // retryRegisterNode is used to register the node or update the registration and
 // retry in case of failure.
 func (c *Client) retryRegisterNode() {
+
+	authToken := c.getRegistrationToken()
+
 	for {
-		err := c.registerNode()
+		err := c.registerNode(authToken)
 		if err == nil {
 			// Registered!
 			return
@@ -1953,6 +1948,13 @@ func (c *Client) retryRegisterNode() {
 			c.logger.Debug("registration waiting on servers")
 			c.triggerDiscovery()
 			retryIntv = noServerRetryIntv
+		} else if structs.IsErrPermissionDenied(err) {
+			// any previous cluster state we have here is invalid (ex. client
+			// has been assigned to a new region), so clear the token and local
+			// state for next pass.
+			authToken = ""
+			c.stateDB.PutNodeRegistration(&cstructs.NodeRegistration{HasRegistered: false})
+			c.logger.Error("error registering", "error", err)
 		} else {
 			c.logger.Error("error registering", "error", err)
 		}
@@ -1965,30 +1967,58 @@ func (c *Client) retryRegisterNode() {
 	}
 }
 
+// getRegistrationToken gets the node secret to use for the Node.Register call.
+// Registration is trust-on-first-use so we can't send the auth token with the
+// initial request, but we want to add the auth token after that so that we can
+// capture metrics.
+func (c *Client) getRegistrationToken() string {
+
+	select {
+	case <-c.registeredCh:
+		return c.GetConfig().Node.SecretID
+	default:
+		// If we haven't yet closed the registeredCh we're either starting for
+		// the 1st time or we've just restarted. Check the local state to see if
+		// we've written a successful registration previously so that we don't
+		// block allocrunner operations on disconnected clients.
+		registration, err := c.stateDB.GetNodeRegistration()
+		if err != nil {
+			c.logger.Error("could not determine previous node registration", "error", err)
+		}
+		if registration != nil && registration.HasRegistered {
+			c.registeredOnce.Do(func() { close(c.registeredCh) })
+			return c.GetConfig().Node.SecretID
+		}
+	}
+	return ""
+}
+
 // registerNode is used to register the node or update the registration
-func (c *Client) registerNode() error {
+func (c *Client) registerNode(authToken string) error {
 	req := structs.NodeRegisterRequest{
 		Node: c.Node(),
 		WriteRequest: structs.WriteRequest{
-			Region: c.Region(),
+			Region:    c.Region(),
+			AuthToken: authToken,
 		},
-	}
-	select {
-	case <-c.registeredCh:
-		// registration is trust-on-first-use but we want to add the auth token
-		// after the initial request so that we can capture metrics
-		req.AuthToken = c.secretNodeID()
-	default:
 	}
 
 	var resp structs.NodeUpdateResponse
-	if err := c.RPC("Node.Register", &req, &resp); err != nil {
+	if err := c.UnauthenticatedRPC("Node.Register", &req, &resp); err != nil {
 		return err
 	}
 
 	// Signal that we've registered once so that RPCs sent from the client can
-	// send authenticated requests
+	// send authenticated requests. Persist this information in the state so
+	// that we don't block restoring running allocs when restarting while
+	// disconnected
 	c.registeredOnce.Do(func() {
+		err := c.stateDB.PutNodeRegistration(&cstructs.NodeRegistration{
+			HasRegistered: true,
+		})
+		if err != nil {
+			c.logger.Error("could not write node registration", "error", err)
+		}
 		close(c.registeredCh)
 	})
 
