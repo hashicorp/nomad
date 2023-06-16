@@ -11,8 +11,11 @@ description: >
 The `namespace status` command is used to view the status of a particular
 namespace.
 
-~> Namespaces are open source in Nomad 1.0. Namespaces were Enterprise-only
-when introduced in Nomad 0.7.
+<Tip>
+  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
+    Nomad Namespaces tutorial
+  </a> for more information.
+</Tip>
 
 ## Usage
 
@@ -43,7 +46,7 @@ Description     = Prod API servers
 Quota           = prod
 EnabledDrivers  = docker,exec
 DisabledDrivers = raw_exec
- 
+
 Metadata
 contact = platform-eng@example.com
 
@@ -55,7 +58,7 @@ global  500 / 2500  256 / 2000
 The `-json` flag can be used to get the namespace status in json format:
 
 ```shell-session
-$ nomad namespace status -json default                                                             
+$ nomad namespace status -json default
 {
     "Capabilities": null,
     "CreateIndex": 1,

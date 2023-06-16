@@ -4420,7 +4420,12 @@ type Job struct {
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
 
-	// NodePool specifies the node pool this job is allowed to run on
+	// NodePool specifies the node pool this job is allowed to run on.
+	//
+	// An empty value is allowed during job registration, in which case the
+	// namespace default node pool is used in Enterprise and the 'default' node
+	// pool in OSS. But a node pool must be set before the job is stored, so
+	// that will happen in the admission mutators.
 	NodePool string
 
 	// Constraints can be specified at a job level and apply to
@@ -4573,10 +4578,6 @@ func (j *Job) Canonicalize() {
 		j.Datacenters = []string{"*"}
 	}
 
-	if j.NodePool == "" {
-		j.NodePool = NodePoolDefault
-	}
-
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
@@ -4658,9 +4659,6 @@ func (j *Job) Validate() error {
 				mErr.Errors = append(mErr.Errors, errors.New("Job datacenter must be non-empty string"))
 			}
 		}
-	}
-	if j.NodePool == "" {
-		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a node_pool"))
 	}
 
 	if len(j.TaskGroups) == 0 {
@@ -5367,6 +5365,10 @@ type Namespace struct {
 	// Capabilities is the set of capabilities allowed for this namespace
 	Capabilities *NamespaceCapabilities
 
+	// NodePoolConfiguration is the namespace configuration for handling node
+	// pools.
+	NodePoolConfiguration *NamespaceNodePoolConfiguration
+
 	// Meta is the set of metadata key/value pairs that attached to the namespace
 	Meta map[string]string
 
@@ -5386,6 +5388,28 @@ type NamespaceCapabilities struct {
 	DisabledTaskDrivers []string
 }
 
+// NamespaceNodePoolConfiguration stores configuration about node pools for a
+// namespace.
+type NamespaceNodePoolConfiguration struct {
+	// Default is the node pool used by jobs in this namespace that don't
+	// specify a node pool of their own.
+	Default string
+
+	// Allowed specifies the node pools that are allowed to be used by jobs in
+	// this namespace. This field supports wildcard globbing through the use
+	// of `*` for multi-character matching. If specified, only the node pools
+	// that match these patterns are allowed. This field cannot be used
+	// with Denied.
+	Allowed []string
+
+	// Denied specifies the node pools that are not allowed to be used by jobs
+	// in this namespace. This field supports wildcard globbing through the use
+	// of `*` for multi-character matching. If specified, any node pool is
+	// allowed to be used, except for those that match any of these patterns.
+	// This field cannot be used with Allowed.
+	Denied []string
+}
+
 func (n *Namespace) Validate() error {
 	var mErr multierror.Error
 
@@ -5397,6 +5421,16 @@ func (n *Namespace) Validate() error {
 	if len(n.Description) > maxNamespaceDescriptionLength {
 		err := fmt.Errorf("description longer than %d", maxNamespaceDescriptionLength)
 		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	err := n.NodePoolConfiguration.Validate()
+	switch e := err.(type) {
+	case *multierror.Error:
+		for _, npErr := range e.Errors {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", npErr))
+		}
+	case error:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", e))
 	}
 
 	return mErr.ErrorOrNil()
@@ -5420,6 +5454,15 @@ func (n *Namespace) SetHash() []byte {
 		}
 		for _, driver := range n.Capabilities.DisabledTaskDrivers {
 			_, _ = hash.Write([]byte(driver))
+		}
+	}
+	if n.NodePoolConfiguration != nil {
+		_, _ = hash.Write([]byte(n.NodePoolConfiguration.Default))
+		for _, pool := range n.NodePoolConfiguration.Allowed {
+			_, _ = hash.Write([]byte(pool))
+		}
+		for _, pool := range n.NodePoolConfiguration.Denied {
+			_, _ = hash.Write([]byte(pool))
 		}
 	}
 
@@ -5453,6 +5496,12 @@ func (n *Namespace) Copy() *Namespace {
 		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
+	}
+	if n.NodePoolConfiguration != nil {
+		np := new(NamespaceNodePoolConfiguration)
+		*np = *n.NodePoolConfiguration
+		np.Allowed = slices.Clone(n.NodePoolConfiguration.Allowed)
+		np.Denied = slices.Clone(n.NodePoolConfiguration.Denied)
 	}
 	if n.Meta != nil {
 		nc.Meta = make(map[string]string, len(n.Meta))

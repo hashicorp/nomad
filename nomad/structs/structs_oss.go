@@ -13,6 +13,17 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 )
 
+func (n *Namespace) Canonicalize() {}
+
+func (n *NamespaceNodePoolConfiguration) Canonicalize() {}
+
+func (n *NamespaceNodePoolConfiguration) Validate() error {
+	if n != nil {
+		return errors.New("Node Pools Governance is unlicensed.")
+	}
+	return nil
+}
+
 func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
 	if m != nil {
 		return errors.New("Multiregion jobs are unlicensed.")
