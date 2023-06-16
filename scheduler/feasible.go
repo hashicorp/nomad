@@ -809,6 +809,9 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 	case "${node.class}" == target:
 		return node.NodeClass, true
 
+	case "${node.pool}" == target:
+		return node.NodePool, true
+
 	case strings.HasPrefix(target, "${attr."):
 		attr := strings.TrimSuffix(strings.TrimPrefix(target, "${attr."), "}")
 		val, ok := node.Attributes[attr]

@@ -875,12 +875,14 @@ func TestConstraintChecker(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
 	}
 
 	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
 	nodes[2].NodeClass = "large"
 	nodes[2].Attributes["foo"] = "bar"
+	nodes[3].NodePool = "prod"
 
 	constraints := []*structs.Constraint{
 		{
@@ -897,6 +899,11 @@ func TestConstraintChecker(t *testing.T) {
 			Operand: "!=",
 			LTarget: "${node.class}",
 			RTarget: "linux-medium-pci",
+		},
+		{
+			Operand: "!=",
+			LTarget: "${node.pool}",
+			RTarget: "prod",
 		},
 		{
 			Operand: "is_set",
@@ -919,6 +926,10 @@ func TestConstraintChecker(t *testing.T) {
 		{
 			Node:   nodes[2],
 			Result: true,
+		},
+		{
+			Node:   nodes[3],
+			Result: false,
 		},
 	}
 
