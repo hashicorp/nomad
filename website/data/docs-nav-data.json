@@ -1745,6 +1745,10 @@
         "path": "other-specifications/acl-policy"
       },
       {
+        "title": "Node Pool",
+        "path": "other-specifications/node-pool"
+      },
+      {
         "title": "Variables",
         "path": "other-specifications/variables"
       },
