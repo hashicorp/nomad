@@ -7,7 +7,6 @@
 package structs
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -37,7 +36,6 @@ func TestNamespace_Validate_Oss(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.namespace.Validate()
-			fmt.Println(err)
 			if tc.expectedErr != "" {
 				must.ErrorContains(t, err, tc.expectedErr)
 			} else {
