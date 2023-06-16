@@ -76,13 +76,13 @@ node_pool_config {
   to be used by jobs in this namespace. This field supports wildcard globbing
   through the use of `*` for multi-character matching. If specified, only the
   node pools that match these patterns are allowed. This field cannot be used
-  with `disabled`.
+  with `denied`.
 
-- `disabled` `(array<string>: [])` - Specifies the node pools that are not
+- `denied` `(array<string>: [])` - Specifies the node pools that are not
   allowed to be used by jobs in this namespace. This field supports wildcard
   globbing through the use of `*` for multi-character matching. If specified,
-  any node pool is allowed except for those that match any of these patterns.
-  This field cannot be used with `enabled`.
+  any node pool is allowed to be used, except for those that match any of these
+  patterns. This field cannot be used with `allowed`.
 
 [cli_ns_apply]: /nomad/docs/commands/namespace/apply
 [hcl2]: /nomad/docs/job-specification/hcl2

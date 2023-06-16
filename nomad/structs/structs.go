@@ -4424,7 +4424,8 @@ type Job struct {
 	//
 	// An empty value is allowed during job registration, in which case the
 	// namespace default node pool is used in Enterprise and the 'default' node
-	// pool in OSS, but a node pool must be set before the job is stored.
+	// pool in OSS. But a node pool must be set before the job is stored, so
+	// that will happen in the admission mutators.
 	NodePool string
 
 	// Constraints can be specified at a job level and apply to
@@ -5394,16 +5395,18 @@ type NamespaceNodePoolConfiguration struct {
 	// specify a node pool of their own.
 	Default string
 
-	// Allowed is a list of glob patterns to match node pool names that jobs in
-	// this namespace are allowed to use. If defined, node pools that do not
-	// match any of these patterns are not allowed to be used.
-	// Conflicts with Denied.
+	// Allowed specifies the node pools that are allowed to be used by jobs in
+	// this namespace. This field supports wildcard globbing through the use
+	// of `*` for multi-character matching. If specified, only the node pools
+	// that match these patterns are allowed. This field cannot be used
+	// with Denied.
 	Allowed []string
 
-	// Denied is a list of glob patterns to match node pool names that jobs in
-	// this namespace are not allowed to use. If defined, any node pool is
-	// allowed to be used except for those that match any of these patterns.
-	// Conflicts with Allowed.
+	// Denied specifies the node pools that are not allowed to be used by jobs
+	// in this namespace. This field supports wildcard globbing through the use
+	// of `*` for multi-character matching. If specified, any node pool is
+	// allowed to be used, except for those that match any of these patterns.
+	// This field cannot be used with Allowed.
 	Denied []string
 }
 

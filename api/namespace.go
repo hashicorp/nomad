@@ -80,11 +80,15 @@ type Namespace struct {
 	ModifyIndex           uint64
 }
 
+// NamespaceCapabilities represents a set of capabilities allowed for this
+// namespace, to be checked at job submission time.
 type NamespaceCapabilities struct {
 	EnabledTaskDrivers  []string `hcl:"enabled_task_drivers"`
 	DisabledTaskDrivers []string `hcl:"disabled_task_drivers"`
 }
 
+// NamespaceNodePoolConfiguration stores configuration about node pools for a
+// namespace.
 type NamespaceNodePoolConfiguration struct {
 	Default string
 	Allowed []string
