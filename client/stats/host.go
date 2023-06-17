@@ -39,11 +39,12 @@ type MemoryStats struct {
 
 // CPUStats represents stats related to cpu usage
 type CPUStats struct {
-	CPU    string
-	User   float64
-	System float64
-	Idle   float64
-	Total  float64
+	CPU          string
+	User         float64
+	System       float64
+	Idle         float64
+	TotalPercent float64
+	TotalTicks   float64
 }
 
 // DiskStats represents stats related to disk usage
