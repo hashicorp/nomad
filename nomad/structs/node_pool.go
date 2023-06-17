@@ -190,24 +190,6 @@ func (n *NodePoolSchedulerConfiguration) Copy() *NodePoolSchedulerConfiguration 
 	return nc
 }
 
-// Validate returns an error if the node pool scheduler confinguration is
-// invalid.
-func (n *NodePoolSchedulerConfiguration) Validate() error {
-	if n == nil {
-		return nil
-	}
-
-	var mErr *multierror.Error
-
-	switch n.SchedulerAlgorithm {
-	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
-	default:
-		mErr = multierror.Append(mErr, fmt.Errorf("invalid scheduler algorithm %q", n.SchedulerAlgorithm))
-	}
-
-	return mErr.ErrorOrNil()
-}
-
 // NodePoolListRequest is used to list node pools.
 type NodePoolListRequest struct {
 	QueryOptions

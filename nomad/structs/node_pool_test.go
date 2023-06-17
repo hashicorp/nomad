@@ -74,16 +74,6 @@ func TestNodePool_Validate(t *testing.T) {
 			},
 			expectedErr: "description longer",
 		},
-		{
-			name: "invalid scheduling algorithm",
-			pool: &NodePool{
-				Name: "valid",
-				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
-					SchedulerAlgorithm: "invalid",
-				},
-			},
-			expectedErr: "invalid scheduler algorithm",
-		},
 	}
 
 	for _, tc := range testCases {
