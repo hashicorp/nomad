@@ -117,6 +117,24 @@ func (n *NodePool) IsBuiltIn() bool {
 	}
 }
 
+// MemoryOversubscriptionEnabled returns true if memory oversubscription is
+// enabled in the node pool or in the global cluster configuration.
+func (n *NodePool) MemoryOversubscriptionEnabled(global *SchedulerConfiguration) bool {
+
+	// Default to the global scheduler config.
+	memOversubEnabled := global != nil && global.MemoryOversubscriptionEnabled
+
+	// But overwrite it if the node pool also has it configured.
+	poolHasMemOversub := n != nil &&
+		n.SchedulerConfiguration != nil &&
+		n.SchedulerConfiguration.MemoryOversubscriptionEnabled != nil
+	if poolHasMemOversub {
+		memOversubEnabled = *n.SchedulerConfiguration.MemoryOversubscriptionEnabled
+	}
+
+	return memOversubEnabled
+}
+
 // SetHash is used to compute and set the hash of node pool
 func (n *NodePool) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)
