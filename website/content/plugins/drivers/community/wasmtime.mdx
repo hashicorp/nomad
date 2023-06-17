@@ -1,0 +1,50 @@
+---
+layout: docs
+page_title: 'Drivers: wasmtime'
+description: >-
+  The Wasmtime task driver is used to run WASI(https://wasi.dev)-compliant binaries.
+---
+
+# Wasmtime task Driver
+
+Name: `wasmtime`
+
+The Wasmtime task driver is used to run WASI-compliant binaries. For more detailed instructions,
+please refer to the repository (https://github.com/c16a/nomad-driver-wasmtime)
+
+## Task Configuration
+
+```hcl
+task "hello-world" {
+  driver = "wasmtime"
+
+  config {
+    binary = "main.wasm"
+    invoke_fn = "print_hello"
+  }
+}
+```
+
+The firecracker task driver supports the following parameters:
+
+- `binary` - Path to the WASM binary
+
+- `invoke_fn` - (Optional) Name of the function to invoke from the WASM module
+
+## Client Requirements
+
+`wasmtime` requires the following:
+
+- The Wasmtime runtime must be present on the client node
+
+## Plugin Options
+
+- `path` - (Optional) Path to the Wasmtime binary path, defaults to `/usr/bin/wasmtime`
+
+```hcl
+plugin "wasmtime" {
+  config {
+    path = "/opt/homebrew/bin/wasmtime"
+  }
+}
+```
