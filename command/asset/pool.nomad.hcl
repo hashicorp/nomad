@@ -19,7 +19,7 @@ node_pool "example" {
   #
   # Available only in Nomad Enterprise.
 
-  # scheduler_configuration {
+  # scheduler_config {
   #   scheduler_algorithm = "spread"
   # }
 }

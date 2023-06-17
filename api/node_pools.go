@@ -118,7 +118,7 @@ type NodePool struct {
 	Name                   string                          `hcl:"name,label"`
 	Description            string                          `hcl:"description,optional"`
 	Meta                   map[string]string               `hcl:"meta,block"`
-	SchedulerConfiguration *NodePoolSchedulerConfiguration `hcl:"scheduler_configuration,block"`
+	SchedulerConfiguration *NodePoolSchedulerConfiguration `hcl:"scheduler_config,block"`
 	CreateIndex            uint64
 	ModifyIndex            uint64
 }
