@@ -157,6 +157,18 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.stack = NewSystemStack(s.sysbatch, s.ctx)
 	if !s.job.Stopped() {
 		s.stack.SetJob(s.job)
+
+		// Fetch node pool and global scheduler configuration to determine
+		// which values to use.
+		pool, err := s.state.NodePoolByName(ws, s.job.NodePool)
+		if err != nil {
+			return false, fmt.Errorf("failed to get job node pool '%s': %v", s.job.NodePool, err)
+		}
+		_, schedConfig, err := s.state.SchedulerConfig()
+		if err != nil {
+			return false, fmt.Errorf("failed to get scheduler configuration: %v", err)
+		}
+		s.stack.SetSchedulerConfiguration(schedConfig.WithNodePool(pool))
 	}
 
 	// Compute the target job allocations

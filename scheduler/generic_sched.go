@@ -282,6 +282,18 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.stack = NewGenericStack(s.batch, s.ctx)
 	if !s.job.Stopped() {
 		s.stack.SetJob(s.job)
+
+		// Fetch node pool and global scheduler configuration to determine how
+		// to configure the scheduler.
+		pool, err := s.state.NodePoolByName(ws, s.job.NodePool)
+		if err != nil {
+			return false, fmt.Errorf("failed to get job node pool '%s': %v", s.job.NodePool, err)
+		}
+		_, schedConfig, err := s.state.SchedulerConfig()
+		if err != nil {
+			return false, fmt.Errorf("failed to get scheduler configuration: %v", err)
+		}
+		s.stack.SetSchedulerConfiguration(schedConfig.WithNodePool(pool))
 	}
 
 	// Compute the target job allocations

@@ -118,6 +118,13 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	}
 }
 
+// SetSchedulerConfiguration applies the given scheduler configuration to
+// process nodes. Scheduler configuration values may change per job depending
+// on the node pool being used.
+func (s *GenericStack) SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration) {
+	s.binPack.SetSchedulerConfiguration(schedConfig)
+}
+
 func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
 
 	// This block handles trying to select from preferred nodes if options specify them
@@ -286,7 +293,7 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	}
 
 	// Create binpack iterator
-	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedConfig)
+	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0)
 
 	// Apply score normalization
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
@@ -309,6 +316,13 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)
 	}
+}
+
+// SetSchedulerConfiguration applies the given scheduler configuration to
+// process nodes. Scheduler configuration values may change per job depending
+// on the node pool being used.
+func (s *SystemStack) SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration) {
+	s.binPack.SetSchedulerConfiguration(schedConfig)
 }
 
 func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode {
@@ -412,8 +426,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
-	_, schedConfig, _ := ctx.State().SchedulerConfig()
-	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig)
+	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.
