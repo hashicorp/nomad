@@ -6,6 +6,7 @@
     "owner": "sre"
   },
   "SchedulerConfiguration": {
-    "SchedulerAlgorithm": "spread"
+    "SchedulerAlgorithm": "spread",
+    "MemoryOversubscriptionEnabled": true
   }
 }

@@ -126,5 +126,6 @@ type NodePool struct {
 // NodePoolSchedulerConfiguration is used to serialize the scheduler
 // configuration of a node pool.
 type NodePoolSchedulerConfiguration struct {
-	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm,optional"`
+	SchedulerAlgorithm            SchedulerAlgorithm `hcl:"scheduler_algorithm,optional"`
+	MemoryOversubscriptionEnabled *bool              `hcl:"memory_oversubscription_enabled,optional"`
 }
