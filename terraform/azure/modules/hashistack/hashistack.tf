@@ -100,7 +100,7 @@ resource "azurerm_public_ip" "hashistack-server-public-ip" {
   name                         = "hashistack-server-ip-${count.index}"
   location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.hashistack.name}"
-  allocation_method            = "static"
+  allocation_method            = "Static"
 }
 
 resource "azurerm_network_interface" "hashistack-server-ni" {
@@ -177,7 +177,7 @@ resource "azurerm_public_ip" "hashistack-client-public-ip" {
   name                         = "hashistack-client-ip-${count.index}"
   location                     = "${var.location}"
   resource_group_name          = "${azurerm_resource_group.hashistack.name}"
-  allocation_method            = "static"
+  allocation_method            = "Static"
 }
 
 resource "azurerm_network_interface" "hashistack-client-ni" {
