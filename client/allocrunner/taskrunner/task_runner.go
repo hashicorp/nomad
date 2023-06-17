@@ -1529,6 +1529,8 @@ func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 		float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
 		float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
+	metrics.IncrCounterWithLabels([]string{"client", "allocs", "cpu", "total_ticks_count"},
+		float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
 	if allocatedCPU > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "allocated"},
 			allocatedCPU, tr.baseLabels)
