@@ -54,8 +54,13 @@ export default class Allocation extends Model {
     return this.deploymentStatus?.Canary;
   }
 
+  // deploymentStatus.Healthy can be true, false, or null. Null implies pending
   get isHealthy() {
     return this.deploymentStatus?.Healthy;
+  }
+
+  get isUnhealthy() {
+    return this.deploymentStatus?.Healthy === false;
   }
 
   get willNotRestart() {

@@ -29,6 +29,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
    * @typedef {Object} AllocationStatus
    * @property {HealthStatus} healthy
    * @property {HealthStatus} unhealthy
+   * @property {HealthStatus} health unknown
    */
 
   /**
