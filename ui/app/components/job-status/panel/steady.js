@@ -34,11 +34,12 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   /**
    * @typedef {Object} AllocationBlock
-   * @property {AllocationStatus} [RUNNING]
-   * @property {AllocationStatus} [PENDING]
-   * @property {AllocationStatus} [FAILED]
-   * @property {AllocationStatus} [LOST]
-   * @property {AllocationStatus} [UNPLACED]
+   * @property {AllocationStatus} [running]
+   * @property {AllocationStatus} [pending]
+   * @property {AllocationStatus} [failed]
+   * @property {AllocationStatus} [lost]
+   * @property {AllocationStatus} [unplaced]
+   * @property {AllocationStatus} [complete]
    */
 
   /**
@@ -199,5 +200,58 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
   get latestVersionAllocations() {
     return this.job.allocations.filter((a) => !a.isOld);
+  }
+
+  /**
+   * @typedef {Object} CurrentStatus
+   * @property {"Healthy"|"Failed"|"Degraded"|"Recovering"|"Complete"|"Running"} label - The current status of the job
+   * @property {"highlight"|"success"|"warning"|"critical"} state -
+   */
+
+  /**
+   * A general assessment for how a job is going, in a non-deployment state
+   * @returns {CurrentStatus}
+   */
+  get currentStatus() {
+    // If all allocs are running, the job is Healthy
+    const totalAllocs = this.totalAllocs;
+
+    if (this.job.type === 'batch' || this.job.type === 'sysbatch') {
+      // If all the allocs are complete, the job is Complete
+      const completeAllocs = this.allocBlocks.complete?.healthy?.nonCanary;
+      if (completeAllocs?.length === totalAllocs) {
+        return { label: 'Complete', state: 'success' };
+      }
+
+      // If any allocations are running the job is "Running"
+      const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
+      if (healthyAllocs?.length + completeAllocs?.length === totalAllocs) {
+        return { label: 'Running', state: 'success' };
+      }
+    }
+
+    const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
+    if (healthyAllocs?.length === totalAllocs) {
+      return { label: 'Healthy', state: 'success' };
+    }
+
+    // If any allocations are pending the job is "Recovering"
+    const pendingAllocs = this.allocBlocks.pending?.healthy?.nonCanary;
+    if (pendingAllocs?.length > 0) {
+      return { label: 'Recovering', state: 'highlight' };
+    }
+
+    // If any allocations are failed, lost, or unplaced in a steady state, the job is "Degraded"
+    const failedOrLostAllocs = [
+      ...this.allocBlocks.failed?.healthy?.nonCanary,
+      ...this.allocBlocks.lost?.healthy?.nonCanary,
+      ...this.allocBlocks.unplaced?.healthy?.nonCanary,
+    ];
+
+    if (failedOrLostAllocs.length === totalAllocs) {
+      return { label: 'Failed', state: 'critical' };
+    } else {
+      return { label: 'Degraded', state: 'warning' };
+    }
   }
 }
