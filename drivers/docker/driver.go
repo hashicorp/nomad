@@ -942,6 +942,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &docker.HostConfig{
+		CgroupnsMode: driverConfig.CgroupnsMode,
 		CgroupParent: cgroupParent(task.Resources), // if applicable
 
 		Memory:            memory,            // hard limit
