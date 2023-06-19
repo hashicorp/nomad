@@ -1,60 +1,79 @@
-Nomad
-[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](LICENSE)
-[![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
-===
+# Cross-Compile Nomad
 
-<p align="center" style="text-align:center;">
-  <a href="https://nomadproject.io">
-    <img alt="HashiCorp Nomad logo" src="website/public/img/logo-hashicorp.svg" width="500" />
-  </a>
-</p>
+## Install Cross-Compile Tools
+In order to cross-compile Nomad from your MacOS Darwin (Silicon), you need cross-compilation tools.
 
-Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://www.nomadproject.io/docs/drivers/docker.html), [podman](https://www.nomadproject.io/docs/drivers/podman)), non-containerized applications ([executable](https://www.nomadproject.io/docs/drivers/exec.html), [Java](https://www.nomadproject.io/docs/drivers/java)), and virtual machines ([qemu](https://www.nomadproject.io/docs/drivers/qemu.html)) across on-prem and clouds at scale.
+You can get these from [homebrew-macos-cross-toolchains](https://github.com/messense/homebrew-macos-cross-toolchains).
 
-Nomad is supported on Linux, Windows, and macOS. A commercial version of Nomad, [Nomad Enterprise](https://www.nomadproject.io/docs/enterprise), is also available.
+You will use `arm-unknown-linux-gnueabihf` to cross-compile.
 
-* Website: https://nomadproject.io
-* Tutorials: [HashiCorp Learn](https://learn.hashicorp.com/nomad)
-* Forum: [Discuss](https://discuss.hashicorp.com/c/nomad)
+```bash
+brew tap messense/macos-cross-toolchains
+brew install messense/macos-cross-toolchains/arm-unknown-linux-gnueabihf
+```
 
-Nomad provides several key features:
+Verify that you have `arm-unknown-linux-gnueabihf-gcc` by running the following in bash.
 
-* **Deploy Containers and Legacy Applications**: Nomad’s flexibility as an orchestrator enables an organization to run containers, legacy, and batch applications together on the same infrastructure.  Nomad brings core orchestration benefits to legacy applications without needing to containerize via pluggable task drivers.
+```bash
+which arm-unknown-linux-gnueabihf-gcc
+```
 
-* **Simple & Reliable**:  Nomad runs as a single binary and is entirely self contained - combining resource management and scheduling into a single system.  Nomad does not require any external services for storage or coordination.  Nomad automatically handles application, node, and driver failures.  Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.
+## Make the Nomad Executable
 
-* **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI).  Nomad uses device plugins to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
+This repo uses a modified `GNUMakefile` to cross-compile. We export the CC variable to use `arm-unknown-linux-gnueabihf-gcc` for compilation.
 
-* **Federation for Multi-Region, Multi-Cloud**: Nomad was designed to support infrastructure at a global scale.  Nomad supports federation out-of-the-box and can deploy applications across multiple regions and clouds.
+Go ahead and build a nomad release by running the following in the **root of this repository**.
 
-* **Proven Scalability**: Nomad is optimistically concurrent, which increases throughput and reduces latency for workloads.  Nomad has been proven to scale to clusters of 10K+ nodes in real-world production environments.
+```bash
+make
+```
 
-* **HashiCorp Ecosystem**: Nomad integrates seamlessly with Terraform, Consul, Vault for provisioning, service discovery, and secrets management.
+Your file will be in `pkg/linux_arm/nomad`.
 
-Quick Start
----
+# [Optional] Steps to Create Service
 
-#### Testing
-See [Learn: Getting Started](https://learn.hashicorp.com/collections/nomad/get-started) for instructions on setting up a local Nomad cluster for non-production use.
+## Create the Nomad Configuration directory
 
-Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
+In your `armv6l` host (i.e. Raspberry Pi), run the following.
 
-#### Production
-See [Learn: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
+```bash
+sudo mkdir /etc/nomad.d
+sudo touch /etc/nomad.d/nomad.env /etc/nomad.d/nomad.hcl
+```
 
-Documentation
----
-Full, comprehensive documentation is available on the Nomad website: https://www.nomadproject.io/docs
+Your Nomad configuration will live in `nomad.hcl`. 
 
-Guides are available on [HashiCorp Learn](https://learn.hashicorp.com/nomad).
+Refer to the [Nomad docs](https://developer.hashicorp.com/nomad/docs/configuration).
 
-Roadmap
----
+## Copy Nomad Executable
+Copy your Nomad executable file to the server. Example using `scp` (fill sections):
 
-A timeline of major features expected for the next release or two can be found in the [Public Roadmap](https://github.com/orgs/hashicorp/projects/202/views/1).
+```bash
+NOMAD_EXE_PATH=...
+SERVER_USER=...
+SERVER_HOST=...
+scp "${NOMAD_EXE_PATH}" "${SERVER_USER}@${SERVER_HOST}:/usr/bin/nomad"
+```
 
-This roadmap is a best guess at any given point, and both release dates and projects in each release are subject to change. Do not take any of these items as commitments, especially ones later than one major release away.
+## Create Nomad System Service
+You can create the Nomad system service with the following.
 
-Contributing
---------------------
-See the [`contributing`](contributing/) directory for more developer documentation.
+```bash
+sudo touch /lib/systemd/system/nomad.service
+sudo nano /lib/systemd/system/nomad.service
+```
+
+You can copy [this](nomad.service) into the service file.
+
+Finally, start the service.
+
+```bash
+sudo service nomad start
+```
+Optionally, enable the service at system start.
+
+```bash
+sudo systemctl enable nomad.service
+```
+
+Email me with any questions at contact@kenji.us.
