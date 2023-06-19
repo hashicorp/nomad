@@ -7,7 +7,7 @@ terraform {
 
 variable "project" {
   type        = string
-  default     = ""
+  default = ""
   description = "The Google Cloud Platform project to deploy the Nomad cluster in."
 }
 
