@@ -215,6 +215,7 @@ config {
   cap_add = ["CAP_SYS_NICE"]
   cap_drop = ["CAP_SYS_ADMIN", "CAP_SYS_TIME"]
   command = "/bin/bash"
+  cgroupns = "host"
   cpu_hard_limit = true
   cpu_cfs_period = 20
   devices = [
@@ -365,6 +366,7 @@ config {
 		CapAdd:       []string{"CAP_SYS_NICE"},
 		CapDrop:      []string{"CAP_SYS_ADMIN", "CAP_SYS_TIME"},
 		Command:      "/bin/bash",
+		CgroupnsMode: "host",
 		CPUHardLimit: true,
 		CPUCFSPeriod: 20,
 		Devices: []DockerDevice{
