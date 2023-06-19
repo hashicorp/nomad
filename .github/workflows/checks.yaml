@@ -1,0 +1,36 @@
+# Run 'make check' on paths ignored by test-core.yaml.
+name: Run checks
+on:
+  pull_request:
+    paths:
+      - 'demo/**'
+      - 'e2e/terraform/**'
+      - 'terraform/**'
+      - 'website/**'
+  push:
+    branches:
+      - 'main'
+      - 'release/**'
+    paths:
+      - 'demo/**'
+      - 'e2e/terraform/**'
+      - 'terraform/**'
+      - 'website/**'
+  workflow_call:
+
+jobs:
+  checks:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        with:
+          fetch-depth: 0 # needs tags for checkproto
+      - uses: hashicorp/setup-golang@v1
+      - name: Run make check
+        run: |
+          make missing
+          make bootstrap
+          make check
+permissions:
+  contents: read

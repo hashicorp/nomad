@@ -56,19 +56,8 @@ jobs:
           make tidy
           make bootstrap
   checks:
+    uses: ./.github/workflows/checks.yaml
     needs: [mods]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-        with:
-          fetch-depth: 0 # needs tags for checkproto
-      - uses: hashicorp/setup-golang@v1
-      - name: Run make check
-        run: |
-          make missing
-          make bootstrap
-          make check
   compile:
     needs: [mods, checks]
     strategy:
@@ -128,4 +117,3 @@ jobs:
           sudo -E env "PATH=$PATH" make test-nomad
 permissions:
   contents: read
-
