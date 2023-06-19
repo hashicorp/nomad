@@ -118,7 +118,7 @@ type NodePool struct {
 	Name                   string                          `hcl:"name,label"`
 	Description            string                          `hcl:"description,optional"`
 	Meta                   map[string]string               `hcl:"meta,block"`
-	SchedulerConfiguration *NodePoolSchedulerConfiguration `hcl:"scheduler_configuration,block"`
+	SchedulerConfiguration *NodePoolSchedulerConfiguration `hcl:"scheduler_config,block"`
 	CreateIndex            uint64
 	ModifyIndex            uint64
 }
@@ -126,5 +126,6 @@ type NodePool struct {
 // NodePoolSchedulerConfiguration is used to serialize the scheduler
 // configuration of a node pool.
 type NodePoolSchedulerConfiguration struct {
-	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm,optional"`
+	SchedulerAlgorithm            SchedulerAlgorithm `hcl:"scheduler_algorithm,optional"`
+	MemoryOversubscriptionEnabled *bool              `hcl:"memory_oversubscription_enabled,optional"`
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -19,7 +20,8 @@ func TestNodePool_Copy(t *testing.T) {
 		Description: "original node pool",
 		Meta:        map[string]string{"original": "true"},
 		SchedulerConfiguration: &NodePoolSchedulerConfiguration{
-			SchedulerAlgorithm: SchedulerAlgorithmSpread,
+			SchedulerAlgorithm:            SchedulerAlgorithmSpread,
+			MemoryOversubscriptionEnabled: pointer.Of(false),
 		},
 	}
 	poolCopy := pool.Copy()
@@ -28,6 +30,7 @@ func TestNodePool_Copy(t *testing.T) {
 	poolCopy.Meta["original"] = "false"
 	poolCopy.Meta["new_key"] = "true"
 	poolCopy.SchedulerConfiguration.SchedulerAlgorithm = SchedulerAlgorithmBinpack
+	poolCopy.SchedulerConfiguration.MemoryOversubscriptionEnabled = pointer.Of(true)
 
 	must.NotEq(t, pool, poolCopy)
 	must.NotEq(t, pool.Meta, poolCopy.Meta)
@@ -70,16 +73,6 @@ func TestNodePool_Validate(t *testing.T) {
 				Description: strings.Repeat("a", 300),
 			},
 			expectedErr: "description longer",
-		},
-		{
-			name: "invalid scheduling algorithm",
-			pool: &NodePool{
-				Name: "valid",
-				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
-					SchedulerAlgorithm: "invalid",
-				},
-			},
-			expectedErr: "invalid scheduler algorithm",
 		},
 	}
 

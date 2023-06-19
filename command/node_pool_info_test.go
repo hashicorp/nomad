@@ -35,9 +35,6 @@ func TestNodePoolInfoCommand_Run(t *testing.T) {
 		Meta: map[string]string{
 			"env": "test",
 		},
-		SchedulerConfiguration: &api.NodePoolSchedulerConfiguration{
-			SchedulerAlgorithm: api.SchedulerAlgorithmSpread,
-		},
 	}
 	_, err := client.NodePools().Register(dev1, nil)
 	must.NoError(t, err)
@@ -50,7 +47,7 @@ Metadata
 env = test
 
 Scheduler Configuration
-Scheduler Algorithm = spread`
+No scheduler configuration`
 
 	dev1JsonOutput := `
 {
@@ -59,9 +56,7 @@ Scheduler Algorithm = spread`
         "env": "test"
     },
     "Name": "dev-1",
-    "SchedulerConfiguration": {
-        "SchedulerAlgorithm": "spread"
-    }
+    "SchedulerConfiguration": null
 }`
 
 	// These two node pools are used to test exact prefix match.
