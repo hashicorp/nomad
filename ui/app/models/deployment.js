@@ -23,7 +23,7 @@ export default class Deployment extends Model {
 
   // If any task group is not promoted yet requires promotion and the deployment
   // is still running, the deployment needs promotion.
-  @computed('status', 'taskGroupSummaries.@each.promoted')
+  @computed('status', 'taskGroupSummaries.@each.{promoted,requiresPromotion}')
   get requiresPromotion() {
     return (
       this.status === 'running' &&

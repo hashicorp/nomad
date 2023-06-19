@@ -5,7 +5,7 @@
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { find, render } from '@ember/test-helpers';
+import { find, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
@@ -469,6 +469,177 @@ module(
           { count: 2 },
           'Now that some are canaries, they still make up two blocks'
         );
+    });
+
+    test('During a deployment with canaries, canary alerts are handled', async function (assert) {
+      this.server.create('node');
+
+      const NUMBER_OF_GROUPS = 1;
+      const ALLOCS_PER_GROUP = 10;
+      const allocStatusDistribution = {
+        running: 0.9,
+        failed: 0.1,
+        unknown: 0,
+        lost: 0,
+        complete: 0,
+        pending: 0,
+      };
+
+      const job = await this.server.create('job', {
+        type: 'service',
+        createAllocations: true,
+        noDeployments: true, // manually created below
+        activeDeployment: true,
+        groupTaskCount: ALLOCS_PER_GROUP,
+        shallow: true,
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
+        allocStatusDistribution,
+      });
+
+      const jobRecord = await this.store.find(
+        'job',
+        JSON.stringify([job.id, 'default'])
+      );
+      const deployment = await this.server.create(
+        'deployment',
+        false,
+        'active',
+        {
+          jobId: job.id,
+          groupDesiredTotal: ALLOCS_PER_GROUP,
+          versionNumber: 1,
+          status: 'failed',
+          // requiresPromotion: false,
+        }
+      );
+
+      // requiresPromotion goes to false
+      deployment.deploymentTaskGroupSummaries.models.forEach((d) => {
+        d.update({
+          desiredCanaries: 0,
+          requiresPromotion: false,
+          promoted: false,
+        });
+      });
+
+      // All allocations set to Healthy and non-canary
+      let activelyDeployingJobAllocs = server.schema.allocations
+        .all()
+        .filter((a) => a.jobId === job.id);
+
+      activelyDeployingJobAllocs.models.forEach((a) => {
+        a.update({ deploymentStatus: { Healthy: true, Canary: false } });
+      });
+
+      this.set('job', jobRecord);
+
+      await this.get('job.latestDeployment');
+      await this.set('job.latestDeployment.status', 'running');
+
+      await this.get('job.allocations');
+
+      await render(hbs`
+        <JobStatus::Panel @job={{this.job}} />
+      `);
+
+      assert
+        .dom(find('.legend-item .represented-allocation.running').parentElement)
+        .hasText('9 Running');
+      assert
+        .dom(find('.legend-item .represented-allocation.healthy').parentElement)
+        .hasText('9 Healthy');
+
+      assert
+        .dom('.canary-promotion-alert')
+        .doesNotExist('No canary promotion alert when no canaries');
+
+      // Set 3 allocations to health-pending canaries
+      await Promise.all(
+        this.get('job.allocations')
+          .filterBy('clientStatus', 'running')
+          .slice(0, 3)
+          .map(async (a) => {
+            await a.set('deploymentStatus', { Healthy: null, Canary: true });
+          })
+      );
+
+      // Set the deployment's requiresPromotion to true
+      await Promise.all(
+        this.get('job.latestDeployment.taskGroupSummaries').map(async (a) => {
+          await a.set('desiredCanaries', 3);
+          await a.set('requiresPromotion', true);
+        })
+      );
+
+      await settled();
+
+      assert
+        .dom('.canary-promotion-alert')
+        .exists('Canary promotion alert when canaries are present');
+
+      assert
+        .dom('.canary-promotion-alert')
+        .containsText('Checking Canary health');
+
+      // Fail the health check on 1 canary
+      await Promise.all(
+        this.get('job.allocations')
+          .filterBy('clientStatus', 'running')
+          .slice(0, 1)
+          .map(async (a) => {
+            await a.set('deploymentStatus', { Healthy: false, Canary: true });
+          })
+      );
+
+      assert
+        .dom('.canary-promotion-alert')
+        .containsText('Some Canaries have failed');
+
+      // That 1 passes its health checks, but two peers remain pending
+      await Promise.all(
+        this.get('job.allocations')
+          .filterBy('clientStatus', 'running')
+          .slice(0, 1)
+          .map(async (a) => {
+            await a.set('deploymentStatus', { Healthy: true, Canary: true });
+          })
+      );
+      await settled();
+      assert
+        .dom('.canary-promotion-alert')
+        .containsText('Checking Canary health');
+
+      // Fail one of the running canaries, but dont specifically touch its deploymentStatus.health
+      await Promise.all(
+        this.get('job.allocations')
+          .filterBy('clientStatus', 'running')
+          .slice(0, 1)
+          .map(async (a) => {
+            await a.set('clientStatus', 'failed');
+          })
+      );
+
+      assert
+        .dom('.canary-promotion-alert')
+        .containsText('Some Canaries have failed');
+
+      // Canaries all running and healthy
+      await Promise.all(
+        this.get('job.allocations')
+          .slice(0, 3)
+          .map(async (a) => {
+            await a.setProperties({
+              deploymentStatus: { Healthy: true, Canary: true },
+              clientStatus: 'running',
+            });
+          })
+      );
+
+      await settled();
+
+      assert
+        .dom('.canary-promotion-alert')
+        .containsText('Deployment requires promotion');
     });
 
     test('when there is no running deployment, the latest deployment section shows up for the last deployment', async function (assert) {
