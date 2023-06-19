@@ -2,6 +2,7 @@ name: Core CI Tests
 on:
   pull_request:
     paths-ignore:
+      - '.github/**'
       - 'README.md'
       - 'CHANGELOG.md'
       - '.changelog/**'
@@ -22,6 +23,7 @@ on:
       - main
       - release/**
     paths-ignore:
+      - '.github/**'
       - 'README.md'
       - 'CHANGELOG.md'
       - '.changelog/**'
