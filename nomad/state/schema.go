@@ -1096,7 +1096,7 @@ func csiPluginTableSchema() *memdb.TableSchema {
 	}
 }
 
-// StringFieldIndex is used to extract a field from an object
+// ScalingPolicyTargetFieldIndex is used to extract a field from an object
 // using reflection and builds an index on that field.
 type ScalingPolicyTargetFieldIndex struct {
 	Field string
@@ -1251,16 +1251,6 @@ func scalingEventTableSchema() *memdb.TableSchema {
 					},
 				},
 			},
-
-			// TODO: need to figure out whether we want to index these or the jobs or ...
-			// "error": {
-			// 	Name:         "error",
-			// 	AllowMissing: false,
-			// 	Unique:       false,
-			// 	Indexer: &memdb.FieldSetIndex{
-			// 		Field: "Error",
-			// 	},
-			// },
 		},
 	}
 }
