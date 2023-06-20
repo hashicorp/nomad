@@ -13,6 +13,11 @@
         <div class="pull-right">
           {{#if @job.latestDeployment.isRunning}}
             <TwoStepButton
+              {{keyboard-shortcut
+                label="Fail Deployment"
+                pattern=(array "f" "a" "i" "l")
+                action=(perform this.fail)
+              }}
               data-test-fail
               @classes={{hash
                 idleButton="is-danger"
@@ -37,7 +42,12 @@
             <Hds::Alert @type="inline" @color="warning" as |A|>
               <A.Title>Deployment requires promotion</A.Title>
               <A.Description>Your deployment requires manual promotion — all canary allocations have passed their health checks.</A.Description>
-              <A.Button data-test-promote-canary @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
+              <A.Button
+                {{keyboard-shortcut
+                  pattern=(array "p" "r" "o" "m" "o" "t" "e")
+                  action=(action (perform this.promote))
+                }}
+                data-test-promote-canary @text="Promote Canary" @color="primary" {{on "click" (perform this.promote)}} />
             </Hds::Alert>
           {{else}}
             {{#if this.someCanariesHaveFailed}}
