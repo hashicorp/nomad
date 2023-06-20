@@ -162,7 +162,7 @@ func (s *SystemScheduler) process() (bool, error) {
 		// which values to use.
 		pool, err := s.state.NodePoolByName(ws, s.job.NodePool)
 		if err != nil {
-			return false, fmt.Errorf("failed to get job node pool '%s': %v", s.job.NodePool, err)
+			return false, fmt.Errorf("failed to get job node pool %q: %v", s.job.NodePool, err)
 		}
 		_, schedConfig, err := s.state.SchedulerConfig()
 		if err != nil {

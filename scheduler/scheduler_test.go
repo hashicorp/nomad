@@ -42,7 +42,9 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 		memoryOversubscriptionEnabled bool
 
 		expectedTaskMemoryMax int
-		// expectedTotalMemoryMax should be SUM(MAX(memory, memoryMax)) for all tasks
+		// expectedTotalMemoryMax should be SUM(MAX(memory, memoryMax)) for all
+		// tasks if memory oversubscription is enabled and SUM(memory) if it's
+		// disabled.
 		expectedTotalMemoryMax int
 	}{
 		{
