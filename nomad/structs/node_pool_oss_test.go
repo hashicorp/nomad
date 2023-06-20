@@ -1,5 +1,5 @@
-// copyright (c) hashicorp, inc.
-// spdx-license-identifier: mpl-2.0
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
 
 //go:build !ent
 // +build !ent
