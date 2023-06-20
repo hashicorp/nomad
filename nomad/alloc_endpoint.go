@@ -196,7 +196,11 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	return a.srv.blockingRPC(&opts)
 }
 
-// GetAllocs is used to lookup a set of allocations
+// GetAllocs is used to lookup a set of allocations. Only called by Nodes. If
+// Node A has Alloc B, and Node C has Alloc D, Node A will still retrieve Alloc
+// D if Alloc B references it as a PreviousAllocation.
+//
+// This is an internal-only RPC and not exposed via the HTTP API.
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
@@ -214,7 +218,9 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
+
+	now := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, now)
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
@@ -256,6 +262,38 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 			if thresholdMet {
 				reply.Allocs = allocs
 				reply.Index = maxIndex
+
+				// Generate alternate identities
+				for _, alloc := range reply.Allocs {
+					if alloc.Job == nil {
+						continue
+					}
+
+					tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+					if tg == nil {
+						continue
+					}
+
+					for _, task := range tg.Tasks {
+						for _, ident := range task.Identities {
+							claims := alloc.ToTaskIdentityClaims(alloc.Job, task.Name, ident.Name, now)
+							token, _, err := a.srv.encrypter.SignClaims(claims)
+							if err != nil {
+								a.logger.Warn("failed to sign workload identity",
+									"error", err, "job", alloc.Job.ID, "task", task.Name, "identity", ident.Name)
+								continue
+							}
+							reply.SignedIdentities = append(reply.SignedIdentities, structs.SignedWorkloadIdentity{
+								WorkloadIdentityRequest: structs.WorkloadIdentityRequest{
+									AllocID:      alloc.ID,
+									TaskName:     task.Name,
+									IdentityName: ident.Name,
+								},
+								JWT: token,
+							})
+						}
+					}
+				}
 			} else {
 				// Use the last index that affected the allocs table
 				index, err := state.Index("allocs")
@@ -341,6 +379,7 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 			}
 
 			// Threshold met, so create the response
+			now := time.Now().UTC()
 			maxIndex := uint64(0)
 			for _, idReq := range args.Identities {
 				out, err := state.AllocByID(ws, idReq.AllocID)
@@ -381,7 +420,8 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 				}
 
 				//TODO(schmichael) do we need backward compat code for Task.Identity
-				//when IdentityName=="default"?
+				//when IdentityName=="default"? I don't think so since this RPC will
+				//only be called by 1.6 clients
 
 				widFound := false
 				for _, wid := range task.Identities {
@@ -390,7 +430,16 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 					}
 
 					widFound = true
-					//TODO(schmichael) append signed identity to reply.SignedIdentities here
+					claims := out.ToTaskIdentityClaims(out.Job, idReq.TaskName, idReq.IdentityName, now)
+					token, _, err := a.srv.encrypter.SignClaims(claims)
+					if err != nil {
+						return err
+					}
+					reply.SignedIdentities = append(reply.SignedIdentities, structs.SignedWorkloadIdentity{
+						WorkloadIdentityRequest: idReq,
+						JWT:                     token,
+					})
+					break
 				}
 
 				if !widFound {
@@ -398,6 +447,7 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 						WorkloadIdentityRequest: idReq,
 						Reason:                  structs.WIRejectionReasonMissingIdentity,
 					})
+					continue
 				}
 
 				if maxIndex < out.ModifyIndex {

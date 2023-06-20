@@ -543,6 +543,16 @@ func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
 	return ai.ACLToken.IsExpired(now)
 }
 
+// GetClientID returns the Node.ID or an empty string if the identity is nil or
+// not an authenticated client RPC.
+func (ai *AuthenticatedIdentity) GetClientID() string {
+	if ai == nil {
+		return ""
+	}
+
+	return ai.ClientID
+}
+
 type RequestWithIdentity interface {
 	GetAuthToken() string
 	SetIdentity(identity *AuthenticatedIdentity)
@@ -1680,9 +1690,14 @@ type SingleAllocResponse struct {
 	QueryMeta
 }
 
-// AllocsGetResponse is used to return a set of allocations
+// AllocsGetResponse is used to return a set of allocations and their workload
+// identities.
 type AllocsGetResponse struct {
 	Allocs []*Allocation
+
+	// SignedIdentities are the alternate workload identities for the Allocs.
+	SignedIdentities []SignedWorkloadIdentity
+
 	QueryMeta
 }
 
@@ -7486,11 +7501,13 @@ type Task struct {
 	CSIPluginConfig *TaskCSIPluginConfig
 
 	// Identity is the default Nomad Workload Identity and will be added to
-	// Identities with the name "default"
+	// Identities with the name "default".
 	//
 	// Deprecated: Use Identities instead
 	Identity *WorkloadIdentity
 
+	// Identities are the alternate workload identities for use with 3rd party
+	// endpoints.
 	Identities []*WorkloadIdentity
 }
 
@@ -11124,10 +11141,11 @@ func (a *Allocation) ToIdentityClaims(job *Job, now time.Time) *IdentityClaims {
 	return claims
 }
 
-func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string, now time.Time) *IdentityClaims {
+func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName, idName string, now time.Time) *IdentityClaims {
 	claims := a.ToIdentityClaims(job, now)
 	if claims != nil {
 		claims.TaskName = taskName
+		claims.SetSubject(job, a.TaskGroup, taskName, idName)
 	}
 	return claims
 }
@@ -11141,6 +11159,18 @@ type IdentityClaims struct {
 	TaskName     string `json:"nomad_task"`
 
 	jwt.RegisteredClaims
+}
+
+// SetSubject creates the standard subject claim for workload identities.
+func (claims *IdentityClaims) SetSubject(job *Job, group, task, id string) {
+	claims.Subject = strings.Join([]string{
+		job.Region,
+		job.Namespace,
+		job.ID,
+		group,
+		task,
+		id,
+	}, ":")
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),

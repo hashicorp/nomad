@@ -2387,6 +2387,11 @@ OUTER:
 				}
 			}
 
+			//TODO(schmichael) remove
+			for _, id := range allocsResp.SignedIdentities {
+				c.logger.Info("SIGNED WID ===>", "alloc", id.AllocID[0:4], "task", id.TaskName, "id", id.IdentityName, "jwt", id.JWT[0:10])
+			}
+
 			// Ensure that we received all the allocations we wanted
 			pulledAllocs = make(map[string]*structs.Allocation, len(allocsResp.Allocs))
 			for _, alloc := range allocsResp.Allocs {
