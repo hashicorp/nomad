@@ -254,4 +254,48 @@ export default class JobStatusPanelDeployingComponent extends Component {
   get deploymentIsAutoPromoted() {
     return this.job.latestDeployment?.get('isAutoPromoted');
   }
+
+  get oldVersions() {
+    const oldVersions = Object.values(this.oldRunningHealthyAllocBlocks)
+      .map((a) => (!isNaN(a?.jobVersion) ? a.jobVersion : 'unknown')) // "starting" allocs, GC'd allocs, etc. do not have a jobVersion
+      .sort((a, b) => a - b)
+      .reduce((result, item) => {
+        const existingVersion = result.find((v) => v.version === item);
+        if (existingVersion) {
+          existingVersion.allocations.push(item);
+        } else {
+          result.push({ version: item, allocations: [item] });
+        }
+        return result;
+      }, []);
+
+    return oldVersions;
+  }
+
+  get newVersions() {
+    // Note: it's probably safe to assume all new allocs have the latest job version, but
+    // let's map just in case there's ever a situation with multiple job versions going out
+    // in a deployment for some reason
+    const newVersions = Object.values(this.newVersionAllocBlocks)
+      .flatMap((allocType) => Object.values(allocType))
+      .flatMap((allocHealth) => Object.values(allocHealth))
+      .flatMap((allocCanary) => Object.values(allocCanary))
+      .filter((a) => a.jobVersion && a.jobVersion !== 'unknown')
+      .map((a) => a.jobVersion)
+      .sort((a, b) => a - b)
+      .reduce((result, item) => {
+        const existingVersion = result.find((v) => v.version === item);
+        if (existingVersion) {
+          existingVersion.allocations.push(item);
+        } else {
+          result.push({ version: item, allocations: [item] });
+        }
+        return result;
+      }, []);
+    return newVersions;
+  }
+
+  get versions() {
+    return [...this.oldVersions, ...this.newVersions];
+  }
 }

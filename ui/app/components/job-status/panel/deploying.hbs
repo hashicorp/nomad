@@ -84,7 +84,11 @@
 
         {{/if}}
 
-        <h4 class="title is-5" data-test-new-allocation-tally>New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</h4>
+        <h4 class="title is-5" data-test-new-allocation-tally>New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy
+          <LinkTo data-version={{@job.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' @job.version ']')}}>
+            <Hds::Badge @text={{concat "v" @job.version}} />
+          </LinkTo>
+        </h4>
         <div class="new-allocations">
           <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
         </div>
@@ -140,6 +144,25 @@
           @job={{@job}}
           @supportsRescheduling={{true}}
         />
+
+        <section class="versions">
+          <h4>Versions</h4>
+          <ul>
+            {{#each this.versions as |versionObj|}}
+              <li>
+                <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
+                  {{#if (eq versionObj.version "unknown")}}
+                    <Hds::Badge @text="unknown" />
+                  {{else}}
+                    <Hds::Badge @text={{concat "v" versionObj.version}} />
+                  {{/if}}
+                  <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
+                </LinkTo>
+              </li>
+            {{/each}}
+          </ul>
+        </section>
+
 
       </div>
 
