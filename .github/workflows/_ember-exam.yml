@@ -1,0 +1,27 @@
+name: Ember Exam
+
+on:
+  workflow_call:
+    inputs:
+      partition:
+        required: true
+        type: number
+      split:
+        required: true
+        type: number
+
+jobs:
+  exam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: yarn install
+        run: cd ui && yarn install --frozen-lockfile
+      - name: Ember tests
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        run: mkdir -p /tmp/test-reports && cd ui && yarn exam:parallel -- --split=${{ inputs.split }} --partition=${{ inputs.partition }}
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          path: "/tmp/test-reports"
