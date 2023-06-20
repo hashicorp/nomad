@@ -247,6 +247,9 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	// Create the logger based on the allocation ID
 	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
 
+	//TODO(schmichael) fixme
+	ar.UpdateIdentities(config.WorkloadIdentities)
+
 	// Create alloc broadcaster
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
@@ -979,6 +982,12 @@ func (ar *allocRunner) handleAllocUpdate(update *structs.Allocation) {
 		ar.killTasks()
 	}
 
+}
+
+func (ar *allocRunner) UpdateIdentities(idents []structs.SignedWorkloadIdentity) {
+	for _, id := range idents {
+		ar.logger.Info("SIGNED WID ===>", "alloc", id.AllocID[0:4], "task", id.TaskName, "id", id.IdentityName, "jwt", id.JWT[0:10])
+	}
 }
 
 func (ar *allocRunner) Listener() *cstructs.AllocListener {

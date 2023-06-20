@@ -21,6 +21,7 @@ type AllocRunner interface {
 	Restore() error
 	Update(*structs.Allocation)
 	Reconnect(update *structs.Allocation) error
+	UpdateIdentities([]structs.SignedWorkloadIdentity)
 	Shutdown()
 	Destroy()
 

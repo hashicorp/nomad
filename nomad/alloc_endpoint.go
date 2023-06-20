@@ -269,6 +269,14 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 						continue
 					}
 
+					//TODO(schmichael) Never generate identities for client terminal
+					//allocs, but should we generate them for server terminal allocs? If
+					//we choose *not* to the expiration must exceed the kill_timeout to
+					//support workloads which are slow to shutdown.
+					if alloc.ClientTerminalStatus() {
+						continue
+					}
+
 					tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 					if tg == nil {
 						continue
