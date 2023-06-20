@@ -9,6 +9,9 @@ on:
       split:
         required: true
         type: number
+    secrets:
+      PERCY_TOKEN:
+        required: true
 
 jobs:
   exam:

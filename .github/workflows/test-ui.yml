@@ -58,6 +58,7 @@ jobs:
     with:
       partition: ${{ matrix.partition }}
       split: ${{ matrix.split }}
+    secrets: inherit
   finalize:
     runs-on: ubuntu-latest
     timeout-minutes: 30
