@@ -746,7 +746,11 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, portsInOffer []int, minDynamicPo
 			return nil, fmt.Errorf("stochastic dynamic port selection failed")
 		}
 
-		randPort := minDynamicPort + rand.Intn(maxDynamicPort-minDynamicPort)
+		randPort := minDynamicPort
+		if maxDynamicPort-minDynamicPort > 0 {
+			randPort = randPort + rand.Intn(maxDynamicPort-minDynamicPort)
+		}
+
 		if nodeUsed != nil && nodeUsed.Check(uint(randPort)) {
 			goto PICK
 		}
