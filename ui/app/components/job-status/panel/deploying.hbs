@@ -3,34 +3,29 @@
   SPDX-License-Identifier: MPL-2.0
 ~}}
 
-<div class="job-status-panel boxed-section active-deployment is-info" data-test-job-status-panel>
-  <div class="boxed-section-head">
+<div class="job-status-panel boxed-section active-deployment" data-test-job-status-panel>
+  <div class="boxed-section-head hds-foreground-primary">
     <div class="boxed-section-row"
       {{did-insert (action this.establishOldAllocBlockIDs)}}
       >
-        Deployment Status
-        <span class="badge is-white bumper-left" data-test-active-deployment-stat="id">{{@job.latestDeployment.shortId}}</span>
+        <h2>Status:
+          <Hds::Badge @text="Deploying {{@job.latestDeployment.shortId}}" @color="highlight" @type="outlined" @size="small" />
+        </h2>
+        {{!-- <span class="badge is-white bumper-left" data-test-active-deployment-stat="id">{{@job.latestDeployment.shortId}}</span> --}}
         <div class="pull-right">
           {{#if @job.latestDeployment.isRunning}}
-            <TwoStepButton
+            <Hds::Button
+              data-test-fail
+              {{on "click" (perform this.fail)}}
+              disabled={{this.fail.isRunning}}
+              @color="critical"
+              @text="Fail Deployment"
               {{keyboard-shortcut
                 label="Fail Deployment"
                 pattern=(array "f" "a" "i" "l")
                 action=(perform this.fail)
               }}
-              data-test-fail
-              @classes={{hash
-                idleButton="is-danger"
-                confirmationMessage="inherit-color"
-                confirmButton="is-danger"}}
-              @idleText="Fail Deployment"
-              @cancelText="Cancel"
-              @confirmText="Yes, Fail Deployment"
-              @confirmationMessage="Are you sure?"
-              @inlineText={{true}}
-              @awaitingConfirmation={{this.fail.isRunning}}
-              @disabled={{this.fail.isRunning}}
-              @onConfirm={{perform this.fail}} />
+            />
           {{/if}}
         </div>
       </div>
