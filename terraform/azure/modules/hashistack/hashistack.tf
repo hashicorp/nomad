@@ -96,11 +96,11 @@ resource "azurerm_network_security_rule" "hashistack-sgr-8500" {
 }
 
 resource "azurerm_public_ip" "hashistack-server-public-ip" {
-  count                        = "${var.server_count}"
-  name                         = "hashistack-server-ip-${count.index}"
-  location                     = "${var.location}"
-  resource_group_name          = "${azurerm_resource_group.hashistack.name}"
-  allocation_method            = "Static"
+  count               = "${var.server_count}"
+  name                = "hashistack-server-ip-${count.index}"
+  location            = "${var.location}"
+  resource_group_name = "${azurerm_resource_group.hashistack.name}"
+  allocation_method   = "Static"
 }
 
 resource "azurerm_network_interface" "hashistack-server-ni" {
@@ -173,11 +173,11 @@ data "template_file" "user_data_server" {
 }
 
 resource "azurerm_public_ip" "hashistack-client-public-ip" {
-  count                        = "${var.client_count}"
-  name                         = "hashistack-client-ip-${count.index}"
-  location                     = "${var.location}"
-  resource_group_name          = "${azurerm_resource_group.hashistack.name}"
-  allocation_method            = "Static"
+  count               = "${var.client_count}"
+  name                = "hashistack-client-ip-${count.index}"
+  location            = "${var.location}"
+  resource_group_name = "${azurerm_resource_group.hashistack.name}"
+  allocation_method   = "Static"
 }
 
 resource "azurerm_network_interface" "hashistack-client-ni" {
