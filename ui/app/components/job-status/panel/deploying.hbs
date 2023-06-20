@@ -9,7 +9,7 @@
       {{did-insert (action this.establishOldAllocBlockIDs)}}
       >
         <h2>Status:
-          <Hds::Badge @text="Deploying {{@job.latestDeployment.shortId}}" @color="highlight" @type="outlined" @size="small" />
+          <Hds::Badge @text="Deploying {{@job.latestDeployment.shortId}}" @color="highlight" @type="filled" />
         </h2>
         <div class="pull-right">
           {{#if @job.latestDeployment.isRunning}}
@@ -50,7 +50,7 @@
                 <A.Description>Your canary allocations have failed their health checks. Please have a look at the error logs and task events for the allocations in question.</A.Description>
               </Hds::Alert>
             {{else}}
-              <Hds::Alert @type="inline" @color="highlight" as |A|>
+              <Hds::Alert @type="inline" @color="neutral" as |A|>
                 <A.Title>Checking Canary health</A.Title>
                 {{#if this.deploymentIsAutoPromoted}}
                   <A.Description>Your canary allocations are being placed and health-checked. If they pass, they will be automatically promoted and your deployment will continue.</A.Description>
