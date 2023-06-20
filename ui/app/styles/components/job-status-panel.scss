@@ -33,6 +33,12 @@
   &.active-deployment {
     & > .boxed-section-head {
       background: var(--token-color-surface-highlight);
+
+      h2 .hds-badge {
+        background-color: var(--token-color-border-highlight);
+        border-color: var(--token-color-border-highlight);
+        color: var(--token-color-foreground-highlight-high-contrast);
+      }
     }
     & > .boxed-section-head,
     & > .boxed-section-body,
