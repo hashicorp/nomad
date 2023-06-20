@@ -319,6 +319,26 @@ func MultiregionJob() *structs.Job {
 	return job
 }
 
+func MultiregionMinJob() *structs.Job {
+	job := MinJob()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
+	job.Multiregion = &structs.Multiregion{
+		Regions: []*structs.MultiregionRegion{
+			{
+				Name:  "west",
+				Count: 1,
+			},
+			{
+				Name:  "east",
+				Count: 1,
+			},
+		},
+	}
+	return job
+}
+
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
