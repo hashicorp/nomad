@@ -45,6 +45,7 @@ module('Acceptance | topology', function (hooks) {
 
   test('by default the info panel shows cluster aggregate stats', async function (assert) {
     faker.seed(1);
+    server.create('node-pool', { name: 'all' });
     server.createList('node', 3);
     server.createList('allocation', 5);
 
@@ -67,6 +68,15 @@ module('Acceptance | topology', function (hooks) {
     assert.equal(
       Topology.clusterInfoPanel.allocCount,
       `${scheduledAllocs.length} Allocations`
+    );
+
+    // Node pool count ignores 'all'.
+    const nodePools = server.schema.nodePools
+      .all()
+      .models.filter((p) => p.name !== 'all');
+    assert.equal(
+      Topology.clusterInfoPanel.nodePoolCount,
+      `${nodePools.length} Node Pools`
     );
 
     const nodeResources = server.schema.nodes

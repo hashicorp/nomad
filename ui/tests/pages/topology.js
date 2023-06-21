@@ -37,6 +37,7 @@ export default create({
     scope: '[data-test-info-panel]',
     nodeCount: text('[data-test-node-count]'),
     allocCount: text('[data-test-alloc-count]'),
+    nodePoolCount: text('[data-test-node-pool-count]'),
 
     memoryProgressValue: attribute('value', '[data-test-memory-progress-bar]'),
     memoryAbsoluteValue: text('[data-test-memory-absolute-value]'),
