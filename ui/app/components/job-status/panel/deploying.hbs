@@ -65,7 +65,28 @@
 
       <div class="deployment-allocations">
         {{#if this.oldVersionAllocBlockIDs.length}}
-          <h4 class="title is-5" data-test-old-allocation-tally>Previous allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}</h4>
+          <h4 class="title is-5 previous-allocations-heading" data-test-old-allocation-tally>
+            <span>
+              Previous allocations: {{#if this.oldVersionAllocBlocks.running}}{{this.oldRunningHealthyAllocBlocks.length}} running{{/if}}
+            </span>
+
+            <section class="versions">
+              <ul>
+                {{#each this.oldVersions as |versionObj|}}
+                  <li>
+                    <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
+                      {{#if (eq versionObj.version "unknown")}}
+                        <Hds::Badge @text="unknown" />
+                      {{else}}
+                        <Hds::Badge @text={{concat "v" versionObj.version}} />
+                      {{/if}}
+                      <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
+                    </LinkTo>
+                  </li>
+                {{/each}}
+              </ul>
+            </section>
+          </h4>
           <div class="previous-allocations">
             <JobStatus::AllocationStatusRow @allocBlocks={{this.oldVersionAllocBlocks}} @steady={{true}} />
           </div>
@@ -144,25 +165,6 @@
           @job={{@job}}
           @supportsRescheduling={{true}}
         />
-
-        <section class="versions">
-          <h4>Versions</h4>
-          <ul>
-            {{#each this.versions as |versionObj|}}
-              <li>
-                <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
-                  {{#if (eq versionObj.version "unknown")}}
-                    <Hds::Badge @text="unknown" />
-                  {{else}}
-                    <Hds::Badge @text={{concat "v" versionObj.version}} />
-                  {{/if}}
-                  <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
-                </LinkTo>
-              </li>
-            {{/each}}
-          </ul>
-        </section>
-
 
       </div>
 
