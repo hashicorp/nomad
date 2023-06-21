@@ -36,23 +36,64 @@ on:
       - 'website/**'
 
 jobs:
-  test-ui:
+  pre-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ui
+    outputs:
+      nonce: ${{ steps.nonce.outputs.nonce }}
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: yarn install
-        run: cd ui && yarn install --frozen-lockfile
+        run: yarn install --frozen-lockfile
       - name: lint:js
-        run: cd ui && yarn run lint:js
+        run: yarn run lint:js
       - name: lint:hbs
-        run: cd ui && yarn run lint:hbs
-      - name: Ember tests
+        run: yarn run lint:hbs
+      - id: nonce
+        name: nonce
+        run: echo "nonce=${{ github.run_id }}-$(date +%s)" >> "$GITHUB_OUTPUT"
+
+  tests:
+    needs:
+      - pre-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ui
+    strategy:
+      matrix:
+        partition: [1, 2, 3, 4]
+        split: [4]
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: yarn install
+        run: yarn install --frozen-lockfile
+      - name: ember exam
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
-        run: mkdir -p /tmp/test-reports && cd ui && yarn exam
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
-        with:
-          path: "/tmp/test-reports"
+          PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+        run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ui
+    needs:
+      - pre-test
+      - tests
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: yarn install
+        run: yarn install --frozen-lockfile
+      - name: finalize
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+        run: yarn percy build:finalize
 permissions:
   contents: read
