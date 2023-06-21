@@ -19,4 +19,9 @@ export default class NodePool extends Model {
   get schedulerAlgorithm() {
     return this.get('schedulerConfiguration.SchedulerAlgorithm');
   }
+
+  @computed('schedulerConfiguration.MemoryOversubscriptionEnabled')
+  get memoryOversubscriptionEnabled() {
+    return this.get('schedulerConfiguration.MemoryOversubscriptionEnabled');
+  }
 }
