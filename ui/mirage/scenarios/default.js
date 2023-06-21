@@ -437,6 +437,7 @@ function servicesTestCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
   server.createList('node', 5);
   server.createList('job', 1, { createRecommendations: true });
   server.create('job', {
