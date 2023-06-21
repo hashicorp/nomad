@@ -361,6 +361,7 @@ function variableTestCluster(server) {
   createTokens(server);
   createNamespaces(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
   server.createList('node', 5);
   server.createList('job', 3);
   server.createList('variable', 3);

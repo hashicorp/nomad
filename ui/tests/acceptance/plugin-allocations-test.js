@@ -19,6 +19,7 @@ module('Acceptance | plugin allocations', function (hooks) {
   let plugin;
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     server.create('node');
     window.localStorage.clear();
   });
