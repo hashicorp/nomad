@@ -171,7 +171,9 @@ export default class IndexController extends Controller.extend(
 
   @computed('selectionNodePools', 'model.nodePools.[]')
   get optionsNodePools() {
-    const availableNodePools = this.model.nodePools;
+    const availableNodePools = this.model.nodePools.filter(
+      (p) => p.name !== 'all'
+    );
 
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
