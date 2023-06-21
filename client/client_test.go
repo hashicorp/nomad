@@ -280,6 +280,9 @@ func TestClient_MixedTLS(t *testing.T) {
 	})
 	defer cleanup()
 
+	// tell the client we've registered to unblock the RPC we test below
+	c1.registeredOnce.Do(func() { close(c1.registeredCh) })
+
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -288,7 +291,7 @@ func TestClient_MixedTLS(t *testing.T) {
 	testutil.AssertUntil(100*time.Millisecond,
 		func() (bool, error) {
 			err := c1.RPC("Node.GetNode", &req, &out)
-			if err == nil {
+			if err == nil || structs.IsErrPermissionDenied(err) {
 				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", out)
 			}
 			return true, nil
@@ -339,6 +342,9 @@ func TestClient_BadTLS(t *testing.T) {
 	})
 	defer cleanupC1()
 
+	// tell the client we've registered to unblock the RPC we test below
+	c1.registeredOnce.Do(func() { close(c1.registeredCh) })
+
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
@@ -347,7 +353,7 @@ func TestClient_BadTLS(t *testing.T) {
 	testutil.AssertUntil(100*time.Millisecond,
 		func() (bool, error) {
 			err := c1.RPC("Node.GetNode", &req, &out)
-			if err == nil {
+			if err == nil || structs.IsErrPermissionDenied(err) {
 				return false, fmt.Errorf("client RPC succeeded when it should have failed:\n%+v", out)
 			}
 			return true, nil
@@ -1276,6 +1282,9 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	})
 	defer cleanup()
 
+	// tell the client we've registered to unblock the RPC we test below
+	c1.registeredOnce.Do(func() { close(c1.registeredCh) })
+
 	// assert that when one node is running in encrypted mode, a RPC request to a
 	// node running in plaintext mode should fail
 	{
@@ -1286,7 +1295,7 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 		testutil.WaitForResult(func() (bool, error) {
 			var out structs.SingleNodeResponse
 			err := c1.RPC("Node.GetNode", &req, &out)
-			if err == nil {
+			if err == nil || structs.IsErrPermissionDenied(err) {
 				return false, fmt.Errorf("client RPC succeeded when it should have failed :\n%+v", err)
 			}
 			return true, nil

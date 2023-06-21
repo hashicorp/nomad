@@ -460,7 +460,6 @@ func resolveServer(s string) (net.Addr, error) {
 // Ping is used to ping a particular server and returns whether it is healthy or
 // a potential error.
 func (c *Client) Ping(srv net.Addr) error {
-	c.logger.Error("Ping!!!!")
 	pingRequest := &structs.GenericRequest{
 		QueryOptions: structs.QueryOptions{
 			AuthToken: c.GetConfig().Node.SecretID,
