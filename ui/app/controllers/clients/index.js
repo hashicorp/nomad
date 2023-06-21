@@ -85,7 +85,7 @@ export default class IndexController extends Controller.extend(
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpVersion') selectionVersion;
   @selection('qpVolume') selectionVolume;
-  @selection('qpNodePool') selectionNodePools;
+  @selection('qpNodePool') selectionNodePool;
 
   @computed('nodes.[]', 'selectionClass')
   get optionsClass() {
@@ -169,8 +169,8 @@ export default class IndexController extends Controller.extend(
     return volumes.sort().map((volume) => ({ key: volume, label: volume }));
   }
 
-  @computed('selectionNodePools', 'model.nodePools.[]')
-  get optionsNodePools() {
+  @computed('selectionNodePool', 'model.nodePools.[]')
+  get optionsNodePool() {
     const availableNodePools = this.model.nodePools.filter(
       (p) => p.name !== 'all'
     );
@@ -182,7 +182,7 @@ export default class IndexController extends Controller.extend(
         serialize(
           intersection(
             availableNodePools.map(({ name }) => name),
-            this.selectionNodePools
+            this.selectionNodePool
           )
         )
       );
@@ -199,7 +199,7 @@ export default class IndexController extends Controller.extend(
     'selectionClass',
     'selectionState',
     'selectionDatacenter',
-    'selectionNodePools',
+    'selectionNodePool',
     'selectionVersion',
     'selectionVolume'
   )
@@ -208,7 +208,7 @@ export default class IndexController extends Controller.extend(
       selectionClass: classes,
       selectionState: states,
       selectionDatacenter: datacenters,
-      selectionNodePools: nodePools,
+      selectionNodePool: nodePools,
       selectionVersion: versions,
       selectionVolume: volumes,
     } = this;

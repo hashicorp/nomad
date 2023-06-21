@@ -30,8 +30,8 @@
           <MultiSelectDropdown
             data-test-node-pool-facet
             @label="Node Pool"
-            @options={{this.optionsNodePools}}
-            @selection={{this.selectionNodePools}}
+            @options={{this.optionsNodePool}}
+            @selection={{this.selectionNodePool}}
             @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
           />
           <MultiSelectDropdown
@@ -99,7 +99,7 @@
               data-test-client-node-row
               @node={{row.model}}
               @onClick={{action "gotoNode" row.model}}
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(action "gotoNode" row.model)
               }}

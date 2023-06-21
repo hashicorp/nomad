@@ -12,8 +12,6 @@ export default class NodePoolAdapter extends ApplicationAdapter {
   urlForFindAll(modelName) {
     let [relationshipResource, resource] = modelName.split('-');
     resource = pluralize(resource);
-    const baseUrl = `/v1/${relationshipResource}/${resource}`;
-
-    return baseUrl;
+    return `/v1/${relationshipResource}/${resource}`;
   }
 }

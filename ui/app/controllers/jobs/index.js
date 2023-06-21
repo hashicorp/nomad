@@ -90,7 +90,7 @@ export default class IndexController extends Controller.extend(
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
-  @selection('qpNodePool') selectionNodePools;
+  @selection('qpNodePool') selectionNodePool;
 
   @computed
   get optionsType() {
@@ -199,8 +199,8 @@ export default class IndexController extends Controller.extend(
     return availableNamespaces;
   }
 
-  @computed('selectionNodePools', 'model.nodePools.[]')
-  get optionsNodePools() {
+  @computed('selectionNodePool', 'model.nodePools.[]')
+  get optionsNodePool() {
     const availableNodePools = this.model.nodePools;
 
     scheduleOnce('actions', () => {
@@ -210,7 +210,7 @@ export default class IndexController extends Controller.extend(
         serialize(
           intersection(
             availableNodePools.map(({ name }) => name),
-            this.selectionNodePools
+            this.selectionNodePool
           )
         )
       );
@@ -240,7 +240,7 @@ export default class IndexController extends Controller.extend(
     'selectionType',
     'selectionStatus',
     'selectionDatacenter',
-    'selectionNodePools',
+    'selectionNodePool',
     'selectionPrefix'
   )
   get filteredJobs() {
@@ -249,7 +249,7 @@ export default class IndexController extends Controller.extend(
       selectionStatus: statuses,
       selectionDatacenter: datacenters,
       selectionPrefix: prefixes,
-      selectionNodePools: nodePools,
+      selectionNodePool: nodePools,
     } = this;
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet

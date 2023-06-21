@@ -61,8 +61,8 @@
         <MultiSelectDropdown
           data-test-node-pool-facet
           @label="Node Pool"
-          @options={{this.optionsNodePools}}
-          @selection={{this.selectionNodePools}}
+          @options={{this.optionsNodePool}}
+          @selection={{this.selectionNodePool}}
           @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
         />
         <MultiSelectDropdown
@@ -96,7 +96,7 @@
             @query={{hash namespace=this.qpNamespace}}
             data-test-run-job
             class="button is-primary"
-            {{keyboard-shortcut 
+            {{keyboard-shortcut
               label="Run Job"
               pattern=(array "r" "u" "n")
               action=(action this.goToRun)
