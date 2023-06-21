@@ -282,6 +282,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.createList('namespace', 2);
+    server.create('node-pool');
     server.create('node');
     job = server.create('job', {
       type: 'service',

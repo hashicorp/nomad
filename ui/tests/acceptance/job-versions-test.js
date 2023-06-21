@@ -23,6 +23,7 @@ module('Acceptance | job versions', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     server.create('namespace');
     namespace = server.create('namespace');
 
@@ -176,6 +177,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     job = server.create('job', { createAllocations: false });
     versions = server.db.jobVersions.where({ jobId: job.id });
 
