@@ -29,6 +29,7 @@ module('Acceptance | topology', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    server.createList('node-pool', 5);
     server.create('job', { createAllocations: false });
   });
 

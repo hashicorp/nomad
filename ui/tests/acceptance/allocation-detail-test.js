@@ -28,6 +28,7 @@ module('Acceptance | allocation detail', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('agent');
 
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', {
       groupsCount: 1,
@@ -479,6 +480,7 @@ module('Acceptance | allocation detail (rescheduled)', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('agent');
 
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'rescheduled');
@@ -501,6 +503,7 @@ module('Acceptance | allocation detail (not running)', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('agent');
 
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', { clientStatus: 'pending' });
@@ -531,6 +534,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
   });
@@ -669,6 +673,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('feature', { name: 'Dynamic Application Sizing' });
     server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+    server.createList('node-pool', 3);
     server.createList('node', 5);
     server.createList('job', 1, { createRecommendations: true });
     const job = server.create('job', {

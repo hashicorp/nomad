@@ -26,6 +26,7 @@ module('Acceptance | exec', function (hooks) {
     faker.seed(1);
 
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
 
     this.job = server.create('job', {
