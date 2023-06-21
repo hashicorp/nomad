@@ -36,8 +36,9 @@ export default create({
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),
     name: text('[data-test-job-name]'),
-    namespace: text('[data-test-job-namespace]'),
     link: attribute('href', '[data-test-job-name] a'),
+    namespace: text('[data-test-job-namespace]'),
+    nodePool: text('[data-test-job-node-pool]'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),
     priority: text('[data-test-job-priority]'),

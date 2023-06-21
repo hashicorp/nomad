@@ -108,13 +108,17 @@ export default create({
     scope: '[data-test-jobs-header]',
     hasSubmitTime: isPresent('[data-test-jobs-submit-time-header]'),
     hasNamespace: isPresent('[data-test-jobs-namespace-header]'),
+    hasNodePool: isPresent('[data-test-jobs-node-pool-header]'),
+    hasType: isPresent('[data-test-jobs-type-header]'),
+    hasPriority: isPresent('[data-test-jobs-priority-header]'),
   },
 
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),
     name: text('[data-test-job-name]'),
-    namespace: text('[data-test-job-namespace]'),
     link: attribute('href', '[data-test-job-name] a'),
+    namespace: text('[data-test-job-namespace]'),
+    nodePool: text('[data-test-job-node-pool]'),
     submitTime: text('[data-test-job-submit-time]'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),

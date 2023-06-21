@@ -104,6 +104,19 @@ export default function moduleForJob(
       }
     });
 
+    test('page header displays job information', async function (assert) {
+      assert.equal(JobDetail.statFor('type').text, `Type ${job.type}`);
+      assert.equal(
+        JobDetail.statFor('priority').text,
+        `Priority ${job.priority}`
+      );
+      assert.equal(JobDetail.statFor('version').text, `Version ${job.version}`);
+      assert.equal(
+        JobDetail.statFor('node-pool').text,
+        `Node Pool ${job.nodePool}`
+      );
+    });
+
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function (assert) {
         if (jobTypesWithStatusPanel.includes(job.type)) {
