@@ -12,7 +12,7 @@
 </td>
 <td data-test-client-id><LinkTo @route="clients.client" @model={{this.node.id}} class="is-primary">{{this.node.shortId}}</LinkTo></td>
 <td data-test-client-name class="is-200px is-truncatable" title="{{this.node.name}}">{{this.node.name}}</td>
-<td data-test-client-nodepool title="{{this.node.nodePool}}">{{this.node.nodePool}}</td>
+<td data-test-client-node-pool title="{{this.node.nodePool}}">{{this.node.nodePool}}</td>
 <td data-test-client-composite-status>
   <span class="tooltip" aria-label="{{this.node.status}} / {{if this.node.isDraining "draining" "not draining"}} / {{if this.node.isEligible "eligible" "not eligible"}}">
     <span class="{{this.compositeStatusClass}}">{{this.node.compositeStatus}}</span>
