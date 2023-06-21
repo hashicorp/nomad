@@ -100,7 +100,7 @@ jobs:
       - name: Setup node and yarn
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: "14"
+          node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
 
       - name: Install Yarn
@@ -151,7 +151,7 @@ jobs:
       - name: Setup node and yarn
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: "14"
+          node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
 
       - name: Install Yarn
@@ -256,7 +256,7 @@ jobs:
       - name: Setup node and yarn
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: "14"
+          node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
 
       - name: Install Yarn
