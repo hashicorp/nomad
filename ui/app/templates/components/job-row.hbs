@@ -4,7 +4,7 @@
 ~}}
 
 <td data-test-job-name
-  {{keyboard-shortcut 
+  {{keyboard-shortcut
     enumerated=true
     action=(action "gotoJob" @job)
   }}
@@ -25,10 +25,12 @@
 
   </LinkTo>
 </td>
-{{#if this.system.shouldShowNamespaces}}
-  <td data-test-job-namespace>
-    {{this.job.namespace.name}}
-  </td>
+{{#if (not (eq @context "child"))}}
+  {{#if this.system.shouldShowNamespaces}}
+    <td data-test-job-namespace>
+      {{this.job.namespace.name}}
+    </td>
+  {{/if}}
 {{/if}}
 {{#if (eq @context "child")}}
   <td data-test-job-submit-time>
@@ -40,12 +42,14 @@
     {{this.job.status}}
   </span>
 </td>
-<td data-test-job-type>
-  {{this.job.displayType.type}}
-</td>
-<td data-test-job-priority>
-  {{this.job.priority}}
-</td>
+{{#if (not (eq @context "child"))}}
+  <td data-test-job-type>
+    {{this.job.displayType.type}}
+  </td>
+  <td data-test-job-priority>
+    {{this.job.priority}}
+  </td>
+{{/if}}
 <td data-test-job-task-groups>
   {{#if this.job.taskGroupCount}}
     {{this.job.taskGroupCount}}

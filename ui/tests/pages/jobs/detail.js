@@ -108,6 +108,8 @@ export default create({
     scope: '[data-test-jobs-header]',
     hasSubmitTime: isPresent('[data-test-jobs-submit-time-header]'),
     hasNamespace: isPresent('[data-test-jobs-namespace-header]'),
+    hasType: isPresent('[data-test-jobs-type-header]'),
+    hasPriority: isPresent('[data-test-jobs-priority-header]'),
   },
 
   jobs: collection('[data-test-job-row]', {
