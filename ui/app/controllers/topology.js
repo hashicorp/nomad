@@ -44,6 +44,9 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     {
       qpDatacenter: 'dc',
     },
+    {
+      qpNodePool: 'nodePool',
+    },
   ];
 
   @tracked searchTerm = '';
@@ -51,6 +54,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   qpVersion = '';
   qpClass = '';
   qpDatacenter = '';
+  qpNodePool = '';
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
@@ -59,6 +63,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
   @selection('qpState') selectionState;
   @selection('qpClass') selectionClass;
   @selection('qpDatacenter') selectionDatacenter;
+  @selection('qpNodePool') selectionNodePool;
   @selection('qpVersion') selectionVersion;
 
   @computed
@@ -109,6 +114,29 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
     return datacenters.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
+  @computed('model.nodePools.[]', 'selectionNodePool')
+  get optionsNodePool() {
+    const availableNodePools = this.model.nodePools;
+
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set(
+        'qpNodePool',
+        serialize(
+          intersection(
+            availableNodePools.map(({ name }) => name),
+            this.selectionNodePool
+          )
+        )
+      );
+    });
+
+    return availableNodePools.sort().map((nodePool) => ({
+      key: nodePool.name,
+      label: nodePool.name,
+    }));
+  }
+
   @computed('model.nodes', 'nodes.[]', 'selectionVersion')
   get optionsVersion() {
     const versions = Array.from(
@@ -140,6 +168,7 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
         selectionVersion,
         selectionDatacenter,
         selectionClass,
+        selectionNodePool,
       } = this;
       return (
         (selectionState.length ? selectionState.includes(node.status) : true) &&
@@ -151,6 +180,9 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
           : true) &&
         (selectionClass.length
           ? selectionClass.includes(node.nodeClass)
+          : true) &&
+        (selectionNodePool.length
+          ? selectionNodePool.includes(node.nodePool)
           : true) &&
         (node.name.includes(searchTerm) ||
           node.datacenter.includes(searchTerm) ||
