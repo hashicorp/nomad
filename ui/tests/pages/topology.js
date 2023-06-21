@@ -26,6 +26,7 @@ export default create({
   viz: TopoViz('[data-test-topo-viz]'),
 
   facets: {
+    nodePool: multiFacet('[data-test-node-pool-facet]'),
     datacenter: multiFacet('[data-test-datacenter-facet]'),
     class: multiFacet('[data-test-class-facet]'),
     state: multiFacet('[data-test-state-facet]'),
