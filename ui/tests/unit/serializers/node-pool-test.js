@@ -107,6 +107,7 @@ module('Unit | Serializer | NodePool', function (hooks) {
       },
     ];
 
+    assert.expect(testCases.length);
     for (const tc of testCases) {
       const nodePool = this.store.createRecord('node-pool', tc.input);
       const got = this.subject().serialize(nodePool._createSnapshot());
