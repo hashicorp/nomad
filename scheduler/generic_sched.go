@@ -873,6 +873,11 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 
 	// Check if preemption is enabled, defaults to true
+	//
+	// The scheduler configuration is read directly from state but only
+	// values that can't be specified per node pool should be used. Other
+	// values must be merged by calling schedConfig.WithNodePool() and set in
+	// the stack by calling SetSchedulerConfiguration().
 	enablePreemption := true
 	if schedConfig != nil {
 		if s.job.Type == structs.JobTypeBatch {

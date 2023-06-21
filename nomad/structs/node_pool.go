@@ -181,6 +181,9 @@ func (n *NodePool) SetHash() []byte {
 
 // NodePoolSchedulerConfiguration is the scheduler confinguration applied to a
 // node pool.
+//
+// When adding new values that should override global scheduler configuration,
+// verify the scheduler handles the node pool configuration as well.
 type NodePoolSchedulerConfiguration struct {
 
 	// SchedulerAlgorithm is the scheduling algorithm to use for the pool.

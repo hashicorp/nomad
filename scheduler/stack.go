@@ -282,6 +282,11 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
+	//
+	// The scheduler configuration is read directly from state but only
+	// values that can't be specified per node pool should be used. Other
+	// values must be merged by calling schedConfig.WithNodePool() and set in
+	// the stack by calling SetSchedulerConfiguration().
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 	enablePreemption := true
 	if schedConfig != nil {
