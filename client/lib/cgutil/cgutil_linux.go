@@ -162,9 +162,11 @@ func MaybeDisableMemorySwappiness() *uint64 {
 		return zero
 	}
 
-	// cgroups v1 check if the root and swappiness interface exist
-	_, err := os.Stat("/sys/fs/cgroup/memory/memory.swappiness")
-	if os.IsNotExist(err) {
+	// cgroups v1 detect if swappiness is supported by attempting to write to
+	// the nomad parent cgroup swappiness interface
+	e := &editor{fromRoot: "memory/nomad"}
+	err := e.write("memory.swappiness", "0")
+	if err != nil {
 		return bypass
 	}
 
