@@ -22,6 +22,7 @@ module('Acceptance | task detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', {
@@ -337,6 +338,7 @@ module('Acceptance | task detail (no addresses)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.create('job');
     allocation = server.create('allocation', 'withoutTaskWithPorts', {
@@ -354,6 +356,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
@@ -412,6 +415,7 @@ module('Acceptance | task detail (not running)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
@@ -447,6 +451,7 @@ module('Acceptance | proxy task detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', {

@@ -46,6 +46,7 @@ module('Acceptance | client detail', function (hooks) {
   hooks.beforeEach(function () {
     window.localStorage.clear();
 
+    server.create('node-pool');
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 
@@ -1257,6 +1258,7 @@ module('Acceptance | client detail', function (hooks) {
       return Array.from(new Set(allocs.mapBy('jobId'))).sort();
     },
     async beforeEach() {
+      server.create('node-pool');
       server.createList('job', 5);
       await ClientDetail.visit({ id: node.id });
     },
@@ -1275,6 +1277,7 @@ module('Acceptance | client detail', function (hooks) {
       'Unknown',
     ],
     async beforeEach() {
+      server.create('node-pool');
       server.createList('job', 5, { createAllocations: false });
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
@@ -1306,6 +1309,7 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 

@@ -41,6 +41,7 @@ export default function moduleForJob(
     });
 
     hooks.beforeEach(async function () {
+      server.create('node-pool');
       server.create('node');
       job = jobFactory();
       if (!job.namespace || job.namespace === 'default') {
@@ -243,6 +244,7 @@ export function moduleForJobWithClientStatus(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
+      server.createList('node-pool', 3);
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',

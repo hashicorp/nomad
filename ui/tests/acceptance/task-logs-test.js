@@ -25,6 +25,7 @@ module('Acceptance | task logs', function (hooks) {
   hooks.beforeEach(async function () {
     faker.seed(1);
     server.create('agent');
+    server.create('node-pool');
     server.create('node', 'forceIPv4');
     job = server.create('job', { createAllocations: false });
 

@@ -248,6 +248,7 @@ module('Acceptance | keyboard', function (hooks) {
 
   module('Dynamic Nav', function (dynamicHooks) {
     dynamicHooks.beforeEach(async function () {
+      server.create('node-pool');
       server.create('node');
     });
     test('Dynamic Table Nav', async function (assert) {

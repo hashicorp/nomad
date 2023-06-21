@@ -40,6 +40,7 @@ module('Acceptance | optimize', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 
+    server.create('node-pool');
     server.create('node');
 
     server.createList('namespace', 2);
@@ -440,6 +441,7 @@ module('Acceptance | optimize search and facets', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 
+    server.create('node-pool');
     server.create('node');
 
     server.createList('namespace', 2);
