@@ -2,15 +2,15 @@
 layout: docs
 page_title: 'Drivers: wasmtime'
 description: >-
-  The Wasmtime task driver is used to run WASI(https://wasi.dev)-compliant binaries.
+  The Wasmtime task driver is used to run WASI-compliant binaries.
 ---
 
 # Wasmtime task Driver
 
 Name: `wasmtime`
 
-The Wasmtime task driver is used to run WASI-compliant binaries. For more detailed instructions,
-please refer to the repository (https://github.com/c16a/nomad-driver-wasmtime)
+The Wasmtime task driver is used to run [WASI](https://wasi.dev)-compliant binaries. For more detailed instructions,
+please refer to the [project repository](https://github.com/c16a/nomad-driver-wasmtime)
 
 ## Task Configuration
 
@@ -25,7 +25,7 @@ task "hello-world" {
 }
 ```
 
-The firecracker task driver supports the following parameters:
+The wasmtime task driver supports the following parameters:
 
 - `binary` - Path to the WASM binary
 

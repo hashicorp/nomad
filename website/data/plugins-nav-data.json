@@ -63,12 +63,12 @@
             "path": "drivers/community/nspawn"
           },
           {
-            "title": "Windows IIS",
-            "path": "drivers/community/iis"
-          },
-          {
             "title": "Wasmtime",
             "path": "drivers/community/wasmtime"
+          },
+          {
+            "title": "Windows IIS",
+            "path": "drivers/community/iis"
           }
         ]
       },
