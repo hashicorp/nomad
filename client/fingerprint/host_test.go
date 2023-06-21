@@ -4,6 +4,7 @@
 package fingerprint
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -35,8 +36,17 @@ func TestHostFingerprint(t *testing.T) {
 		t.Fatalf("should generate a diff of node attributes")
 	}
 
+	commonAttributes := []string{"os.name", "os.version", "unique.hostname", "kernel.name"}
+	nonWindowsAttributes := append(commonAttributes, "kernel.version")
+	windowsAttributes := append(commonAttributes, "os.build")
+
+	expectedAttributes := nonWindowsAttributes
+	if runtime.GOOS == "windows" {
+		expectedAttributes = windowsAttributes
+	}
+
 	// Host info
-	for _, key := range []string{"os.name", "os.version", "unique.hostname", "kernel.name"} {
+	for _, key := range expectedAttributes {
 		assertNodeAttributeContains(t, response.Attributes, key)
 	}
 }
