@@ -15,32 +15,106 @@ module('Unit | Serializer | NodePool', function (hooks) {
   });
 
   test('should serialize a NodePool', function (assert) {
-    const nodePool = this.store.createRecord('node-pool', {
-      name: 'prod-eng',
-      description: 'Production workloads',
-      meta: {
-        env: 'production',
-        team: 'engineering',
+    const testCases = [
+      {
+        name: 'full node pool',
+        input: {
+          name: 'prod-eng',
+          description: 'Production workloads',
+          meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          schedulerConfiguration: {
+            SchedulerAlgorithm: 'spread',
+            MemoryOversubscriptionEnabled: true,
+          },
+        },
+        expected: {
+          Name: 'prod-eng',
+          Description: 'Production workloads',
+          Meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          SchedulerConfiguration: {
+            SchedulerAlgorithm: 'spread',
+            MemoryOversubscriptionEnabled: true,
+          },
+        },
       },
-      schedulerConfiguration: {
-        SchedulerAlgorithm: 'spread',
+      {
+        name: 'node pool without scheduler configuration',
+        input: {
+          name: 'prod-eng',
+          description: 'Production workloads',
+          meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+        },
+        expected: {
+          Name: 'prod-eng',
+          Description: 'Production workloads',
+          Meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          SchedulerConfiguration: undefined,
+        },
       },
-    });
+      {
+        name: 'node pool with null scheduler configuration',
+        input: {
+          name: 'prod-eng',
+          description: 'Production workloads',
+          meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          schedulerConfiguration: null,
+        },
+        expected: {
+          Name: 'prod-eng',
+          Description: 'Production workloads',
+          Meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          SchedulerConfiguration: null,
+        },
+      },
+      {
+        name: 'node pool with empty scheduler configuration',
+        input: {
+          name: 'prod-eng',
+          description: 'Production workloads',
+          meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          schedulerConfiguration: {},
+        },
+        expected: {
+          Name: 'prod-eng',
+          Description: 'Production workloads',
+          Meta: {
+            env: 'production',
+            team: 'engineering',
+          },
+          SchedulerConfiguration: {},
+        },
+      },
+    ];
 
-    const serializedNodePool = this.subject().serialize(
-      nodePool._createSnapshot()
-    );
-
-    assert.deepEqual(serializedNodePool, {
-      Name: 'prod-eng',
-      Description: 'Production workloads',
-      Meta: {
-        env: 'production',
-        team: 'engineering',
-      },
-      SchedulerConfiguration: {
-        SchedulerAlgorithm: 'spread',
-      },
-    });
+    for (const tc of testCases) {
+      const nodePool = this.store.createRecord('node-pool', tc.input);
+      const got = this.subject().serialize(nodePool._createSnapshot());
+      assert.deepEqual(
+        got,
+        tc.expected,
+        `${tc.name} failed, got ${JSON.stringify(got)}`
+      );
+    }
   });
 });
