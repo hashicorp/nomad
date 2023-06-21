@@ -5,14 +5,32 @@
 
 <div data-test-topo-viz-datacenter class="boxed-section topo-viz-datacenter">
   <div data-test-topo-viz-datacenter-label class="boxed-section-head is-hollow">
-    <span class="tooltip" aria-label="Datacenter"><strong>{{@datacenter.name}}</strong></span>
-    <span class="bumper-left tooltip" aria-label="Number of Allocations">{{this.scheduledAllocations.length}} Allocs</span>
-    <span class="bumper-left tooltip" aria-label="Number of Nodes">{{@datacenter.nodes.length}} Nodes</span>
+    <Hds::TooltipButton @text="Datacenter" aria-label="Datacenter name">
+      <strong>{{@datacenter.name}}</strong>
+    </Hds::TooltipButton>
+    <span class="bumper-left">
+      <Hds::TooltipButton @text="Number of Allocations" aria-label="Number of allocations in datacenter {{@datacenter.name}}">
+        {{this.scheduledAllocations.length}} Allocs
+      </Hds::TooltipButton>
+    </span>
+    <span class="bumper-left">
+      <Hds::TooltipButton @text="Number of Nodes" aria-label="Number of nodes in datacenter {{@datacenter.name}}">
+        {{@datacenter.nodes.length}} Nodes
+      </Hds::TooltipButton>
+    </span>
     <span class="bumper-left is-faded">
-      <span class="tooltip" aria-label="Memory Allocated">{{format-bytes this.aggregatedAllocationResources.memory start="MiB"}}</span>/
-      <span class="tooltip" aria-label="Total Memory">{{format-bytes this.aggregatedNodeResources.memory start="MiB"}},</span>
-      <span class="tooltip" aria-label="CPU Allocated">{{format-hertz this.aggregatedAllocationResources.cpu}}/</span>
-      <span class="tooltip" aria-label="Total CPU">{{format-hertz this.aggregatedNodeResources.cpu}}</span>
+      <Hds::TooltipButton @text="Memory Allocated" aria-label="Sum of memory allocated in datacenter {{@datacenter.name}}">
+        {{format-bytes this.aggregatedAllocationResources.memory start="MiB"}}
+      </Hds::TooltipButton> /
+      <Hds::TooltipButton @text="Total Memory" aria-label="Sum of memory from all nodes in datacenter {{@datacenter.name}}">
+        {{format-bytes this.aggregatedNodeResources.memory start="MiB"}},
+      </Hds::TooltipButton>
+      <Hds::TooltipButton @text="CPU Allocated" aria-label="Sum of CPU allocated in datacenter {{@datacenter.name}}">
+        {{format-hertz this.aggregatedAllocationResources.cpu}} /
+      </Hds::TooltipButton>
+      <Hds::TooltipButton @text="Total CPU" aria-label="Sum of CPU from all nodes in datacenter {{@datacenter.name}}">
+        {{format-hertz this.aggregatedNodeResources.cpu}}
+      </Hds::TooltipButton>
     </span>
   </div>
   <div class="boxed-section-body">

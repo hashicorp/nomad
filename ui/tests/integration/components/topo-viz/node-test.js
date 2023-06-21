@@ -149,7 +149,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TopoVizNode.statusIcon.includes('icon-is-clock-outline'));
-    assert.equal(TopoVizNode.statusIconLabel, 'Client is draining');
+    assert.equal(TopoVizNode.statusIconLabel, 'Node Node One is draining');
   });
 
   test('the status icon indicates when the node is ineligible for scheduling', async function (assert) {
@@ -166,7 +166,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TopoVizNode.statusIcon.includes('icon-is-lock-closed'));
-    assert.equal(TopoVizNode.statusIconLabel, 'Client is ineligible');
+    assert.equal(TopoVizNode.statusIconLabel, 'Node Node One is ineligible');
   });
 
   test('when isDense is false, clicking the node does nothing', async function (assert) {
