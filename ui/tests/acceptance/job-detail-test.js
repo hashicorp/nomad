@@ -175,6 +175,7 @@ moduleForJob(
       job,
       assert
     ) {
+      assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
@@ -226,6 +227,7 @@ moduleForJob(
       job,
       assert
     ) {
+      assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },

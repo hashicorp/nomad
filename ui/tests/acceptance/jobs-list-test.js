@@ -71,6 +71,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
+    assert.equal(jobRow.nodePool, job.nodePool, 'Node Pool');
     assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
