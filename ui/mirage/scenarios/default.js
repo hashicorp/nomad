@@ -609,7 +609,7 @@ function allNodeTypes(server) {
 
 function everyFeature(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
-  server.createList('node-pool', count);
+  server.createList('node-pool', 3);
 
   server.create('node', 'forceIPv4');
   server.create('node', 'draining');
