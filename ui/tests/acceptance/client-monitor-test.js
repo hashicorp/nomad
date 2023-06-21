@@ -21,6 +21,7 @@ module('Acceptance | client monitor', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     node = server.create('node');
 
     managementToken = server.create('token');
