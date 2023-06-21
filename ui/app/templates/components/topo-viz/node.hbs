@@ -13,6 +13,7 @@
       {{/if}}
       <span class="tooltip" aria-label="Node Name"><strong><LinkTo @route="clients.client" @model={{@node.node.id}}>{{@node.node.name}}</LinkTo></strong></span>
       <span class="bumper-left tooltip" aria-label="Number of Allocations">{{this.count}} Allocs</span>
+      <span class="bumper-left is-faded tooltip" aria-label="Node Pool">{{@node.node.nodePool}}</span>
       <span class="bumper-left is-faded">
         <span class="tooltip" aria-label="Node Memory">{{format-scheduled-bytes @node.memory start="MiB"}}</span>,
         <span class="tooltip" aria-label="Node CPU">{{format-scheduled-hertz @node.cpu}}</span>

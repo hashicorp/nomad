@@ -23,7 +23,10 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
         namespace: '*',
       }),
       nodes: this.store.query('node', { resources: true }),
-      nodePools: this.store.findAll('node-pool'),
+      // Nodes are not allowed to be in the 'all' node pool, so filter it out.
+      nodePools: this.store
+        .findAll('node-pool')
+        .then((pools) => pools.filter((p) => p.name !== 'all')),
     }).catch(notifyForbidden(this));
   }
 
