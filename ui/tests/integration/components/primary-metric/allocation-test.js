@@ -27,6 +27,7 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
+    this.server.create('node-pool');
     this.server.create('node');
     this.server.create('job', {
       groupsCount: 1,

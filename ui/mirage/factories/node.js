@@ -5,7 +5,7 @@
 
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
-import { provide } from '../utils';
+import { provide, pickOne } from '../utils';
 import { DATACENTERS, HOSTS, generateResources } from '../common';
 import moment from 'moment';
 
@@ -139,6 +139,11 @@ export default Factory.extend({
   }),
 
   afterCreate(node, server) {
+    Ember.assert(
+      '[Mirage] No node pools! make sure node pools are created before nodes',
+      server.db.nodePools.length
+    );
+
     // Each node has a corresponding client stat resource that's queried via node IP.
     // Create that record, even though it's not a relationship.
     server.create('client-stat', {
@@ -148,25 +153,20 @@ export default Factory.extend({
     const events = server.createList(
       'node-event',
       faker.random.number({ min: 1, max: 10 }),
-      {
-        nodeId: node.id,
-      }
+      { nodeId: node.id }
     );
+    const nodePool = node.nodePool
+      ? server.db.nodePools.findBy({ name: node.nodePool })
+      : pickOne(server.db.nodePools, (pool) => pool.name !== 'all');
 
     node.update({
+      nodePool: nodePool.name,
       eventIds: events.mapBy('id'),
     });
 
     server.create('client-stat', {
       id: node.id,
     });
-
-    if (!node.nodePool) {
-      const nodePool = server.create('node-pool');
-      node.update({
-        nodePool: nodePool.name,
-      });
-    }
   },
 });
 

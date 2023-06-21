@@ -22,6 +22,7 @@ module('Acceptance | regions (only one)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.createList('job', 2, {
       createAllocations: false,
@@ -88,6 +89,7 @@ module('Acceptance | regions (many)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.createList('job', 2, {
       createAllocations: false,

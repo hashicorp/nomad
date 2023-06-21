@@ -23,6 +23,7 @@ module('Unit | Adapter | Node', function (hooks) {
     this.server.create('region', { id: 'region-1' });
     this.server.create('region', { id: 'region-2' });
 
+    this.server.create('node-pool');
     this.server.create('node', { id: 'node-1' });
     this.server.create('node', { id: 'node-2' });
     this.server.create('job', { id: 'job-1', createAllocations: false });

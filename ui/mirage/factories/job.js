@@ -200,6 +200,11 @@ export default Factory.extend({
   shallow: false,
 
   afterCreate(job, server) {
+    Ember.assert(
+      '[Mirage] No node pools! make sure node pools are created before jobs',
+      server.db.nodePools.length
+    );
+
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length
         ? pickOne(server.db.namespaces).id
@@ -215,11 +220,8 @@ export default Factory.extend({
     }
 
     if (!job.nodePool) {
-      const nodePool = server.db.nodePools.length
-        ? pickOne(server.db.nodePools).name
-        : server.create('node-pool').name;
       job.update({
-        nodePool,
+        nodePool: pickOne(server.db.nodePools).name,
       });
     }
 

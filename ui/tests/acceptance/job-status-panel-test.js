@@ -28,6 +28,7 @@ module('Acceptance | job status panel', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     server.create('node');
   });
 

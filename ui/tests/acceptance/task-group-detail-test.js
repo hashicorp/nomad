@@ -35,6 +35,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node', 'forceIPv4');
 
     job = server.create('job', {

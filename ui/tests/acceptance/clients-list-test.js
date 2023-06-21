@@ -20,6 +20,7 @@ module('Acceptance | clients list', function (hooks) {
 
   hooks.beforeEach(function () {
     window.localStorage.clear();
+    server.createList('node-pool', 3);
   });
 
   test('it passes an accessibility audit', async function (assert) {
