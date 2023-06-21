@@ -2,6 +2,7 @@
  * Copyright (c) HashiCorp, Inc.
  * SPDX-License-Identifier: MPL-2.0
  */
+@import '~@hashicorp/design-system-tokens/dist/products/css/helpers/colors.css';
 
 .job-status-panel {
   // #region layout
@@ -21,6 +22,28 @@
 
     & > .allocation-status-row {
       grid-area: allocation-status-row;
+    }
+  }
+
+  .boxed-section-head h2 .hds-badge {
+    margin-left: 5px;
+    margin-top: -2px;
+  }
+
+  &.active-deployment {
+    & > .boxed-section-head {
+      background: var(--token-color-surface-highlight);
+
+      h2 .hds-badge {
+        background-color: var(--token-color-border-highlight);
+        border-color: var(--token-color-border-highlight);
+        color: var(--token-color-foreground-highlight-high-contrast);
+      }
+    }
+    & > .boxed-section-head,
+    & > .boxed-section-body,
+    & > .boxed-section-foot {
+      border-color: var(--token-color-border-highlight);
     }
   }
 
@@ -132,7 +155,7 @@
     gap: 0.5rem;
     grid-template-columns: 1fr 1fr;
     padding: 0.25rem 0.5rem;
-    margin-left: 1rem;
+    margin-left: auto;
 
     button {
       height: auto;

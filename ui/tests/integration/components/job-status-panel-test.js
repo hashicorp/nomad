@@ -48,7 +48,7 @@ module(
     });
 
     test('the latest deployment section shows up for the currently running deployment: Ungrouped Allocations (small cluster)', async function (assert) {
-      assert.expect(25);
+      assert.expect(24);
 
       this.server.create('node');
 
@@ -114,11 +114,6 @@ module(
       assert.ok(
         find('.active-deployment'),
         'Shows an active deployment if latest status is Running'
-      );
-
-      assert.ok(
-        find('.active-deployment').classList.contains('is-info'),
-        'Running deployment gets the is-info class'
       );
 
       // Half the shown allocations are running, 1 is pending, 1 is failed; none are canaries or healthy.
