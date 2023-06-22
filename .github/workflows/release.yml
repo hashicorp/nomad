@@ -203,6 +203,6 @@ jobs:
           else
             echo "no files were updated"
           fi
-permissions:
-  contents: read
 
+permissions:
+  contents: write
