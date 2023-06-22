@@ -689,9 +689,8 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
 		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
 
-		// Disable swap to avoid issues on the machine
-		var memSwappiness uint64
-		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
+		// Disable swap if possible, to avoid issues on the machine
+		cfg.Cgroups.Resources.MemorySwappiness = cgutil.MaybeDisableMemorySwappiness()
 	}
 
 	cpuShares := res.Cpu.CpuShares

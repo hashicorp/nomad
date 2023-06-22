@@ -322,7 +322,12 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 		return nil, err
 	}
 
-	if c != nil && c.MemoryOversubscriptionEnabled {
+	pool, err := v.srv.State().NodePoolByName(nil, job.NodePool)
+	if err != nil {
+		return nil, err
+	}
+
+	if pool.MemoryOversubscriptionEnabled(c) {
 		return nil, nil
 	}
 

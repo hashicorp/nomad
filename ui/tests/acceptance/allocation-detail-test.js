@@ -7,13 +7,7 @@
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
 import { run } from '@ember/runloop';
-import {
-  currentURL,
-  click,
-  visit,
-  triggerEvent,
-  waitFor,
-} from '@ember/test-helpers';
+import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -34,6 +28,7 @@ module('Acceptance | allocation detail', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('agent');
 
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', {
       groupsCount: 1,
@@ -83,10 +78,7 @@ module('Acceptance | allocation detail', function (hooks) {
     );
     assert.ok(Allocation.execButton.isPresent);
 
-    assert.equal(
-      document.title,
-      `Allocation ${allocation.name} - Mirage - Nomad`
-    );
+    assert.ok(document.title.includes(`Allocation ${allocation.name} `));
 
     await Allocation.details.visitJob();
     assert.equal(
@@ -488,6 +480,7 @@ module('Acceptance | allocation detail (rescheduled)', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('agent');
 
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'rescheduled');
@@ -510,6 +503,7 @@ module('Acceptance | allocation detail (not running)', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('agent');
 
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
     allocation = server.create('allocation', { clientStatus: 'pending' });
@@ -540,6 +534,7 @@ module('Acceptance | allocation detail (preemptions)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job', { createAllocations: false });
   });
@@ -678,6 +673,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('feature', { name: 'Dynamic Application Sizing' });
     server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+    server.createList('node-pool', 3);
     server.createList('node', 5);
     server.createList('job', 1, { createRecommendations: true });
     const job = server.create('job', {
@@ -686,6 +682,9 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       name: 'Service-haver',
       id: 'service-haver',
       namespaceId: 'default',
+      allocStatusDistribution: {
+        running: 1,
+      },
     });
 
     const currentAlloc = server.db.allocations.findBy({ jobId: job.id });
@@ -736,14 +735,18 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   });
 
   test('Allocation has a list of services with active checks', async function (assert) {
-    await visit('jobs/service-haver@default');
-    await click('.allocation-row');
+    const runningAlloc = server.db.allocations.findBy({
+      jobId: 'service-haver',
+      clientStatus: 'running',
+    });
+    await Allocation.visit({ id: runningAlloc.id });
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();
     assert.dom('.service-sidebar').doesNotHaveClass('open');
     assert
       .dom('[data-test-service-status-bar]')
       .exists('At least one allocation has service health');
+
     await click('[data-test-service-status-bar]');
     assert.dom('.service-sidebar').hasClass('open');
     assert

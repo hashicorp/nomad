@@ -28,6 +28,7 @@ module('Acceptance | job status panel', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     server.create('node');
   });
 
@@ -73,6 +74,7 @@ module('Acceptance | job status panel', function (hooks) {
       datacenters: ['*'],
       type: 'service',
       createAllocations: true,
+      noActiveDeployment: true,
     });
 
     await visit(`/jobs/${job.id}?statusMode=historical`);
@@ -819,6 +821,7 @@ module('Acceptance | job status panel', function (hooks) {
           lost: 0,
           complete: 0.2,
         },
+        groupsCount: 1,
         groupTaskCount: 10,
         noActiveDeployment: true,
         shallow: true,
@@ -837,6 +840,7 @@ module('Acceptance | job status panel', function (hooks) {
           lost: 0,
           complete: 0.2,
         },
+        groupsCount: 1,
         groupTaskCount: 10,
         noActiveDeployment: true,
         shallow: true,

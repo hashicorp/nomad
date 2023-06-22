@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -119,6 +120,14 @@ func (n NoopDB) PutNodeMeta(map[string]*string) error {
 }
 
 func (n NoopDB) GetNodeMeta() (map[string]*string, error) {
+	return nil, nil
+}
+
+func (n NoopDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
+	return nil
+}
+
+func (n NoopDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, nil
 }
 

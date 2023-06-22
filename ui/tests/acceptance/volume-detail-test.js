@@ -33,6 +33,7 @@ module('Acceptance | volume detail', function (hooks) {
   let volume;
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     volume = server.create('csi-volume');
@@ -243,6 +244,7 @@ module('Acceptance | volume detail (with namespaces)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.createList('namespace', 2);
+    server.create('node-pool');
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     volume = server.create('csi-volume');

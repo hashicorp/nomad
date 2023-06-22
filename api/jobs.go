@@ -1019,7 +1019,7 @@ func (j *Job) Canonicalize() {
 		j.Region = pointerOf(GlobalRegion)
 	}
 	if j.NodePool == nil {
-		j.NodePool = pointerOf(NodePoolDefault)
+		j.NodePool = pointerOf("")
 	}
 	if j.Type == nil {
 		j.Type = pointerOf("service")

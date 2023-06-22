@@ -41,6 +41,7 @@ export default function moduleForJob(
     });
 
     hooks.beforeEach(async function () {
+      server.create('node-pool');
       server.create('node');
       job = jobFactory();
       if (!job.namespace || job.namespace === 'default') {
@@ -101,6 +102,19 @@ export default function moduleForJob(
         assert.ok(JobDetail.stop.isPresent);
         assert.ok(JobDetail.execButton.isPresent);
       }
+    });
+
+    test('page header displays job information', async function (assert) {
+      assert.equal(JobDetail.statFor('type').text, `Type ${job.type}`);
+      assert.equal(
+        JobDetail.statFor('priority').text,
+        `Priority ${job.priority}`
+      );
+      assert.equal(JobDetail.statFor('version').text, `Version ${job.version}`);
+      assert.equal(
+        JobDetail.statFor('node-pool').text,
+        `Node Pool ${job.nodePool}`
+      );
     });
 
     if (context === 'allocations') {
@@ -252,6 +266,7 @@ export function moduleForJobWithClientStatus(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
+      server.createList('node-pool', 3);
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',

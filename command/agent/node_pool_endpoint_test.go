@@ -172,9 +172,6 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			updated.Meta = map[string]string{
 				"updated": "true",
 			}
-			updated.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-				SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
-			}
 
 			buf := encodeReq(updated)
 			req, err := http.NewRequest("PUT", fmt.Sprintf("/v1/node/pool/%s", updated.Name), buf)
@@ -219,9 +216,6 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			updated.Meta = map[string]string{
 				"updated": "true",
 			}
-			updated.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-				SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
-			}
 
 			buf := encodeReq(updated)
 			req, err := http.NewRequest("PUT", "/v1/node/pool/", buf)
@@ -263,9 +257,6 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			updated.Description = "updated node pool"
 			updated.Meta = map[string]string{
 				"updated": "true",
-			}
-			updated.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-				SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			}
 
 			// Make request with the wrong path.

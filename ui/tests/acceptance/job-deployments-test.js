@@ -24,6 +24,7 @@ module('Acceptance | job deployments', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     server.create('node');
     job = server.create('job');
     deployments = server.schema.deployments.where({ jobId: job.id });

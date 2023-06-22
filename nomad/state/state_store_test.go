@@ -2396,6 +2396,54 @@ func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
 	assert.Nil(out)
 }
 
+func TestStateStore_UpsertJob_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	testCases := []struct {
+		name         string
+		pool         string
+		expectedPool string
+		expectedErr  string
+	}{
+		{
+			name:         "empty node pool uses default",
+			pool:         "",
+			expectedPool: structs.NodePoolDefault,
+		},
+		{
+			name:         "job uses pool defined",
+			pool:         structs.NodePoolDefault,
+			expectedPool: structs.NodePoolDefault,
+		},
+		{
+			name:        "error when pool doesn't exist",
+			pool:        "nonexisting",
+			expectedErr: "nonexistent node pool",
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := mock.Job()
+			job.NodePool = tc.pool
+
+			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(1000+i), nil, job)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				must.NoError(t, err)
+
+				ws := memdb.NewWatchSet()
+				got, err := state.JobByID(ws, job.Namespace, job.ID)
+				must.NoError(t, err)
+				must.Eq(t, tc.expectedPool, got.NodePool)
+			}
+		})
+	}
+}
+
 // Upsert a job that is the child of a parent job and ensures its summary gets
 // updated.
 func TestStateStore_UpsertJob_ChildJob(t *testing.T) {

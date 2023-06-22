@@ -25,6 +25,7 @@ module('Acceptance | task logs', function (hooks) {
   hooks.beforeEach(async function () {
     faker.seed(1);
     server.create('agent');
+    server.create('node-pool');
     server.create('node', 'forceIPv4');
     job = server.create('job', { createAllocations: false });
 
@@ -51,7 +52,7 @@ module('Acceptance | task logs', function (hooks) {
       'No redirect'
     );
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
-    assert.equal(document.title, `Task ${task.name} logs - Mirage - Nomad`);
+    assert.ok(document.title.includes(`Task ${task.name}`));
   });
 
   test('the stdout log immediately starts streaming', async function (assert) {

@@ -7,8 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,4 +61,72 @@ func TestNamespaceApplyCommand_Good(t *testing.T) {
 	namespaces, _, err := client.Namespaces().List(nil)
 	assert.Nil(t, err)
 	assert.Len(t, namespaces, 2)
+}
+
+func TestNamespaceApplyCommand_parseNamesapceSpec(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		input    string
+		expected *api.Namespace
+	}{
+		{
+			name: "valid namespace",
+			input: `
+name        = "test-namespace"
+description = "Test namespace"
+quota       = "test"
+
+capabilities {
+  enabled_task_drivers  = ["exec", "docker"]
+  disabled_task_drivers = ["raw_exec"]
+}
+
+node_pool_config {
+  default = "dev"
+  allowed = ["prod*"]
+}
+
+meta {
+  dept = "eng"
+}`,
+			expected: &api.Namespace{
+				Name:        "test-namespace",
+				Description: "Test namespace",
+				Quota:       "test",
+				Capabilities: &api.NamespaceCapabilities{
+					EnabledTaskDrivers:  []string{"exec", "docker"},
+					DisabledTaskDrivers: []string{"raw_exec"},
+				},
+				NodePoolConfiguration: &api.NamespaceNodePoolConfiguration{
+					Default: "dev",
+					Allowed: []string{"prod*"},
+				},
+				Meta: map[string]string{
+					"dept": "eng",
+				},
+			},
+		},
+		{
+			name:  "minimal",
+			input: `name = "test-small"`,
+			expected: &api.Namespace{
+				Name: "test-small",
+			},
+		},
+		{
+			name:     "empty",
+			input:    "",
+			expected: &api.Namespace{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseNamespaceSpec([]byte(tc.input))
+			must.NoError(t, err)
+			must.Eq(t, tc.expected, got)
+		})
+	}
 }

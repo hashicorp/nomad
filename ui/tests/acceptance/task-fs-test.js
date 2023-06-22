@@ -21,6 +21,7 @@ module('Acceptance | task fs', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node', 'forceIPv4');
     const job = server.create('job', { createAllocations: false });
 

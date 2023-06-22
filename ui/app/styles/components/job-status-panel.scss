@@ -2,6 +2,7 @@
  * Copyright (c) HashiCorp, Inc.
  * SPDX-License-Identifier: MPL-2.0
  */
+@import '~@hashicorp/design-system-tokens/dist/products/css/helpers/colors.css';
 
 .job-status-panel {
   // #region layout
@@ -24,6 +25,28 @@
     }
   }
 
+  .boxed-section-head h2 .hds-badge {
+    margin-left: 5px;
+    margin-top: -2px;
+  }
+
+  &.active-deployment {
+    & > .boxed-section-head {
+      background: var(--token-color-surface-highlight);
+
+      h2 .hds-badge {
+        background-color: var(--token-color-border-highlight);
+        border-color: var(--token-color-border-highlight);
+        color: var(--token-color-foreground-highlight-high-contrast);
+      }
+    }
+    & > .boxed-section-head,
+    & > .boxed-section-body,
+    & > .boxed-section-foot {
+      border-color: var(--token-color-border-highlight);
+    }
+  }
+
   &.active-deployment .boxed-section-body {
     display: grid;
     grid-template-areas:
@@ -32,6 +55,28 @@
       'history-and-params';
     gap: 1rem;
     grid-auto-columns: 100%;
+
+    &.requires-promotion {
+      grid-template-areas:
+        'promotion-alert'
+        'deployment-allocations'
+        'legend-and-summary'
+        'history-and-params';
+
+      & > .canary-promotion-alert {
+        button {
+          background-color: $orange;
+          border-color: darken($orange, 5%);
+          &:hover {
+            background-color: darken($orange, 5%);
+          }
+        }
+      }
+    }
+
+    & > .promotion-alert {
+      grid-area: promotion-alert;
+    }
 
     & > .deployment-allocations {
       grid-area: deployment-allocations;
@@ -68,6 +113,7 @@
     legend {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: max-content;
       gap: 0.5rem;
     }
     .versions {
@@ -109,7 +155,7 @@
     gap: 0.5rem;
     grid-template-columns: 1fr 1fr;
     padding: 0.25rem 0.5rem;
-    margin-left: 1rem;
+    margin-left: auto;
 
     button {
       height: auto;

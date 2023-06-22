@@ -17,6 +17,7 @@ func Job() *structs.Job {
 		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
+		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeService,
 		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
@@ -258,6 +259,7 @@ func SystemBatchJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-sysbatch-%s", uuid.Short()),
 		Name:        "my-sysbatch",
 		Namespace:   structs.DefaultNamespace,
+		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeSysBatch,
 		Priority:    10,
 		Datacenters: []string{"dc1"},
@@ -320,12 +322,33 @@ func MultiregionJob() *structs.Job {
 	return job
 }
 
+func MultiregionMinJob() *structs.Job {
+	job := MinJob()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
+	job.Multiregion = &structs.Multiregion{
+		Regions: []*structs.MultiregionRegion{
+			{
+				Name:  "west",
+				Count: 1,
+			},
+			{
+				Name:  "east",
+				Count: 1,
+			},
+		},
+	}
+	return job
+}
+
 func BatchJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		ID:          fmt.Sprintf("mock-batch-%s", uuid.Generate()),
 		Name:        "batch-job",
 		Namespace:   structs.DefaultNamespace,
+		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeBatch,
 		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
@@ -390,6 +413,7 @@ func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		Namespace:   structs.DefaultNamespace,
+		NodePool:    structs.NodePoolDefault,
 		ID:          fmt.Sprintf("mock-system-%s", uuid.Generate()),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
@@ -469,6 +493,7 @@ func MaxParallelJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
+		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeService,
 		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,

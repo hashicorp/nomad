@@ -17,6 +17,7 @@ module('Acceptance | plugins list', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     server.create('node');
     window.localStorage.clear();
   });

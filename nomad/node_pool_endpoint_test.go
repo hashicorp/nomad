@@ -891,16 +891,18 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		pools = append(pools, mock.NodePool())
 	}
+	err := store.UpsertNodePools(structs.MsgTypeTestSetup, 100, pools)
+	must.NoError(t, err)
 
 	// Insert a node and job to block deleting
 	node := mock.Node()
 	node.NodePool = pools[3].Name
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 101, node))
 
 	job := mock.MinJob()
 	job.NodePool = pools[4].Name
 	job.Status = structs.JobStatusRunning
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 102, nil, job))
 
 	testCases := []struct {
 		name        string
@@ -998,17 +1000,17 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Create test ACL tokens.
-	devToken := mock.CreatePolicyAndToken(t, store, 1001, "dev-node-pools",
+	devToken := mock.CreatePolicyAndToken(t, store, 100, "dev-node-pools",
 		mock.NodePoolPolicy("dev-*", "write", nil),
 	)
-	devSpecificToken := mock.CreatePolicyAndToken(t, store, 1003, "dev-1-node-pools",
+	devSpecificToken := mock.CreatePolicyAndToken(t, store, 102, "dev-1-node-pools",
 		mock.NodePoolPolicy("dev-1", "write", nil),
 	)
-	prodToken := mock.CreatePolicyAndToken(t, store, 1005, "prod-node-pools",
+	prodToken := mock.CreatePolicyAndToken(t, store, 104, "prod-node-pools",
 		mock.NodePoolPolicy("prod-*", "", []string{"delete"}),
 	)
-	noPolicyToken := mock.CreateToken(t, store, 1007, nil)
-	noDeleteToken := mock.CreatePolicyAndToken(t, store, 1009, "node-pools-no-delete",
+	noPolicyToken := mock.CreateToken(t, store, 106, nil)
+	noDeleteToken := mock.CreatePolicyAndToken(t, store, 107, "node-pools-no-delete",
 		mock.NodePoolPolicy("*", "", []string{"read", "write"}),
 	)
 
@@ -1027,16 +1029,18 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 		qaPool.Name = fmt.Sprintf("qa-%d", i)
 		pools = append(pools, qaPool)
 	}
+	err := store.UpsertNodePools(structs.MsgTypeTestSetup, 108, pools)
+	must.NoError(t, err)
 
 	// Insert a node and job to block deleting
 	node := mock.Node()
 	node.NodePool = "prod-3"
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 109, node))
 
 	job := mock.MinJob()
 	job.NodePool = "prod-4"
 	job.Status = structs.JobStatusRunning
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 110, nil, job))
 
 	testCases := []struct {
 		name        string

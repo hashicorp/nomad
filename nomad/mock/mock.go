@@ -247,6 +247,7 @@ func Namespace() *structs.Namespace {
 		CreateIndex: 100,
 		ModifyIndex: 200,
 	}
+	ns.Canonicalize()
 	ns.SetHash()
 	return ns
 }
@@ -256,9 +257,6 @@ func NodePool() *structs.NodePool {
 		Name:        fmt.Sprintf("pool-%s", uuid.Short()),
 		Description: "test node pool",
 		Meta:        map[string]string{"team": "test"},
-		SchedulerConfiguration: &structs.NodePoolSchedulerConfiguration{
-			SchedulerAlgorithm: structs.SchedulerAlgorithmSpread,
-		},
 	}
 	pool.SetHash()
 	return pool

@@ -30,6 +30,7 @@ module('Acceptance | job allocations', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
+    server.create('node-pool');
     server.create('node');
 
     job = server.create('job', {
@@ -211,6 +212,7 @@ module('Acceptance | job allocations', function (hooks) {
       ).sort();
     },
     async beforeEach() {
+      server.create('node-pool');
       job = server.create('job', {
         type: 'service',
         status: 'running',

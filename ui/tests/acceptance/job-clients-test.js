@@ -43,6 +43,7 @@ module('Acceptance | job clients', function (hooks) {
       },
     });
 
+    server.createList('node-pool', 5);
     clients = server.createList('node', 12, {
       datacenter: 'dc1',
       status: 'ready',

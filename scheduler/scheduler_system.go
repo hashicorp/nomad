@@ -156,7 +156,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	// Construct the placement stack
 	s.stack = NewSystemStack(s.sysbatch, s.ctx)
 	if !s.job.Stopped() {
-		s.stack.SetJob(s.job)
+		s.setJob(s.job)
 	}
 
 	// Compute the target job allocations
@@ -209,6 +209,26 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Success!
 	return true, nil
+}
+
+// setJob updates the stack with the given job and job's node pool scheduler
+// configuration.
+func (s *SystemScheduler) setJob(job *structs.Job) error {
+	// Fetch node pool and global scheduler configuration to determine how to
+	// configure the scheduler.
+	pool, err := s.state.NodePoolByName(nil, job.NodePool)
+	if err != nil {
+		return fmt.Errorf("failed to get job node pool %q: %v", job.NodePool, err)
+	}
+
+	_, schedConfig, err := s.state.SchedulerConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get scheduler configuration: %v", err)
+	}
+
+	s.stack.SetJob(job)
+	s.stack.SetSchedulerConfiguration(schedConfig.WithNodePool(pool))
+	return nil
 }
 
 // computeJobAllocs is used to reconcile differences between the job,

@@ -1745,6 +1745,14 @@
         "path": "other-specifications/acl-policy"
       },
       {
+        "title": "Namespace",
+        "path": "other-specifications/namespace"
+      },
+      {
+        "title": "Node Pool",
+        "path": "other-specifications/node-pool"
+      },
+      {
         "title": "Variables",
         "path": "other-specifications/variables"
       },

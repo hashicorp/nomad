@@ -105,13 +105,6 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 
 	// At this point we either have an anonymous token or an invalid one.
 
-	// TODO(tgross): remove this entirely in 1.6.0 and enforce that all RPCs
-	// driven by the clients have secret IDs set
-	if ctx.NodeID != "" && secretID != "" {
-		args.SetIdentity(&structs.AuthenticatedIdentity{ClientID: ctx.NodeID})
-		return nil
-	}
-
 	// Unlike clients that provide their Node ID on first connection, server
 	// RPCs don't include an ID for the server so we identify servers by cert
 	// and IP address.

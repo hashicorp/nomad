@@ -2844,7 +2844,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Priority:       50,
 		AllAtOnce:      true,
 		Datacenters:    []string{"dc1", "dc2"},
-		NodePool:       "default",
+		NodePool:       "",
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "a",
@@ -3261,6 +3261,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Priority:    pointer.Of(50),
 		AllAtOnce:   pointer.Of(true),
 		Datacenters: []string{"dc1", "dc2"},
+		NodePool:    pointer.Of("default"),
 		Constraints: []*api.Constraint{
 			{
 				LTarget: "a",

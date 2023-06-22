@@ -196,6 +196,26 @@ func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorith
 	return s.SchedulerAlgorithm
 }
 
+// WithNodePool returns a new SchedulerConfiguration with the node pool
+// scheduler configuration applied.
+func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfiguration {
+	schedConfig := s.Copy()
+
+	if pool == nil || pool.SchedulerConfiguration == nil {
+		return schedConfig
+	}
+
+	poolConfig := pool.SchedulerConfiguration
+	if poolConfig.SchedulerAlgorithm != "" {
+		schedConfig.SchedulerAlgorithm = poolConfig.SchedulerAlgorithm
+	}
+	if poolConfig.MemoryOversubscriptionEnabled != nil {
+		schedConfig.MemoryOversubscriptionEnabled = *poolConfig.MemoryOversubscriptionEnabled
+	}
+
+	return schedConfig
+}
+
 func (s *SchedulerConfiguration) Canonicalize() {
 	if s != nil && s.SchedulerAlgorithm == "" {
 		s.SchedulerAlgorithm = SchedulerAlgorithmBinpack
