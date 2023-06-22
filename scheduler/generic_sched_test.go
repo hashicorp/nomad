@@ -853,17 +853,12 @@ func TestServiceSched_Spread(t *testing.T) {
 
 // TestServiceSched_JobRegister_Datacenter_Downgrade tests the case where an
 // allocation fails during a deployment with canaries, an the job changes its
-// datacenter. The failed alloc should be placed in the datacenter of the
-// original job.
+// datacenter. The replacement for the failed alloc should be placed in the
+// datacenter of the original job.
 func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
 	ci.Parallel(t)
 
 	h := NewHarness(t)
-
-	// Set global scheduler configuration.
-	//h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
-	//	SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
-	//})
 
 	// Create 5 nodes in each datacenter.
 	// Use two loops so nodes are separated by datacenter.
@@ -942,8 +937,8 @@ func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	processErr := h.Process(NewServiceScheduler, eval)
-	require.NoError(t, processErr, "failed to process eval")
-	require.Len(t, h.Plans, 1)
+	must.NoError(t, processErr, must.Sprint("failed to process eval"))
+	must.Len(t, 1, h.Plans)
 
 	// Verify the plan places the new allocation in dc2 and the replacement
 	// for the failed allocation from the previous job version in dc1.
