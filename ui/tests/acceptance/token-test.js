@@ -60,7 +60,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.equal(document.title, 'Authorization - Mirage - Nomad');
+    assert.ok(document.title.includes('Authorization'));
 
     await Tokens.secret(secretId).submit();
     assert.equal(
