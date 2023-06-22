@@ -277,33 +277,6 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 	return req.SuccessResponse(idx, &sv.VariableMetadata)
 }
 
-// VarGet is used to retrieve a key/value pair from the state store.
-func (s *StateStore) VarGet(ws memdb.WatchSet, namespace, path string) (uint64, *structs.VariableEncrypted, error) {
-	tx := s.db.ReadTxn()
-	defer tx.Abort()
-
-	return svGetTxn(tx, ws, namespace, path)
-}
-
-// svGetTxn is the inner method that gets a variable inside an existing
-// transaction.
-func svGetTxn(tx ReadTxn,
-	ws memdb.WatchSet, namespace, path string) (uint64, *structs.VariableEncrypted, error) {
-
-	// Get the table index.
-	idx := svMaxIndex(tx)
-
-	watchCh, entry, err := tx.FirstWatch(TableVariables, indexID, namespace, path)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed variable lookup: %s", err)
-	}
-	ws.Add(watchCh)
-	if entry != nil {
-		return idx, entry.(*structs.VariableEncrypted), nil
-	}
-	return idx, nil, nil
-}
-
 // VarDelete is used to delete a single variable in the
 // the state store.
 func (s *StateStore) VarDelete(idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
@@ -438,11 +411,6 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.VarApplyS
 	return req.SuccessResponse(idx, nil)
 }
 
-// This extra indirection is to facilitate the tombstone case if it matters.
-func svMaxIndex(tx ReadTxn) uint64 {
-	return maxIndexTxn(tx, TableVariables)
-}
-
 // WriteTxn is implemented by memdb.Txn to perform write operations.
 type WriteTxn interface {
 	ReadTxn
@@ -451,35 +419,6 @@ type WriteTxn interface {
 	DeleteAll(table, index string, args ...interface{}) (int, error)
 	DeletePrefix(table string, index string, prefix string) (bool, error)
 	Insert(table string, obj interface{}) error
-}
-
-// maxIndex is a helper used to retrieve the highest known index
-// amongst a set of tables in the db.
-func (s *StateStore) maxIndex(tables ...string) uint64 {
-	tx := s.db.ReadTxn()
-	defer tx.Abort()
-	return maxIndexTxn(tx, tables...)
-}
-
-// maxIndexTxn is a helper used to retrieve the highest known index
-// amongst a set of tables in the db.
-func maxIndexTxn(tx ReadTxn, tables ...string) uint64 {
-	return maxIndexWatchTxn(tx, nil, tables...)
-}
-
-func maxIndexWatchTxn(tx ReadTxn, ws memdb.WatchSet, tables ...string) uint64 {
-	var lindex uint64
-	for _, table := range tables {
-		ch, ti, err := tx.FirstWatch(tableIndex, "id", table)
-		if err != nil {
-			panic(fmt.Sprintf("unknown index: %s err: %s", table, err))
-		}
-		if idx, ok := ti.(*IndexEntry); ok && idx.Value > lindex {
-			lindex = idx.Value
-		}
-		ws.Add(ch)
-	}
-	return lindex
 }
 
 // VariablesQuotas queries all the quotas and is used only for
