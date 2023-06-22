@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -126,6 +127,14 @@ func (m *ErrDB) PutNodeMeta(map[string]*string) error {
 }
 
 func (m *ErrDB) GetNodeMeta() (map[string]*string, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, fmt.Errorf("Error!")
 }
 

@@ -362,3 +362,8 @@ const CheckBufSize = 4 * 1024
 // DriverStatsNotImplemented is the error to be returned if a driver doesn't
 // implement stats.
 var DriverStatsNotImplemented = errors.New("stats not implemented for driver")
+
+// NodeRegistration stores data about the client's registration with the server
+type NodeRegistration struct {
+	HasRegistered bool
+}
