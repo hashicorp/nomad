@@ -32,6 +32,43 @@ const nodeGen = (name, datacenter, memory, cpu, allocations = []) => ({
   })),
 });
 
+const nodeModelGen = (datacenter, id, name, resources = '2000/1000') => {
+  const [cpu, memory] = resources.split('/');
+  return {
+    datacenter,
+    id,
+    name,
+    isEligible: true,
+    isDraining: false,
+    resources: { cpu, memory },
+  };
+};
+
+const allocModelGen = (
+  id,
+  taskGroupName,
+  clientStatus,
+  nodeId,
+  jobId,
+  resources = '100/100'
+) => {
+  const [cpu, memory] = resources.split('/');
+  return {
+    id,
+    taskGroupName,
+    clientStatus,
+    isScheduled: true,
+    allocatedResources: { cpu, memory },
+    belongsTo(t) {
+      return {
+        id() {
+          return t === 'node' ? nodeId : jobId;
+        },
+      };
+    },
+  };
+};
+
 export let Node = () => ({
   template: hbs`
     <SvgPatterns />
@@ -96,4 +133,30 @@ export let Datacenter = () => ({
   },
 });
 
-export let FullViz = () => {};
+export let FullViz = () => ({
+  template: hbs`
+    {{#if delayedTruth.complete}}
+      <TopoViz
+        @nodes={{nodes}}
+        @allocations={{allocations}}
+      />
+    {{/if}}
+  `,
+  context: {
+    delayedTruth: DelayedTruth.create(),
+    nodes: [
+      nodeModelGen('dc1', '1', 'pdx-1', '2000/1000'),
+      nodeModelGen('dc1', '2', 'pdx-2', '2000/1000'),
+      nodeModelGen('dc1', '3', 'pdx-3', '2000/3000'),
+      nodeModelGen('dc2', '4', 'yyz-1', '2000/1000'),
+      nodeModelGen('dc2', '5', 'yyz-2', '2000/2000'),
+    ],
+    allocations: [
+      allocModelGen('1', 'name', 'running', '1', 'job-1', '200/500'),
+      allocModelGen('1', 'name', 'running', '5', 'job-1', '200/500'),
+    ],
+    setAllocation() {
+      console.log('hmm');
+    },
+  },
+});
