@@ -127,3 +127,70 @@ func TestNodePool_IsBuiltIn(t *testing.T) {
 		})
 	}
 }
+
+func TestNodePool_MemoryOversubscriptionEnabled(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		pool     *NodePool
+		global   *SchedulerConfiguration
+		expected bool
+	}{
+		{
+			name: "global used if pool is nil",
+			pool: nil,
+			global: &SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: true,
+			},
+			expected: true,
+		},
+		{
+			name: "global used if pool doesn't have scheduler config",
+			pool: &NodePool{},
+			global: &SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: true,
+			},
+			expected: true,
+		},
+		{
+			name: "global used if pool doesn't specify memory oversub",
+			pool: &NodePool{
+				SchedulerConfiguration: &NodePoolSchedulerConfiguration{},
+			},
+			global: &SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: true,
+			},
+			expected: true,
+		},
+		{
+			name: "pool overrides global if it defines memory oversub",
+			pool: &NodePool{
+				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
+					MemoryOversubscriptionEnabled: pointer.Of(false),
+				},
+			},
+			global: &SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: true,
+			},
+			expected: false,
+		},
+		{
+			name: "pool used if global is nil",
+			pool: &NodePool{
+				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
+					MemoryOversubscriptionEnabled: pointer.Of(true),
+				},
+			},
+			global:   nil,
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.pool.MemoryOversubscriptionEnabled(tc.global)
+			must.Eq(t, got, tc.expected)
+		})
+	}
+}

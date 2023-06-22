@@ -124,119 +124,6 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestServiceSched_JobRegister_MemoryMaxHonored(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name                          string
-		cpu                           int
-		memory                        int
-		memoryMax                     int
-		memoryOversubscriptionEnabled bool
-
-		expectedTaskMemoryMax int
-		// expectedTotalMemoryMax should be SUM(MAX(memory, memoryMax)) for all tasks
-		expectedTotalMemoryMax int
-	}{
-		{
-			name:                          "plain no max",
-			cpu:                           100,
-			memory:                        200,
-			memoryMax:                     0,
-			memoryOversubscriptionEnabled: true,
-
-			expectedTaskMemoryMax:  0,
-			expectedTotalMemoryMax: 200,
-		},
-		{
-			name:                          "with max",
-			cpu:                           100,
-			memory:                        200,
-			memoryMax:                     300,
-			memoryOversubscriptionEnabled: true,
-
-			expectedTaskMemoryMax:  300,
-			expectedTotalMemoryMax: 300,
-		},
-		{
-			name:      "with max but disabled",
-			cpu:       100,
-			memory:    200,
-			memoryMax: 300,
-
-			memoryOversubscriptionEnabled: false,
-			expectedTaskMemoryMax:         0,
-			expectedTotalMemoryMax:        200, // same as no max
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			job := mock.Job()
-			job.TaskGroups[0].Count = 1
-
-			task := job.TaskGroups[0].Tasks[0].Name
-			res := job.TaskGroups[0].Tasks[0].Resources
-			res.CPU = c.cpu
-			res.MemoryMB = c.memory
-			res.MemoryMaxMB = c.memoryMax
-
-			h := NewHarness(t)
-			h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
-				MemoryOversubscriptionEnabled: c.memoryOversubscriptionEnabled,
-			})
-
-			// Create some nodes
-			for i := 0; i < 10; i++ {
-				node := mock.Node()
-				require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-			}
-			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
-
-			// Create a mock evaluation to register the job
-			eval := &structs.Evaluation{
-				Namespace:   structs.DefaultNamespace,
-				ID:          uuid.Generate(),
-				Priority:    job.Priority,
-				TriggeredBy: structs.EvalTriggerJobRegister,
-				JobID:       job.ID,
-				Status:      structs.EvalStatusPending,
-			}
-
-			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-
-			// Process the evaluation
-			err := h.Process(NewServiceScheduler, eval)
-			require.NoError(t, err)
-
-			require.Len(t, h.Plans, 1)
-
-			out, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
-			require.NoError(t, err)
-
-			// Ensure all allocations placed
-			require.Len(t, out, 1)
-			alloc := out[0]
-
-			// checking new resources field deprecated Resources fields
-			require.Equal(t, int64(c.cpu), alloc.AllocatedResources.Tasks[task].Cpu.CpuShares)
-			require.Equal(t, int64(c.memory), alloc.AllocatedResources.Tasks[task].Memory.MemoryMB)
-			require.Equal(t, int64(c.expectedTaskMemoryMax), alloc.AllocatedResources.Tasks[task].Memory.MemoryMaxMB)
-
-			// checking old deprecated Resources fields
-			require.Equal(t, c.cpu, alloc.TaskResources[task].CPU)
-			require.Equal(t, c.memory, alloc.TaskResources[task].MemoryMB)
-			require.Equal(t, c.expectedTaskMemoryMax, alloc.TaskResources[task].MemoryMaxMB)
-
-			// check total resource fields - alloc.Resources deprecated field, no modern equivalent
-			require.Equal(t, c.cpu, alloc.Resources.CPU)
-			require.Equal(t, c.memory, alloc.Resources.MemoryMB)
-			require.Equal(t, c.expectedTotalMemoryMax, alloc.Resources.MemoryMaxMB)
-
-		})
-	}
-}
-
 func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 	ci.Parallel(t)
 
@@ -854,6 +741,140 @@ func TestServiceSched_Spread(t *testing.T) {
 	}
 }
 
+// TestServiceSched_JobRegister_NodePool_Downgrade tests the case where an
+// allocation fails during a deployment with canaries, where the job changes
+// node pool. The failed alloc should be placed in the node pool of the
+// original job.
+func TestServiceSched_JobRegister_NodePool_Downgrade(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	// Set global scheduler configuration.
+	h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
+	})
+
+	// Create test node pools with different scheduler algorithms.
+	poolBinpack := mock.NodePool()
+	poolBinpack.Name = "pool-binpack"
+	poolBinpack.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
+	}
+
+	poolSpread := mock.NodePool()
+	poolSpread.Name = "pool-spread"
+	poolSpread.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithmSpread,
+	}
+
+	nodePools := []*structs.NodePool{
+		poolBinpack,
+		poolSpread,
+	}
+	h.State.UpsertNodePools(structs.MsgTypeTestSetup, h.NextIndex(), nodePools)
+
+	// Create 5 nodes in each node pool.
+	// Use two loops so nodes are separated by node pool.
+	nodes := []*structs.Node{}
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		node.Name = fmt.Sprintf("node-binpack-%d", i)
+		node.NodePool = poolBinpack.Name
+		nodes = append(nodes, node)
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		node.Name = fmt.Sprintf("node-spread-%d", i)
+		node.NodePool = poolSpread.Name
+		nodes = append(nodes, node)
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Create first version of the test job running in the binpack node pool.
+	job1 := mock.Job()
+	job1.Version = 1
+	job1.NodePool = poolBinpack.Name
+	job1.Status = structs.JobStatusRunning
+	job1.TaskGroups[0].Count = 3
+	job1.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Stagger:          time.Duration(30 * time.Second),
+		MaxParallel:      1,
+		HealthCheck:      "checks",
+		MinHealthyTime:   time.Duration(30 * time.Second),
+		HealthyDeadline:  time.Duration(9 * time.Minute),
+		ProgressDeadline: time.Duration(10 * time.Minute),
+		AutoRevert:       true,
+		Canary:           1,
+	}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job1))
+
+	// Create allocs for this job version with one being a canary and another
+	// marked as failed.
+	allocs := []*structs.Allocation{}
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job1
+		alloc.JobID = job1.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy:     pointer.Of(true),
+			Timestamp:   time.Now(),
+			Canary:      false,
+			ModifyIndex: h.NextIndex(),
+		}
+		if i == 0 {
+			alloc.DeploymentStatus.Canary = true
+		}
+		if i == 1 {
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+		}
+		allocs = append(allocs, alloc)
+	}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Update job to place it in the spread node pool.
+	job2 := job1.Copy()
+	job2.Version = 2
+	job2.NodePool = poolSpread.Name
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+
+	eval := &structs.Evaluation{
+		Namespace:   job2.Namespace,
+		ID:          uuid.Generate(),
+		Priority:    job2.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	processErr := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, processErr, "failed to process eval")
+	require.Len(t, h.Plans, 1)
+
+	// Verify the plan places the new allocation in the spread node pool and
+	// the replacement failure from the previous version in the binpack pool.
+	for nodeID, allocs := range h.Plans[0].NodeAllocation {
+		var node *structs.Node
+		for _, n := range nodes {
+			if n.ID == nodeID {
+				node = n
+				break
+			}
+		}
+
+		must.Len(t, 1, allocs)
+		alloc := allocs[0]
+		must.Eq(t, alloc.Job.NodePool, node.NodePool, must.Sprintf(
+			"alloc for job in node pool %q placed in node in node pool %q",
+			alloc.Job.NodePool,
+			node.NodePool,
+		))
+	}
+}
+
 // Test job registration with even spread across dc
 func TestServiceSched_EvenSpread(t *testing.T) {
 	ci.Parallel(t)
@@ -1334,6 +1355,168 @@ func TestServiceSched_JobRegister_FeasibleAndInfeasibleTG(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobRegister_SchedulerAlgorithm(t *testing.T) {
+	ci.Parallel(t)
+
+	// Test node pools.
+	poolNoSchedConfig := mock.NodePool()
+	poolNoSchedConfig.SchedulerConfiguration = nil
+
+	poolBinpack := mock.NodePool()
+	poolBinpack.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
+	}
+
+	poolSpread := mock.NodePool()
+	poolSpread.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithmSpread,
+	}
+
+	testCases := []struct {
+		name               string
+		nodePool           string
+		schedulerAlgorithm structs.SchedulerAlgorithm
+		expectedAlgorithm  structs.SchedulerAlgorithm
+	}{
+		{
+			name:               "global binpack",
+			nodePool:           poolNoSchedConfig.Name,
+			schedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
+			expectedAlgorithm:  structs.SchedulerAlgorithmBinpack,
+		},
+		{
+			name:               "global spread",
+			nodePool:           poolNoSchedConfig.Name,
+			schedulerAlgorithm: structs.SchedulerAlgorithmSpread,
+			expectedAlgorithm:  structs.SchedulerAlgorithmSpread,
+		},
+		{
+			name:               "node pool binpack overrides global config",
+			nodePool:           poolBinpack.Name,
+			schedulerAlgorithm: structs.SchedulerAlgorithmSpread,
+			expectedAlgorithm:  structs.SchedulerAlgorithmBinpack,
+		},
+		{
+			name:               "node pool spread overrides global config",
+			nodePool:           poolSpread.Name,
+			schedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
+			expectedAlgorithm:  structs.SchedulerAlgorithmSpread,
+		},
+	}
+
+	jobTypes := []string{
+		"batch",
+		"service",
+	}
+
+	for _, jobType := range jobTypes {
+		for _, tc := range testCases {
+			t.Run(fmt.Sprintf("%s/%s", jobType, tc.name), func(t *testing.T) {
+				h := NewHarness(t)
+
+				// Create node pools.
+				nodePools := []*structs.NodePool{
+					poolNoSchedConfig,
+					poolBinpack,
+					poolSpread,
+				}
+				h.State.UpsertNodePools(structs.MsgTypeTestSetup, h.NextIndex(), nodePools)
+
+				// Create two test nodes. Use two to prevent flakiness due to
+				// the scheduler shuffling nodes.
+				for i := 0; i < 2; i++ {
+					node := mock.Node()
+					node.NodePool = tc.nodePool
+					must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+				}
+
+				// Set global scheduler configuration.
+				h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+					SchedulerAlgorithm: tc.schedulerAlgorithm,
+				})
+
+				// Create test job.
+				var job *structs.Job
+				switch jobType {
+				case "batch":
+					job = mock.BatchJob()
+				case "service":
+					job = mock.Job()
+				}
+				job.TaskGroups[0].Count = 1
+				job.NodePool = tc.nodePool
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+				// Register an existing job.
+				existingJob := mock.Job()
+				existingJob.TaskGroups[0].Count = 1
+				existingJob.NodePool = tc.nodePool
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, existingJob))
+
+				// Process eval for existing job to place an existing alloc.
+				eval := &structs.Evaluation{
+					Namespace:   structs.DefaultNamespace,
+					ID:          uuid.Generate(),
+					Priority:    existingJob.Priority,
+					TriggeredBy: structs.EvalTriggerJobRegister,
+					JobID:       existingJob.ID,
+					Status:      structs.EvalStatusPending,
+				}
+				must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+				var scheduler Factory
+				switch jobType {
+				case "batch":
+					scheduler = NewBatchScheduler
+				case "service":
+					scheduler = NewServiceScheduler
+				}
+				err := h.Process(scheduler, eval)
+				must.NoError(t, err)
+
+				must.Len(t, 1, h.Plans)
+				allocs, err := h.State.AllocsByJob(nil, existingJob.Namespace, existingJob.ID, false)
+				must.NoError(t, err)
+				must.Len(t, 1, allocs)
+
+				// Process eval for test job.
+				eval = &structs.Evaluation{
+					Namespace:   structs.DefaultNamespace,
+					ID:          uuid.Generate(),
+					Priority:    job.Priority,
+					TriggeredBy: structs.EvalTriggerJobRegister,
+					JobID:       job.ID,
+					Status:      structs.EvalStatusPending,
+				}
+				must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+				err = h.Process(scheduler, eval)
+				must.NoError(t, err)
+
+				must.Len(t, 2, h.Plans)
+				allocs, err = h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+				must.NoError(t, err)
+				must.Len(t, 1, allocs)
+
+				// Expect new alloc to be either in the empty node or in the
+				// node with the existing alloc depending on the expected
+				// scheduler algorithm.
+				var expectedAllocCount int
+				switch tc.expectedAlgorithm {
+				case structs.SchedulerAlgorithmSpread:
+					expectedAllocCount = 1
+				case structs.SchedulerAlgorithmBinpack:
+					expectedAllocCount = 2
+				}
+
+				alloc := allocs[0]
+				nodeAllocs, err := h.State.AllocsByNode(nil, alloc.NodeID)
+				must.NoError(t, err)
+				must.Len(t, expectedAllocCount, nodeAllocs)
+			})
+		}
+	}
 }
 
 // This test just ensures the scheduler handles the eval type to avoid

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -281,7 +282,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Construct the placement stack
 	s.stack = NewGenericStack(s.batch, s.ctx)
 	if !s.job.Stopped() {
-		s.stack.SetJob(s.job)
+		s.setJob(s.job)
 	}
 
 	// Compute the target job allocations
@@ -509,7 +510,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
 	// Get the base nodes
-	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, s.job.Datacenters, s.job.NodePool)
+	nodes, byDC, err := s.setNodes(s.job)
 	if err != nil {
 		return err
 	}
@@ -562,10 +563,17 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				continue
 			}
 
-			// Use downgraded job in scheduling stack to honor
-			// old job resources and constraints
+			// Use downgraded job in scheduling stack to honor old job
+			// resources, constraints, and node pool scheduler configuration.
 			if downgradedJob != nil {
-				s.stack.SetJob(downgradedJob)
+				s.setJob(downgradedJob)
+
+				if needsToSetNodes(downgradedJob, s.job) {
+					nodes, byDC, err = s.setNodes(downgradedJob)
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			// Find the preferred node
@@ -596,9 +604,17 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
 
-			// Restore stack job now that placement is done, to use plan job version
+			// Restore stack job and nodes now that placement is done, to use
+			// plan job version
 			if downgradedJob != nil {
-				s.stack.SetJob(s.job)
+				s.setJob(s.job)
+
+				if needsToSetNodes(downgradedJob, s.job) {
+					nodes, byDC, err = s.setNodes(s.job)
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			// Set fields based on if we found an allocation option
@@ -688,6 +704,45 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	}
 
 	return nil
+}
+
+// setJob updates the stack with the given job and job's node pool scheduler
+// configuration.
+func (s *GenericScheduler) setJob(job *structs.Job) error {
+	// Fetch node pool and global scheduler configuration to determine how to
+	// configure the scheduler.
+	pool, err := s.state.NodePoolByName(nil, job.NodePool)
+	if err != nil {
+		return fmt.Errorf("failed to get job node pool %q: %v", job.NodePool, err)
+	}
+
+	_, schedConfig, err := s.state.SchedulerConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get scheduler configuration: %v", err)
+	}
+
+	s.stack.SetJob(job)
+	s.stack.SetSchedulerConfiguration(schedConfig.WithNodePool(pool))
+	return nil
+}
+
+// setnodes updates the stack with the nodes that are ready for placement for
+// the given job.
+func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	s.stack.SetNodes(nodes)
+	return nodes, byDC, nil
+}
+
+// needsToSetNodes returns true if jobs a and b changed in a way that requires
+// the nodes to be reset.
+func needsToSetNodes(a, b *structs.Job) bool {
+	return !helper.SliceSetEq(a.Datacenters, b.Datacenters) ||
+		a.NodePool != b.NodePool
 }
 
 // propagateTaskState copies task handles from previous allocations to
@@ -818,6 +873,11 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 
 	// Check if preemption is enabled, defaults to true
+	//
+	// The scheduler configuration is read directly from state but only
+	// values that can't be specified per node pool should be used. Other
+	// values must be merged by calling schedConfig.WithNodePool() and set in
+	// the stack by calling SetSchedulerConfiguration().
 	enablePreemption := true
 	if schedConfig != nil {
 		if s.job.Type == structs.JobTypeBatch {
