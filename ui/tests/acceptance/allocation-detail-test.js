@@ -2,13 +2,7 @@
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import AdapterError from '@ember-data/adapter/error';
 import { run } from '@ember/runloop';
-import {
-  currentURL,
-  click,
-  visit,
-  triggerEvent,
-  waitFor,
-} from '@ember/test-helpers';
+import { currentURL, click, triggerEvent, waitFor } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -683,7 +677,10 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       namespaceId: 'default',
     });
 
-    const currentAlloc = server.db.allocations.findBy({ jobId: job.id });
+    const runningAlloc = server.create('allocation', {
+      jobId: job.id,
+      forceRunningClientStatus: true,
+    });
     const otherAlloc = server.db.allocations.reject((j) => j.jobId !== job.id);
 
     server.db.serviceFragments.update({
@@ -692,7 +689,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
           Status: 'success',
           Check: 'check1',
           Timestamp: 99,
-          Alloc: currentAlloc.id,
+          Alloc: runningAlloc.id,
         },
         {
           Status: 'failure',
@@ -701,21 +698,21 @@ module('Acceptance | allocation detail (services)', function (hooks) {
           propThatDoesntMatter:
             'this object will be ignored, since it shared a Check name with a later one.',
           Timestamp: 98,
-          Alloc: currentAlloc.id,
+          Alloc: runningAlloc.id,
         },
         {
           Status: 'success',
           Check: 'check2',
           Output: 'Two',
           Timestamp: 99,
-          Alloc: currentAlloc.id,
+          Alloc: runningAlloc.id,
         },
         {
           Status: 'failure',
           Check: 'check3',
           Output: 'Oh no!',
           Timestamp: 99,
-          Alloc: currentAlloc.id,
+          Alloc: runningAlloc.id,
         },
         {
           Status: 'success',
@@ -731,14 +728,18 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   });
 
   test('Allocation has a list of services with active checks', async function (assert) {
-    await visit('jobs/service-haver@default');
-    await click('.allocation-row');
+    const runningAlloc = server.db.allocations.findBy({
+      jobId: 'service-haver',
+      clientStatus: 'running',
+    });
+    await Allocation.visit({ id: runningAlloc.id });
     assert.dom('[data-test-service]').exists();
     assert.dom('.service-sidebar').exists();
     assert.dom('.service-sidebar').doesNotHaveClass('open');
     assert
       .dom('[data-test-service-status-bar]')
       .exists('At least one allocation has service health');
+
     await click('[data-test-service-status-bar]');
     assert.dom('.service-sidebar').hasClass('open');
     assert
