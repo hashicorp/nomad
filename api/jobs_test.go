@@ -350,10 +350,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								KillTimeout:   pointerOf(5 * time.Second),
-								LogConfig:     DefaultLogConfig(),
-								Resources:     DefaultResources(),
-								RestartPolicy: defaultServiceJobRestartPolicy(),
+								KillTimeout:             pointerOf(5 * time.Second),
+								LogConfig:               DefaultLogConfig(),
+								Resources:               DefaultResources(),
+								RestartPolicy:           defaultServiceJobRestartPolicy(),
+								RenderTemplateOnRestart: false,
 							},
 						},
 					},
@@ -525,11 +526,12 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								Name:          "task1",
-								LogConfig:     DefaultLogConfig(),
-								Resources:     DefaultResources(),
-								KillTimeout:   pointerOf(5 * time.Second),
-								RestartPolicy: defaultServiceJobRestartPolicy(),
+								Name:                    "task1",
+								LogConfig:               DefaultLogConfig(),
+								Resources:               DefaultResources(),
+								KillTimeout:             pointerOf(5 * time.Second),
+								RestartPolicy:           defaultServiceJobRestartPolicy(),
+								RenderTemplateOnRestart: false,
 							},
 						},
 					},

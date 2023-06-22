@@ -2818,6 +2818,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						DispatchPayload: &api.DispatchPayloadConfig{
 							File: "fileA",
 						},
+						RenderTemplateOnRestart: true,
 					},
 				},
 			},
@@ -3237,6 +3238,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						DispatchPayload: &structs.DispatchPayloadConfig{
 							File: "fileA",
 						},
+						RenderTemplateOnRestart: true,
 					},
 				},
 			},

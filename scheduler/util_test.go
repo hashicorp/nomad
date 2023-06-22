@@ -547,6 +547,17 @@ func TestTasksUpdated(t *testing.T) {
 	// Compare changed Template ErrMissingKey
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
 	must.True(t, tasksUpdated(j29, j30, name).modified)
+
+	// Compare identical RenderTemplateOnRestart
+	j31 := mock.Job()
+	j31.TaskGroups[0].Tasks[0].RenderTemplateOnRestart = true
+	j32 := mock.Job()
+	j32.TaskGroups[0].Tasks[0].RenderTemplateOnRestart = true
+	must.False(t, tasksUpdated(j31, j32, name).modified)
+
+	// Compare changed RenderTemplateOnRestart
+	j32.TaskGroups[0].Tasks[0].RenderTemplateOnRestart = false
+	must.True(t, tasksUpdated(j31, j32, name).modified)
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

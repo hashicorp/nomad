@@ -319,6 +319,10 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if at.LogConfig.Disabled != bt.LogConfig.Disabled {
 			return difference("task log disabled", at.LogConfig.Disabled, bt.LogConfig.Disabled)
 		}
+
+		if at.RenderTemplateOnRestart != bt.RenderTemplateOnRestart {
+			return difference("task render template on restart", at.RenderTemplateOnRestart, bt.RenderTemplateOnRestart)
+		}
 	}
 
 	// none of the fields that trigger a destructive update were modified,

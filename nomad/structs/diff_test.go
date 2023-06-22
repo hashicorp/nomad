@@ -7754,6 +7754,62 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "Render_template_on_restart added",
+			Old:  &Task{},
+			New: &Task{
+				RenderTemplateOnRestart: true,
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "RenderTemplateOnRestart",
+						Old:  "false",
+						New:  "true",
+					},
+				},
+			},
+		},
+		{
+			Name: "Render_template_on_restart edited",
+			Old: &Task{
+				RenderTemplateOnRestart: false,
+			},
+			New: &Task{
+				RenderTemplateOnRestart: true,
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "RenderTemplateOnRestart",
+						Old:  "false",
+						New:  "true",
+					},
+				},
+			},
+		},
+		{
+			Name: "Render_template_on_restart deleted",
+			Old: &Task{
+				RenderTemplateOnRestart: true,
+			},
+			New: &Task{},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "RenderTemplateOnRestart",
+						Old:  "true",
+						New:  "false",
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

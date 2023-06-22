@@ -7488,6 +7488,9 @@ type Task struct {
 	// Identity controls if and how the workload identity is exposed to
 	// tasks similar to the Vault block.
 	Identity *WorkloadIdentity
+
+	// RenderTemplateOnRestart controls if templates should be explicitly rendered on task restart
+	RenderTemplateOnRestart bool
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use

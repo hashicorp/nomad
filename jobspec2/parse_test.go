@@ -1086,3 +1086,40 @@ func TestErrMissingKey(t *testing.T) {
 	require.NotNil(t, tmpl.ErrMissingKey)
 	require.True(t, *tmpl.ErrMissingKey)
 }
+
+func TestTaskRenderTemplateOnRestart(t *testing.T) {
+	ci.Parallel(t)
+	hclBytes, err := os.ReadFile("test-fixtures/task-render-template-on-restart.hcl")
+	require.NoError(t, err)
+	parsedJob, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/task-render-template-on-restart.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+	require.NoError(t, err)
+	expectedJob := &api.Job{
+		ID:   pointer.Of("example"),
+		Name: pointer.Of("example"),
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name: pointer.Of("group"),
+				Tasks: []*api.Task{
+					{
+						Name:                    "set-to-true",
+						RenderTemplateOnRestart: true,
+					},
+					{
+						Name:                    "set-to-false",
+						RenderTemplateOnRestart: false,
+					},
+					{
+						Name:                    "not-set",
+						RenderTemplateOnRestart: false,
+					},
+				},
+			},
+		},
+	}
+	require.Equal(t, expectedJob, parsedJob)
+
+}

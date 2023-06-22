@@ -1199,6 +1199,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
+	structsTask.RenderTemplateOnRestart = apiTask.RenderTemplateOnRestart
 
 	if apiTask.Identity != nil {
 		structsTask.Identity = &structs.WorkloadIdentity{

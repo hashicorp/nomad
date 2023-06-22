@@ -335,6 +335,8 @@ job "binstore-storagelocker" {
         left_delimiter  = "--"
         right_delimiter = "__"
       }
+
+      render_template_on_restart = true
     }
 
     task "storagelocker" {
