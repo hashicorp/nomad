@@ -83,6 +83,8 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		now := time.Now().UnixNano()
 		ev.CreateTime = now // existing will override if it exists
 		ev.ModifyTime = now
+
+		//?: Verify if its new but it has a lock defined as well
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		ev = &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -91,6 +93,8 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 				ModifyIndex: args.Var.ModifyIndex,
 			},
 		}
+	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
+		//?:Create timers and start lock
 	}
 
 	// Make a SVEArgs
@@ -162,7 +166,7 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 		}
 	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil {
-			err = fmt.Errorf("acquiere/release requires a lock")
+			err = fmt.Errorf("acquire/release requires a lock")
 			return
 		}
 		if err = args.Var.Validate(); err != nil {
