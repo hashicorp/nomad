@@ -3771,6 +3771,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "RenderTemplateOnRestart",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "ShutdownDelay",
 								Old:  "",
 								New:  "0",
@@ -3812,6 +3818,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							{
 								Type: DiffTypeDeleted,
 								Name: "Leader",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "RenderTemplateOnRestart",
 								Old:  "false",
 								New:  "",
 							},

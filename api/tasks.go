@@ -718,7 +718,7 @@ type Task struct {
 	Kind                    string                 `hcl:"kind,optional"`
 	ScalingPolicies         []*ScalingPolicy       `hcl:"scaling,block"`
 	Identity                *WorkloadIdentity      `hcl:"identity,block"`
-	RenderTemplateOnRestart bool                   `hcl:"render_template_on_restart,optional"`
+	RenderTemplateOnRestart bool                   `mapstructure:"render_template_on_restart" hcl:"render_template_on_restart,optional"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
