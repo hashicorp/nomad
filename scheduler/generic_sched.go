@@ -520,9 +520,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 		deploymentID = s.deployment.ID
 	}
 
-	// Update the set of placement nodes
-	s.stack.SetNodes(nodes)
-
 	// Capture current time to use as the start time for any rescheduled allocations
 	now := time.Now()
 
