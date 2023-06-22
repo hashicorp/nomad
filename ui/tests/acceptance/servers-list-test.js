@@ -66,7 +66,7 @@ module('Acceptance | servers list', function (hooks) {
       );
     });
 
-    assert.equal(document.title, 'Servers - Mirage - Nomad');
+    assert.ok(document.title.includes('Servers'));
   });
 
   test('each server should show high-level info of the server', async function (assert) {

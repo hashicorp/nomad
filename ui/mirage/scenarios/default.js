@@ -30,7 +30,7 @@ export const allScenarios = {
   ...sysbatchScenarios,
 };
 
-const scenario =
+export const scenario =
   getScenarioQueryParameter() ||
   getConfigValue('mirageScenario', 'emptyCluster');
 

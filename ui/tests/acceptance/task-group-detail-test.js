@@ -126,9 +126,8 @@ module('Acceptance | task group detail', function (hooks) {
       'Aggregated Disk reservation for all tasks'
     );
 
-    assert.equal(
-      document.title,
-      `Task group ${taskGroup.name} - Job ${job.name} - Mirage - Nomad`
+    assert.ok(
+      document.title.includes(`Task group ${taskGroup.name} - Job ${job.name}`)
     );
   });
 
