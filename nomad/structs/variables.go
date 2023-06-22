@@ -192,7 +192,7 @@ func (vl *VariableLock) Validate() error {
 		mErr = multierror.Append(mErr, errInvalidTTL)
 	}
 
-	return mErr
+	return mErr.ErrorOrNil()
 }
 
 func (vi VariableItems) Size() uint64 {
@@ -307,7 +307,14 @@ func (vd VariableDecrypted) Validate() error {
 		return errors.New("variables are limited to 64KiB in total size")
 	}
 
-	if err := ValidatePath(vd.Path); err != nil {
+	if vd.Lock != nil {
+		err := vd.Lock.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := validatePath(vd.Path); err != nil {
 		return err
 	}
 
