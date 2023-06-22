@@ -6,6 +6,8 @@
 import hbs from 'htmlbars-inline-precompile';
 import DelayedTruth from '../utils/delayed-truth';
 import { withKnobs, boolean } from '@storybook/addon-knobs';
+import { getOwner } from '@ember/application';
+import { tracked } from '@glimmer/tracking';
 import { scaleLinear } from 'd3-scale';
 import faker from 'faker';
 
@@ -155,8 +157,39 @@ export let FullViz = () => ({
       allocModelGen('1', 'name', 'running', '1', 'job-1', '200/500'),
       allocModelGen('1', 'name', 'running', '5', 'job-1', '200/500'),
     ],
-    setAllocation() {
-      console.log('hmm');
+  },
+});
+
+export let EmberData = () => ({
+  template: hbs`
+    <div class="notification is-info">
+      <h3 class='title is-4'>This visualization uses data from mirage.</h3>
+      <p>Change the mirage scenario to see different cluster states visualized.</p>
+    </div>
+    {{#if (and delayedTruth.complete nodes allocations)}}
+      <TopoViz
+        @nodes={{nodes}}
+        @allocations={{allocations}}
+      />
+    {{/if}}
+  `,
+  context: {
+    delayedTruth: DelayedTruth.create(),
+    nodes: tracked([]),
+    allocations: tracked([]),
+
+    async init() {
+      this._super(...arguments);
+
+      const owner = getOwner(this);
+      const store = owner.lookup('service:store');
+
+      this.nodes = await store.query('node', { resources: true });
+      this.allocations = await store.query('allocation', {
+        resources: true,
+        task_states: false,
+        namespace: '*',
+      });
     },
   },
 });
