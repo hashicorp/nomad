@@ -21,18 +21,18 @@
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
           <MultiSelectDropdown
-            data-test-class-facet
-            @label="Class"
-            @options={{this.optionsClass}}
-            @selection={{this.selectionClass}}
-            @onSelect={{action this.setFacetQueryParam "qpClass"}}
-          />
-          <MultiSelectDropdown
             data-test-node-pool-facet
             @label="Node Pool"
             @options={{this.optionsNodePool}}
             @selection={{this.selectionNodePool}}
             @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
+          />
+          <MultiSelectDropdown
+            data-test-class-facet
+            @label="Class"
+            @options={{this.optionsClass}}
+            @selection={{this.selectionClass}}
+            @onSelect={{action this.setFacetQueryParam "qpClass"}}
           />
           <MultiSelectDropdown
             data-test-state-facet
