@@ -247,9 +247,6 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	// Create the logger based on the allocation ID
 	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
 
-	//TODO(schmichael) fixme
-	ar.UpdateIdentities(config.WorkloadIdentities)
-
 	// Create alloc broadcaster
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
@@ -268,7 +265,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	}
 
 	// Create the TaskRunners
-	if err := ar.initTaskRunners(tg.Tasks); err != nil {
+	if err := ar.initTaskRunners(tg.Tasks, config.SignedIdentities); err != nil {
 		return nil, err
 	}
 
@@ -276,7 +273,13 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 }
 
 // initTaskRunners creates task runners but does *not* run them.
-func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
+func (ar *allocRunner) initTaskRunners(tasks []*structs.Task, workloadIDs []structs.SignedWorkloadIdentity) error {
+	// index workload identities by task
+	taskIDs := make(map[string][]structs.SignedWorkloadIdentity, len(tasks))
+	for _, wid := range workloadIDs {
+		taskIDs[wid.TaskName] = append(taskIDs[wid.TaskName], wid)
+	}
+
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
 			Alloc:               ar.alloc,
@@ -301,6 +304,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ServiceRegWrapper:   ar.serviceRegWrapper,
 			Getter:              ar.getter,
 			AllocHookResources:  ar.hookResources,
+			SignedIdentities:    taskIDs[task.Name],
 		}
 
 		if ar.cpusetManager != nil {

@@ -1846,7 +1846,7 @@ func (c *Client) run() {
 	for {
 		select {
 		case update := <-allocUpdates:
-			// Don't apply updates while shutting down.
+			// Don't apply alloc updates while shutting down.
 			c.shutdownLock.Lock()
 			if c.shutdown {
 				c.shutdownLock.Unlock()
@@ -2511,12 +2511,12 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Remove the old allocations
 	for _, allocID := range diff.removed {
-		c.removeAlloc(allocID, update.workloadIDs[allocID])
+		c.removeAlloc(allocID)
 	}
 
 	// Update the existing allocations
 	for _, alloc := range diff.updated {
-		c.updateAlloc(alloc, update.workloadIDs[alloc.ID])
+		c.updateAlloc(alloc)
 	}
 
 	// Make room for new allocations before running
@@ -2528,7 +2528,8 @@ func (c *Client) runAllocs(update *allocUpdates) {
 	// Start the new allocations
 	for _, alloc := range diff.added {
 		migrateToken := update.migrateTokens[alloc.ID]
-		if err := c.addAlloc(alloc, migrateToken, update.workloadIDs[alloc.ID]); err != nil {
+		workloadIDs := update.workloadIDs[alloc.ID]
+		if err := c.addAlloc(alloc, migrateToken, workloadIDs); err != nil {
 			c.logger.Error("error adding alloc", "error", err, "alloc_id", alloc.ID)
 			errs++
 			// We mark the alloc as failed and send an update to the server
@@ -2599,7 +2600,7 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 
 // removeAlloc is invoked when we should remove an allocation because it has
 // been removed by the server.
-func (c *Client) removeAlloc(allocID string, idents []structs.SignedWorkloadIdentity) {
+func (c *Client) removeAlloc(allocID string) {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
 
@@ -2617,9 +2618,6 @@ func (c *Client) removeAlloc(allocID string, idents []structs.SignedWorkloadIden
 		return
 	}
 
-	// Always update workload identities even if one is about to stop.
-	ar.UpdateIdentities(idents)
-
 	// Stop tracking alloc runner as it's been GC'd by the server
 	delete(c.allocs, allocID)
 
@@ -2632,15 +2630,12 @@ func (c *Client) removeAlloc(allocID string, idents []structs.SignedWorkloadIden
 }
 
 // updateAlloc is invoked when we should update an allocation
-func (c *Client) updateAlloc(update *structs.Allocation, idents []structs.SignedWorkloadIdentity) {
+func (c *Client) updateAlloc(update *structs.Allocation) {
 	ar, err := c.getAllocRunner(update.ID)
 	if err != nil {
 		c.logger.Warn("cannot update nonexistent alloc", "alloc_id", update.ID)
 		return
 	}
-
-	// Always update workload identities even if reconnecting
-	ar.UpdateIdentities(idents)
 
 	// Reconnect unknown allocations if they were updated and are not terminal.
 	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
@@ -2664,7 +2659,7 @@ func (c *Client) updateAlloc(update *structs.Allocation, idents []structs.Signed
 }
 
 // addAlloc is invoked when we should add an allocation
-func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string, idents []structs.SignedWorkloadIdentity) error {
+func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string, workloadIDs []structs.SignedWorkloadIdentity) error {
 	c.allocLock.Lock()
 	defer c.allocLock.Unlock()
 
@@ -2724,7 +2719,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string, idents
 		CheckStore:          c.checkStore,
 		RPCClient:           c,
 		Getter:              c.getter,
-		WorkloadIdentities:  idents,
+		SignedIdentities:    workloadIDs,
 	}
 
 	ar, err := c.allocrunnerFactory(arConf)

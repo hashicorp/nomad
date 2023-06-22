@@ -7502,8 +7502,6 @@ type Task struct {
 
 	// Identity is the default Nomad Workload Identity and will be added to
 	// Identities with the name "default".
-	//
-	// Deprecated: Use Identities instead
 	Identity *WorkloadIdentity
 
 	// Identities are the alternate workload identities for use with 3rd party

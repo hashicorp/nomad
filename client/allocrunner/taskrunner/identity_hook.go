@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // identityHook sets the task runner's Nomad workload identity token
@@ -26,18 +27,22 @@ const (
 
 type identityHook struct {
 	tr       *TaskRunner
-	logger   log.Logger
+	allocID  string
 	taskName string
+	tokenDir string
+	logger   log.Logger
 	lock     sync.Mutex
 
-	// tokenPath is the path in which to read and write the token
-	tokenPath string
+	initialWIDs []structs.SignedWorkloadIdentity
 }
 
-func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
+func newIdentityHook(tr *TaskRunner, logger log.Logger, initialWIDs []structs.SignedWorkloadIdentity) *identityHook {
 	h := &identityHook{
-		tr:       tr,
-		taskName: tr.taskName,
+		tr:          tr,
+		allocID:     tr.allocID,
+		taskName:    tr.taskName,
+		initialWIDs: initialWIDs,
+		tokenDir:    tr.taskDir.SecretsDir,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -50,22 +55,77 @@ func (*identityHook) Name() string {
 func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	h.tokenPath = filepath.Join(req.TaskDir.SecretsDir, wiTokenFile)
 
-	return h.setToken()
+	// Handle the default Nomad workload identity
+	if err := h.setNomadToken(h.tokenDir, req.Alloc, req.Task.User); err != nil {
+		return fmt.Errorf("error setting default workload identity: %w", err)
+	}
+
+	// Index initial workload identities by name
+	signedWIDs := map[string]structs.SignedWorkloadIdentity{}
+	for _, wid := range h.initialWIDs {
+		signedWIDs[wid.IdentityName] = wid
+	}
+
+	// Handle alternate workload identities: using the intially provided WIDs if
+	// possible and falling back to RPC.
+	var missingSignedWIDs []string
+	for _, widspec := range req.Task.Identities {
+		if widspec.Name == structs.WorkloadIdentityDefaultName {
+			// Default is handled above
+			continue
+		}
+
+		if !widspec.Env && !widspec.File {
+			// Nothing to do with this identity, skip it
+			continue
+		}
+
+		signedWID, ok := signedWIDs[widspec.Name]
+		if !ok {
+			// Missed, pull from server
+			missingSignedWIDs = append(missingSignedWIDs, widspec.Name)
+			continue
+		}
+
+		// We have the JWT!
+		if widspec.Env {
+			if resp.Env == nil {
+				resp.Env = make(map[string]string)
+			}
+
+			resp.Env[fmt.Sprintf("NOMAD_TOKEN_%s", widspec.Name)] = signedWID.JWT
+		}
+		if widspec.File {
+			tokenPath := filepath.Join(h.tokenDir, fmt.Sprintf("nomad_%s.jwt", widspec.Name))
+			if err := users.WriteFileFor(tokenPath, []byte(signedWID.JWT), req.Task.User); err != nil {
+				return fmt.Errorf("failed to write token for identity %q: %w", widspec.Name, err)
+			}
+		}
+	}
+
+	//TODO(schmichael) handle missingSignedWIDs
+
+	return nil
 }
 
 func (h *identityHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	return h.setToken()
+	task := req.Alloc.LookupTask(h.taskName)
+	if task == nil {
+		// Should not happen
+		return nil
+	}
+
+	return h.setNomadToken(h.tokenDir, req.Alloc, task.User)
 }
 
-// setToken adds the Nomad token to the task's environment and writes it to a
+// setNomadToken adds the Nomad token to the task's environment and writes it to a
 // file if requested by the jobsepc.
-func (h *identityHook) setToken() error {
-	token := h.tr.alloc.SignedIdentities[h.taskName]
+func (h *identityHook) setNomadToken(path string, alloc *structs.Allocation, owner string) error {
+	token := alloc.SignedIdentities[h.taskName]
 	if token == "" {
 		return nil
 	}
@@ -73,19 +133,10 @@ func (h *identityHook) setToken() error {
 	h.tr.setNomadToken(token)
 
 	if id := h.tr.task.Identity; id != nil && id.File {
-		if err := h.writeToken(token); err != nil {
-			return err
+		tokenPath := filepath.Join(path, wiTokenFile)
+		if err := users.WriteFileFor(tokenPath, []byte(token), owner); err != nil {
+			return fmt.Errorf("failed to write token: %w", err)
 		}
-	}
-
-	return nil
-}
-
-// writeToken writes the given token to disk
-func (h *identityHook) writeToken(token string) error {
-	// Write token as owner readable only
-	if err := users.WriteFileFor(h.tokenPath, []byte(token), h.tr.task.User); err != nil {
-		return fmt.Errorf("failed to write nomad token: %w", err)
 	}
 
 	return nil

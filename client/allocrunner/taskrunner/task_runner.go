@@ -338,6 +338,9 @@ type Config struct {
 	// AllocHookResources is how taskrunner hooks can get state written by
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
+
+	//TODO(schmichael)
+	SignedIdentities []structs.SignedWorkloadIdentity
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -440,7 +443,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Initialize the runners hooks. Must come after initDriver so hooks
 	// can use tr.driverCapabilities
-	tr.initHooks()
+	tr.initHooks(config.SignedIdentities)
 
 	// Initialize base labels
 	tr.initLabels()

@@ -49,7 +49,7 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 }
 
 // initHooks initializes the tasks hooks.
-func (tr *TaskRunner) initHooks() {
+func (tr *TaskRunner) initHooks(initialWIDs []structs.SignedWorkloadIdentity) {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
 
@@ -64,7 +64,7 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
-		newIdentityHook(tr, hookLogger),
+		newIdentityHook(tr, hookLogger, initialWIDs),
 		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),

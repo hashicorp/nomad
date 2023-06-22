@@ -111,9 +111,8 @@ type AllocRunnerConfig struct {
 	// Getter is an interface for retrieving artifacts.
 	Getter interfaces.ArtifactGetter
 
-	// WorkloadIdentities are the intial alternate workload identities for this
-	// allocation.
-	WorkloadIdentities []structs.SignedWorkloadIdentity
+	//TODO(schmichael)
+	SignedIdentities []structs.SignedWorkloadIdentity
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

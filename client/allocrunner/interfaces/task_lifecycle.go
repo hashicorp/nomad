@@ -176,10 +176,12 @@ type TaskUpdateHook interface {
 
 	// Update is called when the servers have updated the Allocation for
 	// this task. Updates are concurrent with all other task hooks and
-	// therefore hooks that implement this interface must be completely
-	// safe for concurrent access.
+	// therefore hooks that implement this interface must be safe for concurrent
+	// access.
 	//
-	// The context is cancelled if the task is killed.
+	// Update hooks are only called if the task still exists on the alloc.
+	//
+	// The context is cancelled if the task is killed concurrent with an update.
 	Update(context.Context, *TaskUpdateRequest, *TaskUpdateResponse) error
 }
 
