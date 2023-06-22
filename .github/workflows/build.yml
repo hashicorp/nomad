@@ -281,8 +281,8 @@ jobs:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
-  build-docker-default:
-    name: Docker ${{ matrix.arch }} default release build
+  build-docker:
+    name: Docker ${{ matrix.arch }} build
     needs:
       - get-product-version
       - build-linux
@@ -293,7 +293,7 @@ jobs:
     env:
       version: ${{needs.get-product-version.outputs.product-version}}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
@@ -309,7 +309,6 @@ jobs:
           arch: ${{matrix.arch}}
           tags: |
             docker.io/hashicorp/${{env.PKG_NAME}}:${{env.version}}
-            986891699432.dkr.ecr.us-east-1.amazonaws.com/hashicorp/${{env.PKG_NAME}}:${{env.version}}
           dev_tags: |
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-dev
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{ github.sha }}
