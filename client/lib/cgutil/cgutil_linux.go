@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lcc "github.com/opencontainers/runc/libcontainer/configs"
@@ -144,4 +145,27 @@ func CopyCpuset(source, destination string) error {
 	}
 
 	return nil
+}
+
+// MaybeDisableMemorySwappiness will disable memory swappiness, if that controller
+// is available. Always the case for cgroups v2, but is not always the case on
+// very old kernels with cgroups v1.
+func MaybeDisableMemorySwappiness() *uint64 {
+	bypass := (*uint64)(nil)
+	zero := pointer.Of[uint64](0)
+
+	// cgroups v2 always set zero
+	if UseV2 {
+		return zero
+	}
+
+	// cgroups v1 detect if swappiness is supported by attempting to write to
+	// the nomad parent cgroup swappiness interface
+	e := &editor{fromRoot: "memory/nomad"}
+	err := e.write("memory.swappiness", "0")
+	if err != nil {
+		return bypass
+	}
+
+	return zero
 }
