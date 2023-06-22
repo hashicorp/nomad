@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -506,7 +507,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
 	// Get the base nodes
-	nodes, _, byDC, err := readyNodesInDCs(s.state, s.job.Datacenters)
+	byDC, err := s.setNodes(s.job)
 	if err != nil {
 		return err
 	}
@@ -515,9 +516,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	if s.deployment != nil && s.deployment.Active() {
 		deploymentID = s.deployment.ID
 	}
-
-	// Update the set of placement nodes
-	s.stack.SetNodes(nodes)
 
 	// Capture current time to use as the start time for any rescheduled allocations
 	now := time.Now()
@@ -559,10 +557,17 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				continue
 			}
 
-			// Use downgraded job in scheduling stack to honor
-			// old job resources and constraints
+			// Use downgraded job in scheduling stack to honor old job
+			// resources, constraints, and datacenter.
 			if downgradedJob != nil {
 				s.stack.SetJob(downgradedJob)
+
+				if needsToSetNodes(downgradedJob, s.job) {
+					byDC, err = s.setNodes(downgradedJob)
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			// Find the preferred node
@@ -592,9 +597,17 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
 
-			// Restore stack job now that placement is done, to use plan job version
+			// Restore stack job and nodes now that placement is done, to use
+			// plan job version
 			if downgradedJob != nil {
 				s.stack.SetJob(s.job)
+
+				if needsToSetNodes(downgradedJob, s.job) {
+					byDC, err = s.setNodes(s.job)
+					if err != nil {
+						return err
+					}
+				}
 			}
 
 			// Set fields based on if we found an allocation option
@@ -684,6 +697,24 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	}
 
 	return nil
+}
+
+// setnodes updates the stack with the nodes that are ready for placement for
+// the given job.
+func (s *GenericScheduler) setNodes(job *structs.Job) (map[string]int, error) {
+	nodes, _, byDC, err := readyNodesInDCs(s.state, job.Datacenters)
+	if err != nil {
+		return nil, err
+	}
+
+	s.stack.SetNodes(nodes)
+	return byDC, nil
+}
+
+// needsToSetNodes returns true if jobs a and b changed in a way that requires
+// the nodes to be reset.
+func needsToSetNodes(a, b *structs.Job) bool {
+	return !helper.SliceSetEq(a.Datacenters, b.Datacenters)
 }
 
 // propagateTaskState copies task handles from previous allocations to
