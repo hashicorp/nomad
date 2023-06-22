@@ -70,12 +70,16 @@ jobs:
         partition: [1, 2, 3, 4]
         split: [4]
     steps:
+      - name: Setup secrets
+        id: secrets
+        run: |-
+          echo "PERCY_TOKEN=${{ secrets.PERCY_TOKEN }}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: yarn install
         run: yarn install --frozen-lockfile
       - name: ember exam
         env:
-          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_TOKEN: ${{ steps.secrets.outputs.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
   finalize:
@@ -88,12 +92,16 @@ jobs:
       - pre-test
       - tests
     steps:
+      - name: Setup secrets
+        id: secrets
+        run: |-
+          echo "PERCY_TOKEN=${{ secrets.PERCY_TOKEN }}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: yarn install
         run: yarn install --frozen-lockfile
       - name: finalize
         env:
-          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_TOKEN: ${{ steps.secrets.outputs.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn percy build:finalize
 permissions:

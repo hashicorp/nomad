@@ -33,6 +33,11 @@ jobs:
           echo "::error::Workflow not allowed to run from ${{ github.ref_name }}"
           exit 1
 
+      - name: Setup secrets
+        id: secrets
+        run: |-
+          echo "GITHUB_TOKEN=${{ secrets.ELEVATED_GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+
       - name: Print release info
         run: |-
           echo "::notice::Release v${{ github.event.inputs.version }} from branch ${{ github.ref_name }}"
@@ -55,8 +60,8 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: Setup Git
         run: |-
-          if [ -n "${{ secrets.ELEVATED_GITHUB_TOKEN }}" ]; then
-            git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com/".insteadOf "https://github.com"
+          if [ -n "${{ steps.secrets.outputs.GITHUB_TOKEN }}" ]; then
+            git config --global url."https://${{ steps.secrets.outputs.GITHUB_TOKEN }}:@github.com/".insteadOf "https://github.com"
           fi
           git config --global user.email "github-team-nomad-core@hashicorp.com"
           git config --global user.name "hc-github-team-nomad-core"
@@ -141,7 +146,7 @@ jobs:
       - name: Invoke build workflow
         id: invoke-build
         env:
-          GH_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.secrets.outputs.GITHUB_TOKEN }}
         run: |
           gh workflow run build.yml --field build-ref=${{ steps.commit-change-push.outputs.build-ref }} --field make-prerelease=false
 
