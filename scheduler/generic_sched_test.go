@@ -741,6 +741,116 @@ func TestServiceSched_Spread(t *testing.T) {
 	}
 }
 
+// TestServiceSched_JobRegister_Datacenter_Downgrade tests the case where an
+// allocation fails during a deployment with canaries, an the job changes its
+// datacenter. The replacement for the failed alloc should be placed in the
+// datacenter of the original job.
+func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	// Create 5 nodes in each datacenter.
+	// Use two loops so nodes are separated by datacenter.
+	nodes := []*structs.Node{}
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		node.Name = fmt.Sprintf("node-dc1-%d", i)
+		node.Datacenter = "dc1"
+		nodes = append(nodes, node)
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		node.Name = fmt.Sprintf("node-dc2-%d", i)
+		node.Datacenter = "dc2"
+		nodes = append(nodes, node)
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Create first version of the test job running in dc1.
+	job1 := mock.Job()
+	job1.Version = 1
+	job1.Datacenters = []string{"dc1"}
+	job1.Status = structs.JobStatusRunning
+	job1.TaskGroups[0].Count = 3
+	job1.TaskGroups[0].Update = &structs.UpdateStrategy{
+		Stagger:          time.Duration(30 * time.Second),
+		MaxParallel:      1,
+		HealthCheck:      "checks",
+		MinHealthyTime:   time.Duration(30 * time.Second),
+		HealthyDeadline:  time.Duration(9 * time.Minute),
+		ProgressDeadline: time.Duration(10 * time.Minute),
+		AutoRevert:       true,
+		Canary:           1,
+	}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job1))
+
+	// Create allocs for this job version with one being a canary and another
+	// marked as failed.
+	allocs := []*structs.Allocation{}
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job1
+		alloc.JobID = job1.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+			Healthy:     pointer.Of(true),
+			Timestamp:   time.Now(),
+			Canary:      false,
+			ModifyIndex: h.NextIndex(),
+		}
+		if i == 0 {
+			alloc.DeploymentStatus.Canary = true
+		}
+		if i == 1 {
+			alloc.ClientStatus = structs.AllocClientStatusFailed
+		}
+		allocs = append(allocs, alloc)
+	}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Update job to place it in dc2.
+	job2 := job1.Copy()
+	job2.Version = 2
+	job2.Datacenters = []string{"dc2"}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+
+	eval := &structs.Evaluation{
+		Namespace:   job2.Namespace,
+		ID:          uuid.Generate(),
+		Priority:    job2.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	processErr := h.Process(NewServiceScheduler, eval)
+	must.NoError(t, processErr, must.Sprint("failed to process eval"))
+	must.Len(t, 1, h.Plans)
+
+	// Verify the plan places the new allocation in dc2 and the replacement
+	// for the failed allocation from the previous job version in dc1.
+	for nodeID, allocs := range h.Plans[0].NodeAllocation {
+		var node *structs.Node
+		for _, n := range nodes {
+			if n.ID == nodeID {
+				node = n
+				break
+			}
+		}
+
+		must.Len(t, 1, allocs)
+		alloc := allocs[0]
+		must.SliceContains(t, alloc.Job.Datacenters, node.Datacenter, must.Sprintf(
+			"alloc for job in datacenter %q placed in %q",
+			alloc.Job.Datacenters,
+			node.Datacenter,
+		))
+	}
+}
+
 // TestServiceSched_JobRegister_NodePool_Downgrade tests the case where an
 // allocation fails during a deployment with canaries, where the job changes
 // node pool. The failed alloc should be placed in the node pool of the
