@@ -49,6 +49,9 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 		return err
 	}
 
+	// Only warn for expiration of a read request.
+	_ = n.validateLicense(nil)
+
 	// Setup blocking query.
 	sort := state.SortOption(args.Reverse)
 	opts := blockingOptions{
@@ -134,6 +137,9 @@ func (n *NodePool) GetNodePool(args *structs.NodePoolSpecificRequest, reply *str
 		return structs.ErrPermissionDenied
 	}
 
+	// Only warn for expiration of a read request.
+	_ = n.validateLicense(nil)
+
 	// Setup the blocking query.
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -185,6 +191,12 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 	for _, pool := range args.NodePools {
 		if !aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityWrite) {
 			return structs.ErrPermissionDenied
+		}
+
+		// Strict enforcement for write requests.
+		// If not licensed then requests will be denied.
+		if err := n.validateLicense(pool); err != nil {
+			return err
 		}
 	}
 
@@ -242,6 +254,10 @@ func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *s
 			return structs.ErrPermissionDenied
 		}
 	}
+
+	// Only warn for expiration on delete because just parts of node pools are
+	// licensed, so they are allowed to be deleted.
+	_ = n.validateLicense(nil)
 
 	if !ServersMeetMinimumVersion(
 		n.srv.serf.Members(), n.srv.Region(), minNodePoolsVersion, true) {
