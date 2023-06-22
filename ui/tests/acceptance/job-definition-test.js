@@ -21,6 +21,7 @@ module('Acceptance | job definition', function (hooks) {
   setupCodeMirror(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     server.create('node');
     server.create('job');
     job = server.db.jobs[0];
@@ -137,12 +138,13 @@ module('Acceptance | job definition', function (hooks) {
   });
 });
 
-module('display and edit using full specification', function (hooks) {
+module('Acceptance | job definition | full specification', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   setupCodeMirror(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     server.create('node');
     server.create('job');
     job = server.db.jobs[0];

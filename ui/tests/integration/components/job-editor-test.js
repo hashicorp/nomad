@@ -31,6 +31,7 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server = startMirage();
 
     // Required for placing allocations (a result of creating jobs)
+    this.server.create('node-pool');
     this.server.create('node');
   });
 

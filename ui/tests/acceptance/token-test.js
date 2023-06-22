@@ -38,6 +38,7 @@ module('Acceptance | tokens', function (hooks) {
     faker.seed(1);
 
     server.create('agent');
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job');
     managementToken = server.create('token');

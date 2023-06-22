@@ -17,6 +17,12 @@
     font-weight: $weight-bold;
     font-size: $size-3;
 
+    &.justify {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     .metric-units {
       font-size: $size-4;
     }

@@ -22,6 +22,7 @@ module(
       window.localStorage.clear();
       this.store = this.owner.lookup('service:store');
       this.server = startMirage();
+      this.server.create('node-pool');
       this.server.create('namespace');
     });
 

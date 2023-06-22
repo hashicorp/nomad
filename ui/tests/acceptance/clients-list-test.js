@@ -20,6 +20,7 @@ module('Acceptance | clients list', function (hooks) {
 
   hooks.beforeEach(function () {
     window.localStorage.clear();
+    server.createList('node-pool', 3);
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -73,6 +74,7 @@ module('Acceptance | clients list', function (hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
+    assert.equal(nodeRow.nodePool, node.nodePool, 'Node Pool');
     assert.equal(
       nodeRow.compositeStatus.text,
       'draining',
@@ -322,6 +324,29 @@ module('Acceptance | clients list', function (hooks) {
 
       return selection.includes(node.status);
     },
+  });
+
+  testFacet('Node Pools', {
+    facet: ClientsList.facets.nodePools,
+    paramName: 'nodePool',
+    expectedOptions() {
+      return server.db.nodePools
+        .filter((p) => p.name !== 'all') // The node pool 'all' should not be a filter.
+        .map((p) => p.name);
+    },
+    async beforeEach() {
+      server.create('agent');
+      server.create('node-pool', { name: 'all' });
+      server.create('node-pool', { name: 'default' });
+      server.createList('node-pool', 10);
+
+      // Make sure each node pool has at least one node.
+      server.db.nodePools.forEach((p) => {
+        server.createList('node', 2, { nodePool: p.name });
+      });
+      await ClientsList.visit();
+    },
+    filter: (node, selection) => selection.includes(node.nodePool),
   });
 
   testFacet('Datacenters', {

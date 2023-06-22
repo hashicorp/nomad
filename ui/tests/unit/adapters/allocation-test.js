@@ -25,6 +25,7 @@ module('Unit | Adapter | Allocation', function (hooks) {
       this.server.create('region', { id: 'region-1' });
       this.server.create('region', { id: 'region-2' });
 
+      this.server.create('node-pool');
       this.server.create('node');
       this.server.create('job', { createAllocations: false });
       this.server.create('allocation', { id: 'alloc-1' });

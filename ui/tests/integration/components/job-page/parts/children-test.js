@@ -19,6 +19,7 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
+    this.server.create('node-pool');
   });
 
   hooks.afterEach(function () {

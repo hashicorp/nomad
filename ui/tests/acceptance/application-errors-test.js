@@ -21,6 +21,7 @@ module('Acceptance | application errors ', function (hooks) {
   hooks.beforeEach(function () {
     faker.seed(1);
     server.create('agent');
+    server.create('node-pool');
     server.create('node');
     server.create('job');
   });

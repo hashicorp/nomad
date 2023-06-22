@@ -19,6 +19,7 @@ module('Acceptance | job evaluations', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
+    server.create('node-pool');
     job = server.create('job', {
       noFailedPlacements: true,
       createAllocations: false,

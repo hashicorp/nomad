@@ -175,6 +175,7 @@ moduleForJob(
       job,
       assert
     ) {
+      assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
@@ -226,6 +227,7 @@ moduleForJob(
       job,
       assert
     ) {
+      assert.notOk(JobDetail.jobsHeader.hasNodePool);
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
@@ -319,6 +321,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.createList('namespace', 2);
+    server.create('node-pool');
     server.create('node');
     job = server.create('job', {
       type: 'service',

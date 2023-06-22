@@ -44,9 +44,12 @@ export default function (server) {
     );
   }
 
+  // Make sure built-in node pools exist.
+  createBuiltInNodePools(server);
   if (withNamespaces) createNamespaces(server);
   if (withTokens) createTokens(server);
   if (withRegions) createRegions(server);
+
   activeScenario(server);
 }
 
@@ -56,6 +59,7 @@ function smallCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 2);
   server.createList('node', 5);
   server.create(
     'node',
@@ -347,6 +351,7 @@ function smallCluster(server) {
 
 function mediumCluster(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 5);
   server.createList('node', 50);
   server.createList('job', 25);
 }
@@ -356,6 +361,7 @@ function variableTestCluster(server) {
   createTokens(server);
   createNamespaces(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
   server.createList('node', 5);
   server.createList('job', 3);
   server.createList('variable', 3);
@@ -431,6 +437,7 @@ function servicesTestCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
   server.createList('node', 5);
   server.createList('job', 1, { createRecommendations: true });
   server.create('job', {
@@ -563,12 +570,14 @@ function servicesTestCluster(server) {
 // Due to Mirage performance, large cluster scenarios will be slow
 function largeCluster(server) {
   server.createList('agent', 5);
+  server.createList('node-pool', 10);
   server.createList('node', 1000);
   server.createList('job', 100);
 }
 
 function massiveCluster(server) {
   server.createList('agent', 7);
+  server.createList('node-pool', 100);
   server.createList('node', 5000);
   server.createList('job', 2000);
 }
@@ -602,6 +611,7 @@ function allNodeTypes(server) {
 
 function everyFeature(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
 
   server.create('node', 'forceIPv4');
   server.create('node', 'draining');
@@ -635,6 +645,11 @@ function emptyCluster(server) {
 }
 
 // Behaviors
+
+function createBuiltInNodePools(server) {
+  server.create('node-pool', { name: 'default' });
+  server.create('node-pool', { name: 'all' });
+}
 
 function createTokens(server) {
   server.createList('token', 3);

@@ -31,6 +31,9 @@
       {{this.job.namespace.name}}
     </td>
   {{/if}}
+  <td data-test-job-node-pool>
+    {{this.job.nodePool}}
+  </td>
 {{/if}}
 {{#if (eq @context "child")}}
   <td data-test-job-submit-time>
