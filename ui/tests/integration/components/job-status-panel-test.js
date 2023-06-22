@@ -201,7 +201,7 @@ module(
         );
 
       assert.equal(
-        find('[data-test-new-allocation-tally]').textContent.trim(),
+        find('[data-test-new-allocation-tally] > span').textContent.trim(),
         `New allocations: ${
           this.job.allocations.filter(
             (a) =>
@@ -292,7 +292,7 @@ module(
         );
 
       assert.equal(
-        find('[data-test-new-allocation-tally]').textContent.trim(),
+        find('[data-test-new-allocation-tally] > span').textContent.trim(),
         `New allocations: ${
           this.job.allocations.filter(
             (a) =>
@@ -304,7 +304,7 @@ module(
       );
 
       assert.equal(
-        find('[data-test-old-allocation-tally]').textContent.trim(),
+        find('[data-test-old-allocation-tally] > span').textContent.trim(),
         `Previous allocations: ${
           this.job.allocations.filter(
             (a) =>
@@ -356,7 +356,7 @@ module(
         );
 
       assert.equal(
-        find('[data-test-old-allocation-tally]').textContent.trim(),
+        find('[data-test-old-allocation-tally] > span').textContent.trim(),
         `Previous allocations: ${
           this.job.allocations.filter(
             (a) =>

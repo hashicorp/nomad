@@ -86,11 +86,49 @@
 
       & > h4 {
         margin-bottom: -0.5rem;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.5rem;
+
+        & > .versions > ul {
+          grid-template-columns: unset;
+          grid-auto-columns: min-content;
+          grid-auto-flow: column;
+        }
       }
     }
 
     & > .history-and-params {
       grid-area: history-and-params;
+    }
+  }
+
+  .versions {
+    & > ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, 100px);
+      gap: 0.5rem;
+      & > li {
+        white-space: nowrap;
+      }
+      a {
+        text-decoration: none;
+      }
+    }
+    .version-label {
+      position: relative;
+      z-index: 2;
+      & > .hds-badge__text {
+        font-weight: 700;
+      }
+    }
+    .version-count {
+      color: $blue;
+      position: relative;
+      z-index: 1;
+      left: -1rem;
+      padding-left: 1rem;
+      background-color: var(--token-color-surface-faint);
     }
   }
 
@@ -115,19 +153,6 @@
       grid-template-columns: repeat(4, 1fr);
       grid-auto-rows: max-content;
       gap: 0.5rem;
-    }
-    .versions {
-      & > ul {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, 100px);
-        gap: 0.5rem;
-        & > li {
-          white-space: nowrap;
-          & a {
-            text-decoration: none;
-          }
-        }
-      }
     }
     .latest-deployment {
       h4 svg {
