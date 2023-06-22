@@ -11,6 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 const (
@@ -39,6 +42,12 @@ const (
 	// variable. This size is deliberately set low and is not configurable, to
 	// discourage DoS'ing the cluster
 	maxVariableSize = 65536
+
+	minLockTTL = 10 * time.Second
+	maxLockTTL = 24 * time.Hour
+
+	defaultLockTTL   = 15 * time.Second
+	defaultLockDelay = 15 * time.Second
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -130,6 +139,35 @@ func (vl *VariableLock) Copy() *VariableLock {
 	*nvl = *vl
 
 	return nvl
+}
+
+func (vl *VariableLock) Canonicalize() {
+	// If the lock ID is empty, it means this is a creation of a lock on this variable.
+	if vl.ID == "" {
+		vl.ID = uuid.Generate()
+	}
+
+	if vl.LockDelay == 0 {
+		vl.LockDelay = defaultLockDelay
+	}
+
+	if vl.TTL == 0 {
+		vl.TTL = defaultLockTTL
+	}
+}
+
+func (vl *VariableLock) Validate() error {
+	var mErr *multierror.Error
+
+	if vl.LockDelay < 0 || vl.TTL < 0 {
+		mErr = multierror.Append(mErr, errors.New("Lock delay and TTL must be positive"))
+	}
+
+	if vl.TTL > maxLockTTL || vl.TTL < minLockTTL {
+		mErr = multierror.Append(mErr, errors.New("TTL must be between 10 seconds and 24 hours"))
+	}
+
+	return mErr
 }
 
 func (vi VariableItems) Size() uint64 {
@@ -244,6 +282,13 @@ func (vd VariableDecrypted) Validate() error {
 		return errors.New("variables are limited to 64KiB in total size")
 	}
 
+	if vd.Lock != nil {
+		err := vd.Lock.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
 	if err := validatePath(vd.Path); err != nil {
 		return err
 	}
@@ -289,6 +334,10 @@ func validatePath(path string) error {
 func (vd *VariableDecrypted) Canonicalize() {
 	if vd.Namespace == "" {
 		vd.Namespace = DefaultNamespace
+	}
+
+	if vd.Lock != nil {
+		vd.Lock.Canonicalize()
 	}
 }
 

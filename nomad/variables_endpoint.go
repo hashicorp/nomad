@@ -50,11 +50,12 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	defer metrics.MeasureSince([]string{
 		"nomad", "variables", "apply", string(args.Op)}, time.Now())
 
-	// Check if the Namespace is explicitly set on the variable. If
-	// not, use the RequestNamespace
 	if args.Var == nil {
 		return fmt.Errorf("variable must not be nil")
 	}
+
+	// Check if the Namespace is explicitly set on the variable. If
+	// not, use the RequestNamespace
 	targetNS := args.Var.Namespace
 	if targetNS == "" {
 		targetNS = args.RequestNamespace()
@@ -129,7 +130,7 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 		canRead = hasPerm(acl.VariablesCapabilityRead)
 
 		switch args.Op {
-		case structs.VarOpSet, structs.VarOpCAS:
+		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire, structs.VarOpLockRelease:
 			if !hasPerm(acl.VariablesCapabilityWrite) {
 				err = structs.ErrPermissionDenied
 				return
@@ -154,10 +155,17 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 		if err = args.Var.Validate(); err != nil {
 			return
 		}
-
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
 			err = fmt.Errorf("delete requires a Path")
+			return
+		}
+	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
+		if args.Var == nil || args.Var.Lock == nil {
+			err = fmt.Errorf("acquiere/release requires a lock")
+			return
+		}
+		if err = args.Var.Validate(); err != nil {
 			return
 		}
 	}
