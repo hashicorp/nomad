@@ -96,7 +96,7 @@
         <legend>
           {{#each-in this.newAllocsByStatus as |status count|}}
             <ConditionalLinkTo
-              @condition={{not (eq status "unplaced")}}
+              @condition={{and (not (eq status "unplaced")) (gt count 0)}}
               @route="jobs.job.allocations"
               @model={{@job}}
               @query={{hash status=(concat '["' status '"]') version=(concat '[' this.job.latestDeployment.versionNumber ']')}}

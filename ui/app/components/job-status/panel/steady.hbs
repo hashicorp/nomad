@@ -51,7 +51,7 @@
         <legend>
           {{#each this.allocTypes as |type|}}
             <ConditionalLinkTo
-              @condition={{not (eq type.label "unplaced")}}
+              @condition={{and (not (eq type.label "unplaced")) (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length")}}
               @route="jobs.job.allocations"
               @model={{@job}}
               @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (map-by "version" this.versions) ']')}}
