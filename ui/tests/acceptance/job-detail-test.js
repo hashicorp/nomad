@@ -171,6 +171,13 @@ moduleForJob(
         )
       );
     },
+    "don't display redundant information in children table": async function (
+      job,
+      assert
+    ) {
+      assert.notOk(JobDetail.jobsHeader.hasPriority);
+      assert.notOk(JobDetail.jobsHeader.hasType);
+    },
   }
 );
 
@@ -186,9 +193,8 @@ moduleForJob(
     return parent;
   },
   {
-    'display namespace in children table': async function (job, assert) {
-      assert.ok(JobDetail.jobsHeader.hasNamespace);
-      assert.equal(JobDetail.jobs[0].namespace, job.namespace);
+    "don't display namespace in children table": async function (job, assert) {
+      assert.notOk(JobDetail.jobsHeader.hasNamespace);
     },
   }
 );
@@ -216,6 +222,13 @@ moduleForJob(
         )
       );
     },
+    "don't display redundant information in children table": async function (
+      job,
+      assert
+    ) {
+      assert.notOk(JobDetail.jobsHeader.hasPriority);
+      assert.notOk(JobDetail.jobsHeader.hasType);
+    },
   }
 );
 
@@ -231,9 +244,8 @@ moduleForJob(
     return parent;
   },
   {
-    'display namespace in children table': async function (job, assert) {
-      assert.ok(JobDetail.jobsHeader.hasNamespace);
-      assert.equal(JobDetail.jobs[0].namespace, job.namespace);
+    "don't display namespace in children table": async function (job, assert) {
+      assert.notOk(JobDetail.jobsHeader.hasNamespace);
     },
   }
 );
