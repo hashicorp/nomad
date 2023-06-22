@@ -110,10 +110,25 @@
       gap: 0.5rem;
       & > li {
         white-space: nowrap;
-        & a {
-          text-decoration: none;
-        }
       }
+      a {
+        text-decoration: none;
+      }
+    }
+    .version-label {
+      position: relative;
+      z-index: 2;
+      & > .hds-badge__text {
+        font-weight: 700;
+      }
+    }
+    .version-count {
+      color: $blue;
+      position: relative;
+      z-index: 1;
+      left: -1rem;
+      padding-left: 1rem;
+      background-color: var(--token-color-surface-faint);
     }
   }
 

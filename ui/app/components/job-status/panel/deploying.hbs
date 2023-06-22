@@ -76,11 +76,11 @@
                   <li>
                     <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
                       {{#if (eq versionObj.version "unknown")}}
-                        <Hds::Badge @text="unknown" />
+                        <Hds::Badge @text="unknown" class="version-label" />
                       {{else}}
-                        <Hds::Badge @text={{concat "v" versionObj.version}} />
+                        <Hds::Badge @text={{concat "v" versionObj.version}} class="version-label" />
                       {{/if}}
-                      <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
+                      <Hds::Badge @text={{versionObj.allocations.length}} class="version-count" />
                     </LinkTo>
                   </li>
                 {{/each}}
@@ -106,9 +106,11 @@
         {{/if}}
 
         <h4 class="title is-5" data-test-new-allocation-tally><span>New allocations: {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}} running and healthy</span>
+          <span class="versions">
           <LinkTo data-version={{@job.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' @job.version ']')}}>
-            <Hds::Badge @text={{concat "v" @job.version}} />
+            <Hds::Badge @text={{concat "v" @job.version}} class="version-label" />
           </LinkTo>
+          </span>
         </h4>
         <div class="new-allocations">
           <JobStatus::AllocationStatusRow @allocBlocks={{this.newVersionAllocBlocks}} />
