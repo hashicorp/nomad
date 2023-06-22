@@ -1975,7 +1975,7 @@ func (c *Client) getRegistrationToken() string {
 
 	select {
 	case <-c.registeredCh:
-		return c.GetConfig().Node.SecretID
+		return c.secretNodeID()
 	default:
 		// If we haven't yet closed the registeredCh we're either starting for
 		// the 1st time or we've just restarted. Check the local state to see if
@@ -1987,7 +1987,7 @@ func (c *Client) getRegistrationToken() string {
 		}
 		if registration != nil && registration.HasRegistered {
 			c.registeredOnce.Do(func() { close(c.registeredCh) })
-			return c.GetConfig().Node.SecretID
+			return c.secretNodeID()
 		}
 	}
 	return ""
