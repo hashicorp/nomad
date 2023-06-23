@@ -59,22 +59,14 @@ func (c *Cluster) wait() {
 			if c.linuxClients <= 0 {
 				return nil
 			}
-			nodes, _, err := nodesAPI.List(nil)
+			queryOpts := &nomadapi.QueryOptions{
+				Filter: `Attributes["kernel.name"] == "linux"`,
+			}
+			nodes, _, err := nodesAPI.List(queryOpts)
 			if err != nil {
 				return err
 			}
-			eligible := 0
-			for _, node := range nodes {
-				if node.Status == "ready" {
-					info, _, err := nodesAPI.Info(node.ID, nil)
-					if err != nil {
-						return err
-					}
-					if info.Attributes["kernel.name"] == "linux" {
-						eligible++
-					}
-				}
-			}
+			eligible := len(nodes)
 			if eligible < c.linuxClients {
 				return fmt.Errorf("not enough linux clients, want %d, got %d", c.linuxClients, eligible)
 			}
