@@ -111,6 +111,10 @@
       gap: 0.5rem;
       & > li {
         white-space: nowrap;
+        &:has(.version-count) .version-label {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
       }
       a {
         text-decoration: none;
@@ -119,8 +123,6 @@
     .version-label {
       position: relative;
       z-index: 2;
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
       & > .hds-badge__text {
         font-weight: 700;
       }
@@ -131,7 +133,6 @@
       z-index: 1;
       left: -1rem;
       padding-left: 1rem;
-      // background-color: var(--token-color-surface-faint);
     }
   }
 
