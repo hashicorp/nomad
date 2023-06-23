@@ -120,7 +120,6 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (bool, error) {
 	var err error
-	var canRead bool
 	var aclObj *acl.ACL
 
 	// Perform the ACL resolution.
@@ -135,7 +134,7 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 				args.Var.Path, perm, nil)
 		}
 
-		canRead = hasPerm(acl.VariablesCapabilityRead)
+		canRead := hasPerm(acl.VariablesCapabilityRead)
 
 		switch args.Op {
 		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire, structs.VarOpLockRelease:

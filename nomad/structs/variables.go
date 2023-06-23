@@ -38,6 +38,13 @@ const (
 	// Reply: VariablesByNameResponse
 	VariablesReadRPCMethod = "Variables.Read"
 
+	// VariablesRenewLockRPCMethod is the RPC method for renewing the lease on
+	// a lock according to its namespace, path and lock ID.
+	//
+	// Args: VariablesRenewLockRequest
+	// Reply: VariablesRenewLockResponse
+	VariablesRenewLockRPCMethod = "Variables.RenewLock"
+
 	// maxVariableSize is the maximum size of the unencrypted contents of a
 	// variable. This size is deliberately set low and is not configurable, to
 	// discourage DoS'ing the cluster
