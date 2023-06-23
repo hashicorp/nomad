@@ -60,7 +60,7 @@ var (
 	// directory
 	TaskSecrets = "secrets"
 
-	// TaskPrivate is the name of the pruvate directory inside each task
+	// TaskPrivate is the name of the private directory inside each task
 	// directory
 	TaskPrivate = "private"
 
