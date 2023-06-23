@@ -1265,7 +1265,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Policies:     apiTask.Vault.Policies,
 			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,
-			File:         *apiTask.Vault.File,
+			DisableFile:  *apiTask.Vault.DisableFile,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
 		}

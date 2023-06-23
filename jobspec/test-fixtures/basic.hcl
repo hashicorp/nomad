@@ -362,7 +362,7 @@ job "binstore-storagelocker" {
       vault {
         policies      = ["foo", "bar"]
         env           = false
-        file          = false
+        disable_file  = false
         change_mode   = "signal"
         change_signal = "SIGUSR1"
       }

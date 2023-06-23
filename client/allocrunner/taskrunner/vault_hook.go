@@ -353,7 +353,7 @@ func (h *vaultHook) writeToken(token string) error {
 	if err := os.WriteFile(h.tokenPath, []byte(token), 0600); err != nil {
 		return fmt.Errorf("failed to write vault token: %v", err)
 	}
-	if h.vaultBlock.File {
+	if !h.vaultBlock.DisableFile {
 		if err := os.WriteFile(h.sharedTokenPath, []byte(token), 0666); err != nil {
 			return fmt.Errorf("failed to write vault token to secrets dir: %v", err)
 		}

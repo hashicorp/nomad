@@ -9760,9 +9760,9 @@ type Vault struct {
 	// variable
 	Env bool
 
-	// File marks whether the Vault Token should be exposed in the file
+	// DisableFile marks whether the Vault Token should be exposed in the file
 	// vault_token in the task's secrets directory.
-	File bool
+	DisableFile bool
 
 	// ChangeMode is used to configure the task's behavior when the Vault
 	// token changes because the original token could not be renewed in time.
