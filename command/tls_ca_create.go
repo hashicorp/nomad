@@ -169,30 +169,28 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	if c.IsEmpty() {
-		c.domain = "nomad"
-	} else if c.IsEmpty() && c.days != 0 {
+	if c.IsCustom() && c.days != 0 || c.IsCustom() {
 		c.domain = "nomad"
 	} else {
 		if c.commonName == "" {
-			c.Ui.Error("please provide the -common-name flag when customizing the CA")
+			c.Ui.Error("Please provide the -common-name flag when customizing the CA")
 			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 		if c.country == "" {
-			c.Ui.Error("please provide the -country flag when customizing the CA")
+			c.Ui.Error("Please provide the -country flag when customizing the CA")
 			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 
 		if c.organization == "" {
-			c.Ui.Error("please provide the -organization flag when customizing the CA")
+			c.Ui.Error("Please provide the -organization flag when customizing the CA")
 			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
 
 		if c.organizationalUnit == "" {
-			c.Ui.Error("please provide the -organizational-unit flag when customizing the CA")
+			c.Ui.Error("Please provide the -organizational-unit flag when customizing the CA")
 			c.Ui.Error(commandErrorText(c))
 			return 1
 		}
@@ -260,9 +258,9 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	return 0
 }
 
-// IsEmpty checks whether any of TLSCACreateCommand parameters have been populated with
+// IsCustom checks whether any of TLSCACreateCommand parameters have been populated with
 // non-default values.
-func (c TLSCACreateCommand) IsEmpty() bool {
+func (c *TLSCACreateCommand) IsCustom() bool {
 	return c.commonName == "" &&
 		c.country == "" &&
 		c.postalCode == "" &&
