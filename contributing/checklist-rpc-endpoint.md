@@ -12,8 +12,10 @@ Prefer adding a new message to changing any existing RPC messages.
 * [ ] In `nomad/fsm.go`, add a dispatch case to the switch statement in `(n *nomadFSM) Apply`
   * `*nomadFSM` method to decode the request and call the state method
 
-* [ ] State method for modifying objects in a `Txn` in `nomad/state/state_store.go`
-  * `nomad/state/state_store_test.go`
+* [ ] State method for modifying objects in a `Txn` in the `state` package, located in
+      `nomad/state/`. Every new resource should have its own file and test file, named using the convention
+      `nomad/state/state_store_[resource].go` and `nomad/state/state_store_[resource]_test.go`
+  
 
 * [ ] Handler for the request in `nomad/foo_endpoint.go`
   * RPCs are resolved by matching the method name for bound structs
