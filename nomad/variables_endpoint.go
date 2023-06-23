@@ -118,63 +118,66 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	return nil
 }
 
-func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (canRead bool, err error) {
-
-	canRead = false
+func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (bool, error) {
+	var err error
+	var canRead bool
 	var aclObj *acl.ACL
 
 	// Perform the ACL resolution.
 	if aclObj, err = sv.srv.ResolveACL(args); err != nil {
-		return
-	} else if aclObj != nil {
+		return false, err
+	}
+
+	// ACLs are enabled, check for the correct permissions
+	if aclObj != nil {
 		hasPerm := func(perm string) bool {
 			return aclObj.AllowVariableOperation(args.Var.Namespace,
 				args.Var.Path, perm, nil)
 		}
+
 		canRead = hasPerm(acl.VariablesCapabilityRead)
 
 		switch args.Op {
 		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire, structs.VarOpLockRelease:
 			if !hasPerm(acl.VariablesCapabilityWrite) {
 				err = structs.ErrPermissionDenied
-				return
+				return canRead, err
 			}
 		case structs.VarOpDelete, structs.VarOpDeleteCAS:
 			if !hasPerm(acl.VariablesCapabilityDestroy) {
 				err = structs.ErrPermissionDenied
-				return
+				return canRead, err
 			}
 		default:
 			err = fmt.Errorf("svPreApply: unexpected VarOp received: %q", args.Op)
-			return
+			return canRead, err
 		}
-	} else {
-		// ACLs are not enabled.
-		canRead = true
 	}
 
+	// ACLs are not enabled, all operations permitted
 	switch args.Op {
 	case structs.VarOpSet, structs.VarOpCAS:
 		args.Var.Canonicalize()
 		if err = args.Var.Validate(); err != nil {
-			return
+			return true, err
 		}
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
 			err = fmt.Errorf("delete requires a Path")
-			return
+			return true, err
 		}
+
 	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil {
 			err = fmt.Errorf("acquire/release requires a lock")
-			return
+			return true, err
 		}
 		if err = args.Var.Validate(); err != nil {
-			return
+			return true, err
 		}
 	}
 
-	return
+	return true, nil
 }
 
 // MakeVariablesApplyResponse merges the output of this VarApplyStateResponse with the
