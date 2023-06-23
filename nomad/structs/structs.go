@@ -9784,6 +9784,8 @@ func (v *Vault) Equal(o *Vault) bool {
 		return false
 	case v.Env != o.Env:
 		return false
+	case v.DisableFile != o.DisableFile:
+		return false
 	case v.ChangeMode != o.ChangeMode:
 		return false
 	case v.ChangeSignal != o.ChangeSignal:
