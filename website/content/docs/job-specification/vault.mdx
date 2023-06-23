@@ -73,6 +73,16 @@ with Vault as well.
 
 - `disable_file` `(bool: false)` - Specifies if the Vault token should be
   written to `secrets/vault_token`.
+  <Warning>
+    While the <code>secrets</code> path is not shared with tasks that
+    use <a href="/nomad/docs/concepts/filesystem#image-isolation">
+      <code>image</code>
+    </a> filesystem isolation, it is still accessible by tasks using <a href="/nomad/docs/concepts/filesystem#chroot-isolation">
+      <code>chroot</code>
+    </a> or <a href="/nomad/docs/concepts/filesystem#none-isolation"><code>none</code>
+    </a> isolation.
+  </Warning>
+
 
 - `namespace` `(string: "")` <EnterpriseAlert inline/> - Specifies the Vault Namespace
   to use for the task. The Nomad client will retrieve a Vault token that is scoped to
@@ -118,7 +128,7 @@ vault {
 This example retrieves a Vault token that is not shared with the task when using
 a driver that provides `image` isolation like [Docker][docker].
 
-This allows to get a powerful Vault token that interacts with the task's
+This allows Nomad to use a powerful Vault token that interacts with the task's
 [`template`][template] stanzas to issue all kinds of secrets (e.g., database
 secrets, other vault tokens, etc.), without sharing that issuing power with
 the task itself:
@@ -158,7 +168,7 @@ EOH
 ```
 
 The example above uses `change_mode = "noop"` in the `template` stanza for
-`examplepolicy.token`, which means that the payload is responsible for
+`examplepolicy.token`, which means that the task's workload is responsible for
 detecting and handling changes to that file. In contrast, the `template` stanza
 for `client.crt` is configured so that Nomad will restart the task whenever
 the certificate is reissued, as indicated by `change_mode = "restart"`

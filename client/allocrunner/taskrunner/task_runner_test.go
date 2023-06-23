@@ -1716,7 +1716,7 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 	must.Eq(t, structs.TaskStateDead, finalState.State)
 	must.False(t, finalState.Failed)
 
-	// Verfiry token is in the private dir.
+	// Verify token is in the private dir.
 	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := os.ReadFile(tokenPath)
 	must.NoError(t, err)

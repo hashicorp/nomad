@@ -71,9 +71,15 @@ allocation directory like the one below.
     directory". This directory is private to the task.
 
   - **«taskname»/private/**: This directory is used by Nomad to store private files
-    related to the allocation, such as Vault tokens, that are not always shared with tasks
-    when using `image` isolation. The contents of files in this directory cannot be read
-    by the `nomad alloc fs` command.
+    related to the allocation, such as Vault tokens, that are not shared with tasks
+    when using [`image` isolation](#image-isolation). The contents of files in this
+    directory cannot be read by the `nomad alloc fs` command or the via Nomad's
+    API.
+    <Warning>
+      While not shared with tasks that use <code>image</code> isolation, this
+      path is still accessible by tasks using <a href="#chroot-isolation">
+      <code>chroot</code></a> or <a href="#none-isolation"><code>none</code></a> isolation
+    </Warning>
 
   - **«taskname»/secrets/**: This directory is the location provided to the task as
     `NOMAD_SECRETS_DIR`. The contents of files in this directory cannot be read
