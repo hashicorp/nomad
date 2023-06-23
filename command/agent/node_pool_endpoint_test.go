@@ -429,7 +429,7 @@ func TestHTTP_NodePool_JobsList(t *testing.T) {
 		err := s.Agent.RPC("NodePool.UpsertNodePools", &npUpReq, &npUpResp)
 		must.NoError(t, err)
 
-		for _, poolName := range []string{pool1.Name, "default"} {
+		for _, poolName := range []string{pool1.Name, "default", "all"} {
 			for i := 0; i < 2; i++ {
 				job := mock.MinJob()
 				job.NodePool = poolName
@@ -477,7 +477,7 @@ func TestHTTP_NodePool_JobsList(t *testing.T) {
 
 		obj, err = s.Server.NodePoolSpecificRequest(respW, req)
 		must.NoError(t, err)
-		must.SliceLen(t, 4, obj.([]*structs.JobListStub))
+		must.SliceLen(t, 2, obj.([]*structs.JobListStub))
 
 	})
 }
