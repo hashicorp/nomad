@@ -460,6 +460,7 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 			input: &Vault{},
 			expected: &Vault{
 				Env:          pointerOf(true),
+				DisableFile:  pointerOf(false),
 				Namespace:    pointerOf(""),
 				ChangeMode:   pointerOf("restart"),
 				ChangeSignal: pointerOf("SIGHUP"),
