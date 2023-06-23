@@ -1,8 +1,9 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-# busybox:v1.36.0
-FROM busybox@sha256:acaddd9ed544f7baf3373064064a51250b14cfe3ec604d65765a53da5958e5f5 as release
+# docker.io/library/busybox:1.36.0
+# When pinning use the multi-arch manifest list, `docker buildx imagetools inspect ...`
+FROM docker.io/library/busybox@sha256:9e2bbca079387d7965c3a9cee6d0c53f4f4e63ff7637877a83c4c05f2a666112 as release
 
 ARG PRODUCT_NAME=nomad
 ARG PRODUCT_VERSION
