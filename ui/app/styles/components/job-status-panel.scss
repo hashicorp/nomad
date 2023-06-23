@@ -413,7 +413,7 @@
     white-space: nowrap;
     flex: 1 0 auto;
 
-    &.faded {
+    &.faded .count {
       opacity: 0.5;
     }
 
