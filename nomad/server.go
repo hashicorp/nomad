@@ -285,36 +285,6 @@ type Server struct {
 	shutdownCh     <-chan struct{}
 }
 
-// Holds the RPC endpoints
-type endpoints struct {
-	Status              *Status
-	Node                *Node
-	Job                 *Job
-	CSIVolume           *CSIVolume
-	CSIPlugin           *CSIPlugin
-	Deployment          *Deployment
-	Region              *Region
-	Search              *Search
-	Periodic            *Periodic
-	System              *System
-	Operator            *Operator
-	ACL                 *ACL
-	Scaling             *Scaling
-	Enterprise          *EnterpriseEndpoints
-	Event               *Event
-	Namespace           *Namespace
-	Variables           *Variables
-	Keyring             *Keyring
-	ServiceRegistration *ServiceRegistration
-
-	// Client endpoints
-	ClientStats       *ClientStats
-	FileSystem        *FileSystem
-	Agent             *Agent
-	ClientAllocations *ClientAllocations
-	ClientCSI         *ClientCSI
-}
-
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
