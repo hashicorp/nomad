@@ -119,6 +119,8 @@
     .version-label {
       position: relative;
       z-index: 2;
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
       & > .hds-badge__text {
         font-weight: 700;
       }
