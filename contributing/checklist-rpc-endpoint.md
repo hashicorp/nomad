@@ -6,7 +6,8 @@ Prefer adding a new message to changing any existing RPC messages.
 
 * [ ] `Request` struct and `*RequestType` constant in
       `nomad/structs/structs.go`. Append the constant, old constant
-      values must remain unchanged
+      values must remain unchanged. Just add the request type to his file, all other resource definitions
+      must be on their own separate file.
 
 * [ ] In `nomad/fsm.go`, add a dispatch case to the switch statement in `(n *nomadFSM) Apply`
   * `*nomadFSM` method to decode the request and call the state method
