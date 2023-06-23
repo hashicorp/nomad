@@ -85,17 +85,6 @@ func Stub(
 // checks in an allocation.
 type AllocationResults map[structs.CheckID]*structs.CheckQueryResult
 
-// diff returns the set of IDs in ids that are not in m.
-func (m AllocationResults) diff(ids []structs.CheckID) []structs.CheckID {
-	var missing []structs.CheckID
-	for _, id := range ids {
-		if _, exists := m[id]; !exists {
-			missing = append(missing, id)
-		}
-	}
-	return missing
-}
-
 // ClientResults is a holistic view of alloc_id -> check_id -> latest result
 // group and task checks across all allocations on a client.
 type ClientResults map[string]AllocationResults
