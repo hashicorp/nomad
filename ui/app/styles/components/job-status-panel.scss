@@ -107,7 +107,7 @@
   .versions {
     & > ul {
       display: grid;
-      grid-template-columns: repeat(auto-fit, 100px);
+      grid-template-columns: repeat(auto-fit, 65px);
       gap: 0.5rem;
       & > li {
         white-space: nowrap;
