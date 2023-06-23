@@ -2059,6 +2059,12 @@ func TestJobs_Plan(t *testing.T) {
 	_, _, err = jobs.Plan(nil, true, nil)
 	must.Error(t, err)
 
+	// Check that passing a nil job ID fails
+	invalidJob := testJob()
+	invalidJob.ID = nil
+	_, _, err = jobs.Plan(invalidJob, true, nil)
+	must.Error(t, err)
+
 	// Make a plan request
 	planResp, wm, err := jobs.Plan(job, true, nil)
 	must.NoError(t, err)
