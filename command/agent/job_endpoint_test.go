@@ -2785,9 +2785,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Namespace:    pointer.Of("ns1"),
 							Policies:     []string{"a", "b", "c"},
 							Env:          pointer.Of(true),
+							File:         pointer.Of(true),
 							ChangeMode:   pointer.Of("c"),
 							ChangeSignal: pointer.Of("sighup"),
-							File:         pointer.Of(true),
 						},
 						Templates: []*api.Template{
 							{
@@ -3205,9 +3205,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Namespace:    "ns1",
 							Policies:     []string{"a", "b", "c"},
 							Env:          true,
+							File:         true,
 							ChangeMode:   "c",
 							ChangeSignal: "sighup",
-							File:         true,
 						},
 						Templates: []*structs.Template{
 							{

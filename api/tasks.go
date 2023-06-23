@@ -919,14 +919,17 @@ type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
 	Env          *bool    `hcl:"env,optional"`
+	File         *bool    `mapstructure:"file" hcl:"file,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
-	File         *bool    `mapstructure:"file" hcl:"file,optional"`
 }
 
 func (v *Vault) Canonicalize() {
 	if v.Env == nil {
 		v.Env = pointerOf(true)
+	}
+	if v.File == nil {
+		v.File = pointerOf(true)
 	}
 	if v.Namespace == nil {
 		v.Namespace = pointerOf("")
@@ -936,9 +939,6 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.ChangeSignal == nil {
 		v.ChangeSignal = pointerOf("SIGHUP")
-	}
-	if v.File == nil {
-		v.File = pointerOf(true)
 	}
 }
 

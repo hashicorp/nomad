@@ -6887,9 +6887,9 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
+					File:         true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					File:         true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -6954,9 +6954,9 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
+					File:         true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					File:         true,
 				},
 			},
 			New: &Task{},
@@ -7023,9 +7023,9 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
+					File:         true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					File:         true,
 				},
 			},
 			New: &Task{
@@ -7033,9 +7033,9 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns2",
 					Policies:     []string{"bar", "baz"},
 					Env:          false,
+					File:         false,
 					ChangeMode:   "restart",
 					ChangeSignal: "foo",
-					File:         false,
 				},
 			},
 			Expected: &TaskDiff{
@@ -7108,9 +7108,9 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
+					File:         true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					File:         true,
 				},
 			},
 			New: &Task{
@@ -7118,9 +7118,9 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"bar", "baz"},
 					Env:          true,
+					File:         true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
-					File:         true,
 				},
 			},
 			Expected: &TaskDiff{

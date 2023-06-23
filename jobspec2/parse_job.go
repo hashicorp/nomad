@@ -65,11 +65,11 @@ func normalizeVault(v *api.Vault) {
 	if v.Env == nil {
 		v.Env = pointer.Of(true)
 	}
-	if v.ChangeMode == nil {
-		v.ChangeMode = pointer.Of("restart")
-	}
 	if v.File == nil {
 		v.File = pointer.Of(true)
+	}
+	if v.ChangeMode == nil {
+		v.ChangeMode = pointer.Of("restart")
 	}
 }
 

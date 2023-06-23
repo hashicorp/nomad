@@ -214,8 +214,8 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("vault"); len(o.Items) > 0 {
 			tgVault := &api.Vault{
 				Env:        boolToPtr(true),
-				ChangeMode: stringToPtr("restart"),
 				File:       boolToPtr(true),
+				ChangeMode: stringToPtr("restart"),
 			}
 
 			if err := parseVault(tgVault, o); err != nil {

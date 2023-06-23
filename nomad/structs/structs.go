@@ -9760,6 +9760,10 @@ type Vault struct {
 	// variable
 	Env bool
 
+	// File marks whether the Vault Token should be exposed in the file
+	// vault_token in the task's secrets directory.
+	File bool
+
 	// ChangeMode is used to configure the task's behavior when the Vault
 	// token changes because the original token could not be renewed in time.
 	ChangeMode string
@@ -9767,10 +9771,6 @@ type Vault struct {
 	// ChangeSignal is the signal sent to the task when a new token is
 	// retrieved. This is only valid when using the signal change mode.
 	ChangeSignal string
-
-	// File marks whether the Vault Token should be exposed in the file
-	// vault_token in the task's secrets directory.
-	File bool
 }
 
 func (v *Vault) Equal(o *Vault) bool {

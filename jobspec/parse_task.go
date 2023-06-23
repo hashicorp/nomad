@@ -315,8 +315,8 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		v := &api.Vault{
 			Env:        boolToPtr(true),
-			ChangeMode: stringToPtr("restart"),
 			File:       boolToPtr(true),
+			ChangeMode: stringToPtr("restart"),
 		}
 
 		if err := parseVault(v, o); err != nil {

@@ -195,8 +195,8 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		jobVault := &api.Vault{
 			Env:        boolToPtr(true),
-			ChangeMode: stringToPtr("restart"),
 			File:       boolToPtr(true),
+			ChangeMode: stringToPtr("restart"),
 		}
 
 		if err := parseVault(jobVault, o); err != nil {
