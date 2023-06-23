@@ -65,7 +65,10 @@ capability.
 - `-monitor`: Enter monitor mode directly without modifying the drain status.
 
 - `-force`: Remove allocations off the node immediately, regardless of the
-  allocation's [`migrate`][] block.
+  allocation's [`migrate`][] block. This will include system jobs and CSI
+  plugins if `-ignore-system` is not also set, and is not safe for use with CSI
+  node plugins if the volumes are not being detached externally (for example, a
+  cloud VM is being terminated).
 
 - `-no-deadline`: No deadline allows the allocations to drain off the node,
   ignoring the default 1 hour deadline before allocations are removed regardless
@@ -146,6 +149,7 @@ $ nomad node drain -self -monitor
 
 [eligibility]: /nomad/docs/commands/node/eligibility
 [migrate]: /nomad/docs/job-specification/migrate
+[`migrate`]: /nomad/docs/job-specification/migrate
 [node status]: /nomad/docs/commands/node/status
 [workload migration guide]: /nomad/tutorials/manage-clusters/node-drain
 [internals-csi]: /nomad/docs/concepts/plugins/csi
