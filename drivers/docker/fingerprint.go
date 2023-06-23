@@ -98,7 +98,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		return fp
 	}
 
-	client, _, err := d.dockerClients()
+	dockerClient, err := d.getDockerClient()
 	if err != nil {
 		if d.fingerprintSuccessful() {
 			d.logger.Info("failed to initialize client", "error", err)
@@ -110,10 +110,10 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	env, err := client.Version()
+	env, err := dockerClient.Version()
 	if err != nil {
 		if d.fingerprintSuccessful() {
-			d.logger.Debug("could not connect to docker daemon", "endpoint", client.Endpoint(), "error", err)
+			d.logger.Debug("could not connect to docker daemon", "endpoint", dockerClient.Endpoint(), "error", err)
 		}
 		d.setFingerprintFailure()
 
@@ -143,7 +143,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		fp.Attributes["driver.docker.volumes.enabled"] = pstructs.NewBoolAttribute(true)
 	}
 
-	if nets, err := client.ListNetworks(); err != nil {
+	if nets, err := dockerClient.ListNetworks(); err != nil {
 		d.logger.Warn("error discovering bridge IP", "error", err)
 	} else {
 		for _, n := range nets {
@@ -167,7 +167,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	if dockerInfo, err := client.Info(); err != nil {
+	if dockerInfo, err := dockerClient.Info(); err != nil {
 		d.logger.Warn("failed to get Docker system info", "error", err)
 	} else {
 		runtimeNames := make([]string, 0, len(dockerInfo.Runtimes))
