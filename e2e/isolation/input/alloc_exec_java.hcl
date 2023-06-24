@@ -1,11 +1,28 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-job "java_sleep" {
-  datacenters = ["dc1"]
-  type        = "batch"
+job "java_exec" {
 
-  group "java" {
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
+  group "group" {
+
+    update {
+      min_healthy_time = "2s"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
 
     task "build" {
       lifecycle {
@@ -24,18 +41,29 @@ job "java_sleep" {
         data        = <<EOH
 public class Sleep {
     public static void main(String... s) throws Exception {
-        Thread.sleep(30000);
+        Thread.sleep(999999999);
     }
 }
 EOH
+      }
+
+      resources {
+        cpu    = 50
+        memory = 64
       }
     }
 
     task "sleep" {
       driver = "java"
+
       config {
         class_path = "${NOMAD_ALLOC_DIR}"
         class      = "Sleep"
+      }
+
+      resources {
+        cpu    = 50
+        memory = 64
       }
     }
   }
