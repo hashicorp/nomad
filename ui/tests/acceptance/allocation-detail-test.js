@@ -688,6 +688,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     const runningAlloc = server.create('allocation', {
       jobId: job.id,
       forceRunningClientStatus: true,
+      clientStatus: 'running',
     });
     const otherAlloc = server.db.allocations.reject((j) => j.jobId !== job.id);
 
@@ -739,6 +740,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     faker.seed(1);
     const runningAlloc = server.db.allocations.findBy({
       jobId: 'service-haver',
+      forceRunningClientStatus: true,
       clientStatus: 'running',
     });
     await Allocation.visit({ id: runningAlloc.id });
