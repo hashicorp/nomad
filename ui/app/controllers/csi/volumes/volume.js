@@ -60,6 +60,6 @@ export default class VolumeController extends Controller {
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation);
+    this.transitionToRoute('allocations.allocation', allocation.id);
   }
 }

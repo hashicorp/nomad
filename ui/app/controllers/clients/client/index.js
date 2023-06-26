@@ -205,7 +205,7 @@ export default class ClientController extends Controller.extend(
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation);
+    this.transitionToRoute('allocations.allocation', allocation.id);
   }
 
   @action
