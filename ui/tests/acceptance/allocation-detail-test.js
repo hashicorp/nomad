@@ -736,7 +736,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     });
   });
 
-  test.only('Allocation has a list of services with active checks', async function (assert) {
+  test('Allocation has a list of services with active checks', async function (assert) {
     faker.seed(1);
     const runningAlloc = server.db.allocations.findBy({
       jobId: 'service-haver',
