@@ -31,9 +31,6 @@
       {{this.job.namespace.name}}
     </td>
   {{/if}}
-  <td data-test-job-node-pool>
-    {{this.job.nodePool}}
-  </td>
 {{/if}}
 {{#if (eq @context "child")}}
   <td data-test-job-submit-time>
@@ -48,6 +45,9 @@
 {{#if (not (eq @context "child"))}}
   <td data-test-job-type>
     {{this.job.displayType.type}}
+  </td>
+  <td data-test-job-node-pool>
+    {{this.job.nodePool}}
   </td>
   <td data-test-job-priority>
     {{this.job.priority}}
