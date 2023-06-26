@@ -6,7 +6,6 @@ package agent
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -52,17 +51,9 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	case http.MethodGet:
 		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
-
-		queryParams := req.URL.Query()
-		_, renewLock := queryParams[renewLockQueryParam]
-		_, acquireLock := queryParams[acquireLockQueryParam]
-		_, releaseLock := queryParams[releaseLockQueryParam]
-
-		if renewLock || acquireLock || releaseLock {
-			if !isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
-				return nil, CodedError(http.StatusBadRequest, "multiple lock operations")
-			}
-			return s.variableLockOperation(resp, req, queryParams)
+		lock := req.URL.Query().Get(renewLockQueryKey)
+		if lock != "" {
+			return s.variableLockOperation(resp, req, path)
 		}
 
 		return s.variableUpsert(resp, req, path)
@@ -74,7 +65,14 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 }
 
 func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.Request,
-	operation url.Values) (interface{}, error) {
+	path string) (interface{}, error) {
+
+	op := req.URL.Query().Get(renewLockQueryKey)
+	if op != renewLockQueryParam &&
+		op != acquireLockQueryParam &&
+		op != releaseLockQueryParam {
+		return nil, CodedError(http.StatusBadRequest, "invalid lock operation")
+	}
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -82,14 +80,14 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	if operation[renewLockQueryParam][0] == renewLockQueryParam {
+	if op == renewLockQueryParam {
 		args := structs.VariablesRenewLockRequest{
-			Path: Variable.Path,
-
-			LockID: Variable.Lock.ID,
+			VarMeta: &Variable.VariableMetadata,
 		}
 
-		s.parseWriteRequest(req, &args.WriteRequest)
+		if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+			return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
+		}
 
 		var out structs.VariablesRenewLockResponse
 		if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
@@ -258,25 +256,4 @@ func parseCAS(req *http.Request) (bool, uint64, error) {
 		return true, ci, nil
 	}
 	return false, 0, nil
-}
-
-func (s *HTTPServer) VariablesRenewLockRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "POST" {
-		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
-	}
-
-	args := structs.VariablesRenewLockRequest{}
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
-	}
-
-	var out structs.VariablesRenewLockResponse
-	if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-
-	// TODO: Finish implementation after returned value is defined
-	return out.VarMeta.Lock, nil
 }
