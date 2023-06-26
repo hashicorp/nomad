@@ -2,16 +2,27 @@
 # SPDX-License-Identifier: MPL-2.0
 
 job "raw_exec" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
   }
 
-  group "raw_exec" {
-    task "raw_exec" {
+  group "group" {
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
+
+
+    task "bash" {
       driver = "raw_exec"
 
       config {
@@ -28,12 +39,12 @@ echo my pid is $BASHPID
 EOF
 
         destination = "local/pid.sh"
-        perms       = "777"
+        perms       = "755"
         change_mode = "noop"
       }
 
       resources {
-        cpu    = 100
+        cpu    = 10
         memory = 64
       }
     }
