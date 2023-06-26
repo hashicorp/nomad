@@ -156,7 +156,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 	// Signal is used to kill the container with the desired signal before
 	// calling StopContainer
 	if signal == "" {
-		err = h.client.StopContainer(h.containerID, uint(killTimeout.Seconds()))
+		err = h.waitClient.StopContainer(h.containerID, uint(killTimeout.Seconds()))
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
 		defer cancel()
