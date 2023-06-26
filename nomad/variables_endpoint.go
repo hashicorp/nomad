@@ -95,6 +95,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		}
 
 	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
+		args.Var.Items["lock"] = "true"
 		ev, err = sv.encrypt(args.Var)
 		if err != nil {
 			return fmt.Errorf("variable error: encrypt: %w", err)
@@ -664,6 +665,9 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 	}
 
 	err = sv.srv.blockingRPC(&opts)
-
+	if err != nil {
+		return err
+	}
+	// Handle timers
 	return nil
 }

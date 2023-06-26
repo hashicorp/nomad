@@ -466,6 +466,16 @@ func TestHTTP_Variables(t *testing.T) {
 			require.NoError(t, err)
 			require.Nil(t, sv)
 		})
+
+		// WIP
+		t.Run("error_parse_lock_acquire", func(t *testing.T) {
+			req, err := http.NewRequest("GET", "/v1/var/does/not/exist?wait=99a&lock=acquire", nil)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+			_, _ = s.Server.VariableSpecificRequest(respW, req)
+			require.Equal(t, http.StatusBadRequest, respW.Code)
+			require.Equal(t, "Invalid wait time", string(respW.Body.Bytes()))
+		})
 	})
 }
 
