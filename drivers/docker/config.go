@@ -762,7 +762,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.clientConfig = c.AgentConfig.Driver
 	}
 
-	dockerClient, _, err := d.dockerClients()
+	dockerClient, err := d.getDockerClient()
 	if err != nil {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
