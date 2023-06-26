@@ -16,6 +16,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
 import formatHost from 'nomad-ui/utils/format-host';
+import faker from 'nomad-ui/mirage/faker';
 
 let job;
 let node;
@@ -687,6 +688,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     const runningAlloc = server.create('allocation', {
       jobId: job.id,
       forceRunningClientStatus: true,
+      clientStatus: 'running',
     });
     const otherAlloc = server.db.allocations.reject((j) => j.jobId !== job.id);
 
@@ -735,8 +737,10 @@ module('Acceptance | allocation detail (services)', function (hooks) {
   });
 
   test('Allocation has a list of services with active checks', async function (assert) {
+    faker.seed(1);
     const runningAlloc = server.db.allocations.findBy({
       jobId: 'service-haver',
+      forceRunningClientStatus: true,
       clientStatus: 'running',
     });
     await Allocation.visit({ id: runningAlloc.id });

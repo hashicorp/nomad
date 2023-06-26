@@ -89,6 +89,7 @@
         display: grid;
         grid-template-columns: auto 1fr;
         gap: 0.5rem;
+        margin-top: 1rem;
 
         & > .versions > ul {
           grid-template-columns: unset;
@@ -106,10 +107,14 @@
   .versions {
     & > ul {
       display: grid;
-      grid-template-columns: repeat(auto-fit, 100px);
+      grid-template-columns: repeat(auto-fit, 65px);
       gap: 0.5rem;
       & > li {
         white-space: nowrap;
+        &:has(.version-count) .version-label {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
       }
       a {
         text-decoration: none;
@@ -128,7 +133,6 @@
       z-index: 1;
       left: -1rem;
       padding-left: 1rem;
-      background-color: var(--token-color-surface-faint);
     }
   }
 
@@ -150,9 +154,9 @@
 
     legend {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-auto-rows: max-content;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 0.5rem;
+      grid-template-rows: min-content;
     }
     .latest-deployment {
       h4 svg {
@@ -405,16 +409,14 @@
     animation: none;
   }
 
-  & > .boxed-section-body > .deployment-allocations {
-    margin-bottom: 1rem;
-  }
-
   .legend-item {
     display: grid;
     gap: 0.5rem;
     grid-template-columns: auto 1fr;
+    white-space: nowrap;
+    flex: 1 0 auto;
 
-    &.faded {
+    &.faded .count {
       opacity: 0.5;
     }
 
@@ -433,7 +435,12 @@
     display: grid;
     grid-template-columns: 70% auto;
     gap: 1rem;
-    margin-top: 1rem;
+    margin-top: 2rem;
+    & > .deployment-history,
+    & > .update-parameters {
+      display: grid;
+      grid-template-rows: 50px auto;
+    }
   }
 
   &.steady-state .history-and-params {
@@ -520,6 +527,10 @@
       max-height: 300px;
       overflow-y: auto;
       display: block;
+    }
+    & > .title {
+      display: grid;
+      align-content: center;
     }
     ul,
     span.notification {

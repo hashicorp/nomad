@@ -59,7 +59,7 @@
               @label="View {{type.label}} allocations"
             >
               <span class="represented-allocation {{type.label}}"></span>
-              {{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}
+              <span class="count">{{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}</span>
             </ConditionalLinkTo>
           {{/each}}
         </legend>
@@ -79,9 +79,9 @@
               <li>
                 <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
                   {{#if (eq versionObj.version "unknown")}}
-                    <Hds::Badge @text="unknown" @type="filled" class="version-label" />
+                    <Hds::Badge @text="unknown" @type="inverted" class="version-label" />
                   {{else}}
-                    <Hds::Badge @text={{concat "v" versionObj.version}} @type="filled" class="version-label" />
+                    <Hds::Badge @text={{concat "v" versionObj.version}} @type="inverted" class="version-label" />
                   {{/if}}
                   <Hds::Badge @text={{versionObj.allocations.length}} @type="filled" class="version-count" />
                 </LinkTo>
