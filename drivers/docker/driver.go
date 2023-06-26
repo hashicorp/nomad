@@ -1842,7 +1842,7 @@ func (d *Driver) getInfinityClient() (*docker.Client, error) {
 	return d.getOrCreateClient(0)
 }
 
-// getDockerClient creates the
+// getDockerClient creates a docker API client with a hard-coded timeout.
 func (d *Driver) getDockerClient() (*docker.Client, error) {
 	return d.getOrCreateClient(dockerTimeout)
 }

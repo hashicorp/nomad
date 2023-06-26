@@ -25,13 +25,15 @@ import (
 )
 
 type taskHandle struct {
-	// dockerClient is useful for normal, non blocking docker API calls. It is
-	// configured with the default timeout (5 minutes).
+	// dockerClient is useful for normal docker API calls. It should be used
+	// for all calls that aren't Wait() or Stop() (and their variations).
 	dockerClient *docker.Client
 
 	// infinityClient is useful for
-	// - the Wait docker API call (no limit on container lifetime)
-	// - the Kill docker API call (context with task kill_timeout required)
+	// - the Wait docker API call(s) (no limit on container lifetime)
+	// - the Stop docker API call(s) (context with task kill_timeout required)
+	// Do not use this client for any other docker API calls, instead use the
+	// normal dockerClient which includes a default timeout.
 	infinityClient *docker.Client
 
 	logger                hclog.Logger
