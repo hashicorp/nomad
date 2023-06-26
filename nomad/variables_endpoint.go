@@ -49,6 +49,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 	defer metrics.MeasureSince([]string{
 		"nomad", "variables", "apply", string(args.Op)}, time.Now())
+	// TODO: Add metrics for acquire and release if the operation is lock related
 
 	if args.Var == nil {
 		return fmt.Errorf("variable must not be nil")
@@ -84,7 +85,6 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		ev.CreateTime = now // existing will override if it exists
 		ev.ModifyTime = now
 
-		//?: Verify if its new but it has a lock defined as well
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		ev = &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -93,8 +93,15 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 				ModifyIndex: args.Var.ModifyIndex,
 			},
 		}
+
 	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
-		//?:Create timers and start lock
+		ev, err = sv.encrypt(args.Var)
+		if err != nil {
+			return fmt.Errorf("variable error: encrypt: %w", err)
+		}
+
+		now := time.Now().UnixNano()
+		ev.ModifyTime = now
 	}
 
 	// Make a SVEArgs
@@ -592,4 +599,71 @@ func (sv *Variables) groupForAlloc(claims *structs.IdentityClaims) (string, erro
 		return "", structs.ErrPermissionDenied
 	}
 	return alloc.TaskGroup, nil
+}
+
+// RenewLock is used to apply a SV renew lock operation on a variable to maintain the lease.
+func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *structs.VariablesRenewLockResponse) error {
+	authErr := sv.srv.Authenticate(sv.ctx, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	if done, err := sv.srv.forward(structs.VariablesRenewLockRPCMethod, args, args, reply); done {
+		return err
+	}
+
+	sv.srv.MeasureRPCRate("variables", structs.RateMetricLockRenew, args)
+
+	defer metrics.MeasureSince([]string{
+		"nomad", "variables", "lock", "renew"}, time.Now())
+
+	aclObj, err := sv.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+
+	// ACLs are enabled, check for the correct permissions
+	if aclObj != nil {
+		hasPerm := func(perm string) bool {
+			return aclObj.AllowVariableOperation(args.VarMeta.Namespace,
+				args.VarMeta.Path, perm, nil)
+		}
+
+		if !hasPerm(acl.VariablesCapabilityRead) || !hasPerm(acl.VariablesCapabilityWrite) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	if args.VarMeta == nil {
+		return fmt.Errorf("variable must not be nil")
+	}
+
+	if args.VarMeta.Lock == nil {
+		return fmt.Errorf("lock must not be nil")
+	}
+
+	if args.VarMeta.Lock.ID == "" {
+		return fmt.Errorf("lock ID must be present")
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, s *state.StateStore) error {
+
+			out, err := s.GetVariable(ws, args.Namespace, args.VarMeta.Path)
+			if err != nil {
+				return err
+			}
+
+			sv.logger.Debug("variable found", "path", out.Path)
+
+			return nil
+		},
+	}
+
+	err = sv.srv.blockingRPC(&opts)
+
+	return nil
 }

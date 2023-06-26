@@ -561,3 +561,19 @@ type VariablesReadResponse struct {
 	Data *VariableDecrypted
 	QueryMeta
 }
+
+// VariablesRenewLockRequest is used to renew the lease on a lock. This request
+// behaves like a read because the renewal is done on the server level, without
+// writing to the state store.
+type VariablesRenewLockRequest struct {
+	VarMeta *VariableMetadata
+	QueryOptions
+}
+
+// VariablesRenewLockResponse is sent back to the user to inform them of success or failure
+// of the renewal process.
+type VariablesRenewLockResponse struct {
+	Error   error // Error if any
+	VarMeta *VariableMetadata
+	QueryMeta
+}
