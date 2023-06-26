@@ -247,11 +247,11 @@ func (h *taskHandle) run() {
 		h.logger.Error("failed to inspect container", "error", ierr)
 	} else if container.State.OOMKilled {
 		h.logger.Error("OOM Killed",
-			       "container_id", h.containerID,
-			       "container_image", h.containerImage,
-			       "nomad_job_name", h.task.JobName,
-			       "nomad_task_name", h.task.Name,
-			       "nomad_alloc_id", h.task.AllocID)
+			"container_id", h.containerID,
+			"container_image", h.containerImage,
+			"nomad_job_name", h.task.JobName,
+			"nomad_task_name", h.task.Name,
+			"nomad_alloc_id", h.task.AllocID)
 
 		// Note that with cgroups.v2 the cgroup OOM killer is not
 		// observed by docker container status. But we can't test the
