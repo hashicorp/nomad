@@ -1,4 +1,7 @@
 #!/usr/bin/env ash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 case "$1" in
   "agent" )
