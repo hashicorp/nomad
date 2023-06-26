@@ -127,6 +127,7 @@ const (
 	ACLBindingRulesDeleteRequestType             MessageType = 58
 	NodePoolUpsertRequestType                    MessageType = 59
 	NodePoolDeleteRequestType                    MessageType = 60
+	VarRenewLockRequestType                      MessageType = 61
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -203,9 +204,10 @@ const (
 	DefaultBlockingRPCQueryTime = 300 * time.Second
 
 	// RateMetric constants are used as labels in RPC rate metrics
-	RateMetricRead  = "read"
-	RateMetricList  = "list"
-	RateMetricWrite = "write"
+	RateMetricRead      = "read"
+	RateMetricList      = "list"
+	RateMetricWrite     = "write"
+	RateMetricLockRenew = "lock.renew"
 )
 
 var (

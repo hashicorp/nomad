@@ -260,6 +260,23 @@ func parseCAS(req *http.Request) (bool, uint64, error) {
 	return false, 0, nil
 }
 
-func isOneAndOnlyOneSet(a, b, c bool) bool {
-	return (a || b || c) && !a != !b != !c != !(a && b && c)
+func (s *HTTPServer) VariablesRenewLockRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != "POST" {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.VariablesRenewLockRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
+	}
+
+	var out structs.VariablesRenewLockResponse
+	if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+
+	// TODO: Finish implementation after returned value is defined
+	return out.VarMeta.Lock, nil
 }
