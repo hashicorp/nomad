@@ -1,0 +1,3 @@
+```release-note:bug
+build: Added make target for creating changelog entries
+```
