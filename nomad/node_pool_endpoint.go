@@ -440,30 +440,21 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					},
 				}
 
-				if args.Name == structs.NodePoolAll {
-					if namespace == structs.AllNamespacesSentinel {
-						iter, err = store.Jobs(ws)
-					} else {
-						iter, err = store.JobsByNamespace(ws, namespace)
-					}
+				if namespace == structs.AllNamespacesSentinel {
+					iter, err = store.JobsByPool(ws, args.Name)
 				} else {
-					if namespace == structs.AllNamespacesSentinel {
-						iter, err = store.JobsByPool(ws, args.Name)
-					} else {
-						iter, err = store.JobsByNamespace(ws, namespace)
-						filters = append(filters,
-							paginator.GenericFilter{
-								Allow: func(raw interface{}) (bool, error) {
-									job := raw.(*structs.Job)
-									if job == nil || job.NodePool != args.Name {
-										return false, nil
-									}
-									return true, nil
-								},
-							})
-					}
+					iter, err = store.JobsByNamespace(ws, namespace)
+					filters = append(filters,
+						paginator.GenericFilter{
+							Allow: func(raw interface{}) (bool, error) {
+								job := raw.(*structs.Job)
+								if job == nil || job.NodePool != args.Name {
+									return false, nil
+								}
+								return true, nil
+							},
+						})
 				}
-
 				if err != nil {
 					return err
 				}

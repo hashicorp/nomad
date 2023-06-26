@@ -79,11 +79,11 @@
               <li>
                 <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
                   {{#if (eq versionObj.version "unknown")}}
-                    <Hds::Badge @text="unknown" />
+                    <Hds::Badge @text="unknown" @type="filled" class="version-label" />
                   {{else}}
-                    <Hds::Badge @text={{concat "v" versionObj.version}} />
+                    <Hds::Badge @text={{concat "v" versionObj.version}} @type="filled" class="version-label" />
                   {{/if}}
-                  <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
+                  <Hds::Badge @text={{versionObj.allocations.length}} @type="filled" class="version-count" />
                 </LinkTo>
               </li>
             {{/each}}

@@ -139,12 +139,11 @@ jobs:
           echo "build-ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Invoke build workflow
-        uses: benc-uk/workflow-dispatch@798e70c97009500150087d30d9f11c5444830385 # v1.2.2
-        with:
-          workflow: build
-          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
-          inputs: '{"build-ref": "${{ steps.commit-change-push.outputs.build-ref }}", "make-prerelease": "false"}'
-          ref: ${{ steps.commit-change-push.outputs.build-ref }}
+        id: invoke-build
+        env:
+          GH_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+        run: |
+          gh workflow run build.yml --field build-ref=${{ steps.commit-change-push.outputs.build-ref }} --field make-prerelease=false
 
       - name: Revert notification channel
         if: ${{ github.event.inputs.notification-channel != '' }}

@@ -1,0 +1,3 @@
+```release-note:improvement
+vault: Add new configuration `disable_file` to prevent access to the Vault token by tasks that use `image` filesystem isolation
+```

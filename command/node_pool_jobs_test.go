@@ -52,6 +52,8 @@ func TestNodePoolJobsListCommand_Run(t *testing.T) {
 	registerJob("default", "default", "job3")
 	registerJob("default", "default", "job4")
 	registerJob("default", "system", "job5")
+	registerJob("all", "system", "job6")
+	registerJob("all", "default", "job7")
 
 	testCases := []struct {
 		name         string
@@ -79,9 +81,9 @@ func TestNodePoolJobsListCommand_Run(t *testing.T) {
 			expectedCode: 0,
 		},
 		{
-			name:         "list with specific namespaces in all pools",
+			name:         "list with specific namespace in the all pool",
 			args:         []string{"-namespace", "system", "all"},
-			expectedJobs: []string{"job2", "job5"},
+			expectedJobs: []string{"job6"},
 			expectedCode: 0,
 		},
 		{
