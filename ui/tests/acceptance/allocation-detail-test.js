@@ -736,7 +736,7 @@ module('Acceptance | allocation detail (services)', function (hooks) {
     });
   });
 
-  test('Allocation has a list of services with active checks', async function (assert) {
+  test.only('Allocation has a list of services with active checks', async function (assert) {
     faker.seed(1);
     const runningAlloc = server.db.allocations.findBy({
       jobId: 'service-haver',
@@ -751,8 +751,40 @@ module('Acceptance | allocation detail (services)', function (hooks) {
       .dom('[data-test-service-status-bar]')
       .exists('At least one allocation has service health');
 
+    const nameOfFirstServiceWithHealth = document
+      .querySelector('[data-test-service-status-bar]')
+      .parentElement.parentElement.parentElement.children[1].textContent.replace(
+        /(\r\n|\n|\r)/gm,
+        ''
+      )
+      .trim();
+    console.log(
+      'Number of service rows',
+      document.querySelectorAll('[data-test-service]').length
+    );
+    console.log(
+      'Number of status-bars',
+      document.querySelectorAll('[data-test-service-status-bar]').length
+    );
+    console.log('Name of first service bar', nameOfFirstServiceWithHealth);
     await click('[data-test-service-status-bar]');
     assert.dom('.service-sidebar').hasClass('open');
+    console.log('Providing extra information for test failures');
+    console.log(
+      'total number of healh check TRs',
+      document.querySelectorAll('table.health-checks tr[data-service-health]')
+        .length
+    );
+    console.log(
+      'Map of statuses of those health checks',
+      [
+        ...document.querySelectorAll(
+          'table.health-checks tr[data-service-health]'
+        ),
+      ]
+        .map((tr) => tr.dataset.serviceHealth)
+        .toString()
+    );
     assert
       .dom('table.health-checks tr[data-service-health="success"]')
       .exists({ count: 2 }, 'Two successful health checks');
