@@ -28,7 +28,7 @@
       {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
     </button>
     <button
-      {{keyboard-shortcut action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
+      {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
       class="button is-white"
       onclick={{action "toggleWrap"}}
       type="button"

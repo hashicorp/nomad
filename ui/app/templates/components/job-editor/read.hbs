@@ -30,7 +30,7 @@
         <button class="button is-light is-compact"
           type="button"
           {{on "click" @fns.onToggleWrap}}
-          {{keyboard-shortcut action=(action @fns.onToggleWrap) pattern=(array "w" "w") }}
+          {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") }}
         >
           {{#if @data.shouldWrap}}
             Unwrap
