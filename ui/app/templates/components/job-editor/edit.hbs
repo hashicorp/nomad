@@ -99,4 +99,10 @@
       data-test-save-as-template
     />
   {{/if}}
+  <Hds::Button
+    @text="Save as .nomad.hcl"
+    @color="secondary"
+    {{on "click" @fns.onSaveFile}}
+
+  />
 </Hds::ButtonSet>
