@@ -37,6 +37,18 @@
           </button>
         </div>
       </Tooltip>
+        <button class="button is-light is-compact"
+          type="button"
+          {{on "click" @fns.onToggleWrap}}
+          {{keyboard-shortcut action=(action @fns.onToggleWrap) pattern=(array "w" "w") }}
+        >
+          {{#if @data.shouldWrap}}
+            Unwrap
+          {{else}}
+            Wrap
+          {{/if}}
+        </button>
+
         <button
           class="button is-light is-compact pull-right"
           onclick={{@fns.onCancel}}
@@ -57,6 +69,7 @@
         theme="hashi"
         onUpdate=@fns.onUpdate
         mode=(if (eq @data.format "json") "javascript" "ruby")
+        lineWrapping=@data.shouldWrap
       }}
     ></div>
   </div>
@@ -77,6 +90,7 @@
             onUpdate=@fns.onUpdate
             type="hclVariables"
             mode="ruby"
+            lineWrapping=@data.shouldWrap
           }}
         ></div>
       </div>

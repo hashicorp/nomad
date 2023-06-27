@@ -26,6 +26,19 @@
                 </button>
             </div>        
         </Tooltip>
+
+        <button class="button is-light is-compact"
+          type="button"
+          {{on "click" @fns.onToggleWrap}}
+          {{keyboard-shortcut action=(action @fns.onToggleWrap) pattern=(array "w" "w") }}
+        >
+          {{#if @data.shouldWrap}}
+            Unwrap
+          {{else}}
+            Wrap
+          {{/if}}
+        </button>
+
         <button
             class="button is-light is-compact"
             type="button"
@@ -34,7 +47,7 @@
         >
             Edit
         </button>
-        </div>
+      </div>
     </div>
     <div class="boxed-section-body is-full-bleed">
     {{#if (eq @data.view "job-spec")}}
@@ -46,6 +59,7 @@
             readOnly=true
             screenReaderLabel="Job specification"          
             theme="hashi-read-only"
+            lineWrapping=@data.shouldWrap
             }} 
         />
     {{else}}
@@ -56,6 +70,7 @@
             theme="hashi-read-only"
             readOnly=true
             screenReaderLabel="JSON Viewer"
+            lineWrapping=@data.shouldWrap
             }}
         />
     {{/if}}
@@ -75,6 +90,7 @@
                     mode="ruby"
                     theme="hashi-read-only"
                     readOnly=true
+                    lineWrapping=@data.shouldWrap
                 }}
             />
         </div>

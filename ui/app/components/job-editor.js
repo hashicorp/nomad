@@ -85,6 +85,7 @@ export default class JobEditor extends Component {
   }
 
   @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
+  @localStorageProperty('nomadShouldWrapCode', false) shouldWrapCode;
 
   @action
   dismissPlanMessage() {
@@ -184,6 +185,14 @@ export default class JobEditor extends Component {
   }
 
   /**
+   * Toggle the wrapping of the job's definition or definition variables.
+   */
+  @action
+  toggleWrap() {
+    this.shouldWrapCode = !this.shouldWrapCode;
+  }
+
+  /**
    * Read the content of an uploaded job specification file and update the job's definition.
    *
    * @param {Event} event - The input change event containing the selected file.
@@ -242,6 +251,7 @@ export default class JobEditor extends Component {
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
       view: this.args.view,
+      shouldWrap: this.shouldWrapCode,
     };
   }
 
@@ -257,6 +267,7 @@ export default class JobEditor extends Component {
       onSelect: this.args.onSelect,
       onUpdate: this.updateCode,
       onUpload: this.uploadJobSpec,
+      onToggleWrap: this.toggleWrap,
     };
   }
 }

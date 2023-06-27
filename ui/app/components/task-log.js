@@ -42,6 +42,8 @@ export default class TaskLog extends Component {
 
   shouldFillHeight = true;
 
+  wrapped = false;
+
   @alias('userSettings.logMode') mode;
 
   @computed('allocation.{id,node.httpAddr}', 'useServer')
@@ -122,5 +124,10 @@ export default class TaskLog extends Component {
   @action
   failoverToServer() {
     this.set('useServer', true);
+  }
+
+  @action toggleWrap() {
+    this.toggleProperty('wrapped');
+    return false;
   }
 }
