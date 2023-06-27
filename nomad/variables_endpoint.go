@@ -95,7 +95,6 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		}
 
 	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
-		args.Var.Items["lock"] = "true"
 		ev, err = sv.encrypt(args.Var)
 		if err != nil {
 			return fmt.Errorf("variable error: encrypt: %w", err)
