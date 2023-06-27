@@ -27,7 +27,14 @@
     <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
       {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
     </button>
-    <button class="button is-white" onclick={{action "toggleWrap"}} type="button">{{#if this.wrapped}}Unwrap text{{else}}Wrap text{{/if}}</button>
+    <button
+      {{keyboard-shortcut action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
+      class="button is-white"
+      onclick={{action "toggleWrap"}}
+      type="button"
+    >
+      {{#if this.wrapped}}Unwrap text{{else}}Wrap text{{/if}}
+    </button>
   </span>
 </div>
 <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">

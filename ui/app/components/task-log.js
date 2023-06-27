@@ -12,6 +12,7 @@ import { logger } from 'nomad-ui/utils/classes/log';
 import timeout from 'nomad-ui/utils/timeout';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 class MockAbortController {
   abort() {
@@ -42,7 +43,7 @@ export default class TaskLog extends Component {
 
   shouldFillHeight = true;
 
-  wrapped = false;
+  @localStorageProperty('nomadShouldWrapCode', false) wrapped;
 
   @alias('userSettings.logMode') mode;
 
