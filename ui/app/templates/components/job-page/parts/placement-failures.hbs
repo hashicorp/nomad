@@ -4,7 +4,7 @@
 ~}}
 
 {{#if this.job.hasPlacementFailures}}
-  <Hds::Alert @type="inline" @color="critical" class="boxed-section placement-failures" as |A|>
+  <Hds::Alert @type="inline" @color="critical" data-test-placement-failures class="boxed-section placement-failures" as |A|>
     <A.Title>Placement Failures</A.Title>
     <A.Description>
       {{#each this.job.taskGroups as |taskGroup|}}
