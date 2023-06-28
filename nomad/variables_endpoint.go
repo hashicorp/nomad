@@ -128,6 +128,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (bool, error) {
 	var err error
 	var aclObj *acl.ACL
+	var canRead bool
 
 	// Perform the ACL resolution.
 	if aclObj, err = sv.srv.ResolveACL(args); err != nil {
@@ -141,18 +142,16 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 				args.Var.Path, perm, nil)
 		}
 
-		canRead := hasPerm(acl.VariablesCapabilityRead)
+		canRead = hasPerm(acl.VariablesCapabilityRead)
 
 		switch args.Op {
 		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire, structs.VarOpLockRelease:
 			if !hasPerm(acl.VariablesCapabilityWrite) {
-				err = structs.ErrPermissionDenied
-				return canRead, err
+				return canRead, structs.ErrPermissionDenied
 			}
 		case structs.VarOpDelete, structs.VarOpDeleteCAS:
 			if !hasPerm(acl.VariablesCapabilityDestroy) {
-				err = structs.ErrPermissionDenied
-				return canRead, err
+				return canRead, structs.ErrPermissionDenied
 			}
 		default:
 			err = fmt.Errorf("svPreApply: unexpected VarOp received: %q", args.Op)
