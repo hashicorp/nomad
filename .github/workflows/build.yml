@@ -292,10 +292,15 @@ jobs:
         arch: ["arm64", "amd64"]
     env:
       version: ${{needs.get-product-version.outputs.product-version}}
+      revision: ${{github.sha}}
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - name: Set revision
+        if: "${{ github.event.inputs.build-ref != '' }}"
+        run: |
+          echo "revision=${{ github.event.inputs.build-ref }}" >> "$GITHUB_ENV"
       - name: Docker Build (Action)
-        uses: hashicorp/actions-docker-build@v1
+        uses: hashicorp/actions-docker-build@add-revision-input
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" version | awk '/Nomad v/{print $2}')"
@@ -305,13 +310,14 @@ jobs:
             fi
             echo "Test PASSED"
           version: ${{env.version}}
+          revision: ${{env.revision}}
           target: release
           arch: ${{matrix.arch}}
           tags: |
             docker.io/hashicorp/${{env.PKG_NAME}}:${{env.version}}
           dev_tags: |
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-dev
-            docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{ github.sha }}
+            docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{env.revision}}
 
 permissions:
   contents: read
