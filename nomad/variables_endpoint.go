@@ -162,6 +162,7 @@ func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs
 		if !hasPerm(acl.VariablesCapabilityWrite) {
 			return structs.ErrPermissionDenied
 		}
+
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if !hasPerm(acl.VariablesCapabilityDestroy) {
 			return structs.ErrPermissionDenied

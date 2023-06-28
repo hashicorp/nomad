@@ -314,7 +314,7 @@ func (vd VariableDecrypted) Validate() error {
 		}
 	}
 
-	if err := validatePath(vd.Path); err != nil {
+	if err := ValidatePath(vd.Path); err != nil {
 		return err
 	}
 
