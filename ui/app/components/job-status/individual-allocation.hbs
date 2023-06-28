@@ -7,7 +7,7 @@
   <ConditionalLinkTo
     @condition={{not (eq @status "unplaced")}}
     @route="allocations.allocation"
-    @model={{@allocation}}
+    @model={{@allocation.id}}
     @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
     @label="View allocation"
   >
