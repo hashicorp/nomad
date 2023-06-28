@@ -68,7 +68,13 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return fmt.Errorf("all servers must be running version %v or later to apply variables", minVersionKeyring)
 	}
 
-	canRead, err := svePreApply(sv, args, args.Var)
+	// Perform the ACL resolution.
+	aclObj, err := sv.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+
+	canRead, err := svePreApply(aclObj, args, args.Var)
 	if err != nil {
 		return err
 	}
@@ -125,17 +131,10 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	return nil
 }
 
-func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (bool, error) {
+func svePreApply(aclObj *acl.ACL, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (bool, error) {
 	var err error
-	var aclObj *acl.ACL
 	var canRead bool
 
-	// Perform the ACL resolution.
-	if aclObj, err = sv.srv.ResolveACL(args); err != nil {
-		return false, err
-	}
-
-	// ACLs are enabled, check for the correct permissions
 	if aclObj != nil {
 		hasPerm := func(perm string) bool {
 			return aclObj.AllowVariableOperation(args.Var.Namespace,
@@ -145,7 +144,8 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 		canRead = hasPerm(acl.VariablesCapabilityRead)
 
 		switch args.Op {
-		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire, structs.VarOpLockRelease:
+		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
+			structs.VarOpLockRelease:
 			if !hasPerm(acl.VariablesCapabilityWrite) {
 				return canRead, structs.ErrPermissionDenied
 			}
@@ -157,32 +157,34 @@ func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs
 			err = fmt.Errorf("svPreApply: unexpected VarOp received: %q", args.Op)
 			return canRead, err
 		}
+	} else {
+		// ACLs are not enabled.
+		canRead = true
 	}
 
-	// ACLs are not enabled, all operations permitted
 	switch args.Op {
-	case structs.VarOpSet, structs.VarOpCAS:
+	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire:
 		args.Var.Canonicalize()
 		if err = args.Var.Validate(); err != nil {
-			return true, err
+			return canRead, err
 		}
+
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			err = fmt.Errorf("delete requires a Path")
-			return true, err
+			return canRead, fmt.Errorf("delete requires a Path")
 		}
 
-	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
+	case structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil {
-			err = fmt.Errorf("acquire/release requires a lock")
-			return true, err
+			err = fmt.Errorf("release requires a lock")
+			return canRead, err
 		}
-		if err = args.Var.Validate(); err != nil {
-			return true, err
-		}
+
+		err = structs.ValidatePath(args.Var.Path)
+		return canRead, fmt.Errorf("invalid pat: %w", err)
 	}
 
-	return true, nil
+	return canRead, nil
 }
 
 // MakeVariablesApplyResponse merges the output of this VarApplyStateResponse with the

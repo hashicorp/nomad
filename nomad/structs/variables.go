@@ -296,14 +296,14 @@ func (vd VariableDecrypted) Validate() error {
 		}
 	}
 
-	if err := validatePath(vd.Path); err != nil {
+	if err := ValidatePath(vd.Path); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validatePath(path string) error {
+func ValidatePath(path string) error {
 	if len(path) == 0 {
 		return fmt.Errorf("variable requires path")
 	}
