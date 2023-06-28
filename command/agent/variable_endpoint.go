@@ -6,6 +6,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -13,7 +14,6 @@ import (
 )
 
 const (
-	renewLockQueryKey     = "lock"
 	renewLockQueryParam   = "renew"
 	acquireLockQueryParam = "acquire"
 	releaseLockQueryParam = "release"
@@ -48,15 +48,22 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 		return nil, CodedError(http.StatusBadRequest, "missing variable path")
 	}
 
+	queyParams := req.URL.Query()
+	_, renewLock := queyParams[renewLockQueryParam]
+	_, acquierLock := queyParams[acquireLockQueryParam]
+	_, releaseLock := queyParams[releaseLockQueryParam]
+
+	if isOneAndOnlyOneSet(renewLock, acquierLock, releaseLock) {
+		return nil, CodedError(http.StatusBadRequest, "multiple lock operations")
+	}
+
 	switch req.Method {
 	case http.MethodGet:
 		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
-		lock := req.URL.Query().Get(renewLockQueryKey)
-		if lock != "" {
-			return s.variableLockOperation(resp, req, path)
+		if renewLock {
+			return s.variableLockOperation(resp, req, queyParams)
 		}
-
 		return s.variableUpsert(resp, req, path)
 	case http.MethodDelete:
 		return s.variableDelete(resp, req, path)
@@ -66,14 +73,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 }
 
 func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.Request,
-	path string) (interface{}, error) {
-
-	op := req.URL.Query().Get(renewLockQueryKey)
-	if op != renewLockQueryParam &&
-		op != acquireLockQueryParam &&
-		op != releaseLockQueryParam {
-		return nil, CodedError(http.StatusBadRequest, "invalid lock operation")
-	}
+	operation url.Values) (interface{}, error) {
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -81,7 +81,7 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	if op == renewLockQueryParam {
+	if operation[renewLockQueryParam][0] == renewLockQueryParam {
 		args := structs.VariablesRenewLockRequest{
 			VarMeta: &Variable.VariableMetadata,
 		}
@@ -257,4 +257,8 @@ func parseCAS(req *http.Request) (bool, uint64, error) {
 		return true, ci, nil
 	}
 	return false, 0, nil
+}
+
+func isOneAndOnlyOneSet(a, b, c bool) bool {
+	return (a || b || c) && !a != !b != !c != !(a && b && c)
 }
