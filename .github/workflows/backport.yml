@@ -13,10 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     container: hashicorpdev/backport-assistant:0.2.3
     steps:
-      - name: Setup secrets
+      # retrieve secrets from Vault (ENT-only right now)
+      - name: Authenticate to Vault
+        if: endsWith(github.repository, '-enterprise')
+        id: vault-auth
+        run: vault-auth
+      - name: Fetch Secrets
+        if: endsWith(github.repository, '-enterprise')
         id: secrets
-        run: |-
-          echo "GITHUB_TOKEN=${{ secrets.ELEVATED_GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+        uses: hashicorp/vault-action@v2.5.0
+        with:
+          url: ${{ steps.vault-auth.outputs.addr }}
+          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
+          token: ${{ steps.vault-auth.outputs.token }}
+          exportEnv: false
+          secrets: |
+            kv/data/github/hashicorp/${{ github.repository }}/gha ELEVATED_GITHUB_TOKEN ;
+
       - name: Backport changes to stable-website
         run: |
           backport-assistant backport -merge-method=squash -automerge
@@ -25,7 +38,7 @@ jobs:
           BACKPORT_TARGET_TEMPLATE: "stable-{{.target}}"
           # Enabling this option increased the number of backport failures.
           BACKPORT_MERGE_COMMIT: false
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ endswith(github.repository, '-enterprise') && steps.secrets.outputs.ELEVATED_GITHUB_TOKEN || secrets.ELEVATED_GITHUB_TOKEN }}
       - name: Backport changes to targeted release branch
         run: |
           backport-assistant backport -merge-method=squash -automerge
@@ -34,17 +47,30 @@ jobs:
           BACKPORT_TARGET_TEMPLATE: "release/{{.target}}"
           # Enabling this option increased the number of backport failures.
           BACKPORT_MERGE_COMMIT: false
-          GITHUB_TOKEN: ${{ steps.secrets.outputs.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ endswith(github.repository, '-enterprise') && steps.secrets.outputs.ELEVATED_GITHUB_TOKEN || secrets.ELEVATED_GITHUB_TOKEN }}
   handle-failure:
     needs:
       - backport
     if: always() && needs.backport.result == 'failure'
     runs-on: ubuntu-latest
     steps:
-      - name: Setup secrets
+      # retrieve secrets from Vault (ENT-only right now)
+      - name: Authenticate to Vault
+        if: endsWith(github.repository, '-enterprise')
+        id: vault-auth
+        run: vault-auth
+      - name: Fetch Secrets
+        if: endsWith(github.repository, '-enterprise')
         id: secrets
-        run: |-
-          echo "SLACK_URL=${{ secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}" >> "$GITHUB_OUTPUT"
+        uses: hashicorp/vault-action@v2.5.0
+        with:
+          url: ${{ steps.vault-auth.outputs.addr }}
+          caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
+          token: ${{ steps.vault-auth.outputs.token }}
+          exportEnv: false
+          secrets: |
+            kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
+
       - name: Send slack notification on failure
         uses: slackapi/slack-github-action@007b2c3c751a190b6f0f040e47ed024deaa72844 # v1.23.0
         with:
@@ -77,7 +103,7 @@ jobs:
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ steps.secrets.outputs.SLACK_URL }}
+          SLACK_WEBHOOK_URL: ${{ endswith(github.repository, '-enterprise') && steps.secrets.outputs.SLACK_FEED_NOMAD || secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 permissions:
   contents: read
