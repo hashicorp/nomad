@@ -27,14 +27,15 @@
     <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
       {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
     </button>
-    <button
-      {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
-      class="button is-white"
-      onclick={{action "toggleWrap"}}
-      type="button"
-    >
-      {{#if this.wrapped}}Unwrap text{{else}}Wrap text{{/if}}
-    </button>
+    <span class="header-toggle">
+      <Hds::Form::Toggle::Field
+        {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
+        checked={{this.wrapped}}
+        {{on "change" this.toggleWrap}}
+      as |F|>
+        <F.Label>Word Wrap</F.Label>
+      </Hds::Form::Toggle::Field>
+    </span>
   </span>
 </div>
 <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">

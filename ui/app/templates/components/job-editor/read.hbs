@@ -7,6 +7,16 @@
     <div class="boxed-section-head">
     Job Definition
     <div class="pull-right" style="display: flex">
+        <span class="header-toggle">
+          <Hds::Form::Toggle::Field
+            {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") menuLevel=true }}
+            checked={{@data.shouldWrap}}
+            {{on "change" @fns.onToggleWrap}}
+          as |F|>
+            <F.Label>Word Wrap</F.Label>
+          </Hds::Form::Toggle::Field>
+        </span>
+
         <Tooltip @condition={{unless @data.hasSpecification true false}} @isFullText={{true}} @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format.">
             <div class="job-definition-select {{unless @data.hasSpecification " disabled"}}" data-test-select={{@data.view}}>
                 <button 
@@ -27,18 +37,6 @@
             </div>        
         </Tooltip>
 
-        <button class="button is-light is-compact"
-          type="button"
-          {{on "click" @fns.onToggleWrap}}
-          {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") }}
-        >
-          {{#if @data.shouldWrap}}
-            Unwrap
-          {{else}}
-            Wrap
-          {{/if}}
-        </button>
-
         <button
             class="button is-light is-compact"
             type="button"
@@ -47,6 +45,7 @@
         >
             Edit
         </button>
+
       </div>
     </div>
     <div class="boxed-section-body is-full-bleed">

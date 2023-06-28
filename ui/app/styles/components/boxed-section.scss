@@ -70,8 +70,16 @@
       border-top-right-radius: 0;
     }
 
-    .button {
+    .button,
+    .is-inline-block {
       display: inline-block;
+    }
+
+    .header-toggle {
+      display: inline-block;
+      position: relative;
+      top: $control-padding-vertical;
+      margin-left: $control-padding-horizontal;
     }
   }
 
