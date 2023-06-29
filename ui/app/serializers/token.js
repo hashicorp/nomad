@@ -18,6 +18,8 @@ export default class TokenSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.PolicyIDs = hash.Policies;
     hash.PolicyNames = copy(hash.Policies);
+    hash.Roles = hash.Roles || [];
+    hash.RoleIDs = hash.Roles.map((role) => role.ID);
     return super.normalize(typeHash, hash);
   }
 }
