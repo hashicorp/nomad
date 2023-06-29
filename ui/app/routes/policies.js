@@ -26,6 +26,7 @@ export default class PoliciesRoute extends Route.extend(
   async model() {
     return await hash({
       policies: this.store.query('policy', { reload: true }),
+      roles: this.store.query('role', { reload: true }),
       tokens:
         this.can.can('list tokens') &&
         this.store.query('token', { reload: true }),

@@ -73,4 +73,34 @@
       </p>
     </div>
   {{/if}}
+
+  {{#if this.roles.length}}
+    <ListTable
+      @source={{this.roles}}
+      @class="roles no-mobile-condense" as |t|>
+      <t.head>
+        <th>Role Name</th>
+        {{#if (can "list token")}}
+          <th>Tokens</th>
+        {{/if}}
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-role-row>
+          <td data-test-role-name>
+						{{row.model.name}}
+					</td>
+          {{#if (can "list token")}}
+            <td data-test-role-token-count>
+              <span>
+                <span data-test-role-total-tokens>{{row.model.tokens.length}}</span>
+                {{#if (filter-by "isExpired" row.model.tokens)}}
+                  <span data-test-role-expired-tokens class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+                {{/if}}
+              </span>
+            </td>
+          {{/if}}
+        </tr>
+      </t.body>
+    </ListTable>
+  {{/if}}
 </section>
