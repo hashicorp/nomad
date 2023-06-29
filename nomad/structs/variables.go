@@ -324,6 +324,19 @@ func (sv VariableMetadata) GetCreateIndex() uint64 {
 	return sv.CreateIndex
 }
 
+// LockID returns the ID of the lock. In the event this is not held, or the
+// variable is not a lock, this string will be empty.
+func (sv *VariableMetadata) LockID() string {
+	if sv.Lock == nil {
+		return ""
+	}
+	return sv.Lock.ID
+}
+
+// IsLock is a helper to indicate whether the variable is being used for
+// locking.
+func (sv *VariableMetadata) IsLock() bool { return sv.Lock != nil }
+
 // VariablesQuota is used to track the total size of variables entries per
 // namespace. The total length of Variable.EncryptedData in bytes will be added
 // to the VariablesQuota table in the same transaction as a write, update, or
