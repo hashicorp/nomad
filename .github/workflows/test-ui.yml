@@ -46,8 +46,7 @@ jobs:
       nonce: ${{ steps.nonce.outputs.nonce }}
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: yarn install
-        run: yarn install --frozen-lockfile
+      - uses: ./.github/actions/setup-js
       - name: lint:js
         run: yarn run lint:js
       - name: lint:hbs
@@ -59,7 +58,7 @@ jobs:
   tests:
     needs:
       - pre-test
-    runs-on: ubuntu-latest
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     timeout-minutes: 30
     continue-on-error: true
     defaults:
@@ -71,26 +70,26 @@ jobs:
         split: [4]
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: yarn install
-        run: yarn install --frozen-lockfile
+      - uses: ./.github/actions/setup-js
+      - uses: browser-actions/setup-chrome@c485fa3bab6be59dce18dbc18ef6ab7cbc8ff5f1 # v1.2.0
       - name: ember exam
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
+
   finalize:
-    runs-on: ubuntu-latest
+    needs:
+      - pre-test
+      - tests
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     timeout-minutes: 30
     defaults:
       run:
         working-directory: ui
-    needs:
-      - pre-test
-      - tests
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: yarn install
-        run: yarn install --frozen-lockfile
+      - uses: ./.github/actions/setup-js
       - name: finalize
         env:
           PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}

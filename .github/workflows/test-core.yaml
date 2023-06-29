@@ -45,9 +45,11 @@ env:
   VAULT_VERSION: 1.12.2
   NOMAD_SLOW_TEST: 0
   NOMAD_TEST_LOG_LEVEL: OFF
+
 jobs:
+  # this caches dependencies for subsequent jobs, including private deps in enterprise
   mods:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
