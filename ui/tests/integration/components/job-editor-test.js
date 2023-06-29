@@ -85,6 +85,7 @@ module('Integration | Component | job-editor', function (hooks) {
       @job={{job}}
       @context={{context}}
       @onSubmit={{onSubmit}}
+      @handleSaveAsTemplate={{handleSaveAsTemplate}}
     />
   `;
 
@@ -92,6 +93,7 @@ module('Integration | Component | job-editor', function (hooks) {
     component.setProperties({
       job,
       onSubmit: sinon.spy(),
+      handleSaveAsTemplate: sinon.spy(),
       context: 'new',
     });
     await component.render(commonTemplate);

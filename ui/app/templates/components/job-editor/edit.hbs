@@ -83,7 +83,7 @@
     </div>
   {{/if}}
 </div>
-<div class="is-associative buttonset sticky">
+<Hds::ButtonSet class="is-associative buttonset sticky pull-left">
   <Hds::Button
     {{on "click" (perform @fns.onPlan)}}
     disabled={{or @fns.onPlan.isRunning (not @data.job._newDefinition)}}
@@ -91,34 +91,18 @@
     @text="Plan"
   />
   {{#if @data.job.isNew}}
-    <Hds::ButtonSet>
-      <label
-        class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium"
-      >
-        <div class="hds-button__text">Upload file</div>
-        <input
-          type="file"
-          onchange={{action @fns.onUpload}}
-          accept=".hcl,.json,.nomad"
-        />
-      </label>
-      {{#if (can "write variable" path="*" namespace="*")}}
-        <Hds::Button
-          @icon="file-plus"
-          @text="Save as template"
-          @color="tertiary"
-          @route="jobs.run.templates.new"
-          {{on "click" @fns.onSaveAs}}
-          data-test-save-as-template
-        />
-        <Hds::Button
-          @icon="file-text"
-          @text="Choose from a template"
-          @color="tertiary"
-          @route="jobs.run.templates"
-          data-test-choose-template
-        />
-      {{/if}}
-    </Hds::ButtonSet>
+    <Hds::Button
+      @text="Save as template"
+      @color="secondary"
+      @route="jobs.run.templates.new"
+      {{on "click" @fns.onSaveAs}}
+      data-test-save-as-template
+    />
   {{/if}}
-</div>
+  <Hds::Button
+    @text="Save as .nomad.hcl"
+    @color="secondary"
+    {{on "click" @fns.onSaveFile}}
+
+  />
+</Hds::ButtonSet>

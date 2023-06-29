@@ -21,6 +21,7 @@ import { tracked } from '@glimmer/tracking';
 export default class JobEditor extends Component {
   @service config;
   @service store;
+  @service notifications;
 
   @tracked error = null;
   @tracked planOutput = null;
@@ -200,6 +201,42 @@ export default class JobEditor extends Component {
   }
 
   /**
+   * Download the job's definition or specification as .nomad.hcl file locally
+   */
+  @action
+  async handleSaveAsFile() {
+    try {
+      const blob = new Blob([this.args.job._newDefinition], {
+        type: 'text/plain',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const downloadAnchor = document.createElement('a');
+
+      downloadAnchor.href = url;
+      downloadAnchor.target = '_blank';
+      downloadAnchor.rel = 'noopener noreferrer';
+      downloadAnchor.download = 'jobspec.nomad.hcl';
+
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      window.URL.revokeObjectURL(url);
+      this.notifications.add({
+        title: 'jobspec.nomad.hcl has been downloaded',
+        color: 'success',
+        icon: 'download',
+      });
+    } catch (err) {
+      this.notifications.add({
+        title: 'Error downloading file',
+        message: err.message,
+        color: 'critical',
+        sticky: true,
+      });
+    }
+  }
+
+  /**
    * Get the definition or specification based on the view type.
    *
    * @returns {string} The definition or specification in JSON or HCL format.
@@ -253,6 +290,7 @@ export default class JobEditor extends Component {
       onPlan: this.plan,
       onReset: this.reset,
       onSaveAs: this.args.handleSaveAsTemplate,
+      onSaveFile: this.handleSaveAsFile,
       onSubmit: this.submit,
       onSelect: this.args.onSelect,
       onUpdate: this.updateCode,
