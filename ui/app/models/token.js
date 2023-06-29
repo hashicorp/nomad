@@ -15,6 +15,7 @@ export default class Token extends Model {
   @attr('date') createTime;
   @attr('string') type;
   @hasMany('policy') policies;
+  @hasMany('role') roles;
   @attr() policyNames;
   @attr('date') expirationTime;
 
