@@ -48,12 +48,12 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 		return nil, CodedError(http.StatusBadRequest, "missing variable path")
 	}
 
-	queyParams := req.URL.Query()
-	_, renewLock := queyParams[renewLockQueryParam]
-	_, acquierLock := queyParams[acquireLockQueryParam]
-	_, releaseLock := queyParams[releaseLockQueryParam]
+	queryParams := req.URL.Query()
+	_, renewLock := queryParams[renewLockQueryParam]
+	_, acquireLock := queryParams[acquireLockQueryParam]
+	_, releaseLock := queryParams[releaseLockQueryParam]
 
-	if isOneAndOnlyOneSet(renewLock, acquierLock, releaseLock) {
+	if isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
 		return nil, CodedError(http.StatusBadRequest, "multiple lock operations")
 	}
 
@@ -62,7 +62,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
 		if renewLock {
-			return s.variableLockOperation(resp, req, queyParams)
+			return s.variableLockOperation(resp, req, queryParams)
 		}
 		return s.variableUpsert(resp, req, path)
 	case http.MethodDelete:
