@@ -77,7 +77,7 @@ jobs:
       - name: Setup node and yarn
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: "14"
+          node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
 
       - name: Install Yarn
@@ -143,7 +143,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
         run: |
-          gh workflow run build.yml --field build-ref=${{ steps.commit-change-push.outputs.build-ref }} --field make-prerelease=false
+          gh workflow run build.yml --ref ${{ github.ref_name }} --field build-ref=${{ steps.commit-change-push.outputs.build-ref }} --field make-prerelease=false
 
       - name: Revert notification channel
         if: ${{ github.event.inputs.notification-channel != '' }}
