@@ -75,19 +75,16 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return err
 	}
 
-	// The read permission modify the way the response is populated.
-	var canRead bool
+	// The read permission modify the way the response is populated. If ACL is not
+	// used, read permission is granted by default.
+	var canRead bool = true
 
 	if aclObj != nil {
 		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
-		err := hasPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
+		err := hasOtherPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
 		if err != nil {
 			return err
 		}
-	} else {
-		// If ACL is not used, read permission is granted and the response can
-		// have the variable values visible.
-		canRead = true
 	}
 
 	err = canonicalizeAndValidate(args)
@@ -138,6 +135,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	if err != nil {
 		return fmt.Errorf("raft apply failed: %w", err)
 	}
+
 	r, err := sv.makeVariablesApplyResponse(args, out.(*structs.VarApplyStateResponse), canRead)
 	if err != nil {
 		return err
