@@ -74,7 +74,22 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return err
 	}
 
-	canRead, err := svePreApply(aclObj, args, args.Var)
+	// The read permission modify the way the response is populated.
+	var canRead bool
+
+	if aclObj != nil {
+		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
+		err := hasPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
+		if err != nil {
+			return err
+		}
+	} else {
+		// If ACL is not used, read permission is granted and the response can
+		// have the variable values visible.
+		canRead = true
+	}
+
+	err = canonicalizeAndValidate(args)
 	if err != nil {
 		return err
 	}
@@ -131,60 +146,59 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	return nil
 }
 
-func svePreApply(aclObj *acl.ACL, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (bool, error) {
-	var err error
-	var canRead bool
+func hasReadPermission(aclObj *acl.ACL, namespace, path string) bool {
+	return aclObj.AllowVariableOperation(namespace,
+		path, acl.VariablesCapabilityRead, nil)
+}
 
-	if aclObj != nil {
-		hasPerm := func(perm string) bool {
-			return aclObj.AllowVariableOperation(args.Var.Namespace,
-				args.Var.Path, perm, nil)
-		}
+func hasPermissions(aclObj *acl.ACL, namespace, path string, op structs.VarOp) error {
 
-		canRead = hasPerm(acl.VariablesCapabilityRead)
-
-		switch args.Op {
-		case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
-			structs.VarOpLockRelease:
-			if !hasPerm(acl.VariablesCapabilityWrite) {
-				return canRead, structs.ErrPermissionDenied
-			}
-		case structs.VarOpDelete, structs.VarOpDeleteCAS:
-			if !hasPerm(acl.VariablesCapabilityDestroy) {
-				return canRead, structs.ErrPermissionDenied
-			}
-		default:
-			err = fmt.Errorf("svPreApply: unexpected VarOp received: %q", args.Op)
-			return canRead, err
-		}
-	} else {
-		// ACLs are not enabled.
-		canRead = true
+	hasPerm := func(perm string) bool {
+		return aclObj.AllowVariableOperation(namespace,
+			path, perm, nil)
 	}
 
+	switch op {
+	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
+		structs.VarOpLockRelease:
+		if !hasPerm(acl.VariablesCapabilityWrite) {
+			return structs.ErrPermissionDenied
+		}
+	case structs.VarOpDelete, structs.VarOpDeleteCAS:
+		if !hasPerm(acl.VariablesCapabilityDestroy) {
+			return structs.ErrPermissionDenied
+		}
+	default:
+		return fmt.Errorf("svPreApply: unexpected VarOp received: %q", op)
+	}
+
+	return nil
+}
+
+func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	switch args.Op {
 	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire:
 		args.Var.Canonicalize()
-		if err = args.Var.Validate(); err != nil {
-			return canRead, err
+		if err := args.Var.Validate(); err != nil {
+			return err
 		}
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			return canRead, fmt.Errorf("delete requires a Path")
+			return fmt.Errorf("delete requires a Path")
 		}
 
 	case structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil {
-			err = fmt.Errorf("release requires a lock")
-			return canRead, err
+			err := fmt.Errorf("release requires a lock")
+			return err
 		}
 
-		err = structs.ValidatePath(args.Var.Path)
-		return canRead, fmt.Errorf("invalid pat: %w", err)
+		err := structs.ValidatePath(args.Var.Path)
+		return fmt.Errorf("invalid pat: %w", err)
 	}
 
-	return canRead, nil
+	return nil
 }
 
 // MakeVariablesApplyResponse merges the output of this VarApplyStateResponse with the
