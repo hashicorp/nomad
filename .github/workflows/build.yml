@@ -300,7 +300,7 @@ jobs:
         run: |
           echo "revision=${{ github.event.inputs.build-ref }}" >> "$GITHUB_ENV"
       - name: Docker Build (Action)
-        uses: hashicorp/actions-docker-build@add-revision-input
+        uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" version | awk '/Nomad v/{print $2}')"
