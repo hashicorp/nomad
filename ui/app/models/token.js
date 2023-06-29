@@ -14,7 +14,7 @@ export default class Token extends Model {
   @attr('boolean') global;
   @attr('date') createTime;
   @attr('string') type;
-  @hasMany('policy') policies;
+  @hasMany('policy') tokenPolicies;
   @hasMany('role') roles;
   @attr() policyNames;
   @attr('date') expirationTime;
@@ -23,5 +23,12 @@ export default class Token extends Model {
 
   get isExpired() {
     return this.expirationTime && this.expirationTime < new Date();
+  }
+
+  get policies() {
+    return [
+      ...this.tokenPolicies.toArray(),
+      ...this.roles.map((role) => role.policies.toArray()).flat(),
+    ].uniq();
   }
 }

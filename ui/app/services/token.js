@@ -71,7 +71,35 @@ export default class TokenService extends Service {
   @task(function* () {
     try {
       if (this.selfToken) {
-        return yield this.selfToken.get('policies');
+        let tokenPolicies = yield this.selfToken.get('policies');
+        let rolePolicies = [];
+        // let rolePolicies = yield this.fetchSelfTokenRoles.perform();
+        const roles = yield this.selfToken.get('roles');
+        if (roles.length) {
+          yield Promise.all(
+            roles.map((role) => {
+              return role.policies;
+            })
+          );
+          rolePolicies = roles
+            .map((role) => {
+              return role.policies;
+            })
+            .map((policies) => policies.toArray())
+            .flat();
+          console.log('THUS', rolePolicies);
+        }
+        console.log(
+          'roles',
+          roles.mapBy('name'),
+          roles.mapBy('policies.length')
+        );
+        console.log('so, rolePolicies?', rolePolicies.length, rolePolicies);
+        console.log('SO ALL MY POOLICIES LIKE', [
+          ...tokenPolicies.toArray(),
+          ...rolePolicies,
+        ]);
+        return [...tokenPolicies.toArray(), ...rolePolicies];
       } else {
         let policy = yield this.store.findRecord('policy', 'anonymous');
         return [policy];
@@ -82,13 +110,38 @@ export default class TokenService extends Service {
   })
   fetchSelfTokenPolicies;
 
+  @task(function* () {
+    // return "lol nvm";
+    try {
+      if (this.selfToken) {
+        const roles = yield this.selfToken.get('roles');
+        let rolePolicies = yield Promise.all(
+          roles.map((role) => {
+            // console.log('rolein', role, role.name, role.policies.length);
+            // yield this.store.findRecord('policy', 'anonymous');
+            // return Promise.all(role.get('policies'));
+            return role.get('policies');
+          })
+        );
+        return roles[0].policies; // TODO: TEMP
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
+    }
+  })
+  fetchSelfTokenRoles;
+
   @alias('fetchSelfTokenPolicies.lastSuccessful.value') selfTokenPolicies;
+  @alias('fetchSelfTokenRoles.lastSuccessful.value') selfTokenRoles;
 
   @task(function* () {
     yield this.fetchSelfToken.perform();
     this.kickoffTokenTTLMonitoring();
     if (this.aclEnabled) {
       yield this.fetchSelfTokenPolicies.perform();
+      yield this.fetchSelfTokenRoles.perform();
     }
   })
   fetchSelfTokenAndPolicies;
@@ -124,6 +177,7 @@ export default class TokenService extends Service {
   reset() {
     this.fetchSelfToken.cancelAll({ resetState: true });
     this.fetchSelfTokenPolicies.cancelAll({ resetState: true });
+    this.fetchSelfTokenRoles.cancelAll({ resetState: true });
     this.fetchSelfTokenAndPolicies.cancelAll({ resetState: true });
     this.monitorTokenTime.cancelAll({ resetState: true });
     window.localStorage.removeItem('nomadOIDCNonce');
