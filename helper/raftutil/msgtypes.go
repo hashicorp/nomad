@@ -65,7 +65,7 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.ACLBindingRulesDeleteRequestType:             "ACLBindingRulesDeleteRequestType",
 	structs.NodePoolUpsertRequestType:                    "NodePoolUpsertRequestType",
 	structs.NodePoolDeleteRequestType:                    "NodePoolDeleteRequestType",
-	structs.VarRenewLockRequestType:                      "VarRenewLockRequestType",
+	//structs.VarRenewLockRequestType:                      "VarRenewLockRequestType",
 	structs.NamespaceUpsertRequestType:                   "NamespaceUpsertRequestType",
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
 }
