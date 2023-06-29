@@ -44,6 +44,17 @@ func (r *StateRestore) NodePoolRestore(pool *structs.NodePool) error {
 
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
+
+	// When upgrading a cluster pre to post 1.6, the existing jobs will not
+	// have a node pool set. Inserting this into the table will fail, as this
+	// is indexed and cannot be empty.
+	//
+	// This cannot happen within the job canonicalize function, as it would
+	// break the node pools and governance feature.
+	if job.NodePool == "" {
+		job.NodePool = structs.NodePoolDefault
+	}
+
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
