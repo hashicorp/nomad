@@ -57,6 +57,19 @@ their servers. This allows having a set of Nomad servers that service clients
 that can be spread geographically over a continent or even the world in the case
 of having a single "global" region and many datacenter.
 
+Nomad clients make connections to servers on the RPC port and then maintain a
+persistent TCP connection. The server and client use this TCP connection for
+two-way communication. As a result, clients that are geographically distributed
+from the servers do not need to have publically routable IP addresses in order
+to communicate with the servers (although the workloads running on the clients
+may need public IPs). All connections between Nomad servers and between clients
+and servers must be secured with [mTLS][].
+
+Nomad clients are typically not required to be reachable from each other unless
+your workloads need to communicate with each other. The optional [ephemeral disk
+migration][] field is one exception, and requires that clients can reach each
+other on their HTTP ports.
+
 ## Ports Used
 
 Nomad requires 3 different ports to work properly on servers and 2 on clients,
@@ -216,3 +229,5 @@ in automated pipelines for [CLI operations][docs_cli], such as
 [docs_cli]: /nomad/docs/commands
 [`nomad job plan`]: /nomad/docs/commands/job/plan
 [`nomad fmt`]: /nomad/docs/commands/fmt
+[mTLS]: /nomad/tutorials/transport-security/security-enable-tls
+[ephemeral disk migration]: /nomad/docs/job-specification/ephemeral_disk#migrate
