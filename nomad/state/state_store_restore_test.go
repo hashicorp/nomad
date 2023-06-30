@@ -50,28 +50,36 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	job := mock.Job()
+	mockJob1 := mock.Job()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = restore.JobRestore(job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	err = restore.JobRestore(mockJob1)
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	out, err := state.JobByID(ws, mockJob1.Namespace, mockJob1.ID)
+	must.NoError(t, err)
+	must.Eq(t, mockJob1, out)
 
-	if !reflect.DeepEqual(out, job) {
-		t.Fatalf("Bad: %#v %#v", out, job)
-	}
+	// Test upgrade to 1.6 or greater to simulate restoring a job which does
+	// not have a node pool set.
+	mockJob2 := mock.Job()
+	mockJob2.NodePool = ""
+
+	restore, err = state.Restore()
+	must.NoError(t, err)
+
+	err = restore.JobRestore(mockJob2)
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
+
+	ws = memdb.NewWatchSet()
+	out, err = state.JobByID(ws, mockJob2.Namespace, mockJob2.ID)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodePoolDefault, out.NodePool)
 }
 
 func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
