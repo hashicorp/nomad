@@ -12,7 +12,18 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
-// RootKey is used to encrypt and decrypt variables. It is never stored in raft.
+const (
+	// PubKeyAlgEdDSA is the JWA (JSON Web Algorithm) for ed25519 public keys
+	// used for signatures.
+	PubKeyAlgEdDSA = "EdDSA"
+
+	// PubKeyUseSig is the JWK (JSON Web Key) "use" parameter value for
+	// signatures.
+	PubKeyUseSig = "sig"
+)
+
+// RootKey is used to encrypt and decrypt variables and workload
+// identities. It is never stored in raft.
 type RootKey struct {
 	Meta *RootKeyMeta
 	Key  []byte // serialized to keystore as base64 blob
@@ -57,6 +68,11 @@ const (
 	RootKeyStateInactive RootKeyState = "inactive"
 	RootKeyStateActive                = "active"
 	RootKeyStateRekeying              = "rekeying"
+
+	// RootKeyStateNext indicates the key will be the next active key. Necessary
+	// as workload identity consumers should cache Nomad's public keys, so Nomad
+	// must advertise the next active key before actually using it.
+	RootKeyStateNext = "next"
 
 	// RootKeyStateDeprecated is, itself, deprecated and is no longer in
 	// use. For backwards compatibility, any existing keys with this state will
@@ -242,4 +258,39 @@ type KeyringDeleteRootKeyRequest struct {
 
 type KeyringDeleteRootKeyResponse struct {
 	WriteMeta
+}
+
+// KeyringListPublicResponse lists public key components of signing keys. Used
+// to build a JWKS endpoint.
+type KeyringListPublicResponse struct {
+	PublicKeys []*KeyringPublicKey
+
+	// RotationThreshold exposes root_key_rotation_threshold so that HTTP
+	// endpoints may set a reasonable cache control header informing consumers
+	// when to expect a new key.
+	RotationThreshold time.Duration
+
+	QueryMeta
+}
+
+// KeyringPublicKey is the public key component of a signing key. Used to build
+// a JWKS endpoint.
+type KeyringPublicKey struct {
+	KeyID     string
+	PublicKey []byte
+
+	// Algorithm should be the JWA "alg" parameter. So "EdDSA" for Ed25519 public
+	// keys used to validate signatures.
+	Algorithm string
+
+	// Use should be the JWK "use" parameter as defined in
+	// https://datatracker.ietf.org/doc/html/rfc7517#section-4.2.
+	//
+	// "sig" and "enc" being the two standard values with "sig" being the use for
+	// workload identity JWT signing.
+	Use string
+
+	// CreateTime + root_key_rotation_threshold = when consumers should look for
+	// a new key. Therefore this field can be used for cache control.
+	CreateTime int64
 }

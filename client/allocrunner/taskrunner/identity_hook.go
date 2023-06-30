@@ -109,19 +109,6 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return nil
 }
 
-func (h *identityHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-
-	task := req.Alloc.LookupTask(h.taskName)
-	if task == nil {
-		// Should not happen
-		return nil
-	}
-
-	return h.setNomadToken(h.tokenDir, req.Alloc, task.User)
-}
-
 // setNomadToken adds the Nomad token to the task's environment and writes it to a
 // file if requested by the jobsepc.
 func (h *identityHook) setNomadToken(path string, alloc *structs.Allocation, owner string) error {

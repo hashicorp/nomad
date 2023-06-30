@@ -360,3 +360,65 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	reply.Index = index
 	return nil
 }
+
+// ListPublic signing keys used for workload identities. This RPC is used to
+// back a JWKS endpoint.
+//
+// Unauthenticated.
+func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.KeyringListPublicResponse) error {
+
+	// JWKS is a public endpoint: intentionally ignore auth errors and only
+	// authenticate to measure rate metrics.
+	k.srv.Authenticate(k.ctx, args)
+	if done, err := k.srv.forward("Keyring.ListPublic", args, args, reply); done {
+		return err
+	}
+
+	defer metrics.MeasureSince([]string{"nomad", "keyring", "list_public"}, time.Now())
+
+	// Expose root_key_rotation_threshold so consumers can determine reasonable
+	// cache settings.
+	reply.RotationThreshold = k.srv.config.RootKeyRotationThreshold
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, s *state.StateStore) error {
+
+			// retrieve all the key metadata
+			snap, err := k.srv.fsm.State().Snapshot()
+			if err != nil {
+				return err
+			}
+			iter, err := snap.RootKeyMetas(ws)
+			if err != nil {
+				return err
+			}
+
+			pubKeys := []*structs.KeyringPublicKey{}
+			for {
+				raw := iter.Next()
+				if raw == nil {
+					break
+				}
+
+				keyMeta := raw.(*structs.RootKeyMeta)
+				if keyMeta.Inactive() {
+					// Skip inactive keys
+					continue
+				}
+
+				pubKey, err := k.encrypter.GetPublicKey(keyMeta.KeyID)
+				if err != nil {
+					return err
+				}
+
+				pubKeys = append(pubKeys, pubKey)
+			}
+			reply.PublicKeys = pubKeys
+			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+		},
+	}
+	return k.srv.blockingRPC(&opts)
+}
