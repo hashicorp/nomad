@@ -51,7 +51,7 @@ const (
 	maxVariableSize = 65536
 
 	// minLockTTL and maxLockTTL determine the range of valid durations for the
-	// TTL on a lock.They come from teh experience on Consul.
+	// TTL on a lock.They come from the experience on Consul.
 	minLockTTL = 10 * time.Second
 	maxLockTTL = 24 * time.Hour
 
