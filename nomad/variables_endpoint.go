@@ -78,7 +78,6 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	// The read permission modify the way the response is populated. If ACL is not
 	// used, read permission is granted by default.
 	var canRead bool = true
-
 	if aclObj != nil {
 		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
 		err := hasNecessaryPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
@@ -176,11 +175,22 @@ func hasNecessaryPermissions(aclObj *acl.ACL, namespace, path string, op structs
 
 func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	switch args.Op {
-	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire:
-		args.Var.Canonicalize()
-		if err := args.Var.Validate(); err != nil {
+	case structs.VarOpLockAcquire:
+		// If the variable doesn't have an ID, it means a lock is
+		// being created on a variable that doesn't exist, the variable needs to
+		// be created.
+		if args.Var.GetID() == "" {
+			args.Var.Canonicalize()
+		}
+
+		if err := args.Var.ValidateForLock(); err != nil {
 			return err
 		}
+
+	case structs.VarOpSet, structs.VarOpCAS:
+		args.Var.Canonicalize()
+
+		return args.Var.Validate()
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
@@ -188,13 +198,12 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 		}
 
 	case structs.VarOpLockRelease:
-		if args.Var == nil || args.Var.Lock == nil {
-			err := fmt.Errorf("release requires a lock")
-			return err
+		if args.Var == nil || args.Var.Path == "" ||
+			args.Var.Namespace == "" || args.Var.Lock.ID == "" {
+			return errors.New("release requires all lock information")
 		}
 
-		err := structs.ValidatePath(args.Var.Path)
-		return fmt.Errorf("invalid pat: %w", err)
+		return structs.ValidatePath(args.Var.Path)
 	}
 
 	return nil
