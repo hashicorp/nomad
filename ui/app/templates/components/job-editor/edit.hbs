@@ -8,6 +8,15 @@
     Job Definition
     {{#if @data.cancelable}}
     <div class="pull-right" style="display: flex">
+      <span class="header-toggle">
+        <Hds::Form::Toggle::Field
+          {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") menuLevel=true }}
+          checked={{@data.shouldWrap}}
+          {{on "change" @fns.onToggleWrap}}
+        as |F|>
+          <F.Label>Word Wrap</F.Label>
+        </Hds::Form::Toggle::Field>
+      </span>
       <Tooltip
         @condition={{unless @data.hasSpecification true false}}
         @isFullText={{true}}
@@ -57,6 +66,7 @@
         theme="hashi"
         onUpdate=@fns.onUpdate
         mode=(if (eq @data.format "json") "javascript" "ruby")
+        lineWrapping=@data.shouldWrap
       }}
     ></div>
   </div>
@@ -77,6 +87,7 @@
             onUpdate=@fns.onUpdate
             type="hclVariables"
             mode="ruby"
+            lineWrapping=@data.shouldWrap
           }}
         ></div>
       </div>

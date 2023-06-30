@@ -4,7 +4,12 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { click, currentURL, findAll } from '@ember/test-helpers';
+import {
+  click,
+  currentURL,
+  findAll,
+  triggerKeyEvent,
+} from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -67,6 +72,75 @@ module('Acceptance | task logs', function (hooks) {
       ).length,
       'Log requests were made'
     );
+  });
+
+  test('logs can be word-wrapped', async function (assert) {
+    await TaskLogs.visit({ id: allocation.id, name: task.name });
+
+    assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
+    assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
+
+    run.later(() => {
+      run.cancelTimers();
+    }, 100);
+    await click('[data-test-word-wrap-toggle]');
+    assert.dom('[data-test-word-wrap-toggle]').isChecked();
+    assert.dom('[data-test-output]').hasClass('wrapped');
+
+    run.later(() => {
+      run.cancelTimers();
+    }, 100);
+    await click('[data-test-word-wrap-toggle]');
+    assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
+    assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
+
+    window.localStorage.clear();
+  });
+
+  test('logs in sidebar can be word-wrapped', async function (assert) {
+    await TaskLogs.visitParentJob({
+      id: job.id,
+      allocationId: allocation.id,
+      name: task.name,
+    });
+
+    run.later(() => {
+      run.cancelTimers();
+    }, 500);
+
+    const taskRow = [
+      ...findAll('.task-sub-row').filter((row) => {
+        return row.textContent.includes(task.name);
+      }),
+    ][0];
+
+    await click(taskRow.querySelector('button.logs-sidebar-trigger'));
+
+    assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
+    assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
+
+    run.later(() => {
+      run.cancelTimers();
+    }, 500);
+
+    // type "ww" to trigger word wrap
+    const W_KEY = 87;
+    triggerKeyEvent('.sidebar', 'keydown', W_KEY);
+    await triggerKeyEvent('.sidebar', 'keydown', W_KEY);
+
+    assert.dom('[data-test-word-wrap-toggle]').isChecked();
+    assert.dom('[data-test-output]').hasClass('wrapped');
+
+    run.later(() => {
+      run.cancelTimers();
+    }, 100);
+
+    triggerKeyEvent('.sidebar', 'keydown', W_KEY);
+    await triggerKeyEvent('.sidebar', 'keydown', W_KEY);
+    assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
+    assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
+
+    window.localStorage.clear();
   });
 
   test('logs are accessible in a sidebar context', async function (assert) {
