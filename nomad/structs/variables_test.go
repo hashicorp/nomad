@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -316,5 +317,57 @@ func TestStructs_VariableDecrypted_Validate(t *testing.T) {
 		} else {
 			must.Error(t, err, must.Sprintf("should get error for: %s", tc.path))
 		}
+	}
+}
+
+func TestStructs_VariablesRenewLockRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name    string
+		request *VariablesRenewLockRequest
+		expErr  error
+	}{
+		{
+			name: "missing_lockID",
+			request: &VariablesRenewLockRequest{
+				Path:      "path",
+				Namespace: "namespace",
+			},
+			expErr: errNoLock,
+		},
+		{
+			name: "missing_namespace",
+			request: &VariablesRenewLockRequest{
+				Path:   "path",
+				LockID: "lockID",
+			},
+			expErr: errNoNamespace,
+		},
+		{
+			name: "missing_path",
+			request: &VariablesRenewLockRequest{
+				Namespace: "namespace",
+				LockID:    "lockID",
+			},
+			expErr: errNoPath,
+		},
+		{
+			name: "valid_request",
+			request: &VariablesRenewLockRequest{
+				Namespace: "namespace",
+				Path:      "path",
+				LockID:    "lockID",
+			},
+			expErr: nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.request.Validate()
+			if !errors.Is(err, tc.expErr) {
+				t.Errorf("Expected error %v, but got error %v", tc.expErr, err)
+			}
+		})
 	}
 }

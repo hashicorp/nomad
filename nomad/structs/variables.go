@@ -50,11 +50,25 @@ const (
 	// discourage DoS'ing the cluster
 	maxVariableSize = 65536
 
+	// minLockTTL and maxLockTTL determine the range of valid durations for the
+	// TTL on a lock.They come from teh experience on Consul.
 	minLockTTL = 10 * time.Second
 	maxLockTTL = 24 * time.Hour
 
-	defaultLockTTL   = 15 * time.Second
+	// defaultLockTTL is the default value used to maintain a lock before it needs to
+	// be renewed. The actual value comes from the experience with Consul.
+	defaultLockTTL = 15 * time.Second
+
+	// defaultLockDelay is the default a lock will be blocked after the TTL
+	// went by without any renews. It is intended to prevent split brain situations.
+	// The actual value comes from the experience with Consul.
 	defaultLockDelay = 15 * time.Second
+)
+
+var (
+	errNoPath      = errors.New("missing path")
+	errNoNamespace = errors.New("missing namespace")
+	errNoLock      = errors.New("missing lock ID")
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -581,13 +595,13 @@ func (v *VariablesRenewLockRequest) Validate() error {
 	var mErr multierror.Error
 
 	if v.Namespace == "" {
-		mErr.Errors = append(mErr.Errors, errors.New(""))
+		mErr.Errors = append(mErr.Errors, errNoNamespace)
 	}
 	if v.Path == "" {
-		mErr.Errors = append(mErr.Errors, errors.New(""))
+		mErr.Errors = append(mErr.Errors, errNoPath)
 	}
 	if v.LockID == "" {
-		mErr.Errors = append(mErr.Errors, errors.New(""))
+		mErr.Errors = append(mErr.Errors, errNoLock)
 	}
 
 	return mErr.ErrorOrNil()
