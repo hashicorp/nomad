@@ -27,6 +27,7 @@
         {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
         checked={{this.wrapped}}
         {{on "change" this.toggleWrap}}
+        data-test-word-wrap-toggle
       as |F|>
         <F.Label>Word Wrap</F.Label>
       </Hds::Form::Toggle::Field>
