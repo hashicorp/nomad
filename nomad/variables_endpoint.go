@@ -81,7 +81,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 	if aclObj != nil {
 		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
-		err := hasOtherPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
+		err := hasNecessaryPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
 		if err != nil {
 			return err
 		}
@@ -150,7 +150,7 @@ func hasReadPermission(aclObj *acl.ACL, namespace, path string) bool {
 		path, acl.VariablesCapabilityRead, nil)
 }
 
-func hasPermissions(aclObj *acl.ACL, namespace, path string, op structs.VarOp) error {
+func hasNecessaryPermissions(aclObj *acl.ACL, namespace, path string, op structs.VarOp) error {
 
 	hasPerm := func(perm string) bool {
 		return aclObj.AllowVariableOperation(namespace,
