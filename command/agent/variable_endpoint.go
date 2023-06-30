@@ -83,12 +83,12 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 
 	if operation[renewLockQueryParam][0] == renewLockQueryParam {
 		args := structs.VariablesRenewLockRequest{
-			VarMeta: &Variable.VariableMetadata,
+			Path:      Variable.Path,
+			Namespace: Variable.Namespace,
+			LockID:    Variable.Lock.ID,
 		}
 
-		if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-			return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
-		}
+		s.parseWriteRequest(req, &args.WriteRequest)
 
 		var out structs.VariablesRenewLockResponse
 		if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
