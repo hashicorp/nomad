@@ -12,6 +12,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -31,43 +32,47 @@ type csiHook struct {
 	csimanager csimanager.Manager
 
 	// interfaces implemented by the allocRunner
-	rpcClient            config.RPCer
-	taskCapabilityGetter taskCapabilityGetter
-	hookResources        *cstructs.AllocHookResources
+	rpcClient       config.RPCer
+	allocRunnerShim allocRunnerShim
+	hookResources   *cstructs.AllocHookResources
 
 	nodeSecret         string
-	volumeRequests     map[string]*volumeAndRequest
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
 	maxBackoffDuration time.Duration
+
+	volumeResultsLock sync.Mutex
+	volumeResults     map[string]*volumePublishResult // alias -> volumePublishResult
 
 	shutdownCtx      context.Context
 	shutdownCancelFn context.CancelFunc
 }
 
 // implemented by allocrunner
-type taskCapabilityGetter interface {
+type allocRunnerShim interface {
 	GetTaskDriverCapabilities(string) (*drivers.Capabilities, error)
+	SetCSIVolumes(vols map[string]*state.CSIVolumeStub) error
+	GetCSIVolumes() (map[string]*state.CSIVolumeStub, error)
 }
 
-func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient config.RPCer, taskCapabilityGetter taskCapabilityGetter, hookResources *cstructs.AllocHookResources, nodeSecret string) *csiHook {
+func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.Manager, rpcClient config.RPCer, arShim allocRunnerShim, hookResources *cstructs.AllocHookResources, nodeSecret string) *csiHook {
 
 	shutdownCtx, shutdownCancelFn := context.WithCancel(context.Background())
 
 	return &csiHook{
-		alloc:                alloc,
-		logger:               logger.Named("csi_hook"),
-		csimanager:           csi,
-		rpcClient:            rpcClient,
-		taskCapabilityGetter: taskCapabilityGetter,
-		hookResources:        hookResources,
-		nodeSecret:           nodeSecret,
-		volumeRequests:       map[string]*volumeAndRequest{},
-		minBackoffInterval:   time.Second,
-		maxBackoffInterval:   time.Minute,
-		maxBackoffDuration:   time.Hour * 24,
-		shutdownCtx:          shutdownCtx,
-		shutdownCancelFn:     shutdownCancelFn,
+		alloc:              alloc,
+		logger:             logger.Named("csi_hook"),
+		csimanager:         csi,
+		rpcClient:          rpcClient,
+		allocRunnerShim:    arShim,
+		hookResources:      hookResources,
+		nodeSecret:         nodeSecret,
+		volumeResults:      map[string]*volumePublishResult{},
+		minBackoffInterval: time.Second,
+		maxBackoffInterval: time.Minute,
+		maxBackoffDuration: time.Hour * 24,
+		shutdownCtx:        shutdownCtx,
+		shutdownCancelFn:   shutdownCancelFn,
 	}
 }
 
@@ -80,46 +85,60 @@ func (c *csiHook) Prerun() error {
 		return nil
 	}
 
-	volumes, err := c.claimVolumesFromAlloc()
-	if err != nil {
-		return fmt.Errorf("claim volumes: %v", err)
+	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
+	if err := c.validateTasksSupportCSI(tg); err != nil {
+		return err
 	}
-	c.volumeRequests = volumes
 
-	mounts := make(map[string]*csimanager.MountInfo, len(volumes))
-	for alias, pair := range volumes {
+	// Because operations on CSI volumes are expensive and can error, we do each
+	// step for all volumes before proceeding to the next step so we have to
+	// unwind less work. In practice, most allocations with volumes will only
+	// have one or a few at most. We lock the results so that if an update/stop
+	// comes in while we're running we can assert we'll safely tear down
+	// everything that's been done so far.
 
-		// make sure the plugin is ready or becomes so quickly.
-		plugin := pair.volume.PluginID
-		pType := dynamicplugins.PluginTypeCSINode
-		if err := c.csimanager.WaitForPlugin(c.shutdownCtx, pType, plugin); err != nil {
-			return err
+	c.volumeResultsLock.Lock()
+	defer c.volumeResultsLock.Unlock()
+
+	// Initially, populate the result map with all of the requests
+	for alias, volumeRequest := range tg.Volumes {
+		if volumeRequest.Type == structs.VolumeTypeCSI {
+			c.volumeResults[alias] = &volumePublishResult{
+				request: volumeRequest,
+				stub: &state.CSIVolumeStub{
+					VolumeID: volumeRequest.VolumeID(c.alloc.Name)},
+			}
 		}
-		c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
+	}
 
-		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
-		if err != nil {
-			return err
-		}
+	err := c.restoreMounts(c.volumeResults)
+	if err != nil {
+		return fmt.Errorf("restoring mounts: %w", err)
+	}
 
-		usageOpts := &csimanager.UsageOptions{
-			ReadOnly:       pair.request.ReadOnly,
-			AttachmentMode: pair.request.AttachmentMode,
-			AccessMode:     pair.request.AccessMode,
-			MountOptions:   pair.request.MountOptions,
-		}
+	err = c.claimVolumes(c.volumeResults)
+	if err != nil {
+		return fmt.Errorf("claiming volumes: %w", err)
+	}
 
-		mountInfo, err := mounter.MountVolume(
-			c.shutdownCtx, pair.volume, c.alloc, usageOpts, pair.publishContext)
-		if err != nil {
-			return err
-		}
-
-		mounts[alias] = mountInfo
+	err = c.mountVolumes(c.volumeResults)
+	if err != nil {
+		return fmt.Errorf("mounting volumes: %w", err)
 	}
 
 	// make the mounts available to the taskrunner's volume_hook
+	mounts := helper.ConvertMap(c.volumeResults,
+		func(result *volumePublishResult) *csimanager.MountInfo {
+			return result.stub.MountInfo
+		})
 	c.hookResources.SetCSIMounts(mounts)
+
+	// persist the published mount info so we can restore on client restarts
+	stubs := helper.ConvertMap(c.volumeResults,
+		func(result *volumePublishResult) *state.CSIVolumeStub {
+			return result.stub
+		})
+	c.allocRunnerShim.SetCSIVolumes(stubs)
 
 	return nil
 }
@@ -133,39 +152,42 @@ func (c *csiHook) Postrun() error {
 		return nil
 	}
 
-	var wg sync.WaitGroup
-	errs := make(chan error, len(c.volumeRequests))
+	c.volumeResultsLock.Lock()
+	defer c.volumeResultsLock.Unlock()
 
-	for _, pair := range c.volumeRequests {
+	var wg sync.WaitGroup
+	errs := make(chan error, len(c.volumeResults))
+
+	for _, result := range c.volumeResults {
 		wg.Add(1)
 		// CSI RPCs can potentially take a long time. Split the work
 		// into goroutines so that operators could potentially reuse
 		// one of a set of volumes
-		go func(pair *volumeAndRequest) {
+		go func(result *volumePublishResult) {
 			defer wg.Done()
-			err := c.unmountImpl(pair)
+			err := c.unmountImpl(result)
 			if err != nil {
 				// we can recover an unmount failure if the operator
 				// brings the plugin back up, so retry every few minutes
 				// but eventually give up. Don't block shutdown so that
 				// we don't block shutting down the client in -dev mode
-				go func(pair *volumeAndRequest) {
-					err := c.unmountWithRetry(pair)
+				go func(result *volumePublishResult) {
+					err := c.unmountWithRetry(result)
 					if err != nil {
 						c.logger.Error("volume could not be unmounted")
 					}
-					err = c.unpublish(pair)
+					err = c.unpublish(result)
 					if err != nil {
 						c.logger.Error("volume could not be unpublished")
 					}
-				}(pair)
+				}(result)
 			}
 
 			// we can't recover from this RPC error client-side; the
 			// volume claim GC job will have to clean up for us once
 			// the allocation is marked terminal
-			errs <- c.unpublish(pair)
-		}(pair)
+			errs <- c.unpublish(result)
+		}(result)
 	}
 
 	wg.Wait()
@@ -179,67 +201,109 @@ func (c *csiHook) Postrun() error {
 	return mErr.ErrorOrNil()
 }
 
-type volumeAndRequest struct {
-	volume  *structs.CSIVolume
-	request *structs.VolumeRequest
-
-	// When volumeAndRequest was returned from a volume claim, this field will be
-	// populated for plugins that require it.
-	publishContext map[string]string
+type volumePublishResult struct {
+	request        *structs.VolumeRequest // the request from the jobspec
+	volume         *structs.CSIVolume     // the volume we get back from the server
+	publishContext map[string]string      // populated after claim if provided by plugin
+	stub           *state.CSIVolumeStub   // populated from volume, plugin, or stub
 }
 
-// claimVolumesFromAlloc is used by the pre-run hook to fetch all of the volume
-// metadata and claim it for use by this alloc/node at the same time.
-func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) {
-	result := make(map[string]*volumeAndRequest)
-	tg := c.alloc.Job.LookupTaskGroup(c.alloc.TaskGroup)
-	supportsVolumes := false
+// validateTasksSupportCSI verifies that at least one task in the group uses a
+// task driver that supports CSI. This prevents us from publishing CSI volumes
+// only to find out once we get to the taskrunner/volume_hook that no task can
+// mount them.
+func (c *csiHook) validateTasksSupportCSI(tg *structs.TaskGroup) error {
 
 	for _, task := range tg.Tasks {
-		caps, err := c.taskCapabilityGetter.GetTaskDriverCapabilities(task.Name)
+		caps, err := c.allocRunnerShim.GetTaskDriverCapabilities(task.Name)
 		if err != nil {
-			return nil, fmt.Errorf("could not validate task driver capabilities: %v", err)
+			return fmt.Errorf("could not validate task driver capabilities: %v", err)
 		}
 
 		if caps.MountConfigs == drivers.MountConfigSupportNone {
 			continue
 		}
 
-		supportsVolumes = true
-		break
+		return nil
 	}
 
-	if !supportsVolumes {
-		return nil, fmt.Errorf("no task supports CSI")
-	}
+	return fmt.Errorf("no task supports CSI")
+}
 
-	// Initially, populate the result map with all of the requests
-	for alias, volumeRequest := range tg.Volumes {
-		if volumeRequest.Type == structs.VolumeTypeCSI {
-			result[alias] = &volumeAndRequest{request: volumeRequest}
+// restoreMounts tries to restore the mount info from the local client state and
+// then verifies it with the plugin. If the volume is already mounted, we don't
+// want to re-run the claim and mount workflow again. This lets us tolerate
+// restarting clients even on disconnected nodes.
+func (c *csiHook) restoreMounts(results map[string]*volumePublishResult) error {
+	stubs, err := c.allocRunnerShim.GetCSIVolumes()
+	if err != nil {
+		return err
+	}
+	if stubs == nil {
+		return nil // no previous volumes
+	}
+	for _, result := range results {
+		stub := stubs[result.request.Name]
+		if stub == nil {
+			continue
+		}
+
+		result.stub = stub
+
+		if result.stub.MountInfo != nil && result.stub.PluginID != "" {
+
+			// make sure the plugin is ready or becomes so quickly.
+			plugin := result.stub.PluginID
+			pType := dynamicplugins.PluginTypeCSINode
+			if err := c.csimanager.WaitForPlugin(c.shutdownCtx, pType, plugin); err != nil {
+				return err
+			}
+			c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
+
+			mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
+			if err != nil {
+				return err
+			}
+
+			isMounted, err := mounter.HasMount(c.shutdownCtx, result.stub.MountInfo)
+			if err != nil {
+				return err
+			}
+			if !isMounted {
+				// the mount is gone, so clear this from our result state so it
+				// we can try to remount it with the plugin ID we have
+				result.stub.MountInfo = nil
+			}
 		}
 	}
 
-	// Iterate over the result map and upsert the volume field as each volume gets
-	// claimed by the server.
-	for alias, pair := range result {
+	return nil
+}
+
+// claimVolumes sends a claim to the server for each volume to mark it in use
+// and kick off the controller publish workflow (optionally)
+func (c *csiHook) claimVolumes(results map[string]*volumePublishResult) error {
+
+	for _, result := range results {
+		if result.stub.MountInfo != nil {
+			continue // already mounted
+		}
+
+		request := result.request
+
 		claimType := structs.CSIVolumeClaimWrite
-		if pair.request.ReadOnly {
+		if request.ReadOnly {
 			claimType = structs.CSIVolumeClaimRead
 		}
 
-		source := pair.request.Source
-		if pair.request.PerAlloc {
-			source = source + structs.AllocSuffix(c.alloc.Name)
-		}
-
 		req := &structs.CSIVolumeClaimRequest{
-			VolumeID:       source,
+			VolumeID:       result.stub.VolumeID,
 			AllocationID:   c.alloc.ID,
 			NodeID:         c.alloc.NodeID,
+			ExternalNodeID: result.stub.ExternalNodeID,
 			Claim:          claimType,
-			AccessMode:     pair.request.AccessMode,
-			AttachmentMode: pair.request.AttachmentMode,
+			AccessMode:     request.AccessMode,
+			AttachmentMode: request.AttachmentMode,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
 				Namespace: c.alloc.Job.Namespace,
@@ -249,18 +313,64 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 
 		resp, err := c.claimWithRetry(req)
 		if err != nil {
-			return nil, fmt.Errorf("could not claim volume %s: %w", req.VolumeID, err)
+			return fmt.Errorf("could not claim volume %s: %w", req.VolumeID, err)
 		}
 		if resp.Volume == nil {
-			return nil, fmt.Errorf("Unexpected nil volume returned for ID: %v", pair.request.Source)
+			return fmt.Errorf("Unexpected nil volume returned for ID: %v", request.Source)
 		}
 
-		result[alias].request = pair.request
-		result[alias].volume = resp.Volume
-		result[alias].publishContext = resp.PublishContext
+		result.volume = resp.Volume
+
+		// populate data we'll write later to disk
+		result.stub.VolumeID = resp.Volume.ID
+		result.stub.VolumeExternalID = resp.Volume.RemoteID()
+		result.stub.PluginID = resp.Volume.PluginID
+		result.publishContext = resp.PublishContext
 	}
 
-	return result, nil
+	return nil
+}
+
+func (c *csiHook) mountVolumes(results map[string]*volumePublishResult) error {
+
+	for _, result := range results {
+		if result.stub.MountInfo != nil {
+			continue // already mounted
+		}
+		if result.volume == nil {
+			return fmt.Errorf("volume not available from claim for mounting volume request %q",
+				result.request.Name) // should be unreachable
+		}
+
+		// make sure the plugin is ready or becomes so quickly.
+		plugin := result.volume.PluginID
+		pType := dynamicplugins.PluginTypeCSINode
+		if err := c.csimanager.WaitForPlugin(c.shutdownCtx, pType, plugin); err != nil {
+			return err
+		}
+		c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
+
+		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
+		if err != nil {
+			return err
+		}
+
+		usageOpts := &csimanager.UsageOptions{
+			ReadOnly:       result.request.ReadOnly,
+			AttachmentMode: result.request.AttachmentMode,
+			AccessMode:     result.request.AccessMode,
+			MountOptions:   result.request.MountOptions,
+		}
+
+		mountInfo, err := mounter.MountVolume(
+			c.shutdownCtx, result.volume, c.alloc, usageOpts, result.publishContext)
+		if err != nil {
+			return err
+		}
+		result.stub.MountInfo = mountInfo
+	}
+
+	return nil
 }
 
 // claimWithRetry tries to claim the volume on the server, retrying
@@ -337,15 +447,15 @@ func (c *csiHook) shouldRun() bool {
 	return false
 }
 
-func (c *csiHook) unpublish(pair *volumeAndRequest) error {
+func (c *csiHook) unpublish(result *volumePublishResult) error {
 
 	mode := structs.CSIVolumeClaimRead
-	if !pair.request.ReadOnly {
+	if !result.request.ReadOnly {
 		mode = structs.CSIVolumeClaimWrite
 	}
 
-	source := pair.request.Source
-	if pair.request.PerAlloc {
+	source := result.request.Source
+	if result.request.PerAlloc {
 		// NOTE: PerAlloc can't be set if we have canaries
 		source = source + structs.AllocSuffix(c.alloc.Name)
 	}
@@ -372,7 +482,7 @@ func (c *csiHook) unpublish(pair *volumeAndRequest) error {
 
 // unmountWithRetry tries to unmount/unstage the volume, retrying with
 // exponential backoff capped to a maximum interval
-func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
+func (c *csiHook) unmountWithRetry(result *volumePublishResult) error {
 
 	ctx, cancel := context.WithTimeout(c.shutdownCtx, c.maxBackoffDuration)
 	defer cancel()
@@ -387,7 +497,7 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 		case <-t.C:
 		}
 
-		err = c.unmountImpl(pair)
+		err = c.unmountImpl(result)
 		if err == nil {
 			break
 		}
@@ -407,22 +517,22 @@ func (c *csiHook) unmountWithRetry(pair *volumeAndRequest) error {
 // unmountImpl implements the call to the CSI plugin manager to
 // unmount the volume. Each retry will write an "Unmount volume"
 // NodeEvent
-func (c *csiHook) unmountImpl(pair *volumeAndRequest) error {
+func (c *csiHook) unmountImpl(result *volumePublishResult) error {
 
-	mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, pair.volume.PluginID)
+	mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, result.stub.PluginID)
 	if err != nil {
 		return err
 	}
 
 	usageOpts := &csimanager.UsageOptions{
-		ReadOnly:       pair.request.ReadOnly,
-		AttachmentMode: pair.request.AttachmentMode,
-		AccessMode:     pair.request.AccessMode,
-		MountOptions:   pair.request.MountOptions,
+		ReadOnly:       result.request.ReadOnly,
+		AttachmentMode: result.request.AttachmentMode,
+		AccessMode:     result.request.AccessMode,
+		MountOptions:   result.request.MountOptions,
 	}
 
 	return mounter.UnmountVolume(c.shutdownCtx,
-		pair.volume.ID, pair.volume.RemoteID(), c.alloc.ID, usageOpts)
+		result.stub.VolumeID, result.stub.VolumeExternalID, c.alloc.ID, usageOpts)
 }
 
 // Shutdown will get called when the client is gracefully
