@@ -78,8 +78,13 @@
     .header-toggle {
       display: inline-block;
       position: relative;
-      top: $control-padding-vertical;
+      top: 0.2em;
       margin-left: $control-padding-horizontal;
+      margin-right: $control-padding-horizontal;
+    }
+
+    &.task-log-head .header-toggle {
+      top: 0.5em;
     }
   }
 

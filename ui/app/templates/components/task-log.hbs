@@ -16,17 +16,12 @@
     </div>
   </div>
 {{/if}}
-<div class="boxed-section-head">
+<div class="boxed-section-head task-log-head">
   <span>
     <button data-test-log-action="stdout" class="button {{if (eq this.mode "stdout") "is-info"}}" {{action "setMode" "stdout"}} type="button">stdout</button>
     <button data-test-log-action="stderr" class="button {{if (eq this.mode "stderr") "is-danger"}}" {{action "setMode" "stderr"}} type="button">stderr</button>
   </span>
   <span class="pull-right">
-    <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}} type="button">Head</button>
-    <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}} type="button">Tail</button>
-    <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
-      {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
-    </button>
     <span class="header-toggle">
       <Hds::Form::Toggle::Field
         {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
@@ -36,6 +31,11 @@
         <F.Label>Word Wrap</F.Label>
       </Hds::Form::Toggle::Field>
     </span>
+    <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}} type="button">Head</button>
+    <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}} type="button">Tail</button>
+    <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
+      {{x-icon (if this.logger.isStreaming "media-pause" "media-play") class="is-text"}}
+    </button>
   </span>
 </div>
 <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
