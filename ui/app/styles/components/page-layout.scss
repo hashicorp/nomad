@@ -12,6 +12,7 @@
     position: fixed;
     width: 100%;
     z-index: $z-header;
+    top: 0;
 
     // Defensive styles in case header height goes over 100px, causing
     // the left gutter menu to be on top of the header.
