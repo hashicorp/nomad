@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -627,7 +628,7 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return err
 	}
 
-	sv.srv.MeasureRPCRate("variables", structs.RateMetricLockRenew, args)
+	sv.srv.MeasureRPCRate("variables", structs.RateMetricWrite, args)
 
 	defer metrics.MeasureSince([]string{
 		"nomad", "variables", "lock", "renew"}, time.Now())
@@ -639,49 +640,39 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 
 	// ACLs are enabled, check for the correct permissions
 	if aclObj != nil {
-		hasPerm := func(perm string) bool {
-			return aclObj.AllowVariableOperation(args.VarMeta.Namespace,
-				args.VarMeta.Path, perm, nil)
-		}
-
-		if !hasPerm(acl.VariablesCapabilityRead) || !hasPerm(acl.VariablesCapabilityWrite) {
+		if !aclObj.AllowVariableOperation(args.Namespace, args.Path, acl.VariablesCapabilityWrite, nil) {
 			return structs.ErrPermissionDenied
 		}
 	}
 
-	if args.VarMeta == nil {
-		return fmt.Errorf("variable must not be nil")
+	if err := args.Validate(); err != nil {
+		return err
 	}
 
-	if args.VarMeta.Lock == nil {
-		return fmt.Errorf("lock must not be nil")
-	}
-
-	if args.VarMeta.Lock.ID == "" {
-		return fmt.Errorf("lock ID must be present")
-	}
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-
-			out, err := s.GetVariable(ws, args.Namespace, args.VarMeta.Path)
-			if err != nil {
-				return err
-			}
-
-			sv.logger.Debug("variable found", "path", out.Path)
-
-			return nil
-		},
-	}
-
-	err = sv.srv.blockingRPC(&opts)
+	// TODO: what to read and validate.
+	stateSnapshot, err := sv.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
-	// Handle timers
+
+	_, encryptedVar, err := stateSnapshot.VarGet(nil, args.Namespace, args.Path)
+	if err != nil {
+		return err
+	}
+	if encryptedVar == nil {
+		return errors.New("")
+	}
+	if encryptedVar.Lock == nil {
+		return errors.New("")
+	}
+	if encryptedVar.Lock.ID == args.LockID {
+		return errors.New("")
+	}
+
+	// TODO: TTL timer.
+	//  use server TTL method or similar to update the TTL timer with new
+	//  expiry.
+	*reply.VarMeta = encryptedVar.Copy().VariableMetadata
+	reply.Index = encryptedVar.ModifyIndex
 	return nil
 }
