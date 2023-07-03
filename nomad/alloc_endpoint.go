@@ -284,7 +284,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 
 					for _, task := range tg.Tasks {
 						for _, ident := range task.Identities {
-							claims := alloc.ToTaskIdentityClaims(alloc.Job, task.Name, ident.Name, now)
+							claims := alloc.ToTaskIdentityClaims(alloc.Job, task.Name, ident, now)
 							token, _, err := a.srv.encrypter.SignClaims(claims)
 							if err != nil {
 								a.logger.Warn("failed to sign workload identity",
@@ -438,7 +438,7 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 					}
 
 					widFound = true
-					claims := out.ToTaskIdentityClaims(out.Job, idReq.TaskName, idReq.IdentityName, now)
+					claims := out.ToTaskIdentityClaims(out.Job, idReq.TaskName, wid, now)
 					token, _, err := a.srv.encrypter.SignClaims(claims)
 					if err != nil {
 						return err

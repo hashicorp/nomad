@@ -774,6 +774,10 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 		tgrp.Merge(t.RestartPolicy)
 		t.RestartPolicy = tgrp
 	}
+	//TODO(schmichael) canonicalize default nomad identity or let the server?
+	for _, wid := range t.Identities {
+		wid.Canonicalize()
+	}
 }
 
 // TaskArtifact is used to download artifacts before running a task.
@@ -1147,8 +1151,22 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 // WorkloadIdentity is the jobspec block which determines if and how a workload
 // identity is exposed to tasks.
 type WorkloadIdentity struct {
-	Name      *string   `hcl:"name,optional"`
-	Audiences *[]string `hcl:"aud,optional"`
-	Env       bool      `hcl:"env,optional"`
-	File      bool      `hcl:"file,optional"`
+	Name       string        `hcl:"name,optional"`
+	Audiences  []string      `mapstructure:"aud" hcl:"aud,optional"`
+	Env        bool          `hcl:"env,optional"`
+	File       bool          `hcl:"file,optional"`
+	TTL        time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+	Splay      time.Duration `hcl:"splay,optional"`
+	ChangeMode string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+}
+
+func (wi *WorkloadIdentity) Canonicalize() {
+	// If no audience is set, use the block name.
+	if len(wi.Audiences) == 0 {
+		wi.Audiences = []string{wi.Name}
+	}
+
+	wi.TTL = 1 * time.Hour
+	wi.Splay = 15 * time.Minute
+	wi.ChangeMode = "noop"
 }

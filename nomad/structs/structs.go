@@ -7636,6 +7636,16 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	for _, template := range t.Templates {
 		template.Canonicalize()
 	}
+
+	// Initialize default Nomad workload identity
+	if t.Identity == nil {
+		t.Identity = &WorkloadIdentity{}
+	}
+	t.Identity.Canonicalize()
+
+	for _, wid := range t.Identities {
+		wid.Canonicalize()
+	}
 }
 
 func (t *Task) GoString() string {
@@ -11125,10 +11135,6 @@ func (a *Allocation) ToIdentityClaims(job *Job, now time.Time) *IdentityClaims {
 		JobID:        a.JobID,
 		AllocationID: a.ID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			// TODO: implement a refresh loop to prevent allocation identities from
-			// expiring before the allocation is terminal. Once that's implemented,
-			// add an ExpiresAt here ExpiresAt: &jwt.NumericDate{}
-			// https://github.com/hashicorp/nomad/issues/16258
 			NotBefore: jwtnow,
 			IssuedAt:  jwtnow,
 		},
@@ -11139,12 +11145,24 @@ func (a *Allocation) ToIdentityClaims(job *Job, now time.Time) *IdentityClaims {
 	return claims
 }
 
-func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName, idName string, now time.Time) *IdentityClaims {
-	claims := a.ToIdentityClaims(job, now)
-	if claims != nil {
-		claims.TaskName = taskName
-		claims.SetSubject(job, a.TaskGroup, taskName, idName)
+func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
+	tg := job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil {
+		return nil
 	}
+
+	//TODO(schmichael) either add randomness here with splay, make it
+	//deterministic, or only use it on the client to help jitter refreshes
+	claims := a.ToIdentityClaims(job, now)
+	if claims == nil {
+		return nil
+	}
+
+	claims.TaskName = taskName
+	claims.Audience = wid.Audience
+	claims.SetSubject(job, a.TaskGroup, taskName, wid.Name)
+	claims.SetExp(now, wid.TTL, wid.Splay)
+
 	return claims
 }
 
@@ -11169,6 +11187,18 @@ func (claims *IdentityClaims) SetSubject(job *Job, group, task, id string) {
 		task,
 		id,
 	}, ":")
+}
+
+// TODO(schmichael)
+func (claims *IdentityClaims) SetExp(now time.Time, exp, splay time.Duration) {
+	if exp == 0 {
+		return
+	}
+
+	// TODO(schmichael) either accept randomness here and add splay jitter, or
+	// implement deterministic splay jitter, or calculate jitter elsewhere
+	// (client?)
+	claims.ExpiresAt = jwt.NewNumericDate(now.Add(exp))
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),

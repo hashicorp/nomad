@@ -4,6 +4,8 @@
 package structs
 
 import (
+	"time"
+
 	"golang.org/x/exp/slices"
 )
 
@@ -27,6 +29,11 @@ const (
 	// WIRejectionReasonMissingIdentity is the WorkloadIdentityRejection.Reason
 	// returned when the requested identity does not exist on the allocation.
 	WIRejectionReasonMissingIdentity = "identity not found"
+
+	// WIChangeModes are the change_mode values supported by workload identities.
+	WIChangeModeNoop    = "noop"
+	WIChangeModeRestart = "restart"
+	WIChangeModeSignal  = "signal"
 )
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
@@ -34,9 +41,9 @@ const (
 type WorkloadIdentity struct {
 	Name string
 
-	// Audiences are the valid recipients for this identity (the "aud" JWT claim)
+	// Audience is the valid recipients for this identity (the "aud" JWT claim)
 	// and defaults to the identity's name.
-	Audiences []string
+	Audience []string
 
 	// Env injects the Workload Identity into the Task's environment if
 	// set.
@@ -45,6 +52,19 @@ type WorkloadIdentity struct {
 	// File writes the Workload Identity into the Task's secrets directory
 	// if set.
 	File bool
+
+	// TTL is used to determine the expiration of the credentials created for
+	// this identity (eg the JWT "exp" claim).
+	TTL time.Duration
+
+	// Splay is a duration used to jitter credential expiration. For example a
+	// JWT's exp = ttl + rand(0, splay)
+	Splay time.Duration
+
+	// ChangeMode is similar to the Vault block's change_mode and determines what
+	// Nomad does when the credentials for this identity change (eg when a JWT is
+	// rotated prior to expiration).
+	ChangeMode string
 }
 
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
@@ -52,10 +72,13 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		return nil
 	}
 	return &WorkloadIdentity{
-		Name:      wi.Name,
-		Audiences: slices.Clone(wi.Audiences),
-		Env:       wi.Env,
-		File:      wi.File,
+		Name:       wi.Name,
+		Audience:   slices.Clone(wi.Audience),
+		Env:        wi.Env,
+		File:       wi.File,
+		TTL:        wi.TTL,
+		Splay:      wi.Splay,
+		ChangeMode: wi.ChangeMode,
 	}
 }
 
@@ -68,7 +91,7 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 		return false
 	}
 
-	if !slices.Equal(wi.Audiences, other.Audiences) {
+	if !slices.Equal(wi.Audience, other.Audience) {
 		return false
 	}
 
@@ -80,25 +103,46 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 		return false
 	}
 
+	if wi.TTL != other.TTL {
+		return false
+	}
+
+	if wi.Splay != other.Splay {
+		return false
+	}
+
+	if wi.ChangeMode != other.ChangeMode {
+		return false
+	}
+
 	return true
 }
 
 func (wi *WorkloadIdentity) Canonicalize() {
-	// An unnamed identity block is treated as the default Nomad Workload
-	// Identity.
+	if wi == nil {
+		return
+	}
+
 	if wi.Name == "" {
 		wi.Name = WorkloadIdentityDefaultName
 	}
 
 	// The default identity is only valid for use with Nomad itself.
 	if wi.Name == WorkloadIdentityDefaultName {
-		wi.Audiences = []string{WorkloadIdentityDefaultAud}
+		wi.Audience = []string{WorkloadIdentityDefaultAud}
+		//TODO(schmichael) - should probably set all default defaults somewhere
+		//else so we can detect and maximze the ttl
 	}
 
 	// If no audience is set, use the block name.
-	if len(wi.Audiences) == 0 {
-		wi.Audiences = []string{wi.Name}
+	if len(wi.Audience) == 0 {
+		wi.Audience = []string{wi.Name}
 	}
+
+	//TODO(schmichael) should ttl and splay be defaulted here?
+
+	// If no ChangeMode is set, default to noop
+	wi.ChangeMode = WIChangeModeNoop
 }
 
 // WorkloadIdentityRequest encapsulates the 3 parameters used to generated a
