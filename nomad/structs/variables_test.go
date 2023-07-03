@@ -371,3 +371,57 @@ func TestStructs_VariablesRenewLockRequest_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestStructs_VariablesRenewLockRequest_ValidateForLock(t *testing.T) {}
+
+func TestStructs_Lock_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		lock   *VariableLock
+		expErr error
+	}{
+		{
+			name: "lock_delay_is_negative",
+			lock: &VariableLock{
+				TTL:       5 * time.Second,
+				LockDelay: -5 * time.Second,
+			},
+			expErr: errNegativeDelayOrTTL,
+		},
+		{
+			name: "lock_ttl_is_negative",
+			lock: &VariableLock{
+				TTL:       -5 * time.Second,
+				LockDelay: 5 * time.Second,
+			},
+			expErr: errNegativeDelayOrTTL,
+		},
+		{
+			name: "lock_ttl_is_bigger_than_max",
+			lock: &VariableLock{
+				TTL:       maxLockTTL + 5*time.Second,
+				LockDelay: 5 * time.Second,
+			},
+			expErr: errInvalidTTL,
+		},
+		{
+			name: "lock_ttl_is_smaller_than_min",
+			lock: &VariableLock{
+				TTL:       5 * time.Second,
+				LockDelay: minLockTTL - 5*time.Second,
+			},
+			expErr: errInvalidTTL,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.lock.Validate()
+			if !errors.Is(err, tc.expErr) {
+				t.Errorf("Expected error %v, but got error %v", tc.expErr, err)
+			}
+		})
+	}
+}

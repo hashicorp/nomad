@@ -66,9 +66,13 @@ const (
 )
 
 var (
-	errNoPath      = errors.New("missing path")
-	errNoNamespace = errors.New("missing namespace")
-	errNoLock      = errors.New("missing lock ID")
+	errNoPath             = errors.New("missing path")
+	errNoNamespace        = errors.New("missing namespace")
+	errNoLock             = errors.New("missing lock ID")
+	errWildCardNamespace  = errors.New("can not target wildcard (\"*\")namespace")
+	errQuotaExhausted     = errors.New("variables are limited to 64KiB in total size")
+	errNegativeDelayOrTTL = errors.New("Lock delay and TTL must be positive")
+	errInvalidTTL         = errors.New("TTL must be between 10 seconds and 24 hours")
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -181,11 +185,11 @@ func (vl *VariableLock) Validate() error {
 	var mErr *multierror.Error
 
 	if vl.LockDelay < 0 || vl.TTL < 0 {
-		mErr = multierror.Append(mErr, errors.New("Lock delay and TTL must be positive"))
+		mErr = multierror.Append(mErr, errNegativeDelayOrTTL)
 	}
 
 	if vl.TTL > maxLockTTL || vl.TTL < minLockTTL {
-		mErr = multierror.Append(mErr, errors.New("TTL must be between 10 seconds and 24 hours"))
+		mErr = multierror.Append(mErr, errInvalidTTL)
 	}
 
 	return mErr
@@ -313,13 +317,14 @@ func (vd VariableDecrypted) Validate() error {
 // A new variable can be crated just to support a lock, it doesn't require to hold
 // any items and it will validate the lock.
 func (vd VariableDecrypted) ValidateForLock() error {
-
+	var mErr multierror.Error
 	if vd.Namespace == AllNamespacesSentinel {
-		return errors.New("can not target wildcard (\"*\")namespace")
+		mErr.Errors = append(mErr.Errors, errWildCardNamespace)
+		return &mErr
 	}
 
 	if vd.Items.Size() > maxVariableSize {
-		return errors.New("variables are limited to 64KiB in total size")
+		return errQuotaExhausted
 	}
 
 	if err := ValidatePath(vd.Path); err != nil {
@@ -603,7 +608,6 @@ type VariablesRenewLockRequest struct {
 }
 
 func (v *VariablesRenewLockRequest) Validate() error {
-
 	var mErr multierror.Error
 
 	if v.Namespace == "" {
