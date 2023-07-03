@@ -317,13 +317,14 @@ func (vd VariableDecrypted) Validate() error {
 // A new variable can be crated just to support a lock, it doesn't require to hold
 // any items and it will validate the lock.
 func (vd VariableDecrypted) ValidateForLock() error {
-
+	var mErr multierror.Error
 	if vd.Namespace == AllNamespacesSentinel {
-		return errors.New("can not target wildcard (\"*\")namespace")
+		mErr.Errors = append(mErr.Errors, errWildCardNamespace)
+		return &mErr
 	}
 
 	if vd.Items.Size() > maxVariableSize {
-		return errors.New("variables are limited to 64KiB in total size")
+		return errQuotaExhausted
 	}
 
 	if err := ValidatePath(vd.Path); err != nil {
