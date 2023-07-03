@@ -127,6 +127,22 @@ func TestCNI_forceCleanup(t *testing.T) {
 	})
 }
 
+// TestCNI_cniToAllocNet_NoInterfaces asserts an error is returned if CNIResult
+// contains no interfaces.
+func TestCNI_cniToAllocNet_NoInterfaces(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.CNIResult{}
+
+	// Only need a logger
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	require.Error(t, err)
+	require.Nil(t, allocNet)
+}
+
 // TestCNI_cniToAllocNet_Fallback asserts if a CNI plugin result lacks an IP on
 // its sandbox interface, the first IP found is used.
 func TestCNI_cniToAllocNet_Fallback(t *testing.T) {

@@ -1,6 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
-
 // For now CNI is supported only on Linux.
 //
 //go:build linux
@@ -131,52 +130,50 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 // error. The first interface and IP with a sandbox and address set are
 // preferred. Failing that the first interface with an IP is selected.
 func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.CNIResult) (*structs.AllocNetworkStatus, error) {
+	if len(res.Interfaces) == 0 {
+		return nil, fmt.Errorf("failed to configure network: no interfaces found")
+	}
+
 	netStatus := new(structs.AllocNetworkStatus)
 
+	// Unfortunately the go-cni library returns interfaces in an unordered map meaning
+	// the results may be nondeterministic depending on CNI plugin output so make
+	// sure we sort them by interface name.
+	names := make([]string, 0, len(res.Interfaces))
+	for k := range res.Interfaces {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+
 	// Use the first sandbox interface with an IP address
-	if len(res.Interfaces) > 0 {
-		// Unfortunately the go-cni library returns interfaces in an unordered map so
-		// the results may be nondeterministic depending on CNI plugin output so make
-		// sure we sort them by interface name.
-		names := make([]string, 0, len(res.Interfaces))
-		for k := range res.Interfaces {
-			names = append(names, k)
+	for _, name := range names {
+		iface := res.Interfaces[name]
+		if iface == nil {
+			// this should never happen but this value is coming from external
+			// plugins so we should guard against it
+			delete(res.Interfaces, name)
+			continue
 		}
-		sort.Strings(names)
 
-		for _, name := range names {
-			iface := res.Interfaces[name]
-			if iface == nil {
-				// this should never happen but this value is coming from external
-				// plugins so we should guard against it
-				delete(res.Interfaces, name)
-				continue
-			}
-
-			if iface.Sandbox != "" && len(iface.IPConfigs) > 0 {
-				netStatus.Address = iface.IPConfigs[0].IP.String()
-				netStatus.InterfaceName = name
-				break
-			}
+		if iface.Sandbox != "" && len(iface.IPConfigs) > 0 {
+			netStatus.Address = iface.IPConfigs[0].IP.String()
+			netStatus.InterfaceName = name
+			break
 		}
 	}
 
 	// If no IP address was found, use the first interface with an address
 	// found as a fallback
 	if netStatus.Address == "" {
-		var found bool
-		for name, iface := range res.Interfaces {
+		for _, name := range names {
+			iface := res.Interfaces[name]
 			if len(iface.IPConfigs) > 0 {
 				ip := iface.IPConfigs[0].IP.String()
 				c.logger.Debug("no sandbox interface with an address found CNI result, using first available", "interface", name, "ip", ip)
 				netStatus.Address = ip
 				netStatus.InterfaceName = name
-				found = true
 				break
 			}
-		}
-		if !found {
-			c.logger.Warn("no address could be found from CNI result")
 		}
 	}
 
