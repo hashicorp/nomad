@@ -54,6 +54,7 @@ export default class Variable extends AbstractAbility {
 
   @computed('token.selfTokenPolicies')
   get policiesSupportVariableList() {
+    console.log('uhhhhhhhh', this.token.selfTokenPolicies);
     return this.policyNamespacesIncludeVariablesCapabilities(
       this.token.selfTokenPolicies,
       ['list', 'read', 'write', 'destroy']
@@ -85,6 +86,11 @@ export default class Variable extends AbstractAbility {
     capabilities = [],
     path
   ) {
+    console.log(
+      'checking on policyNamespacesIncludeVaraiblesCapabilities',
+      policies,
+      capabilities
+    );
     const namespacesWithVariableCapabilities = policies
       .toArray()
       .filter((policy) => get(policy, 'rulesJSON.Namespaces'))
@@ -107,6 +113,8 @@ export default class Variable extends AbstractAbility {
       })
       .flat()
       .compact();
+
+    console.log('flattified', namespacesWithVariableCapabilities, capabilities);
 
     // Check for requested permissions
     return namespacesWithVariableCapabilities.some((abilityList) => {

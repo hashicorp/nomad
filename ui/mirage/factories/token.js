@@ -19,20 +19,20 @@ export default Factory.extend({
   oneTimeSecret: () => faker.random.uuid(),
 
   afterCreate(token, server) {
-    if (token.policyIds && token.policyIds.length) return;
-    const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
+    if (token.tokenPolicyIds && token.tokenPolicyIds.length) return;
+    const tokenPolicyIds = Array(faker.random.number({ min: 1, max: 5 }))
       .fill(0)
       .map(() => faker.hacker.verb())
       .uniq();
 
-    policyIds.forEach((policy) => {
+    tokenPolicyIds.forEach((policy) => {
       const dbPolicy = server.db.policies.find(policy);
       if (!dbPolicy) {
         server.create('policy', { id: policy });
       }
     });
 
-    token.update({ policyIds });
+    token.update({ tokenPolicyIds });
 
     // Create a special policy with variables rules in place
     if (token.id === '53cur3-v4r14bl35') {
@@ -74,7 +74,7 @@ node {
         },
       };
       server.create('policy', variableMakerPolicy);
-      token.policyIds.push(variableMakerPolicy.id);
+      token.tokenPolicyIds.push(variableMakerPolicy.id);
     }
     if (token.id === 'f3w3r-53cur3-v4r14bl35') {
       const variableViewerPolicy = {
@@ -168,7 +168,7 @@ node {
         },
       };
       server.create('policy', variableViewerPolicy);
-      token.policyIds.push(variableViewerPolicy.id);
+      token.tokenPolicyIds.push(variableViewerPolicy.id);
     }
     if (token.id === '3XP1R35-1N-3L3V3N-M1NU735') {
       token.update({

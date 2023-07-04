@@ -155,7 +155,7 @@ module('Acceptance | job run', function (hooks) {
       },
     });
 
-    clientTokenWithPolicy.policyIds = [policy.id];
+    clientTokenWithPolicy.tokenPolicyIds = [policy.id];
     clientTokenWithPolicy.save();
     window.localStorage.nomadTokenSecret = clientTokenWithPolicy.secretId;
 

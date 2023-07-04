@@ -299,7 +299,8 @@ export default function () {
     });
 
     if (token) {
-      const { policyIds } = token;
+      const policyIds = token.tokenPolicyIds;
+
       const policies = server.db.policies.find(policyIds);
       const hasReadPolicy = policies.find(
         (p) =>
@@ -571,7 +572,7 @@ export default function () {
     // is of type management
     if (
       tokenForSecret &&
-      (tokenForSecret.policies.includes(policy) ||
+      (tokenForSecret.tokenPolicies.includes(policy) ||
         tokenForSecret.type === 'management')
     ) {
       return this.serialize(policy);
@@ -589,10 +590,10 @@ export default function () {
     const { id } = request.params;
     schema.tokens
       .all()
-      .models.filter((token) => token.policyIds.includes(id))
+      .models.filter((token) => token.tokenPolicyIds.includes(id))
       .forEach((token) => {
         token.update({
-          policyIds: token.policyIds.filter((pid) => pid !== id),
+          tokenPolicyIds: token.tokenPolicyIds.filter((pid) => pid !== id),
         });
       });
     server.db.policies.remove(id);

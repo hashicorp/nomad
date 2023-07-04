@@ -57,6 +57,7 @@ module('Acceptance | variables', function (hooks) {
     assert.expect(2);
     allScenarios.variableTestCluster(server);
     const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
+    console.log('VARIABLESTOKEN', variablesToken);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
     await Variables.visit();

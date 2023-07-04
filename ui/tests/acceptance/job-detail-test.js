@@ -385,7 +385,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       },
     });
 
-    clientToken.policyIds = [policy.id];
+    clientToken.tokenPolicyIds = [policy.id];
     clientToken.save();
 
     await JobDetail.visit({ id: job1.id });
@@ -605,7 +605,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     });
     job.update({ taskGroupIds: [scalingGroup.id] });
 
-    clientToken.policyIds = [policy.id];
+    clientToken.tokenPolicyIds = [policy.id];
     clientToken.save();
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 

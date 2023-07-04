@@ -457,7 +457,7 @@ module('Acceptance | jobs list', function (hooks) {
       },
     });
 
-    clientToken.policyIds = [policy.id];
+    clientToken.tokenPolicyIds = [policy.id];
     clientToken.save();
 
     window.localStorage.nomadTokenSecret = clientToken.secretId;
@@ -488,7 +488,7 @@ module('Acceptance | jobs list', function (hooks) {
       },
     });
 
-    clientToken.policyIds = [policy.id];
+    clientToken.tokenPolicyIds = [policy.id];
     clientToken.save();
 
     window.localStorage.nomadTokenSecret = clientToken.secretId;

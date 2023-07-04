@@ -230,7 +230,7 @@ module('Acceptance | job versions (with client token)', function (hooks) {
       },
     });
 
-    clientToken.policyIds = [policy.id];
+    clientToken.tokenPolicyIds = [policy.id];
     clientToken.save();
 
     window.localStorage.nomadTokenSecret = clientToken.secretId;

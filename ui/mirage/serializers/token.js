@@ -9,9 +9,12 @@ export default ApplicationSerializer.extend({
   serializeIds: 'always',
 
   keyForRelationshipIds(relationship) {
-    if (relationship === 'policies') {
+    if (relationship === 'tokenPolicies') {
       return 'Policies';
     }
-    return ApplicationSerializer.prototype.keyForRelationshipIds.apply(this, arguments);
+    return ApplicationSerializer.prototype.keyForRelationshipIds.apply(
+      this,
+      arguments
+    );
   },
 });

@@ -85,14 +85,14 @@ function moduleForJobDispatch(title, jobFactory) {
         },
       });
 
-      clientToken.policyIds = [policy.id];
+      clientToken.tokenPolicyIds = [policy.id];
       clientToken.save();
 
       await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
       assert.notOk(JobDetail.dispatchButton.isDisabled);
 
       // Reset clientToken policies.
-      clientToken.policyIds = [];
+      clientToken.tokenPolicyIds = [];
       clientToken.save();
     });
 
