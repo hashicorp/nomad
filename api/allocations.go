@@ -271,6 +271,7 @@ type Allocation struct {
 	PreviousAllocation    string
 	NextAllocation        string
 	RescheduleTracker     *RescheduleTracker
+	NetworkStatus         *AllocNetworkStatus
 	PreemptedAllocations  []string
 	PreemptedByAllocation string
 	CreateIndex           uint64
@@ -400,6 +401,15 @@ type AllocDeploymentStatus struct {
 	Timestamp   time.Time
 	Canary      bool
 	ModifyIndex uint64
+}
+
+// AllocNetworkStatus captures the status of an allocation's network during runtime.
+// Depending on the network mode, an allocation's address may need to be known to other
+// systems in Nomad such as service registration.
+type AllocNetworkStatus struct {
+	InterfaceName string
+	Address       string
+	DNS           *DNSConfig
 }
 
 type AllocatedResources struct {
