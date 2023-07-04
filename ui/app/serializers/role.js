@@ -7,12 +7,8 @@
 import ApplicationSerializer from './application';
 
 export default class RoleSerializer extends ApplicationSerializer {
-  // attrs = {
-  //   policies: { key: 'PolicyNames', serialize: false },
-  // };
-
   normalize(typeHash, hash) {
-    hash.Policies = hash.Policies || [];
+    hash.Policies = hash.Policies || []; // null guard
     hash.PolicyIDs = hash.Policies.map((policy) => policy.Name);
     return super.normalize(typeHash, hash);
   }
