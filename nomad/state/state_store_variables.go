@@ -4,6 +4,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -510,4 +511,83 @@ func (s *StateStore) VariablesQuotaByNamespace(ws memdb.WatchSet, namespace stri
 	}
 	quotaUsed := raw.(*structs.VariablesQuota)
 	return quotaUsed, nil
+}
+
+// VarLockAcquire is the method used to append a lock to a variable, if the
+// variable doesn't exists, it is created.
+func (s *StateStore) VarLockAcquire(idx uint64,
+	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxn(idx)
+	defer tx.Abort()
+
+	// Try to fetch the variable.
+	raw, err := tx.First(TableVariables, indexID, req.Namespace, req.Var.Path)
+	if err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("variable lookup failed: %v", err))
+	}
+
+	// If the variable exist, we must make sure it doesn't hold a lock already
+	if raw != nil {
+		sv := raw.(*structs.VariableEncrypted)
+		if sv.VariableMetadata.Lock != nil {
+			return req.ErrorResponse(idx, errors.New("variable already holds a lock"))
+		}
+
+		// Update the data to avoid overwriting the variable's items while creating the lock
+		req.Var.VariableData = sv.VariableData
+	}
+
+	resp := s.varSetTxn(tx, idx, req)
+	if resp.IsError() {
+		return resp
+	}
+
+	if err := tx.Commit(); err != nil {
+		return req.ErrorResponse(idx, err)
+	}
+
+	return resp
+}
+
+func (s *StateStore) VarLockRelease(idx uint64,
+	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxn(idx)
+	defer tx.Abort()
+
+	// Look up the entry in the state store.
+	raw, err := tx.First(TableVariables, indexID, req.Var.Namespace, req.Var.Path)
+	if err != nil {
+		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
+	}
+
+	if raw == nil {
+		// Should this be a conflict?
+		return req.ErrorResponse(idx, fmt.Errorf("variable doesn't exist: %s", err))
+	}
+
+	sv, _ := raw.(*structs.VariableEncrypted)
+
+	if sv.Lock.ID == "" || sv.Lock.ID != req.Var.Lock.ID {
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
+	}
+	updated := sv.Copy()
+	updated.Lock.ID = ""
+
+	req.Var = &updated
+	resp := s.varSetTxn(tx, idx, req)
+	if resp.IsError() {
+		return resp
+	}
+
+	if err := tx.Commit(); err != nil {
+		return req.ErrorResponse(idx, err)
+	}
+
+	return nil
 }
