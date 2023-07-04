@@ -98,7 +98,7 @@ func (t *TTLTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
 	}
 }
 
-// len returns the number of registered timers.
+// timerNum returns the number of registered timers.
 func (t *TTLTimer) timerNum() int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()

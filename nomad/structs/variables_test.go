@@ -189,6 +189,75 @@ func TestVariableMetadata_Copy(t *testing.T) {
 	}
 }
 
+func TestVariableMetadata_LockID(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                  string
+		inputVariableMetadata *VariableMetadata
+		expectedOutput        string
+	}{
+		{
+			name: "nil lock",
+			inputVariableMetadata: &VariableMetadata{
+				Lock: nil,
+			},
+			expectedOutput: "",
+		},
+		{
+			name: "empty ID",
+			inputVariableMetadata: &VariableMetadata{
+				Lock: &VariableLock{ID: ""},
+			},
+			expectedOutput: "",
+		},
+		{
+			name: "populated ID",
+			inputVariableMetadata: &VariableMetadata{
+				Lock: &VariableLock{ID: "mylovelylovelyid"},
+			},
+			expectedOutput: "mylovelylovelyid",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expectedOutput, tc.inputVariableMetadata.LockID())
+		})
+	}
+}
+
+func TestVariableMetadata_IsLock(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                  string
+		inputVariableMetadata *VariableMetadata
+		expectedOutput        bool
+	}{
+		{
+			name: "nil",
+			inputVariableMetadata: &VariableMetadata{
+				Lock: nil,
+			},
+			expectedOutput: false,
+		},
+		{
+			name: "not nil",
+			inputVariableMetadata: &VariableMetadata{
+				Lock: &VariableLock{},
+			},
+			expectedOutput: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expectedOutput, tc.inputVariableMetadata.IsLock())
+		})
+	}
+}
+
 func TestStructs_VariableDecrypted_Copy(t *testing.T) {
 	ci.Parallel(t)
 	n := time.Now()

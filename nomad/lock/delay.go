@@ -58,6 +58,13 @@ func (d *DelayTimer) Set(id string, now time.Time, delay time.Duration) {
 	})
 }
 
+// RemoveAll removes all registered timers.
+func (d *DelayTimer) RemoveAll() {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	d.delayTimers = make(map[string]time.Time)
+}
+
 // EmitMetrics is a long-running routine used to emit periodic metrics about
 // the Delay.
 func (d *DelayTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
@@ -75,7 +82,7 @@ func (d *DelayTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{})
 	}
 }
 
-// len returns the number of registered delay timers.
+// timerNum returns the number of registered delay timers.
 func (d *DelayTimer) timerNum() int {
 	d.lock.RLock()
 	defer d.lock.RUnlock()

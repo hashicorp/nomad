@@ -30,4 +30,14 @@ func TestDelay(t *testing.T) {
 	time.Sleep(120 * time.Millisecond)
 	must.True(t, delay.Get("test-delay-1").Before(timeNow))
 	must.Eq(t, 0, delay.timerNum())
+
+	// Add a key and set a long expiration.
+	timeNow = time.Now()
+	delay.Set("test-delay-2", timeNow, 1000*time.Millisecond)
+	must.False(t, delay.Get("test-delay-2").Before(time.Now()))
+	must.Eq(t, 1, delay.timerNum())
+
+	// Perform the stop call which the leader will do when stepping down.
+	delay.RemoveAll()
+	must.Eq(t, 0, delay.timerNum())
 }

@@ -397,6 +397,17 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
 
+	// Populate the variable lock TTL timers, so we can start tracking renewals
+	// and expirations.
+	if err := s.restoreLockTTLTimers(); err != nil {
+		return err
+	}
+
+	// Periodically publish metrics for the lock timer trackers which are only
+	// run on the leader.
+	go s.lockTTLTimer.EmitMetrics(1*time.Second, stopCh)
+	go s.lockDelayTimer.EmitMetrics(1*time.Second, stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -948,6 +959,88 @@ func (s *Server) restorePeriodicDispatcher() error {
 	return nil
 }
 
+// restoreLockTTLTimers iterates the stored variables and creates a lock TTL
+// timer for each variable lock. This is used during leadership establishment
+// to populate the in-memory timer.
+func (s *Server) restoreLockTTLTimers() error {
+
+	varIterator, err := s.fsm.State().Variables(nil)
+	if err != nil {
+		return fmt.Errorf("failed to list variables for lock TTL restore: %v", err)
+	}
+
+	// Iterate the variables, identifying each one that is associated to a lock
+	// and adding a TTL timer for each.
+	for varInterface := varIterator.Next(); varInterface != nil; varInterface = varIterator.Next() {
+		if realVar, ok := varInterface.(*structs.VariableEncrypted); ok && realVar.IsLock() {
+
+			// The variable will be modified in order to show that it no longer
+			// is held. We therefore need to ensure we perform modifications on
+			// a copy.
+			realVarCopy := realVar.Copy()
+
+			s.createVariableLockTTLTimer(&realVarCopy)
+		}
+	}
+
+	return nil
+}
+
+// createVariableLockTTLTimer creates a TTL timer for the given lock. The
+// passed ID is expected to be generated via the variable NamespacedID
+// function.
+func (s *Server) createVariableLockTTLTimer(variable *structs.VariableEncrypted) {
+
+	// Adjust the given TTL by multiplier of 2. This is done to give a client a
+	// grace period and to compensate for network and processing delays. The
+	// contract is that a variable lock is not expired before the TTL expires,
+	// but there is no explicit promise about the upper bound so this is
+	// allowable.
+	lockTTL := variable.Lock.TTL * 2
+
+	// The lock ID is used a couple of times, so grab this now.
+	lockID := variable.LockID()
+
+	s.lockTTLTimer.Create(lockID, lockTTL, func() { s.invalidateVariableLock(lockID, variable) })
+}
+
+// invalidateVariableLock exponentially tries to update Nomad's state to remove
+// the lock ID from the variable. This can be used when a variable lock's TTL
+// has expired.
+func (s *Server) invalidateVariableLock(lockID string, variable *structs.VariableEncrypted) {
+
+	// Stop and remove the TTL timer tracker.
+	s.lockTTLTimer.StopAndRemove(lockID)
+
+	// Mark the lock ID as empty, meaning there is no active holder.
+	variable.VariableMetadata.Lock.ID = ""
+
+	args := structs.VarApplyStateRequest{
+		Op:  structs.VarOpCAS,
+		Var: variable,
+		WriteRequest: structs.WriteRequest{
+			Region:    s.Region(),
+			Namespace: variable.Namespace,
+		},
+	}
+
+	// Retry with exponential backoff to invalidate the session
+	for attempt := 0; attempt < 6; attempt++ {
+		_, _, err := s.raftApply(structs.VarApplyStateRequestType, args)
+		if err == nil {
+			s.logger.Debug("variable lock expired",
+				"namespace", variable.GetNamespace(), "path", variable.GetID(), "lock_id", lockID)
+			return
+		}
+
+		s.logger.Error("variable lock expiration failed",
+			"namespace", variable.GetNamespace(), "path", variable.GetID(), "lock_id", lockID, "error", err)
+		time.Sleep((1 << attempt) * 10 * time.Second)
+	}
+	s.logger.Error("variable lock expiration reached maximum attempts",
+		"namespace", variable.GetNamespace(), "path", variable.GetID(), "lock_id", lockID)
+}
+
 // cronJobOverlapAllowed checks if the job allows for overlap and if there are already
 // instances of the job running in order to determine if a new evaluation needs to
 // be created upon periodic dispatcher restore
@@ -1464,6 +1557,10 @@ func (s *Server) revokeLeadership() error {
 	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
 	}
+
+	// Stop all the tracked variable lock TTL and delay timers.
+	s.lockTTLTimer.StopAndRemoveAll()
+	s.lockDelayTimer.RemoveAll()
 
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.
