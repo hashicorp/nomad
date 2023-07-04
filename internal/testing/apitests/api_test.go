@@ -29,7 +29,7 @@ func makeACLClient(t *testing.T, cb1 configCallback,
 	})
 
 	// Get the root token
-	root, _, err := client.ACLTokens().Bootstrap(nil)
+	root, _, err := client.ACLTokens().BootstrapOpts("", nil)
 	if err != nil {
 		t.Fatalf("failed to bootstrap ACLs: %v", err)
 	}
