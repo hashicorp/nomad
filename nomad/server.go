@@ -41,6 +41,7 @@ import (
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
+	"github.com/hashicorp/nomad/nomad/lock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -270,6 +271,12 @@ type Server struct {
 	// shutting down, the oidcProviderCache.Shutdown() function must be called.
 	oidcProviderCache *oidc.ProviderCache
 
+	// lockTTLTimer and lockDelayTimer are used to track variable lock timers.
+	// These are held in memory on the leader rather than in state to avoid
+	// large amount of Raft writes.
+	lockTTLTimer   *lock.TTLTimer
+	lockDelayTimer *lock.DelayTimer
+
 	// leaderAcl is the management ACL token that is valid when resolved by the
 	// current leader.
 	leaderAcl     string
@@ -353,6 +360,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		rpcTLS:                  incomingTLS,
 		aclCache:                aclCache,
 		workersEventCh:          make(chan interface{}, 1),
+		lockTTLTimer:            lock.NewTTLTimer(),
+		lockDelayTimer:          lock.NewDelayTimer(),
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
