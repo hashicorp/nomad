@@ -290,7 +290,6 @@ func TestVariables_GetVariableItems(t *testing.T) {
 func writeTestVariable(t *testing.T, c *Client, sv *Variable) {
 	_, err := c.put("/v1/var/"+sv.Path, sv, sv, nil)
 	must.NoError(t, err, must.Sprint("failed writing test variable"))
-	must.NoError(t, err, must.Sprint("failed writing test variable"))
 }
 
 func TestVariable_CreateReturnsContent(t *testing.T) {
