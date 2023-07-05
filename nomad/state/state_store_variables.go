@@ -16,6 +16,8 @@ import (
 
 var (
 	errVarAlreadyLocked = errors.New("variable already holds a lock")
+	errVarNotFound      = errors.New("variable doesn't exist")
+	errLockNotFound     = errors.New("variable doesn't hold a lock")
 )
 
 // Variables queries all the variables and is used only for
@@ -566,20 +568,21 @@ func (s *StateStore) VarLockRelease(idx uint64,
 
 	if raw == nil {
 		// Should this be a conflict?
-		return req.ErrorResponse(idx, fmt.Errorf("variable doesn't exist: %s", err))
+		return req.ErrorResponse(idx, errVarNotFound)
 	}
 
 	sv, _ := raw.(*structs.VariableEncrypted)
 
-	if sv.Lock == nil || sv.Lock.ID == "" || sv.Lock.ID != req.Var.Lock.ID {
-		zeroVal := &structs.VariableEncrypted{
-			VariableMetadata: structs.VariableMetadata{
-				Namespace: sv.Namespace,
-				Path:      sv.Path,
-			},
-		}
-		return req.ConflictResponse(idx, zeroVal)
+	if sv.Lock == nil || sv.Lock.ID == "" {
+		// Should this be a conflict?
+		return req.ErrorResponse(idx, errLockNotFound)
 	}
+
+	if sv.Lock.ID != req.Var.Lock.ID {
+		// Should this be a conflict?
+		return req.ErrorResponse(idx, errLockNotFound)
+	}
+
 	updated := sv.Copy()
 	updated.Lock = nil
 
