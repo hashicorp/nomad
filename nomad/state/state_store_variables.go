@@ -560,7 +560,6 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	sv, ok := raw.(*structs.VariableEncrypted)
 	// If the variable exist, we must make sure it doesn't hold a lock already
 	if ok {
-
 		if isLocked(sv.VariableMetadata.Lock, req) {
 			zeroVal := &structs.VariableEncrypted{
 				VariableMetadata: structs.VariableMetadata{
@@ -605,12 +604,8 @@ func (s *StateStore) VarLockRelease(idx uint64,
 		return req.ErrorResponse(idx, errLockNotFound)
 	}
 
-<<<<<<< HEAD
 	if req.Var.Lock != nil && sv.Lock.ID != req.Var.Lock.ID {
 		// Avoid showing the variable data on a failed lock release
-=======
-	if sv.Lock == nil || sv.Lock.ID == "" || sv.Lock.ID != req.Var.Lock.ID {
->>>>>>> 54f7b750ed (func: fix the query for missing lock to avoid nil points in case of a missing lock)
 		zeroVal := &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
 				Namespace: sv.Namespace,
