@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -11134,7 +11134,7 @@ func (a *Allocation) ToIdentityClaims(job *Job, now time.Time) *IdentityClaims {
 		Namespace:    a.Namespace,
 		JobID:        a.JobID,
 		AllocationID: a.ID,
-		RegisteredClaims: jwt.RegisteredClaims{
+		Claims: jwt.Claims{
 			NotBefore: jwtnow,
 			IssuedAt:  jwtnow,
 		},
@@ -11174,7 +11174,7 @@ type IdentityClaims struct {
 	AllocationID string `json:"nomad_allocation_id"`
 	TaskName     string `json:"nomad_task"`
 
-	jwt.RegisteredClaims
+	jwt.Claims
 }
 
 // SetSubject creates the standard subject claim for workload identities.
@@ -11198,7 +11198,7 @@ func (claims *IdentityClaims) SetExp(now time.Time, exp, splay time.Duration) {
 	// TODO(schmichael) either accept randomness here and add splay jitter, or
 	// implement deterministic splay jitter, or calculate jitter elsewhere
 	// (client?)
-	claims.ExpiresAt = jwt.NewNumericDate(now.Add(exp))
+	claims.Expiry = jwt.NewNumericDate(now.Add(exp))
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
