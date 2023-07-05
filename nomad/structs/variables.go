@@ -607,9 +607,6 @@ type VariablesRenewLockRequest struct {
 func (v *VariablesRenewLockRequest) Validate() error {
 	var mErr multierror.Error
 
-	if v.Namespace == "" {
-		mErr.Errors = append(mErr.Errors, errNoNamespace)
-	}
 	if v.Path == "" {
 		mErr.Errors = append(mErr.Errors, errNoPath)
 	}

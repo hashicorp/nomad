@@ -331,33 +331,22 @@ func TestStructs_VariablesRenewLockRequest_Validate(t *testing.T) {
 		{
 			name: "missing_lockID",
 			request: &VariablesRenewLockRequest{
-				Path:      "path",
-				Namespace: "namespace",
+				Path: "path",
 			},
 			expErr: errNoLock,
 		},
 		{
-			name: "missing_namespace",
-			request: &VariablesRenewLockRequest{
-				Path:   "path",
-				LockID: "lockID",
-			},
-			expErr: errNoNamespace,
-		},
-		{
 			name: "missing_path",
 			request: &VariablesRenewLockRequest{
-				Namespace: "namespace",
-				LockID:    "lockID",
+				LockID: "lockID",
 			},
 			expErr: errNoPath,
 		},
 		{
 			name: "valid_request",
 			request: &VariablesRenewLockRequest{
-				Namespace: "namespace",
-				Path:      "path",
-				LockID:    "lockID",
+				Path:   "path",
+				LockID: "lockID",
 			},
 			expErr: nil,
 		},
@@ -399,7 +388,7 @@ func TestStructs_Lock_Validate(t *testing.T) {
 		{
 			name: "lock_ttl_is_bigger_than_max",
 			lock: &VariableLock{
-				TTL:       maxLockTTL + 5*time.Second,
+				TTL:       maxVariableLockTTL + 5*time.Second,
 				LockDelay: 5 * time.Second,
 			},
 			expErr: errInvalidTTL,
@@ -408,7 +397,7 @@ func TestStructs_Lock_Validate(t *testing.T) {
 			name: "lock_ttl_is_smaller_than_min",
 			lock: &VariableLock{
 				TTL:       5 * time.Second,
-				LockDelay: minLockTTL - 5*time.Second,
+				LockDelay: minVariableLockTTL - 5*time.Second,
 			},
 			expErr: errInvalidTTL,
 		},

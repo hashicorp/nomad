@@ -627,15 +627,14 @@ func (sv *Variables) groupForAlloc(claims *structs.IdentityClaims) (string, erro
 // RenewLock is used to apply a SV renew lock operation on a variable to maintain the lease.
 func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *structs.VariablesRenewLockResponse) error {
 	authErr := sv.srv.Authenticate(sv.ctx, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-
 	if done, err := sv.srv.forward(structs.VariablesRenewLockRPCMethod, args, args, reply); done {
 		return err
 	}
 
 	sv.srv.MeasureRPCRate("variables", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
 
 	defer metrics.MeasureSince([]string{
 		"nomad", "variables", "lock", "renew"}, time.Now())
