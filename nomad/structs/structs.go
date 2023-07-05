@@ -203,10 +203,9 @@ const (
 	DefaultBlockingRPCQueryTime = 300 * time.Second
 
 	// RateMetric constants are used as labels in RPC rate metrics
-	RateMetricRead      = "read"
-	RateMetricList      = "list"
-	RateMetricWrite     = "write"
-	RateMetricLockRenew = "lock.renew"
+	RateMetricRead  = "read"
+	RateMetricList  = "list"
+	RateMetricWrite = "write"
 )
 
 var (
