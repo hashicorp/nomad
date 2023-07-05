@@ -594,16 +594,13 @@ type VariablesReadResponse struct {
 }
 
 // VariablesRenewLockRequest is used to renew the lease on a lock. This request
-// behaves like a read because the renewal is done on the server level, without
-// writing to the state store.
+// behaves like a write because the renewal needs to be forwarded to the leader
+// where the timers and lock work is kept.
 type VariablesRenewLockRequest struct {
-	//VarMeta *VariableMetadata
-	//QueryOptions
 	Namespace string
 	Path      string
 	LockID    string
 
-	//
 	WriteRequest
 }
 

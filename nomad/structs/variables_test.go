@@ -372,8 +372,6 @@ func TestStructs_VariablesRenewLockRequest_Validate(t *testing.T) {
 	}
 }
 
-func TestStructs_VariablesRenewLockRequest_ValidateForLock(t *testing.T) {}
-
 func TestStructs_Lock_Validate(t *testing.T) {
 	ci.Parallel(t)
 
