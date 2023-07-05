@@ -567,7 +567,7 @@ func (s *StateStore) VarLockRelease(idx uint64,
 
 	sv, _ := raw.(*structs.VariableEncrypted)
 
-	if sv.Lock.ID == "" || sv.Lock.ID != req.Var.Lock.ID {
+	if sv.Lock == nil || sv.Lock.ID == "" || sv.Lock.ID != req.Var.Lock.ID {
 		zeroVal := &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
 				Namespace: sv.Namespace,
