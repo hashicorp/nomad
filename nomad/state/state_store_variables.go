@@ -14,6 +14,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var (
+	errVarAlreadyLocked = errors.New("variable already holds a lock")
+)
+
 // Variables queries all the variables and is used only for
 // snapshot/restore and key rotation
 func (s *StateStore) Variables(ws memdb.WatchSet) (memdb.ResultIterator, error) {
@@ -521,7 +525,7 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	defer tx.Abort()
 
 	// Try to fetch the variable.
-	raw, err := tx.First(TableVariables, indexID, req.Namespace, req.Var.Path)
+	raw, err := tx.First(TableVariables, indexID, req.Var.Namespace, req.Var.Path)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("variable lookup failed: %v", err))
 	}
@@ -530,7 +534,7 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	if raw != nil {
 		sv := raw.(*structs.VariableEncrypted)
 		if sv.VariableMetadata.Lock != nil {
-			return req.ErrorResponse(idx, errors.New("variable already holds a lock"))
+			return req.ErrorResponse(idx, errVarAlreadyLocked)
 		}
 
 		// Update the data to avoid overwriting the variable's items while creating the lock
@@ -577,7 +581,7 @@ func (s *StateStore) VarLockRelease(idx uint64,
 		return req.ConflictResponse(idx, zeroVal)
 	}
 	updated := sv.Copy()
-	updated.Lock.ID = ""
+	updated.Lock = nil
 
 	req.Var = &updated
 	resp := s.varSetTxn(tx, idx, req)
@@ -589,5 +593,5 @@ func (s *StateStore) VarLockRelease(idx uint64,
 		return req.ErrorResponse(idx, err)
 	}
 
-	return nil
+	return resp
 }
