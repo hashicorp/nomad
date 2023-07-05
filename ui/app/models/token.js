@@ -26,6 +26,7 @@ export default class Token extends Model {
   }
 
   get policies() {
+    console.log('am i even getting hit');
     return [
       ...this.tokenPolicies.toArray(),
       ...this.roles.map((role) => role.policies.toArray()).flat(),

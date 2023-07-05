@@ -15,6 +15,7 @@ export default Factory.extend({
   name: (i) => `${i === 0 ? 'Manager ' : ''}${faker.name.findName()}`,
   global: () => faker.random.boolean(),
   type: (i) => (i === 0 ? 'management' : 'client'),
+  roles: () => [],
 
   oneTimeSecret: () => faker.random.uuid(),
 
@@ -175,5 +176,14 @@ node {
         expirationTime: new Date(new Date().getTime() + 11 * 60 * 1000),
       });
     }
+
+    // Mimic the ember model's policies getter
+    console.log('tokpolids', token.tokenPolicyIds);
+    token.update({
+      policies: [
+        ...token.tokenPolicyIds.map((id) => server.db.policies.find(id)),
+        // ...token.policyIds.map((id) => server.db.policies.find(id)),
+      ],
+    });
   },
 });

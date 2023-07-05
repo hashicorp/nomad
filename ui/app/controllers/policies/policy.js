@@ -61,18 +61,16 @@ export default class PoliciesPolicyController extends Controller {
   deletePolicy;
 
   async refreshTokens() {
-    this.tokens = this.store
-      .peekAll('token')
-      .filter((token) =>
-        token.policyNames?.includes(decodeURIComponent(this.policy.name))
-      );
+    this.tokens = this.store.peekAll('token').filter((token) => {
+      return token.policyNames?.includes(decodeURIComponent(this.policy.name));
+    });
   }
 
   @task(function* () {
     try {
       const newToken = this.store.createRecord('token', {
         name: `Example Token for ${this.policy.name}`,
-        policies: [this.policy],
+        tokenPolicies: [this.policy],
         // New date 10 minutes into the future
         expirationTime: new Date(Date.now() + 10 * 60 * 1000),
         type: 'client',

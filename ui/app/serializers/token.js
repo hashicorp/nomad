@@ -22,4 +22,11 @@ export default class TokenSerializer extends ApplicationSerializer {
     hash.RoleIDs = hash.Roles.map((role) => role.ID);
     return super.normalize(typeHash, hash);
   }
+
+  serialize(snapshot, options) {
+    const hash = super.serialize(snapshot, options);
+    hash.PolicyIDs = hash.TokenPolicyIDs;
+    delete hash.TokenPolicyIDs;
+    return hash;
+  }
 }
