@@ -80,7 +80,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	var canRead bool = true
 	if aclObj != nil {
 		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
-		err := hasNecessaryPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
+		err := hasOperationPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func hasReadPermission(aclObj *acl.ACL, namespace, path string) bool {
 		path, acl.VariablesCapabilityRead, nil)
 }
 
-func hasNecessaryPermissions(aclObj *acl.ACL, namespace, path string, op structs.VarOp) error {
+func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs.VarOp) error {
 
 	hasPerm := func(perm string) bool {
 		return aclObj.AllowVariableOperation(namespace,
@@ -656,7 +656,6 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return err
 	}
 
-	// TODO: what to read and validate.
 	stateSnapshot, err := sv.srv.State().Snapshot()
 	if err != nil {
 		return err

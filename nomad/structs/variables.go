@@ -623,7 +623,6 @@ func (v *VariablesRenewLockRequest) Validate() error {
 // VariablesRenewLockResponse is sent back to the user to inform them of success or failure
 // of the renewal process.
 type VariablesRenewLockResponse struct {
-	//Error   error // Error if any
 	VarMeta *VariableMetadata
 	WriteMeta
 }
