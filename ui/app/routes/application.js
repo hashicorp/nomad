@@ -56,7 +56,7 @@ export default class ApplicationRoute extends Route {
         this.controllerFor('application').set('error', e);
       }
 
-      const fetchSelfTokenAndPolicies = this.get(
+      const fetchSelfTokenAndPolicies = await this.get(
         'token.fetchSelfTokenAndPolicies'
       )
         .perform()
