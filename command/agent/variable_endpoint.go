@@ -53,7 +53,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	_, acquireLock := queryParams[acquireLockQueryParam]
 	_, releaseLock := queryParams[releaseLockQueryParam]
 
-	if isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
+	if !isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
 		return nil, CodedError(http.StatusBadRequest, "multiple lock operations")
 	}
 
@@ -61,7 +61,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	case http.MethodGet:
 		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
-		if renewLock {
+		if renewLock || acquireLock || releaseLock {
 			return s.variableLockOperation(resp, req, queryParams)
 		}
 		return s.variableUpsert(resp, req, path)
@@ -83,9 +83,8 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 
 	if operation[renewLockQueryParam][0] == renewLockQueryParam {
 		args := structs.VariablesRenewLockRequest{
-			Path:      Variable.Path,
-			Namespace: Variable.Namespace,
-			LockID:    Variable.Lock.ID,
+			Path:   Variable.Path,
+			LockID: Variable.Lock.ID,
 		}
 
 		s.parseWriteRequest(req, &args.WriteRequest)

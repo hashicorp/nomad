@@ -647,7 +647,7 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 
 	// ACLs are enabled, check for the correct permissions
 	if aclObj != nil {
-		if !aclObj.AllowVariableOperation(args.Namespace, args.Path, acl.VariablesCapabilityWrite, nil) {
+		if !aclObj.AllowVariableOperation(args.WriteRequest.Namespace, args.Path, acl.VariablesCapabilityWrite, nil) {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -661,7 +661,7 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return err
 	}
 
-	_, encryptedVar, err := stateSnapshot.VarGet(nil, args.Namespace, args.Path)
+	_, encryptedVar, err := stateSnapshot.VarGet(nil, args.WriteRequest.Namespace, args.Path)
 	if err != nil {
 		return err
 	}

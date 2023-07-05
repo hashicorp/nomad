@@ -50,10 +50,10 @@ const (
 	// discourage DoS'ing the cluster
 	maxVariableSize = 65536
 
-	// minLockTTL and maxLockTTL determine the range of valid durations for the
+	// minVariableLockTTL and maxVariableLockTTL determine the range of valid durations for the
 	// TTL on a lock.They come from the experience on Consul.
-	minLockTTL = 10 * time.Second
-	maxLockTTL = 24 * time.Hour
+	minVariableLockTTL = 10 * time.Second
+	maxVariableLockTTL = 24 * time.Hour
 
 	// defaultLockTTL is the default value used to maintain a lock before it needs to
 	// be renewed. The actual value comes from the experience with Consul.
@@ -188,7 +188,7 @@ func (vl *VariableLock) Validate() error {
 		mErr = multierror.Append(mErr, errNegativeDelayOrTTL)
 	}
 
-	if vl.TTL > maxLockTTL || vl.TTL < minLockTTL {
+	if vl.TTL > maxVariableLockTTL || vl.TTL < minVariableLockTTL {
 		mErr = multierror.Append(mErr, errInvalidTTL)
 	}
 
@@ -597,9 +597,9 @@ type VariablesReadResponse struct {
 // behaves like a write because the renewal needs to be forwarded to the leader
 // where the timers and lock work is kept.
 type VariablesRenewLockRequest struct {
-	Namespace string
-	Path      string
-	LockID    string
+	//Namespace string
+	Path   string
+	LockID string
 
 	WriteRequest
 }
