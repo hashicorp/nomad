@@ -7,4 +7,12 @@ import { Model, hasMany, belongsTo } from 'ember-cli-mirage';
 
 export default Model.extend({
   tokenPolicies: hasMany('policy'),
+  // policies: hasMany('policy'),
+  get policies() {
+    console.log('lol, lmao', this.tokenPolicies);
+    return this.tokenPolicies;
+    // return this.tokenPolicies;
+
+    // return this.tokenPolicies.models;
+  },
 });

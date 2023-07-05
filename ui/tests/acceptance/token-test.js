@@ -151,13 +151,14 @@ module('Acceptance | tokens', function (hooks) {
 
     await Tokens.visit();
     await Tokens.secret(secretId).submit();
-
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
     assert.notOk(
       Tokens.managementMessage,
       'Token management message is not shown'
     );
+    // TODO: Pick up from here; missing a policy.
+
     assert.equal(
       Tokens.policies.length,
       clientToken.policies.length,

@@ -21,6 +21,11 @@ export default Factory.extend({
 
   afterCreate(token, server) {
     if (token.tokenPolicyIds && token.tokenPolicyIds.length) return;
+    // Manager creating a token applies policyIds directly, not tokenPolicyIds
+    if (token.policyIds && token.policyIds.length) {
+      token.update({ tokenPolicyIds: token.policyIds });
+      return;
+    }
     const tokenPolicyIds = Array(faker.random.number({ min: 1, max: 5 }))
       .fill(0)
       .map(() => faker.hacker.verb())
@@ -178,10 +183,10 @@ node {
     }
 
     // Mimic the ember model's policies getter
-    console.log('tokpolids', token.tokenPolicyIds);
+    console.log('tokpolids', token, token.tokenPolicyIds);
     token.update({
       policies: [
-        ...token.tokenPolicyIds.map((id) => server.db.policies.find(id)),
+        ...token.tokenPolicyIds.map((id) => server.schema.policies.find(id)),
         // ...token.policyIds.map((id) => server.db.policies.find(id)),
       ],
     });

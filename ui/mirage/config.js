@@ -467,6 +467,7 @@ export default function () {
   });
 
   this.get('/acl/tokens', function ({ tokens }, req) {
+    console.log('uhhhhhh tokens', tokens);
     return this.serialize(tokens.all());
   });
 
@@ -489,7 +490,10 @@ export default function () {
 
   this.get('/acl/token/self', function ({ tokens }, req) {
     const secret = req.requestHeaders['X-Nomad-Token'];
+    console.log('incoming secret', secret);
+    console.log('and tokens', tokens);
     const tokenForSecret = tokens.findBy({ secretId: secret });
+    console.log('tokenfor', tokenForSecret);
 
     // Return the token if it exists
     if (tokenForSecret) {
