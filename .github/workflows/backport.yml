@@ -31,11 +31,12 @@ jobs:
           # Enabling this option increased the number of backport failures.
           BACKPORT_MERGE_COMMIT: false
           GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+
   handle-failure:
     needs:
       - backport
     if: always() && needs.backport.result == 'failure'
-    runs-on: ubuntu-latest
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     steps:
       - name: Send slack notification on failure
         uses: slackapi/slack-github-action@007b2c3c751a190b6f0f040e47ed024deaa72844 # v1.23.0
