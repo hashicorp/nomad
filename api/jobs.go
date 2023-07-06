@@ -821,18 +821,34 @@ type MultiregionRegion struct {
 
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
-	Enabled         *bool   `hcl:"enabled,optional"`
-	Spec            *string `hcl:"cron,optional"`
+	Enabled         *bool       `hcl:"enabled,optional"`
+	Spec            interface{} `hcl:"cron,optional"`
 	SpecType        *string
 	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
 	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
+}
+
+func (p *PeriodicConfig) GetSpec() []string {
+	switch v := p.Spec.(type) {
+	case string:
+		if len(v) == 0 {
+			return nil
+		}
+		return []string{v}
+	case []string:
+		if len(v) == 0 {
+			return nil
+		}
+		return v
+	}
+	return nil
 }
 
 func (p *PeriodicConfig) Canonicalize() {
 	if p.Enabled == nil {
 		p.Enabled = pointerOf(true)
 	}
-	if p.Spec == nil {
+	if p.GetSpec() == nil {
 		p.Spec = pointerOf("")
 	}
 	if p.SpecType == nil {
@@ -852,11 +868,24 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if p != nil && *p.SpecType == PeriodicSpecCron {
-		e, err := cronexpr.Parse(*p.Spec)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", *p.Spec, err)
+		specs := p.GetSpec()
+		times := make([]time.Time, len(specs))
+		for i, spec := range specs {
+			e, err := cronexpr.Parse(spec)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", spec, err)
+			}
+			times[i], err = cronParseNext(e, fromTime, spec)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", spec, err)
+			}
 		}
-		return cronParseNext(e, fromTime, *p.Spec)
+		// Find the next match
+		for _, next := range times {
+			if fromTime.Before(next) {
+				return next, nil
+			}
+		}
 	}
 
 	return time.Time{}, nil
