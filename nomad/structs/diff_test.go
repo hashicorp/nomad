@@ -544,9 +544,69 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "Spec",
+								Name: "SpecType",
 								Old:  "",
-								New:  "*/15 * * * * *",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "TimeZone",
+								Old:  "",
+								New:  "Europe/Minsk",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Spec",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Spec",
+										Old:  "",
+										New:  "*/15 * * * * *",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Multiple Periodic added
+			Old: &Job{},
+			New: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled: false,
+					Spec: []string{
+						"*/15 * * * * *",
+						"*/16 * * * * *",
+						"*/17 * * * * *",
+					},
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+					TimeZone:        "Europe/Minsk",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Periodic",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Enabled",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ProhibitOverlap",
+								Old:  "",
+								New:  "false",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -559,6 +619,32 @@ func TestJobDiff(t *testing.T) {
 								Name: "TimeZone",
 								Old:  "",
 								New:  "Europe/Minsk",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Spec",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Spec",
+										Old:  "",
+										New:  "*/15 * * * * *",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Spec",
+										Old:  "",
+										New:  "*/16 * * * * *",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Spec",
+										Old:  "",
+										New:  "*/17 * * * * *",
+									},
+								},
 							},
 						},
 					},
@@ -598,12 +684,6 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeDeleted,
-								Name: "Spec",
-								Old:  "*/15 * * * * *",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
 								Name: "SpecType",
 								Old:  "foo",
 								New:  "",
@@ -613,6 +693,20 @@ func TestJobDiff(t *testing.T) {
 								Name: "TimeZone",
 								Old:  "Europe/Minsk",
 								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Spec",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Spec",
+										Old:  "*/15 * * * * *",
+										New:  "",
+									},
+								},
 							},
 						},
 					},
@@ -660,12 +754,6 @@ func TestJobDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeEdited,
-								Name: "Spec",
-								Old:  "*/15 * * * * *",
-								New:  "* * * * * *",
-							},
-							{
-								Type: DiffTypeEdited,
 								Name: "SpecType",
 								Old:  "foo",
 								New:  "cron",
@@ -675,6 +763,26 @@ func TestJobDiff(t *testing.T) {
 								Name: "TimeZone",
 								Old:  "Europe/Minsk",
 								New:  "America/Los_Angeles",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Spec",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Spec",
+										Old:  "",
+										New:  "* * * * * *",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Spec",
+										Old:  "*/15 * * * * *",
+										New:  "",
+									},
+								},
 							},
 						},
 					},
@@ -722,12 +830,6 @@ func TestJobDiff(t *testing.T) {
 								New:  "false",
 							},
 							{
-								Type: DiffTypeEdited,
-								Name: "Spec",
-								Old:  "*/15 * * * * *",
-								New:  "* * * * * *",
-							},
-							{
 								Type: DiffTypeNone,
 								Name: "SpecType",
 								Old:  "foo",
@@ -738,6 +840,26 @@ func TestJobDiff(t *testing.T) {
 								Name: "TimeZone",
 								Old:  "Europe/Minsk",
 								New:  "Europe/Minsk",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Spec",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Spec",
+										Old:  "",
+										New:  "* * * * * *",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Spec",
+										Old:  "*/15 * * * * *",
+										New:  "",
+									},
+								},
 							},
 						},
 					},
