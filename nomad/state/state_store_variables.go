@@ -567,20 +567,20 @@ func (s *StateStore) VarLockRelease(idx uint64,
 	}
 
 	if raw == nil {
-		// Should this be a conflict?
 		return req.ErrorResponse(idx, errVarNotFound)
 	}
 
 	sv, _ := raw.(*structs.VariableEncrypted)
 
 	if sv.Lock == nil || sv.Lock.ID == "" {
-		// Should this be a conflict?
 		return req.ErrorResponse(idx, errLockNotFound)
 	}
 
 	if sv.Lock.ID != req.Var.Lock.ID {
-		// Should this be a conflict?
-		return req.ErrorResponse(idx, errLockNotFound)
+		// Avoid showing the variable data while doing a lock release
+		svCopy := sv.Copy()
+		svCopy.VariableData = structs.VariableData{}
+		return req.ConflictResponse(idx, &svCopy)
 	}
 
 	updated := sv.Copy()

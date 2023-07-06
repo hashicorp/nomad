@@ -884,8 +884,8 @@ func TestStateStore_Release(t *testing.T) {
 			name:       "lock_id_doesn't_match",
 			lookUpPath: "lock/variable/path",
 			lockID:     "wrongLockID",
-			expErr:     errLockNotFound,
-			expResult:  structs.VarOpResultError,
+			expErr:     nil,
+			expResult:  structs.VarOpResultConflict,
 		},
 		{
 			name:       "lock_released",
