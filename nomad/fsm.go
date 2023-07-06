@@ -2250,7 +2250,7 @@ func (f *FSMFilter) Include(item interface{}) bool {
 }
 
 func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte,
-	index uint64) interface{} {
+	index uint64) any {
 	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
