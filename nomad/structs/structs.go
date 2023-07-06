@@ -5596,6 +5596,7 @@ type PeriodicConfig struct {
 }
 
 func (p *PeriodicConfig) GetSpec() []string {
+	fmt.Printf("STRUCT")
 	switch v := p.Spec.(type) {
 	case string:
 		if len(v) == 0 {
@@ -5627,7 +5628,7 @@ func (p *PeriodicConfig) Validate() error {
 
 	var mErr multierror.Error
 	if p.GetSpec() == nil {
-		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec %v : %s", p.GetSpec(), p.Spec))
 	}
 
 	// Check if we got a valid time zone

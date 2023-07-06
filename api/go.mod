@@ -14,6 +14,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/shoenig/test v0.6.6
 	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a
+	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
 )
 
 require (

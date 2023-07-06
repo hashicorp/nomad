@@ -47,7 +47,8 @@ func ParseWithConfig(args *ParseConfig) (*api.Job, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("conf spec^ %v", c.Job.Periodic.GetSpec())
+	fmt.Printf("conf spec^ %v", c.Job.Periodic.Spec)
 	normalizeJob(c)
 	return c.Job, nil
 }

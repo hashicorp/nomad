@@ -6,7 +6,9 @@ package api
 import (
 	"errors"
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
 	"net/url"
+	"reflect"
 	"sort"
 	"strconv"
 	"time"
@@ -840,7 +842,10 @@ func (p *PeriodicConfig) GetSpec() []string {
 			return nil
 		}
 		return v
+	case *hcl.Attribute:
+		fmt.Printf("JOB Spec other type: %v\n %v\n", v.Expr, reflect.TypeOf(v.Expr))
 	}
+	fmt.Printf("JOB Spec other type: %v\n   ", reflect.TypeOf(p.Spec))
 	return nil
 }
 
