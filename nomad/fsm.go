@@ -2250,11 +2250,7 @@ func (f *FSMFilter) Include(item interface{}) bool {
 }
 
 func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte,
-<<<<<<< HEAD
 	index uint64) any {
-=======
-	index uint64) interface{} {
->>>>>>> fc3182bba1 (func: add acquire and release lock functions on fsm)
 	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
