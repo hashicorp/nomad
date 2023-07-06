@@ -1822,6 +1822,10 @@
             "href": "/plugins/drivers/community/containerd"
           },
           {
+            "title": "Pledge",
+            "href": "/plugins/drivers/community/pledge"
+          },
+          {
             "title": "Firecracker driver",
             "href": "/plugins/drivers/community/firecracker-task-driver"
           },
