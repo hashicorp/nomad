@@ -136,7 +136,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff.TaskGroups = tgs
 
 	// Periodic diff
-	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic", contextual); pDiff != nil {
+	if pDiff := periodicDiff(j.Periodic, other.Periodic, contextual); pDiff != nil {
 		diff.Objects = append(diff.Objects, pDiff)
 	}
 
@@ -2628,6 +2628,52 @@ func stringSetDiff(old, new []string, name string, contextual bool) *ObjectDiff 
 	return diff
 }
 
+func periodicDiff(old, new *PeriodicConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Periodic"}
+	var oldPeriodicFlat, newPeriodicFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &PeriodicConfig{}
+		diff.Type = DiffTypeAdded
+		newPeriodicFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &PeriodicConfig{}
+		diff.Type = DiffTypeDeleted
+		oldPeriodicFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPeriodicFlat = flatmap.Flatten(old, nil, true)
+		newPeriodicFlat = flatmap.Flatten(new, nil, true)
+	}
+	delete(oldPeriodicFlat, "Spec")
+	delete(newPeriodicFlat, "Spec")
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPeriodicFlat, newPeriodicFlat, contextual)
+
+	// Spec diffs
+	oldMap := make(map[string]struct{}, len(old.GetSpec()))
+	newMap := make(map[string]struct{}, len(new.GetSpec()))
+	for _, o := range old.GetSpec() {
+		oldMap[o] = struct{}{}
+	}
+	for _, n := range new.GetSpec() {
+		newMap[n] = struct{}{}
+	}
+	if reflect.DeepEqual(oldMap, newMap) && !contextual {
+		return nil
+	}
+
+	if setDiff := stringSetDiff(old.GetSpec(), new.GetSpec(), "Spec", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	sort.Sort(FieldDiffs(diff.Fields))
+	return diff
+}
+
 // primitiveObjectDiff returns a diff of the passed objects' primitive fields.
 // The filter field can be used to exclude fields from the diff. The name is the
 // name of the objects. If contextual is set, non-changed fields will also be
@@ -2635,6 +2681,7 @@ func stringSetDiff(old, new []string, name string, contextual bool) *ObjectDiff 
 func primitiveObjectDiff(old, new interface{}, filter []string, name string, contextual bool) *ObjectDiff {
 	oldPrimitiveFlat := flatmap.Flatten(old, filter, true)
 	newPrimitiveFlat := flatmap.Flatten(new, filter, true)
+
 	delete(oldPrimitiveFlat, "")
 	delete(newPrimitiveFlat, "")
 

@@ -5576,7 +5576,7 @@ type PeriodicConfig struct {
 
 	// Spec specifies the interval the job should be run as. It is parsed based
 	// on the SpecType.
-	Spec string
+	Spec interface{}
 
 	// SpecType defines the format of the spec.
 	SpecType string
@@ -5595,6 +5595,22 @@ type PeriodicConfig struct {
 	location *time.Location
 }
 
+func (p *PeriodicConfig) GetSpec() []string {
+	switch v := p.Spec.(type) {
+	case string:
+		if len(v) == 0 {
+			return nil
+		}
+		return []string{v}
+	case []string:
+		if len(v) == 0 {
+			return nil
+		}
+		return v
+	}
+	return nil
+}
+
 func (p *PeriodicConfig) Copy() *PeriodicConfig {
 	if p == nil {
 		return nil
@@ -5610,7 +5626,7 @@ func (p *PeriodicConfig) Validate() error {
 	}
 
 	var mErr multierror.Error
-	if p.Spec == "" {
+	if p.GetSpec() == nil {
 		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
 	}
 
@@ -5624,8 +5640,14 @@ func (p *PeriodicConfig) Validate() error {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		// Validate the cron spec
-		if _, err := cronexpr.Parse(p.Spec); err != nil {
-			_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+		if p != nil && p.SpecType == PeriodicSpecCron {
+			specs := p.GetSpec()
+			for _, spec := range specs {
+				if _, err := cronexpr.Parse(spec); err != nil {
+					_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+				}
+
+			}
 		}
 	case PeriodicSpecTest:
 		// No-op
@@ -5666,13 +5688,26 @@ func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t t
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
-		e, err := cronexpr.Parse(p.Spec)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
+		specs := p.GetSpec()
+		times := make([]time.Time, len(specs))
+		for i, spec := range specs {
+			e, err := cronexpr.Parse(spec)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", spec, err)
+			}
+			times[i], err = CronParseNext(e, fromTime, spec)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", spec, err)
+			}
 		}
-		return CronParseNext(e, fromTime, p.Spec)
+		// Find the next match
+		for _, next := range times {
+			if fromTime.Before(next) {
+				return next, nil
+			}
+		}
 	case PeriodicSpecTest:
-		split := strings.Split(p.Spec, ",")
+		split := strings.Split(p.GetSpec()[0], ",")
 		if len(split) == 1 && split[0] == "" {
 			return time.Time{}, nil
 		}
