@@ -816,7 +816,7 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 		"com.hashicorp.nomad.task_name":       task.Name,
 		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
 		"com.hashicorp.nomad.job_name":        task.JobName,
-		"com.hashicorp.nomad.parent_job_id":   task.ParentJobName,
+		"com.hashicorp.nomad.parent_job_id":   task.ParentJobId,
 	}
 
 	// expect to see 5 labels (allocID by default, task_name and task_group_name due to task*, and job_name)

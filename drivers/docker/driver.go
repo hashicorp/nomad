@@ -1326,7 +1326,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			labels[dockerLabelJobID] = task.JobID
 		}
 		if glob.Glob(configurationExtraLabel, "parent_job_id") {
-			labels[dockerLabelParentJobID] = task.ParentJobName
+			labels[dockerLabelParentJobID] = task.ParentJobId
 		}
 		if glob.Glob(configurationExtraLabel, "task_group_name") {
 			labels[dockerLabelTaskGroupName] = task.TaskGroupName
