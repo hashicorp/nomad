@@ -801,7 +801,7 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 
 	dockerClientConfig := make(map[string]interface{})
 
-	dockerClientConfig["extra_labels"] = []string{"task*", "job_name", "parent_job_id"}
+	dockerClientConfig["extra_labels"] = []string{"task*", "job_name"}
 	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
 	defer cleanup()
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
@@ -816,11 +816,10 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 		"com.hashicorp.nomad.task_name":       task.Name,
 		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
 		"com.hashicorp.nomad.job_name":        task.JobName,
-		"com.hashicorp.nomad.parent_job_id":   task.ParentJobId,
 	}
 
-	// expect to see 5 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
-	require.Equal(t, 5, len(container.Config.Labels))
+	// expect to see 4 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
+	require.Equal(t, 4, len(container.Config.Labels))
 	for k, v := range expectedLabels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}

@@ -1144,7 +1144,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		Namespace:     alloc.Namespace,
 		NodeName:      alloc.NodeName,
 		NodeID:        alloc.NodeID,
-		ParentJobId:   alloc.Job.ParentID,
+		ParentJobID:   alloc.Job.ParentID,
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
