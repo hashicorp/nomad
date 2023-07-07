@@ -72,9 +72,13 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: ./.github/actions/setup-js
       - uses: browser-actions/setup-chrome@c485fa3bab6be59dce18dbc18ef6ab7cbc8ff5f1 # v1.2.0
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: ember exam
         env:
-          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
 
@@ -90,10 +94,15 @@ jobs:
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: ./.github/actions/setup-js
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: finalize
         env:
-          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+          PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn percy build:finalize
 permissions:
   contents: read
+  id-token: write
