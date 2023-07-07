@@ -416,8 +416,10 @@ func (c *consulACLsAPI) singleRevoke(ctx context.Context, accessor *structs.SITo
 		return err
 	}
 
-	// Consul will no-op the deletion of a non-existent token (no error)
 	_, err := c.aclClient.TokenDelete(accessor.AccessorID, &api.WriteOptions{Namespace: accessor.ConsulNamespace})
+	if err != nil && strings.Contains(err.Error(), "Cannot find token to delete") {
+		return nil // Consul will error when deleting a non-existent token
+	}
 	return err
 }
 
