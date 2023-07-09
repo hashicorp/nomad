@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -117,6 +118,9 @@ type StateDB interface {
 	// GetNodeMeta retrieves node metadata for merging with the copy from
 	// the Client's config.
 	GetNodeMeta() (map[string]*string, error)
+
+	PutNodeRegistration(*cstructs.NodeRegistration) error
+	GetNodeRegistration() (*cstructs.NodeRegistration, error)
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

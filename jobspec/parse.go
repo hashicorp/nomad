@@ -511,6 +511,7 @@ func parseVault(result *api.Vault, list *ast.ObjectList) error {
 		"namespace",
 		"policies",
 		"env",
+		"disable_file",
 		"change_mode",
 		"change_signal",
 	}

@@ -20,6 +20,7 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
+    this.server.create('node-pool');
     this.server.create('node');
     this.taskGroupWithEvents = async function (events) {
       const job = this.server.create('job', { createAllocations: false });

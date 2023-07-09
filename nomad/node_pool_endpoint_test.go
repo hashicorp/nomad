@@ -1454,6 +1454,9 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 		{name: "job-08", pool: "prod-1", namespace: "default", status: structs.JobStatusRunning},
 		{name: "job-09", pool: "prod-1", namespace: "non-default", status: structs.JobStatusPending},
 		{name: "job-10", pool: "dev-1", namespace: "default", status: structs.JobStatusPending},
+		{name: "job-11", pool: "all", namespace: "default", status: structs.JobStatusPending},
+		{name: "job-12", pool: "all", namespace: "default", status: structs.JobStatusPending},
+		{name: "job-13", pool: "all", namespace: "non-default", status: structs.JobStatusPending},
 	}
 	for _, m := range mocks {
 		job := mock.MinJob()
@@ -1583,22 +1586,19 @@ func TestNodePoolEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 			expectedError: "Permission denied",
 		},
 		{
-			name:      "test13 all pool wildcard NS",
-			pool:      "all",
-			namespace: "*",
-			aclToken:  root.SecretID,
-			expectedIDs: []string{ // note these are sorted namespace-then-job-ID
-				"job-00", "job-01", "job-02", "job-04", "job-05",
-				"job-08", "job-10", "job-06", "job-03", "job-09",
-			},
+			name:        "test13 all pool wildcard NS",
+			pool:        "all",
+			namespace:   "*",
+			aclToken:    root.SecretID,
+			expectedIDs: []string{"job-11", "job-12", "job-13"},
 		},
 		{
 			name:              "test14 all pool default NS",
 			pool:              "all",
-			pageSize:          4,
+			pageSize:          1,
 			aclToken:          root.SecretID,
-			expectedNextToken: "default.job-05",
-			expectedIDs:       []string{"job-00", "job-01", "job-02", "job-04"},
+			expectedNextToken: "default.job-12",
+			expectedIDs:       []string{"job-11"},
 		},
 	}
 

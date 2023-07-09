@@ -43,7 +43,7 @@ env:
   VAULT_VERSION: 1.4.1
 jobs:
   test-windows:
-    runs-on: "windows-2019-16core"
+    runs-on: 'windows-2019-16core'
     env:
       GOTESTSUM_PATH: c:\tmp\test-reports
     steps:

@@ -17,6 +17,7 @@ import faker from 'nomad-ui/mirage/faker';
 
 const minimumSetup = () => {
   faker.seed(1);
+  server.createList('node-pool', 1);
   server.createList('node', 1);
   server.createList('agent', 1);
 };
@@ -42,6 +43,7 @@ module('Acceptance | servers list', function (hooks) {
 
   test('/servers should list all servers', async function (assert) {
     faker.seed(1);
+    server.createList('node-pool', 1);
     server.createList('node', 1);
     server.createList('agent', 10);
 
@@ -66,7 +68,7 @@ module('Acceptance | servers list', function (hooks) {
       );
     });
 
-    assert.equal(document.title, 'Servers - Mirage - Nomad');
+    assert.ok(document.title.includes('Servers'));
   });
 
   test('each server should show high-level info of the server', async function (assert) {

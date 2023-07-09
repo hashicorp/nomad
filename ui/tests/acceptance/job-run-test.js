@@ -66,6 +66,7 @@ module('Acceptance | job run', function (hooks) {
 
   hooks.beforeEach(function () {
     // Required for placing allocations (a result of creating jobs)
+    server.create('node-pool');
     server.create('node');
 
     managementToken = server.create('token');

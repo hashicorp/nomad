@@ -243,6 +243,12 @@
         </span>
         {{this.model.datacenter}}
       </span>
+      <span class="pair" data-test-node-pool>
+        <span class="term">
+          Node Pool
+        </span>
+        {{this.model.nodePool}}
+      </span>
       {{#if this.model.nodeClass}}
         <span class="pair" data-test-node-class>
           <span class="term">
@@ -561,7 +567,7 @@
             </t.head>
             <t.body as |row|>
               <AllocationRow
-                {{keyboard-shortcut 
+                {{keyboard-shortcut
                   enumerated=true
                   action=(action "gotoAllocation" row.model)
                 }}
@@ -885,7 +891,7 @@
             type="button"
             class="button is-primary"
             {{on "click" (action (mut this.editingMetadata) true)}}
-            {{keyboard-shortcut 
+            {{keyboard-shortcut
               label="Add Dynamic Node Metadata"
               pattern=(array "m" "e" "t" "a")
               action=(action (mut this.editingMetadata) true)

@@ -2,6 +2,7 @@
  * Copyright (c) HashiCorp, Inc.
  * SPDX-License-Identifier: MPL-2.0
  */
+@import '~@hashicorp/design-system-tokens/dist/products/css/helpers/colors.css';
 
 .job-status-panel {
   // #region layout
@@ -24,6 +25,28 @@
     }
   }
 
+  .boxed-section-head h2 .hds-badge {
+    margin-left: 5px;
+    margin-top: -2px;
+  }
+
+  &.active-deployment {
+    & > .boxed-section-head {
+      background: var(--token-color-surface-highlight);
+
+      h2 .hds-badge {
+        background-color: var(--token-color-border-highlight);
+        border-color: var(--token-color-border-highlight);
+        color: var(--token-color-foreground-highlight-high-contrast);
+      }
+    }
+    & > .boxed-section-head,
+    & > .boxed-section-body,
+    & > .boxed-section-foot {
+      border-color: var(--token-color-border-highlight);
+    }
+  }
+
   &.active-deployment .boxed-section-body {
     display: grid;
     grid-template-areas:
@@ -33,6 +56,28 @@
     gap: 1rem;
     grid-auto-columns: 100%;
 
+    &.requires-promotion {
+      grid-template-areas:
+        'promotion-alert'
+        'deployment-allocations'
+        'legend-and-summary'
+        'history-and-params';
+
+      & > .canary-promotion-alert {
+        button {
+          background-color: $orange;
+          border-color: darken($orange, 5%);
+          &:hover {
+            background-color: darken($orange, 5%);
+          }
+        }
+      }
+    }
+
+    & > .promotion-alert {
+      grid-area: promotion-alert;
+    }
+
     & > .deployment-allocations {
       grid-area: deployment-allocations;
       display: grid;
@@ -41,11 +86,53 @@
 
       & > h4 {
         margin-bottom: -0.5rem;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.5rem;
+        margin-top: 1rem;
+
+        & > .versions > ul {
+          grid-template-columns: unset;
+          grid-auto-columns: min-content;
+          grid-auto-flow: column;
+        }
       }
     }
 
     & > .history-and-params {
       grid-area: history-and-params;
+    }
+  }
+
+  .versions {
+    & > ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, 65px);
+      gap: 0.5rem;
+      & > li {
+        white-space: nowrap;
+        &:has(.version-count) .version-label {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
+      }
+      a {
+        text-decoration: none;
+      }
+    }
+    .version-label {
+      position: relative;
+      z-index: 2;
+      & > .hds-badge__text {
+        font-weight: 700;
+      }
+    }
+    .version-count {
+      color: $blue;
+      position: relative;
+      z-index: 1;
+      left: -1rem;
+      padding-left: 1rem;
     }
   }
 
@@ -67,21 +154,9 @@
 
     legend {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 0.5rem;
-    }
-    .versions {
-      & > ul {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, 100px);
-        gap: 0.5rem;
-        & > li {
-          white-space: nowrap;
-          & a {
-            text-decoration: none;
-          }
-        }
-      }
+      grid-template-rows: min-content;
     }
     .latest-deployment {
       h4 svg {
@@ -109,7 +184,7 @@
     gap: 0.5rem;
     grid-template-columns: 1fr 1fr;
     padding: 0.25rem 0.5rem;
-    margin-left: 1rem;
+    margin-left: auto;
 
     button {
       height: auto;
@@ -334,16 +409,14 @@
     animation: none;
   }
 
-  & > .boxed-section-body > .deployment-allocations {
-    margin-bottom: 1rem;
-  }
-
   .legend-item {
     display: grid;
     gap: 0.5rem;
     grid-template-columns: auto 1fr;
+    white-space: nowrap;
+    flex: 1 0 auto;
 
-    &.faded {
+    &.faded .count {
       opacity: 0.5;
     }
 
@@ -362,7 +435,12 @@
     display: grid;
     grid-template-columns: 70% auto;
     gap: 1rem;
-    margin-top: 1rem;
+    margin-top: 2rem;
+    & > .deployment-history,
+    & > .update-parameters {
+      display: grid;
+      grid-template-rows: 50px auto;
+    }
   }
 
   &.steady-state .history-and-params {
@@ -449,6 +527,10 @@
       max-height: 300px;
       overflow-y: auto;
       display: block;
+    }
+    & > .title {
+      display: grid;
+      align-content: center;
     }
     ul,
     span.notification {

@@ -5,7 +5,8 @@
 
 <div class="job-status-panel boxed-section steady-state {{if (eq @statusMode "historical") "historical-state" "current-state"}}" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
   <div class="boxed-section-head">
-    <h2>Status</h2>
+    <h2>Status: <Hds::Badge @text={{this.currentStatus.label}} @color={{this.currentStatus.state}} @type="filled" /></h2>
+    
     <div class="select-mode">
       <button type="button"
         data-test-status-mode-current
@@ -50,7 +51,7 @@
         <legend>
           {{#each this.allocTypes as |type|}}
             <ConditionalLinkTo
-              @condition={{not (eq type.label "unplaced")}}
+              @condition={{and (not (eq type.label "unplaced")) (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length")}}
               @route="jobs.job.allocations"
               @model={{@job}}
               @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (map-by "version" this.versions) ']')}}
@@ -58,7 +59,7 @@
               @label="View {{type.label}} allocations"
             >
               <span class="represented-allocation {{type.label}}"></span>
-              {{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}
+              <span class="count">{{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}</span>
             </ConditionalLinkTo>
           {{/each}}
         </legend>
@@ -78,11 +79,11 @@
               <li>
                 <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
                   {{#if (eq versionObj.version "unknown")}}
-                    <Hds::Badge @text="unknown" />
+                    <Hds::Badge @text="unknown" @type="inverted" class="version-label" />
                   {{else}}
-                    <Hds::Badge @text={{concat "v" versionObj.version}} />
+                    <Hds::Badge @text={{concat "v" versionObj.version}} @type="inverted" class="version-label" />
                   {{/if}}
-                  <Hds::BadgeCount @text={{versionObj.allocations.length}} @type="inverted" />
+                  <Hds::Badge @text={{versionObj.allocations.length}} @type="filled" class="version-count" />
                 </LinkTo>
               </li>
             {{/each}}

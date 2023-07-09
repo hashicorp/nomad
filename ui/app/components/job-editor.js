@@ -21,6 +21,7 @@ import { tracked } from '@glimmer/tracking';
 export default class JobEditor extends Component {
   @service config;
   @service store;
+  @service notifications;
 
   @tracked error = null;
   @tracked planOutput = null;
@@ -85,6 +86,7 @@ export default class JobEditor extends Component {
   }
 
   @localStorageProperty('nomadMessageJobPlan', true) shouldShowPlanMessage;
+  @localStorageProperty('nomadShouldWrapCode', false) shouldWrapCode;
 
   @action
   dismissPlanMessage() {
@@ -184,6 +186,14 @@ export default class JobEditor extends Component {
   }
 
   /**
+   * Toggle the wrapping of the job's definition or definition variables.
+   */
+  @action
+  toggleWrap() {
+    this.shouldWrapCode = !this.shouldWrapCode;
+  }
+
+  /**
    * Read the content of an uploaded job specification file and update the job's definition.
    *
    * @param {Event} event - The input change event containing the selected file.
@@ -197,6 +207,42 @@ export default class JobEditor extends Component {
 
     const [file] = event.target.files;
     reader.readAsText(file);
+  }
+
+  /**
+   * Download the job's definition or specification as .nomad.hcl file locally
+   */
+  @action
+  async handleSaveAsFile() {
+    try {
+      const blob = new Blob([this.args.job._newDefinition], {
+        type: 'text/plain',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const downloadAnchor = document.createElement('a');
+
+      downloadAnchor.href = url;
+      downloadAnchor.target = '_blank';
+      downloadAnchor.rel = 'noopener noreferrer';
+      downloadAnchor.download = 'jobspec.nomad.hcl';
+
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      window.URL.revokeObjectURL(url);
+      this.notifications.add({
+        title: 'jobspec.nomad.hcl has been downloaded',
+        color: 'success',
+        icon: 'download',
+      });
+    } catch (err) {
+      this.notifications.add({
+        title: 'Error downloading file',
+        message: err.message,
+        color: 'critical',
+        sticky: true,
+      });
+    }
   }
 
   /**
@@ -242,6 +288,7 @@ export default class JobEditor extends Component {
       planOutput: this.planOutput,
       shouldShowPlanMessage: this.shouldShowPlanMessage,
       view: this.args.view,
+      shouldWrap: this.shouldWrapCode,
     };
   }
 
@@ -253,10 +300,12 @@ export default class JobEditor extends Component {
       onPlan: this.plan,
       onReset: this.reset,
       onSaveAs: this.args.handleSaveAsTemplate,
+      onSaveFile: this.handleSaveAsFile,
       onSubmit: this.submit,
       onSelect: this.args.onSelect,
       onUpdate: this.updateCode,
       onUpload: this.uploadJobSpec,
+      onToggleWrap: this.toggleWrap,
     };
   }
 }

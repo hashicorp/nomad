@@ -1,11 +1,26 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-job "java_pid" {
-  datacenters = ["dc1"]
-  type        = "batch"
+job "java" {
+  type = "batch"
 
-  group "java" {
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
+
+  group "group" {
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
+
 
     task "build" {
       lifecycle {
@@ -29,13 +44,24 @@ public class Pid {
 }
 EOH
       }
+
+      resources {
+        cpu    = 50
+        memory = 64
+      }
     }
 
-    task "pid" {
+    task "java" {
       driver = "java"
+
       config {
         class_path = "${NOMAD_ALLOC_DIR}"
         class      = "Pid"
+      }
+
+      resources {
+        cpu    = 50
+        memory = 64
       }
     }
   }

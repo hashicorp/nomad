@@ -57,6 +57,19 @@ their servers. This allows having a set of Nomad servers that service clients
 that can be spread geographically over a continent or even the world in the case
 of having a single "global" region and many datacenter.
 
+Nomad clients make connections to servers on the RPC port and then maintain a
+persistent TCP connection. The server and client use this TCP connection for
+two-way communication. As a result, clients that are geographically distributed
+from the servers do not need to have publically routable IP addresses in order
+to communicate with the servers (although the workloads running on the clients
+may need public IPs). All connections between Nomad servers and between clients
+and servers must be secured with [mTLS][].
+
+Nomad clients are typically not required to be reachable from each other unless
+your workloads need to communicate with each other. The optional [ephemeral disk
+migration][] field is one exception, and requires that clients can reach each
+other on their HTTP ports.
+
 ## Ports Used
 
 Nomad requires 3 different ports to work properly on servers and 2 on clients,
@@ -189,9 +202,32 @@ This is not a supported or well-tested configuration. See [GH-13669][] for a
 further discussion and to provide feedback on your experiences trying to run
 rootless Nomad clients.
 
+## Running Nomad in Docker
+
+Running systems as Docker containers has become a common practice. While it's
+possible to run Nomad servers inside containers, Nomad clients require
+extensive access to the underlying host machine, as described in
+[Rootless Nomad Clients][]. Docker containers introduce a non-trivial
+abstraction layer that makes it hard to properly configure clients and task
+drivers therefore **running Nomad clients in Docker containers is not
+officially supported**.
+
+The [`hashicorp/nomad`][nomad_docker_hub] Docker image is intended to be used
+in automated pipelines for [CLI operations][docs_cli], such as
+[`nomad job plan`][], [`nomad fmt`][], and others.
+
+~> **Note:** The Nomad Docker image is not tested when running as an agent.
+
 [Security Model]: /nomad/docs/concepts/security
 [production deployment guide]: /nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul#configure-systemd
 [linux capabilities]: #linux-capabilities
 [`capabilities(7)`]: https://man7.org/linux/man-pages/man7/capabilities.7.html
 [overlay filesystem]: https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
 [GH-13669]: https://github.com/hashicorp/nomad/issues/13669
+[Rootless Nomad Clients]: #rootless-nomad-clients
+[nomad_docker_hub]: https://hub.docker.com/r/hashicorp/nomad
+[docs_cli]: /nomad/docs/commands
+[`nomad job plan`]: /nomad/docs/commands/job/plan
+[`nomad fmt`]: /nomad/docs/commands/fmt
+[mTLS]: /nomad/tutorials/transport-security/security-enable-tls
+[ephemeral disk migration]: /nomad/docs/job-specification/ephemeral_disk#migrate

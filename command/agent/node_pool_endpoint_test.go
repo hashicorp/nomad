@@ -172,9 +172,6 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			updated.Meta = map[string]string{
 				"updated": "true",
 			}
-			updated.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-				SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
-			}
 
 			buf := encodeReq(updated)
 			req, err := http.NewRequest("PUT", fmt.Sprintf("/v1/node/pool/%s", updated.Name), buf)
@@ -219,9 +216,6 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			updated.Meta = map[string]string{
 				"updated": "true",
 			}
-			updated.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-				SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
-			}
 
 			buf := encodeReq(updated)
 			req, err := http.NewRequest("PUT", "/v1/node/pool/", buf)
@@ -263,9 +257,6 @@ func TestHTTP_NodePool_Update(t *testing.T) {
 			updated.Description = "updated node pool"
 			updated.Meta = map[string]string{
 				"updated": "true",
-			}
-			updated.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-				SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
 			}
 
 			// Make request with the wrong path.
@@ -438,7 +429,7 @@ func TestHTTP_NodePool_JobsList(t *testing.T) {
 		err := s.Agent.RPC("NodePool.UpsertNodePools", &npUpReq, &npUpResp)
 		must.NoError(t, err)
 
-		for _, poolName := range []string{pool1.Name, "default"} {
+		for _, poolName := range []string{pool1.Name, "default", "all"} {
 			for i := 0; i < 2; i++ {
 				job := mock.MinJob()
 				job.NodePool = poolName
@@ -486,7 +477,7 @@ func TestHTTP_NodePool_JobsList(t *testing.T) {
 
 		obj, err = s.Server.NodePoolSpecificRequest(respW, req)
 		must.NoError(t, err)
-		must.SliceLen(t, 4, obj.([]*structs.JobListStub))
+		must.SliceLen(t, 2, obj.([]*structs.JobListStub))
 
 	})
 }

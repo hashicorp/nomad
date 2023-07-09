@@ -113,7 +113,7 @@ export default class AllocationsController extends Controller.extend(
   @action
   gotoAllocation(allocation, event) {
     lazyClick([
-      () => this.transitionToRoute('allocations.allocation', allocation),
+      () => this.transitionToRoute('allocations.allocation', allocation.id),
       event,
     ]);
   }

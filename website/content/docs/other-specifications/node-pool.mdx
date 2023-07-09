@@ -37,7 +37,7 @@ node_pool "example" {
   #
   # Available only in Nomad Enterprise.
 
-  # scheduler_configuration {
+  # scheduler_config {
   #   scheduler_algorithm = "spread"
   # }
 }
@@ -59,18 +59,21 @@ Successfully applied node pool "example"!
   pool, defined as key-value pairs. The scheduler does not use node pool metadat
   as part of scheduling.
 
-- `scheduler_configuration` <code>([SchedulerConfig][sched-config]:
-  nil)</code> - Sets scheduler configuration options specific to the node
-  pool. If not defined, the global cluster scheduling algorithm is
-  used. Available only in Nomad Enterprise.
+- `scheduler_config` <code>([SchedulerConfig][sched-config]: nil)</code> <EnterpriseAlert inline /> -
+  Sets scheduler configuration options specific to the node pool. If not
+  defined, the global scheduler configurations are used.
 
-### Scheduler Configuration Parameters
+### `scheduler_config` Parameters <EnterpriseAlert inline />
 
 - `scheduler_algorithm` `(string: <optional>)` - The [scheduler algorithm][]
   used for this node pool. Must be one of `binpack` or `spread`.
 
+- `memory_oversubscription_enabled` `(bool: <optional>)` - The [memory
+  oversubscription][] setting to use for this node pool.
+
 [pool-apply]: /nomad/docs/commands/node-pool/apply
 [jobspecs]: /nomad/docs/job-specification
 [pool-init]: /nomad/docs/commands/node-pool/init
-[sched-config]: #scheduler-configuration-parameters
+[sched-config]: #scheduler_config-parameters
 [scheduler algorithm]: /nomad/api-docs/operator/scheduler#scheduleralgorithm-1
+[memory oversubscription]: /nomad/api-docs/operator/scheduler#memoryoversubscriptionenabled-1

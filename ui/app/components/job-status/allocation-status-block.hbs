@@ -39,6 +39,8 @@
           <span class="alloc-health-indicator">
             {{#if (eq @health "healthy")}}
               <FlightIcon @name="check" @color="#25ba81" />
+            {{else if (eq @health "unhealthy")}}
+              <FlightIcon @name="x" @color="#c84034" />
             {{else}}
               <FlightIcon @name="running" @color="black" />
             {{/if}}

@@ -47,6 +47,7 @@ function moduleForJobDispatch(title, jobFactory) {
 
     hooks.beforeEach(function () {
       // Required for placing allocations (a result of dispatching jobs)
+      server.create('node-pool');
       server.create('node');
 
       job = jobFactory();

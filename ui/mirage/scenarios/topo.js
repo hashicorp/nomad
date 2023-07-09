@@ -16,6 +16,7 @@ const genResources = (CPU, Memory) => ({
 
 export function topoSmall(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 4);
   server.createList('node', 12, {
     datacenter: 'dc1',
     status: 'ready',
@@ -35,7 +36,7 @@ export function topoSmall(server) {
     ['M: 512, C: 250', 'M: 600, C: 200'],
   ];
 
-  jobResources.forEach(spec => {
+  jobResources.forEach((spec) => {
     server.create('job', {
       status: 'running',
       datacenters: ['dc1'],
@@ -98,7 +99,7 @@ export function topoMedium(server) {
     ['M: 512, C: 250', 'M: 600, C: 200'],
   ];
 
-  jobResources.forEach(spec => {
+  jobResources.forEach((spec) => {
     server.create('job', {
       status: 'running',
       datacenters: ['dc1'],

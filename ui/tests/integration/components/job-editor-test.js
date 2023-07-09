@@ -31,6 +31,7 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server = startMirage();
 
     // Required for placing allocations (a result of creating jobs)
+    this.server.create('node-pool');
     this.server.create('node');
   });
 
@@ -84,6 +85,7 @@ module('Integration | Component | job-editor', function (hooks) {
       @job={{job}}
       @context={{context}}
       @onSubmit={{onSubmit}}
+      @handleSaveAsTemplate={{handleSaveAsTemplate}}
     />
   `;
 
@@ -91,6 +93,7 @@ module('Integration | Component | job-editor', function (hooks) {
     component.setProperties({
       job,
       onSubmit: sinon.spy(),
+      handleSaveAsTemplate: sinon.spy(),
       context: 'new',
     });
     await component.render(commonTemplate);

@@ -30,6 +30,7 @@ export default class CodeMirrorModifier extends Modifier {
   }
 
   didUpdateArguments() {
+    this._editor.setOption('lineWrapping', this.args.named.lineWrapping);
     this._editor.setOption('readOnly', this.args.named.readOnly);
     if (!this.args.named.content) {
       return;
@@ -66,6 +67,7 @@ export default class CodeMirrorModifier extends Modifier {
         value: this.args.named.content || '',
         viewportMargin: this.args.named.viewportMargin || '',
         screenReaderLabel: this.args.named.screenReaderLabel || '',
+        lineWrapping: this.args.named.lineWrapping || false,
       });
 
       if (this.autofocus) {

@@ -2164,6 +2164,113 @@ func TestJobEndpoint_Register_ValidateMemoryMax(t *testing.T) {
 	require.Empty(t, resp.Warnings)
 }
 
+func TestJobEndpoint_Register_ValidateMemoryMax_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Store default scheduler configuration to reset between test cases.
+	_, defaultSchedConfig, err := s.State().SchedulerConfig()
+	must.NoError(t, err)
+
+	// Create test node pools.
+	noSchedConfig := mock.NodePool()
+	noSchedConfig.SchedulerConfiguration = nil
+
+	withMemOversub := mock.NodePool()
+	withMemOversub.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
+		MemoryOversubscriptionEnabled: pointer.Of(true),
+	}
+
+	noMemOversub := mock.NodePool()
+	noMemOversub.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
+		MemoryOversubscriptionEnabled: pointer.Of(false),
+	}
+
+	s.State().UpsertNodePools(structs.MsgTypeTestSetup, 100, []*structs.NodePool{
+		noSchedConfig,
+		withMemOversub,
+		noMemOversub,
+	})
+
+	testCases := []struct {
+		name            string
+		pool            string
+		globalConfig    *structs.SchedulerConfiguration
+		expectedWarning string
+	}{
+		{
+			name: "no scheduler config uses global config",
+			pool: noSchedConfig.Name,
+			globalConfig: &structs.SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: true,
+			},
+			expectedWarning: "",
+		},
+		{
+			name: "enabled via node pool",
+			pool: withMemOversub.Name,
+			globalConfig: &structs.SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: false,
+			},
+			expectedWarning: "",
+		},
+		{
+			name: "disabled via node pool",
+			pool: noMemOversub.Name,
+			globalConfig: &structs.SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: true,
+			},
+			expectedWarning: "Memory oversubscription is not enabled",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set global scheduler config if provided.
+			if tc.globalConfig != nil {
+				idx, err := s.State().LatestIndex()
+				must.NoError(t, err)
+
+				err = s.State().SchedulerSetConfig(idx, tc.globalConfig)
+				must.NoError(t, err)
+			}
+
+			// Create job with node_pool and memory_max.
+			job := mock.Job()
+			job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 2000
+			job.NodePool = tc.pool
+
+			req := &structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: job.Namespace,
+				},
+			}
+			var resp structs.JobRegisterResponse
+			err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+
+			// Validate respose.
+			must.NoError(t, err)
+			if tc.expectedWarning != "" {
+				must.StrContains(t, resp.Warnings, tc.expectedWarning)
+			} else {
+				must.Eq(t, "", resp.Warnings)
+			}
+
+			// Reset to default global scheduler config.
+			err = s.State().SchedulerSetConfig(resp.Index+1, defaultSchedConfig)
+			must.NoError(t, err)
+		})
+	}
+}
+
 // evalUpdateFromRaft searches the raft logs for the eval update pertaining to the eval
 func evalUpdateFromRaft(t *testing.T, s *Server, evalID string) *structs.Evaluation {
 	var store raft.LogStore = s.raftInmem

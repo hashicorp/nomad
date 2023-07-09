@@ -1,17 +1,26 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-job "exec" {
-  datacenters = ["dc1"]
-  type        = "batch"
+job "exec_host" {
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
   }
 
-  group "exec" {
-    task "exec" {
+  group "group" {
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
+
+    task "bash" {
       driver = "exec"
 
       config {
@@ -19,6 +28,8 @@ job "exec" {
         args = [
           "-c", "local/pid.sh"
         ]
+        pid_mode = "host"
+        ipc_mode = "host"
       }
 
       template {
@@ -33,8 +44,8 @@ EOF
       }
 
       resources {
-        cpu    = 100
-        memory = 64
+        cpu    = 10
+        memory = 16
       }
     }
   }

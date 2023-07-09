@@ -12,6 +12,10 @@
 
   code {
     height: 100%;
+
+    &.wrapped {
+      white-space: pre-wrap;
+    }
   }
 
   .is-light {

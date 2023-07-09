@@ -1644,8 +1644,13 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	require.False(t, finalState.Failed)
 
 	// Check that the token is on disk
-	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := os.ReadFile(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, token, string(data))
+
+	tokenPath = filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	data, err = os.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
 
@@ -1670,6 +1675,57 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	}, func(err error) {
 		require.Fail(t, err.Error())
 	})
+}
+
+func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create test allocation with a Vault block disabling the token file in
+	// the secrets dir.
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]any{
+		"run_for": "0s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:    []string{"default"},
+		DisableFile: true,
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Setup a test Vault client
+	token := "1234"
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		return map[string]string{task.Name: token}, nil
+	}
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	// Start task runner and wait for it to complete.
+	tr, err := NewTaskRunner(conf)
+	must.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	testWaitForTaskToDie(t, tr)
+
+	// Verify task exited successfully.
+	finalState := tr.TaskState()
+	must.Eq(t, structs.TaskStateDead, finalState.State)
+	must.False(t, finalState.Failed)
+
+	// Verify token is in the private dir.
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
+	data, err := os.ReadFile(tokenPath)
+	must.NoError(t, err)
+	must.Eq(t, token, string(data))
+
+	// Verify token is not in secrets dir.
+	tokenPath = filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	_, err = os.Stat(tokenPath)
+	must.ErrorIs(t, err, os.ErrNotExist)
 }
 
 // TestTaskRunner_DeriveToken_Retry asserts that if a recoverable error is
@@ -1721,7 +1777,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	require.Equal(t, 1, count)
 
 	// Check that the token is on disk
-	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := os.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))

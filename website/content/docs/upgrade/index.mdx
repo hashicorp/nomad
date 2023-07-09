@@ -221,10 +221,10 @@ elections that will slow down the process:
 
 If you are running a single Nomad server, restarting it in-place will
 result in that server not being able to elect itself as a leader. To
-avoid this, create a new [`raft.peers`][peers-json] file before
+avoid this, create a new [`peers.json`][peers-json] file before
 restarting the server with the new configuration. If you have `jq`
 installed you can run the following script on the server's host to
-write the correct `raft.peers` file:
+write the correct `peers.json` file:
 
 ```
 #!/usr/bin/env bash

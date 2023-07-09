@@ -58,6 +58,7 @@ module('Integration | Component | task group row', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.token = this.owner.lookup('service:token');
     this.server = startMirage();
+    this.server.create('node-pool');
     this.server.create('node');
 
     managementToken = this.server.create('token');

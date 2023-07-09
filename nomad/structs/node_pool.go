@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/exp/maps"
 )
@@ -116,6 +117,24 @@ func (n *NodePool) IsBuiltIn() bool {
 	}
 }
 
+// MemoryOversubscriptionEnabled returns true if memory oversubscription is
+// enabled in the node pool or in the global cluster configuration.
+func (n *NodePool) MemoryOversubscriptionEnabled(global *SchedulerConfiguration) bool {
+
+	// Default to the global scheduler config.
+	memOversubEnabled := global != nil && global.MemoryOversubscriptionEnabled
+
+	// But overwrite it if the node pool also has it configured.
+	poolHasMemOversub := n != nil &&
+		n.SchedulerConfiguration != nil &&
+		n.SchedulerConfiguration.MemoryOversubscriptionEnabled != nil
+	if poolHasMemOversub {
+		memOversubEnabled = *n.SchedulerConfiguration.MemoryOversubscriptionEnabled
+	}
+
+	return memOversubEnabled
+}
+
 // SetHash is used to compute and set the hash of node pool
 func (n *NodePool) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)
@@ -129,6 +148,15 @@ func (n *NodePool) SetHash() []byte {
 	_, _ = hash.Write([]byte(n.Description))
 	if n.SchedulerConfiguration != nil {
 		_, _ = hash.Write([]byte(n.SchedulerConfiguration.SchedulerAlgorithm))
+
+		memSub := n.SchedulerConfiguration.MemoryOversubscriptionEnabled
+		if memSub != nil {
+			if *memSub {
+				_, _ = hash.Write([]byte("memory_oversubscription_enabled"))
+			} else {
+				_, _ = hash.Write([]byte("memory_oversubscription_disabled"))
+			}
+		}
 	}
 
 	// sort keys to ensure hash stability when meta is stored later
@@ -153,11 +181,18 @@ func (n *NodePool) SetHash() []byte {
 
 // NodePoolSchedulerConfiguration is the scheduler confinguration applied to a
 // node pool.
+//
+// When adding new values that should override global scheduler configuration,
+// verify the scheduler handles the node pool configuration as well.
 type NodePoolSchedulerConfiguration struct {
 
 	// SchedulerAlgorithm is the scheduling algorithm to use for the pool.
 	// If not defined, the global cluster scheduling algorithm is used.
 	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm"`
+
+	// MemoryOversubscriptionEnabled specifies whether memory oversubscription
+	// is enabled. If not defined, the global cluster configuration is used.
+	MemoryOversubscriptionEnabled *bool `hcl:"memory_oversubscription_enabled"`
 }
 
 // Copy returns a deep copy of the node pool scheduler configuration.
@@ -169,25 +204,11 @@ func (n *NodePoolSchedulerConfiguration) Copy() *NodePoolSchedulerConfiguration 
 	nc := new(NodePoolSchedulerConfiguration)
 	*nc = *n
 
+	if n.MemoryOversubscriptionEnabled != nil {
+		nc.MemoryOversubscriptionEnabled = pointer.Of(*n.MemoryOversubscriptionEnabled)
+	}
+
 	return nc
-}
-
-// Validate returns an error if the node pool scheduler confinguration is
-// invalid.
-func (n *NodePoolSchedulerConfiguration) Validate() error {
-	if n == nil {
-		return nil
-	}
-
-	var mErr *multierror.Error
-
-	switch n.SchedulerAlgorithm {
-	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
-	default:
-		mErr = multierror.Append(mErr, fmt.Errorf("invalid scheduler algorithm %q", n.SchedulerAlgorithm))
-	}
-
-	return mErr.ErrorOrNil()
 }
 
 // NodePoolListRequest is used to list node pools.

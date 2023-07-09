@@ -32,6 +32,7 @@ module('Acceptance | volumes list', function (hooks) {
 
   hooks.beforeEach(function () {
     faker.seed(1);
+    server.create('node-pool');
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     window.localStorage.clear();

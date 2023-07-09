@@ -14,6 +14,7 @@ export default class TaskGroupDeploymentSummary extends Fragment {
   @attr('string') name;
 
   @attr('boolean') autoRevert;
+  @attr('boolean') autoPromote;
   @attr('boolean') promoted;
   @gt('desiredCanaries', 0) requiresPromotion;
 

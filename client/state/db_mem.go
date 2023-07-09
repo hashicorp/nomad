@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
 )
@@ -50,6 +51,8 @@ type MemDB struct {
 
 	// key -> value or nil
 	nodeMeta map[string]*string
+
+	nodeRegistration *cstructs.NodeRegistration
 
 	logger hclog.Logger
 
@@ -302,6 +305,19 @@ func (m *MemDB) GetNodeMeta() (map[string]*string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.nodeMeta, nil
+}
+
+func (m *MemDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.nodeRegistration = reg
+	return nil
+}
+
+func (m *MemDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.nodeRegistration, nil
 }
 
 func (m *MemDB) Close() error {

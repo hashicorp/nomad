@@ -122,6 +122,7 @@ Below is a table documenting common node properties.
 | `${attr.platform.aws.placement.availability-zone}` | Availability Zone of the client (if on AWS EC2)                                                                                                        |
 | `${attr.os.name}`                                  | Operating system of the client (e.g. `ubuntu`, `windows`, `darwin`)                                                                                    |
 | `${attr.os.version}`                               | Version of the client OS                                                                                                                               |
+| `${attr.os.build}`                                 | Build number (e.g `14393.5501`) of the client OS (if on Windows)                                                                                       |
 
 The full list of node attributes can be obtained by running `nomad node status -verbose [node]`.
 

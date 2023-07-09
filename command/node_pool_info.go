@@ -130,11 +130,16 @@ func (c *NodePoolInfoCommand) Run(args []string) int {
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Scheduler Configuration[reset]"))
-	if pool.SchedulerConfiguration != nil {
-		schedConfig := []string{
-			fmt.Sprintf("Scheduler Algorithm|%s", pool.SchedulerConfiguration.SchedulerAlgorithm),
+	if schedConfig := pool.SchedulerConfiguration; schedConfig != nil {
+		schedConfigOut := []string{
+			fmt.Sprintf("Scheduler Algorithm|%s", schedConfig.SchedulerAlgorithm),
 		}
-		c.Ui.Output(formatKV(schedConfig))
+		if schedConfig.MemoryOversubscriptionEnabled != nil {
+			schedConfigOut = append(schedConfigOut,
+				fmt.Sprintf("Memory Oversubscription Enabled|%v", *schedConfig.MemoryOversubscriptionEnabled),
+			)
+		}
+		c.Ui.Output(formatKV(schedConfigOut))
 	} else {
 		c.Ui.Output("No scheduler configuration")
 	}

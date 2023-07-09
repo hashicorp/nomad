@@ -15,8 +15,9 @@ job "example" {
 
     task "redis2" {
       vault {
-        policies = ["task"]
-        env      = false
+        policies     = ["task"]
+        env          = false
+        disable_file = true
       }
     }
   }

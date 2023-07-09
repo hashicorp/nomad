@@ -17,9 +17,13 @@ node_pool "example" {
   # * scheduler_algorithm is the scheduling algorithm to use for the pool.
   #   If not defined, the global cluster scheduling algorithm is used.
   #
+  # * memory_oversubscription_enabled specifies whether memory oversubscription
+  #   is enabled. If not defined, the global cluster configuration is used.
+  #
   # Available only in Nomad Enterprise.
 
-  # scheduler_configuration {
-  #   scheduler_algorithm = "spread"
+  # scheduler_config {
+  #   scheduler_algorithm             = "spread"
+  #   memory_oversubscription_enabled = true
   # }
 }

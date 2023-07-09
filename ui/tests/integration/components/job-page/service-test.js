@@ -31,6 +31,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
+    this.server.create('node-pool');
   });
 
   hooks.afterEach(function () {
@@ -303,8 +304,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await click('.active-deployment [data-test-idle-button]');
-    await click('.active-deployment [data-test-confirm-button]');
+    await click('.active-deployment [data-test-fail]');
 
     const requests = this.server.pretender.handledRequests;
 
@@ -331,8 +331,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await click('.active-deployment [data-test-idle-button]');
-    await click('.active-deployment [data-test-confirm-button]');
+    await click('.active-deployment [data-test-fail]');
 
     assert.equal(
       find('[data-test-job-error-title]').textContent,

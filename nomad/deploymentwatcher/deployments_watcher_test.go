@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	mocker "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -1779,6 +1780,90 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 		dt := a.DesiredTransition
 		shouldReschedule := dt.Reschedule != nil && *dt.Reschedule
 		return shouldReschedule, fmt.Errorf("Desired Transition Reschedule should be set but got %v", shouldReschedule)
+	}, func(err error) {
+		t.Fatal(err)
+	})
+}
+
+// Test that we exit before hitting the Progress Deadline when we run out of reschedule attempts
+// for a failing deployment
+func TestDeploymentWatcher_Watch_FailEarly(t *testing.T) {
+	ci.Parallel(t)
+	w, m := testDeploymentWatcher(t, 1000.0, 1*time.Millisecond)
+
+	// Create a job, alloc, and a deployment
+	j := mock.Job()
+	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
+	j.TaskGroups[0].Update.MaxParallel = 2
+	j.TaskGroups[0].Update.ProgressDeadline = 500 * time.Millisecond
+	// Allow only 1 allocation for that deployment
+	j.TaskGroups[0].ReschedulePolicy.Attempts = 0
+	j.TaskGroups[0].ReschedulePolicy.Unlimited = false
+	j.Stable = true
+	d := mock.Deployment()
+	d.JobID = j.ID
+	d.TaskGroups["web"].ProgressDeadline = 500 * time.Millisecond
+	d.TaskGroups["web"].RequireProgressBy = time.Now().Add(d.TaskGroups["web"].ProgressDeadline)
+	a := mock.Alloc()
+	now := time.Now()
+	a.CreateTime = now.UnixNano()
+	a.ModifyTime = now.UnixNano()
+	a.DeploymentID = d.ID
+	must.Nil(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j), must.Sprint("UpsertJob"))
+	must.Nil(t, m.state.UpsertDeployment(m.nextIndex(), d), must.Sprint("UpsertDeployment"))
+	must.Nil(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a}), must.Sprint("UpsertAllocs"))
+
+	// require that we get a call to UpsertDeploymentStatusUpdate
+	c := &matchDeploymentStatusUpdateConfig{
+		DeploymentID:      d.ID,
+		Status:            structs.DeploymentStatusFailed,
+		StatusDescription: structs.DeploymentStatusDescriptionFailedAllocations,
+		Eval:              true,
+	}
+	m2 := matchDeploymentStatusUpdateRequest(c)
+	m.On("UpdateDeploymentStatus", mocker.MatchedBy(m2)).Return(nil)
+
+	w.SetEnabled(true, m.state)
+	testutil.WaitForResult(func() (bool, error) { return 1 == watchersCount(w), nil },
+		func(err error) { must.Eq(t, 1, watchersCount(w), must.Sprint("Should have 1 deployment")) })
+
+	// Update the alloc to be unhealthy
+	a2 := a.Copy()
+	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy:   pointer.Of(false),
+		Timestamp: now,
+	}
+	must.Nil(t, m.state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a2}))
+
+	// Wait for the deployment to be failed
+	testutil.WaitForResult(func() (bool, error) {
+		d, err := m.state.DeploymentByID(nil, d.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if d.Status != structs.DeploymentStatusFailed {
+			return false, fmt.Errorf("bad status %q", d.Status)
+		}
+
+		return d.StatusDescription == structs.DeploymentStatusDescriptionFailedAllocations, fmt.Errorf("bad status description %q", d.StatusDescription)
+	}, func(err error) {
+		t.Fatal(err)
+	})
+
+	// require there are is only one evaluation
+	testutil.WaitForResult(func() (bool, error) {
+		ws := memdb.NewWatchSet()
+		evals, err := m.state.EvalsByJob(ws, j.Namespace, j.ID)
+		if err != nil {
+			return false, err
+		}
+
+		if l := len(evals); l != 1 {
+			return false, fmt.Errorf("Got %d evals; want 1", l)
+		}
+
+		return true, nil
 	}, func(err error) {
 		t.Fatal(err)
 	})
