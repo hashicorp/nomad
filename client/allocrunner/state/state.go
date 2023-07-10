@@ -6,6 +6,7 @@ package state
 import (
 	"time"
 
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -75,4 +76,18 @@ func (s *State) ClientTerminalStatus() bool {
 	default:
 		return false
 	}
+}
+
+type AllocVolumes struct {
+	CSIVolumes map[string]*CSIVolumeStub // volume request name -> CSIVolumeStub
+}
+
+// CSIVolumeStub is a stripped-down version of the CSIVolume with just the
+// relevant data that we need to persist about the volume.
+type CSIVolumeStub struct {
+	VolumeID         string
+	VolumeExternalID string
+	PluginID         string
+	ExternalNodeID   string
+	MountInfo        *csimanager.MountInfo
 }

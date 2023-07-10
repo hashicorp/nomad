@@ -525,19 +525,20 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		return fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, alloc.NodeID)
 	}
 
-	// get the the storage provider's ID for the client node (not
-	// Nomad's ID for the node)
-	targetCSIInfo, ok := targetNode.CSINodePlugins[plug.ID]
-	if !ok {
-		return fmt.Errorf("failed to find storage provider info for client %q, node plugin %q is not running or has not fingerprinted on this client", targetNode.ID, plug.ID)
+	// if the RPC is sent by a client node, it may not know the claim's
+	// external node ID.
+	if req.ExternalNodeID == "" {
+		externalNodeID, err := v.lookupExternalNodeID(vol, req.ToClaim())
+		if err != nil {
+			return fmt.Errorf("missing external node ID: %v", err)
+		}
+		req.ExternalNodeID = externalNodeID
 	}
-	externalNodeID := targetCSIInfo.NodeInfo.ID
-	req.ExternalNodeID = externalNodeID // update with the target info
 
 	method := "ClientCSI.ControllerAttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		VolumeID:        vol.RemoteID(),
-		ClientCSINodeID: externalNodeID,
+		ClientCSINodeID: req.ExternalNodeID,
 		AttachmentMode:  req.AttachmentMode,
 		AccessMode:      req.AccessMode,
 		MountOptions:    csiVolumeMountOptions(vol.MountOptions),
@@ -846,7 +847,7 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 		}
 	}
 
-	// if the RPC is sent by a client node, it doesn't know the claim's
+	// if the RPC is sent by a client node, it may not know the claim's
 	// external node ID.
 	if claim.ExternalNodeID == "" {
 		externalNodeID, err := v.lookupExternalNodeID(vol, claim)

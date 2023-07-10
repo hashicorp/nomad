@@ -53,9 +53,14 @@ type volumeManager struct {
 	// requiresStaging shows whether the plugin requires that the volume manager
 	// calls NodeStageVolume and NodeUnstageVolume RPCs during setup and teardown
 	requiresStaging bool
+
+	// externalNodeID is the identity of a given nomad client as observed by the
+	// storage provider (ex. a hostname, VM instance ID, etc.)
+	externalNodeID string
 }
 
-func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool) *volumeManager {
+func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.CSIPlugin, rootDir, containerRootDir string, requiresStaging bool, externalID string) *volumeManager {
+
 	return &volumeManager{
 		logger:              logger.Named("volume_manager"),
 		eventer:             eventer,
@@ -64,6 +69,7 @@ func newVolumeManager(logger hclog.Logger, eventer TriggerNodeEvent, plugin csi.
 		containerMountPoint: containerRootDir,
 		requiresStaging:     requiresStaging,
 		usageTracker:        newVolumeUsageTracker(),
+		externalNodeID:      externalID,
 	}
 }
 
@@ -375,4 +381,14 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allo
 	v.eventer(event)
 
 	return err
+}
+
+func (v *volumeManager) ExternalID() string {
+	return v.externalNodeID
+}
+
+func (v *volumeManager) HasMount(_ context.Context, mountInfo *MountInfo) (bool, error) {
+	m := mount.New()
+	isNotMount, err := m.IsNotAMountPoint(mountInfo.Source)
+	return !isNotMount, err
 }
