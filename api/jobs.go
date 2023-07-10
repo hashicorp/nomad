@@ -873,7 +873,7 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 
 		if len(*p.Specs) != 0 {
 			times := make([]time.Time, len(*p.Specs))
-			nextTime := fromTime
+			var nextTime time.Time
 			for i, spec := range *p.Specs {
 				e, err := cronexpr.Parse(spec)
 				if err != nil {
@@ -881,18 +881,19 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 				}
 				times[i], err = cronParseNext(e, fromTime, spec)
 				if err != nil {
-					return times[i], err
+					return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", spec, err)
 				}
-				for _, next := range times {
-					if nextTime.Before(next) {
-						nextTime = next
-					}
+			}
+			nextTime = times[0]
+			for _, next := range times {
+				if next.Before(nextTime) {
+					nextTime = next
 				}
 			}
 			return nextTime, nil
 		}
 	}
-	return time.Time{}, nil
+	return time.Time{}, fmt.Errorf("failed compute next run")
 }
 
 // cronParseNext is a helper that parses the next time for the given expression
