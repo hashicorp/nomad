@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 name: setup-js
 description: install node and yarn, and run yarn install
 inputs:
