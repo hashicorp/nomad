@@ -1,6 +1,7 @@
 package state
 
 import (
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -40,6 +41,14 @@ type StateDB interface {
 
 	// PutNetworkStatus puts the allocation's network status. It may be nil.
 	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error
+
+	// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so
+	// they can be restored.
+	PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error
+
+	// GetAllocVolumes retrieves stubs of an allocation's dynamic volume mounts
+	// so they can be restored.
+	GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error)
 
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an
