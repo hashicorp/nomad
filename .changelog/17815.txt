@@ -1,0 +1,3 @@
+```release-note:bug
+logs: check if incoming stderr or stdout struct is not null before logging its fields
+```
