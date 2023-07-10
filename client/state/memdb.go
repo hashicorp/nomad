@@ -3,7 +3,8 @@ package state
 import (
 	"sync"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
@@ -22,6 +23,9 @@ type MemDB struct {
 
 	// alloc_id -> value
 	networkStatus map[string]*structs.AllocNetworkStatus
+
+	// alloc_id -> value
+	allocVolumeStates map[string]*arstate.AllocVolumes
 
 	// alloc_id -> task_name -> value
 	localTaskState map[string]map[string]*state.LocalState
@@ -104,6 +108,19 @@ func (m *MemDB) PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus,
 	m.networkStatus[allocID] = ns
 	defer m.mu.Unlock()
 	return nil
+}
+
+func (m *MemDB) PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error {
+	m.mu.Lock()
+	m.allocVolumeStates[allocID] = state
+	defer m.mu.Unlock()
+	return nil
+}
+
+func (m *MemDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.allocVolumeStates[allocID], nil
 }
 
 func (m *MemDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
