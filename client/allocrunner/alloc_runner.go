@@ -1391,3 +1391,20 @@ func (ar *allocRunner) GetTaskDriverCapabilities(taskName string) (*drivers.Capa
 
 	return tr.DriverCapabilities()
 }
+
+func (ar *allocRunner) SetCSIVolumes(vols map[string]*state.CSIVolumeStub) error {
+	return ar.stateDB.PutAllocVolumes(ar.id, &state.AllocVolumes{
+		CSIVolumes: vols,
+	})
+}
+
+func (ar *allocRunner) GetCSIVolumes() (map[string]*state.CSIVolumeStub, error) {
+	allocVols, err := ar.stateDB.GetAllocVolumes(ar.id)
+	if err != nil {
+		return nil, err
+	}
+	if allocVols == nil {
+		return nil, nil
+	}
+	return allocVols.CSIVolumes, nil
+}
