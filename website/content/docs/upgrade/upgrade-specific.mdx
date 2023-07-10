@@ -34,6 +34,49 @@ called this endpoint or used this command using tokens with just the `read-job`
 capability or the `read` policy must update their tokens to use the
 `submit-job` capability or the `write` policy.
 
+#### Exec Driver Requires New Capability for mlock
+
+Nomad 1.6.0 updated the `exec` task driver to maintain the max memory locked
+limit set by the host system. In earlier versions of Nomad this limit was
+*unset* unintentionally.
+
+In practice this means that `exec` tasks such as Vault which use the `mlock`
+system call will now need to explicitly add the `ipc_lock` capability.
+
+First [allow the `ipc_lock` capability in the Client
+configuration][allow_caps_exec]:
+
+```hcl
+plugin "exec" {
+  config {
+    allow_caps = ["audit_write", "chown", "dac_override", "fowner", "fsetid",
+      "kill", "mknod", "net_bind_service", "setfcap", "setgid", "setpcap",
+      "setuid", "sys_chroot", "ipc_lock"]
+  }
+}
+```
+
+Then [add the `ipc_lock` capability to the exec task][cap_add_exec] that uses
+`mlock`:
+
+```hcl
+task "vault" {
+  driver = "exec"
+
+  config {
+    cap_add = ["ipc_lock"]
+
+    # ... other task configuration
+  }
+
+# ... rest of jobspec
+```
+
+These additions are backward compatible with Nomad v1.5, so Clients and Jobs
+should be updated prior to upgrading to Nomad v1.6.
+
+See [#17780](https://github.com/hashicorp/nomad/issues/17780) for details.
+
 #### Command `nomad tls cert create` flag `-cluster-region` deprecated
 
 Nomad 1.6.0 will deprecate the command `nomad tls cert create` flag `-cluster-region`
