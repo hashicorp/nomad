@@ -505,6 +505,10 @@ func (a *ACL) AllowVariableSearch(ns string) bool {
 	if a.management {
 		return true
 	}
+	if ns == "*" {
+		return a.variables.Len() > 0 || a.wildcardVariables.Len() > 0
+	}
+
 	iter := a.variables.Root().Iterator()
 	iter.SeekPrefix([]byte(ns))
 	_, _, ok := iter.Next()
