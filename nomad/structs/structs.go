@@ -5615,9 +5615,9 @@ func (p *PeriodicConfig) Validate() error {
 
 	var mErr multierror.Error
 	if p.Spec != "" && len(p.Specs) != 0 {
-		_ = multierror.Append(&mErr, fmt.Errorf("You can use only Spec or Specs"))
+		_ = multierror.Append(&mErr, fmt.Errorf("You can use only Spec or Specs, Spec: %s, Specs: %s, len specs: %sv", p.Spec, p.Specs, len(p.Specs)))
 	}
-	if p.Spec == "" {
+	if p.Spec == "" && len(p.Specs) == 0 {
 		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
 	}
 
@@ -5692,7 +5692,6 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 
 		if len(p.Specs) != 0 {
 			times := make([]time.Time, len(p.Specs))
-			nextTime := fromTime
 			for i, spec := range p.Specs {
 				e, err := cronexpr.Parse(spec)
 				if err != nil {
@@ -5702,13 +5701,15 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 				if err != nil {
 					return times[i], err
 				}
+				nextTime := times[0]
 				for _, next := range times {
 					if nextTime.Before(next) {
 						nextTime = next
 					}
 				}
+				return nextTime, nil
 			}
-			return nextTime, nil
+			return fromTime, nil
 		}
 
 	case PeriodicSpecTest:
