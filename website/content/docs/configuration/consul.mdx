@@ -140,7 +140,8 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `token` `(string: "")` - Specifies the token used to provide a per-request ACL
   token. This option overrides the Consul Agent's default token. If the token is
   not set here or on the Consul agent, it will default to Consul's anonymous policy,
-  which may or may not allow writes.
+  which may or may not allow writes. Will default to the `CONSUL_HTTP_TOKEN`
+  environment variable if set.
 
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
   when communicating to the Consul API client over HTTPS. Will default to the
