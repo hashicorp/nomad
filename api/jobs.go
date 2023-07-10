@@ -821,8 +821,9 @@ type MultiregionRegion struct {
 
 // PeriodicConfig is for serializing periodic config for a job.
 type PeriodicConfig struct {
-	Enabled         *bool   `hcl:"enabled,optional"`
-	Spec            *string `hcl:"cron,optional"`
+	Enabled         *bool     `hcl:"enabled,optional"`
+	Spec            *string   `hcl:"cron,optional"`
+	Specs           *[]string `hcl:"crons,optional"`
 	SpecType        *string
 	ProhibitOverlap *bool   `mapstructure:"prohibit_overlap" hcl:"prohibit_overlap,optional"`
 	TimeZone        *string `mapstructure:"time_zone" hcl:"time_zone,optional"`
@@ -834,6 +835,9 @@ func (p *PeriodicConfig) Canonicalize() {
 	}
 	if p.Spec == nil {
 		p.Spec = pointerOf("")
+	}
+	if p.Specs == nil {
+		p.Specs = pointerOf([]string{""})
 	}
 	if p.SpecType == nil {
 		p.SpecType = pointerOf(PeriodicSpecCron)
@@ -852,13 +856,42 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if p != nil && *p.SpecType == PeriodicSpecCron {
-		e, err := cronexpr.Parse(*p.Spec)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", *p.Spec, err)
-		}
-		return cronParseNext(e, fromTime, *p.Spec)
-	}
+		//	e, err := cronexpr.Parse(*p.Spec)
+		//	if err != nil {
+		//		return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", *p.Spec, err)
+		//	}
+		//	return cronParseNext(e, fromTime, *p.Spec)
+		//}
 
+		if *p.Spec != "" {
+			e, err := cronexpr.Parse(*p.Spec)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
+			}
+			return cronParseNext(e, fromTime, *p.Spec)
+		}
+
+		if len(*p.Specs) != 0 {
+			times := make([]time.Time, len(*p.Specs))
+			nextTime := fromTime
+			for i, spec := range *p.Specs {
+				e, err := cronexpr.Parse(spec)
+				if err != nil {
+					return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", spec, err)
+				}
+				times[i], err = cronParseNext(e, fromTime, spec)
+				if err != nil {
+					return times[i], err
+				}
+				for _, next := range times {
+					if nextTime.Before(next) {
+						nextTime = next
+					}
+				}
+			}
+			return nextTime, nil
+		}
+	}
 	return time.Time{}, nil
 }
 
