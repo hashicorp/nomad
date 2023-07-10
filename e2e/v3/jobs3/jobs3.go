@@ -312,10 +312,20 @@ func (sub *Submission) waitAlloc(group, id string) {
 	queryOpts := sub.queryOptions()
 	allocAPI := sub.nomadClient.Allocations()
 
-	// todo: respect timeout
+	// Set up a context with our submission timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), sub.timeout)
+	defer cancel()
 
 ALLOCATION:
 	for {
+
+		// Check if we have passed timeout expiration.
+		select {
+		case <-ctx.Done():
+			must.Unreachable(sub.t, must.Sprint("timeout reached waiting for alloc"))
+		default:
+		}
+
 		latest, _, err := allocAPI.Info(id, queryOpts)
 		must.NoError(sub.t, err)
 
