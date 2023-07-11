@@ -1865,6 +1865,10 @@
           {
             "title": "Windows IIS",
             "href": "/plugins/drivers/community/iis"
+          },
+          {
+            "title": "Windows IIS (Alternative)",
+            "href": "/plugins/drivers/community/nomad-iis"
           }
         ]
       },
