@@ -22,15 +22,15 @@ export default class JobController extends Controller {
     return this.model;
   }
 
-  get jobHasBeenYoinked() {
+  get jobNotFoundFromServer() {
     return (
       this.watchers.job.isError &&
-      this.watchers.job.error.errors.some((e) => e.status === '404')
+      this.watchers.job.error.errors?.some((e) => e.status === '404')
     );
   }
 
-  @action yoinkedJobHandler() {
-    if (this.jobHasBeenYoinked) {
+  @action notFoundJobHandler() {
+    if (this.jobNotFoundFromServer) {
       this.notifications.add({
         title: `Job ${this.job.name} has been deleted`,
         message:
