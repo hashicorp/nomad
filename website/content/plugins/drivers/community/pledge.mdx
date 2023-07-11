@@ -33,7 +33,7 @@ attack surface of a mis-configured or compromised task.
 
 The `pledge` driver is fundamentally powered by the [pledge utility for Linux]
 [pledge] by Justine Tunney. The driver invokes this `pledge.com` CLI tool along
-with `nsenter` and `unshare` to create an attuned sandbox in which to execute a
+with `nsenter` and `unshare` to create a strict sandbox in which to execute a
 given command.
 
 ## Task Configuration
@@ -117,7 +117,7 @@ Note that reading a file also requires the `rpath` promise, writing a file
 requires the `wpath` promise, creating a file requires the `cpath` promise, and
 executing a program requires the `exec` promise.
 
-#### examples
+#### Examples
 
 This example allows reading of the `/srv/www` directory.
 
@@ -145,8 +145,8 @@ The `pledge` driver supports `none`, `host`, and `group` networking modes.
 #### host networking
 
 If using `host` networking mode, it can be very convenient to bless the
-pledge.com utility with the `cap_net_bind_service` Linux capability. This will
-enable Nomad tasks using the pledge driver to bind to privilged ports (i.e.
+[pledge][pledge] utility with the `cap_net_bind_service` Linux capability. This will
+enable Nomad tasks using the pledge driver to bind to privileged ports (i.e.
 below 1024) while using host networking mode.
 
 ```shell-session
@@ -220,16 +220,15 @@ by the task, and only this task will be able to run on those cores.
 #### memory oversubscription
 
 If the Nomad scheduler is configured to enable memory [oversubscription]
-[oversub], the `pledge` driver will correctly enable configuring `memory_max`
-in addition to `memory`. In this case, `memory_max` indicates the maximum amount
-of memory the task is able to request before being OOM killed, and `memory`
-represents a minimum amount of memory the kernel will gauruntee is available for
-the Task.
+[oversub], the `pledge` driver will enable configuring `memory_max` in addition
+to `memory`. In this case, `memory_max` indicates the maximum amount of memory
+the task is able to request before being OOM killed, and `memory` represents a
+minimum amount of memory the kernel will guarantee is available for the Task.
 
 ```hcl
 resources {
-  cpu = 2000
-  memory = 1024
+  cpu        = 2000
+  memory     = 1024
   memory_max = 2048
 }
 ```
@@ -242,7 +241,7 @@ The `pledge` driver implements the following [capabilities][capabilities].
 | ------------         | ------------------|
 | send signals         | true              |
 | exec                 | false             |
-| filesystem isolation | Landlock LSM      |
+| filesystem isolation | none (landlock)   |
 | network isolation    | host, group, none |
 | volume mounting      | false             |
 
@@ -308,17 +307,17 @@ EOH
 
 ## Troubleshooting
 
-When setting up a new Task using the `pledge` task driver, it helps to run
-the command manually using the `pledge.com` utility to make sure the necessary
-promises and unveil paths are well understood. To figure out which syscalls
-process needs to make, it can be run under `strace -ff`. When a syscall is
-blocked, you'll see `"EPERM (Operation not permitted)"`
+When setting up a new Task using the `nomad-pledge-driver` task driver, it
+helps to run the command manually using the `pledge` utility to make sure the
+necessary promises and unveil paths are well understood. To figure out which
+syscalls process needs to make, it can be run under `strace -ff`. When a syscall
+is blocked, you'll see `"EPERM (Operation not permitted)"`
 
 ```shell-session
 strace -ff /opt/bin/pledge-1.8.com -p "stdio rpath inet" -- curl example.com
 ```
 
-[capabilities]: /nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error)
+[capabilities]: /nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error
 [cni]: https://developer.hashicorp.com/nomad/docs/install
 [download]: https://justine.lol/pledge/#download
 [hack]: https://github.com/shoenig/nomad-pledge-driver/tree/main/hack
