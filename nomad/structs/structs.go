@@ -5396,10 +5396,10 @@ type NamespaceNodePoolConfiguration struct {
 	Default string
 
 	// Allowed specifies the node pools that are allowed to be used by jobs in
-	// this namespace. This field supports wildcard globbing through the use
-	// of `*` for multi-character matching. If specified, only the node pools
-	// that match these patterns are allowed. This field cannot be used
-	// with Denied.
+	// this namespace. By default, all node pools are allowed. If an empty list
+	// is provided only the namespace's default node pool is allowed. This field
+	// supports wildcard globbing through the use of `*` for multi-character
+	// matching. This field cannot be used with Denied.
 	Allowed []string
 
 	// Denied specifies the node pools that are not allowed to be used by jobs
