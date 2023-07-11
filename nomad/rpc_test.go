@@ -1370,7 +1370,13 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	}
 
 	// Generate CA certificate and write it to disk.
-	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
+	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{
+		Name:               "Nomad CA",
+		Country:            "ZZ",
+		Days:               5,
+		Organization:       "CustOrgUnit",
+		OrganizationalUnit: "CustOrgUnit",
+	})
 	must.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)

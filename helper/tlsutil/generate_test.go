@@ -94,7 +94,7 @@ func TestGenerateCA(t *testing.T) {
 		require.Equal(t, true, cert.BasicConstraintsValid)
 
 		require.WithinDuration(t, cert.NotBefore, time.Now(), time.Minute)
-		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 365), time.Minute)
+		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 1825), time.Minute)
 
 		require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
 	})
@@ -112,9 +112,109 @@ func TestGenerateCA(t *testing.T) {
 		require.Equal(t, true, cert.BasicConstraintsValid)
 
 		require.WithinDuration(t, cert.NotBefore, time.Now(), time.Minute)
-		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 365), time.Minute)
+		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 1825), time.Minute)
 
 		require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
+	})
+
+	t.Run("Custom CA", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days:                6,
+			PermittedDNSDomains: []string{"domain1.com"},
+			Country:             "ZZ",
+			PostalCode:          "0000",
+			Province:            "CustProvince",
+			Locality:            "CustLocality",
+			StreetAddress:       "CustStreet",
+			Organization:        "CustOrg",
+			OrganizationalUnit:  "CustUnit",
+			Name:                "Custom CA",
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, ca)
+		require.NotEmpty(t, pk)
+
+		cert, err := parseCert(ca)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(cert.Subject.CommonName, "Custom CA"))
+		require.True(t, strings.Contains(cert.PermittedDNSDomains[0], "domain1.com"))
+		require.True(t, strings.Contains(cert.Subject.Country[0], "ZZ"))
+		require.True(t, strings.Contains(cert.Subject.PostalCode[0], "0000"))
+		require.True(t, strings.Contains(cert.Subject.Province[0], "CustProvince"))
+		require.True(t, strings.Contains(cert.Subject.Locality[0], "CustLocality"))
+		require.True(t, strings.Contains(cert.Subject.StreetAddress[0], "CustStreet"))
+		require.True(t, strings.Contains(cert.Subject.Organization[0], "CustOrg"))
+		require.True(t, strings.Contains(cert.Subject.OrganizationalUnit[0], "CustUnit"))
+		require.Equal(t, true, cert.IsCA)
+		require.Equal(t, true, cert.BasicConstraintsValid)
+
+		require.WithinDuration(t, cert.NotBefore, time.Now(), time.Minute)
+		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 6), time.Minute)
+
+		require.Equal(t, x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature, cert.KeyUsage)
+	})
+
+	t.Run("Custom CA Custom Date", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days: 365,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, ca)
+		require.NotEmpty(t, pk)
+
+		cert, err := parseCert(ca)
+		require.WithinDuration(t, cert.NotAfter, time.Now().AddDate(0, 0, 365), time.Minute)
+	})
+
+	t.Run("Custom CA No CN", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days:                6,
+			PermittedDNSDomains: []string{"domain1.com"},
+			Locality:            "CustLocality",
+		})
+		require.ErrorContains(t, err, "common name value not provided")
+		require.Empty(t, ca)
+		require.Empty(t, pk)
+	})
+
+	t.Run("Custom CA No Country", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days:                6,
+			PermittedDNSDomains: []string{"domain1.com"},
+			Name:                "Custom CA",
+			Locality:            "CustLocality",
+		})
+		require.ErrorContains(t, err, "country value not provided")
+		require.Empty(t, ca)
+		require.Empty(t, pk)
+	})
+
+	t.Run("Custom CA No Organization", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days:                6,
+			PermittedDNSDomains: []string{"domain1.com"},
+			Name:                "Custom CA",
+			Country:             "ZZ",
+			Locality:            "CustLocality",
+		})
+		require.ErrorContains(t, err, "organization value not provided")
+		// require.NoError(t, err)
+		require.Empty(t, ca)
+		require.Empty(t, pk)
+	})
+
+	t.Run("Custom CA No Organizational Unit", func(t *testing.T) {
+		ca, pk, err := GenerateCA(CAOpts{
+			Days:                6,
+			PermittedDNSDomains: []string{"domain1.com"},
+			Name:                "Custom CA",
+			Country:             "ZZ",
+			Locality:            "CustLocality",
+			Organization:        "CustOrg",
+		})
+		require.ErrorContains(t, err, "organizational unit value not provided")
+		require.Empty(t, ca)
+		require.Empty(t, pk)
 	})
 }
 
@@ -123,10 +223,16 @@ func TestGenerateCert(t *testing.T) {
 
 	signer, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.Nil(t, err)
-	ca, _, err := GenerateCA(CAOpts{Signer: signer})
+	ca, _, err := GenerateCA(CAOpts{
+		Name:               "Custom CA",
+		Country:            "ZZ",
+		Organization:       "CustOrg",
+		OrganizationalUnit: "CustOrgUnit",
+		Signer:             signer},
+	)
 	require.Nil(t, err)
 
-	DNSNames := []string{"server.dc1.consul"}
+	DNSNames := []string{"server.dc1.nomad"}
 	IPAddresses := []net.IP{net.ParseIP("123.234.243.213")}
 	extKeyUsage := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	name := "Cert Name"
@@ -150,7 +256,7 @@ func TestGenerateCert(t *testing.T) {
 	caID, err := keyID(signer.Public())
 	require.Nil(t, err)
 	require.Equal(t, caID, cert.AuthorityKeyId)
-	require.Contains(t, cert.Issuer.CommonName, "Nomad Agent CA")
+	require.Contains(t, cert.Issuer.CommonName, "Custom CA")
 	require.Equal(t, false, cert.IsCA)
 
 	require.WithinDuration(t, cert.NotBefore, time.Now(), time.Minute)

@@ -6,7 +6,6 @@ package command
 import (
 	"crypto/x509"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -47,6 +46,10 @@ func TestCACreateCommand(t *testing.T) {
 				"-name-constraint=true",
 				"-domain=foo",
 				"-additional-domain=bar",
+				"-common-name=CustomCA",
+				"-country=ZZ",
+				"-organization=CustOrg",
+				"-organizational-unit=CustOrgUnit",
 			},
 			"foo-agent-ca.pem",
 			"foo-agent-ca-key.pem",
@@ -55,24 +58,20 @@ func TestCACreateCommand(t *testing.T) {
 				require.True(t, cert.PermittedDNSDomainsCritical)
 				require.Len(t, cert.PermittedDNSDomains, 4)
 				require.ElementsMatch(t, cert.PermittedDNSDomains, []string{"nomad", "foo", "localhost", "bar"})
+				require.Equal(t, cert.Issuer.Organization, []string{"CustOrg"})
+				require.Equal(t, cert.Issuer.OrganizationalUnit, []string{"CustOrgUnit"})
+				require.Equal(t, cert.Issuer.Country, []string{"ZZ"})
+				require.Contains(t, cert.Issuer.CommonName, "CustomCA")
 			},
 		},
-		{"with common-name",
+		{"ca custom date",
 			[]string{
-				"-common-name=foo",
+				"-days=365",
 			},
 			"nomad-agent-ca.pem",
 			"nomad-agent-ca-key.pem",
 			func(t *testing.T, cert *x509.Certificate) {
-				require.Equal(t, cert.Subject.CommonName, "foo")
-			},
-		},
-		{"without common-name",
-			[]string{},
-			"nomad-agent-ca.pem",
-			"nomad-agent-ca-key.pem",
-			func(t *testing.T, cert *x509.Certificate) {
-				require.True(t, strings.HasPrefix(cert.Subject.CommonName, "Nomad Agent CA"))
+				require.Equal(t, 365*24*time.Hour, time.Until(cert.NotAfter).Round(24*time.Hour))
 			},
 		},
 	}
@@ -97,5 +96,4 @@ func TestCACreateCommand(t *testing.T) {
 			require.NoError(t, os.Remove(tc.keyPath))
 		})
 	}
-
 }
