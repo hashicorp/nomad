@@ -35,7 +35,6 @@ job "checks_task_restart" {
 
     task "python" {
       driver = "raw_exec"
-      user   = "nobody"
       config {
         command = "python3"
         args    = ["-m", "http.server", "${NOMAD_PORT_http}", "--directory", "/tmp"]
