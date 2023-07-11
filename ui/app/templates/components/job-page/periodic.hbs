@@ -25,7 +25,7 @@
           <span class="term">
             Cron
           </span>
-          {{@job.periodicDetails.Spec}}
+          {{#each @job.periodicDetails.Specs as |spec|}}{{spec}}; {{else}}{{@job.periodicDetails.Spec}}{{/each}}
         </span>
       </:after-namespace>
     </jobPage.ui.StatsBox>
