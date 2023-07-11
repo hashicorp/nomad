@@ -109,8 +109,8 @@ a future release.
 
 - `stagger` `(string: "30s")` - Specifies the delay between each set of
   [`max_parallel`](#max_parallel) updates when updating system jobs. This
-  setting no longer applies to service jobs which use
-  [deployments.][strategies]
+  setting doesn't apply to service jobs which use
+  [deployments][strategies] instead, with the equivalent parameter being [`min_healthy_time`](#min_healthy_time). 
 
 ## `update` Examples
 
