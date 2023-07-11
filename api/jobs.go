@@ -856,17 +856,10 @@ func (p *PeriodicConfig) Canonicalize() {
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	if p != nil && *p.SpecType == PeriodicSpecCron {
-		//	e, err := cronexpr.Parse(*p.Spec)
-		//	if err != nil {
-		//		return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", *p.Spec, err)
-		//	}
-		//	return cronParseNext(e, fromTime, *p.Spec)
-		//}
-
 		if *p.Spec != "" {
 			e, err := cronexpr.Parse(*p.Spec)
 			if err != nil {
-				return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
+				return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", *p.Spec, err)
 			}
 			return cronParseNext(e, fromTime, *p.Spec)
 		}
@@ -877,11 +870,11 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 			for i, spec := range *p.Specs {
 				e, err := cronexpr.Parse(spec)
 				if err != nil {
-					return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", spec, err)
+					return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
 				}
 				times[i], err = cronParseNext(e, fromTime, spec)
 				if err != nil {
-					return time.Time{}, fmt.Errorf("failed parsing cron expression %q: %v", spec, err)
+					return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
 				}
 			}
 			nextTime = times[0]

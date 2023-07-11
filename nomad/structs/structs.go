@@ -5615,7 +5615,7 @@ func (p *PeriodicConfig) Validate() error {
 
 	var mErr multierror.Error
 	if p.Spec != "" && len(p.Specs) != 0 {
-		_ = multierror.Append(&mErr, fmt.Errorf("You can use only Spec or Specs, Spec: %s, Specs: %s, len specs: %sv", p.Spec, p.Specs, len(p.Specs)))
+		_ = multierror.Append(&mErr, fmt.Errorf("You can use only Spec or Specs"))
 	}
 	if p.Spec == "" && len(p.Specs) == 0 {
 		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
