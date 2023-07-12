@@ -1162,4 +1162,4 @@ BUG FIXES:
 
 ## Unsupported Versions
 
-Versions of Nomad before 1.3.0 are no longer supported. See [CHANGELOG-unsupported.md](../CHANGELOG-unsupported.md) for their changelogs.
+Versions of Nomad before 1.3.0 are no longer supported. See [CHANGELOG-unsupported.md](./CHANGELOG-unsupported.md) for their changelogs.
