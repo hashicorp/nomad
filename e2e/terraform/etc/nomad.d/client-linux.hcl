@@ -41,3 +41,9 @@ plugin "docker" {
     }
   }
 }
+
+plugin "nomad-pledge-driver" {
+  config {
+    pledge_executable = "/usr/local/bin/pledge"
+  }
+}

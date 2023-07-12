@@ -96,6 +96,15 @@ sudo apt-get -y install podman catatonit
 echo "Installing Podman Driver"
 sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.4.2 nomad-driver-podman
 
+# Pledge
+echo "Installing Pledge Driver"
+curl -fsSL -o /tmp/pledge-driver.tar.gz https://github.com/shoenig/nomad-pledge-driver/releases/download/v0.2.3/nomad-pledge-driver_0.2.3_linux_amd64.tar.gz
+curl -fsSL -o /tmp/pledge https://github.com/shoenig/nomad-pledge-driver/releases/download/pledge-1.8.com/pledge-1.8.com
+tar -C /tmp -xf /tmp/pledge-driver.tar.gz
+sudo mv /tmp/nomad-pledge-driver ${NOMAD_PLUGIN_DIR}
+sudo mv /tmp/pledge /usr/local/bin
+sudo chmod +x /usr/local/bin/pledge
+
 # ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
     echo "Installing nomad-driver-ecs"
