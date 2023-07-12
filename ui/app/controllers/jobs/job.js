@@ -22,21 +22,17 @@ export default class JobController extends Controller {
     return this.model;
   }
 
-  get jobNotFoundFromServer() {
-    return (
-      this.watchers.job.isError &&
-      this.watchers.job.error.errors?.some((e) => e.status === '404')
-    );
-  }
-
   @action notFoundJobHandler() {
-    if (this.jobNotFoundFromServer) {
+    if (
+      this.watchers.job.isError &&
+      this.watchers.job.error?.errors?.some((e) => e.status === '404')
+    ) {
       this.notifications.add({
-        title: `Job ${this.job.name} has been deleted`,
+        title: `Job "${this.job.name}" has been deleted`,
         message:
           'The job you were looking at has been deleted; this is usually because it was purged from elsewhere.',
         color: 'critical',
-        destroyOnClick: false,
+        sticky: true,
       });
       this.router.transitionTo('jobs');
     }
