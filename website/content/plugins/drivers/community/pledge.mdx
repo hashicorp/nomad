@@ -1,0 +1,332 @@
+---
+layout: docs
+page_title: 'Drivers: Pledge'
+description: The Pledge task driver is capable of blocking unwanted syscall and filesystem access.
+---
+
+# Pledge Driver
+
+Name: `pledge`
+
+The `pledge` driver executes programs similar to `exec` or `raw_exec`, but
+provides sandboxing by restricting syscalls the process is allowed to make.
+The `pledge` driver uses the [Landlock LSM][landlock] to restrict filesystem
+access, which can be significantly more efficient than creating a `chroot`.
+Isolation of CPU and memory resources is provided by leveraging features of
+cgroups v2. Network, PID, and IPC isolation is powered by Linux namespaces.
+
+Source on [GitHub][repository]
+
+Downloads on GitHub [releases][releases]
+
+#### Use cases
+
+The `pledge` driver is intended as a replacement for `raw_exec`. Sometimes
+there are those management tasks that just need to be run as `root` and directly
+access the filesystem or perform privileged operations. While `raw_exec`
+provides no isolation, the `pledge` driver uses Landlock to restrict the files
+or directories the task is allowed to access and modify. Specific groups of
+system calls are allow-listed in the task configuration, greatly reducing the
+attack surface of a mis-configured or compromised task.
+
+#### About
+
+The `pledge` driver is fundamentally powered by the [pledge utility for Linux]
+[pledge] by Justine Tunney. The driver invokes this `pledge.com` CLI tool along
+with `nsenter` and `unshare` to create a strict sandbox in which to execute a
+given command.
+
+## Task Configuration
+
+```hcl
+task "http" {
+  driver = "pledge"
+  config {
+    command    = "python3"
+    args       = ["-m", "http.server", "${NOMAD_PORT_http}", "--directory", "${NOMAD_TASK_DIR}"]
+    promises   = "stdio rpath inet"
+    unveil     = ["r:/etc/mime.types", "r:${NOMAD_TASK_DIR}"]
+  }
+}
+```
+
+The `pledge` driver supports the following task configuration in the job spec:
+
+- `command` - The command to execute. Must be provided. The driver will search
+  for the command on the `$PATH` of the Nomad Client unless an absolute path
+  is given.
+
+- `args` - (Optional) A list of arguments to the `command`. References to
+  environment variables or any interpolable Nomad variables will be interpolated
+  before launching the task.
+
+- `promises` - A set of promises needed for the command to run. See below for
+  more information.
+
+- `unveil` - (Optional) A list of filepaths and access rights to grant to the
+  command. See below for more information.
+
+- `importance` - (Optional) One of `"lowest"`, `"low"`, `"normal"`, `"high"`,
+  `"highest"`. Indicates the `nice` value with which to run `command` (default
+  is `"normal"`). A lower importance indicates the command should be given a
+  lower priority with regard to CPU time relative to other tasks.
+
+## Syscall Isolation (promises)
+
+When using the `pledge` task driver, by default most syscalls will become
+unavailable. A process that attempts to use an unavailable syscall will receive
+an `EPERM` error from the kernel. By specifying a set of `promises`, additional
+syscalls will be made available to the `command`.
+
+See the complete documetation for [promises][promises].
+
+| Promise | Description |
+| ------- | ------------|
+| `stdio` | allow stdio, threads, and benign system calls |
+| `rpath` | allow filesystem read operations |
+| `wpath` | allow filesystem write operations |
+| `cpath` | allow filesystem create operations |
+| `dpath` | allow creation of special files |
+| `flock` | allow file locking |
+| `tty` | allow terminal ioctls |
+| `recvfd` | allow recvmsg |
+| `sendfd` | allow sendmsg |
+| `fattr` | allow changing some struct stat bits |
+| `inet` | allow IPv4 and IPv6 |
+| `unix` | allow using Unix Domain Sockets |
+| `dns` | allow DNS |
+| `proc` | allow fork process creation and control |
+| `id` | allow setuid and friends |
+| `exec` | allow executing binaries |
+| `prot_exec` | allow creating executable memory |
+| `vminfo` | allow operations around reading `/proc` |
+| `tmppath` | allow access to `/tmp` |
+
+## Filesystem Isolation (unveil)
+
+By default the `command` will not be able to access the filesystem. Using some
+promises will implicitly allow access to specific parts of the filesystem where
+applicable. The `unveil` configuration is used to grant access to additional
+filesytem paths at a specified permission level.
+
+The format of the `unveil` parameter is a list of paths and associated
+permissions. Permissions can be any combination of `r`, `w`, `c` and `x` for
+read, write, create and execute privileges.
+
+Note that reading a file also requires the `rpath` promise, writing a file
+requires the `wpath` promise, creating a file requires the `cpath` promise, and
+executing a program requires the `exec` promise.
+
+#### Examples
+
+This example allows reading of the `/srv/www` directory.
+
+```hcl
+unveil = ["r:/srv/www"]
+```
+
+This example allows executing `/opt/bin/program` and reading `/etc/prog.d`.
+
+```hcl
+unveil = ["x:/opt/bin/program", "r:/etc/prog.d"]
+```
+
+It can be useful to `unveil` the Nomad Task Directory, which can be done by
+specifying the interpolation value.
+
+```hcl
+unveil = ["rwc:${NOMAD_TASK_DIR}"]
+```
+
+## Networking
+
+The `pledge` driver supports `none`, `host`, and `group` networking modes.
+
+#### host networking
+
+If using `host` networking mode, it can be very convenient to bless the
+[pledge][pledge] utility with the `cap_net_bind_service` Linux capability. This will
+enable Nomad tasks using the pledge driver to bind to privileged ports (i.e.
+below 1024) while using host networking mode.
+
+```shell-session
+sudo setcap cap_net_bind_service+eip /opt/bin/pledge-1.8.com
+```
+
+For convenience the `driver.pledge.cap.net_bind` Client attribute will indicate
+whether the Linux capability is set on the executable.
+
+#### bridge networking
+
+If using `bridge` networking mode, be sure to install the standard [CNI plugins]
+[cni] as required by the Nomad client.
+
+## Client Requirements
+
+The `pledge` driver requires the following:
+
+- 64-bit amd64 Linux host
+  - kernel version 5.13+
+  - cgroups v2 enabled
+- The `pledge` driver binary placed in [plugin_dir][plugin_dir]
+- The `pledge.com` utility executable on the host
+
+## Plugin Options
+
+- `pledge_executable` - The path to the `pledge.com` binary. The pledge utility
+can be [downloaded][download] directly from its creator, or compiled manually
+from [source][pledge_github].
+
+```hcl
+plugin "nomad-pledge-driver" {
+  config {
+    pledge_executable = "/opt/bin/pledge-1.8.com"
+  }
+}
+```
+
+## Client Attributes
+
+The `pledge` driver will set the following Client attributes:
+
+| Attribute | Description |
+| ----------| ----------- |
+| `driver.pledge` | set to `1` if the driver is enabled |
+| `driver.pledge.abs` | the absolute path to the pledge.com utility |
+| `driver.pledge.cap.net_bind` | indicates whether the NET_BIND linux capability is set |
+| `driver.pledge.os` | the detected operating system |
+
+## Resource Isolation
+
+CPU and memory resource isolation is enforced by cgroups v2 features, and is
+configured through the resources block in task configuration.
+
+```hcl
+resources {
+  cores  = 3
+  memory = 512
+}
+```
+
+#### cpu bandwidth
+
+The `pledge` driver always enforces a maximum CPU bandwidth available to the
+task. The bandwidth is calculated whether `resources.cpu` or `resources.cores`
+is configured.
+
+If `resources.cores` is set, the scheduler reserves that many CPU cores for use
+by the task, and only this task will be able to run on those cores.
+
+#### memory oversubscription
+
+If the Nomad scheduler is configured to enable memory [oversubscription]
+[oversub], the `pledge` driver will enable configuring `memory_max` in addition
+to `memory`. In this case, `memory_max` indicates the maximum amount of memory
+the task is able to request before being OOM killed, and `memory` represents a
+minimum amount of memory the kernel will guarantee is available for the Task.
+
+```hcl
+resources {
+  cpu        = 2000
+  memory     = 1024
+  memory_max = 2048
+}
+```
+
+## Capabilities
+
+The `pledge` driver implements the following [capabilities][capabilities].
+
+| Feature              | Implementation    |
+| ------------         | ------------------|
+| send signals         | true              |
+| exec                 | false             |
+| filesystem isolation | none (landlock)   |
+| network isolation    | host, group, none |
+| volume mounting      | false             |
+
+For sending signals, use the `nomad alloc signal` command.
+
+## Examples
+
+A larger set of examples are available in the [source][hack] repository.
+
+Showing how to `curl example.com`.
+
+```hcl
+job "curl" {
+  type = "batch"
+  group "group" {
+    task "curl" {
+      driver = "pledge"
+      user   = "nobody"
+      config {
+        command  = "curl"
+        args     = ["example.com"]
+        promises = "stdio rpath inet dns sendfd"
+      }
+    }
+  }
+}
+```
+
+An example using the Python built-in HTTP server to render a trivial web page.
+
+```hcl
+job "http" {
+  group "group" {
+    network {
+      mode = "host"
+      port "http" { static = 8181 }
+    }
+
+    task "task" {
+      driver = "pledge"
+      user   = "nobody"
+      config {
+        command    = "python3"
+        args       = ["-m", "http.server", "${NOMAD_PORT_http}", "--directory", "${NOMAD_TASK_DIR}"]
+        promises   = "stdio rpath inet"
+        unveil     = ["r:/etc/mime.types", "r:${NOMAD_TASK_DIR}"]
+      }
+
+      template {
+        destination = "local/index.html"
+        data        = <<EOH
+<!doctype html>
+<html>
+  <title>example</title>
+  <body><p>Hello, friend!</p></body>
+</html>
+EOH
+      }
+    }
+  }
+}
+```
+
+## Troubleshooting
+
+When setting up a new Task using the `nomad-pledge-driver` task driver, it
+helps to run the command manually using the `pledge` utility to make sure the
+necessary promises and unveil paths are well understood. To figure out which
+syscalls process needs to make, it can be run under `strace -ff`. When a syscall
+is blocked, you'll see `"EPERM (Operation not permitted)"`
+
+```shell-session
+strace -ff /opt/bin/pledge-1.8.com -p "stdio rpath inet" -- curl example.com
+```
+
+[capabilities]: /nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error
+[cni]: https://developer.hashicorp.com/nomad/docs/install
+[download]: https://justine.lol/pledge/#download
+[hack]: https://github.com/shoenig/nomad-pledge-driver/tree/main/hack
+[landlock]: https://docs.kernel.org/security/landlock.html
+[oversub]: https://developer.hashicorp.com/nomad/api-docs/operator/scheduler#memoryoversubscriptionenabled-1
+[pledge]: https://justine.lol/pledge/
+[pledge_github]: https://github.com/jart/pledge
+[plugin_dir]: /nomad/docs/configuration#plugin_dir
+[promises]: https://justine.lol/pledge/#promises
+[repository]: https://github.com/shoenig/nomad-pledge-driver
+[releases]: https://github.com/shoenig/nomad-pledge-driver/releases
+
