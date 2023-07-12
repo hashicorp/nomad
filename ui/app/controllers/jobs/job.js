@@ -11,6 +11,7 @@ import { inject as service } from '@ember/service';
 export default class JobController extends Controller {
   @service router;
   @service notifications;
+  @service store;
   queryParams = [
     {
       jobNamespace: 'namespace',
@@ -34,6 +35,7 @@ export default class JobController extends Controller {
         color: 'critical',
         sticky: true,
       });
+      this.store.unloadRecord(this.job);
       this.router.transitionTo('jobs');
     }
   }
