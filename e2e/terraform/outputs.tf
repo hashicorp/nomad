@@ -1,12 +1,9 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 output "servers" {
   value = aws_instance.server.*.public_ip
 }
 
 output "linux_clients" {
-  value = aws_instance.client_ubuntu_jammy_amd64.*.public_ip
+  value = aws_instance.client_ubuntu_bionic_amd64.*.public_ip
 }
 
 output "windows_clients" {
@@ -31,7 +28,7 @@ ssh into servers with:
 
 ssh into clients with:
 
-%{for ip in aws_instance.client_ubuntu_jammy_amd64.*.public_ip~}
+%{for ip in aws_instance.client_ubuntu_bionic_amd64.*.public_ip~}
     ssh -i keys/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
 %{for ip in aws_instance.client_windows_2016_amd64.*.public_ip~}

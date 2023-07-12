@@ -1,12 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package executor
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -181,14 +179,14 @@ func (nopCloser) Close() error { return nil }
 // Stdout returns a writer for the configured file descriptor
 func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 	if c.stdout == nil {
-		if c.StdoutPath != "" && c.StdoutPath != os.DevNull {
+		if c.StdoutPath != "" {
 			f, err := fifo.OpenWriter(c.StdoutPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stdout: %v", err)
 			}
 			c.stdout = f
 		} else {
-			c.stdout = nopCloser{io.Discard}
+			c.stdout = nopCloser{ioutil.Discard}
 		}
 	}
 	return c.stdout, nil
@@ -197,14 +195,14 @@ func (c *ExecCommand) Stdout() (io.WriteCloser, error) {
 // Stderr returns a writer for the configured file descriptor
 func (c *ExecCommand) Stderr() (io.WriteCloser, error) {
 	if c.stderr == nil {
-		if c.StderrPath != "" && c.StderrPath != os.DevNull {
+		if c.StderrPath != "" {
 			f, err := fifo.OpenWriter(c.StderrPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create stderr: %v", err)
 			}
 			c.stderr = f
 		} else {
-			c.stderr = nopCloser{io.Discard}
+			c.stderr = nopCloser{ioutil.Discard}
 		}
 	}
 	return c.stderr, nil

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -213,40 +210,6 @@ func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error)
 	}
 
 	return mostRecentServer, nil
-}
-
-// forwardClientRPC forwards the RPC specified by method to the node specified
-// by nodeID. Must be done after region forwarding, metrics, and permissions
-// checks.
-//
-// This is a wrapper method for getNodeForRpc, getNodeConn, etc that Client
-// RPCs which only need Servers to forward requests can use.
-func (s *Server) forwardClientRPC(method, nodeID string, args, reply any) error {
-	if nodeID == "" {
-		return errors.New("missing NodeID")
-	}
-
-	// Check if the node even exists and is compatible with NodeRpc
-	snap, err := s.State().Snapshot()
-	if err != nil {
-		return err
-	}
-
-	// Make sure Node is new enough to support RPC
-	_, err = getNodeForRpc(snap, nodeID)
-	if err != nil {
-		return err
-	}
-
-	// Get the connection to the client
-	state, ok := s.getNodeConn(nodeID)
-	if !ok {
-		// Make the RPC via another server
-		return findNodeConnAndForward(s, nodeID, method, args, reply)
-	}
-
-	// Make the RPC
-	return NodeRpc(state.Session, method, args, reply)
 }
 
 // NodeRpc is used to make an RPC call to a node. The method takes the

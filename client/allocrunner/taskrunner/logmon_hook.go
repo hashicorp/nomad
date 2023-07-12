@@ -1,13 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -19,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -45,7 +42,6 @@ type logmonHook struct {
 
 type logmonHookConfig struct {
 	logDir     string
-	disabled   bool
 	stdoutFifo string
 	stderrFifo string
 }
@@ -60,19 +56,10 @@ func newLogMonHook(tr *TaskRunner, logger hclog.Logger) *logmonHook {
 	return hook
 }
 
-func newLogMonHookConfig(taskName string, logCfg *structs.LogConfig, logDir string) *logmonHookConfig {
+func newLogMonHookConfig(taskName, logDir string) *logmonHookConfig {
 	cfg := &logmonHookConfig{
-		logDir:   logDir,
-		disabled: logCfg.Disabled,
+		logDir: logDir,
 	}
-
-	// If logging is disabled configure task's stdout/err to point to devnull
-	if logCfg.Disabled {
-		cfg.stdoutFifo = os.DevNull
-		cfg.stderrFifo = os.DevNull
-		return cfg
-	}
-
 	if runtime.GOOS == "windows" {
 		id := uuid.Generate()[:8]
 		cfg.stdoutFifo = fmt.Sprintf("//./pipe/%s-%s.stdout", taskName, id)
@@ -115,7 +102,9 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+
 	if h.isLoggingDisabled() {
+		h.logger.Debug("logging is disabled by driver")
 		return nil
 	}
 
@@ -151,18 +140,13 @@ func (h *logmonHook) Prestart(ctx context.Context,
 }
 
 func (h *logmonHook) isLoggingDisabled() bool {
-	if h.config.disabled {
-		h.logger.Debug("log collection is disabled by task")
-		return true
+	ic, ok := h.runner.driver.(drivers.InternalCapabilitiesDriver)
+	if !ok {
+		return false
 	}
 
-	caps := h.runner.driverCapabilities
-	if caps != nil && caps.DisableLogCollection {
-		h.logger.Debug("log collection is disabled by driver")
-		return true
-	}
-
-	return false
+	caps := ic.InternalCapabilities()
+	return caps.DisableLogCollection
 }
 
 func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPrestartRequest) error {
@@ -210,9 +194,6 @@ func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPr
 }
 
 func (h *logmonHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, _ *interfaces.TaskStopResponse) error {
-	if h.isLoggingDisabled() {
-		return nil
-	}
 
 	// It's possible that Stop was called without calling Prestart on agent
 	// restarts. Attempt to reattach to an existing logmon.

@@ -1,15 +1,12 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#if this.job.hasPlacementFailures}}
-  <Hds::Alert @type="inline" @color="critical" data-test-placement-failures class="boxed-section placement-failures" as |A|>
-    <A.Title>Placement Failures</A.Title>
-    <A.Description>
+  <div class="boxed-section is-danger" data-test-placement-failures>
+    <div class="boxed-section-head">
+      Placement Failures
+    </div>
+    <div class="boxed-section-body">
       {{#each this.job.taskGroups as |taskGroup|}}
         <PlacementFailure @taskGroup={{taskGroup}} />
       {{/each}}
-    </A.Description>
-  </Hds::Alert>
+    </div>
+  </div>
 {{/if}}

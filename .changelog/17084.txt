@@ -1,3 +1,0 @@
-```release-note:improvement
-agent: Display server node ID in agent configuration at startup
-```

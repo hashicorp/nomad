@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskenv
 
 import (
@@ -125,9 +122,6 @@ const (
 
 	// VaultNamespace is the environment variable for passing the Vault namespace, if applicable
 	VaultNamespace = "VAULT_NAMESPACE"
-
-	// WorkloadToken is the environment variable for passing the Nomad Workload Identity token
-	WorkloadToken = "NOMAD_TOKEN"
 )
 
 // The node values that can be interpreted.
@@ -412,27 +406,25 @@ type Builder struct {
 	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
 	clientTaskSecretsDir string
 
-	cpuCores            string
-	cpuLimit            int64
-	memLimit            int64
-	memMaxLimit         int64
-	taskName            string
-	allocIndex          int
-	datacenter          string
-	cgroupParent        string
-	namespace           string
-	region              string
-	allocId             string
-	allocName           string
-	groupName           string
-	vaultToken          string
-	vaultNamespace      string
-	injectVaultToken    bool
-	workloadToken       string
-	injectWorkloadToken bool
-	jobID               string
-	jobName             string
-	jobParentID         string
+	cpuCores         string
+	cpuLimit         int64
+	memLimit         int64
+	memMaxLimit      int64
+	taskName         string
+	allocIndex       int
+	datacenter       string
+	cgroupParent     string
+	namespace        string
+	region           string
+	allocId          string
+	allocName        string
+	groupName        string
+	vaultToken       string
+	vaultNamespace   string
+	injectVaultToken bool
+	jobID            string
+	jobName          string
+	jobParentID      string
 
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
@@ -573,11 +565,6 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Build the Vault Namespace
 	if b.injectVaultToken && b.vaultNamespace != "" {
 		envMap[VaultNamespace] = b.vaultNamespace
-	}
-
-	// Build the Nomad Workload Token
-	if b.injectWorkloadToken && b.workloadToken != "" {
-		envMap[WorkloadToken] = b.workloadToken
 	}
 
 	// Copy and interpolate task meta
@@ -1027,14 +1014,6 @@ func (b *Builder) SetVaultToken(token, namespace string, inject bool) *Builder {
 	b.vaultToken = token
 	b.vaultNamespace = namespace
 	b.injectVaultToken = inject
-	b.mu.Unlock()
-	return b
-}
-
-func (b *Builder) SetWorkloadToken(token string, inject bool) *Builder {
-	b.mu.Lock()
-	b.workloadToken = token
-	b.injectWorkloadToken = inject
 	b.mu.Unlock()
 	return b
 }

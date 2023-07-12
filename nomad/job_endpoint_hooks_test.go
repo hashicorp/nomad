@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -8,7 +5,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -720,89 +716,4 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			require.Equal(t, tc.expectedOutputError, actualError)
 		})
 	}
-}
-
-func Test_jobCanonicalizer_Mutate(t *testing.T) {
-	ci.Parallel(t)
-
-	serverJobDefaultPriority := 100
-
-	testCases := []struct {
-		name              string
-		inputJob          *structs.Job
-		expectedOutputJob *structs.Job
-	}{
-		{
-			name: "no mutation",
-			inputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    123,
-			},
-			expectedOutputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    123,
-			},
-		},
-		{
-			name: "when priority is 0 mutate using the value present in the server config",
-			inputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    0,
-			},
-			expectedOutputJob: &structs.Job{
-				Namespace:   "default",
-				Datacenters: []string{"*"},
-				Priority:    serverJobDefaultPriority,
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			impl := jobCanonicalizer{srv: &Server{config: &Config{JobDefaultPriority: serverJobDefaultPriority}}}
-			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
-			must.Eq(t, tc.expectedOutputJob, actualJob)
-			must.NoError(t, actualError)
-			must.Nil(t, actualWarnings)
-		})
-	}
-}
-
-func TestJob_submissionController(t *testing.T) {
-	ci.Parallel(t)
-	args := &structs.JobRegisterRequest{
-		Submission: &structs.JobSubmission{
-			Source:    "this is some hcl content",
-			Format:    "hcl2",
-			Variables: "variables",
-		},
-	}
-	t.Run("nil", func(t *testing.T) {
-		j := &Job{srv: &Server{
-			config: &Config{JobMaxSourceSize: 1024},
-		}}
-		err := j.submissionController(&structs.JobRegisterRequest{
-			Submission: nil,
-		})
-		must.NoError(t, err)
-	})
-	t.Run("under max size", func(t *testing.T) {
-		j := &Job{srv: &Server{
-			config: &Config{JobMaxSourceSize: 1024},
-		}}
-		err := j.submissionController(args)
-		must.NoError(t, err)
-		must.NotNil(t, args.Submission)
-	})
-
-	t.Run("over max size", func(t *testing.T) {
-		j := &Job{srv: &Server{
-			config: &Config{JobMaxSourceSize: 1},
-		}}
-		err := j.submissionController(args)
-		must.ErrorContains(t, err, "job source size of 33 B exceeds maximum of 1 B and will be discarded")
-		must.Nil(t, args.Submission)
-	})
 }

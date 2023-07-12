@@ -73,12 +73,6 @@ On a single server, install the new version of Nomad. You can do this by
 joining a new server to the cluster or by replacing or upgrading the binary
 locally and restarting the Nomad service.
 
-Note that if you have [`leave_on_terminate`][] or [`leave_on_interrupt`][] set,
-you should ensure you're using the expected signal for your upgrade process. For
-example, if you have `leave_on_terminate` set and you intend on updating a
-server in-place, you should `SIGINT` and not `SIGTERM` when shutting down the
-server before restarting it.
-
 ### 2. Check cluster health
 
 [Monitor the Nomad logs][monitor] on the remaining servers to check that the
@@ -147,14 +141,7 @@ are in a `ready` state.
 
 ## Upgrading to Nomad Enterprise
 
-Before upgrading servers to Nomad Enterprise versions 1.6.0 and later,
-you should validate your enterprise license with the
-[`nomad license inspect` command](/nomad/docs/commands/license/inspect)
-using the binary that you are upgrading to.
-See the [licensing FAQ](/nomad/docs/enterprise/license/faq)
-for more information.
-
-After that, the process of upgrading to a Nomad Enterprise version is identical to upgrading
+The process of upgrading to a Nomad Enterprise version is identical to upgrading
 between versions of open source Nomad. The same guidance above should be
 followed and as always, prior to starting the upgrade please check the [specific
 version details](/nomad/docs/upgrade/upgrade-specific) page as some version
@@ -221,10 +208,10 @@ elections that will slow down the process:
 
 If you are running a single Nomad server, restarting it in-place will
 result in that server not being able to elect itself as a leader. To
-avoid this, create a new [`peers.json`][peers-json] file before
+avoid this, create a new [`raft.peers`][peers-json] file before
 restarting the server with the new configuration. If you have `jq`
 installed you can run the following script on the server's host to
-write the correct `peers.json` file:
+write the correct `raft.peers` file:
 
 ```
 #!/usr/bin/env bash
@@ -250,5 +237,3 @@ configuration to `3` and restart the server.
 
 [peers-json]: /nomad/tutorials/manage-clusters/outage-recovery#manual-recovery-using-peersjson
 [`raft_protocol`]: /nomad/docs/configuration/server#raft_protocol
-[`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
-[`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate

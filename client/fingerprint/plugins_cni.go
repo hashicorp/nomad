@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -43,28 +40,24 @@ func (f *PluginsCNIFingerprint) Fingerprint(req *FingerprintRequest, resp *Finge
 		return nil
 	}
 
-	// cniPath could be a multi-path, e.g. /opt/cni/bin:/custom/cni/bin
-	cniPathList := filepath.SplitList(cniPath)
-	for _, cniPath = range cniPathList {
-		// list the cni_path directory
-		entries, err := f.lister(cniPath)
-		switch {
-		case err != nil:
-			f.logger.Warn("failed to read CNI plugins directory", "cni_path", cniPath, "error", err)
-			resp.Detected = false
-			return nil
-		case len(entries) == 0:
-			f.logger.Debug("no CNI plugins found", "cni_path", cniPath)
-			resp.Detected = true
-			return nil
-		}
+	// list the cni_path directory
+	entries, err := f.lister(cniPath)
+	switch {
+	case err != nil:
+		f.logger.Warn("failed to read CNI plugins directory", "cni_path", cniPath, "error", err)
+		resp.Detected = false
+		return nil
+	case len(entries) == 0:
+		f.logger.Debug("no CNI plugins found", "cni_path", cniPath)
+		resp.Detected = true
+		return nil
+	}
 
-		// for each file in cni_path, detect executables and try to get their version
-		for _, entry := range entries {
-			v, ok := f.detectOnePlugin(cniPath, entry)
-			if ok {
-				resp.AddAttribute(f.attribute(entry.Name()), v)
-			}
+	// for each file in cni_path, detect executables and try to get their version
+	for _, entry := range entries {
+		v, ok := f.detectOne(cniPath, entry)
+		if ok {
+			resp.AddAttribute(f.attribute(entry.Name()), v)
 		}
 	}
 
@@ -77,7 +70,7 @@ func (f *PluginsCNIFingerprint) attribute(filename string) string {
 	return fmt.Sprintf("%s.%s", cniPluginAttribute, filename)
 }
 
-func (f *PluginsCNIFingerprint) detectOnePlugin(pluginPath string, entry os.DirEntry) (string, bool) {
+func (f *PluginsCNIFingerprint) detectOne(cniPath string, entry os.DirEntry) (string, bool) {
 	fi, err := entry.Info()
 	if err != nil {
 		f.logger.Debug("failed to read cni directory entry", "error", err)
@@ -89,7 +82,7 @@ func (f *PluginsCNIFingerprint) detectOnePlugin(pluginPath string, entry os.DirE
 		return "", false // not executable
 	}
 
-	exePath := filepath.Join(pluginPath, fi.Name())
+	exePath := filepath.Join(cniPath, fi.Name())
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

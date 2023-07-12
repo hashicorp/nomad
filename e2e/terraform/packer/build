@@ -10,8 +10,7 @@ Usage: build <target>
 Build an AMI for the target configuration
 
 Examples
-  build ubuntu-jammy-amd64
-  build windows-2016-amd64
+  build ubuntu-bionic-amd64
 
 EOF
 

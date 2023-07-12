@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 rules:
   # Check `require` or `assert` testify overrides.
   # https://semgrep.dev/s/PgAq

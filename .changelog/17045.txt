@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: use full docker.io prefixed name for envoy image references
-```

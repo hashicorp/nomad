@@ -1,12 +1,7 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 $queued: $grey-lighter;
 $starting: $grey-lighter;
 $running: $primary;
-$complete: $nomad-green-pale;
+$complete: $nomad-green-dark;
 $failed: $danger;
 $lost: $dark;
 $not-scheduled: $blue-200;

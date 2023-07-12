@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -14,12 +11,15 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var _ cli.Command = (*AllocLogsCommand)(nil)
+func TestLogsCommand_Implements(t *testing.T) {
+	ci.Parallel(t)
+	var _ cli.Command = &AllocLogsCommand{}
+}
 
 func TestLogsCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui}}
@@ -72,7 +72,7 @@ func TestLogsCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui, flagAddress: url}}

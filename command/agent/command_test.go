@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -70,10 +67,6 @@ func TestCommand_Args(t *testing.T) {
 		{
 			[]string{"-client", "-data-dir=" + tmpDir, "-meta=invalid.=inaccessible-value"},
 			"Invalid Client.Meta key: invalid.",
-		},
-		{
-			[]string{"-client", "-node-pool=not@valid"},
-			"Invalid node pool",
 		},
 	}
 	for _, tc := range tcases {
@@ -155,7 +148,7 @@ func TestCommand_MetaConfigValidation(t *testing.T) {
 	}
 }
 
-func TestCommand_InvalidCharInDatacenter(t *testing.T) {
+func TestCommand_NullCharInDatacenter(t *testing.T) {
 	ci.Parallel(t)
 
 	tmpDir := t.TempDir()
@@ -164,9 +157,6 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 		"char-\\000-in-the-middle",
 		"ends-with-\\000",
 		"\\000-at-the-beginning",
-		"char-*-in-the-middle",
-		"ends-with-*",
-		"*-at-the-beginning",
 	}
 	for _, tc := range tcases {
 		configFile := filepath.Join(tmpDir, "conf1.hcl")
@@ -198,7 +188,7 @@ func TestCommand_InvalidCharInDatacenter(t *testing.T) {
 		}
 
 		out := ui.ErrorWriter.String()
-		exp := "Datacenter contains invalid characters (null or '*')"
+		exp := "Datacenter contains invalid characters"
 		if !strings.Contains(out, exp) {
 			t.Fatalf("expect to find %q\n\n%s", exp, out)
 		}
@@ -310,26 +300,6 @@ func TestIsValidConfig(t *testing.T) {
 			err: "must be given as an absolute",
 		},
 		{
-			name: "InvalidNodePoolChar",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:  true,
-					NodePool: "not@valid",
-				},
-			},
-			err: "Invalid node pool",
-		},
-		{
-			name: "InvalidNodePoolName",
-			conf: Config{
-				Client: &ClientConfig{
-					Enabled:  true,
-					NodePool: structs.NodePoolAll,
-				},
-			},
-			err: "not allowed",
-		},
-		{
 			name: "NegativeMinDynamicPort",
 			conf: Config{
 				Client: &ClientConfig{
@@ -429,48 +399,6 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 			err: "client.artifact block invalid: http_read_timeout must be > 0",
-		},
-		{
-			name: "BadHostVolumeConfig",
-			conf: Config{
-				DataDir: "/tmp",
-				Client: &ClientConfig{
-					Enabled: true,
-					HostVolumes: []*structs.ClientHostVolumeConfig{
-						{
-							Name:     "test",
-							ReadOnly: true,
-						},
-						{
-							Name:     "test",
-							ReadOnly: true,
-							Path:     "/random/path",
-						},
-					},
-				},
-			},
-			err: "Missing path in host_volume config",
-		},
-		{
-			name: "ValidHostVolumeConfig",
-			conf: Config{
-				DataDir: "/tmp",
-				Client: &ClientConfig{
-					Enabled: true,
-					HostVolumes: []*structs.ClientHostVolumeConfig{
-						{
-							Name:     "test",
-							ReadOnly: true,
-							Path:     "/random/path1",
-						},
-						{
-							Name:     "test",
-							ReadOnly: true,
-							Path:     "/random/path2",
-						},
-					},
-				},
-			},
 		},
 	}
 

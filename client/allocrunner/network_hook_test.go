@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package allocrunner
 
 import (
@@ -14,8 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/testutils"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 // statically assert network hook implements the expected interfaces
@@ -30,7 +26,7 @@ type mockNetworkIsolationSetter struct {
 
 func (m *mockNetworkIsolationSetter) SetNetworkIsolation(spec *drivers.NetworkIsolationSpec) {
 	m.called = true
-	test.Eq(m.t, m.expectedSpec, spec)
+	require.Exactly(m.t, m.expectedSpec, spec)
 }
 
 type mockNetworkStatusSetter struct {
@@ -41,19 +37,20 @@ type mockNetworkStatusSetter struct {
 
 func (m *mockNetworkStatusSetter) SetNetworkStatus(status *structs.AllocNetworkStatus) {
 	m.called = true
-	test.Eq(m.t, m.expectedStatus, status)
+	require.Exactly(m.t, m.expectedStatus, status)
 }
 
-// Test that the prerun and postrun hooks call the setter with the expected
-// NetworkIsolationSpec for group bridge network.
-func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
+// Test that the prerun and postrun hooks call the setter with the expected spec when
+// the network mode is not host
+func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
 	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{
-		{Mode: "bridge"},
+		{
+			Mode: "bridge",
+		},
 	}
-
 	spec := &drivers.NetworkIsolationSpec{
 		Mode:   drivers.NetIsolationModeGroup,
 		Path:   "test",
@@ -64,14 +61,14 @@ func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
 	nm := &testutils.MockDriver{
 		MockNetworkManager: testutils.MockNetworkManager{
 			CreateNetworkF: func(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
-				test.Eq(t, alloc.ID, allocID)
+				require.Equal(t, alloc.ID, allocID)
 				return spec, false, nil
 			},
 
 			DestroyNetworkF: func(allocID string, netSpec *drivers.NetworkIsolationSpec) error {
 				destroyCalled = true
-				test.Eq(t, alloc.ID, allocID)
-				test.Eq(t, spec, netSpec)
+				require.Equal(t, alloc.ID, allocID)
+				require.Exactly(t, spec, netSpec)
 				return nil
 			},
 		},
@@ -84,56 +81,26 @@ func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
 		t:              t,
 		expectedStatus: nil,
 	}
+	require := require.New(t)
 
 	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
 	logger := testlog.HCLogger(t)
 	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
-	must.NoError(t, hook.Prerun())
-	must.True(t, setter.called)
-	must.False(t, destroyCalled)
-	must.NoError(t, hook.Postrun())
-	must.True(t, destroyCalled)
-}
+	require.NoError(hook.Prerun())
+	require.True(setter.called)
+	require.False(destroyCalled)
+	require.NoError(hook.Postrun())
+	require.True(destroyCalled)
 
-// Test that prerun and postrun hooks do not expect a NetworkIsolationSpec
-func TestNetworkHook_Prerun_Postrun_host(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{
-		{Mode: "host"},
-	}
-
-	destroyCalled := false
-	nm := &testutils.MockDriver{
-		MockNetworkManager: testutils.MockNetworkManager{
-			CreateNetworkF: func(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
-				test.Unreachable(t, test.Sprintf("should not call CreateNetwork for host network"))
-				return nil, false, nil
-			},
-
-			DestroyNetworkF: func(allocID string, netSpec *drivers.NetworkIsolationSpec) error {
-				destroyCalled = true
-				test.Nil(t, netSpec)
-				return nil
-			},
-		},
-	}
-	setter := &mockNetworkIsolationSetter{
-		t:            t,
-		expectedSpec: nil,
-	}
-	statusSetter := &mockNetworkStatusSetter{
-		t:              t,
-		expectedStatus: nil,
-	}
-
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
-	must.NoError(t, hook.Prerun())
-	must.False(t, setter.called)
-	must.False(t, destroyCalled)
-	must.NoError(t, hook.Postrun())
-	must.True(t, destroyCalled)
+	// reset and use host network mode
+	setter.called = false
+	destroyCalled = false
+	alloc.Job.TaskGroups[0].Networks[0].Mode = "host"
+	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
+	require.NoError(hook.Prerun())
+	require.False(setter.called)
+	require.False(destroyCalled)
+	require.NoError(hook.Postrun())
+	require.False(destroyCalled)
 }

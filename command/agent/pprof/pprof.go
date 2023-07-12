@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package profile is meant to be a near identical implemenation of
 // https://golang.org/src/net/http/pprof/pprof.go
 // It's purpose is to provide a way to accommodate the RPC endpoint style

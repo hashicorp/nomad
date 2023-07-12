@@ -1,11 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -39,8 +35,9 @@ func newEnvoyVersionHookConfig(alloc *structs.Allocation, proxiesClient consul.S
 
 // envoyVersionHook is used to determine and set the Docker image used for Consul
 // Connect sidecar proxy tasks. It will query Consul for a set of preferred Envoy
-// versions if the task image is unset or references ${NOMAD_envoy_version}. If
-// Consul does not report its supported envoy versions then the hood will fail.
+// versions if the task image is unset or references ${NOMAD_envoy_version}. Nomad
+// will fallback the image to the previous default Envoy v1.11.2 if Consul is too old
+// to support the supported proxies API.
 type envoyVersionHook struct {
 	// alloc is the allocation with the envoy task being rewritten.
 	alloc *structs.Allocation
@@ -67,7 +64,7 @@ func (_ *envoyVersionHook) Name() string {
 
 func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestartRequest, _ *ifs.TaskPrestartResponse) error {
 	// First interpolation of the task image. Typically this turns the default
-	// ${meta.connect.sidecar_task} into docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
+	// ${meta.connect.sidecar_task} into envoyproxy/envoy:v${NOMAD_envoy_version}
 	// but could be a no-op or some other value if so configured.
 	h.interpolateImage(request.Task, request.TaskEnv)
 
@@ -122,6 +119,8 @@ func (_ *envoyVersionHook) interpolateImage(task *structs.Task, env *taskenv.Tas
 // its envoy proxy version resolved automatically.
 func (h *envoyVersionHook) skip(request *ifs.TaskPrestartRequest) bool {
 	switch {
+	case request.Task.Driver != "docker":
+		return true
 	case !request.Task.UsesConnectSidecar():
 		return true
 	case !h.needsVersion(request.Task.Config):
@@ -156,21 +155,17 @@ func (h *envoyVersionHook) needsVersion(config map[string]interface{}) bool {
 		return false
 	}
 
-	if _, exists := config["image"]; !exists {
-		return false
-	}
-
 	image := h.taskImage(config)
 
 	return strings.Contains(image, envoy.VersionVar)
 }
 
-// tweakImage determines the best Envoy version to use. If no supported versions were
-// detected from the Consul API just return an error.
+// tweakImage determines the best Envoy version to use. If supported is nil or empty
+// Nomad will fallback to the legacy envoy image used before Nomad v1.0.
 func (h *envoyVersionHook) tweakImage(configured string, supported map[string][]string) (string, error) {
 	versions := supported["envoy"]
 	if len(versions) == 0 {
-		return "", errors.New("Consul did not report any supported envoy versions")
+		return envoy.FallbackImage, nil
 	}
 
 	latest, err := semver(versions[0])

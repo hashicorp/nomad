@@ -1,37 +1,19 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { DATACENTERS } from '../common';
-import { scenario } from '../scenarios/default';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const AGENT_STATUSES = ['alive', 'leaving', 'left', 'failed'];
-const AGENT_BUILDS = [
-  '1.1.0-beta',
-  '1.0.2-alpha+ent',
-  ...provide(5, faker.system.semver),
-];
+const AGENT_BUILDS = ['1.1.0-beta', '1.0.2-alpha+ent', ...provide(5, faker.system.semver)];
 
 export default Factory.extend({
-  id: (i) => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
+  id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
 
   name: () => generateName(),
 
   config: {
     UI: {
-      Enabled: true,
-      Label: {
-        TextColor: 'white',
-        BackgroundColor: 'hotpink',
-        Text: `Mirage - ${scenario}`,
-      },
-    },
-    ACL: {
       Enabled: true,
     },
     Version: {
@@ -74,9 +56,7 @@ export default Factory.extend({
 });
 
 function generateName() {
-  return `nomad@${
-    faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6()
-  }`;
+  return `nomad@${faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6()}`;
 }
 
 function generateAddress(name) {
@@ -86,8 +66,7 @@ function generateAddress(name) {
 function generateTags(serfPort) {
   const rpcPortCandidate = faker.random.number({ min: 4000, max: 4999 });
   return {
-    port:
-      rpcPortCandidate === serfPort ? rpcPortCandidate + 1 : rpcPortCandidate,
+    port: rpcPortCandidate === serfPort ? rpcPortCandidate + 1 : rpcPortCandidate,
     dc: faker.helpers.randomize(DATACENTERS),
     build: faker.helpers.randomize(AGENT_BUILDS),
   };

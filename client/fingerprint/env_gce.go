@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -97,7 +94,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 	}
 
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    parsedUrl,
 		Header: http.Header{
 			"Metadata-Flavor": []string{"Google"},
@@ -121,7 +118,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 		return "", err
 	}
 
-	if res.StatusCode >= 400 {
+	if res.StatusCode >= http.StatusBadRequest {
 		return "", ReqError{res.StatusCode}
 	}
 

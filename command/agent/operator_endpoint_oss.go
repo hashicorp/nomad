@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !ent
 // +build !ent
 
@@ -12,10 +9,10 @@ import (
 
 func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		resp.WriteHeader(http.StatusNoContent)
 		return nil, nil
-	case "PUT":
+	case http.MethodPut:
 		return nil, CodedError(501, ErrEntOnly)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)

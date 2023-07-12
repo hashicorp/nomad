@@ -1,17 +1,12 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 @import './components/accordion';
-@import './components/badge-nomad-internal';
+@import './components/badge';
 @import './components/boxed-section';
 @import './components/codemirror';
 @import './components/copy-button';
 @import './components/cli-window';
 @import './components/das-interstitial';
 @import './components/dashboard-metric';
-@import './components/dropdown-nomad-internal';
+@import './components/dropdown';
 @import './components/ember-power-select';
 @import './components/empty-message';
 @import './components/error-container';
@@ -48,14 +43,10 @@
 @import './components/timeline';
 @import './components/toggle';
 @import './components/toolbar';
-@import './components/tooltip_legacy';
+@import './components/tooltip';
 @import './components/two-step-button';
 @import './components/evaluations';
 @import './components/variables';
 @import './components/keyboard-shortcuts-modal';
 @import './components/services';
 @import './components/task-sub-row';
-@import './components/authorization';
-@import './components/policies';
-@import './components/metadata-editor';
-@import './components/job-status-panel';

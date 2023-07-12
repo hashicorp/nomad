@@ -209,7 +209,7 @@ points in the scheduling process.
   shows the number of unacknowledged evaluations for the batch
   scheduler.
 
-- **nomad.broker.total_pending** - The number of pending evaluations in the eval
+- **nomad.broker.total_blocked** - The number of pending evaluations in the eval
   broker. Nomad processes only one evaluation for a given job concurrently. When
   an unacked evaluation is acknowledged, Nomad will discard all but the latest
   evaluation for a job. An increase in this metric may mean that the cluster

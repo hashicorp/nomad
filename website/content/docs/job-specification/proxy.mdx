@@ -60,8 +60,9 @@ job "countdash" {
 - `expose` <code>([expose]: nil)</code> - Used to configure expose path configuration for Envoy.
   See Consul's [Expose Paths Configuration Reference](/consul/docs/connect/registration/service-registration#expose-paths-configuration-reference)
   for more information.
-- `config` `(map: nil)` - Proxy configuration that is opaque to Nomad and
-  passed directly to Consul. See [Consul Connect documentation](/consul/docs/connect/proxies/envoy#dynamic-configuration)
+- `config` `(map: nil)` - Proxy configuration that's opaque to Nomad and
+  passed directly to Consul. See [Consul Connect's
+  documentation](/consul/docs/connect/proxies/envoy#dynamic-configuration)
   for details. Keys and values support [runtime variable interpolation][interpolation].
 
 ## `proxy` Examples

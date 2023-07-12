@@ -1,12 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
-{{#if this.condition}}
-  <span class={{concat "tooltip" (if @isFullText " multiline")}} aria-label={{if @isFullText @text this.text}}>
-    {{yield}}
-  </span>
-{{else}}
+<span class="tooltip" aria-label="{{this.text}}">
   {{yield}}
-{{/if}}
+</span>

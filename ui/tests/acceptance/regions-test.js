@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import { currentURL } from '@ember/test-helpers';
@@ -22,7 +17,6 @@ module('Acceptance | regions (only one)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.createList('job', 2, {
       createAllocations: false,
@@ -41,7 +35,7 @@ module('Acceptance | regions (only one)', function (hooks) {
     await JobsList.visit();
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
-    assert.ok(document.title.includes('Jobs'));
+    assert.equal(document.title, 'Jobs - Nomad');
   });
 
   test('when the only region is not named "global", the region switcher still is not shown', async function (assert) {
@@ -89,7 +83,6 @@ module('Acceptance | regions (many)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.createList('job', 2, {
       createAllocations: false,
@@ -107,7 +100,7 @@ module('Acceptance | regions (many)', function (hooks) {
       Layout.navbar.regionSwitcher.isPresent,
       'Region switcher is shown'
     );
-    assert.ok(document.title.includes('Jobs - global'));
+    assert.equal(document.title, 'Jobs - global - Nomad');
   });
 
   test('when on the default region, pages do not include the region query param', async function (assert) {

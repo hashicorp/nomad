@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import pathTree from 'nomad-ui/utils/path-tree';
 import { module, test } from 'qunit';
 

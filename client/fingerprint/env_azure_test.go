@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -91,7 +88,7 @@ func testFingerprint_Azure(t *testing.T, withExternalIp bool) {
 		}
 
 		if !found {
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
 	defer ts.Close()

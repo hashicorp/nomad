@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package helper
 
 import (
@@ -441,22 +438,22 @@ func IsMethodHTTP(s string) bool {
 	return true
 }
 
-// EqualFunc represents a type implementing the Equal method.
-type EqualFunc[A any] interface {
-	Equal(A) bool
+// EqualsFunc represents a type implementing the Equals method.
+type EqualsFunc[A any] interface {
+	Equals(A) bool
 }
 
-// ElementsEqual returns true if slices a and b contain the same elements (in
-// no particular order) using the Equal function defined on their type for
+// ElementsEquals returns true if slices a and b contain the same elements (in
+// no particular order) using the Equals function defined on their type for
 // comparison.
-func ElementsEqual[T EqualFunc[T]](a, b []T) bool {
+func ElementsEquals[T EqualsFunc[T]](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
 	}
 OUTER:
 	for _, item := range a {
 		for _, other := range b {
-			if item.Equal(other) {
+			if item.Equals(other) {
 				continue OUTER
 			}
 		}
@@ -468,8 +465,8 @@ OUTER:
 // SliceSetEq returns true if slices a and b contain the same elements (in no
 // particular order), using '==' for comparison.
 //
-// Note: for pointers, consider implementing an Equal method and using
-// ElementsEqual instead.
+// Note: for pointers, consider implementing an Equals method and using
+// ElementsEquals instead.
 func SliceSetEq[T comparable](a, b []T) bool {
 	lenA, lenB := len(a), len(b)
 	if lenA != lenB {
@@ -498,14 +495,4 @@ func WithLock(lock sync.Locker, f func()) {
 	lock.Lock()
 	defer lock.Unlock()
 	f()
-}
-
-// Merge takes two variables and returns variable b in case a has zero value.
-// For pointer values please use pointer.Merge.
-func Merge[T comparable](a, b T) T {
-	var zero T
-	if a == zero {
-		return b
-	}
-	return a
 }

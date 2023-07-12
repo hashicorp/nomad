@@ -24,8 +24,6 @@ job "docs" {
 
   datacenters = ["us-east-1"]
 
-  node_pool = "prod"
-
   group "example" {
     # ...
   }
@@ -78,13 +76,8 @@ job "docs" {
   to define criteria for spreading allocations across a node attribute or metadata.
   See the [Nomad spread reference][spread] for more details.
 
-- `datacenters` `(array<string>: ["*"])` - A list of datacenters in the region
-  which are eligible for task placement. This field allows wildcard globbing
-  through the use of `*` for multi-character matching. The default value is
-  `["*"]`, which allows the job to be placed in any available datacenter.
-
-- `node_pool` `(string: <optional>)` - Specifies the node pool to place the job
-  in. The node pool must exist when the job is registered. Defaults to `"default"`.
+- `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
+  for task placement. This must be provided, and does not have a default.
 
 - `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
@@ -110,10 +103,8 @@ job "docs" {
   at fixed times, dates or intervals.
 
 - `priority` `(int: 50)` - Specifies the job priority which is used to
-  prioritize scheduling and access to resources.
-  Must be between 1 and [`job_max_priority`] inclusively,
-  with a larger value corresponding to a higher priority.
-  If value 0 is provided this will fallback to [`job_default_priority`].
+  prioritize scheduling and access to resources. Must be between 1 and 100
+  inclusively, with a larger value corresponding to a higher priority.
   Priority only has an effect when job preemption is enabled.
   It does not have an effect on which of multiple pending jobs is run first.
 
@@ -246,7 +237,7 @@ job "docs" {
 When submitting this job, you would run:
 
 ```shell-session
-$ VAULT_TOKEN="..." nomad job run example.nomad.hcl
+$ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
 [affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
@@ -264,5 +255,3 @@ $ VAULT_TOKEN="..." nomad job run example.nomad.hcl
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [update]: /nomad/docs/job-specification/update 'Nomad update Job Specification'
 [vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
-[`job_max_priority`]: /nomad/docs/configuration/server#job_max_priority
-[`job_default_priority`]: /nomad/docs/configuration/server#job_default_priority

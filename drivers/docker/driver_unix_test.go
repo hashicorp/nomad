@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package docker
@@ -25,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -126,25 +122,25 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	copyImage(t, task.TaskDir(), "busybox.tar")
 
 	_, _, err := d.StartTask(task)
-	must.NoError(t, err)
+	require.NoError(t, err)
 
-	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	defer d.DestroyTask(task.ID, true)
 
 	dockerDriver, ok := d.Impl().(*Driver)
-	must.True(t, ok)
+	require.True(t, ok)
 
 	handle, ok := dockerDriver.tasks.Get(task.ID)
-	must.True(t, ok)
-
-	client := newTestDockerClient(t)
+	require.True(t, ok)
 
 	container, err := client.InspectContainer(handle.containerID)
-	must.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
 	actual := container.HostConfig.NetworkMode
-	must.Eq(t, expected, actual)
+	require.Equal(t, expected, actual)
 }
 
 func TestDockerDriver_CPUCFSPeriod(t *testing.T) {

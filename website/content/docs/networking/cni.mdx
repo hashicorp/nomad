@@ -23,14 +23,6 @@ operating-system agnostic interface to configure workload networking.
 Custom networking in Nomad is accomplished with a combination of CNI plugin
 binaries and CNI configuration files.
 
-## CNI reference plugins
-
-The CNCF maintains a set of reference CNI plugins for basic network operations.
-These plugins are required for Nomad's `bridge` networking mode and for integrating
-with Consul service mesh.
-
-See the Linux [post-install steps][cni_install] for installing CNI reference plugins.
-
 ## CNI plugins
 
 Spec-compliant plugins should work with Nomad, however, it's possible a plugin
@@ -96,7 +88,6 @@ a convenient jumping off point to discuss a worked example.
       "ipMasq": true,
       "isGateway": true,
       "forceAddress": true,
-      "hairpinMode": false,
       "ipam": {
         "type": "host-local",
         "ranges": [
@@ -216,7 +207,6 @@ a unique value for your configuration.
 [`cni_path`]: /nomad/docs/configuration/client#cni_path
 [`mode`]: /nomad/docs/job-specification/network#mode
 [bridge]: https://www.cni.dev/plugins/current/main/bridge/
-[cni_install]: /nomad/docs/install#post-installation-steps
 [cni_ref]: https://github.com/containernetworking/plugins
 [cni_spec]: https://www.cni.dev/docs/spec/
 [cni_spec_net_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format

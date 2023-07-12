@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // This is a very incomplete polyfill for TextDecoder used only
 // by browsers that don't provide one but still provide a ReadableStream
 // interface for fetch.

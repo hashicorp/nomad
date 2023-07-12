@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -10,7 +7,7 @@ import (
 )
 
 func (s *HTTPServer) GarbageCollectRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "PUT" {
+	if req.Method != http.MethodPut {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -27,7 +24,7 @@ func (s *HTTPServer) GarbageCollectRequest(resp http.ResponseWriter, req *http.R
 }
 
 func (s *HTTPServer) ReconcileJobSummaries(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "PUT" {
+	if req.Method != http.MethodPut {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 

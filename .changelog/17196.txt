@@ -1,3 +1,0 @@
-```release-note:improvement
-drivers: Add `DisableLogCollection` to task driver capabilities interface
-```

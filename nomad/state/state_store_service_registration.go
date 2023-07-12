@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -63,7 +60,7 @@ func (s *StateStore) upsertServiceRegistrationTxn(
 	// Set up the indexes correctly to ensure existing indexes are maintained.
 	if existing != nil {
 		exist := existing.(*structs.ServiceRegistration)
-		if exist.Equal(service) {
+		if exist.Equals(service) {
 			return false, nil
 		}
 		service.CreateIndex = exist.CreateIndex

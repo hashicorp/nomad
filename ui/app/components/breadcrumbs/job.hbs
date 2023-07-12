@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <Trigger @onError={{action this.onError}} @do={{this.fetchParent}} as |trigger|>
   {{did-insert trigger.fns.do}}
   {{#if trigger.data.isBusy}}

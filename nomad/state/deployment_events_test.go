@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -30,7 +27,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
 	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()

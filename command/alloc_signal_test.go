@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -22,7 +19,7 @@ func TestAllocSignalCommand_Implements(t *testing.T) {
 func TestAllocSignalCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
@@ -77,7 +74,7 @@ func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -101,7 +98,7 @@ func TestAllocSignalCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	// Wait for a node to be ready
 	waitForNodes(t, client)

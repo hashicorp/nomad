@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { assert } from '@ember/debug';
 import { action } from '@ember/object';
 import BreadcrumbsTemplate from './default';

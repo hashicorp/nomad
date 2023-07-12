@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 //e2e:service script=validate.sh
 job "networking" {
   datacenters = ["dc1", "dc2"]

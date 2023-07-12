@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{page-title "Task " this.model.name}}
 <TaskSubnav @task={{this.model}} />
 <section class="section">
@@ -100,14 +95,6 @@
         </span>
         <span data-test-lifecycle>
           {{this.model.task.lifecycleName}}
-        </span>
-      </span>
-      <span class="pair">
-        <span class="term">
-          Namespace
-        </span>
-        <span>
-          {{this.model.allocation.job.namespace.name}}
         </span>
       </span>
 

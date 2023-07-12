@@ -1,10 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -25,10 +21,7 @@ Usage: nomad job periodic force <job id>
   prohibit_overlap setting.
 
   When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  and 'list-jobs' capabilities for the job's namespace.
 
 General Options:
 
@@ -119,19 +112,31 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 	}
 
 	// Check if the job exists
-	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
-		return j.Periodic
-	})
+	jobID := args[0]
+	jobs, _, err := client.Jobs().PrefixList(jobID)
 	if err != nil {
-		var noPrefixErr *NoJobWithPrefixError
-		if errors.As(err, &noPrefixErr) {
-			err = fmt.Errorf("No periodic job(s) with prefix or ID %q found", jobIDPrefix)
-		}
-		c.Ui.Error(err.Error())
+		c.Ui.Error(fmt.Sprintf("Error forcing periodic job: %s", err))
 		return 1
 	}
-	q := &api.WriteOptions{Namespace: namespace}
+	// filter non-periodic jobs
+	periodicJobs := make([]*api.JobListStub, 0, len(jobs))
+	for _, j := range jobs {
+		if j.Periodic {
+			periodicJobs = append(periodicJobs, j)
+		}
+	}
+	if len(periodicJobs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No periodic job(s) with prefix or id %q found", jobID))
+		return 1
+	}
+	// preriodicJobs is sorted by job ID
+	// so if there is a job whose ID is equal to jobID then it must be the first item
+	if len(periodicJobs) > 1 && periodicJobs[0].ID != jobID {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple periodic jobs\n\n%s", createStatusListOutput(periodicJobs, c.allNamespaces())))
+		return 1
+	}
+	jobID = periodicJobs[0].ID
+	q := &api.WriteOptions{Namespace: periodicJobs[0].JobSummary.Namespace}
 
 	// force the evaluation
 	evalID, _, err := client.Jobs().PeriodicForce(jobID, q)

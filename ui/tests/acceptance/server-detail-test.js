@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -30,7 +25,7 @@ module('Acceptance | server detail', function (hooks) {
 
   test('visiting /servers/:server_name', async function (assert) {
     assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
-    assert.ok(document.title.includes(`Server ${agent.name}`));
+    assert.equal(document.title, `Server ${agent.name} - Nomad`);
   });
 
   test('when the server is the leader, the title shows a leader badge', async function (assert) {

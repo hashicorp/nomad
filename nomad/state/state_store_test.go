@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -8,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -111,7 +107,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 	job := alloc.Job
 	alloc.Job = nil
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -182,13 +178,13 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 
 	require := require.New(t)
 	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
-	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 999, job))
 
 	// modify job and ensure that stopped and preempted alloc point to original Job
 	mJob := job.Copy()
 	mJob.TaskGroups[0].Name = "other"
 
-	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, mJob))
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1001, mJob))
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
@@ -267,7 +263,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -370,7 +366,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 	alloc.Job = nil
 
 	// Insert job
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 999, job)
 	require.NoError(err)
 
 	// Create an eval
@@ -447,7 +443,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 
 	// Create a job that applies to all
 	job := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -575,7 +571,7 @@ func TestStateStore_OldDeployment(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 	job.ID = "job1"
-	state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 
 	deploy1 := mock.Deployment()
 	deploy1.JobID = job.ID
@@ -991,7 +987,7 @@ func TestStateStore_DeleteNamespaces_NonTerminalJobs(t *testing.T) {
 
 	job := mock.Job()
 	job.Namespace = ns.Name
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, job))
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
@@ -1274,184 +1270,6 @@ func TestStateStore_UpsertNode_Node(t *testing.T) {
 	require.NoError(err)
 	require.Len(out.Events, 2)
 	require.Equal(NodeRegisterEventReregistered, out.Events[1].Message)
-}
-
-func TestStateStore_UpsertNode_NodePool(t *testing.T) {
-	ci.Parallel(t)
-
-	devPoolName := "dev"
-	nodeWithPoolID := uuid.Generate()
-	nodeWithoutPoolID := uuid.Generate()
-
-	testCases := []struct {
-		name               string
-		nodeID             string
-		pool               string
-		createPool         bool
-		expectedPool       string
-		expectedPoolExists bool
-		validateFn         func(*testing.T, *structs.Node, *structs.NodePool)
-	}{
-		{
-			name:               "register new node in new node pool",
-			nodeID:             "",
-			pool:               "new",
-			createPool:         true,
-			expectedPool:       "new",
-			expectedPoolExists: true,
-			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was created in the same transaction as the
-				// node registration.
-				must.Eq(t, pool.CreateIndex, node.ModifyIndex)
-			},
-		},
-		{
-			name:               "register new node in existing node pool",
-			nodeID:             "",
-			pool:               devPoolName,
-			expectedPool:       devPoolName,
-			expectedPoolExists: true,
-			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was not modified.
-				must.NotEq(t, pool.CreateIndex, node.ModifyIndex)
-			},
-		},
-		{
-			name:               "register new node in built-in node pool",
-			nodeID:             "",
-			pool:               structs.NodePoolDefault,
-			expectedPool:       structs.NodePoolDefault,
-			expectedPoolExists: true,
-			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was not modified.
-				must.Eq(t, 1, pool.ModifyIndex)
-			},
-		},
-		{
-			name:               "move existing node to new node pool",
-			nodeID:             nodeWithPoolID,
-			pool:               "new",
-			createPool:         true,
-			expectedPool:       "new",
-			expectedPoolExists: true,
-			validateFn: func(t *testing.T, node *structs.Node, pool *structs.NodePool) {
-				// Verify node pool was created in the same transaction as the
-				// node was updated.
-				must.Eq(t, pool.CreateIndex, node.ModifyIndex)
-			},
-		},
-		{
-			name:               "move existing node to existing node pool",
-			nodeID:             nodeWithPoolID,
-			pool:               devPoolName,
-			expectedPool:       devPoolName,
-			expectedPoolExists: true,
-		},
-		{
-			name:               "move existing node to built-in node pool",
-			nodeID:             nodeWithPoolID,
-			pool:               structs.NodePoolDefault,
-			expectedPool:       structs.NodePoolDefault,
-			expectedPoolExists: true,
-		},
-		{
-			name:               "update node without pool to new node pool",
-			nodeID:             nodeWithoutPoolID,
-			pool:               "new",
-			createPool:         true,
-			expectedPool:       "new",
-			expectedPoolExists: true,
-		},
-		{
-			name:               "update node without pool to existing node pool",
-			nodeID:             nodeWithoutPoolID,
-			pool:               devPoolName,
-			expectedPool:       devPoolName,
-			expectedPoolExists: true,
-		},
-		{
-			name:               "update node without pool with empty string to default",
-			nodeID:             nodeWithoutPoolID,
-			pool:               "",
-			expectedPool:       structs.NodePoolDefault,
-			expectedPoolExists: true,
-		},
-		{
-			name:               "register new node in new node pool without creating it",
-			nodeID:             "",
-			pool:               "new",
-			createPool:         false,
-			expectedPool:       "new",
-			expectedPoolExists: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			state := testStateStore(t)
-
-			// Populate state with pre-existing node pool.
-			devPool := mock.NodePool()
-			devPool.Name = devPoolName
-			err := state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{devPool})
-			must.NoError(t, err)
-
-			// Populate state with pre-existing node assigned to the
-			// pre-existing node pool.
-			nodeWithPool := mock.Node()
-			nodeWithPool.ID = nodeWithPoolID
-			nodeWithPool.NodePool = devPool.Name
-			err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, nodeWithPool)
-			must.NoError(t, err)
-
-			// Populate state with pre-existing node with nil node pool to
-			// simulate an upgrade path.
-			nodeWithoutPool := mock.Node()
-			nodeWithoutPool.ID = nodeWithoutPoolID
-			err = state.UpsertNode(structs.MsgTypeTestSetup, 1002, nodeWithoutPool)
-			must.NoError(t, err)
-
-			// Upsert test node.
-			var node *structs.Node
-			switch tc.nodeID {
-			case nodeWithPoolID:
-				node = nodeWithPool.Copy()
-			case nodeWithoutPoolID:
-				node = nodeWithoutPool.Copy()
-			default:
-				node = mock.Node()
-			}
-
-			node.NodePool = tc.pool
-			opts := []NodeUpsertOption{}
-			if tc.createPool {
-				opts = append(opts, NodeUpsertWithNodePool)
-			}
-			err = state.UpsertNode(structs.MsgTypeTestSetup, 1003, node, opts...)
-			must.NoError(t, err)
-
-			// Verify that node is part of the expected pool.
-			got, err := state.NodeByID(nil, node.ID)
-			must.NoError(t, err)
-			must.NotNil(t, got)
-
-			// Verify node pool exists if requests.
-			pool, err := state.NodePoolByName(nil, tc.expectedPool)
-			must.NoError(t, err)
-			if tc.expectedPoolExists {
-				must.NotNil(t, pool)
-			} else {
-				must.Nil(t, pool)
-			}
-
-			// Verify node was assigned to node pool.
-			must.Eq(t, tc.expectedPool, got.NodePool)
-
-			if tc.validateFn != nil {
-				tc.validateFn(t, got, pool)
-			}
-		})
-	}
 }
 
 func TestStateStore_DeleteNode_Node(t *testing.T) {
@@ -2075,69 +1893,6 @@ func TestStateStore_NodesByIDPrefix(t *testing.T) {
 	}
 }
 
-func TestStateStore_NodesByNodePool(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-
-	pool := mock.NodePool()
-	err := state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
-	must.NoError(t, err)
-
-	node1 := mock.Node()
-	node1.NodePool = structs.NodePoolDefault
-	err = state.UpsertNode(structs.MsgTypeTestSetup, 1001, node1)
-	must.NoError(t, err)
-
-	node2 := mock.Node()
-	node2.NodePool = pool.Name
-	err = state.UpsertNode(structs.MsgTypeTestSetup, 1002, node2)
-	must.NoError(t, err)
-
-	testCases := []struct {
-		name     string
-		pool     string
-		expected []string
-	}{
-		{
-			name: "default",
-			pool: structs.NodePoolDefault,
-			expected: []string{
-				node1.ID,
-			},
-		},
-		{
-			name: "pool",
-			pool: pool.Name,
-			expected: []string{
-				node2.ID,
-			},
-		},
-		{
-			name:     "empty pool",
-			pool:     "",
-			expected: []string{},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Create watcher to test that getters don't cause it to fire.
-			ws := memdb.NewWatchSet()
-
-			iter, err := state.NodesByNodePool(ws, tc.pool)
-			must.NoError(t, err)
-
-			got := []string{}
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				got = append(got, raw.(*structs.Node).ID)
-			}
-
-			must.SliceContainsAll(t, tc.expected, got)
-			must.False(t, watchFired(ws))
-		})
-	}
-}
-
 func TestStateStore_UpsertJob_Job(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2151,7 +1906,7 @@ func TestStateStore_UpsertJob_Job(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !watchFired(ws) {
@@ -2231,14 +1986,14 @@ func TestStateStore_UpdateUpsertJob_Job(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	job2 := mock.Job()
 	job2.ID = job.ID
 	job2.AllAtOnce = true
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2336,7 +2091,7 @@ func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2344,7 +2099,7 @@ func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
 	job2 := job.Copy()
 	job2.Periodic = nil
 	job2.ID = fmt.Sprintf("%v/%s-1490635020", job.ID, structs.PeriodicLaunchSuffix)
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2358,7 +2113,7 @@ func TestStateStore_UpdateUpsertJob_PeriodicJob(t *testing.T) {
 
 	job3 := job.Copy()
 	job3.TaskGroups[0].Tasks[0].Name = "new name"
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, job3)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1003, job3)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2387,61 +2142,13 @@ func TestStateStore_UpsertJob_BadNamespace(t *testing.T) {
 	job := mock.Job()
 	job.Namespace = "foo"
 
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	assert.Contains(err.Error(), "nonexistent namespace")
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
 	assert.Nil(err)
 	assert.Nil(out)
-}
-
-func TestStateStore_UpsertJob_NodePool(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-
-	testCases := []struct {
-		name         string
-		pool         string
-		expectedPool string
-		expectedErr  string
-	}{
-		{
-			name:         "empty node pool uses default",
-			pool:         "",
-			expectedPool: structs.NodePoolDefault,
-		},
-		{
-			name:         "job uses pool defined",
-			pool:         structs.NodePoolDefault,
-			expectedPool: structs.NodePoolDefault,
-		},
-		{
-			name:        "error when pool doesn't exist",
-			pool:        "nonexisting",
-			expectedErr: "nonexistent node pool",
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			job := mock.Job()
-			job.NodePool = tc.pool
-
-			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(1000+i), nil, job)
-			if tc.expectedErr != "" {
-				must.ErrorContains(t, err, tc.expectedErr)
-			} else {
-				must.NoError(t, err)
-
-				ws := memdb.NewWatchSet()
-				got, err := state.JobByID(ws, job.Namespace, job.ID)
-				must.NoError(t, err)
-				must.Eq(t, tc.expectedPool, got.NodePool)
-			}
-		})
-	}
 }
 
 // Upsert a job that is the child of a parent job and ensures its summary gets
@@ -2459,14 +2166,14 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, parent); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, parent); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	child := mock.Job()
 	child.Status = ""
 	child.ParentID = parent.ID
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, child); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, child); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2491,70 +2198,6 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 	}
 }
 
-func TestStateStore_UpsertJob_submission(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-
-	job := mock.Job()
-	job.Meta = map[string]string{"version": "1"}
-	submission := &structs.JobSubmission{
-		Source:  "source",
-		Version: 0,
-	}
-
-	index := uint64(1000)
-
-	// initially non-existent
-	sub, err := state.JobSubmission(nil, job.Namespace, job.ID, 0)
-	must.NoError(t, err)
-	must.Nil(t, sub)
-
-	// insert first one, version 0, index 1001
-	index++
-	err = state.UpsertJob(structs.JobRegisterRequestType, index, submission, job)
-	must.NoError(t, err)
-
-	// query first one, version 0
-	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 0)
-	must.NoError(t, err)
-	must.NotNil(t, sub)
-	must.Eq(t, 0, sub.Version)
-	must.Eq(t, index, sub.JobModifyIndex)
-
-	// insert 6 more, going over the limit
-	for i := 1; i <= structs.JobTrackedVersions; i++ {
-		index++
-		job2 := job.Copy()
-		job2.Meta["version"] = strconv.Itoa(i)
-		sub2 := &structs.JobSubmission{
-			Source:  "source",
-			Version: uint64(i),
-		}
-		err = state.UpsertJob(structs.JobRegisterRequestType, index, sub2, job2)
-		must.NoError(t, err)
-	}
-
-	// the version 0 submission is now dropped
-	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 0)
-	must.NoError(t, err)
-	must.Nil(t, sub)
-
-	// but we do have version 1
-	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 1)
-	must.NoError(t, err)
-	must.NotNil(t, sub)
-	must.Eq(t, 1, sub.Version)
-	must.Eq(t, 1002, sub.JobModifyIndex)
-
-	// and up to version 6
-	sub, err = state.JobSubmission(nil, job.Namespace, job.ID, 6)
-	must.NoError(t, err)
-	must.NotNil(t, sub)
-	must.Eq(t, 6, sub.Version)
-	must.Eq(t, 1007, sub.JobModifyIndex)
-}
-
 func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2572,7 +2215,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2585,7 +2228,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 		finalJob = mock.Job()
 		finalJob.ID = job.ID
 		finalJob.Name = fmt.Sprintf("%d", i)
-		err = state.UpsertJob(structs.MsgTypeTestSetup, uint64(1000+i), nil, finalJob)
+		err = state.UpsertJob(structs.MsgTypeTestSetup, uint64(1000+i), finalJob)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2652,7 +2295,7 @@ func TestStateStore_DeleteJob_Job(t *testing.T) {
 	state := testStateStore(t)
 	job := mock.Job()
 
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -2742,7 +2385,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 		stateIndex++
 		job := mock.BatchJob()
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, stateIndex, nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, stateIndex, job)
 		require.NoError(t, err)
 
 		jobs[i] = job
@@ -2756,7 +2399,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 				"Version": fmt.Sprintf("%d", vi),
 			}
 
-			require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, stateIndex, nil, job))
+			require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, stateIndex, job))
 		}
 	}
 
@@ -2813,7 +2456,7 @@ func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	_, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
 	assert.Nil(err)
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, job))
 	assert.True(watchFired(ws))
 
 	var finalJob *structs.Job
@@ -2821,7 +2464,7 @@ func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 		finalJob = mock.Job()
 		finalJob.ID = job.ID
 		finalJob.Priority = i
-		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, uint64(1000+i), nil, finalJob))
+		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, uint64(1000+i), finalJob))
 	}
 
 	assert.Nil(state.DeleteJob(1020, job.Namespace, job.ID))
@@ -2861,7 +2504,7 @@ func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 
 	parent := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, parent); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2869,7 +2512,7 @@ func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
 	child.Status = ""
 	child.ParentID = parent.ID
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2919,7 +2562,7 @@ func TestStateStore_Jobs(t *testing.T) {
 		job := mock.Job()
 		jobs = append(jobs, job)
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2961,7 +2604,7 @@ func TestStateStore_JobVersions(t *testing.T) {
 		job := mock.Job()
 		jobs = append(jobs, job)
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -3000,7 +2643,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	job := mock.Job()
 
 	job.ID = "redis"
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3043,7 +2686,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 
 	job = mock.Job()
 	job.ID = "riak"
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1001, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3096,8 +2739,8 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	job2.Namespace = ns2.Name
 
 	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2))
 
 	gatherJobs := func(iter memdb.ResultIterator) []*structs.Job {
 		var jobs []*structs.Job
@@ -3138,7 +2781,7 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	job3 := mock.Job()
 	job3.ID = "riak"
 	job3.Namespace = ns1.Name
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, job3))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, job3))
 	require.True(t, watchFired(ws))
 
 	ws = memdb.NewWatchSet()
@@ -3187,10 +2830,10 @@ func TestStateStore_JobsByNamespace(t *testing.T) {
 	_, err = state.JobsByNamespace(watches[1], ns2.Name)
 	require.NoError(t, err)
 
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job1))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, job2))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, job3))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, nil, job4))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, job1))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, job2))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, job3))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, job4))
 	require.True(t, watchFired(watches[0]))
 	require.True(t, watchFired(watches[1]))
 
@@ -3244,7 +2887,7 @@ func TestStateStore_JobsByPeriodic(t *testing.T) {
 		job := mock.Job()
 		nonPeriodic = append(nonPeriodic, job)
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -3254,7 +2897,7 @@ func TestStateStore_JobsByPeriodic(t *testing.T) {
 		job := mock.PeriodicJob()
 		periodic = append(periodic, job)
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -3317,7 +2960,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 		job := mock.Job()
 		serviceJobs = append(serviceJobs, job)
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -3328,7 +2971,7 @@ func TestStateStore_JobsByScheduler(t *testing.T) {
 		job.Status = structs.JobStatusRunning
 		sysJobs = append(sysJobs, job)
 
-		err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), nil, job)
+		err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), job)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -3395,7 +3038,7 @@ func TestStateStore_JobsByGC(t *testing.T) {
 		}
 		nonGc[job.ID] = struct{}{}
 
-		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), nil, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000+uint64(i), job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	}
@@ -3405,7 +3048,7 @@ func TestStateStore_JobsByGC(t *testing.T) {
 		job.Type = structs.JobTypeBatch
 		gc[job.ID] = struct{}{}
 
-		if err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), nil, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -3999,11 +3642,11 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 
 		controllerJob := mock.CSIPluginJob(structs.CSIPluginTypeController, plugID)
 		controllerJobID = controllerJob.ID
-		err = store.UpsertJob(structs.MsgTypeTestSetup, nextIndex(store), nil, controllerJob)
+		err = store.UpsertJob(structs.MsgTypeTestSetup, nextIndex(store), controllerJob)
 
 		nodeJob := mock.CSIPluginJob(structs.CSIPluginTypeNode, plugID)
 		nodeJobID = nodeJob.ID
-		err = store.UpsertJob(structs.MsgTypeTestSetup, nextIndex(store), nil, nodeJob)
+		err = store.UpsertJob(structs.MsgTypeTestSetup, nextIndex(store), nodeJob)
 
 		// plugins created, but no fingerprints or allocs yet
 		// note: there's no job summary yet, but we know the task
@@ -4333,7 +3976,7 @@ func TestStateStore_LatestIndex(t *testing.T) {
 	}
 
 	exp := uint64(2000)
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, exp, nil, mock.Job()); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, exp, mock.Job()); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -4622,7 +4265,7 @@ func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 
 	parent := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, parent); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -4630,7 +4273,7 @@ func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
 	child.Status = ""
 	child.ParentID = parent.ID
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -4860,7 +4503,7 @@ func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 
 	parent := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, parent); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -4868,7 +4511,7 @@ func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 	child.Status = ""
 	child.ParentID = parent.ID
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -5559,12 +5202,12 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 997, node))
 
 	parent := mock.Job()
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, parent))
 
 	child := mock.Job()
 	child.Status = ""
 	child.ParentID = parent.ID
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, child))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
@@ -5629,8 +5272,8 @@ func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
 	alloc2.NodeID = node.ID
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc2.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Create watchsets so we can test that update fires the watch
@@ -5734,7 +5377,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 	alloc.NodeID = node.ID
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	// Create the delta updates
@@ -5804,7 +5447,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 	alloc.DeploymentID = deployment.ID
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
 	must.NoError(t, state.UpsertDeployment(1000, deployment))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
@@ -5856,7 +5499,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 	}
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
 	must.NoError(t, state.UpsertDeployment(1000, deployment))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
@@ -5904,8 +5547,8 @@ func TestStateStore_UpdateAllocsFromClient_UpdateNodes(t *testing.T) {
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, alloc1.Job))
-	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, nil, alloc2.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, alloc2.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc1, alloc2, alloc3}))
 
 	// Create watches to make sure they fire when nodes are updated.
@@ -5982,7 +5625,7 @@ func TestStateStore_UpsertAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6065,7 +5708,7 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 	deployment.TaskGroups[alloc.TaskGroup].ProgressDeadline = pdeadline
 	alloc.DeploymentID = deployment.ID
 
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
 	require.Nil(state.UpsertDeployment(1000, deployment))
 
 	// Create a watch set so we can test that update fires the watch
@@ -6127,8 +5770,8 @@ func TestStateStore_UpsertAlloc_AllocsByNamespace(t *testing.T) {
 	alloc4.Job.Namespace = ns2.Name
 
 	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc1.Job))
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc3.Job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc1.Job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, alloc3.Job))
 
 	// Create watchsets so we can test that update fires the watch
 	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
@@ -6202,13 +5845,13 @@ func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 
 	parent := mock.Job()
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, parent))
 
 	child := mock.Job()
 	child.Status = ""
 	child.ParentID = parent.ID
 
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, child))
 
 	alloc := mock.Alloc()
 	alloc.JobID = child.ID
@@ -6245,7 +5888,7 @@ func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6347,7 +5990,7 @@ func TestStateStore_UpdateAlloc_Lost(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.ClientStatus = "foo"
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6385,7 +6028,7 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 
 	// Upsert a job
 	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6428,7 +6071,7 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	state := testStateStore(t)
 	alloc := mock.Alloc()
 
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	t1 := &structs.DesiredTransition{
@@ -6496,7 +6139,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 
 	// Add a job
 	job := mock.Job()
-	state.UpsertJob(structs.MsgTypeTestSetup, 900, nil, job)
+	state.UpsertJob(structs.MsgTypeTestSetup, 900, job)
 
 	// Get the job back
 	ws := memdb.NewWatchSet()
@@ -6578,7 +6221,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 	// Re-register the same job
 	job1 := mock.Job()
 	job1.ID = job.ID
-	state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 1000, job1)
 	outJob2, _ := state.JobByID(ws, job1.Namespace, job1.ID)
 	if outJob2.CreateIndex != 1000 {
 		t.Fatalf("bad create index: %v", outJob2.CreateIndex)
@@ -6625,7 +6268,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	tg2 := alloc.Job.TaskGroups[0].Copy()
 	tg2.Name = "db"
 	alloc.Job.TaskGroups = append(alloc.Job.TaskGroups, tg2)
-	state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, alloc.Job)
+	state.UpsertJob(structs.MsgTypeTestSetup, 100, alloc.Job)
 
 	// Create one more alloc for the db task group
 	alloc2 := mock.Alloc()
@@ -6728,7 +6371,7 @@ func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
 		Payload: "random",
 	}
 	job1.TaskGroups[0].Count = 1
-	state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 100, job1)
 
 	// Make a child job
 	childJob := job1.Copy()
@@ -6750,7 +6393,7 @@ func TestStateStore_ReconcileParentJobSummary(t *testing.T) {
 	alloc2.JobID = childJob.ID
 	alloc2.ClientStatus = structs.AllocClientStatusFailed
 
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 110, nil, childJob))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 110, childJob))
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 111, []*structs.Allocation{alloc, alloc2}))
 
 	// Make the summary incorrect in the state store
@@ -6807,7 +6450,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	state := testStateStore(t)
 
 	alloc := mock.Alloc()
-	state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, alloc.Job)
+	state.UpsertJob(structs.MsgTypeTestSetup, 100, alloc.Job)
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc})
 
 	// Delete the job
@@ -6823,7 +6466,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	}
 
 	// Re-Register the job
-	state.UpsertJob(structs.MsgTypeTestSetup, 500, nil, alloc.Job)
+	state.UpsertJob(structs.MsgTypeTestSetup, 500, alloc.Job)
 
 	// Update the alloc again
 	alloc2 := alloc.Copy()
@@ -7037,7 +6680,7 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 
 	job := mock.Job()
 	job.ID = "foo"
-	state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	for i := 0; i < 3; i++ {
 		alloc := mock.Alloc()
 		alloc.Job = job
@@ -7055,7 +6698,7 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 	job1 := mock.Job()
 	job1.ID = "foo"
 	job1.CreateIndex = 50
-	state.UpsertJob(structs.MsgTypeTestSetup, 300, nil, job1)
+	state.UpsertJob(structs.MsgTypeTestSetup, 300, job1)
 	for i := 0; i < 4; i++ {
 		alloc := mock.Alloc()
 		alloc.Job = job1
@@ -7690,7 +7333,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -7823,7 +7466,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	alloc3.Job = job
 	alloc3.JobID = job.ID
 
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -7999,7 +7642,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 
 	// Insert a job
 	job := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8056,9 +7699,9 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 
 	// Insert a job twice to get two versions
 	job := mock.Job()
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, job))
 
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2, nil, job.Copy()))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2, job.Copy()))
 
 	// Update the stability to true
 	err := state.UpdateJobStability(3, job.Namespace, job.ID, 0, true)
@@ -8139,7 +7782,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 
 	// Create a job
 	j := mock.Job()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -8188,7 +7831,7 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 
 	// Create a job
 	j := mock.Job()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -8220,7 +7863,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, j); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8320,7 +7963,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -8493,7 +8136,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 
 	// Create a Job
 	job := mock.Job()
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, job))
 
 	// Create alloc with canary status
 	a := mock.Alloc()
@@ -8563,7 +8206,7 @@ func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
 
 	// Create a Job
 	job := mock.Job()
-	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, job))
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, job))
 
 	// Create alloc with canary status
 	a := mock.Alloc()
@@ -10000,7 +9643,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	job, policy := mock.JobWithScalingPolicy()
 
 	var newIndex uint64 = 1000
-	err := state.UpsertJob(structs.MsgTypeTestSetup, newIndex, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, newIndex, job)
 	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
@@ -10018,7 +9661,7 @@ func TestStateStore_UpsertJob_PreserveScalingPolicyIDsAndIndex(t *testing.T) {
 	// update the job
 	job.Meta["new-meta"] = "new-value"
 	newIndex += 100
-	err = state.UpsertJob(structs.MsgTypeTestSetup, newIndex, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, newIndex, job)
 	require.NoError(err)
 	require.False(watchFired(ws), "watch should not have fired")
 
@@ -10045,7 +9688,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	job, policy := mock.JobWithScalingPolicy()
 
 	var oldIndex uint64 = 1000
-	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, oldIndex, nil, job))
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, oldIndex, job))
 
 	ws := memdb.NewWatchSet()
 	p1, err := state.ScalingPolicyByTargetAndType(ws, policy.Target, policy.Type)
@@ -10064,7 +9707,7 @@ func TestStateStore_UpsertJob_UpdateScalingPolicy(t *testing.T) {
 	newPolicy := p1.Copy()
 	newPolicy.Policy["new-field"] = "new-value"
 	job.TaskGroups[0].Scaling = newPolicy
-	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, oldIndex+100, nil, job))
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, oldIndex+100, job))
 	require.True(watchFired(ws), "watch should have fired")
 
 	p2, err := state.ScalingPolicyByTargetAndType(nil, policy.Target, policy.Type)
@@ -10144,7 +9787,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 
 	job := mock.Job()
 
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(err)
 
 	policy := mock.ScalingPolicy()
@@ -10165,7 +9808,7 @@ func TestStateStore_StopJob_DeleteScalingPolicies(t *testing.T) {
 	job, err = state.JobByID(nil, job.Namespace, job.ID)
 	require.NoError(err)
 	job.Stop = true
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1200, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1200, job)
 	require.NoError(err)
 
 	// Ensure:
@@ -10199,7 +9842,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	require.Nil(list.Next())
 
 	// upsert a stopped job, verify that we don't fire the watcher or add any scaling policies
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(err)
 	require.True(watchFired(ws))
 	list, err = state.ScalingPolicies(ws)
@@ -10212,7 +9855,7 @@ func TestStateStore_UnstopJob_UpsertScalingPolicies(t *testing.T) {
 	require.NoError(err)
 	// Unstop this job, say you'll run it again...
 	job.Stop = false
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1100, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1100, job)
 	require.NoError(err)
 
 	// Ensure the scaling policy still exists, watch was not fired, index was not advanced
@@ -10234,7 +9877,7 @@ func TestStateStore_DeleteJob_DeleteScalingPolicies(t *testing.T) {
 
 	job := mock.Job()
 
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(err)
 
 	policy := mock.ScalingPolicy()
@@ -10264,10 +9907,10 @@ func TestStateStore_DeleteJob_DeleteScalingPoliciesPrefixBug(t *testing.T) {
 	state := testStateStore(t)
 
 	job := mock.Job()
-	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1000, job))
 	job2 := job.Copy()
 	job2.ID = job.ID + "-but-longer"
-	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job2))
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1001, job2))
 
 	policy := mock.ScalingPolicy()
 	policy.Target[structs.ScalingTargetJob] = job.ID
@@ -10302,7 +9945,7 @@ func TestStateStore_DeleteJob_ScalingPolicyIndexNoop(t *testing.T) {
 	prevIndex, err := state.Index("scaling_policy")
 	require.NoError(err)
 
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(err)
 
 	newIndex, err := state.Index("scaling_policy")
@@ -10820,7 +10463,7 @@ func TestStateSnapshot_DenormalizeAllocationDiffSlice_AllocDoesNotExist(t *testi
 	require := require.New(t)
 
 	// Insert job
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job)
 	require.NoError(err)
 
 	allocDiffs := []*structs.AllocationDiff{

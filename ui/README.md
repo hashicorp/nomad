@@ -6,7 +6,7 @@ The official Nomad UI.
 
 This is an [ember.js](https://emberjs.com/) project, and you will need the following tools installed on your computer.
 
-- [The current Node.js LTS release](https://nodejs.org/)
+- [Node.js v10](https://nodejs.org/)
 - [Yarn](https://yarnpkg.com)
 - [Ember CLI](https://ember-cli.com/)
 

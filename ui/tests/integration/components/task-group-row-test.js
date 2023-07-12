@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, render, settled, waitUntil } from '@ember/test-helpers';
@@ -58,7 +53,6 @@ module('Integration | Component | task group row', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.token = this.owner.lookup('service:token');
     this.server = startMirage();
-    this.server.create('node-pool');
     this.server.create('node');
 
     managementToken = this.server.create('token');

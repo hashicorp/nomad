@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -30,7 +27,7 @@ func TestHTTP_EvalList(t *testing.T) {
 		require.NoError(t, err)
 
 		// simple list request
-		req, err := http.NewRequest("GET", "/v1/evaluations", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/evaluations", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 		obj, err := s.Server.EvalsRequest(respW, req)
@@ -43,7 +40,7 @@ func TestHTTP_EvalList(t *testing.T) {
 		require.Len(t, obj.([]*structs.Evaluation), 2, "expected 2 evals")
 
 		// paginated list request
-		req, err = http.NewRequest("GET", "/v1/evaluations?per_page=1", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/evaluations?per_page=1", nil)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.EvalsRequest(respW, req)
@@ -53,7 +50,7 @@ func TestHTTP_EvalList(t *testing.T) {
 		require.Len(t, obj.([]*structs.Evaluation), 1, "expected 1 eval")
 
 		// filtered list request
-		req, err = http.NewRequest("GET",
+		req, err = http.NewRequest(http.MethodGet,
 			fmt.Sprintf("/v1/evaluations?per_page=10&job=%s", eval2.JobID), nil)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
@@ -81,7 +78,7 @@ func TestHTTP_EvalPrefixList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/evaluations?prefix=aaab", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/evaluations?prefix=aaab", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -264,7 +261,7 @@ func TestHTTP_EvalAllocations(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET",
+		req, err := http.NewRequest(http.MethodGet,
 			"/v1/evaluation/"+alloc1.EvalID+"/allocations", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -308,7 +305,7 @@ func TestHTTP_EvalQuery(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/evaluation/"+eval.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/evaluation/"+eval.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -355,7 +352,7 @@ func TestHTTP_EvalQueryWithRelated(t *testing.T) {
 		require.NoError(t, err)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", fmt.Sprintf("/v1/evaluation/%s?related=true", eval1.ID), nil)
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/evaluation/%s?related=true", eval1.ID), nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
@@ -391,7 +388,7 @@ func TestHTTP_EvalCount(t *testing.T) {
 		must.NoError(t, err)
 
 		// simple count request
-		req, err := http.NewRequest("GET", "/v1/evaluations/count", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/evaluations/count", nil)
 		must.NoError(t, err)
 		respW := httptest.NewRecorder()
 		obj, err := s.Server.EvalsCountRequest(respW, req)
@@ -411,7 +408,7 @@ func TestHTTP_EvalCount(t *testing.T) {
 		// filtered count request
 		v := url.Values{}
 		v.Add("filter", fmt.Sprintf("JobID==\"%s\"", eval2.JobID))
-		req, err = http.NewRequest("GET", "/v1/evaluations/count?"+v.Encode(), nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/evaluations/count?"+v.Encode(), nil)
 		must.NoError(t, err)
 		respW = httptest.NewRecorder()
 		obj, err = s.Server.EvalsCountRequest(respW, req)

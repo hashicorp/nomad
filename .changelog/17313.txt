@@ -1,3 +1,0 @@
-```release-note:improvement
-docker: Add `group_add` configuration
-```

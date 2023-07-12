@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { isArray } from '@ember/array';
 import { module, test } from 'qunit';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';

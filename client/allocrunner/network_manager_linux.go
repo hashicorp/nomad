@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package allocrunner
 
 import (
@@ -152,9 +149,6 @@ func (*defaultNetworkManager) CreateNetwork(allocID string, _ *drivers.NetworkCr
 }
 
 func (*defaultNetworkManager) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
-	if spec == nil {
-		return nil
-	}
 	return nsutil.UnmountNS(spec.Path)
 }
 
@@ -190,7 +184,7 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 
 	switch {
 	case netMode == "bridge":
-		c, err := newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.BridgeNetworkHairpinMode, config.CNIPath, ignorePortMappingHostIP)
+		c, err := newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath, ignorePortMappingHostIP)
 		if err != nil {
 			return nil, err
 		}

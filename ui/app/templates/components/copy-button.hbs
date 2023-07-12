@@ -1,41 +1,26 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
-<div class="copy-button {{if @inset "inset"}}">
 {{#if (eq this.state 'success')}}
-  <div data-test-copy-success class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
-    {{#if @inset}}
-      <span aria-label="Copied!">{{x-icon 'copy-success'}}</span>
-    {{else}}
-      <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
-        {{x-icon 'copy-success'}}
-      </span>
-    {{/if}}
+  <div class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
+    <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
+      {{x-icon 'copy-success'}}
+    </span>
     {{yield}}
   </div>
 {{else if (eq this.state 'error')}}
   <div class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
-    {{#if @inset}}
-      <span aria-label="Error copying">{{x-icon 'alert-triangle'}}</span>
-    {{else}}
-      <span class="tooltip text-center" role="tooltip" aria-label="Error copying">
-        {{x-icon 'alert-triangle'}}
-      </span>
-    {{/if}}
+    <span class="tooltip text-center" role="tooltip" aria-label="Error copying">
+      {{x-icon 'alert-triangle'}}
+    </span>
     {{yield}}
   </div>
 {{else}}
   <AddonCopyButton
-    title="Copy"
-    class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}} {{if @inset "is-inset"}}"
-    @text={{this.text}}
-    @onSuccess={{perform this.indicateSuccess}}
-    @onError={{action (mut this.state) "error"}}
+    @class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}}"
+    @clipboardText={{this.clipboardText}}
+    @success={{perform this.indicateSuccess}}
+    @error={{action (mut this.state) "error"}}
+    @title="Copy"
   >
     {{x-icon 'copy-action'}}
     {{yield}}
   </AddonCopyButton>
 {{/if}}
-</div>

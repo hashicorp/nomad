@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-string-prototype-extensions */
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';

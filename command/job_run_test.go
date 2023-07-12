@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -68,7 +65,7 @@ func TestRunCommand_hcl1_hcl2_strict(t *testing.T) {
 			"-hcl1", "-hcl2-strict",
 			"-address", addr,
 			"-detach",
-			"asset/example-short.nomad.hcl",
+			"assets/example-short.nomad",
 		})
 		require.Equal(t, 0, got, ui.ErrorWriter.String())
 	})
@@ -260,7 +257,7 @@ func TestRunCommand_JSON(t *testing.T) {
 	}()
 
 	// First convert HCL -> JSON with -output
-	stdout, stderr, code := run("-output", "asset/example-short.nomad.hcl")
+	stdout, stderr, code := run("-output", "assets/example-short.nomad")
 	require.Zero(t, code, stderr)
 	require.Empty(t, stderr)
 	require.NotEmpty(t, stdout)

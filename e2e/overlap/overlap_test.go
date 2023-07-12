@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package overlap
 
 import (
@@ -23,30 +20,49 @@ func TestOverlap(t *testing.T) {
 	nomadClient := e2eutil.NomadClient(t)
 	e2eutil.WaitForLeader(t, nomadClient)
 
+	// Wait for at least 1 node to be ready and get its ID
+	var node *api.Node
+	testutil.Wait(t, func() (bool, error) {
+		nodesList, _, err := nomadClient.Nodes().List(nil)
+		if err != nil {
+			return false, fmt.Errorf("error listing nodes: %v", err)
+		}
+
+		for _, n := range nodesList {
+			if n.Status == "ready" {
+				node, _, err = nomadClient.Nodes().Info(n.ID, nil)
+				must.NoError(t, err)
+				return true, nil
+			}
+		}
+
+		return false, fmt.Errorf("no nodes ready before timeout; need at least 1 ready")
+	})
+
+	// Force job to fill one exact node
 	getJob := func() (*api.Job, string) {
 		job, err := e2eutil.Parse2(t, "testdata/overlap.nomad")
 		must.NoError(t, err)
 		jobID := *job.ID + uuid.Short()
 		job.ID = &jobID
+		job.Datacenters = []string{node.Datacenter}
+		job.Constraints[1].RTarget = node.ID
+		availCPU := int(node.NodeResources.Cpu.CpuShares - int64(node.ReservedResources.Cpu.CpuShares))
+		job.TaskGroups[0].Tasks[0].Resources.CPU = &availCPU
 		return job, *job.ID
 	}
 	job1, jobID1 := getJob()
 
-	// Register initial job that should block subsequent job's placement until
-	// its shutdown_delay is up.
 	_, _, err := nomadClient.Jobs().Register(job1, nil)
 	must.NoError(t, err)
 	defer e2eutil.WaitForJobStopped(t, nomadClient, jobID1)
 
 	var origAlloc *api.AllocationListStub
 	testutil.Wait(t, func() (bool, error) {
-		time.Sleep(500 * time.Millisecond)
-
 		a, _, err := nomadClient.Jobs().Allocations(jobID1, false, nil)
 		must.NoError(t, err)
 		if n := len(a); n == 0 {
-			evalOut := e2eutil.DumpEvals(nomadClient, jobID1)
-			return false, fmt.Errorf("timed out before an allocation was found for %s. Evals:\n%s", jobID1, evalOut)
+			return false, fmt.Errorf("timed out before an allocation was found for %s", jobID1)
 		}
 		must.Len(t, 1, a)
 
@@ -68,12 +84,9 @@ func TestOverlap(t *testing.T) {
 			a.ID, ds, cs)
 	})
 
-	// Start replacement job on same node and assert it is blocked because the
-	// static port is already in use.
+	// Start replacement job and assert it is blocked
 	job2, jobID2 := getJob()
-	job2.Constraints = append(job2.Constraints, api.NewConstraint("${node.unique.id}", "=", origAlloc.NodeID))
 	job2.TaskGroups[0].Tasks[0].ShutdownDelay = 0 // no need on the followup
-
 	resp, _, err := nomadClient.Jobs().Register(job2, nil)
 	must.NoError(t, err)
 	defer e2eutil.WaitForJobStopped(t, nomadClient, jobID2)
@@ -90,8 +103,8 @@ func TestOverlap(t *testing.T) {
 	// Wait for job1's ShutdownDelay for origAlloc.ClientStatus to go terminal
 	sleepyTime := minStopTime.Sub(time.Now())
 	if sleepyTime > 0 {
-		t.Logf("Followup job %s blocked. Sleeping for the rest of %s's shutdown_delay (%.3s/%s)",
-			*job2.ID, *job1.ID, sleepyTime, job1.TaskGroups[0].Tasks[0].ShutdownDelay)
+		t.Logf("Sleeping for the rest of the shutdown_delay (%.3s/%s)",
+			sleepyTime, job1.TaskGroups[0].Tasks[0].ShutdownDelay)
 		time.Sleep(sleepyTime)
 	}
 
@@ -104,13 +117,10 @@ func TestOverlap(t *testing.T) {
 
 	// Assert replacement job unblocked and running
 	testutil.Wait(t, func() (bool, error) {
-		time.Sleep(500 * time.Millisecond)
-
-		a, _, err := nomadClient.Jobs().Allocations(jobID2, true, nil)
+		a, _, err := nomadClient.Jobs().Allocations(jobID2, false, nil)
 		must.NoError(t, err)
 		if n := len(a); n == 0 {
-			evalOut := e2eutil.DumpEvals(nomadClient, jobID2)
-			return false, fmt.Errorf("timed out before an allocation was found for %s; Evals:\n%s", jobID2, evalOut)
+			return false, fmt.Errorf("timed out before an allocation was found for %s", jobID2)
 		}
 		must.Len(t, 1, a)
 

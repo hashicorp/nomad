@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package util
 
 func CalculateCPUPercent(newSample, oldSample, newTotal, oldTotal uint64, cores int) float64 {

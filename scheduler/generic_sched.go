@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -282,7 +279,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Construct the placement stack
 	s.stack = NewGenericStack(s.batch, s.ctx)
 	if !s.job.Stopped() {
-		s.setJob(s.job)
+		s.stack.SetJob(s.job)
 	}
 
 	// Compute the target job allocations
@@ -510,7 +507,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
 	// Get the base nodes
-	nodes, byDC, err := s.setNodes(s.job)
+	byDC, err := s.setNodes(s.job)
 	if err != nil {
 		return err
 	}
@@ -561,12 +558,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			}
 
 			// Use downgraded job in scheduling stack to honor old job
-			// resources, constraints, and node pool scheduler configuration.
+			// resources, constraints, and datacenter.
 			if downgradedJob != nil {
-				s.setJob(downgradedJob)
+				s.stack.SetJob(downgradedJob)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(downgradedJob)
+					byDC, err = s.setNodes(downgradedJob)
 					if err != nil {
 						return err
 					}
@@ -596,7 +593,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = byDC
-			s.ctx.Metrics().NodesInPool = len(nodes)
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
@@ -604,10 +600,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Restore stack job and nodes now that placement is done, to use
 			// plan job version
 			if downgradedJob != nil {
-				s.setJob(s.job)
+				s.stack.SetJob(s.job)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(s.job)
+					byDC, err = s.setNodes(s.job)
 					if err != nil {
 						return err
 					}
@@ -703,43 +699,22 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	return nil
 }
 
-// setJob updates the stack with the given job and job's node pool scheduler
-// configuration.
-func (s *GenericScheduler) setJob(job *structs.Job) error {
-	// Fetch node pool and global scheduler configuration to determine how to
-	// configure the scheduler.
-	pool, err := s.state.NodePoolByName(nil, job.NodePool)
-	if err != nil {
-		return fmt.Errorf("failed to get job node pool %q: %v", job.NodePool, err)
-	}
-
-	_, schedConfig, err := s.state.SchedulerConfig()
-	if err != nil {
-		return fmt.Errorf("failed to get scheduler configuration: %v", err)
-	}
-
-	s.stack.SetJob(job)
-	s.stack.SetSchedulerConfiguration(schedConfig.WithNodePool(pool))
-	return nil
-}
-
 // setnodes updates the stack with the nodes that are ready for placement for
 // the given job.
-func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool)
+func (s *GenericScheduler) setNodes(job *structs.Job) (map[string]int, error) {
+	nodes, _, byDC, err := readyNodesInDCs(s.state, job.Datacenters)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	s.stack.SetNodes(nodes)
-	return nodes, byDC, nil
+	return byDC, nil
 }
 
 // needsToSetNodes returns true if jobs a and b changed in a way that requires
 // the nodes to be reset.
 func needsToSetNodes(a, b *structs.Job) bool {
-	return !helper.SliceSetEq(a.Datacenters, b.Datacenters) ||
-		a.NodePool != b.NodePool
+	return !helper.SliceSetEq(a.Datacenters, b.Datacenters)
 }
 
 // propagateTaskState copies task handles from previous allocations to
@@ -845,11 +820,7 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 
 // findPreferredNode finds the preferred node for an allocation
 func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.Node, error) {
-	prev := place.PreviousAllocation()
-	if prev == nil {
-		return nil, nil
-	}
-	if place.TaskGroup().EphemeralDisk.Sticky || place.TaskGroup().EphemeralDisk.Migrate {
+	if prev := place.PreviousAllocation(); prev != nil && place.TaskGroup().EphemeralDisk.Sticky {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
 		preferredNode, err := s.state.NodeByID(ws, prev.NodeID)
@@ -870,11 +841,6 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 
 	// Check if preemption is enabled, defaults to true
-	//
-	// The scheduler configuration is read directly from state but only
-	// values that can't be specified per node pool should be used. Other
-	// values must be merged by calling schedConfig.WithNodePool() and set in
-	// the stack by calling SetSchedulerConfiguration().
 	enablePreemption := true
 	if schedConfig != nil {
 		if s.job.Type == structs.JobTypeBatch {

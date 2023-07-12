@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -13,13 +10,13 @@ import (
 )
 
 func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	args := structs.VariablesListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
+		return nil, nil
 	}
 
 	var out structs.VariablesListResponse
@@ -58,7 +55,7 @@ func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
 		Path: path,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, CodedError(http.StatusBadRequest, "failed to parse parameters")
+		return nil, nil
 	}
 	var out structs.VariablesReadResponse
 	if err := s.agent.RPC(structs.VariablesReadRPCMethod, &args, &out); err != nil {

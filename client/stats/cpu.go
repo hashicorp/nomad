@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package stats
 
 import (
@@ -51,7 +48,7 @@ func (c *CpuStats) Percent(cpuTime float64) float64 {
 // TicksConsumed calculates the total ticks consumes by the process across all
 // cpu cores
 func (c *CpuStats) TicksConsumed(percent float64) float64 {
-	return (percent / 100) * float64(shelpers.TotalTicksAvailable()) / float64(c.totalCpus)
+	return (percent / 100) * shelpers.TotalTicksAvailable() / float64(c.totalCpus)
 }
 
 func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
@@ -79,16 +76,14 @@ func (h *HostStatsCollector) collectCPUStats() (cpus []*CPUStats, totalTicks flo
 			h.statsCalculator[cpuStat.CPU] = percentCalculator
 		}
 		idle, user, system, total := percentCalculator.Calculate(cpuStat)
-		ticks := (total / 100.0) * (float64(shelpers.TotalTicksAvailable()) / float64(len(cpuStats)))
 		cs[idx] = &CPUStats{
-			CPU:          cpuStat.CPU,
-			User:         user,
-			System:       system,
-			Idle:         idle,
-			TotalPercent: total,
-			TotalTicks:   ticks,
+			CPU:    cpuStat.CPU,
+			User:   user,
+			System: system,
+			Idle:   idle,
+			Total:  total,
 		}
-		ticksConsumed += ticks
+		ticksConsumed += (total / 100.0) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
 	}
 
 	return cs, ticksConsumed, nil

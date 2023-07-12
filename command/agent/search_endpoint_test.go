@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -25,7 +22,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	job.ID = jobID
 	job.TaskGroups[0].Count = 1
 	state := s.Agent.server.State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(t, err)
 }
 
@@ -33,7 +30,7 @@ func TestHTTP_PrefixSearchWithIllegalMethod(t *testing.T) {
 	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("DELETE", "/v1/search", nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/search", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
@@ -46,7 +43,7 @@ func TestHTTP_FuzzySearchWithIllegalMethod(t *testing.T) {
 	ci.Parallel(t)
 
 	httpTest(t, nil, func(s *TestAgent) {
-		req, err := http.NewRequest("DELETE", "/v1/search/fuzzy", nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/search/fuzzy", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
@@ -61,7 +58,7 @@ func createCmdJobForTest(name, cmd string, s *TestAgent, t *testing.T) *structs.
 	job.TaskGroups[0].Tasks[0].Config["command"] = cmd
 	job.TaskGroups[0].Count = 1
 	state := s.Agent.server.State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(t, err)
 	return job
 }
@@ -76,7 +73,7 @@ func TestHTTP_PrefixSearch_POST(t *testing.T) {
 		createJobForTest(testJob, s, t)
 
 		data := structs.SearchRequest{Prefix: testJobPrefix, Context: structs.Jobs}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -104,7 +101,7 @@ func TestHTTP_FuzzySearch_POST(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJobID, s, t)
 		data := structs.FuzzySearchRequest{Text: "fau", Context: structs.Namespaces}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -136,7 +133,7 @@ func TestHTTP_PrefixSearch_PUT(t *testing.T) {
 		createJobForTest(testJob, s, t)
 
 		data := structs.SearchRequest{Prefix: testJobPrefix, Context: structs.Jobs}
-		req, err := http.NewRequest("PUT", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPut, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -164,7 +161,7 @@ func TestHTTP_FuzzySearch_PUT(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		createJobForTest(testJobID, s, t)
 		data := structs.FuzzySearchRequest{Text: "fau", Context: structs.Namespaces}
-		req, err := http.NewRequest("PUT", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPut, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -200,7 +197,7 @@ func TestHTTP_PrefixSearch_MultipleJobs(t *testing.T) {
 		createJobForTest(testJobC, s, t)
 
 		data := structs.SearchRequest{Prefix: testJobPrefix, Context: structs.Jobs}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -232,7 +229,7 @@ func TestHTTP_FuzzySearch_MultipleJobs(t *testing.T) {
 		job4ID := createCmdJobForTest("job4", "/sbin/ping", s, t).ID
 
 		data := structs.FuzzySearchRequest{Text: "bin", Context: structs.Jobs}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -277,7 +274,7 @@ func TestHTTP_PrefixSearch_Evaluation(t *testing.T) {
 
 		prefix := eval1.ID[:len(eval1.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Evals}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -310,7 +307,7 @@ func TestHTTP_FuzzySearch_Evaluation(t *testing.T) {
 		// fuzzy search does prefix search for evaluations
 		prefix := eval1.ID[:len(eval1.ID)-2]
 		data := structs.FuzzySearchRequest{Text: prefix, Context: structs.Evals}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -349,7 +346,7 @@ func TestHTTP_PrefixSearch_Allocations(t *testing.T) {
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Allocs}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -379,7 +376,7 @@ func TestHTTP_FuzzySearch_Allocations(t *testing.T) {
 		require.NoError(t, err)
 
 		data := structs.FuzzySearchRequest{Text: "-job", Context: structs.Allocs}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -410,7 +407,7 @@ func TestHTTP_PrefixSearch_Nodes(t *testing.T) {
 
 		prefix := node.ID[:len(node.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Nodes}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -440,7 +437,7 @@ func TestHTTP_FuzzySearch_Nodes(t *testing.T) {
 		require.NoError(t, err)
 
 		data := structs.FuzzySearchRequest{Text: "oo", Context: structs.Nodes}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -470,7 +467,7 @@ func TestHTTP_PrefixSearch_Deployments(t *testing.T) {
 
 		prefix := deployment.ID[:len(deployment.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Deployments}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -499,7 +496,7 @@ func TestHTTP_FuzzySearch_Deployments(t *testing.T) {
 		// fuzzy search of deployments are prefix searches
 		prefix := deployment.ID[:len(deployment.ID)-2]
 		data := structs.FuzzySearchRequest{Text: prefix, Context: structs.Deployments}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -522,7 +519,7 @@ func TestHTTP_PrefixSearch_NoJob(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		data := structs.SearchRequest{Prefix: "12345", Context: structs.Jobs}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -542,7 +539,7 @@ func TestHTTP_FuzzySearch_NoJob(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		data := structs.FuzzySearchRequest{Text: "12345", Context: structs.Jobs}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -572,7 +569,7 @@ func TestHTTP_PrefixSearch_AllContext(t *testing.T) {
 		require.NoError(t, err)
 
 		data := structs.SearchRequest{Prefix: testJobPrefix, Context: structs.All}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -604,7 +601,7 @@ func TestHTTP_FuzzySearch_AllContext(t *testing.T) {
 		require.NoError(t, err)
 
 		data := structs.FuzzySearchRequest{Text: "aa", Context: structs.All}
-		req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -644,7 +641,7 @@ func TestHTTP_PrefixSearch_Variables(t *testing.T) {
 		require.NoError(t, setResp.Error)
 
 		data := structs.SearchRequest{Prefix: testPathPrefix, Context: structs.Variables}
-		req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -677,7 +674,7 @@ func TestHTTP_FuzzySearch_Variables(t *testing.T) {
 		require.NoError(t, setResp.Error)
 
 		data := structs.FuzzySearchRequest{Text: testPathText, Context: structs.Variables}
-		req, err := http.NewRequest("POST", "/v1/search/", encodeReq(data))
+		req, err := http.NewRequest(http.MethodPost, "/v1/search/", encodeReq(data))
 		require.NoError(t, err)
 
 		respW := httptest.NewRecorder()
@@ -786,7 +783,7 @@ func TestHTTP_PrefixSearch_Variables_ACL(t *testing.T) {
 					},
 				}
 
-				req, err := http.NewRequest("POST", "/v1/search", encodeReq(data))
+				req, err := http.NewRequest(http.MethodPost, "/v1/search", encodeReq(data))
 				require.NoError(t, err)
 
 				respW := httptest.NewRecorder()
@@ -910,7 +907,7 @@ func TestHTTP_FuzzySearch_Variables_ACL(t *testing.T) {
 						Namespace: tcNS(tC),
 					},
 				}
-				req, err := http.NewRequest("POST", "/v1/search/fuzzy", encodeReq(data))
+				req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
 				require.NoError(t, err)
 
 				setToken(req, tC.token)

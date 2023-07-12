@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package capabilities is used for managing sets of linux capabilities.
 package capabilities
 

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import Model from '@ember-data/model';
@@ -27,7 +22,6 @@ export default class Node extends Model {
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
   @attr('string') version;
-  @attr('string') nodePool;
 
   // Available from single response
   @attr('string') httpAddr;
@@ -158,18 +152,5 @@ export default class Node extends Model {
 
   cancelDrain() {
     return this.store.adapterFor('node').cancelDrain(this);
-  }
-
-  async addMeta(newMeta) {
-    let metaResponse = await this.store
-      .adapterFor('node')
-      .addMeta(this, newMeta);
-
-    if (!this.meta) {
-      this.set('meta', this.store.createFragment('structured-attributes'));
-    }
-
-    this.meta.recomputeRawProperties(metaResponse.Meta);
-    return metaResponse;
   }
 }

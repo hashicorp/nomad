@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -82,7 +79,7 @@ func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, erro
 	}
 
 	req := &http.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		URL:    parsedURL,
 		Header: http.Header{
 			"Metadata":   []string{"true"},
@@ -106,7 +103,7 @@ func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, erro
 		return "", err
 	}
 
-	if res.StatusCode >= 400 {
+	if res.StatusCode >= http.StatusBadRequest {
 		return "", ReqError{res.StatusCode}
 	}
 

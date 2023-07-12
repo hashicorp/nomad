@@ -1,0 +1,38 @@
+---
+layout: docs
+page_title: 'Commands: operator keygen'
+description: >
+  The `operator keygen` command generates an encryption key that can be used for
+  Nomad server's gossip traffic encryption. The keygen command uses a
+  cryptographically strong pseudo-random number generator to generate the key.
+---
+
+# Command: operator keygen
+
+~> **Warning:** This command is deprecated and will be removed in
+   Nomad 1.5.0. Use the `nomad operator gossip keyring generate`
+   subcommand instead.
+
+The `operator keygen` command generates an encryption key that can be used for
+Nomad server's gossip traffic encryption. The keygen command uses a
+cryptographically strong pseudo-random number generator to generate the key.
+
+The resulting key is encoded in the [RFC4648] "URL and filename safe" base64
+alphabet. If you use another tool such as OpenSSL to generate the gossip key,
+you should pipe the input through the `base64(1)` command to ensure it is
+safely encoded. For example: `openssl rand 32 | base64`
+
+## Usage
+
+```plaintext
+nomad operator keygen
+```
+
+## Example
+
+```shell-session
+$ nomad operator keygen
+6RhfKFZ5uYEaU6RgWzx69ssLcpiIkvnEZs5KBOQxvxA=
+```
+
+[rfc4648]: https://tools.ietf.org/html/rfc4648#section-5

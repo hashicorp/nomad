@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
@@ -52,7 +47,7 @@ module('Integration | Component | variable-form', function (hooks) {
     );
 
     assert
-      .dom('[data-test-add-kv]')
+      .dom('.key-value button.add-more')
       .isDisabled(
         'The "Add More" button is disabled until key and value are filled'
       );
@@ -60,7 +55,7 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value label:nth-child(1) input', 'foo');
 
     assert
-      .dom('[data-test-add-kv]')
+      .dom('.key-value button.add-more')
       .isDisabled(
         'The "Add More" button is still disabled with only key filled'
       );
@@ -68,12 +63,12 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value label:nth-child(2) input', 'bar');
 
     assert
-      .dom('[data-test-add-kv]')
+      .dom('.key-value button.add-more')
       .isNotDisabled(
         'The "Add More" button is no longer disabled after key and value are filled'
       );
 
-    await click('[data-test-add-kv]');
+    await click('.key-value button.add-more');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -84,7 +79,7 @@ module('Integration | Component | variable-form', function (hooks) {
     await typeIn('.key-value:last-of-type label:nth-child(1) input', 'foo');
     await typeIn('.key-value:last-of-type label:nth-child(2) input', 'bar');
 
-    await click('[data-test-add-kv]');
+    await click('.key-value button.add-more');
 
     assert.equal(
       findAll('div.key-value').length,
@@ -114,7 +109,7 @@ module('Integration | Component | variable-form', function (hooks) {
       assert.expect(6);
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-      await click('[data-test-add-kv]'); // add a second variable
+      await click('.key-value button.add-more'); // add a second variable
 
       findAll('input.value-input').forEach((input, iter) => {
         assert.equal(
@@ -178,11 +173,11 @@ module('Integration | Component | variable-form', function (hooks) {
     );
     assert.equal(
       findAll('button.delete-row').length,
-      5,
-      'Shows "delete" for all five rows'
+      4,
+      'Shows "delete" for the first four rows'
     );
     assert.equal(
-      findAll('[data-test-add-kv]').length,
+      findAll('button.add-more').length,
       1,
       'Shows "add more" only on the last row'
     );
@@ -285,52 +280,15 @@ module('Integration | Component | variable-form', function (hooks) {
         })
       );
 
-      const testCases = [
-        {
-          name: 'valid key',
-          key: 'superSecret2',
-          warn: false,
-        },
-        {
-          name: 'invalid key with dot',
-          key: 'super.secret',
-          warn: true,
-        },
-        {
-          name: 'invalid key with slash',
-          key: 'super/secret',
-          warn: true,
-        },
-        {
-          name: 'invalid key with emoji',
-          key: 'supersecretspy🕵️',
-          warn: true,
-        },
-        {
-          name: 'unicode letters',
-          key: '世界',
-          warn: false,
-        },
-        {
-          name: 'unicode numbers',
-          key: '٣٢١',
-          warn: false,
-        },
-        {
-          name: 'unicode letters and numbers',
-          key: '世٢界١',
-          warn: false,
-        },
-      ];
-      for (const tc of testCases) {
-        await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
-        await typeIn('[data-test-var-key]', tc.key);
-        if (tc.warn) {
-          assert.dom('.key-value-error').exists(tc.name);
-        } else {
-          assert.dom('.key-value-error').doesNotExist(tc.name);
-        }
-      }
+      await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
+
+      await typeIn('.key-value label:nth-child(1) input', 'superSecret');
+      assert.dom('.key-value-error').doesNotExist();
+
+      find('.key-value label:nth-child(1) input').value = '';
+
+      await typeIn('.key-value label:nth-child(1) input', 'super.secret');
+      assert.dom('.key-value-error').exists();
     });
 
     test('warns you when you create a duplicate key', async function (assert) {
@@ -343,7 +301,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       await render(hbs`<VariableForm @model={{this.mockedModel}} />`);
 
-      await click('[data-test-add-kv]');
+      await click('.key-value button.add-more');
 
       const secondKey = document.querySelectorAll('[data-test-var-key]')[1];
       await typeIn(secondKey, 'myWonderfulKey');
@@ -422,7 +380,7 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set('view', 'table');
 
-      await click('[data-test-add-kv]');
+      await click('.key-value button.add-more');
 
       await typeIn('.key-value:last-of-type label:nth-child(1) input', 'howdy');
       await typeIn(

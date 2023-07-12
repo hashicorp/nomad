@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 variable "name" {
   description = "Used to name various infrastructure components"
   default     = "nomad-e2e"
@@ -26,7 +23,7 @@ variable "server_count" {
   default     = "3"
 }
 
-variable "client_count_ubuntu_jammy_amd64" {
+variable "client_count_ubuntu_bionic_amd64" {
   description = "The number of Ubuntu clients to provision."
   default     = "4"
 }
@@ -92,8 +89,8 @@ variable "nomad_local_binary_server" {
   default     = []
 }
 
-variable "nomad_local_binary_client_ubuntu_jammy_amd64" {
-  description = "A list of nomad local binary paths to deploy to Ubuntu Jammy clients, to override nomad_local_binary"
+variable "nomad_local_binary_client_ubuntu_bionic_amd64" {
+  description = "A list of nomad local binary paths to deploy to Ubuntu Bionic clients, to override nomad_local_binary"
   type        = list(string)
   default     = []
 }

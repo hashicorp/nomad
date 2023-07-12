@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -27,7 +24,7 @@ const (
 	// Reply: VariablesListResponse
 	VariablesListRPCMethod = "Variables.List"
 
-	// VariablesReadRPCMethod is the RPC method for fetching a variable
+	// VariablesGetServiceRPCMethod is the RPC method for fetching a variable
 	// according to its namepace and path.
 	//
 	// Args: VariablesByNameRequest
@@ -37,7 +34,7 @@ const (
 	// maxVariableSize is the maximum size of the unencrypted contents of a
 	// variable. This size is deliberately set low and is not configurable, to
 	// discourage DoS'ing the cluster
-	maxVariableSize = 65536
+	maxVariableSize = 16384
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -77,75 +74,75 @@ type VariableDecrypted struct {
 // encrypted and decrypted as a single unit.
 type VariableItems map[string]string
 
-func (vi VariableItems) Size() uint64 {
+func (svi VariableItems) Size() uint64 {
 	var out uint64
-	for k, v := range vi {
+	for k, v := range svi {
 		out += uint64(len(k))
 		out += uint64(len(v))
 	}
 	return out
 }
 
-// Equal checks both the metadata and items in a VariableDecrypted struct
-func (vd VariableDecrypted) Equal(v2 VariableDecrypted) bool {
-	return vd.VariableMetadata.Equal(v2.VariableMetadata) &&
-		vd.Items.Equal(v2.Items)
+// Equals checks both the metadata and items in a VariableDecrypted struct
+func (v1 VariableDecrypted) Equals(v2 VariableDecrypted) bool {
+	return v1.VariableMetadata.Equals(v2.VariableMetadata) &&
+		v1.Items.Equals(v2.Items)
 }
 
-// Equal is a convenience method to provide similar equality checking syntax
+// Equals is a convenience method to provide similar equality checking syntax
 // for metadata and the VariablesData or VariableItems struct
-func (sv VariableMetadata) Equal(sv2 VariableMetadata) bool {
+func (sv VariableMetadata) Equals(sv2 VariableMetadata) bool {
 	return sv == sv2
 }
 
-// Equal performs deep equality checking on the cleartext items of a
+// Equals performs deep equality checking on the cleartext items of a
 // VariableDecrypted. Uses reflect.DeepEqual
-func (vi VariableItems) Equal(i2 VariableItems) bool {
-	return reflect.DeepEqual(vi, i2)
+func (i1 VariableItems) Equals(i2 VariableItems) bool {
+	return reflect.DeepEqual(i1, i2)
 }
 
-// Equal checks both the metadata and encrypted data for a VariableEncrypted
+// Equals checks both the metadata and encrypted data for a VariableEncrypted
 // struct
-func (ve VariableEncrypted) Equal(v2 VariableEncrypted) bool {
-	return ve.VariableMetadata.Equal(v2.VariableMetadata) &&
-		ve.VariableData.Equal(v2.VariableData)
+func (v1 VariableEncrypted) Equals(v2 VariableEncrypted) bool {
+	return v1.VariableMetadata.Equals(v2.VariableMetadata) &&
+		v1.VariableData.Equals(v2.VariableData)
 }
 
-// Equal performs deep equality checking on the encrypted data part of a
+// Equals performs deep equality checking on the encrypted data part of a
 // VariableEncrypted
-func (vd VariableData) Equal(d2 VariableData) bool {
-	return vd.KeyID == d2.KeyID &&
-		bytes.Equal(vd.Data, d2.Data)
+func (d1 VariableData) Equals(d2 VariableData) bool {
+	return d1.KeyID == d2.KeyID &&
+		bytes.Equal(d1.Data, d2.Data)
 }
 
-func (vd VariableDecrypted) Copy() VariableDecrypted {
+func (sv VariableDecrypted) Copy() VariableDecrypted {
 	return VariableDecrypted{
-		VariableMetadata: vd.VariableMetadata,
-		Items:            vd.Items.Copy(),
+		VariableMetadata: sv.VariableMetadata,
+		Items:            sv.Items.Copy(),
 	}
 }
 
-func (vi VariableItems) Copy() VariableItems {
-	out := make(VariableItems, len(vi))
-	for k, v := range vi {
+func (sv VariableItems) Copy() VariableItems {
+	out := make(VariableItems, len(sv))
+	for k, v := range sv {
 		out[k] = v
 	}
 	return out
 }
 
-func (ve VariableEncrypted) Copy() VariableEncrypted {
+func (sv VariableEncrypted) Copy() VariableEncrypted {
 	return VariableEncrypted{
-		VariableMetadata: ve.VariableMetadata,
-		VariableData:     ve.VariableData.Copy(),
+		VariableMetadata: sv.VariableMetadata,
+		VariableData:     sv.VariableData.Copy(),
 	}
 }
 
-func (vd VariableData) Copy() VariableData {
-	out := make([]byte, len(vd.Data))
-	copy(out, vd.Data)
+func (sv VariableData) Copy() VariableData {
+	out := make([]byte, len(sv.Data))
+	copy(out, sv.Data)
 	return VariableData{
 		Data:  out,
-		KeyID: vd.KeyID,
+		KeyID: sv.KeyID,
 	}
 }
 
@@ -158,64 +155,38 @@ var (
 	validVariablePath = regexp.MustCompile("^[a-zA-Z0-9-_~/]{1,128}$")
 )
 
-func (vd VariableDecrypted) Validate() error {
+func (v VariableDecrypted) Validate() error {
 
-	if vd.Namespace == AllNamespacesSentinel {
-		return errors.New("can not target wildcard (\"*\")namespace")
+	if len(v.Path) == 0 {
+		return fmt.Errorf("variable requires path")
+	}
+	if !validVariablePath.MatchString(v.Path) {
+		return fmt.Errorf("invalid path %q", v.Path)
 	}
 
-	if len(vd.Items) == 0 {
+	parts := strings.Split(v.Path, "/")
+	switch {
+	case len(parts) == 1 && parts[0] == "nomad":
+		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\" or below")
+	case len(parts) >= 2 && parts[0] == "nomad" && parts[1] != "jobs":
+		return fmt.Errorf("only paths at \"nomad/jobs\" or below are valid paths under the top-level \"nomad\" directory")
+	}
+
+	if len(v.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
-	if vd.Items.Size() > maxVariableSize {
-		return errors.New("variables are limited to 64KiB in total size")
+	if v.Items.Size() > maxVariableSize {
+		return errors.New("variables are limited to 16KiB in total size")
 	}
-
-	if err := validatePath(vd.Path); err != nil {
-		return err
+	if v.Namespace == AllNamespacesSentinel {
+		return errors.New("can not target wildcard (\"*\")namespace")
 	}
-
 	return nil
 }
 
-func validatePath(path string) error {
-	if len(path) == 0 {
-		return fmt.Errorf("variable requires path")
-	}
-	if !validVariablePath.MatchString(path) {
-		return fmt.Errorf("invalid path %q", path)
-	}
-
-	parts := strings.Split(path, "/")
-
-	if parts[0] != "nomad" {
-		return nil
-	}
-
-	// Don't allow a variable with path "nomad"
-	if len(parts) == 1 {
-		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\", \"nomad/job-templates\", or below")
-	}
-
-	switch {
-	case parts[1] == "jobs":
-		// Any path including "nomad/jobs" is valid
-		return nil
-	case parts[1] == "job-templates" && len(parts) == 3:
-		// Paths including "nomad/job-templates" is valid, provided they have single further path part
-		return nil
-	case parts[1] == "job-templates":
-		// Disallow exactly nomad/job-templates with no further paths
-		return fmt.Errorf("\"nomad/job-templates\" is a reserved directory path, but you may write variables at the level below it, for example, \"nomad/job-templates/template-name\"")
-	default:
-		// Disallow arbitrary sub-paths beneath nomad/
-		return fmt.Errorf("only paths at \"nomad/jobs\" or \"nomad/job-templates\" and below are valid paths under the top-level \"nomad\" directory")
-	}
-}
-
-func (vd *VariableDecrypted) Canonicalize() {
-	if vd.Namespace == "" {
-		vd.Namespace = DefaultNamespace
+func (sv *VariableDecrypted) Canonicalize() {
+	if sv.Namespace == "" {
+		sv.Namespace = DefaultNamespace
 	}
 }
 

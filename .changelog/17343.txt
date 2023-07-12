@@ -1,3 +1,0 @@
-```release-note:bug
-ui: preserve newlines when displaying shown variables in non-json mode
-```

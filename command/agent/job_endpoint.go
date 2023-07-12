@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -25,9 +22,9 @@ const jobNotFoundErr = "job not found"
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobListRequest(resp, req)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobUpdate(resp, req, "")
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -107,9 +104,6 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/services"):
 		jobID := strings.TrimSuffix(path, "/services")
 		return s.jobServiceRegistrations(resp, req, jobID)
-	case strings.HasSuffix(path, "/submission"):
-		jobID := strings.TrimSuffix(path, "/submission")
-		return s.jobSubmissionCRUD(resp, req, jobID)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -200,6 +194,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 	}
 
 	job := ApiJobToStructJob(validateRequest.Job)
+
 	args := structs.JobValidateRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -237,7 +232,7 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 }
 
 func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
@@ -266,7 +261,7 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
@@ -289,7 +284,7 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	all, _ := strconv.ParseBool(req.URL.Query().Get("all"))
@@ -314,7 +309,7 @@ func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
@@ -333,49 +328,13 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
-func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
-	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
-	if err != nil {
-		return nil, CodedError(400, "Unable to parse job submission version parameter")
-	}
-	switch req.Method {
-	case "GET":
-		return s.jobSubmissionQuery(resp, req, jobID, version)
-	default:
-		return nil, CodedError(405, ErrInvalidMethod)
-	}
-}
-
-func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Request, jobID string, version uint64) (*structs.JobSubmission, error) {
-	args := structs.JobSubmissionRequest{
-		JobID:   jobID,
-		Version: version,
-	}
-
-	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
-		return nil, nil
-	}
-
-	var out structs.JobSubmissionResponse
-	if err := s.agent.RPC("Job.GetJobSubmission", &args, &out); err != nil {
-		return nil, err
-	}
-
-	setMeta(resp, &out.QueryMeta)
-	if out.Submission == nil {
-		return nil, CodedError(404, "job source not found")
-	}
-
-	return out.Submission, nil
-}
-
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobQuery(resp, req, jobID)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobUpdate(resp, req, jobID)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.jobDelete(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -452,12 +411,8 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 	}
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
-	submission := apiJobSubmissionToStructs(args.Submission)
-
 	regReq := structs.JobRegisterRequest{
-		Job:        sJob,
-		Submission: submission,
-
+		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
@@ -545,9 +500,9 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobI
 func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobScaleStatus(resp, req, jobID)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobScaleAction(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -786,14 +741,10 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:       "input.hcl",
-			Body:       []byte(args.JobHCL),
-			AllowFS:    false,
-			VarContent: args.Variables,
+			Path:    "input.hcl",
+			Body:    []byte(args.JobHCL),
+			AllowFS: false,
 		})
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))
-		}
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
@@ -837,18 +788,6 @@ func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http
 	return reply.Services, nil
 }
 
-func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmission {
-	if submission == nil {
-		return nil
-	}
-	return &structs.JobSubmission{
-		Source:        submission.Source,
-		Format:        submission.Format,
-		VariableFlags: submission.VariableFlags,
-		Variables:     submission.Variables,
-	}
-}
-
 // apiJobAndRequestToStructs parses the query params from the incoming
 // request and converts to a structs.Job and WriteRequest with the
 func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, apiReq api.WriteRequest) (*structs.Job, *structs.WriteRequest) {
@@ -866,7 +805,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 
 	queryRegion := req.URL.Query().Get("region")
 	requestRegion, jobRegion := regionForJob(
-		job, queryRegion, writeReq.Region, s.agent.GetConfig().Region,
+		job, queryRegion, writeReq.Region, s.agent.config.Region,
 	)
 
 	sJob := ApiJobToStructJob(job)
@@ -965,7 +904,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Priority:       *job.Priority,
 		AllAtOnce:      *job.AllAtOnce,
 		Datacenters:    job.Datacenters,
-		NodePool:       *job.NodePool,
 		Payload:        job.Payload,
 		Meta:           job.Meta,
 		ConsulToken:    *job.ConsulToken,
@@ -1029,7 +967,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 			r.Name = region.Name
 			r.Count = *region.Count
 			r.Datacenters = region.Datacenters
-			r.NodePool = region.NodePool
 			r.Meta = region.Meta
 			j.Multiregion.Regions = append(j.Multiregion.Regions, r)
 		}
@@ -1200,13 +1137,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
 
-	if apiTask.Identity != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Env:  apiTask.Identity.Env,
-			File: apiTask.Identity.File,
-		}
-	}
-
 	if apiTask.RestartPolicy != nil {
 		structsTask.RestartPolicy = &structs.RestartPolicy{
 			Attempts: *apiTask.RestartPolicy.Attempts,
@@ -1244,7 +1174,10 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
-	structsTask.LogConfig = apiLogConfigToStructs(apiTask.LogConfig)
+	structsTask.LogConfig = &structs.LogConfig{
+		MaxFiles:      *apiTask.LogConfig.MaxFiles,
+		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
+	}
 
 	if len(apiTask.Artifacts) > 0 {
 		structsTask.Artifacts = []*structs.TaskArtifact{}
@@ -1265,7 +1198,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Policies:     apiTask.Vault.Policies,
 			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,
-			DisableFile:  *apiTask.Vault.DisableFile,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
 		}
@@ -1485,7 +1417,6 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					Interval:               check.Interval,
 					Timeout:                check.Timeout,
 					InitialStatus:          check.InitialStatus,
-					TLSServerName:          check.TLSServerName,
 					TLSSkipVerify:          check.TLSSkipVerify,
 					Header:                 check.Header,
 					Method:                 check.Method,
@@ -1694,7 +1625,6 @@ func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.Co
 		Tags:                   slices.Clone(in.Tags),
 		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
 		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
-		Meta:                   maps.Clone(in.Meta),
 	}
 }
 
@@ -1731,7 +1661,6 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          apiMeshGatewayToStructs(upstream.MeshGateway),
-			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams
@@ -1809,19 +1738,10 @@ func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
 	if in == nil {
 		return nil
 	}
-
 	return &structs.LogConfig{
-		Disabled:      dereferenceBool(in.Disabled),
 		MaxFiles:      dereferenceInt(in.MaxFiles),
 		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
 	}
-}
-
-func dereferenceBool(in *bool) bool {
-	if in == nil {
-		return false
-	}
-	return *in
 }
 
 func dereferenceInt(in *int) int {

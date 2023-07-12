@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -13,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCachedtBadNodeTracker(t *testing.T) {
+func TesCachedtBadNodeTracker(t *testing.T) {
 	ci.Parallel(t)
 
 	config := DefaultCachedBadNodeTrackerConfig()
@@ -77,10 +74,11 @@ func TestCachedBadNodeTracker_isBad(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Read value from cached.
-			stats, ok := tracker.cache.Get(tc.nodeID)
+			v, ok := tracker.cache.Get(tc.nodeID)
 			require.True(t, ok)
 
 			// Check if it's bad.
+			stats := v.(*badNodeStats)
 			got := tracker.isBad(now, stats)
 			require.Equal(t, tc.bad, got)
 		})
@@ -90,9 +88,10 @@ func TestCachedBadNodeTracker_isBad(t *testing.T) {
 	nodes := []string{"node-1", "node-2", "node-3"}
 	for _, n := range nodes {
 		t.Run(fmt.Sprintf("%s cache expires", n), func(t *testing.T) {
-			stats, ok := tracker.cache.Get(n)
+			v, ok := tracker.cache.Get(n)
 			require.True(t, ok)
 
+			stats := v.(*badNodeStats)
 			bad := tracker.isBad(future, stats)
 			require.False(t, bad)
 		})
@@ -116,8 +115,10 @@ func TesCachedtBadNodeTracker_rateLimit(t *testing.T) {
 	tracker.Add("node-1")
 	tracker.Add("node-1")
 
-	stats, ok := tracker.cache.Get("node-1")
+	v, ok := tracker.cache.Get("node-1")
 	require.True(t, ok)
+
+	stats := v.(*badNodeStats)
 
 	// Burst allows for max 3 operations.
 	now := time.Now()

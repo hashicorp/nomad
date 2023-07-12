@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import "github.com/hashicorp/nomad/client/allocrunner/interfaces"

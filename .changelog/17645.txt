@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: remove namespace, type, and priority columns from child job table
-```

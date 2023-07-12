@@ -1,29 +1,19 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
-import Component from '@glimmer/component';
-import { tracked } from '@glimmer/tracking';
+import Component from '@ember/component';
 import { task, timeout } from 'ember-concurrency';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
+@classic
+@classNames('copy-button')
 export default class CopyButton extends Component {
-  @tracked state = null;
-
-  get text() {
-    if (typeof this.args.clipboardText === 'function')
-      return this.args.clipboardText;
-    if (typeof this.args.clipboardText === 'string')
-      return this.args.clipboardText;
-
-    return String(this.args.clipboardText);
-  }
+  clipboardText = null;
+  state = null;
 
   @(task(function* () {
-    this.state = 'success';
+    this.set('state', 'success');
 
     yield timeout(2000);
-    this.state = null;
+    this.set('state', null);
   }).restartable())
   indicateSuccess;
 }

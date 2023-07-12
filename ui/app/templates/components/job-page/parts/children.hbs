@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <div class="boxed-section-head">
   Job Launches
   {{#if this.job.parameterized}}
@@ -46,11 +41,22 @@
           <t.sort-by @prop="name">
             Name
           </t.sort-by>
+          {{#if this.system.shouldShowNamespaces}}
+            <t.sort-by @prop="namespace.name" data-test-jobs-namespace-header>
+              Namespace
+            </t.sort-by>
+          {{/if}}
           <t.sort-by @prop="submitTime" data-test-jobs-submit-time-header>
             Submitted At
           </t.sort-by>
           <t.sort-by @prop="status">
             Status
+          </t.sort-by>
+          <t.sort-by @prop="type">
+            Type
+          </t.sort-by>
+          <t.sort-by @prop="priority">
+            Priority
           </t.sort-by>
           <th>
             Groups

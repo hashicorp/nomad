@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 // Status is used to query the status-related endpoints.
@@ -15,12 +12,12 @@ func (c *Client) System() *System {
 
 func (s *System) GarbageCollect() error {
 	var req struct{}
-	_, err := s.client.put("/v1/system/gc", &req, nil, nil)
+	_, err := s.client.write("/v1/system/gc", &req, nil, nil)
 	return err
 }
 
 func (s *System) ReconcileSummaries() error {
 	var req struct{}
-	_, err := s.client.put("/v1/system/reconcile/summaries", &req, nil, nil)
+	_, err := s.client.write("/v1/system/reconcile/summaries", &req, nil, nil)
 	return err
 }

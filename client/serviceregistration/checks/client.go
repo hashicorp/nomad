@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package checks
 
 import (
@@ -18,7 +15,6 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"oss.indeed.com/go/libtime"
 )
@@ -155,11 +151,18 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		return qr
 	}
 
-	u := (&url.URL{
+	relative, err := url.Parse(q.Path)
+	if err != nil {
+		qr.Output = err.Error()
+		qr.Status = structs.CheckFailure
+		return qr
+	}
+
+	base := url.URL{
 		Scheme: q.Protocol,
 		Host:   addr,
-		Path:   q.Path,
-	}).String()
+	}
+	u := base.ResolveReference(relative).String()
 
 	request, err := http.NewRequest(q.Method, u, nil)
 	if err != nil {
@@ -167,18 +170,14 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
-
 	for header, values := range q.Headers {
 		for _, value := range values {
 			request.Header.Add(header, value)
 		}
 	}
 
-	if len(request.Header.Get(useragent.Header)) == 0 {
-		request.Header.Set(useragent.Header, useragent.String())
-	}
-
 	request.Host = request.Header.Get("Host")
+
 	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
 
@@ -196,11 +195,11 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 	qr.StatusCode = result.StatusCode
 
 	switch {
-	case result.StatusCode == 200:
+	case result.StatusCode == http.StatusOK:
 		qr.Status = structs.CheckSuccess
 		qr.Output = "nomad: http ok"
 		return qr
-	case result.StatusCode < 400:
+	case result.StatusCode < http.StatusBadRequest:
 		qr.Status = structs.CheckSuccess
 	default:
 		qr.Status = structs.CheckFailure

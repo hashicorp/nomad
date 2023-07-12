@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug that could cause replacements for failed allocations to be placed in the wrong datacenter during a canary deployment
+```

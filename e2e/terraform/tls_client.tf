@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # tls_client.tf defines the mTLS certs that'll be used by the E2E test
 # runner
 
@@ -56,7 +53,7 @@ resource "tls_self_signed_cert" "self_signed" {
     organization = "HashiCorp, Inc."
   }
 
-  ip_addresses = toset(aws_instance.client_ubuntu_jammy_amd64.*.public_ip)
+  ip_addresses = toset(aws_instance.client_ubuntu_bionic_amd64.*.public_ip)
 
   validity_period_hours = 720
   allowed_uses = [

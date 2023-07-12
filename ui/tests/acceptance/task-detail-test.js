@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -22,7 +17,6 @@ module('Acceptance | task detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', {
@@ -71,7 +65,7 @@ module('Acceptance | task detail', function (hooks) {
 
     assert.equal(Task.lifecycle, lifecycleName);
 
-    assert.ok(document.title.includes(`Task ${task.name}`));
+    assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
   test('breadcrumbs match jobs / job / task group / allocation / task', async function (assert) {
@@ -223,7 +217,7 @@ module('Acceptance | task detail', function (hooks) {
       'Event timestamp'
     );
     assert.equal(recentEvent.type, event.type, 'Event type');
-    assert.equal(recentEvent.message, event.message, 'Event message');
+    assert.equal(recentEvent.message, event.displayMessage, 'Event message');
   });
 
   test('when the allocation is not found, the application errors', async function (assert) {
@@ -338,7 +332,6 @@ module('Acceptance | task detail (no addresses)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.create('job');
     allocation = server.create('allocation', 'withoutTaskWithPorts', {
@@ -356,7 +349,6 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
@@ -415,7 +407,6 @@ module('Acceptance | task detail (not running)', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.create('namespace');
     server.create('namespace', { id: 'other-namespace' });
@@ -451,7 +442,6 @@ module('Acceptance | proxy task detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.create('job', { createAllocations: false });
     allocation = server.create('allocation', 'withTaskWithPorts', {

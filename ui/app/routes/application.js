@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-controller-access-in-routes */
 import { inject as service } from '@ember/service';
 import { later, next } from '@ember/runloop';
@@ -18,7 +13,6 @@ export default class ApplicationRoute extends Route {
   @service system;
   @service store;
   @service token;
-  @service router;
 
   queryParams = {
     region: {
@@ -146,17 +140,7 @@ export default class ApplicationRoute extends Route {
   @action
   error(error) {
     if (!(error instanceof AbortError)) {
-      if (
-        error.errors?.any(
-          (e) =>
-            e.detail === 'ACL token expired' ||
-            e.detail === 'ACL token not found'
-        )
-      ) {
-        this.router.transitionTo('settings.tokens');
-      } else {
-        this.controllerFor('application').set('error', error);
-      }
+      this.controllerFor('application').set('error', error);
     }
   }
 }

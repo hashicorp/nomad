@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package client
 
 import (
@@ -207,33 +204,23 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 	alloc := ar.Alloc()
 
-	aclObj, ident, err := a.c.resolveTokenAndACL(req.QueryOptions.AuthToken)
+	aclObj, token, err := a.c.resolveTokenAndACL(req.QueryOptions.AuthToken)
 	{
 		// log access
-		logArgs := []any{
+		tokenName, tokenID := "", ""
+		if token != nil {
+			tokenName, tokenID = token.Name, token.AccessorID
+		}
+
+		a.c.logger.Info("task exec session starting",
 			"exec_id", execID,
 			"alloc_id", req.AllocID,
 			"task", req.Task,
 			"command", req.Cmd,
 			"tty", req.Tty,
-		}
-		if ident != nil {
-			if ident.ACLToken != nil {
-				logArgs = append(logArgs,
-					"access_token_name", ident.ACLToken.Name,
-					"access_token_id", ident.ACLToken.AccessorID,
-				)
-			} else if ident.Claims != nil {
-				logArgs = append(logArgs,
-					"ns", ident.Claims.Namespace,
-					"job", ident.Claims.JobID,
-					"alloc", ident.Claims.AllocationID,
-					"task", ident.Claims.TaskName,
-				)
-			}
-		}
-
-		a.c.logger.Info("task exec session starting", logArgs...)
+			"access_token_name", tokenName,
+			"access_token_id", tokenID,
+		)
 	}
 
 	// Check alloc-exec permission.

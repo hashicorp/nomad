@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -19,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +40,7 @@ func TestHTTP_JobsList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/jobs", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/jobs", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -103,7 +99,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/jobs?prefix=aabb", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/jobs?prefix=aabb", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -153,7 +149,7 @@ func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/jobs?namespace=*", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/jobs?namespace=*", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
@@ -186,7 +182,7 @@ func TestHTTP_JobsRegister(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/jobs", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -242,7 +238,7 @@ func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/jobs", buf)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
@@ -305,7 +301,7 @@ func TestHTTP_JobsRegister_ACL(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/jobs", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -337,7 +333,7 @@ func TestHTTP_JobsRegister_Defaulting(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/jobs", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -386,46 +382,32 @@ func TestHTTP_JobsParse(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
-		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
-		must.NoError(t, err)
+		req, err := http.NewRequest(http.MethodPost, "/v1/jobs/parse", buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
 
 		respW := httptest.NewRecorder()
 
 		obj, err := s.Server.JobsParseRequest(respW, req)
-		must.NoError(t, err)
-		must.NotNil(t, obj)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if obj == nil {
+			t.Fatal("response should not be nil")
+		}
 
 		job := obj.(*api.Job)
 		expected := mock.Job()
-		must.Eq(t, expected.Name, *job.Name)
-		must.Eq(t, expected.Datacenters[0], job.Datacenters[0])
-	})
-}
+		if job.Name == nil || *job.Name != expected.Name {
+			t.Fatalf("job name is '%s', expected '%s'", *job.Name, expected.Name)
+		}
 
-func TestHTTP_JobsParse_HCLVar(t *testing.T) {
-	ci.Parallel(t)
-	httpTest(t, nil, func(s *TestAgent) {
-		hclJob, hclVar := mock.HCLVar()
-		buf := encodeReq(api.JobsParseRequest{
-			JobHCL:    hclJob,
-			Variables: hclVar,
-		})
-		req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
-		must.NoError(t, err)
-
-		respW := httptest.NewRecorder()
-
-		obj, err := s.Server.JobsParseRequest(respW, req)
-		must.NoError(t, err)
-		must.NotNil(t, obj)
-
-		job := obj.(*api.Job)
-
-		must.Eq(t, "var-job", *job.Name)
-		must.Eq(t, map[string]any{
-			"command": "echo",
-			"args":    []any{"S is stringy, N is 42, B is true"},
-		}, job.TaskGroups[0].Tasks[0].Config)
+		if job.Datacenters == nil ||
+			job.Datacenters[0] != expected.Datacenters[0] {
+			t.Fatalf("job datacenters is '%s', expected '%s'",
+				job.Datacenters[0], expected.Datacenters[0])
+		}
 	})
 }
 
@@ -519,7 +501,7 @@ func TestHTTP_JobsParse_ACL(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				buf := encodeReq(api.JobsParseRequest{JobHCL: mock.HCL()})
-				req, err := http.NewRequest("POST", "/v1/jobs/parse", buf)
+				req, err := http.NewRequest(http.MethodPost, "/v1/jobs/parse", buf)
 				require.NoError(t, err)
 
 				if tc.namespace != "" {
@@ -568,7 +550,7 @@ func TestHTTP_JobQuery(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -612,12 +594,12 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 			t.Fatalf("Failed to upsert job: %v", err)
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -670,7 +652,7 @@ func TestHTTP_jobUpdate_systemScaling(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID, buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -698,7 +680,7 @@ func TestHTTP_JobUpdate(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID, buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -786,7 +768,7 @@ func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
 				buf := encodeReq(args)
 
 				// Make the HTTP request
-				req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+				req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID, buf)
 				assert.Nil(t, err)
 				respW := httptest.NewRecorder()
 
@@ -817,7 +799,7 @@ func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
 				assert.NotNil(t, getResp.Job)
 
 				// Check the evaluation that resulted from the job register.
-				evalInfoReq, err := http.NewRequest("GET", "/v1/evaluation/"+regResp.EvalID, nil)
+				evalInfoReq, err := http.NewRequest(http.MethodGet, "/v1/evaluation/"+regResp.EvalID, nil)
 				assert.Nil(t, err)
 				respW.Flush()
 
@@ -901,7 +883,7 @@ func TestHTTP_JobUpdateRegion(t *testing.T) {
 				// Make the HTTP request
 				url := "/v1/job/" + *job.ID
 
-				req, err := http.NewRequest("PUT", url, buf)
+				req, err := http.NewRequest(http.MethodPut, url, buf)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -952,7 +934,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Make the HTTP request to do a soft delete
-		req, err := http.NewRequest("DELETE", "/v1/job/"+job.ID, nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/job/"+job.ID, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -995,7 +977,7 @@ func TestHTTP_JobDelete(t *testing.T) {
 		}
 
 		// Make the HTTP request to do a purge delete
-		req2, err := http.NewRequest("DELETE", "/v1/job/"+job.ID+"?purge=true", nil)
+		req2, err := http.NewRequest(http.MethodDelete, "/v1/job/"+job.ID+"?purge=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1077,7 +1059,7 @@ func TestHTTP_JobDelete_EvalPriority(t *testing.T) {
 				buf := encodeReq(args)
 
 				// Make the HTTP request
-				regReq, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+				regReq, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID, buf)
 				assert.Nil(t, err)
 				respW := httptest.NewRecorder()
 
@@ -1103,7 +1085,7 @@ func TestHTTP_JobDelete_EvalPriority(t *testing.T) {
 				assert.NotNil(t, getResp.Job)
 
 				// Delete the job.
-				deleteReq, err := http.NewRequest("DELETE", "/v1/job/"+*job.ID+"?purge=true", nil)
+				deleteReq, err := http.NewRequest(http.MethodDelete, "/v1/job/"+*job.ID+"?purge=true", nil)
 				assert.Nil(t, err)
 				respW.Flush()
 
@@ -1129,7 +1111,7 @@ func TestHTTP_JobDelete_EvalPriority(t *testing.T) {
 				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
 
 				// Check the evaluation that resulted from the job register.
-				evalInfoReq, err := http.NewRequest("GET", "/v1/evaluation/"+dereg.EvalID, nil)
+				evalInfoReq, err := http.NewRequest(http.MethodGet, "/v1/evaluation/"+dereg.EvalID, nil)
 				assert.Nil(t, err)
 				respW.Flush()
 
@@ -1177,7 +1159,7 @@ func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
 		buf := encodeReq(scaleReq)
 
 		// Make the HTTP request to scale the job group
-		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/scale", buf)
+		req, err := http.NewRequest(http.MethodPost, "/v1/job/"+job.ID+"/scale", buf)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -1229,7 +1211,7 @@ func TestHTTP_Job_ScaleStatus(t *testing.T) {
 		}
 
 		// Make the HTTP request to scale the job group
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/scale", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/scale", nil)
 		require.NoError(err)
 		respW := httptest.NewRecorder()
 
@@ -1265,7 +1247,7 @@ func TestHTTP_JobForceEvaluate(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", nil)
+		req, err := http.NewRequest(http.MethodPost, "/v1/job/"+job.ID+"/evaluate", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1316,7 +1298,7 @@ func TestHTTP_JobEvaluate_ForceReschedule(t *testing.T) {
 		buf := encodeReq(jobEvalReq)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/evaluate", buf)
+		req, err := http.NewRequest(http.MethodPost, "/v1/job/"+job.ID+"/evaluate", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1359,7 +1341,7 @@ func TestHTTP_JobEvaluations(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/evaluations", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/evaluations", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1424,7 +1406,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+alloc1.Job.ID+"/allocations?all=true", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+alloc1.Job.ID+"/allocations?all=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1482,7 +1464,7 @@ func TestHTTP_JobDeployments(t *testing.T) {
 		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployments", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+j.ID+"/deployments", nil)
 		assert.Nil(err, "HTTP")
 		respW := httptest.NewRecorder()
 
@@ -1525,7 +1507,7 @@ func TestHTTP_JobDeployment(t *testing.T) {
 		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+j.ID+"/deployment", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+j.ID+"/deployment", nil)
 		assert.Nil(err, "HTTP")
 		respW := httptest.NewRecorder()
 
@@ -1578,7 +1560,7 @@ func TestHTTP_JobVersions(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/versions?diffs=true", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/versions?diffs=true", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1622,49 +1604,6 @@ func TestHTTP_JobVersions(t *testing.T) {
 	})
 }
 
-func TestHTTP_JobSubmission(t *testing.T) {
-	ci.Parallel(t)
-
-	httpTest(t, nil, func(s *TestAgent) {
-		job := mock.Job()
-		args := structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: structs.DefaultNamespace,
-			},
-			Submission: &structs.JobSubmission{
-				Source: mock.HCL(),
-				Format: "hcl2",
-			},
-		}
-		var resp structs.JobRegisterResponse
-		must.NoError(t, s.Agent.RPC("Job.Register", &args, &resp))
-
-		respW := httptest.NewRecorder()
-
-		// make request for job submission @ v0
-		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/submission?version=0", nil)
-		must.NoError(t, err)
-		submission, err := s.Server.jobSubmissionCRUD(respW, req, job.ID)
-		must.NoError(t, err)
-		must.Eq(t, "hcl2", submission.Format)
-		must.StrContains(t, submission.Source, `job "my-job" {`)
-
-		// make request for job submission @v1 (does not exist)
-		req, err = http.NewRequest(http.MethodGet, "/v1/job/"+job.ID+"/submission?version=1", nil)
-		must.NoError(t, err)
-		_, err = s.Server.jobSubmissionCRUD(respW, req, job.ID)
-		must.ErrorContains(t, err, "job source not found")
-
-		// make POST request (invalid method)
-		req, err = http.NewRequest(http.MethodPost, "/v1/job/"+job.ID+"/submission?version=0", nil)
-		must.NoError(t, err)
-		_, err = s.Server.jobSubmissionCRUD(respW, req, job.ID)
-		must.ErrorContains(t, err, "Invalid method")
-	})
-}
-
 func TestHTTP_PeriodicForce(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
@@ -1683,7 +1622,7 @@ func TestHTTP_PeriodicForce(t *testing.T) {
 		}
 
 		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/periodic/force", nil)
+		req, err := http.NewRequest(http.MethodPost, "/v1/job/"+job.ID+"/periodic/force", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1724,7 +1663,7 @@ func TestHTTP_JobPlan(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/plan", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID+"/plan", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1806,7 +1745,7 @@ func TestHTTP_JobPlanRegion(t *testing.T) {
 				buf := encodeReq(args)
 
 				// Make the HTTP request
-				req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID+"/plan", buf)
+				req, err := http.NewRequest(http.MethodPut, "/v1/job/"+*job.ID+"/plan", buf)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -1854,7 +1793,7 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		buf := encodeReq(args2)
 
 		// Make the HTTP request
-		req2, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/dispatch", buf)
+		req2, err := http.NewRequest(http.MethodPut, "/v1/job/"+job.ID+"/dispatch", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1912,7 +1851,7 @@ func TestHTTP_JobRevert(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/revert", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/job/"+job.ID+"/revert", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1970,7 +1909,7 @@ func TestHTTP_JobStable(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/job/"+job.ID+"/stable", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/job/"+job.ID+"/stable", buf)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -2107,7 +2046,7 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 				Multiregion: tc.multiregion,
 			}
 
-			req, _ := http.NewRequest("POST", "/", nil)
+			req, _ := http.NewRequest(http.MethodPost, "/", nil)
 			if tc.queryToken != "" {
 				req.Header.Set("X-Nomad-Token", tc.queryToken)
 			}
@@ -2127,11 +2066,11 @@ func TestJobs_ParsingWriteRequest(t *testing.T) {
 			}
 
 			sJob, sWriteReq := srv.apiJobAndRequestToStructs(job, req, apiReq)
-			must.Eq(t, tc.expectedJobRegion, sJob.Region)
-			must.Eq(t, tc.expectedNamespace, sJob.Namespace)
-			must.Eq(t, tc.expectedNamespace, sWriteReq.Namespace)
-			must.Eq(t, tc.expectedRequestRegion, sWriteReq.Region)
-			must.Eq(t, tc.expectedToken, sWriteReq.AuthToken)
+			require.Equal(t, tc.expectedJobRegion, sJob.Region)
+			require.Equal(t, tc.expectedNamespace, sJob.Namespace)
+			require.Equal(t, tc.expectedNamespace, sWriteReq.Namespace)
+			require.Equal(t, tc.expectedRequestRegion, sWriteReq.Region)
+			require.Equal(t, tc.expectedToken, sWriteReq.AuthToken)
 		})
 	}
 }
@@ -2324,7 +2263,7 @@ func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
 
 				// Generate a job and upsert this.
 				job := mock.Job()
-				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 				// Generate a service registration, assigned the jobID to the
 				// mocked jobID, and upsert this.
@@ -2358,7 +2297,7 @@ func TestHTTPServer_jobServiceRegistrations(t *testing.T) {
 
 				// Generate a job and upsert this.
 				job := mock.Job()
-				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+				require.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 				// Build the HTTP request.
 				path := fmt.Sprintf("/v1/job/%s/services", job.ID)
@@ -2593,7 +2532,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Args:          []string{"a", "b"},
 								Path:          "/check",
 								Protocol:      "http",
-								Method:        "POST",
+								Method:        http.MethodPost,
 								Body:          "{\"check\":\"mem\"}",
 								PortLabel:     "foo",
 								AddressMode:   "driver",
@@ -2617,9 +2556,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Tags:                   []string{"f", "g"},
 								Port:                   "9000",
 								DisableDefaultTCPCheck: true,
-								Meta: map[string]string{
-									"test-key": "test-value",
-								},
 							},
 						},
 					},
@@ -2767,7 +2703,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: pointer.Of(10 * time.Second),
 						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
-							Disabled:      pointer.Of(true),
 							MaxFiles:      pointer.Of(10),
 							MaxFileSizeMB: pointer.Of(100),
 						},
@@ -2785,7 +2720,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Namespace:    pointer.Of("ns1"),
 							Policies:     []string{"a", "b", "c"},
 							Env:          pointer.Of(true),
-							DisableFile:  pointer.Of(false),
 							ChangeMode:   pointer.Of("c"),
 							ChangeSignal: pointer.Of("sighup"),
 						},
@@ -2845,7 +2779,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Priority:       50,
 		AllAtOnce:      true,
 		Datacenters:    []string{"dc1", "dc2"},
-		NodePool:       "",
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "a",
@@ -3005,7 +2938,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Args:          []string{"a", "b"},
 								Path:          "/check",
 								Protocol:      "http",
-								Method:        "POST",
+								Method:        http.MethodPost,
 								Body:          "{\"check\":\"mem\"}",
 								PortLabel:     "foo",
 								AddressMode:   "driver",
@@ -3031,9 +2964,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Tags:                   []string{"f", "g"},
 								Port:                   "9000",
 								DisableDefaultTCPCheck: true,
-								Meta: map[string]string{
-									"test-key": "test-value",
-								},
 							},
 						},
 					},
@@ -3187,7 +3117,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: 10 * time.Second,
 						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
-							Disabled:      true,
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
 						},
@@ -3205,7 +3134,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Namespace:    "ns1",
 							Policies:     []string{"a", "b", "c"},
 							Env:          true,
-							DisableFile:  false,
 							ChangeMode:   "c",
 							ChangeSignal: "sighup",
 						},
@@ -3263,7 +3191,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Priority:    pointer.Of(50),
 		AllAtOnce:   pointer.Of(true),
 		Datacenters: []string{"dc1", "dc2"},
-		NodePool:    pointer.Of("default"),
 		Constraints: []*api.Constraint{
 			{
 				LTarget: "a",
@@ -3346,7 +3273,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: pointer.Of(10 * time.Second),
 						KillSignal:  "SIGQUIT",
 						LogConfig: &api.LogConfig{
-							Disabled:      pointer.Of(true),
 							MaxFiles:      pointer.Of(10),
 							MaxFileSizeMB: pointer.Of(100),
 						},
@@ -3384,7 +3310,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Priority:    50,
 		AllAtOnce:   true,
 		Datacenters: []string{"dc1", "dc2"},
-		NodePool:    "default",
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "a",
@@ -3473,7 +3398,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						KillTimeout: 10 * time.Second,
 						KillSignal:  "SIGQUIT",
 						LogConfig: &structs.LogConfig{
-							Disabled:      true,
 							MaxFiles:      10,
 							MaxFileSizeMB: 100,
 						},
@@ -3621,18 +3545,17 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/validate/job", buf)
-		must.NoError(t, err)
+		req, err := http.NewRequest(http.MethodPut, "/v1/validate/job", buf)
+		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.ValidateJobRequest(respW, req)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		// Check the response
 		resp := obj.(structs.JobValidateResponse)
-		must.StrContains(t, resp.Error, `Job type "system" does not allow migrate block`)
-		must.Len(t, 1, resp.ValidationErrors)
+		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
 	})
 }
 
@@ -3644,39 +3567,14 @@ func TestConversion_dereferenceInt(t *testing.T) {
 
 func TestConversion_apiLogConfigToStructs(t *testing.T) {
 	ci.Parallel(t)
-	must.Nil(t, apiLogConfigToStructs(nil))
-	must.Eq(t, &structs.LogConfig{
-		Disabled:      true,
+	require.Nil(t, apiLogConfigToStructs(nil))
+	require.Equal(t, &structs.LogConfig{
 		MaxFiles:      2,
 		MaxFileSizeMB: 8,
 	}, apiLogConfigToStructs(&api.LogConfig{
-		Disabled:      pointer.Of(true),
 		MaxFiles:      pointer.Of(2),
 		MaxFileSizeMB: pointer.Of(8),
 	}))
-
-	// COMPAT(1.6.0): verify backwards compatibility fixes
-	// Note: we're intentionally ignoring the Enabled: false case
-	must.Eq(t, &structs.LogConfig{Disabled: false},
-		apiLogConfigToStructs(&api.LogConfig{
-			Enabled: pointer.Of(false),
-		}))
-	must.Eq(t, &structs.LogConfig{Disabled: false},
-		apiLogConfigToStructs(&api.LogConfig{
-			Enabled: pointer.Of(true),
-		}))
-	must.Eq(t, &structs.LogConfig{Disabled: false},
-		apiLogConfigToStructs(&api.LogConfig{}))
-	must.Eq(t, &structs.LogConfig{Disabled: false},
-		apiLogConfigToStructs(&api.LogConfig{
-			Disabled: pointer.Of(false),
-		}))
-	must.Eq(t, &structs.LogConfig{Disabled: false},
-		apiLogConfigToStructs(&api.LogConfig{
-			Enabled:  pointer.Of(false),
-			Disabled: pointer.Of(false),
-		}))
-
 }
 
 func TestConversion_apiResourcesToStructs(t *testing.T) {
@@ -3726,30 +3624,6 @@ func TestConversion_apiResourcesToStructs(t *testing.T) {
 	}
 }
 
-func TestConversion_apiJobSubmissionToStructs(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("nil", func(t *testing.T) {
-		result := apiJobSubmissionToStructs(nil)
-		must.Nil(t, result)
-	})
-
-	t.Run("not nil", func(t *testing.T) {
-		result := apiJobSubmissionToStructs(&api.JobSubmission{
-			Source:        "source",
-			Format:        "hcl2",
-			VariableFlags: map[string]string{"foo": "bar"},
-			Variables:     "variable",
-		})
-		must.Eq(t, &structs.JobSubmission{
-			Source:        "source",
-			Format:        "hcl2",
-			VariableFlags: map[string]string{"foo": "bar"},
-			Variables:     "variable",
-		}, result)
-	})
-}
-
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	ci.Parallel(t)
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
@@ -3771,7 +3645,6 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		Meta:        meta,
 		KillTimeout: &timeout,
 		LogConfig: &structs.LogConfig{
-			Disabled:      true,
 			MaxFiles:      2,
 			MaxFileSizeMB: 8,
 		},
@@ -3790,7 +3663,6 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		Meta:        meta,
 		KillTimeout: &timeout,
 		LogConfig: &api.LogConfig{
-			Disabled:      pointer.Of(true),
 			MaxFiles:      pointer.Of(2),
 			MaxFileSizeMB: pointer.Of(8),
 		},
@@ -3892,17 +3764,11 @@ func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
 		Proxy: &structs.ConsulProxy{
 			LocalServiceAddress: "192.168.30.1",
 		},
-		Meta: map[string]string{
-			"test-key": "test-value",
-		},
 	}, apiConnectSidecarServiceToStructs(&api.ConsulSidecarService{
 		Tags: []string{"foo"},
 		Port: "myPort",
 		Proxy: &api.ConsulProxy{
 			LocalServiceAddress: "192.168.30.1",
-		},
-		Meta: map[string]string{
-			"test-key": "test-value",
 		},
 	}))
 }

@@ -1,7 +1,0 @@
-```release-note:improvement
-server: Added raft snapshot arguments to server config
-```
-
-```release-note:improvement
-server: Certain raft configuration elements can now be reloaded without restarting the server
-```

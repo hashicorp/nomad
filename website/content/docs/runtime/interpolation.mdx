@@ -12,24 +12,8 @@ task environment variables, and certain driver fields. Runtime environment
 variables are not interpretable in constraints because they are only defined
 once the scheduler has placed them on a particular node.
 
-Nomad supports interpreting two classes of variables: [node attributes](#interpreted_node_vars)
-and [runtime environment variables](#interpreted_env_vars). Node attributes are
-interpretable in [constraints](/nomad/docs/job-specification/constraint),
-[task environment variables](/nomad/docs/job-specification/env), and certain
-task driver fields—for example the [`labels`](/nomad/docs/drivers/docker#labels)
-attribute of the Docker [`config`](/nomad/docs/drivers/docker).
-
-<Note>
-Runtime environment variables are not defined until after the scheduler
-has placed the job, so they are unavailable for use in job constraints.
-</Note>
-
-## Syntax
-
-The syntax for interpreting variables in the Nomad job specification is
-`${variable_name}`. The [`template` block](/nomad/docs/job-specification/template)
-uses the `env` function to retrieve these variables from the environment, using
-`{{env "variable_name"}}` instead. Examples can be seen below:
+The syntax for interpreting variables is `${variable}`. An example and a
+comprehensive list of interpretable fields can be seen below:
 
 ```hcl
 task "docs" {
@@ -59,17 +43,6 @@ task "docs" {
     value     = "linux"
   }
 
-  template {
-    destination = "template.txt"
-    data = <<EOT
-{{- /*
-      Environment variables are available to templates via the env function,
-      rather than the ${...} syntax.
-*/ -}}
-Running on {{env "attr.unique.hostname"}}.
-EOT
-  }
-
   # Environment variables are interpreted and can contain both runtime and
   # node attributes. These environment variables are passed into the task.
   env {
@@ -84,45 +57,43 @@ EOT
 }
 ```
 
-## Node Attributes ((#interpreted_node_vars, #node-variables-))
+## Node Variables ((#interpreted_node_vars, #node-variables-))
 
 Below is a full listing of node attributes that are interpretable. These
 attributes are interpreted by **both** constraints and within the task and
 driver.
 
-| Variable              | Description                                 | Example Value                          |
-|-----------------------|---------------------------------------------|----------------------------------------|
+| Variable                  | Description                                 | Example Value                          |
+| ------------------------- | ------------------------------------------- | -------------------------------------- |
 | `${node.unique.id}`   | 36 character unique client identifier       | `9afa5da1-8f39-25a2-48dc-ba31fd7c0023` |
 | `${node.region}`      | Client's region                             | `global`                               |
 | `${node.datacenter}`  | Client's datacenter                         | `dc1`                                  |
 | `${node.unique.name}` | Client's name                               | `nomad-client-10-1-2-4`                |
 | `${node.class}`       | Client's class                              | `linux-64bit`                          |
-| `${node.pool}`        | Client's node pool                          | `prod`                                 |
-| `${attr.<property>}`  | Property given by `property` on the client  | `${attr.cpu.arch} => amd64`            |
-| `${meta.<key>}`       | Metadata value given by `key` on the client | `${meta.foo} => bar`                   |
+| `${attr.<property>}`        | Property given by `property` on the client  | `${attr.cpu.arch} => amd64`        |
+| `${meta.<key>}`        | Metadata value given by `key` on the client | `${meta.foo} => bar`               |
 
-Below is a table documenting common node properties.
+Below is a table documenting common node properties:
 
-| Property                                           | Description                                                                                                                                            |
-| ---------------------------------------------------| ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `${attr.cpu.arch}`                                 | CPU architecture of the client (e.g. `amd64`, `386`)                                                                                                   |
+| Property                                               | Description                                                                                                                                            |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `${attr.cpu.arch}`                                 | CPU architecture of the client (e.g. `amd64`, `386`)                                                                                              |
 | `${attr.cpu.numcores}`                             | Number of CPU cores on the client. May differ from how many cores are available for reservation due to OS or configuration. See `cpu.reservablecores`. |
-| `${attr.cpu.reservablecores}`                      | Number of CPU cores on the client available for scheduling. Number of cores used by the scheduler when placing work with `resources.cores` set.        |
-| `${attr.cpu.totalcompute}`                         | `cpu.frequency × cpu.numcores` but may be overridden by `client.cpu_total_compute`                                                                     |
+| `${attr.cpu.reservablecores}`                      | Number of CPU cores on the client avaible for scheduling. Number of cores used by the scheduler when placing work with `resources.cores` set.          |
+| `${attr.cpu.totalcompute}`                         | `cpu.frequency × cpu.numcores` but may be overridden by `client.cpu_total_compute`                                                                |
 | `${attr.consul.datacenter}`                        | The Consul datacenter of the client (if Consul is found)                                                                                               |
-| `${attr.driver.<property>}`                        | See the [task drivers](/nomad/docs/drivers) for property documentation                                                                                 |
+| `${attr.driver.<property>}`                              | See the [task drivers](/nomad/docs/drivers) for property documentation                                                                                       |
 | `${attr.unique.hostname}`                          | Hostname of the client                                                                                                                                 |
 | `${attr.unique.network.ip-address}`                | The IP address fingerprinted by the client and from which task ports are allocated                                                                     |
 | `${attr.kernel.arch}`                              | Kernel architecture of the client (e.g. `x86_64`, `aarch64`)                                                                                           |
 | `${attr.kernel.name}`                              | Kernel of the client (e.g. `linux`, `darwin`)                                                                                                          |
-| `${attr.kernel.version}`                           | Version of the client kernel (e.g. `3.19.0-25-generic`, `15.0.0`)                                                                                      |
+| `${attr.kernel.version}`                           | Version of the client kernel (e.g. `3.19.0-25-generic`, `15.0.0`)                                                                                 |
 | `${attr.platform.aws.ami-id}`                      | AMI ID of the client (if on AWS EC2)                                                                                                                   |
 | `${attr.platform.aws.instance-life-cycle}`         | Instance lifecycle (e.g. spot, on-demand) of the client (if on AWS EC2)                                                                                |
 | `${attr.platform.aws.instance-type}`               | Instance type of the client (if on AWS EC2)                                                                                                            |
 | `${attr.platform.aws.placement.availability-zone}` | Availability Zone of the client (if on AWS EC2)                                                                                                        |
-| `${attr.os.name}`                                  | Operating system of the client (e.g. `ubuntu`, `windows`, `darwin`)                                                                                    |
+| `${attr.os.name}`                                  | Operating system of the client (e.g. `ubuntu`, `windows`, `darwin`)                                                                               |
 | `${attr.os.version}`                               | Version of the client OS                                                                                                                               |
-| `${attr.os.build}`                                 | Build number (e.g `14393.5501`) of the client OS (if on Windows)                                                                                       |
 
 The full list of node attributes can be obtained by running `nomad node status -verbose [node]`.
 
@@ -159,41 +130,38 @@ the task is running in. These are only defined once the task has been placed on
 a particular node and as such can not be used in constraints.
 
 Environment variables should be enclosed in brackets `${...}` for
-interpolation or accessed using the `env` function inside the template
-block—`{{env "..."}}`
+interpolation.
 
 ### Dots in Variables ((#dots_in_vars))
 
-Nomad interprets dots in names as object notation. This causes names that have
-multiple consecutive dots to be considered invalid. For example, an environment
-variable named `invalid...name` cannot be interpolated using the standard
-`"${invalid...name}"` syntax. If you do, the parser will return an
-`Extra characters after interpolation expression` error. Nomad provides a
-variable—`env`—that can access any environment variable, regardless
-of its name, using index syntax.
+Starting in Nomad 0.9, task configuration interpolation requires variables to
+be valid identifiers. While this does not affect default variables or common
+custom variables, it is possible to define a variable that is not a valid
+identifier:
 
 ```hcl
-job "sample" {
-  datacenters = ["dc1"]
-  group "g1" {
-    task "redis" {
+env {
+  "valid.name"     = "ok"
+  "invalid...name" = "not a valid identifier"
+}
+```
 
-      # Note: to set an environment variable with an invalid name, you must
-      # use the HCL2 map assignment syntax for `env`. Otherwise, the job spec
-      # parser will throw an `Argument or block definition required` error
-      env = {
-        "invalid...name" = "value1"
-        "valid.name"     = "value2"
-      }
+The environment variable `invalid...name` cannot be interpolated using the
+standard `"${invalid...name}"` syntax. The dots will be interpreted as object
+notation so multiple consecutive dots are invalid.
 
-      driver = "docker"
-      config {
-        image  = "redis:7"
-        labels {
-          label1 = "${env["invalid...name"]}"
-          label2 = "${valid.name}"
-        }
-      }
+To continue supporting all user environment variables Nomad 0.9 added a new
+`env` variable which allows accessing any environment variable through index
+syntax:
+
+```hcl
+task "redis" {
+  driver = "docker"
+  config {
+    image  = "redis:7"
+    labels {
+      label1 = "${env["invalid...name"]}"
+      label2 = "${env["valid.name"]}"
     }
   }
 }

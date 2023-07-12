@@ -1,12 +1,8 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"fmt"
 
-	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -130,22 +126,14 @@ func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
 
 // jobCanonicalizer calls job.Canonicalize (sets defaults and initializes
 // fields) and returns any errors as warnings.
-type jobCanonicalizer struct {
-	srv *Server
-}
+type jobCanonicalizer struct{}
 
-func (c *jobCanonicalizer) Name() string {
+func (jobCanonicalizer) Name() string {
 	return "canonicalize"
 }
 
-func (c *jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	job.Canonicalize()
-
-	// If the job priority is not set, we fallback on the defaults specified in the server config
-	if job.Priority == 0 {
-		job.Priority = c.srv.GetConfig().JobDefaultPriority
-	}
-
 	return job, nil, nil
 }
 
@@ -221,7 +209,7 @@ type constraintMatcher uint
 const (
 	// constraintMatcherFull ensures that a constraint is only considered found
 	// when they match totally. This check is performed using the
-	// structs.Constraint Equal function.
+	// structs.Constraint Equals function.
 	constraintMatcherFull constraintMatcher = iota
 
 	// constraintMatcherLeft ensure that a constraint is considered found if
@@ -242,7 +230,7 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	switch matcher {
 	case constraintMatcherFull:
 		for _, c := range taskGroup.Constraints {
-			if c.Equal(constraint) {
+			if c.Equals(constraint) {
 				found = true
 				break
 			}
@@ -265,15 +253,13 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 // jobValidate validates a Job and task drivers and returns an error if there is
 // a validation problem or if the Job is of a type a user is not allowed to
 // submit.
-type jobValidate struct {
-	srv *Server
-}
+type jobValidate struct{}
 
-func (*jobValidate) Name() string {
+func (jobValidate) Name() string {
 	return "validate"
 }
 
-func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
+func (jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	validationErrors := new(multierror.Error)
 	if err := job.Validate(); err != nil {
 		multierror.Append(validationErrors, err)
@@ -301,10 +287,6 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
 	}
 
-	if job.Priority < structs.JobMinPriority || job.Priority > v.srv.config.JobMaxPriority {
-		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
-	}
-
 	return warnings, validationErrors.ErrorOrNil()
 }
 
@@ -322,12 +304,7 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 		return nil, err
 	}
 
-	pool, err := v.srv.State().NodePoolByName(nil, job.NodePool)
-	if err != nil {
-		return nil, err
-	}
-
-	if pool.MemoryOversubscriptionEnabled(c) {
+	if c != nil && c.MemoryOversubscriptionEnabled {
 		return nil, nil
 	}
 
@@ -340,32 +317,4 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 	}
 
 	return warnings, err
-}
-
-// submissionController is used to protect against job source sizes that exceed
-// the maximum as set in server config as job_max_source_size
-//
-// Such jobs will have their source discarded and emit a warning, but the job
-// itself will still continue with being registered.
-func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
-	if args.Submission == nil {
-		return nil
-	}
-	maxSize := j.srv.GetConfig().JobMaxSourceSize
-	submission := args.Submission
-	// discard the submission if the source + variables is larger than the maximum
-	// allowable size as set by client config
-	totalSize := len(submission.Source)
-	totalSize += len(submission.Variables)
-	for key, value := range submission.VariableFlags {
-		totalSize += len(key)
-		totalSize += len(value)
-	}
-	if totalSize > maxSize {
-		args.Submission = nil
-		totalSizeHuman := humanize.Bytes(uint64(totalSize))
-		maxSizeHuman := humanize.Bytes(uint64(maxSize))
-		return fmt.Errorf("job source size of %s exceeds maximum of %s and will be discarded", totalSizeHuman, maxSizeHuman)
-	}
-	return nil
 }

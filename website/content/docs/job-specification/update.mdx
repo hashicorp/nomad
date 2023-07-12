@@ -105,7 +105,7 @@ a future release.
   stopping any previous allocations. Once the operator determines the canaries
   are healthy, they can be promoted which unblocks a rolling update of the
   remaining allocations at a rate of `max_parallel`. Canary deployments cannot
-  be used with volumes when `per_alloc = true`.
+  be used with CSI volumes when `per_alloc = true`.
 
 - `stagger` `(string: "30s")` - Specifies the delay between each set of
   [`max_parallel`](#max_parallel) updates when updating system jobs. This

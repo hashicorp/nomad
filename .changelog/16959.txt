@@ -1,3 +1,0 @@
-```release-note:bug
-tls: Fixed a bug where the `nomad tls cert` command did not create certificates with the correct SANs for them to work with non default domain and region names.
-```

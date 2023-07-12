@@ -45,7 +45,6 @@ to the secret directory at `secrets/vault_token` and by injecting a `VAULT_TOKEN
 environment variable. If the Nomad cluster is [configured](/nomad/docs/configuration/vault#namespace)
 to use [Vault Namespaces](/vault/docs/enterprise/namespaces),
 a `VAULT_NAMESPACE` environment variable will be injected whenever `VAULT_TOKEN` is set.
-This behavior can be altered using the `env` and `file` parameters.
 
 If Nomad is unable to renew the Vault token (perhaps due to a Vault outage or
 network error), the client will attempt to retrieve a new Vault token. If successful, the
@@ -70,19 +69,6 @@ with Vault as well.
 
 - `env` `(bool: true)` - Specifies if the `VAULT_TOKEN` and `VAULT_NAMESPACE`
   environment variables should be set when starting the task.
-
-- `disable_file` `(bool: false)` - Specifies if the Vault token should be
-  written to `secrets/vault_token`.
-  <Warning>
-    While the <code>secrets</code> path is not shared with tasks that
-    use <a href="/nomad/docs/concepts/filesystem#image-isolation">
-      <code>image</code>
-    </a> filesystem isolation, it is still accessible by tasks using <a href="/nomad/docs/concepts/filesystem#chroot-isolation">
-      <code>chroot</code>
-    </a> or <a href="/nomad/docs/concepts/filesystem#none-isolation"><code>none</code>
-    </a> isolation.
-  </Warning>
-
 
 - `namespace` `(string: "")` <EnterpriseAlert inline/> - Specifies the Vault Namespace
   to use for the task. The Nomad client will retrieve a Vault token that is scoped to
@@ -123,58 +109,6 @@ vault {
 }
 ```
 
-### Private Token and Change Modes
-
-This example retrieves a Vault token that is not shared with the task when using
-a driver that provides `image` isolation like [Docker][docker].
-
-This allows Nomad to use a powerful Vault token that interacts with the task's
-[`template`][template] stanzas to issue all kinds of secrets (e.g., database
-secrets, other vault tokens, etc.), without sharing that issuing power with
-the task itself:
-
-```hcl
-vault {
-  policies    = ["tls-policy", "nomad-job-policy"]
-  change_mode = "noop"
-  env         = false
-  file        = false
-}
-
-template {
-  data = <<-EOH
-{{with secret "auth/token/create/nomad-job" "policies=examplepolicy"}}{{.Auth.ClientToken}}{{ end }}
-EOH
-
-  destination = "${NOMAD_SECRETS_DIR}/examplepolicy.token"
-  change_mode = "noop"
-  perms       = "600"
-}
-
-template {
-  data = <<-EOH
-{{ with secret "pki_int/issue/nomad-task"
-   "common_name=example.service.consul" "ttl=72h"
-   "alt_names=localhost" "ip_sans=127.0.0.1"}}
-{{ .Data.certificate }}
-{{ .Data.private_key }}
-{{ end }}
-EOH
-
-  destination = "${NOMAD_SECRETS_DIR}/client.crt"
-  change_mode = "restart"
-  perms       = "600"
-}
-```
-
-The example above uses `change_mode = "noop"` in the `template` stanza for
-`examplepolicy.token`, which means that the task's workload is responsible for
-detecting and handling changes to that file. In contrast, the `template` stanza
-for `client.crt` is configured so that Nomad will restart the task whenever
-the certificate is reissued, as indicated by `change_mode = "restart"`
-(which is the default value for `change_mode`).
-
-
 ### Vault Namespace
 
 This example shows specifying a particular Vault namespace for a given task.
@@ -191,7 +125,8 @@ vault {
 }
 ```
 
-[docker]: /nomad/docs/drivers/docker "Docker Driver"
 [restart]: /nomad/docs/job-specification/restart "Nomad restart Job Specification"
+
 [template]: /nomad/docs/job-specification/template "Nomad template Job Specification"
+
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"

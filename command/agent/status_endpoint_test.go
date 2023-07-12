@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -15,7 +12,7 @@ func TestHTTP_StatusLeader(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/status/leader", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/status/leader", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -38,7 +35,7 @@ func TestHTTP_StatusPeers(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/status/peers", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/status/peers", nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -14,7 +11,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
@@ -1299,70 +1295,6 @@ func Test_diffACLRoles(t *testing.T) {
 	require.ElementsMatch(t, []string{aclRole3.ID, aclRole4.ID}, toUpdate)
 }
 
-func Test_diffACLAuthMethods(t *testing.T) {
-	ci.Parallel(t)
-
-	stateStore := state.TestStateStore(t)
-
-	// Build an initial baseline of ACL auth-methods.
-	aclAuthMethod0 := mock.ACLOIDCAuthMethod()
-	aclAuthMethod1 := mock.ACLOIDCAuthMethod()
-	aclAuthMethod2 := mock.ACLOIDCAuthMethod()
-	aclAuthMethod3 := mock.ACLOIDCAuthMethod()
-
-	// Upsert these into our local state. Use copies, so we can alter the
-	// auth-methods directly and use within the diff func.
-	err := stateStore.UpsertACLAuthMethods(50,
-		[]*structs.ACLAuthMethod{aclAuthMethod0.Copy(), aclAuthMethod1.Copy(),
-			aclAuthMethod2.Copy(), aclAuthMethod3.Copy()})
-	must.NoError(t, err)
-
-	// Modify the ACL auth-methods to create a number of differences. These
-	// methods represent the state of the authoritative region.
-	aclAuthMethod2.ModifyIndex = 50
-	aclAuthMethod3.ModifyIndex = 200
-	aclAuthMethod3.Hash = []byte{0, 1, 2, 3}
-	aclAuthMethod4 := mock.ACLOIDCAuthMethod()
-
-	// Run the diff function and test the output.
-	toDelete, toUpdate := diffACLAuthMethods(stateStore, 50, []*structs.ACLAuthMethodStub{
-		aclAuthMethod2.Stub(), aclAuthMethod3.Stub(), aclAuthMethod4.Stub()})
-	require.ElementsMatch(t, []string{aclAuthMethod0.Name, aclAuthMethod1.Name}, toDelete)
-	require.ElementsMatch(t, []string{aclAuthMethod3.Name, aclAuthMethod4.Name}, toUpdate)
-}
-
-func Test_diffACLBindingRules(t *testing.T) {
-	ci.Parallel(t)
-
-	stateStore := state.TestStateStore(t)
-
-	// Build an initial baseline of ACL binding rules.
-	aclBindingRule0 := mock.ACLBindingRule()
-	aclBindingRule1 := mock.ACLBindingRule()
-	aclBindingRule2 := mock.ACLBindingRule()
-	aclBindingRule3 := mock.ACLBindingRule()
-
-	// Upsert these into our local state. Use copies, so we can alter the
-	// binding rules directly and use within the diff func.
-	err := stateStore.UpsertACLBindingRules(50,
-		[]*structs.ACLBindingRule{aclBindingRule0.Copy(), aclBindingRule1.Copy(),
-			aclBindingRule2.Copy(), aclBindingRule3.Copy()}, true)
-	must.NoError(t, err)
-
-	// Modify the ACL auth-methods to create a number of differences. These
-	// methods represent the state of the authoritative region.
-	aclBindingRule2.ModifyIndex = 50
-	aclBindingRule3.ModifyIndex = 200
-	aclBindingRule3.Hash = []byte{0, 1, 2, 3}
-	aclBindingRule4 := mock.ACLBindingRule()
-
-	// Run the diff function and test the output.
-	toDelete, toUpdate := diffACLBindingRules(stateStore, 50, []*structs.ACLBindingRuleListStub{
-		aclBindingRule2.Stub(), aclBindingRule3.Stub(), aclBindingRule4.Stub()})
-	must.SliceContainsAll(t, []string{aclBindingRule0.ID, aclBindingRule1.ID}, toDelete)
-	must.SliceContainsAll(t, []string{aclBindingRule3.ID, aclBindingRule4.ID}, toUpdate)
-}
-
 func TestLeader_Reelection(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1805,87 +1737,6 @@ func TestLeader_DiffNamespaces(t *testing.T) {
 
 	// ns2 is un-modified - ignore. ns3 modified, ns4 new.
 	assert.Equal(t, []string{ns3.Name, ns4.Name}, update)
-}
-
-func TestLeader_ReplicateNodePools(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
-		c.Region = "region1"
-		c.AuthoritativeRegion = "region1"
-		c.ACLEnabled = true
-	})
-	defer cleanupS1()
-	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
-		c.Region = "region2"
-		c.AuthoritativeRegion = "region1"
-		c.ACLEnabled = true
-		c.ReplicationBackoff = 20 * time.Millisecond
-		c.ReplicationToken = root.SecretID
-	})
-	defer cleanupS2()
-	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
-	testutil.WaitForLeader(t, s2.RPC)
-
-	// Write a node pool to the authoritative region
-	np1 := mock.NodePool()
-	must.NoError(t, s1.State().UpsertNodePools(
-		structs.MsgTypeTestSetup, 100, []*structs.NodePool{np1}))
-
-	// Wait for the node pool to replicate
-	testutil.WaitForResult(func() (bool, error) {
-		store := s2.State()
-		out, err := store.NodePoolByName(nil, np1.Name)
-		return out != nil, err
-	}, func(err error) {
-		t.Fatalf("should replicate node pool")
-	})
-
-	// Delete the node pool at the authoritative region
-	must.NoError(t, s1.State().DeleteNodePools(structs.MsgTypeTestSetup, 200, []string{np1.Name}))
-
-	// Wait for the namespace deletion to replicate
-	testutil.WaitForResult(func() (bool, error) {
-		store := s2.State()
-		out, err := store.NodePoolByName(nil, np1.Name)
-		return out == nil, err
-	}, func(err error) {
-		t.Fatalf("should replicate node pool deletion")
-	})
-}
-
-func TestLeader_DiffNodePools(t *testing.T) {
-	ci.Parallel(t)
-
-	state := state.TestStateStore(t)
-
-	// Populate the local state
-	np1, np2, np3 := mock.NodePool(), mock.NodePool(), mock.NodePool()
-	must.NoError(t, state.UpsertNodePools(
-		structs.MsgTypeTestSetup, 100, []*structs.NodePool{np1, np2, np3}))
-
-	// Simulate a remote list
-	rnp2 := np2.Copy()
-	rnp2.ModifyIndex = 50 // Ignored, same index
-	rnp3 := np3.Copy()
-	rnp3.ModifyIndex = 100 // Updated, higher index
-	rnp3.Description = "force a hash update"
-	rnp3.SetHash()
-	rnp4 := mock.NodePool()
-	remoteList := []*structs.NodePool{
-		rnp2,
-		rnp3,
-		rnp4,
-	}
-	delete, update := diffNodePools(state, 50, remoteList)
-	sort.Strings(delete)
-
-	// np1 does not exist on the remote side, should delete
-	test.Eq(t, []string{structs.NodePoolAll, structs.NodePoolDefault, np1.Name}, delete)
-
-	// np2 is un-modified - ignore. np3 modified, np4 new.
-	test.Eq(t, []*structs.NodePool{rnp3, rnp4}, update)
 }
 
 // waitForStableLeadership waits until a leader is elected and all servers

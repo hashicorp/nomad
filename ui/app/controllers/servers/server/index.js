@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import classic from 'ember-classic-decorator';

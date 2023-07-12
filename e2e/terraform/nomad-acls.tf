@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # Bootstrapping Nomad ACLs:
 # We can't both bootstrap the ACLs and use the Nomad TF provider's
 # resource.nomad_acl_token in the same Terraform run, because there's no way

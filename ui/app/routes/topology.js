@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
@@ -17,16 +12,13 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
 
   model() {
     return RSVP.hash({
+      jobs: this.store.findAll('job'),
       allocations: this.store.query('allocation', {
         resources: true,
         task_states: false,
         namespace: '*',
       }),
       nodes: this.store.query('node', { resources: true }),
-      // Nodes are not allowed to be in the 'all' node pool, so filter it out.
-      nodePools: this.store
-        .findAll('node-pool')
-        .then((pools) => pools.filter((p) => p.name !== 'all')),
     }).catch(notifyForbidden(this));
   }
 
@@ -34,9 +26,9 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
     // When the model throws, make sure the interface expected by the controller is consistent.
     if (!model) {
       controller.model = {
+        jobs: [],
         allocations: [],
         nodes: [],
-        nodePools: [],
       };
     }
 

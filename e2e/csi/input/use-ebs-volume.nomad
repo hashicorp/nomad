@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # a job that mounts an EBS volume and writes its job ID as a file
 job "use-ebs-volume" {
   datacenters = ["dc1", "dc2"]

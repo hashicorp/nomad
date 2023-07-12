@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-test-module-for */
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
@@ -17,40 +12,26 @@ import moduleForJob, {
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
-  server.create('job', {
-    type: 'batch',
-    shallow: true,
-    noActiveDeployment: true,
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-    },
-  })
+  server.create('job', { type: 'batch', shallow: true })
 );
 
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
-  server.create('job', {
-    type: 'system',
-    shallow: true,
-    noActiveDeployment: true,
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-    },
-  })
+  server.create('job', { type: 'system', shallow: true })
+);
+
+moduleForJobWithClientStatus(
+  'Acceptance | job detail with client status (system)',
+  () =>
+    server.create('job', {
+      status: 'running',
+      datacenters: ['dc1'],
+      type: 'system',
+      createAllocations: false,
+    })
 );
 
 moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
-  server.create('job', {
-    type: 'sysbatch',
-    shallow: true,
-    noActiveDeployment: true,
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-      failed: 1,
-    },
-  })
+  server.create('job', { type: 'sysbatch', shallow: true })
 );
 
 moduleForJobWithClientStatus(
@@ -61,7 +42,6 @@ moduleForJobWithClientStatus(
       datacenters: ['dc1'],
       type: 'sysbatch',
       createAllocations: false,
-      noActiveDeployment: true,
     })
 );
 
@@ -75,22 +55,6 @@ moduleForJobWithClientStatus(
       type: 'sysbatch',
       namespaceId: namespace.name,
       createAllocations: false,
-      noActiveDeployment: true,
-    });
-  }
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (sysbatch with namespace and wildcard dc)',
-  () => {
-    const namespace = server.create('namespace', { id: 'test' });
-    return server.create('job', {
-      status: 'running',
-      datacenters: ['*'],
-      type: 'sysbatch',
-      namespaceId: namespace.name,
-      createAllocations: false,
-      noActiveDeployment: true,
     });
   }
 );
@@ -100,11 +64,6 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
     childrenCount: 1,
     shallow: true,
     datacenters: ['dc1'],
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-    },
-    noActiveDeployment: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -116,7 +75,6 @@ moduleForJobWithClientStatus(
       childrenCount: 1,
       shallow: true,
       datacenters: ['dc1'],
-      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -131,22 +89,6 @@ moduleForJobWithClientStatus(
       shallow: true,
       namespaceId: namespace.name,
       datacenters: ['dc1'],
-      noActiveDeployment: true,
-    });
-    return server.db.jobs.where({ parentId: parent.id })[0];
-  }
-);
-
-moduleForJobWithClientStatus(
-  'Acceptance | job detail with client status (sysbatch child with namespace and wildcard dc)',
-  () => {
-    const namespace = server.create('namespace', { id: 'test' });
-    const parent = server.create('job', 'periodicSysbatch', {
-      childrenCount: 1,
-      shallow: true,
-      namespaceId: namespace.name,
-      datacenters: ['*'],
-      noActiveDeployment: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -171,14 +113,6 @@ moduleForJob(
         )
       );
     },
-    "don't display redundant information in children table": async function (
-      job,
-      assert
-    ) {
-      assert.notOk(JobDetail.jobsHeader.hasNodePool);
-      assert.notOk(JobDetail.jobsHeader.hasPriority);
-      assert.notOk(JobDetail.jobsHeader.hasType);
-    },
   }
 );
 
@@ -194,8 +128,9 @@ moduleForJob(
     return parent;
   },
   {
-    "don't display namespace in children table": async function (job, assert) {
-      assert.notOk(JobDetail.jobsHeader.hasNamespace);
+    'display namespace in children table': async function (job, assert) {
+      assert.ok(JobDetail.jobsHeader.hasNamespace);
+      assert.equal(JobDetail.jobs[0].namespace, job.namespace);
     },
   }
 );
@@ -203,11 +138,7 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (parameterized)',
   'children',
-  () =>
-    server.create('job', 'parameterized', {
-      shallow: true,
-      noActiveDeployment: true,
-    }),
+  () => server.create('job', 'parameterized', { shallow: true }),
   {
     'the default sort is submitTime descending': async (job, assert) => {
       const mostRecentLaunch = server.db.jobs
@@ -222,14 +153,6 @@ moduleForJob(
           'MMM DD HH:mm:ss ZZ'
         )
       );
-    },
-    "don't display redundant information in children table": async function (
-      job,
-      assert
-    ) {
-      assert.notOk(JobDetail.jobsHeader.hasNodePool);
-      assert.notOk(JobDetail.jobsHeader.hasPriority);
-      assert.notOk(JobDetail.jobsHeader.hasType);
     },
   }
 );
@@ -246,8 +169,9 @@ moduleForJob(
     return parent;
   },
   {
-    "don't display namespace in children table": async function (job, assert) {
-      assert.notOk(JobDetail.jobsHeader.hasNamespace);
+    'display namespace in children table': async function (job, assert) {
+      assert.ok(JobDetail.jobsHeader.hasNamespace);
+      assert.equal(JobDetail.jobs[0].namespace, job.namespace);
     },
   }
 );
@@ -256,11 +180,6 @@ moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
   const parent = server.create('job', 'periodic', {
     childrenCount: 1,
     shallow: true,
-    createAllocations: true,
-    allocStatusDistribution: {
-      running: 1,
-    },
-    noActiveDeployment: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -272,11 +191,6 @@ moduleForJob(
     const parent = server.create('job', 'parameterized', {
       childrenCount: 1,
       shallow: true,
-      noActiveDeployment: true,
-      createAllocations: true,
-      allocStatusDistribution: {
-        running: 1,
-      },
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -285,7 +199,7 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () => server.create('job', { type: 'service', noActiveDeployment: true }),
+  () => server.create('job', { type: 'service' }),
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
@@ -321,13 +235,11 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
 
   hooks.beforeEach(function () {
     server.createList('namespace', 2);
-    server.create('node-pool');
     server.create('node');
     job = server.create('job', {
       type: 'service',
       status: 'running',
       namespaceId: server.db.namespaces[1].name,
-      noActiveDeployment: true,
     });
     server.createList('job', 3, {
       namespaceId: server.db.namespaces[0].name,
@@ -476,7 +388,6 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
       namespaceId: server.db.namespaces[1].name,
       groupsCount: 3,
       createRecommendations: true,
-      noActiveDeployment: true,
     });
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;

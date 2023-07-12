@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Added a new Job Status Panel that helps show allocation status throughout a deployment and in steady state
-```

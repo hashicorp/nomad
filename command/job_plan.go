@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -197,7 +194,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	_, job, err := c.JobGetter.Get(path)
+	job, err := c.JobGetter.Get(path)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
@@ -237,9 +234,9 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	// Setup the options
-	opts := &api.PlanOptions{
-		// Always request the diff so we can tell if there are changes.
-		Diff: true,
+	opts := &api.PlanOptions{}
+	if diff {
+		opts.Diff = true
 	}
 	if policyOverride {
 		opts.PolicyOverride = true
@@ -263,10 +260,6 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	for _, varFile := range c.JobGetter.VarFiles {
 		runArgs.WriteString(fmt.Sprintf("-var-file=%q ", varFile))
-	}
-
-	if c.namespace != "" {
-		runArgs.WriteString(fmt.Sprintf("-namespace=%q ", c.namespace))
 	}
 
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
@@ -398,10 +391,6 @@ type namespaceIdPair struct {
 // * 0: No allocations created or destroyed.
 // * 1: Allocations created or destroyed.
 func getExitCode(resp *api.JobPlanResponse) int {
-	if resp.Diff.Type == "None" {
-		return 0
-	}
-
 	// Check for changes
 	for _, d := range resp.Annotations.DesiredTGUpdates {
 		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate+d.Canary > 0 {

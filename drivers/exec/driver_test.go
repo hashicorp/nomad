@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package exec
 
 import (
@@ -8,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -355,7 +353,7 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 			return false, fmt.Errorf("task PID is zero")
 		}
 
-		children, err := os.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", taskState.Pid, taskState.Pid))
+		children, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", taskState.Pid, taskState.Pid))
 		if err != nil {
 			return false, fmt.Errorf("error reading /proc for children: %v", err)
 		}
@@ -511,7 +509,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().SharedAllocDir, file)
-	act, err := os.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(outputFile)
 	require.NoError(t, err)
 	require.Exactly(t, exp, act)
 
@@ -626,7 +624,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	err := os.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
+	err := ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -663,8 +661,8 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, os.WriteFile(task.StdoutPath, []byte{}, 660))
-	require.NoError(t, os.WriteFile(task.StderrPath, []byte{}, 660))
+	require.NoError(t, ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
+	require.NoError(t, ioutil.WriteFile(task.StderrPath, []byte{}, 660))
 
 	tc := &TaskConfig{
 		Command: "/bin/bash",
@@ -693,7 +691,7 @@ exit 0
 	result := <-ch
 	require.NoError(t, harness.DestroyTask(task.ID, true))
 
-	stdout, err := os.ReadFile(task.StdoutPath)
+	stdout, err := ioutil.ReadFile(task.StdoutPath)
 	require.NoError(t, err)
 	require.Equal(t, `mounted device /inserted-random: 1:8
 reading from ro path: from-host
@@ -701,7 +699,7 @@ reading from rw path: from-host
 overwriting file in rw succeeded
 writing new file in rw succeeded`, strings.TrimSpace(string(stdout)))
 
-	stderr, err := os.ReadFile(task.StderrPath)
+	stderr, err := ioutil.ReadFile(task.StderrPath)
 	require.NoError(t, err)
 	require.Equal(t, `touch: cannot touch '/tmp/task-path-ro/testfile': Read-only file system
 touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`, strings.TrimSpace(string(stderr)))
@@ -709,7 +707,7 @@ touch: cannot touch '/tmp/task-path-ro/testfile-from-ro': Read-only file system`
 	// testing exit code last so we can inspect output first
 	require.Zero(t, result.ExitCode)
 
-	fromRWContent, err := os.ReadFile(filepath.Join(tmpDir, "testfile-from-rw"))
+	fromRWContent, err := ioutil.ReadFile(filepath.Join(tmpDir, "testfile-from-rw"))
 	require.NoError(t, err)
 	require.Equal(t, "from-exec", strings.TrimSpace(string(fromRWContent)))
 }

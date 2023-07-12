@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller from '@ember/controller';
 import { set, action } from '@ember/object';
 import { task } from 'ember-concurrency';
@@ -17,8 +12,6 @@ export default class VariablesVariableIndexController extends Controller {
 
   @tracked sortProperty = 'key';
   @tracked sortDescending = true;
-
-  @service notifications;
 
   get sortedKeyValues() {
     const sorted = this.model.keyValues.sortBy(this.sortProperty);
@@ -46,16 +39,19 @@ export default class VariablesVariableIndexController extends Controller {
       } else {
         this.router.transitionTo('variables');
       }
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Variable deleted',
         message: `${this.model.path} successfully deleted`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
     } catch (err) {
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Error deleting ${this.model.path}`,
         message: err,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }
@@ -82,8 +78,7 @@ export default class VariablesVariableIndexController extends Controller {
     return (
       this.model.pathLinkedEntities?.job ||
       this.model.pathLinkedEntities?.group ||
-      this.model.pathLinkedEntities?.task ||
-      this.model.path === 'nomad/jobs'
+      this.model.pathLinkedEntities?.task
     );
   }
 

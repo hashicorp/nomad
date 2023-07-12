@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: add tooltips to the node and datacenter labels in the Topology page
-```

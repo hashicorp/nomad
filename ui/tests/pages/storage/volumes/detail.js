@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { create, isPresent, text, visitable } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';

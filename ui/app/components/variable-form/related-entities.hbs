@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <p class="related-entities notification">
 <FlightIcon @name="info-fill" @color="var(--blue)" />
 <span>
@@ -12,9 +7,7 @@
     {{else if @group}}
     group <LinkTo @route="jobs.job.task-group" @models={{array (concat @job "@" @namespace) @group}}>{{@group}} <FlightIcon @name="external-link" /></LinkTo>
     {{else if @job}}
-    job <LinkTo @route="jobs.job" @model={{concat @job "@" @namespace}}>{{@job}} <FlightIcon @name="external-link" /></LinkTo>
-    {{else}}
-    all nomad jobs in this namespace
+    job <LinkTo @route="jobs.job" @model={{concat @job "@" @namespace}}>{{@job}} <FlightIcon @name="external-link" /></LinkTo><
     {{/if}}
 </span>
 </p>

@@ -51,9 +51,6 @@ job "docs" {
 - `env` <code>([Env][]: nil)</code> - Specifies environment variables that will
   be passed to the running process.
 
-- `identity` <code>([Identity][]: nil)</code> - Expose [Workload Identity][] to
-  the task.
-
 - `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
   application to gracefully quit before force-killing. Nomad first sends a
   [`kill_signal`][kill_signal]. If the task does not exit before the configured
@@ -210,7 +207,6 @@ task "server" {
 [affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
 [dispatchpayload]: /nomad/docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
 [env]: /nomad/docs/job-specification/env 'Nomad env Job Specification'
-[Identity]: /nomad/docs/job-specification/identity 'Nomad identity Job Specification'
 [meta]: /nomad/docs/job-specification/meta 'Nomad meta Job Specification'
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [lifecycle]: /nomad/docs/job-specification/lifecycle 'Nomad lifecycle Job Specification'
@@ -228,4 +224,3 @@ task "server" {
 [user_denylist]: /nomad/docs/configuration/client#user-denylist
 [max_kill]: /nomad/docs/configuration/client#max_kill_timeout
 [kill_signal]: /nomad/docs/job-specification/task#kill_signal
-[Workload Identity]: /nomad/docs/concepts/workload-identity 'Nomad Workload Identity'

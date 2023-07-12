@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -35,7 +32,7 @@ func (*volumeHook) Name() string {
 	return "volumes"
 }
 
-func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig, allocName string) error {
+func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) error {
 	var result error
 
 	for _, req := range requestedByAlias {
@@ -45,14 +42,9 @@ func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, cli
 			continue
 		}
 
-		source := req.Source
-		if req.PerAlloc {
-			source = source + structs.AllocSuffix(allocName)
-		}
-
-		_, ok := clientVolumesByName[source]
+		_, ok := clientVolumesByName[req.Source]
 		if !ok {
-			result = multierror.Append(result, fmt.Errorf("missing %s", source))
+			result = multierror.Append(result, fmt.Errorf("missing %s", req.Source))
 		}
 	}
 
@@ -62,7 +54,7 @@ func validateHostVolumes(requestedByAlias map[string]*structs.VolumeRequest, cli
 // hostVolumeMountConfigurations takes the users requested volume mounts,
 // volumes, and the client host volume configuration and converts them into a
 // format that can be used by drivers.
-func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeMount, taskVolumesByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig, allocName string) ([]*drivers.MountConfig, error) {
+func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeMount, taskVolumesByAlias map[string]*structs.VolumeRequest, clientVolumesByName map[string]*structs.ClientHostVolumeConfig) ([]*drivers.MountConfig, error) {
 	var mounts []*drivers.MountConfig
 	for _, m := range taskMounts {
 		req, ok := taskVolumesByAlias[m.Volume]
@@ -79,15 +71,11 @@ func (h *volumeHook) hostVolumeMountConfigurations(taskMounts []*structs.VolumeM
 			continue
 		}
 
-		source := req.Source
-		if req.PerAlloc {
-			source = source + structs.AllocSuffix(allocName)
-		}
-		hostVolume, ok := clientVolumesByName[source]
+		hostVolume, ok := clientVolumesByName[req.Source]
 		if !ok {
 			// Should never happen, but unless the client volumes were mutated during
 			// the execution of this hook.
-			return nil, fmt.Errorf("no host volume named: %s", source)
+			return nil, fmt.Errorf("No host volume named: %s", req.Source)
 		}
 
 		mcfg := &drivers.MountConfig{
@@ -123,12 +111,12 @@ func (h *volumeHook) prepareHostVolumes(req *interfaces.TaskPrestartRequest, vol
 
 	// Always validate volumes to ensure that we do not allow volumes to be used
 	// if a host is restarted and loses the host volume configuration.
-	if err := validateHostVolumes(volumes, hostVolumes, req.Alloc.Name); err != nil {
+	if err := validateHostVolumes(volumes, hostVolumes); err != nil {
 		h.logger.Error("Requested Host Volume does not exist", "existing", hostVolumes, "requested", volumes)
 		return nil, fmt.Errorf("host volume validation error: %v", err)
 	}
 
-	hostVolumeMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes, req.Alloc.Name)
+	hostVolumeMounts, err := h.hostVolumeMountConfigurations(req.Task.VolumeMounts, volumes, hostVolumes)
 	if err != nil {
 		h.logger.Error("Failed to generate host volume mounts", "error", err)
 		return nil, err

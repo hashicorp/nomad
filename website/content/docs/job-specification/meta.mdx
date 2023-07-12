@@ -92,22 +92,6 @@ meta = {
 }
 ```
 
-## `meta` Usage Examples
-
-### Templates
-
-To make use of a `meta` value in a template, refer to its environment variable
-form.
-
-```hcl
-template {
-  destination = "local/out.txt"
-  data = <<EOH
-  {{ env "NOMAD_META_mykey" }}
-EOH
-}
-```
-
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'

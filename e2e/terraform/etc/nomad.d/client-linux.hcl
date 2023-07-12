@@ -1,13 +1,7 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 plugin_dir = "/opt/nomad/plugins"
 
 client {
   enabled = true
-  options = {
-    "user.denylist" = "www-data"
-  }
 }
 
 plugin "nomad-driver-podman" {
@@ -39,11 +33,5 @@ plugin "docker" {
     volumes {
       enabled = true
     }
-  }
-}
-
-plugin "nomad-pledge-driver" {
-  config {
-    pledge_executable = "/usr/local/bin/pledge"
   }
 }

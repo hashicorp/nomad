@@ -1,3 +1,0 @@
-```release-note:improvement
-connect: Auto detect when to use podman for connect sidecar proxies
-```

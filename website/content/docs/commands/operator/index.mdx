@@ -32,27 +32,15 @@ The following subcommands are available:
 
 - [`operator debug`][debug] - Build an archive of debug data
 
-- [`operator gossip keyring generate`][gossip_keyring_generate] - Generates a gossip encryption key
+- [`operator keygen`][keygen] - Generates a new encryption key
 
-- [`operator gossip keyring install`][gossip_keyring_install] - Install a gossip encryption key
-
-- [`operator gossip keyring list`][gossip_keyring_list] - List available gossip encryption keys
-
-- [`operator gossip keyring remove`][gossip_keyring_remove] - Deletes a gossip encryption key
-
-- [`operator gossip keyring use`][gossip_keyring_use] - Sets a gossip encryption key as the active key
+- [`operator keyring`][keyring] - Manages gossip layer encryption keys
 
 - [`operator raft list-peers`][list] - Display the current Raft peer
   configuration
 
 - [`operator raft remove-peer`][remove] - Remove a Nomad server from the Raft
   configuration
-
-- [`operator root keyring list`][root_keyring_list] - List available root encryption keys
-
-- [`operator root keyring remove`][root_keyring_remove] - Deletes a root encryption key
-
-- [`operator root keyring rotate`][root_keyring_rotate] - Rotates the root encryption key
 
 - [`operator scheduler get-config`][scheduler-get-config] - Display the current
   scheduler configuration
@@ -70,18 +58,12 @@ The following subcommands are available:
 
 [debug]: /nomad/docs/commands/operator/debug 'Builds an archive of configuration and state'
 [get-config]: /nomad/docs/commands/operator/autopilot/get-config 'Autopilot Get Config command'
-[gossip_keyring_generate]: /nomad/docs/commands/operator/gossip/keyring-generate 'Generates a gossip encryption key'
-[gossip_keyring_install]: /nomad/docs/commands/operator/gossip/keyring-install 'Install a gossip encryption key'
-[gossip_keyring_list]: /nomad/docs/commands/operator/gossip/keyring-list 'List available gossip encryption keys'
-[gossip_keyring_remove]: /nomad/docs/commands/operator/gossip/keyring-remove 'Deletes a gossip encryption key'
-[gossip_keyring_use]: /nomad/docs/commands/operator/gossip/keyring-use 'Sets a gossip encryption key as the active key'
+[keygen]: /nomad/docs/commands/operator/keygen 'Generates a new encryption key'
+[keyring]: /nomad/docs/commands/operator/keyring 'Manages gossip layer encryption keys'
 [list]: /nomad/docs/commands/operator/raft/list-peers 'Raft List Peers command'
 [operator]: /nomad/api-docs/operator 'Operator API documentation'
 [outage recovery guide]: /nomad/tutorials/manage-clusters/outage-recovery
 [remove]: /nomad/docs/commands/operator/raft/remove-peer 'Raft Remove Peer command'
-[root_keyring_list]: /nomad/docs/commands/operator/root/keyring-list 'List available root encryption keys'
-[root_keyring_remove]: /nomad/docs/commands/operator/root/keyring-remove 'Deletes a root encryption key'
-[root_keyring_rotate]: /nomad/docs/commands/operator/root/keyring-rotate 'Rotates the root encryption key'
 [set-config]: /nomad/docs/commands/operator/autopilot/set-config 'Autopilot Set Config command'
 [snapshot-save]: /nomad/docs/commands/operator/snapshot/save 'Snapshot Save command'
 [snapshot-restore]: /nomad/docs/commands/operator/snapshot/restore 'Snapshot Restore command'

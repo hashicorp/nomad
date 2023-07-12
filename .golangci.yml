@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 run:
   # Timeout for analysis.
   deadline: 10m
@@ -103,5 +100,5 @@ linters:
     # - errchkjson (todo)
     # - errorlint (todo)
     - exportloopref
+    - usestdlibvars
   fast: false
-

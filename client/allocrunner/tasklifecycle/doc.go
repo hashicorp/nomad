@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 /*
 Package tasklifecycle manages the execution order of tasks based on their
 lifecycle configuration. Its main structs are the Coordinator and the Gate.

@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{! template-lint-disable no-duplicate-landmark-elements }}
 <nav class="navbar is-primary" title="navigation">
   <div class="navbar-brand">
@@ -17,11 +12,6 @@
     <LinkTo @route="jobs" class="navbar-item is-logo" aria-label="Home">
       <NomadLogo />
     </LinkTo>
-    {{#if this.system.agent.config.UI.Label.Text}}
-      <div class="custom-label" style={{this.labelStyles}}>
-        {{this.system.agent.config.UI.Label.Text}}
-      </div>
-    {{/if}}
   </div>
   {{#if this.system.fuzzySearchEnabled}}
     {{! template-lint-disable simple-unless }}
@@ -70,9 +60,9 @@
     >
       Documentation
     </a>
-    {{#if this.shouldShowProfileNav}}
-      <ProfileNavbarItem />
-    {{/if}}
+    <LinkTo @route="settings.tokens" class="navbar-item"  {{keyboard-shortcut menuLevel=true pattern=(array "g" "a") }}>
+      ACL Tokens
+    </LinkTo>
   </div>
 </nav>
 <div class="navbar is-secondary">

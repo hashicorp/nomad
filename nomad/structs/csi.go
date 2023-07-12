@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -81,25 +78,6 @@ type TaskCSIPluginConfig struct {
 	// HealthTimeout is the time after which the CSI plugin tasks will be killed
 	// if the CSI Plugin is not healthy.
 	HealthTimeout time.Duration `mapstructure:"health_timeout" hcl:"health_timeout,optional"`
-}
-
-func (t *TaskCSIPluginConfig) Equal(o *TaskCSIPluginConfig) bool {
-	if t == nil || o == nil {
-		return t == o
-	}
-	switch {
-	case t.ID != o.ID:
-		return false
-	case t.Type != o.Type:
-		return false
-	case t.MountDir != o.MountDir:
-		return false
-	case t.StagePublishBaseDir != o.StagePublishBaseDir:
-		return false
-	case t.HealthTimeout != o.HealthTimeout:
-		return false
-	}
-	return true
 }
 
 func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {

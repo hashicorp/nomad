@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
@@ -60,6 +55,6 @@ export default class VolumeController extends Controller {
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.transitionToRoute('allocations.allocation', allocation);
   }
 }

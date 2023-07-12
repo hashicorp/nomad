@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package jobspec
 
 import (
@@ -36,7 +33,6 @@ var (
 		"constraint",
 		"affinity",
 		"dispatch_payload",
-		"identity",
 		"lifecycle",
 		"leader",
 		"restart",
@@ -108,7 +104,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	delete(m, "dispatch_payload")
 	delete(m, "lifecycle")
 	delete(m, "env")
-	delete(m, "identity")
 	delete(m, "logs")
 	delete(m, "meta")
 	delete(m, "resources")
@@ -262,8 +257,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		valid := []string{
 			"max_files",
 			"max_file_size",
-			"enabled", // COMPAT(1.6.0): remove in favor of disabled
-			"disabled",
 		}
 		if err := checkHCLKeys(logsBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "logs ->")
@@ -288,15 +281,6 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		}
 	}
 
-	// Parse identity
-	if o := listVal.Filter("identity"); len(o.Items) > 0 {
-		v := &api.WorkloadIdentity{}
-		if err := parseIdentity(v, o); err != nil {
-			return nil, multierror.Prefix(err, "identity ->")
-		}
-		t.Identity = v
-	}
-
 	// Parse templates
 	if o := listVal.Filter("template"); len(o.Items) > 0 {
 		if err := parseTemplates(&t.Templates, o); err != nil {
@@ -314,9 +298,8 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	// If we have a vault block, then parse that
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		v := &api.Vault{
-			Env:         boolToPtr(true),
-			DisableFile: boolToPtr(false),
-			ChangeMode:  stringToPtr("restart"),
+			Env:        boolToPtr(true),
+			ChangeMode: stringToPtr("restart"),
 		}
 
 		if err := parseVault(v, o); err != nil {
@@ -757,43 +740,5 @@ func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
 	}
 
 	*out = mounts
-	return nil
-}
-
-func parseIdentity(out *api.WorkloadIdentity, list *ast.ObjectList) error {
-	list = list.Elem()
-	if len(list.Items) == 0 {
-		return nil
-	}
-	if len(list.Items) > 1 {
-		return fmt.Errorf("only one 'identity' block allowed per task")
-	}
-
-	o := list.Items[0]
-	var listVal *ast.ObjectList
-	if ot, ok := o.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return fmt.Errorf("identity: should be an object")
-	}
-
-	valid := []string{
-		"env",
-		"file",
-	}
-
-	if err := checkHCLKeys(listVal, valid); err != nil {
-		return multierror.Prefix(err, "identity ->")
-	}
-
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, o.Val); err != nil {
-		return err
-	}
-
-	if err := mapstructure.WeakDecode(m, out); err != nil {
-		return err
-	}
-
 	return nil
 }

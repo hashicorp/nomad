@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "example" {
   vault {
     policies = ["job"]
@@ -15,9 +12,8 @@ job "example" {
 
     task "redis2" {
       vault {
-        policies     = ["task"]
-        env          = false
-        disable_file = true
+        policies = ["task"]
+        env      = false
       }
     }
   }

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: check kernel module in `/sys/module` to help with WSL2 bridge networking
-```

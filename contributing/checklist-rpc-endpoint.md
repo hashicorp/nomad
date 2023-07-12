@@ -6,16 +6,13 @@ Prefer adding a new message to changing any existing RPC messages.
 
 * [ ] `Request` struct and `*RequestType` constant in
       `nomad/structs/structs.go`. Append the constant, old constant
-      values must remain unchanged. Just add the request type to this file, all other resource definitions
-      must be on their own separate file.
+      values must remain unchanged
 
 * [ ] In `nomad/fsm.go`, add a dispatch case to the switch statement in `(n *nomadFSM) Apply`
   * `*nomadFSM` method to decode the request and call the state method
 
-* [ ] State method for modifying objects in a `Txn` in the `state` package, located in
-      `nomad/state/`. Every new resource should have its own file and test file, named using the convention
-      `nomad/state/state_store_[resource].go` and `nomad/state/state_store_[resource]_test.go`
-  
+* [ ] State method for modifying objects in a `Txn` in `nomad/state/state_store.go`
+  * `nomad/state/state_store_test.go`
 
 * [ ] Handler for the request in `nomad/foo_endpoint.go`
   * RPCs are resolved by matching the method name for bound structs
@@ -44,14 +41,6 @@ Prefer adding a new message to changing any existing RPC messages.
   * `ServersMeetMinimumVersion` asserts that the server cluster is
     upgraded, so use this to guard sending the new RPC, else send the old RPC
   * Version must match the actual release version!
-
-* [ ] If implementing a Client RPC...
-  * Use `QueryOptions` instead of `WriteRequest` in the Request struct as
-    `WriteRequest` is only for *Raft* writes.
-  * Set `QueryOptions.AllowStale = true` in the *Server* RPC forwarder to avoid
-    an infinite loop between leaders and followers when a Client RPC is
-    forwarded through a follower. See
-    https://github.com/hashicorp/nomad/issues/16517
 
 ## Docs
 

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -80,7 +77,7 @@ func (k *Keyring) Rotate(opts *KeyringRotateOptions, w *WriteOptions) (*RootKeyM
 		}
 	}
 	resp := &struct{ Key *RootKeyMeta }{}
-	wm, err := k.client.put("/v1/operator/keyring/rotate?"+qp.Encode(), nil, resp, w)
+	wm, err := k.client.write("/v1/operator/keyring/rotate?"+qp.Encode(), nil, resp, w)
 	return resp.Key, wm, err
 }
 

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package jobspec
 
 import (
@@ -194,9 +191,8 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	// If we have a vault block, then parse that
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		jobVault := &api.Vault{
-			Env:         boolToPtr(true),
-			DisableFile: boolToPtr(false),
-			ChangeMode:  stringToPtr("restart"),
+			Env:        boolToPtr(true),
+			ChangeMode: stringToPtr("restart"),
 		}
 
 		if err := parseVault(jobVault, o); err != nil {

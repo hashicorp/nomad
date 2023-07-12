@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -573,7 +570,6 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
 	}
-
 }
 
 // These needs to be in sync with DefaultServiceJobRestartPolicy in
@@ -641,19 +637,12 @@ func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
 type LogConfig struct {
 	MaxFiles      *int `mapstructure:"max_files" hcl:"max_files,optional"`
 	MaxFileSizeMB *int `mapstructure:"max_file_size" hcl:"max_file_size,optional"`
-
-	// COMPAT(1.6.0): Enabled had to be swapped for Disabled to fix a backwards
-	// compatibility bug when restoring pre-1.5.4 jobs. Remove in 1.6.0
-	Enabled *bool `mapstructure:"enabled" hcl:"enabled,optional"`
-
-	Disabled *bool `mapstructure:"disabled" hcl:"disabled,optional"`
 }
 
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      pointerOf(10),
 		MaxFileSizeMB: pointerOf(10),
-		Disabled:      pointerOf(false),
 	}
 }
 
@@ -663,9 +652,6 @@ func (l *LogConfig) Canonicalize() {
 	}
 	if l.MaxFileSizeMB == nil {
 		l.MaxFileSizeMB = pointerOf(10)
-	}
-	if l.Disabled == nil {
-		l.Disabled = pointerOf(false)
 	}
 }
 
@@ -717,7 +703,6 @@ type Task struct {
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
-	Identity        *WorkloadIdentity      `hcl:"identity,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -919,7 +904,6 @@ type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
 	Env          *bool    `hcl:"env,optional"`
-	DisableFile  *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
 }
@@ -927,9 +911,6 @@ type Vault struct {
 func (v *Vault) Canonicalize() {
 	if v.Env == nil {
 		v.Env = pointerOf(true)
-	}
-	if v.DisableFile == nil {
-		v.DisableFile = pointerOf(false)
 	}
 	if v.Namespace == nil {
 		v.Namespace = pointerOf("")
@@ -990,12 +971,6 @@ func (t *Task) AddAffinity(a *Affinity) *Task {
 // SetLogConfig sets a log config to a task
 func (t *Task) SetLogConfig(l *LogConfig) *Task {
 	t.LogConfig = l
-	return t
-}
-
-// SetLifecycle is used to set lifecycle config to a task.
-func (t *Task) SetLifecycle(l *TaskLifecycle) *Task {
-	t.Lifecycle = l
 	return t
 }
 
@@ -1134,11 +1109,4 @@ func (t *TaskCSIPluginConfig) Canonicalize() {
 	if t.HealthTimeout == 0 {
 		t.HealthTimeout = 30 * time.Second
 	}
-}
-
-// WorkloadIdentity is the jobspec block which determines if and how a workload
-// identity is exposed to tasks.
-type WorkloadIdentity struct {
-	Env  bool `hcl:"env,optional"`
-	File bool `hcl:"file,optional"`
 }

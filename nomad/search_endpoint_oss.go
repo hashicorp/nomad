@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !ent
 // +build !ent
 
@@ -49,10 +46,6 @@ func getEnterpriseResourceIter(context structs.Context, _ *acl.ACL, namespace, p
 // only table.
 func getEnterpriseFuzzyResourceIter(context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) (memdb.ResultIterator, error) {
 	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
-}
-
-func sufficientSearchPermsEnt(aclObj *acl.ACL) bool {
-	return true
 }
 
 func filteredSearchContextsEnt(aclObj *acl.ACL, namespace string, context structs.Context) bool {

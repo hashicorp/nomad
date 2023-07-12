@@ -158,7 +158,7 @@ includes alphanumeric characters and the special characters `-`, `_`, `~`, and
 `/`. Paths may be up to 128 bytes long. The following regex matches the allowed
 paths: `^[a-zA-Z0-9-_~/]{1,128}$`
 
-Variable items are restricted to 64KiB in size. This limit is calculated by
+Variable items are restricted to 16KiB in size. This limit is calculated by
 taking the sum of the length in bytes of all of the unencrypted keys and values
 in the `Items` field.
 
@@ -176,6 +176,10 @@ $ curl \
 {
   "Namespace": "prod",
   "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000,
   "Items": {
     "user": "me",
     "password": "passw0rd1"

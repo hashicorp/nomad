@@ -1,12 +1,8 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"testing"
 	"time"
 
@@ -18,8 +14,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var nonAlphaNum = regexp.MustCompile(`[^a-zA-Z0-9]+`)
-
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
 	// Make a new test server
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
@@ -29,7 +23,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 			cb(config)
 		}
 	})
-	t.Cleanup(a.Shutdown)
+	t.Cleanup(func() { _ = a.Shutdown() })
 
 	c := a.Client()
 	return a, c, a.HTTPAddr()
@@ -44,7 +38,7 @@ func testClient(t *testing.T, name string, cb func(*agent.Config)) (*agent.TestA
 			cb(config)
 		}
 	})
-	t.Cleanup(a.Shutdown)
+	t.Cleanup(func() { _ = a.Shutdown() })
 
 	c := a.Client()
 	t.Logf("Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
@@ -155,46 +149,19 @@ func waitForNodes(t *testing.T, client *api.Client) {
 	})
 }
 
-func waitForJobAllocsStatus(t *testing.T, client *api.Client, jobID string, status string, token string) {
-	testutil.WaitForResult(func() (bool, error) {
-		q := &api.QueryOptions{AuthToken: token}
-
-		allocs, _, err := client.Jobs().Allocations(jobID, true, q)
-		if err != nil {
-			return false, fmt.Errorf("failed to query job allocs: %v", err)
-		}
-		if len(allocs) == 0 {
-			return false, fmt.Errorf("no allocs")
-		}
-
-		for _, alloc := range allocs {
-			if alloc.ClientStatus != status {
-				return false, fmt.Errorf("alloc status is %q not %q", alloc.ClientStatus, status)
-			}
-		}
-		return true, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
-}
-
-func waitForAllocStatus(t *testing.T, client *api.Client, allocID string, status string) {
+func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
 	testutil.WaitForResult(func() (bool, error) {
 		alloc, _, err := client.Allocations().Info(allocID, nil)
 		if err != nil {
 			return false, err
 		}
-		if alloc.ClientStatus == status {
+		if alloc.ClientStatus == api.AllocClientStatusRunning {
 			return true, nil
 		}
-		return false, fmt.Errorf("alloc status is %q not %q", alloc.ClientStatus, status)
+		return false, fmt.Errorf("alloc status: %s", alloc.ClientStatus)
 	}, func(err error) {
-		must.NoError(t, err)
+		t.Fatalf("timed out waiting for alloc to be running: %v", err)
 	})
-}
-
-func waitForAllocRunning(t *testing.T, client *api.Client, allocID string) {
-	waitForAllocStatus(t, client, allocID, api.AllocClientStatusRunning)
 }
 
 func waitForCheckStatus(t *testing.T, client *api.Client, allocID, status string) {
@@ -226,6 +193,10 @@ func getAllocFromJob(t *testing.T, client *api.Client, jobID string) string {
 	}
 	must.NotEq(t, "", allocID, must.Sprint("expected to find an evaluation after running job", jobID))
 	return allocID
+}
+
+func stopTestAgent(a *agent.TestAgent) {
+	_ = a.Shutdown()
 }
 
 func getTempFile(t *testing.T, name string) (string, func()) {
