@@ -58,16 +58,16 @@ List of all volumes:
 
 ```shell-session
 $ nomad volume [-type csi] status
-ID            Name      Plugin ID  Schedulable  Access Mode
-ebs_prod_db1  database  ebs-prod   true         single-node-writer
+ID            Name      Namespace  Plugin ID  Schedulable  Access Mode
+ebs_prod_db1  database  default    ebs-prod   true         single-node-writer
 ```
 
 List of all volumes, with external provider info:
 
 ```shell-session
 $ nomad volume [-type csi] status -verbose
-ID            Name      Plugin ID  Schedulable  Access Mode
-ebs_prod_db1  database  ebs-prod   true         single-node-writer
+ID            Name      Namespace  Plugin ID  Schedulable  Access Mode
+ebs_prod_db1  database  default    ebs-prod   true         single-node-writer
 
 External ID   Condition                         Nodes
 vol-abcedf    OK                                i-abc123f2,i-14a12df13
