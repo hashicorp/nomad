@@ -25,6 +25,11 @@
               @route="variables.new"
               @query={{hash path=(concat this.absolutePath "/")}}
               class="button is-primary"
+              {{keyboard-shortcut
+                pattern=(array "n" "v")
+                action=(action this.goToNewVariable)
+                label="Create Variable"
+              }}
             >
               Create Variable
             </LinkTo>
