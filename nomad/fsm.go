@@ -1517,7 +1517,6 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 		Region:          n.config.Region,
 		EnablePublisher: n.config.EnableEventBroker,
 		EventBufferSize: n.config.EventBufferSize,
-		//JobTrackedVersions: n.config.
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
