@@ -16,8 +16,9 @@ import (
 
 func TestStateStore(t testing.TB) *StateStore {
 	config := &StateStoreConfig{
-		Logger: testlog.HCLogger(t),
-		Region: "global",
+		Logger:             testlog.HCLogger(t),
+		Region:             "global",
+		JobTrackedVersions: structs.JobTrackedVersions,
 	}
 	state, err := NewStateStore(config)
 	if err != nil {
