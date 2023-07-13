@@ -1482,9 +1482,11 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
+	var allocatedMemMax float32
 	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
 		// Convert to bytes to match other memory metrics
 		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
+		allocatedMemMax = float32(taskRes.Memory.MemoryMaxMB) * 1024 * 1024
 	}
 
 	ms := ru.ResourceUsage.MemoryStats
@@ -1507,6 +1509,10 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	if allocatedMem > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
 			allocatedMem, tr.baseLabels)
+	}
+	if allocatedMemMax > 0 {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_allocated"},
+			allocatedMemMax, tr.baseLabels)
 	}
 }
 
