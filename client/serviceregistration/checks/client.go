@@ -152,11 +152,18 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		return qr
 	}
 
-	u := (&url.URL{
+	relative, err := url.Parse(q.Path)
+	if err != nil {
+		qr.Output = err.Error()
+		qr.Status = structs.CheckFailure
+		return qr
+	}
+
+	base := url.URL{
 		Scheme: q.Protocol,
 		Host:   addr,
-		Path:   q.Path,
-	}).String()
+	}
+	u := base.ResolveReference(relative).String()
 
 	request, err := http.NewRequest(q.Method, u, nil)
 	if err != nil {
