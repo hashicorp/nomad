@@ -12,7 +12,7 @@ job "nomadagent" {
     }
 
     update {
-      min_healthy_time = "2s"
+      min_healthy_time = "4s"
     }
 
     restart {
@@ -63,6 +63,4 @@ job "nomadagent" {
       }
     }
   }
-
-  // group "windows"
 }

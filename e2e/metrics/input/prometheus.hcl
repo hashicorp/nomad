@@ -10,7 +10,7 @@ job "prometheus" {
 
   group "monitoring" {
     update {
-      min_healthy_time = "2s"
+      min_healthy_time = "4s"
     }
 
     restart {
@@ -19,9 +19,9 @@ job "prometheus" {
     }
 
     network {
-      mode = "host"
+      mode = "bridge"
       port "ui" {
-        static = 9090
+        to = 9090
       }
     }
 
@@ -29,6 +29,7 @@ job "prometheus" {
       provider = "nomad"
       name     = "prometheus"
       port     = "ui"
+      tags = ["e2emetrics"]
       check {
         type     = "http"
         path     = "/-/healthy"
@@ -44,7 +45,6 @@ job "prometheus" {
       config {
         image        = "docker.io/prom/prometheus:v2.45.0"
         args         = ["--config.file=${NOMAD_TASK_DIR}/config.yaml"]
-        network_mode = "host"
       }
 
       template {
