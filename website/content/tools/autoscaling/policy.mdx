@@ -66,6 +66,8 @@ horizontal application scaling or horizontal cluster scaling.
 
 - `query_window` - Defines how far back to query the APM for metrics. It should
   be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
+  This value is ignored when the Nomad APM plugin is used,
+  because that doesn't provide historical data.
 
 - `group` - Specifies which checks should treated as correlated when the policy
   is evaluated. Refer to [Check Grouping][concepts_grouping] for more
