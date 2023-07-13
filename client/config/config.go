@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -325,6 +326,9 @@ type Config struct {
 
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
+
+	// PubKeyCache is a read through cache for workload identity signing keys.
+	PubKeyCache *keymgr.PubKeyCache
 }
 
 type APIListenerRegistrar interface {

@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -113,6 +114,9 @@ type AllocRunnerConfig struct {
 
 	//TODO(schmichael)
 	SignedIdentities []structs.SignedWorkloadIdentity
+
+	// PubKeyCache is a cache for workload identity signing keys.
+	PubKeyCache *keymgr.PubKeyCache
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

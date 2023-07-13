@@ -36,6 +36,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -266,6 +267,9 @@ type TaskRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// pubKeyCache is a cache for workload identity signing keys.
+	pubKeyCache *keymgr.PubKeyCache
 }
 
 type Config struct {
@@ -341,6 +345,9 @@ type Config struct {
 
 	//TODO(schmichael)
 	SignedIdentities []structs.SignedWorkloadIdentity
+
+	// PubKeyCache is a cache for workload identity signing keys.
+	PubKeyCache *keymgr.PubKeyCache
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -402,6 +409,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
 		getter:                 config.Getter,
+		pubKeyCache:            config.PubKeyCache,
 	}
 
 	// Create the logger based on the allocation ID

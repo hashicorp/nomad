@@ -26,6 +26,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
+	"github.com/hashicorp/nomad/helper/joseutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -203,13 +204,7 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 	}
 
 	// Find the Key ID
-	keyID := ""
-	for _, h := range token.Headers {
-		if h.KeyID != "" {
-			keyID = h.KeyID
-			break
-		}
-	}
+	keyID := joseutil.KeyID(token)
 	if keyID == "" {
 		return nil, fmt.Errorf("missing key ID header")
 	}
@@ -228,7 +223,7 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 	}
 
 	//TODO(schmichael) figure out a comment to describe when we can start
-	//having Expectations
+	//having Expectations for the default jwt without breaking backward compat
 	expect := jwt.Expected{}
 	if err := claims.Validate(expect); err != nil {
 		return nil, fmt.Errorf("invalid claims: %w", err)

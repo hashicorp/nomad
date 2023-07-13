@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -124,6 +125,9 @@ type Agent struct {
 	taskAPIServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
+
+	// PubKeyCache is a read through cache for workload identity signing keys.
+	pubKeyCache *keymgr.PubKeyCache
 }
 
 // NewAgent is used to create a new agent with the given configuration
@@ -142,6 +146,15 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	// Global logger should match internal logger as much as possible
 	golog.SetFlags(golog.LstdFlags | golog.Lmicroseconds)
 
+	// Setup workload identity public key cache, but don't run until client or
+	// server is setup since it needs RPC to be available.
+	a.pubKeyCache = keymgr.NewPubKeyCache(keymgr.PubKeyCacheConfig{
+		Region:     config.Region,
+		RPC:        a,
+		ShutdownCh: a.shutdownCh,
+		Logger:     a.logger,
+	})
+
 	if err := a.setupConsul(config.Consul); err != nil {
 		return nil, fmt.Errorf("Failed to initialize Consul client: %v", err)
 	}
@@ -159,6 +172,9 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
 	}
+
+	// Start public key cache
+	go a.pubKeyCache.Run()
 
 	return a, nil
 }
@@ -670,6 +686,9 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 		Please refer to the guide https://www.nomadproject.io/docs/agent/configuration/consul.html
 		to configure Nomad to work with Consul.`)
 	}
+
+	// Set PubKeyCache
+	c.PubKeyCache = a.pubKeyCache
 
 	return nil
 }
@@ -1210,7 +1229,8 @@ func (a *Agent) Shutdown() error {
 	return nil
 }
 
-// RPC is used to make an RPC call to the Nomad servers
+// RPC is used to make an RPC call to the Nomad servers. Cannot be called
+// before initializing server or client.
 func (a *Agent) RPC(method string, args interface{}, reply interface{}) error {
 	if a.server != nil {
 		return a.server.RPC(method, args, reply)

@@ -46,6 +46,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -323,6 +324,9 @@ type Client struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// PubKeyCache manages workload identity validation
+	pubKeyCache *keymgr.PubKeyCache
 }
 
 var (
@@ -386,6 +390,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
+		pubKeyCache:          cfg.PubKeyCache,
 	}
 
 	// we can't have this set in the default Config because of import cycles
@@ -1233,6 +1238,7 @@ func (c *Client) restoreState() error {
 			CheckStore:          c.checkStore,
 			RPCClient:           c,
 			Getter:              c.getter,
+			PubKeyCache:         c.pubKeyCache,
 		}
 
 		ar, err := c.allocrunnerFactory(arConf)
