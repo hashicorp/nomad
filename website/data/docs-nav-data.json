@@ -2260,6 +2260,10 @@
             "path": "enterprise/license"
           },
           {
+            "title": "Automated license utilization reporting",
+            "path": "enterprise/license/utilization-reporting"
+          },
+          {
             "title": "FAQ",
             "path": "enterprise/license/faq"
           }
