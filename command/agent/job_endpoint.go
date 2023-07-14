@@ -1009,7 +1009,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 
 		if job.Periodic.Specs != nil {
-			j.Periodic.Specs = *job.Periodic.Specs
+			j.Periodic.Specs = job.Periodic.Specs
 		}
 	}
 

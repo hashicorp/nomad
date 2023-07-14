@@ -5615,7 +5615,7 @@ func (p *PeriodicConfig) Validate() error {
 
 	var mErr multierror.Error
 	if p.Spec != "" && len(p.Specs) != 0 {
-		_ = multierror.Append(&mErr, fmt.Errorf("You can use only Spec or Specs"))
+		_ = multierror.Append(&mErr, fmt.Errorf("You can use only cron or crons"))
 	}
 	if p.Spec == "" && len(p.Specs) == 0 {
 		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
@@ -5664,14 +5664,17 @@ func (p *PeriodicConfig) Canonicalize() {
 
 // CronParseNext is a helper that parses the next time for the given expression
 // but captures any panic that may occur in the underlying library.
-func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
+func CronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
 	defer func() {
 		if recover() != nil {
 			t = time.Time{}
 			err = fmt.Errorf("failed parsing cron expression: %q", spec)
 		}
 	}()
-
+	e, err := cronexpr.Parse(spec)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
+	}
 	return e.Next(fromTime), nil
 }
 
@@ -5683,35 +5686,25 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		if p.Spec != "" {
-			e, err := cronexpr.Parse(p.Spec)
-			if err != nil {
-				return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
-			}
-			return CronParseNext(e, fromTime, p.Spec)
+			return CronParseNext(fromTime, p.Spec)
 		}
 
-		if len(p.Specs) != 0 {
-			times := make([]time.Time, len(p.Specs))
-			var nextTime time.Time
-			for i, spec := range p.Specs {
-				e, err := cronexpr.Parse(spec)
-				if err != nil {
-					return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", spec, err)
-				}
-				times[i], err = CronParseNext(e, fromTime, spec)
-				if err != nil {
-					return times[i], err
-				}
+		times := make([]time.Time, len(p.Specs))
+		var nextTime time.Time
+		var err error
+		for i, spec := range p.Specs {
+			times[i], err = CronParseNext(fromTime, spec)
+			if err != nil {
+				return times[i], err
 			}
-			nextTime = times[0]
-			for _, next := range times {
-				if next.Before(nextTime) {
-					nextTime = next
-				}
-			}
-			return nextTime, nil
 		}
-		return fromTime, nil
+		nextTime = times[0]
+		for _, next := range times {
+			if next.Before(nextTime) {
+				nextTime = next
+			}
+		}
+		return nextTime, nil
 
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")

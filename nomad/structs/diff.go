@@ -2651,16 +2651,6 @@ func periodicDiff(old, new *PeriodicConfig, contextual bool) *ObjectDiff {
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPeriodicFlat, newPeriodicFlat, contextual)
 
-	// Spec diffs
-	oldMap := make(map[string]struct{}, len(old.Specs))
-	newMap := make(map[string]struct{}, len(new.Specs))
-	for _, o := range old.Specs {
-		oldMap[o] = struct{}{}
-	}
-	for _, n := range new.Specs {
-		newMap[n] = struct{}{}
-	}
-
 	if setDiff := stringSetDiff(old.Specs, new.Specs, "Specs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
 		diff.Objects = append(diff.Objects, setDiff)
 	}
