@@ -2471,7 +2471,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Periodic: &api.PeriodicConfig{
 			Enabled:         pointer.Of(true),
 			Spec:            pointer.Of("spec"),
-			Specs:           pointer.Of([]string{"spec"}),
+			Specs:           []string{"spec"},
 			SpecType:        pointer.Of("cron"),
 			ProhibitOverlap: pointer.Of(true),
 			TimeZone:        pointer.Of("test zone"),

@@ -574,7 +574,7 @@ func TestParse(t *testing.T) {
 				Name: stringToPtr("foo"),
 				Periodic: &api.PeriodicConfig{
 					SpecType:        stringToPtr(api.PeriodicSpecCron),
-					Specs:           &[]string{"*/5 * * *", "*/7 * * *"},
+					Specs:           []string{"*/5 * * *", "*/7 * * *"},
 					ProhibitOverlap: boolToPtr(true),
 					TimeZone:        stringToPtr("Europe/Minsk"),
 				},
