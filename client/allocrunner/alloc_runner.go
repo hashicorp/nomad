@@ -32,6 +32,7 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -200,6 +201,9 @@ type allocRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// widMgr fetches and validates workload identities.
+	widMgr *keymgr.WIDMgr
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -242,6 +246,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
 		hookResources:            cstructs.NewAllocHookResources(),
+		widMgr:                   config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID
@@ -305,6 +310,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task, workloadIDs []stru
 			Getter:              ar.getter,
 			AllocHookResources:  ar.hookResources,
 			SignedIdentities:    taskIDs[task.Name],
+			WIDMgr:              ar.widMgr,
 		}
 
 		if ar.cpusetManager != nil {

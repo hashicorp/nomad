@@ -115,8 +115,8 @@ type AllocRunnerConfig struct {
 	//TODO(schmichael)
 	SignedIdentities []structs.SignedWorkloadIdentity
 
-	// PubKeyCache is a cache for workload identity signing keys.
-	PubKeyCache *keymgr.PubKeyCache
+	// WIDMgr fetches and validates workload identities.
+	WIDMgr *keymgr.WIDMgr
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

@@ -158,6 +158,7 @@ type WorkloadIdentityRequest struct {
 type SignedWorkloadIdentity struct {
 	WorkloadIdentityRequest
 	JWT string
+	Exp time.Time
 }
 
 // WorkloadIdentityRejection is the response to a WorkloadIdentityRequest that

@@ -7,12 +7,12 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/command/agent/keymgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,25 +28,34 @@ const (
 // based on the signed identity stored on the Allocation as well as manages the
 // other workload identities for the task.
 type identityHook struct {
-	tr       *TaskRunner
-	rpc      RPCer
-	allocID  string
+	tr      *TaskRunner
+	widMgr  *keymgr.WIDMgr
+	allocID string
+
+	// allocIndex is the CreateIndex for the task's allocation for use when
+	// retrieving identities. Requests must block until the server has at least
+	// caught up to when the alloc was created.
+	allocIndex uint64
+
 	taskName string
 	taskUser string
 	tokenDir string
-	logger   log.Logger
 
 	initialWIDs []structs.SignedWorkloadIdentity
 
 	// Manages lifetime of renewal goroutine
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	logger log.Logger
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger, initialWIDs []structs.SignedWorkloadIdentity) *identityHook {
 	h := &identityHook{
 		tr:          tr,
+		widMgr:      tr.widMgr,
 		allocID:     tr.allocID,
+		allocIndex:  tr.Alloc().CreateIndex,
 		taskName:    tr.taskName,
 		taskUser:    tr.Task().User,
 		initialWIDs: initialWIDs,
@@ -77,17 +86,14 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		signedWIDs[wid.IdentityName] = wid
 	}
 
+	var minExp time.Time
+
 	// Handle alternate workload identities: using the intially provided WIDs if
 	// possible and falling back to RPC.
 	missingSignedWIDs := map[string]*structs.WorkloadIdentity{}
 	for _, widspec := range req.Task.Identities {
 		if widspec.Name == structs.WorkloadIdentityDefaultName {
 			// Default is handled above
-			continue
-		}
-
-		if !widspec.Env && !widspec.File {
-			// Nothing to do with this identity, skip it
 			continue
 		}
 
@@ -98,7 +104,11 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 			continue
 		}
 
-		if err := h.exposeWID(widspec, signedWID); err != nil {
+		if minExp.IsZero() || minExp.After(signedWID.Exp) {
+			minExp = signedWID.Exp
+		}
+
+		if err := h.exposeWID(widspec, signedWID.JWT); err != nil {
 			return err
 		}
 	}
@@ -119,7 +129,7 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	}
 
 	// Run renewal loop
-	go h.run()
+	go h.run(minExp)
 
 	return nil
 }
@@ -144,14 +154,14 @@ func (h *identityHook) setNomadToken(path string, alloc *structs.Allocation, own
 	return nil
 }
 
-func (h *identityHook) exposeWID(widspec *structs.WorkloadIdentity, signedWID structs.SignedWorkloadIdentity) error {
+func (h *identityHook) exposeWID(widspec *structs.WorkloadIdentity, rawJWT string) error {
 	if widspec.Env {
-		h.tr.envBuilder.SetWorkloadToken(widspec.Name, signedWID.JWT)
+		h.tr.envBuilder.SetWorkloadToken(widspec.Name, rawJWT)
 	}
 
 	if widspec.File {
 		tokenPath := filepath.Join(h.tokenDir, fmt.Sprintf("nomad_%s.jwt", widspec.Name))
-		if err := users.WriteFileFor(tokenPath, []byte(signedWID.JWT), h.taskUser); err != nil {
+		if err := users.WriteFileFor(tokenPath, []byte(rawJWT), h.taskUser); err != nil {
 			return fmt.Errorf("failed to write token for identity %q: %w", widspec.Name, err)
 		}
 	}
@@ -161,23 +171,10 @@ func (h *identityHook) exposeWID(widspec *structs.WorkloadIdentity, signedWID st
 
 // TODO(schmichael) cleanup args
 func (h *identityHook) getSignedIDs(missingIDs map[string]*structs.WorkloadIdentity, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
-	//TODO(schmichael) handle missingSignedWIDs
-	// Request missing signed workload identities from servers
-	rpcReq := &structs.AllocIdentitiesRequest{
-		Identities: make([]structs.WorkloadIdentityRequest, 0, len(missingIDs)),
-		QueryOptions: structs.QueryOptions{
-			Region:    req.Alloc.Job.Region,
-			Namespace: req.Alloc.Namespace,
-
-			// Any server can sign workload identities as long as their statestore
-			// contains the alloc.
-			MinQueryIndex: req.Alloc.CreateIndex,
-			AllowStale:    true,
-		},
-	}
+	ids := make([]structs.WorkloadIdentityRequest, 0, len(missingIDs))
 
 	for missingID := range missingIDs {
-		rpcReq.Identities = append(rpcReq.Identities, structs.WorkloadIdentityRequest{
+		ids = append(ids, structs.WorkloadIdentityRequest{
 			AllocID:      h.allocID,
 			TaskName:     h.taskName,
 			IdentityName: missingID,
@@ -185,40 +182,26 @@ func (h *identityHook) getSignedIDs(missingIDs map[string]*structs.WorkloadIdent
 	}
 
 	//TODO(schmichael) plumb in rpc
-	rpcResp := &structs.AllocIdentitiesResponse{}
-	if err := h.rpc.RPC("Alloc.GetIdentities", rpcReq, &rpcResp); err != nil {
+	tokens, err := h.widMgr.GetIdentities(h.ctx, h.allocIndex, ids)
+	if err != nil {
 		return err
 	}
 
-	//TODO(schmichael) see rambling above about failures
-	//TODO(schmichael) if we are going to hard fail here fix the error message
-	if len(rpcResp.Rejections) > 0 {
-		reasons := make([]string, 0, len(rpcResp.Rejections))
-		for _, r := range rpcResp.Rejections {
-			h.logger.Error("workload identity request rejected", "reason", r.Reason, "wid", r.IdentityName)
-			reasons = append(reasons, r.IdentityName+": "+r.Reason)
-			delete(missingIDs, r.IdentityName)
-		}
-
-		return fmt.Errorf("error getting workload identities: %s", strings.Join(reasons, ", "))
-	}
-
-	for _, signedID := range rpcResp.SignedIdentities {
-		widspec, ok := missingIDs[signedID.IdentityName]
+	for _, token := range tokens {
+		widspec, ok := missingIDs[token.Name]
 		if !ok {
-			// Server bug! Every requested WID should either have a signed identity
+			// Bug: Every requested WID should either have a signed identity
 			// or a rejection (above).
-			h.logger.Error("bug: unexpected workload identity received",
-				signedID.AllocID, signedID.TaskName, signedID.IdentityName)
+			h.logger.Error("bug: unexpected workload identity received", "identity", token.Name)
 			continue
 		}
 
-		if err := h.exposeWID(widspec, signedID); err != nil {
+		if err := h.exposeWID(widspec, token.JWT); err != nil {
 			return err
 		}
 
 		// Track ones we have seen to help detect bugs
-		delete(missingIDs, signedID.IdentityName)
+		delete(missingIDs, token.Name)
 	}
 
 	if n := len(missingIDs); n > 0 {
@@ -228,50 +211,73 @@ func (h *identityHook) getSignedIDs(missingIDs map[string]*structs.WorkloadIdent
 	return nil
 }
 
-func (h *identityHook) run() {
-	for err := h.ctx.Err(); err == nil; {
-		args := &structs.AllocIdentitiesRequest{}
-		reply := &structs.AllocIdentitiesResponse{}
-		if err := h.rpc.RPC("Alloc.GetIdentities", args, reply); err != nil {
+func (h *identityHook) run(nextExp time.Time) {
+	origWIDSpecs := h.tr.Task().Identities
 
+	// widspecs maps identity names to their specs
+	widspecs := make(map[string]*structs.WorkloadIdentity, len(origWIDSpecs))
+
+	// req is a list of identities to request be signed
+	req := make([]structs.WorkloadIdentityRequest, len(origWIDSpecs))
+	for i, widspec := range origWIDSpecs {
+		req[i] = structs.WorkloadIdentityRequest{
+			AllocID:      h.tr.allocID,
+			TaskName:     h.taskName,
+			IdentityName: widspec.Name,
+		}
+	}
+
+	// Wait until we need to renew again.
+	wait := keymgr.ExpiryToRenewTime(nextExp, time.Now)
+	h.logger.Debug(">>>>> getting new workload identities IN", "in", wait, "next_exp", nextExp)
+
+	timer, timerStop := helper.NewSafeTimer(wait)
+	defer timerStop()
+
+	for err := h.ctx.Err(); err == nil; {
+		h.logger.Debug(">>>>> getting new workload identities SLEEPING")
+		select {
+		case <-timer.C:
+			h.logger.Debug("getting new workload identities")
+		case <-h.ctx.Done():
+			return
+		}
+
+		tokens, err := h.widMgr.GetIdentities(h.ctx, h.allocIndex, req)
+		if err != nil {
 			// Wait and retry
 			//TODO standardize somewhere? base it off something meaningful?!
 			const base = 10 * time.Second
 			const jitter = 20 * time.Second
-			wait := base + helper.RandomStagger(jitter)
+			timer.Reset(base + helper.RandomStagger(jitter))
 			h.logger.Warn("failed to get workload identities", "error", err, "retry_in", wait)
-			select {
-			case <-h.ctx.Done():
-				return
-			case <-time.After(wait):
-				continue
-			}
+			continue
 		}
 
-		if len(reply.Rejections) > 0 {
-			reasons := make([]string, 0, len(reply.Rejections))
-			for _, r := range reply.Rejections {
-				reasons = append(reasons, r.IdentityName+": "+r.Reason)
-			}
-			h.logger.Error("workload identity request rejected", "num_failures", len(reasons), "reasons", reasons)
-		}
+		var minExp time.Time
 
-		for _, signedID := range reply.SignedIdentities {
-			widspec, ok := missingIDs[signedID.IdentityName]
+		for _, token := range tokens {
+			widspec, ok := widspecs[token.Name]
 			if !ok {
-				// Server bug! Every requested WID should either have a signed identity
-				// or a rejection (above).
+				// Bug: Every requested WID should either have a signed identity or a
+				// rejection (above).
 				h.logger.Error("bug: unexpected workload identity received",
-					signedID.AllocID, signedID.TaskName, signedID.IdentityName)
+					"identity", token.Name)
 				continue
 			}
 
-			if err := h.exposeWID(widspec, signedID); err != nil {
+			if err := h.exposeWID(widspec, token.JWT); err != nil {
 				//TODO(schmichael) is there anything more we can do?
 				h.logger.Error("error setting workload identity", "error", err)
 				return
 			}
+
+			if minExp.IsZero() || minExp.After(token.Exp) {
+				minExp = token.Exp
+			}
 		}
+
+		timer.Reset(keymgr.ExpiryToRenewTime(minExp, time.Now))
 	}
 }
 

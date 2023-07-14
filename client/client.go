@@ -325,8 +325,8 @@ type Client struct {
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
 
-	// PubKeyCache manages workload identity validation
-	pubKeyCache *keymgr.PubKeyCache
+	// widMgr fetches and validates workload identities.
+	widMgr *keymgr.WIDMgr
 }
 
 var (
@@ -390,8 +390,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
-		pubKeyCache:          cfg.PubKeyCache,
 	}
+
+	c.widMgr = keymgr.NewWIDMgr(keymgr.WIDMgrConfig{
+		Region:      cfg.Region,
+		RPC:         c,
+		PubKeyCache: cfg.PubKeyCache,
+		Logger:      logger,
+	})
 
 	// we can't have this set in the default Config because of import cycles
 	if c.allocrunnerFactory == nil {
@@ -1215,6 +1221,7 @@ func (c *Client) restoreState() error {
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
 		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
+		c.logger.Debug(">>>>>>>>>>>>> widmgr", "widmgr", c.widMgr)
 		arConf := &config.AllocRunnerConfig{
 			Alloc:               alloc,
 			Logger:              c.logger,
@@ -1238,7 +1245,7 @@ func (c *Client) restoreState() error {
 			CheckStore:          c.checkStore,
 			RPCClient:           c,
 			Getter:              c.getter,
-			PubKeyCache:         c.pubKeyCache,
+			WIDMgr:              c.widMgr,
 		}
 
 		ar, err := c.allocrunnerFactory(arConf)
@@ -2726,6 +2733,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string, worklo
 		RPCClient:           c,
 		Getter:              c.getter,
 		SignedIdentities:    workloadIDs,
+		WIDMgr:              c.widMgr,
 	}
 
 	ar, err := c.allocrunnerFactory(arConf)

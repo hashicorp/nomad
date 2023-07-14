@@ -108,15 +108,13 @@ func (c *PubKeyCache) Run() {
 		case <-c.firstRun:
 			// Already closed
 		default:
+			c.logger.Debug("retrieved workload identity public signing keys")
 			close(c.firstRun)
 		}
 
 		// Since keys may not change for days, sleep instead of trying to sit in
 		// blocking queries for the entire time.
-		left := time.Unix(0, maxCreate).Add(rpcReply.RotationThreshold).Sub(time.Now())
-
-		// Wait 1/2 + rand(1/10) the time until the deadline.
-		wait := (left / 2) + helper.RandomStagger(left/10)
+		wait := ExpiryToRenewTime(time.Unix(0, maxCreate).Add(rpcReply.RotationThreshold), time.Now)
 
 		const minWait = 10 * time.Second //TODO(schmichael) is this long enough?
 		if wait < minWait {
@@ -186,4 +184,11 @@ func (c *PubKeyCache) getPubKey(ctx context.Context, keyID string) (*structs.Key
 	}
 
 	return pubKey, nil
+}
+
+// ExpiryToRenewTime calculates how long until clients should try to renew
+// credentials based on their expiration time and now.
+func ExpiryToRenewTime(exp time.Time, now func() time.Time) time.Duration {
+	left := exp.Sub(now())
+	return (left / 2) + helper.RandomStagger(left/10)
 }

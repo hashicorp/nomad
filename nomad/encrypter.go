@@ -204,9 +204,9 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 	}
 
 	// Find the Key ID
-	keyID := joseutil.KeyID(token)
-	if keyID == "" {
-		return nil, fmt.Errorf("missing key ID header")
+	keyID, err := joseutil.KeyID(token)
+	if err != nil {
+		return nil, err
 	}
 
 	// Find the Key

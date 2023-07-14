@@ -268,8 +268,8 @@ type TaskRunner struct {
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
 
-	// pubKeyCache is a cache for workload identity signing keys.
-	pubKeyCache *keymgr.PubKeyCache
+	// widMgr fetches and validates workload identities.
+	widMgr *keymgr.WIDMgr
 }
 
 type Config struct {
@@ -346,8 +346,8 @@ type Config struct {
 	//TODO(schmichael)
 	SignedIdentities []structs.SignedWorkloadIdentity
 
-	// PubKeyCache is a cache for workload identity signing keys.
-	PubKeyCache *keymgr.PubKeyCache
+	// WIDMgr fetches and validates workload identities.
+	WIDMgr *keymgr.WIDMgr
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -409,7 +409,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
 		serviceRegWrapper:      config.ServiceRegWrapper,
 		getter:                 config.Getter,
-		pubKeyCache:            config.PubKeyCache,
+		widMgr:                 config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID

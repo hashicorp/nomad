@@ -298,6 +298,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 									IdentityName: ident.Name,
 								},
 								JWT: token,
+								Exp: claims.Expiry.Time(),
 							})
 						}
 					}
@@ -446,6 +447,7 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 					reply.SignedIdentities = append(reply.SignedIdentities, structs.SignedWorkloadIdentity{
 						WorkloadIdentityRequest: idReq,
 						JWT:                     token,
+						Exp:                     claims.Expiry.Time(),
 					})
 					break
 				}
