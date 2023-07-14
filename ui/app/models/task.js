@@ -58,9 +58,12 @@ export default class Task extends Fragment {
   @fragmentArray('volume-mount', { defaultValue: () => [] }) volumeMounts;
 
   async _fetchParentJob() {
-    let job = await this.store.findRecord('job', this.taskGroup.job.id, {
-      reload: true,
-    });
+    let job = this.store.peekRecord('job', this.taskGroup.job.id);
+    if (!job) {
+      job = await this.store.findRecord('job', this.taskGroup.job.id, {
+        reload: true,
+      });
+    }
     this._job = job;
   }
 

@@ -38,6 +38,7 @@ Router.map(function () {
       this.route('services', function () {
         this.route('service', { path: '/:name' });
       });
+      this.route('variables');
     });
   });
 

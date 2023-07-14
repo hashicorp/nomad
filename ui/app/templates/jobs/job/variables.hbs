@@ -1,0 +1,24 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: MPL-2.0
+~}}
+
+{{page-title "Job " @model.job.name " variables"}}
+<JobSubnav @job={{@model.job}} />
+
+<section class="section">
+
+
+{{!-- Has job level variables: {{this.hasJobLevelVariables}}<br />
+Has group level variables: {{this.hasGroupLevelVariables}}<br />
+Has task level variables: {{this.hasTaskLevelVariables}}<br /> --}}
+
+{{!-- {{log "ALL VARS" this.jobRelevantVariables}} --}}
+<VariablePaths
+  @branch={{this.jobRelevantVariables}}
+/>
+
+
+
+</section>
+
