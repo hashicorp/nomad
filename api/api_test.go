@@ -493,7 +493,7 @@ func TestClient_NodeClient(t *testing.T) {
 }
 
 func TestCloneHttpClient(t *testing.T) {
-	client := defaultHttpClient()
+	client := defaultHttpClient("")
 	originalTransport := client.Transport.(*http.Transport)
 	originalTransport.Proxy = func(*http.Request) (*url.URL, error) {
 		return nil, errors.New("stub function")

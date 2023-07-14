@@ -171,6 +171,9 @@ type Config struct {
 	// Address is the address of the Nomad agent
 	Address string
 
+	// Scheme is the URI scheme for the Nomad agent
+	Scheme string
+
 	// Region to use. If not provided, the default agent region is used.
 	Region string
 
@@ -210,7 +213,8 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		scheme = "https"
 	}
 	config := &Config{
-		Address:    fmt.Sprintf("%s://%s", scheme, address),
+		Address:    address,
+		Scheme:     scheme,
 		Region:     region,
 		Namespace:  c.Namespace,
 		HttpClient: c.HttpClient,
@@ -273,12 +277,17 @@ func (t *TLSConfig) Copy() *TLSConfig {
 	return nt
 }
 
-func defaultHttpClient() *http.Client {
+func defaultHttpClient(unixAddr string) *http.Client {
 	httpClient := cleanhttp.DefaultPooledClient()
 	transport := httpClient.Transport.(*http.Transport)
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
+	}
+	if unixAddr != "" {
+		transport.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
+			return net.Dial("unix", unixAddr)
+		}
 	}
 
 	// Default to http/1: alloc exec/websocket aren't supported in http/2
@@ -291,7 +300,8 @@ func defaultHttpClient() *http.Client {
 // DefaultConfig returns a default configuration for the client
 func DefaultConfig() *Config {
 	config := &Config{
-		Address:   "http://127.0.0.1:4646",
+		Address:   "127.0.0.1:4646",
+		Scheme:    "http",
 		TLSConfig: &TLSConfig{},
 	}
 	if addr := os.Getenv("NOMAD_ADDR"); addr != "" {
@@ -317,6 +327,9 @@ func DefaultConfig() *Config {
 			Username: username,
 			Password: password,
 		}
+	}
+	if v := os.Getenv("NOMAD_HTTP_SSL"); v != "" {
+		config.Scheme = "https"
 	}
 
 	// Read TLS specific env vars
@@ -467,13 +480,35 @@ func NewClient(config *Config) (*Client, error) {
 
 	if config.Address == "" {
 		config.Address = defConfig.Address
-	} else if _, err := url.Parse(config.Address); err != nil {
+	}
+
+	if config.Scheme == "" {
+		config.Scheme = defConfig.Scheme
+	}
+
+	if _, err := url.Parse(config.Address); err != nil {
 		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
+	}
+
+	var unixAddr string
+	parts := strings.SplitN(config.Address, "://", 2)
+	if len(parts) == 2 {
+		switch parts[0] {
+		case "http":
+			// Never revert to http if TLS was explicitly requested.
+		case "https":
+			config.Scheme = "https"
+		case "unix":
+			unixAddr = parts[1]
+		default:
+			return nil, fmt.Errorf("unknown protocol scheme: %s", parts[0])
+		}
+		config.Address = parts[1]
 	}
 
 	httpClient := config.HttpClient
 	if httpClient == nil {
-		httpClient = defaultHttpClient()
+		httpClient = defaultHttpClient(unixAddr)
 		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
 			return nil, err
 		}
@@ -730,9 +765,9 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		config: &c.config,
 		method: method,
 		url: &url.URL{
-			Scheme:  base.Scheme,
+			Scheme:  c.config.Scheme,
 			User:    base.User,
-			Host:    base.Host,
+			Host:    c.config.Address,
 			Path:    u.Path,
 			RawPath: u.RawPath,
 		},
