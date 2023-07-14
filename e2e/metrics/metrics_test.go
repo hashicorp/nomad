@@ -37,11 +37,18 @@ func (m *metric) Query() string {
 	return query
 }
 
-func TestMetricsLinux(t *testing.T) {
+func TestMetrics(t *testing.T) {
+	// Run via the e2e suite; requires Windows and AWS specific attributes.
+
 	cluster3.Establish(t,
 		cluster3.Leader(),
 		cluster3.LinuxClients(1),
+		cluster3.WindowsClients(1),
 	)
+
+	/* todo: jobWinHP runs but cannot export metrics until we upgrade Windows */
+	_, cleanupWinHP := jobs3.Submit(t, "./input/winagent.hcl")
+	t.Cleanup(cleanupWinHP)
 
 	jobCPU, cleanupCPU := jobs3.Submit(t, "./input/cpustress.hcl")
 	t.Cleanup(cleanupCPU)
@@ -73,9 +80,18 @@ func TestMetricsLinux(t *testing.T) {
 		name:   "nomad_client_allocs_cpu_allocated",
 		filter: "exported_job",
 		key:    jobPy.JobID(),
-	}})
+	},
+	/*
+		// todo: reenable windows once we upgrade and can support api.sock
+		{
+			name:   "nomad_client_allocs_memory_usage",
+			filter: "exported_job",
+			key:    jobWinHP.JobID(),
+		},
+	*/
+	})
 
-	testClientMetrics(t, "linux", []*metric{{
+	testClientMetrics(t, []*metric{{
 		name: "nomad_client_allocated_memory",
 	}, {
 		name: "nomad_client_host_cpu_user",
@@ -87,17 +103,6 @@ func TestMetricsLinux(t *testing.T) {
 	}})
 }
 
-/*
-TODO
-	func TestMetricsWindows(t *testing.T) {
-		cluster3.Establish(t,
-			cluster3.Leader(),
-			cluster3.LinuxClients(1),
-			cluster3.WindowsClients(1),
-		)
-	}
-*/
-
 func testAllocMetrics(t *testing.T, metrics []*metric) {
 	// query metrics and update values
 	query(t, metrics)
@@ -106,9 +111,10 @@ func testAllocMetrics(t *testing.T, metrics []*metric) {
 	positives(t, metrics)
 }
 
-func testClientMetrics(t *testing.T, os string, metrics []*metric) {
+func testClientMetrics(t *testing.T, metrics []*metric) {
 	nodes, _, err := e2eutil.NomadClient(t).Nodes().List(&nomadapi.QueryOptions{
-		Filter: fmt.Sprintf("Attributes[%q] == %q", "kernel.name", os),
+		// TODO: unrestrict once we upgrade Windows and can support api.sock
+		Filter: fmt.Sprintf("Attributes[%q] == %q", "kernel.name", "linux"),
 	})
 	must.NoError(t, err)
 

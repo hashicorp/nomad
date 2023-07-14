@@ -81,7 +81,18 @@ func (c *Cluster) wait() {
 			if c.windowsClients <= 0 {
 				return nil
 			}
-			return errors.New("todo: windows")
+			queryOpts := &nomadapi.QueryOptions{
+				Filter: `Attributes["kernel.name"] == "windows"`,
+			}
+			nodes, _, err := nodesAPI.List(queryOpts)
+			if err != nil {
+				return err
+			}
+			eligible := len(nodes)
+			if eligible < c.windowsClients {
+				return fmt.Errorf("not enough windows clients, want %d, got %d", c.windowsClients, eligible)
+			}
+			return nil
 		}),
 	)
 
@@ -186,17 +197,20 @@ func Timeout(timeout time.Duration) Option {
 	}
 }
 
+// LinuxClients specifies the prerequisite number of nomad clients running on
+// Linux nodes.
 func LinuxClients(count int) Option {
 	return func(c *Cluster) {
 		c.linuxClients = count
 	}
 }
 
+// WindowsClients specifies the prerequisite number of nomad clients running on
+// Windows nodes.
 func WindowsClients(count int) Option {
-	panic("not yet implemented")
-	// return func(c *Cluster) {
-	// c.windowsClients = count
-	// }
+	return func(c *Cluster) {
+		c.windowsClients = count
+	}
 }
 
 func Leader() Option {
