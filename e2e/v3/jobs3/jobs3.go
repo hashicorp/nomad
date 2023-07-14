@@ -383,7 +383,7 @@ func initialize(t *testing.T, filename string) *Submission {
 		jobSpec:      job,
 		jobID:        jobID,
 		origJobID:    jobID,
-		timeout:      20 * time.Second,
+		timeout:      60 * time.Second,
 		vars:         set.New[string](0),
 		waitComplete: set.New[string](0),
 	}

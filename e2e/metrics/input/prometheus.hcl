@@ -29,7 +29,7 @@ job "prometheus" {
       provider = "nomad"
       name     = "prometheus"
       port     = "ui"
-      tags = ["e2emetrics"]
+      tags     = ["e2emetrics"]
       check {
         type     = "http"
         path     = "/-/healthy"
@@ -38,13 +38,43 @@ job "prometheus" {
       }
     }
 
+    # run a private holepunch instance in this group network
+    # so prometheus can access the nomad api for service disco
+    task "sidepunch" {
+      driver = "podman"
+      user   = "nobody"
+      config {
+        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.3"
+      }
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
+      }
+
+      env {
+        HOLEPUNCH_BIND      = "127.0.0.1"
+        HOLEPUNCH_PORT      = 6666
+        HOLEPUNCH_ALLOW_ALL = true # service discovery
+      }
+
+      identity {
+        env = true
+      }
+
+      resources {
+        cpu    = 100
+        memory = 128
+      }
+    }
+
     task "prometheus" {
       driver = "podman"
       user   = "nobody"
 
       config {
-        image        = "docker.io/prom/prometheus:v2.45.0"
-        args         = ["--config.file=${NOMAD_TASK_DIR}/config.yaml"]
+        image = "docker.io/prom/prometheus:v2.45.0"
+        args  = ["--config.file=${NOMAD_TASK_DIR}/config.yaml"]
       }
 
       template {
@@ -58,7 +88,7 @@ global:
 scrape_configs:
   - job_name: 'nomad_metrics'
     nomad_sd_configs:
-      - server: 'http://192.168.88.189:4646'
+      - server: 'http://127.0.0.1:6666'
     relabel_configs:
       - source_labels: ['__meta_nomad_tags']
         regex: '(.*)monitor(.*)'

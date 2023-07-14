@@ -39,17 +39,14 @@ job "pythonhttp" {
 
     task "python" {
       driver = "pledge"
-      user = "nobody"
-
       config {
         command = "python3"
         args = [
           "-m", "http.server", "${NOMAD_PORT_http}",
           "--directory", "${NOMAD_TASK_DIR}",
         ]
-        promises   = "stdio rpath inet"
-        unveil     = ["r:/usr/lib", "r:/etc/mime.types", "r:${NOMAD_TASK_DIR}"]
-        importance = "low"
+        promises = "stdio rpath inet"
+        unveil   = ["r:/etc/mime.types", "r:${NOMAD_TASK_DIR}"]
       }
 
       template {

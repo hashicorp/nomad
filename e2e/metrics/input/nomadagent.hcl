@@ -45,7 +45,7 @@ job "nomadagent" {
       user   = "nobody"
 
       config {
-        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.2"
+        image = "ghcr.io/shoenig/nomad-holepunch:v0.1.3"
       }
 
       env {

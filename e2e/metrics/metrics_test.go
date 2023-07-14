@@ -43,6 +43,9 @@ func TestMetricsLinux(t *testing.T) {
 		cluster3.LinuxClients(1),
 	)
 
+	jobCPU, cleanupCPU := jobs3.Submit(t, "./input/cpustress.hcl")
+	t.Cleanup(cleanupCPU)
+
 	jobHP, cleanupHP := jobs3.Submit(t, "./input/nomadagent.hcl")
 	t.Cleanup(cleanupHP)
 
@@ -52,8 +55,8 @@ func TestMetricsLinux(t *testing.T) {
 	jobPy, cleanupPy := jobs3.Submit(t, "./input/pythonhttp.hcl")
 	t.Cleanup(cleanupPy)
 
-	jobCPU, cleanupCPU := jobs3.Submit(t, "./input/cpustress.hcl")
-	t.Cleanup(cleanupCPU)
+	_, cleanupCaddy := jobs3.Submit(t, "./input/caddy.hcl")
+	t.Cleanup(cleanupCaddy)
 
 	t.Log("let the metrics collect for a bit (15s)")
 	time.Sleep(15 * time.Second)
@@ -72,7 +75,7 @@ func TestMetricsLinux(t *testing.T) {
 		key:    jobPy.JobID(),
 	}})
 
-	testClientMetrics(t, []*metric{{
+	testClientMetrics(t, "linux", []*metric{{
 		name: "nomad_client_allocated_memory",
 	}, {
 		name: "nomad_client_host_cpu_user",
@@ -103,8 +106,10 @@ func testAllocMetrics(t *testing.T, metrics []*metric) {
 	positives(t, metrics)
 }
 
-func testClientMetrics(t *testing.T, metrics []*metric) {
-	nodes, _, err := e2eutil.NomadClient(t).Nodes().List(nil)
+func testClientMetrics(t *testing.T, os string, metrics []*metric) {
+	nodes, _, err := e2eutil.NomadClient(t).Nodes().List(&nomadapi.QueryOptions{
+		Filter: fmt.Sprintf("Attributes[%q] == %q", "kernel.name", os),
+	})
 	must.NoError(t, err)
 
 	// permute each metric per node
@@ -129,16 +134,16 @@ func testClientMetrics(t *testing.T, metrics []*metric) {
 
 func query(t *testing.T, metrics []*metric) {
 	services := e2eutil.NomadClient(t).Services()
-	regs, _, err := services.Get("prometheus", &nomadapi.QueryOptions{
-		Filter: `Tags contains "e2emetrics"`,
+	regs, _, err := services.Get("caddy", &nomadapi.QueryOptions{
+		Filter: `Tags contains "expose"`,
 	})
-	must.NoError(t, err, must.Sprint("unable to query nomad for prometheus service"))
-	must.Len(t, 1, regs, must.Sprint("expected one prometheus instance"))
+	must.NoError(t, err, must.Sprint("unable to query nomad for caddy service"))
+	must.Len(t, 1, regs, must.Sprint("expected one caddy instance"))
 
-	prom := regs[0]
-	address := fmt.Sprintf("http://%s:%d", prom.Address, prom.Port)
+	prom := regs[0] // tag[0] is public aws address
+	address := fmt.Sprintf("http://%s:%d", prom.Tags[0], prom.Port)
 	opts := promapi.Config{Address: address}
-	t.Log("prometheus http address", address)
+	t.Log("expose prometheus http address", address)
 
 	client, err := promapi.NewClient(opts)
 	must.NoError(t, err, must.Sprint("unable to create prometheus api client"))

@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: MPL-2.0
 
 job "cpustress" {
+  # make sure every node has nonzero cpu usage metrics
+  type = "system"
+
   group "cpustress" {
     constraint {
       attribute = "${attr.kernel.name}"
       value     = "linux"
     }
+
     update {
       min_healthy_time = "4s"
     }
@@ -27,12 +31,12 @@ job "cpustress" {
 
       config {
         command  = "stress"
-        args     = ["--cpu", "2", ]
+        args     = ["--cpu", "1", ]
         promises = "stdio rpath proc"
       }
 
       resources {
-        cores  = 2
+        cpu    = 100
         memory = 64
       }
     }
