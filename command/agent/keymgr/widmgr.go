@@ -48,7 +48,7 @@ func (m *WIDMgr) GetIdentities(ctx context.Context, minIndex uint64, req []struc
 			Region:        m.region,
 			MinQueryIndex: minIndex,
 			AllowStale:    true,
-			AuthToken:     c.NodeSecret,
+			AuthToken:     m.nodeSecret,
 		},
 	}
 	reply := structs.AllocIdentitiesResponse{}

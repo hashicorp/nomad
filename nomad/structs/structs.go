@@ -11163,6 +11163,10 @@ func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string, wid *Worklo
 	claims.SetSubject(job, a.TaskGroup, taskName, wid.Name)
 	claims.SetExp(now, wid.TTL, wid.Splay)
 
+	//TODO(schmichael) if we want this to be deterministic we could hash the
+	//inputs (including `now`), but I don't think there's a point
+	claims.ID = uuid.Generate()
+
 	return claims
 }
 

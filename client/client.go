@@ -392,13 +392,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
 	}
 
-	c.widMgr = keymgr.NewWIDMgr(keymgr.WIDMgrConfig{
-		Region:      cfg.Region,
-		RPC:         c,
-		PubKeyCache: cfg.PubKeyCache,
-		Logger:      logger,
-	})
-
 	// we can't have this set in the default Config because of import cycles
 	if c.allocrunnerFactory == nil {
 		c.allocrunnerFactory = allocrunner.NewAllocRunner
@@ -442,6 +435,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
+
+	// Setup workload identity manager
+	c.widMgr = keymgr.NewWIDMgr(keymgr.WIDMgrConfig{
+		NodeSecret:  c.secretNodeID(),
+		Region:      cfg.Region,
+		RPC:         c,
+		PubKeyCache: cfg.PubKeyCache,
+		Logger:      logger,
+	})
 
 	c.fingerprintManager = NewFingerprintManager(
 		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
