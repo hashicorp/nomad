@@ -8,15 +8,60 @@
 
 <section class="section">
 
+<header class="job-variables-intro">
+  <Hds::Alert @type="inline" @color="highlight" as |A|>
+    <A.Title>Automatic Access to Variables</A.Title>
+    <A.Description>
+      <p>Tasks in this job can have <a href="https://developer.hashicorp.com/nomad/docs/concepts/variables#task-access-to-variables" target="_blank" rel="noopener noreferrer">automatic access to Nomad Variables</a>.</p>
+      <ul>
+        <li>Use <code>nomad/jobs</code> to grant all your jobs access</li>
+        <li>Use <code>nomad/jobs/{{this.model.job.name}}</code> to grand this job access</li>
+        <li>
+          Use
+          {{#if (gt this.firstFewTaskGroupNames.length 1)}}
+            {{#each this.firstFewTaskGroupNames as |name|}}
+              <code>nomad/jobs/{{this.model.job.name}}/{{name}}</code>,
+            {{/each}}
+            etc. to grant a specific task group access
+          {{else}}
+            <code>nomad/jobs/{{this.model.job.name}}/{{object-at 0 this.firstFewTaskGroupNames}}</code> to grant your task group access
+          {{/if}}
+        </li>
+        <li>
+          Use
+          {{#if (gt this.firstFewTaskNames.length 1)}}
+            {{#each this.firstFewTaskNames as |name|}}
+              <code>nomad/jobs/{{this.model.job.name}}/{{name}}</code>,
+            {{/each}}
+            etc. to grant a specific task access
+          {{else}}
+            <code>nomad/jobs/{{this.model.job.name}}/{{object-at 0 this.firstFewTaskNames}}</code> to grant your task access
+          {{/if}}
+        </li>
+      </ul>
+    </A.Description>
+    <A.Link::Standalone @color="secondary" @icon="arrow-right" @iconPosition="trailing" @text="Learn more about Nomad Variables" @href="https://developer.hashicorp.com/nomad/tutorials/variables" />
+  </Hds::Alert>
+</header>
 
-{{!-- Has job level variables: {{this.hasJobLevelVariables}}<br />
-Has group level variables: {{this.hasGroupLevelVariables}}<br />
-Has task level variables: {{this.hasTaskLevelVariables}}<br /> --}}
-
-{{!-- {{log "ALL VARS" this.jobRelevantVariables}} --}}
+{{#if this.jobRelevantVariables.files.length}}
 <VariablePaths
   @branch={{this.jobRelevantVariables}}
 />
+{{else}}
+  <p>
+    Job <strong>{{this.model.job.name}}</strong> does not currently have access to any variables.
+
+    {{#if (can "write variable")}}
+      <LinkTo
+        @route="variables.new"
+        @query={{hash path=(concat "nomad/jobs/" this.model.job.name)}}
+      >
+        Create a Variable
+      </LinkTo> to get started.
+    {{/if}}
+  </p>
+{{/if}}
 
 
 

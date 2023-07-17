@@ -8,11 +8,17 @@
 import Controller from '@ember/controller';
 import { alias } from '@ember/object/computed';
 import VariableModel from '../../../models/variable';
+import JobModel from '../../../models/job';
 import MutableArray from '@ember/array/mutable';
+import { A } from '@ember/array';
 
 export default class JobsJobVariablesController extends Controller {
+  /** @type {JobModel} */
   @alias('model.job') job;
-  // #region Variables
+
+  /** @type {MutableArray<VariableModel>} */
+  @alias('model.variables') variables;
+
   get hasJobLevelVariables() {
     return !!this.job.pathLinkedVariable;
   }
@@ -27,6 +33,19 @@ export default class JobsJobVariablesController extends Controller {
     );
   }
 
+  get firstFewTaskGroupNames() {
+    return this.job.taskGroups.slice(0, 3).mapBy('name');
+  }
+
+  get firstFewTaskNames() {
+    return this.job.taskGroups
+      .slice(0, 3)
+      .map((tg) =>
+        tg.tasks.slice(0, 3).map((task) => `${tg.name}/${task.name}`)
+      )
+      .flat();
+  }
+
   /**
    * @returns {import("../../../utils/path-tree").VariableFolder}
    */
@@ -34,14 +53,14 @@ export default class JobsJobVariablesController extends Controller {
     /**
      * @type {MutableArray<VariableModel>}
      */
-    let flatVariables = [
-      this.model.variables.findBy('path', 'nomad/jobs'),
+    let flatVariables = A([
+      this.variables.findBy('path', 'nomad/jobs'),
       this.job.pathLinkedVariable,
       ...this.job.taskGroups.mapBy('pathLinkedVariable'),
       ...this.job.taskGroups
         .map((tg) => tg.tasks.mapBy('pathLinkedVariable'))
         .flat(),
-    ].compact();
+    ]).compact();
 
     /**
      * @type {import("../../../utils/path-tree").VariableFile[]}
@@ -61,5 +80,4 @@ export default class JobsJobVariablesController extends Controller {
       absolutePath: '',
     };
   }
-  // #endregion Variables
 }
