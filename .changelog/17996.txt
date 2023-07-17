@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug in sending concurrent requests to CSI controller plugins by serializing them per plugin
+```
