@@ -4,7 +4,9 @@
  */
 
 // @ts-check
+// eslint-disable-next-line no-unused-vars
 import VariableModel from '../models/variable';
+// eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 
 /**

@@ -363,7 +363,6 @@ export default class Job extends Model {
         `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
       );
     } else {
-      console.log('before I go hunting', this.variables);
       return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
     }
   }

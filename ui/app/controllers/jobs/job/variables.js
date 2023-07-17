@@ -7,8 +7,11 @@
 
 import Controller from '@ember/controller';
 import { alias } from '@ember/object/computed';
+// eslint-disable-next-line no-unused-vars
 import VariableModel from '../../../models/variable';
+// eslint-disable-next-line no-unused-vars
 import JobModel from '../../../models/job';
+// eslint-disable-next-line no-unused-vars
 import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 
