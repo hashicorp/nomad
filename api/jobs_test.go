@@ -829,7 +829,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Periodic: &PeriodicConfig{
 					Enabled:         pointerOf(true),
 					Spec:            pointerOf(""),
-					Specs:           pointerOf([]string{}),
+					Specs:           []string{},
 					SpecType:        pointerOf(PeriodicSpecCron),
 					ProhibitOverlap: pointerOf(false),
 					TimeZone:        pointerOf("UTC"),

@@ -5615,7 +5615,7 @@ func (p *PeriodicConfig) Validate() error {
 
 	var mErr multierror.Error
 	if p.Spec != "" && len(p.Specs) != 0 {
-		_ = multierror.Append(&mErr, fmt.Errorf("You can use only cron or crons"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Only cron or crons may be used"))
 	}
 	if p.Spec == "" && len(p.Specs) == 0 {
 		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
@@ -5636,13 +5636,13 @@ func (p *PeriodicConfig) Validate() error {
 				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
 			}
 		}
-		if len(p.Specs) != 0 {
-			for _, spec := range p.Specs {
-				if _, err := cronexpr.Parse(spec); err != nil {
-					_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", spec, err))
-				}
+		// Validate the cron specs
+		for _, spec := range p.Specs {
+			if _, err := cronexpr.Parse(spec); err != nil {
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", spec, err))
 			}
 		}
+
 	case PeriodicSpecTest:
 		// No-op
 	default:
@@ -5685,10 +5685,12 @@ func CronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
+		// Once spec parsing
 		if p.Spec != "" {
 			return CronParseNext(fromTime, p.Spec)
 		}
 
+		// multiple specs parsing
 		times := make([]time.Time, len(p.Specs))
 		var nextTime time.Time
 		var err error

@@ -855,31 +855,30 @@ func (p *PeriodicConfig) Canonicalize() {
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
+	// Once spec parsing
 	if p != nil && *p.SpecType == PeriodicSpecCron {
 		if p.Spec != nil && *p.Spec != "" {
 			return cronParseNext(fromTime, *p.Spec)
 		}
+	}
 
-		if p.Specs != nil && len(p.Specs) != 0 {
-			times := make([]time.Time, len(p.Specs))
-			var nextTime time.Time
-			var err error
-			for i, spec := range p.Specs {
-				times[i], err = cronParseNext(fromTime, spec)
-				if err != nil {
-					return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
-				}
-			}
-			nextTime = times[0]
-			for _, next := range times {
-				if next.Before(nextTime) {
-					nextTime = next
-				}
-			}
-			return nextTime, nil
+	// multiple specs parsing
+	times := make([]time.Time, len(p.Specs))
+	var nextTime time.Time
+	var err error
+	for i, spec := range p.Specs {
+		times[i], err = cronParseNext(fromTime, spec)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
 		}
 	}
-	return time.Time{}, nil
+	nextTime = times[0]
+	for _, next := range times {
+		if next.Before(nextTime) {
+			nextTime = next
+		}
+	}
+	return nextTime, nil
 }
 
 // cronParseNext is a helper that parses the next time for the given expression
