@@ -23,6 +23,8 @@ tls {
 ~> Incorrect configuration of the TLS configuration can result in failure to
 start the Nomad agent.
 
+~> When enabling `rpc=true`, all RPC endpoints will use mutual authentication (mTLS)
+
 This section of the documentation only covers the configuration options for
 `tls` block. To understand how to setup the certificates themselves, please see
 the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-security/security-enable-tls).
