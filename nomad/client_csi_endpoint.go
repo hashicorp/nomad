@@ -2,7 +2,7 @@ package nomad
 
 import (
 	"fmt"
-	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
@@ -220,9 +220,9 @@ func (a *ClientCSI) clientIDsForController(pluginID string) ([]string, error) {
 
 	ws := memdb.NewWatchSet()
 
-	// note: plugin IDs are not scoped to region/DC but volumes are.
-	// so any node we get for a controller is already in the same
-	// region/DC for the volume.
+	// note: plugin IDs are not scoped to region but volumes are. so any Nomad
+	// client we get for a controller is already in the same region for the
+	// volume.
 	plugin, err := snap.CSIPluginByID(ws, pluginID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting plugin: %s, %v", pluginID, err)
@@ -231,13 +231,10 @@ func (a *ClientCSI) clientIDsForController(pluginID string) ([]string, error) {
 		return nil, fmt.Errorf("plugin missing: %s", pluginID)
 	}
 
-	// iterating maps is "random" but unspecified and isn't particularly
-	// random with small maps, so not well-suited for load balancing.
-	// so we shuffle the keys and iterate over them.
 	clientIDs := []string{}
 
 	for clientID, controller := range plugin.Controllers {
-		if !controller.IsController() {
+		if !controller.IsController() || !controller.Healthy {
 			// we don't have separate types for CSIInfo depending on
 			// whether it's a controller or node. this error shouldn't
 			// make it to production but is to aid developers during
@@ -253,9 +250,11 @@ func (a *ClientCSI) clientIDsForController(pluginID string) ([]string, error) {
 		return nil, fmt.Errorf("failed to find clients running controller plugin %q", pluginID)
 	}
 
-	rand.Shuffle(len(clientIDs), func(i, j int) {
-		clientIDs[i], clientIDs[j] = clientIDs[j], clientIDs[i]
-	})
+	// Many plugins don't handle concurrent requests as described in the spec,
+	// and have undocumented expectations of using k8s-specific sidecars to
+	// leader elect. Sort the client IDs so that we prefer sending requests to
+	// the same controller to hack around this.
+	clientIDs = sort.StringSlice(clientIDs)
 
 	return clientIDs, nil
 }
