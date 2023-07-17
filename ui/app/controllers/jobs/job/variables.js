@@ -34,16 +34,14 @@ export default class JobsJobVariablesController extends Controller {
   }
 
   get firstFewTaskGroupNames() {
-    return this.job.taskGroups.slice(0, 3).mapBy('name');
+    return this.job.taskGroups.slice(0, 2).mapBy('name');
   }
 
   get firstFewTaskNames() {
     return this.job.taskGroups
-      .slice(0, 3)
-      .map((tg) =>
-        tg.tasks.slice(0, 3).map((task) => `${tg.name}/${task.name}`)
-      )
-      .flat();
+      .map((tg) => tg.tasks.map((task) => `${tg.name}/${task.name}`))
+      .flat()
+      .slice(0, 2);
   }
 
   /**

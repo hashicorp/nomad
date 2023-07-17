@@ -73,7 +73,7 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{this.duplicatePathWarning.path}}
+            @model={{concat this.duplicatePathWarning.path "@" (or this.variableNamespace "default")}}
           >
             edit the existing variable
           </LinkTo>

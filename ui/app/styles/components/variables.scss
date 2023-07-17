@@ -217,6 +217,10 @@ table.variable-items {
   ul li {
     list-style-type: disc;
     margin-left: 2rem;
+    code {
+      white-space-collapse: preserve-breaks;
+      display: inline-flex;
+    }
   }
 }
 
