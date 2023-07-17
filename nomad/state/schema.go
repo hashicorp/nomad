@@ -1,13 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/go-memdb"
+	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -16,7 +13,6 @@ const (
 	tableIndex = "index"
 
 	TableNamespaces           = "namespaces"
-	TableNodePools            = "node_pools"
 	TableServiceRegistrations = "service_registrations"
 	TableVariables            = "variables"
 	TableVariablesQuotas      = "variables_quota"
@@ -67,11 +63,9 @@ func init() {
 	RegisterSchemaFactories([]SchemaFactory{
 		indexTableSchema,
 		nodeTableSchema,
-		nodePoolTableSchema,
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
-		jobSubmissionSchema,
 		deploymentSchema,
 		periodicLaunchTableSchema,
 		evalTableSchema,
@@ -160,34 +154,6 @@ func nodeTableSchema() *memdb.TableSchema {
 					Field: "SecretID",
 				},
 			},
-			"node_pool": {
-				Name:         "node_pool",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "NodePool",
-				},
-			},
-		},
-	}
-}
-
-// nodePoolTableSchema returns the MemDB schema for the node pools table.
-// This table is used to store all the node pools registered in the cluster.
-func nodePoolTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: TableNodePools,
-		Indexes: map[string]*memdb.IndexSchema{
-			// Name is the primary index used for lookup and is required to be
-			// unique.
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "Name",
-				},
-			},
 		},
 	}
 }
@@ -245,14 +211,6 @@ func jobTableSchema() *memdb.TableSchema {
 					Conditional: jobIsPeriodic,
 				},
 			},
-			"pool": {
-				Name:         "pool",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "NodePool",
-				},
-			},
 		},
 	}
 }
@@ -306,41 +264,6 @@ func jobVersionSchema() *memdb.TableSchema {
 
 						&memdb.StringFieldIndex{
 							Field:     "ID",
-							Lowercase: true,
-						},
-
-						&memdb.UintFieldIndex{
-							Field: "Version",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// jobSubmissionSchema returns the memdb table schema of job submissions
-// which contain the original source material of each job, per version.
-func jobSubmissionSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "job_submission",
-		Indexes: map[string]*memdb.IndexSchema{
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				// index by (Namespace, JobID, Version)
-				// note: uniqueness applies only at the moment of insertion,
-				// if anything modifies one of these fields (as the stored
-				// struct is a pointer, there is no consistency)
-				Indexer: &memdb.CompoundIndex{
-					Indexes: []memdb.Indexer{
-						&memdb.StringFieldIndex{
-							Field: "Namespace",
-						},
-
-						&memdb.StringFieldIndex{
-							Field:     "JobID",
 							Lowercase: true,
 						},
 

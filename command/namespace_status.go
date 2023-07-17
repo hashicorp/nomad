@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -30,10 +27,10 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Status Specific Options:
-
+  
   -json
     Output the latest namespace status information in a JSON format.
-
+  
   -t
     Format and display namespace status information using a Go template.
 `
@@ -147,21 +144,6 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 				return 1
 			}
 		}
-	}
-
-	if ns.NodePoolConfiguration != nil {
-		c.Ui.Output(c.Colorize().Color("\n[bold]Node Pool Configuration[reset]"))
-		npConfig := ns.NodePoolConfiguration
-		npConfigOut := []string{
-			fmt.Sprintf("Default|%s", npConfig.Default),
-		}
-		if len(npConfig.Allowed) > 0 {
-			npConfigOut = append(npConfigOut, fmt.Sprintf("Allowed|%s", strings.Join(npConfig.Allowed, ", ")))
-		}
-		if len(npConfig.Denied) > 0 {
-			npConfigOut = append(npConfigOut, fmt.Sprintf("Denied|%s", strings.Join(npConfig.Denied, ", ")))
-		}
-		c.Ui.Output(formatKV(npConfigOut))
 	}
 
 	return 0

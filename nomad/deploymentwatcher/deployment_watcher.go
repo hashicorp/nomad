@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package deploymentwatcher
 
 import (
@@ -615,12 +612,12 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			continue
 		}
 
-		// Check if we can already fail the deployment
-		failDeployment := w.shouldFailEarly(deployment, alloc, dstate)
+		// Determine if the update block for this group is progress based
+		progressBased := dstate.ProgressDeadline != 0
 
 		// Check if the allocation has failed and we need to mark it for allow
 		// replacements
-		if alloc.DeploymentStatus.IsUnhealthy() && !failDeployment &&
+		if progressBased && alloc.DeploymentStatus.IsUnhealthy() &&
 			deployment.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 			res.allowReplacements = append(res.allowReplacements, alloc.ID)
 			continue
@@ -631,12 +628,19 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 			res.createEval = true
 		}
 
-		if failDeployment {
+		// If the group is using a progress deadline, we don't have to do anything.
+		if progressBased {
+			continue
+		}
+
+		// Fail on the first bad allocation
+		if alloc.DeploymentStatus.IsUnhealthy() {
 			// Check if the group has autorevert set
 			if dstate.AutoRevert {
 				res.rollback = true
 			}
 
+			// Since we have an unhealthy allocation, fail the deployment
 			res.failDeployment = true
 		}
 
@@ -693,31 +697,6 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	}
 
 	return fail, false, nil
-}
-
-func (w *deploymentWatcher) shouldFailEarly(deployment *structs.Deployment, alloc *structs.AllocListStub, dstate *structs.DeploymentState) bool {
-	if !alloc.DeploymentStatus.IsUnhealthy() {
-		return false
-	}
-
-	// Fail on the first unhealthy allocation if no progress deadline is specified.
-	if dstate.ProgressDeadline == 0 {
-		w.logger.Debug("failing deployment because an allocation failed and the deployment is not progress based", "alloc", alloc.ID)
-		return true
-	}
-
-	if deployment.Active() {
-		reschedulePolicy := w.j.LookupTaskGroup(alloc.TaskGroup).ReschedulePolicy
-		isRescheduleEligible := alloc.RescheduleEligible(reschedulePolicy, time.Now())
-		if !isRescheduleEligible {
-			// We have run out of reschedule attempts: do not wait for the progress deadline to expire because
-			// we know that we will not be able to try to get another allocation healthy
-			w.logger.Debug("failing deployment because an allocation has failed and the task group has run out of reschedule attempts", "alloc", alloc.ID)
-			return true
-		}
-	}
-
-	return false
 }
 
 // getDeploymentProgressCutoff returns the progress cutoff for the given

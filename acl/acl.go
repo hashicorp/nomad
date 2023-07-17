@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package acl
 
 import (
@@ -50,26 +47,23 @@ type ACL struct {
 	// management tokens are allowed to do anything
 	management bool
 
-	// The attributes below map polices that have fine-grained capabilities
-	// with a capabilitySet.
-	//
-	// The attributes prefixed with `wildcard` maps the policies for glob
-	// patterns to a capabilitySet. We use an iradix for the purposes of
-	// ordered iteration.
-	namespaces         *iradix.Tree[capabilitySet]
+	// namespaces maps a namespace to a capabilitySet
+	namespaces *iradix.Tree[capabilitySet]
+
+	// wildcardNamespaces maps a glob pattern of a namespace to a capabilitySet
+	// We use an iradix for the purposes of ordered iteration.
 	wildcardNamespaces *iradix.Tree[capabilitySet]
 
-	nodePools         *iradix.Tree[capabilitySet]
-	wildcardNodePools *iradix.Tree[capabilitySet]
+	// hostVolumes maps a named host volume to a capabilitySet
+	hostVolumes *iradix.Tree[capabilitySet]
 
-	hostVolumes         *iradix.Tree[capabilitySet]
+	// wildcardHostVolumes maps a glob pattern of host volume names to a capabilitySet
+	// We use an iradix for the purposes of ordered iteration.
 	wildcardHostVolumes *iradix.Tree[capabilitySet]
 
 	variables         *iradix.Tree[capabilitySet]
 	wildcardVariables *iradix.Tree[capabilitySet]
 
-	// The attributes below store the policy value for policies that don't have
-	// fine-grained capabilities.
 	agent    string
 	node     string
 	operator string
@@ -105,13 +99,8 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 	acl := &ACL{}
 	nsTxn := iradix.New[capabilitySet]().Txn()
 	wnsTxn := iradix.New[capabilitySet]().Txn()
-
-	npTxn := iradix.New[capabilitySet]().Txn()
-	wnpTxn := iradix.New[capabilitySet]().Txn()
-
 	hvTxn := iradix.New[capabilitySet]().Txn()
 	whvTxn := iradix.New[capabilitySet]().Txn()
-
 	svTxn := iradix.New[capabilitySet]().Txn()
 	wsvTxn := iradix.New[capabilitySet]().Txn()
 
@@ -186,42 +175,6 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			}
 		}
 
-	NODEPOOLS:
-		for _, np := range policy.NodePools {
-			// Use wildcard transaction if policy name uses glob matching.
-			txn := npTxn
-			if strings.Contains(np.Name, "*") {
-				txn = wnpTxn
-			}
-
-			// Check for existing capabilities.
-			var capabilities capabilitySet
-
-			raw, ok := txn.Get([]byte(np.Name))
-			if ok {
-				capabilities = raw
-			} else {
-				capabilities = make(capabilitySet)
-				txn.Insert([]byte(np.Name), capabilities)
-			}
-
-			// Deny always takes precedence.
-			if capabilities.Check(NodePoolCapabilityDeny) {
-				continue NODEPOOLS
-			}
-
-			// Add in all the capabilities.
-			for _, cap := range np.Capabilities {
-				if cap == NodePoolCapabilityDeny {
-					// Overwrite any existing capabilities.
-					capabilities.Clear()
-					capabilities.Set(NodePoolCapabilityDeny)
-					continue NODEPOOLS
-				}
-				capabilities.Set(cap)
-			}
-		}
-
 	HOSTVOLUMES:
 		for _, hv := range policy.HostVolumes {
 			// Should the volume be matched using a glob?
@@ -283,16 +236,11 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 	}
 
-	// Finalize policies with capabilities.
+	// Finalize the namespaces
 	acl.namespaces = nsTxn.Commit()
 	acl.wildcardNamespaces = wnsTxn.Commit()
-
-	acl.nodePools = npTxn.Commit()
-	acl.wildcardNodePools = wnpTxn.Commit()
-
 	acl.hostVolumes = hvTxn.Commit()
 	acl.wildcardHostVolumes = whvTxn.Commit()
-
 	acl.variables = svTxn.Commit()
 	acl.wildcardVariables = wsvTxn.Commit()
 
@@ -372,73 +320,6 @@ func (a *ACL) AllowNamespace(ns string) bool {
 	return !capabilities.Check(PolicyDeny)
 }
 
-// AllowNodePoolOperation returns true if the given operation is allowed in the
-// node pool specified.
-func (a *ACL) AllowNodePoolOperation(pool string, op string) bool {
-	// Hot path if ACL is not enabled or if it's a management token.
-	if a == nil || a.management {
-		return true
-	}
-
-	// Check for matching capability set.
-	capabilities, ok := a.matchingNodePoolCapabilitySet(pool)
-	if !ok {
-		return false
-	}
-
-	// Check if the capability has been granted.
-	return capabilities.Check(op)
-}
-
-// AllowNodePool returns true if any operation is allowed for the node pool.
-func (a *ACL) AllowNodePool(pool string) bool {
-	// Hot path if ACL is not enabled or if it's a management token.
-	if a == nil || a.management {
-		return true
-	}
-
-	// Check for matching capability set.
-	capabilities, ok := a.matchingNodePoolCapabilitySet(pool)
-	if !ok {
-		return false
-	}
-
-	if len(capabilities) == 0 {
-		return false
-	}
-
-	return !capabilities.Check(PolicyDeny)
-}
-
-// AllowNodePoolSearch returns true if any operation is allowed in at least one
-// node pool.
-//
-// This is a very loose check and is expected that callers perform more precise
-// verification later.
-func (a *ACL) AllowNodePoolSearch() bool {
-	// Hot path if ACL is not enabled or token is management.
-	if a == nil || a.management {
-		return true
-	}
-
-	// Check for any non-deny capabilities.
-	iter := a.nodePools.Root().Iterator()
-	for _, capability, ok := iter.Next(); ok; _, capability, ok = iter.Next() {
-		if !capability.Check(NodePoolCapabilityDeny) {
-			return true
-		}
-	}
-
-	iter = a.wildcardNodePools.Root().Iterator()
-	for _, capability, ok := iter.Next(); ok; _, capability, ok = iter.Next() {
-		if !capability.Check(NodePoolCapabilityDeny) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // AllowHostVolumeOperation checks if a given operation is allowed for a host volume
 func (a *ACL) AllowHostVolumeOperation(hv string, op string) bool {
 	// Hot path management tokens
@@ -505,6 +386,10 @@ func (a *ACL) AllowVariableSearch(ns string) bool {
 	if a.management {
 		return true
 	}
+	if ns == "*" {
+		return a.variables.Len() > 0 || a.wildcardVariables.Len() > 0
+	}
+
 	iter := a.variables.Root().Iterator()
 	iter.SeekPrefix([]byte(ns))
 	_, _, ok := iter.Next()
@@ -567,17 +452,6 @@ func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
 
 	a.wildcardNamespaces.Root().Walk(checkFn)
 	return allow
-}
-
-// matchingNodePoolCapabilitySet returns the capabilitySet that closest match
-// the node pool.
-func (a *ACL) matchingNodePoolCapabilitySet(pool string) (capabilitySet, bool) {
-	raw, ok := a.nodePools.Get([]byte(pool))
-	if ok {
-		return raw, true
-	}
-
-	return a.findClosestMatchingGlob(a.wildcardNodePools, pool)
 }
 
 // matchingHostVolumeCapabilitySet looks for a capabilitySet that matches the host volume name,
@@ -710,9 +584,6 @@ func (a *ACL) AllowAgentWrite() bool {
 // AllowNodeRead checks if read operations are allowed for a node
 func (a *ACL) AllowNodeRead() bool {
 	switch {
-	// a is nil if ACLs are disabled.
-	case a == nil:
-		return true
 	case a.management:
 		return true
 	case a.node == PolicyWrite:

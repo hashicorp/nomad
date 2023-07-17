@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -460,7 +457,6 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 			input: &Vault{},
 			expected: &Vault{
 				Env:          pointerOf(true),
-				DisableFile:  pointerOf(false),
 				Namespace:    pointerOf(""),
 				ChangeMode:   pointerOf("restart"),
 				ChangeSignal: pointerOf("SIGHUP"),

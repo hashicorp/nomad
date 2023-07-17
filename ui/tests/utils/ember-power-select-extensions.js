@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { click, settled } from '@ember/test-helpers';
 // TODO: Contribute these helpers back upstream once we are on the latest version of
 // ember-power-select (4.x)

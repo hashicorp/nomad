@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -67,7 +64,7 @@ func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -80,7 +77,7 @@ func TestJobDispatchCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake parameterized job
 	j1 := mock.Job()
 	j1.ParameterizedJob = &structs.ParameterizedJobConfig{}
-	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 2000, nil, j1))
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 2000, j1))
 
 	prefix = j1.ID[:len(j1.ID)-5]
 	args = complete.Args{Last: prefix}
@@ -106,7 +103,7 @@ func TestJobDispatchCommand_ACL(t *testing.T) {
 	job.Type = "batch"
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	must.NoError(t, err)
 
 	testCases := []struct {

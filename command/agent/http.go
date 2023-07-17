@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -385,9 +382,6 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
 	s.mux.HandleFunc("/v1/node/", s.wrap(s.NodeSpecificRequest))
-
-	s.mux.HandleFunc("/v1/node/pools", s.wrap(s.NodePoolsRequest))
-	s.mux.HandleFunc("/v1/node/pool/", s.wrap(s.NodePoolSpecificRequest))
 
 	s.mux.HandleFunc("/v1/allocations", s.wrap(s.AllocsRequest))
 	s.mux.HandleFunc("/v1/allocation/", s.wrap(s.AllocSpecificRequest))
@@ -1049,32 +1043,6 @@ func parseNode(req *http.Request, nodeID *string) {
 	if n := req.URL.Query().Get("node_id"); n != "" {
 		*nodeID = n
 	}
-}
-
-// parseNodeListStubFields parses query parameters related to node list stubs
-// fields.
-func parseNodeListStubFields(req *http.Request) (*structs.NodeStubFields, error) {
-	fields := &structs.NodeStubFields{}
-
-	// Parse resources field selection.
-	resources, err := parseBool(req, "resources")
-	if err != nil {
-		return nil, err
-	}
-	if resources != nil {
-		fields.Resources = *resources
-	}
-
-	// Parse OS field selection.
-	os, err := parseBool(req, "os")
-	if err != nil {
-		return nil, err
-	}
-	if os != nil {
-		fields.OS = *os
-	}
-
-	return fields, nil
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

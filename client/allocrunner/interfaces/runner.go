@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package interfaces
 
 import (
@@ -34,8 +31,6 @@ type AllocRunner interface {
 
 	AllocState() *state.State
 	PersistState() error
-	AcknowledgeState(*state.State)
-	GetUpdatePriority(*structs.Allocation) cstructs.AllocUpdatePriority
 	SetClientStatus(string)
 
 	Signal(taskName, signal string) error

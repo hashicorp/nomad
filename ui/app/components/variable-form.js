@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // @ts-check
 
 import Component from '@glimmer/component';
@@ -29,7 +24,7 @@ const EMPTY_KV = {
 const invalidKeyCharactersRegex = new RegExp(/[^_\p{Letter}\p{Number}]/gu);
 
 export default class VariableFormComponent extends Component {
-  @service notifications;
+  @service flashMessages;
   @service router;
   @service store;
 
@@ -250,20 +245,23 @@ export default class VariableFormComponent extends Component {
       this.args.model.setAndTrimPath();
       await this.args.model.save({ adapterOptions: { overwrite } });
 
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Variable saved',
         message: `${this.path} successfully saved`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
       this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       notifyConflict(this)(error);
       if (!this.hasConflict) {
-        this.notifications.add({
+        this.flashMessages.add({
           title: `Error saving ${this.path}`,
           message: error,
-          color: 'critical',
+          type: 'error',
+          destroyOnClick: false,
           sticky: true,
         });
       } else {

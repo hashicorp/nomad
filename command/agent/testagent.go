@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -343,7 +340,6 @@ func (a *TestAgent) pickRandomPorts(c *Config) {
 // TestConfig returns a unique default configuration for testing an agent.
 func (a *TestAgent) config() *Config {
 	conf := DevConfig(nil)
-	conf.Version.BuildDate = time.Now()
 
 	// Customize the server configuration
 	config := nomad.DefaultConfig()

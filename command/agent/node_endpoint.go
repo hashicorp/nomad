@@ -1,10 +1,6 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -22,12 +18,25 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 		return nil, nil
 	}
 
-	// Parse fields selection.
-	fields, err := parseNodeListStubFields(req)
+	args.Fields = &structs.NodeStubFields{}
+	// Parse resources field selection
+	resources, err := parseBool(req, "resources")
 	if err != nil {
-		return nil, CodedError(http.StatusBadRequest, fmt.Errorf("Failed to parse node list fields: %v", err).Error())
+		return nil, err
 	}
-	args.Fields = fields
+	if resources != nil {
+		args.Fields.Resources = *resources
+	}
+
+	// Parse OS
+	os, err := parseBool(req, "os")
+	if err != nil {
+		return nil, err
+	}
+
+	if os != nil {
+		args.Fields.OS = *os
+	}
 
 	var out structs.NodeListResponse
 	if err := s.agent.RPC("Node.List", &args, &out); err != nil {

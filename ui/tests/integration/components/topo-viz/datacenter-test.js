@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -119,7 +114,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
     assert.ok(TopoVizDatacenter.label.includes(`${allocs.length} Allocs`));
     assert.ok(
       TopoVizDatacenter.label.includes(
-        `${formatBytes(memoryReserved, 'MiB')} / ${formatBytes(
+        `${formatBytes(memoryReserved, 'MiB')}/${formatBytes(
           memoryTotal,
           'MiB'
         )}`
@@ -127,7 +122,7 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
     );
     assert.ok(
       TopoVizDatacenter.label.includes(
-        `${formatHertz(cpuReserved, 'MHz')} / ${formatHertz(cpuTotal, 'MHz')}`
+        `${formatHertz(cpuReserved, 'MHz')}/${formatHertz(cpuTotal, 'MHz')}`
       )
     );
   });

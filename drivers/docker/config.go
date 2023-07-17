@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
@@ -795,6 +792,13 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 // Capabilities is returned by the Capabilities RPC and indicates what optional
 // features this driver supports.
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
-	driverCapabilities.DisableLogCollection = d.config != nil && d.config.DisableLogCollection
 	return driverCapabilities, nil
+}
+
+var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
+
+func (d *Driver) InternalCapabilities() drivers.InternalCapabilities {
+	return drivers.InternalCapabilities{
+		DisableLogCollection: d.config != nil && d.config.DisableLogCollection,
+	}
 }

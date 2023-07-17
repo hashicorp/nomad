@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { run } from '@ember/runloop';
 import { find, render, triggerKeyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';

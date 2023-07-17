@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { click, find } from '@ember/test-helpers';
 
 export function jobURL(job, path = '') {

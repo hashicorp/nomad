@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { clickable, collection, text, attribute } from 'ember-cli-page-object';
 import {
   selectChoose,

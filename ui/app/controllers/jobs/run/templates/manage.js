@@ -1,15 +1,10 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { task } from 'ember-concurrency';
 
 export default class JobsRunTemplatesManageController extends Controller {
-  @service notifications;
+  @service flashMessages;
   @service router;
 
   get templates() {
@@ -32,16 +27,19 @@ export default class JobsRunTemplatesManageController extends Controller {
   @task(function* (model) {
     try {
       yield model.destroyRecord();
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Job template deleted',
         message: `${model.path} successfully deleted`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
     } catch (err) {
-      this.notifications.add({
+      this.flashMessages.add({
         title: `Job template could not be deleted.`,
         message: err,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
         sticky: true,
       });
     }

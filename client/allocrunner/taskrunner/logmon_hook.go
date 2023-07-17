@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -19,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -156,8 +154,16 @@ func (h *logmonHook) isLoggingDisabled() bool {
 		return true
 	}
 
-	caps := h.runner.driverCapabilities
-	if caps != nil && caps.DisableLogCollection {
+	// internal plugins have access to a capability to disable logging and
+	// metrics via a private interface; this is an "experimental" interface and
+	// currently only the docker driver exposes this to users.
+	ic, ok := h.runner.driver.(drivers.InternalCapabilitiesDriver)
+	if !ok {
+		return false
+	}
+
+	caps := ic.InternalCapabilities()
+	if caps.DisableLogCollection {
 		h.logger.Debug("log collection is disabled by driver")
 		return true
 	}

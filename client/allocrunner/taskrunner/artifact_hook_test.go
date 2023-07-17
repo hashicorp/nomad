@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -163,7 +160,6 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 // TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess asserts that the artifact hook
 // download multiple files concurrently. this is a successful test without any errors.
 func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
-	ci.SkipTestWithoutRootAccess(t)
 	t.Parallel()
 
 	me := &mockEmitter{}

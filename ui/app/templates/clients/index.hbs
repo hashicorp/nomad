@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{page-title "Clients"}}
 <section class="section">
   {{#if this.isForbidden}}
@@ -21,25 +16,18 @@
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
           <MultiSelectDropdown
-            data-test-state-facet
-            @label="State"
-            @options={{this.optionsState}}
-            @selection={{this.selectionState}}
-            @onSelect={{action this.setFacetQueryParam "qpState"}}
-          />
-          <MultiSelectDropdown
-            data-test-node-pool-facet
-            @label="Node Pool"
-            @options={{this.optionsNodePool}}
-            @selection={{this.selectionNodePool}}
-            @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
-          />
-          <MultiSelectDropdown
             data-test-class-facet
             @label="Class"
             @options={{this.optionsClass}}
             @selection={{this.selectionClass}}
             @onSelect={{action this.setFacetQueryParam "qpClass"}}
+          />
+          <MultiSelectDropdown
+            data-test-state-facet
+            @label="State"
+            @options={{this.optionsState}}
+            @selection={{this.selectionState}}
+            @onSelect={{action this.setFacetQueryParam "qpState"}}
           />
           <MultiSelectDropdown
             data-test-datacenter-facet
@@ -88,7 +76,6 @@
             >Name</t.sort-by>
             <t.sort-by @prop="compositeStatus">State</t.sort-by>
             <th class="is-200px is-truncatable">Address</th>
-            <t.sort-by @prop="nodePool">Node Pool</t.sort-by>
             <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
             <t.sort-by @prop="version">Version</t.sort-by>
             <th># Volumes</th>
@@ -99,7 +86,7 @@
               data-test-client-node-row
               @node={{row.model}}
               @onClick={{action "gotoNode" row.model}}
-              {{keyboard-shortcut
+              {{keyboard-shortcut 
                 enumerated=true
                 action=(action "gotoNode" row.model)
               }}

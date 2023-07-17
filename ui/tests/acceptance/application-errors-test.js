@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -21,7 +16,6 @@ module('Acceptance | application errors ', function (hooks) {
   hooks.beforeEach(function () {
     faker.seed(1);
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
     server.create('job');
   });
@@ -83,7 +77,7 @@ module('Acceptance | application errors ', function (hooks) {
     await percySnapshot(assert);
   });
 
-  test('error pages include links to the jobs, clients and auth pages', async function (assert) {
+  test('error pages include links to the jobs and clients pages', async function (assert) {
     await visit('/a/non-existent/page');
 
     assert.ok(JobsList.error.isPresent, 'An error is shown');
@@ -97,13 +91,6 @@ module('Acceptance | application errors ', function (hooks) {
 
     await JobsList.error.gotoClients();
     assert.equal(currentURL(), '/clients', 'Now on the clients page');
-    assert.notOk(JobsList.error.isPresent, 'The error is gone now');
-
-    await visit('/a/non-existent/page');
-    assert.ok(JobsList.error.isPresent, 'An error is shown');
-
-    await JobsList.error.gotoSignin();
-    assert.equal(currentURL(), '/settings/tokens', 'Now on the sign-in page');
     assert.notOk(JobsList.error.isPresent, 'The error is gone now');
   });
 });

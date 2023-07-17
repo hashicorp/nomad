@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
@@ -57,9 +52,6 @@ export default class IndexController extends Controller.extend(
     {
       qpNamespace: 'namespace',
     },
-    {
-      qpNodePool: 'nodePool',
-    },
   ];
 
   currentPage = 1;
@@ -84,19 +76,16 @@ export default class IndexController extends Controller.extend(
   qpStatus = '';
   qpDatacenter = '';
   qpPrefix = '';
-  qpNodePool = '';
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
-  @selection('qpNodePool') selectionNodePool;
 
   @computed
   get optionsType() {
     return [
       { key: 'batch', label: 'Batch' },
-      { key: 'pack', label: 'Pack' },
       { key: 'parameterized', label: 'Parameterized' },
       { key: 'periodic', label: 'Periodic' },
       { key: 'service', label: 'Service' },
@@ -199,29 +188,6 @@ export default class IndexController extends Controller.extend(
     return availableNamespaces;
   }
 
-  @computed('selectionNodePool', 'model.nodePools.[]')
-  get optionsNodePool() {
-    const availableNodePools = this.model.nodePools;
-
-    scheduleOnce('actions', () => {
-      // eslint-disable-next-line ember/no-side-effects
-      this.set(
-        'qpNodePool',
-        serialize(
-          intersection(
-            availableNodePools.map(({ name }) => name),
-            this.selectionNodePool
-          )
-        )
-      );
-    });
-
-    return availableNodePools.map((nodePool) => ({
-      key: nodePool.name,
-      label: nodePool.name,
-    }));
-  }
-
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
@@ -240,7 +206,6 @@ export default class IndexController extends Controller.extend(
     'selectionType',
     'selectionStatus',
     'selectionDatacenter',
-    'selectionNodePool',
     'selectionPrefix'
   )
   get filteredJobs() {
@@ -249,19 +214,12 @@ export default class IndexController extends Controller.extend(
       selectionStatus: statuses,
       selectionDatacenter: datacenters,
       selectionPrefix: prefixes,
-      selectionNodePool: nodePools,
     } = this;
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.visibleJobs.filter((job) => {
-      const shouldShowPack = types.includes('pack') && job.displayType.isPack;
-
-      if (types.length && shouldShowPack) {
-        return true;
-      }
-
-      if (types.length && !types.includes(job.get('displayType.type'))) {
+      if (types.length && !types.includes(job.get('displayType'))) {
         return false;
       }
 
@@ -273,10 +231,6 @@ export default class IndexController extends Controller.extend(
         datacenters.length &&
         !job.get('datacenters').find((dc) => datacenters.includes(dc))
       ) {
-        return false;
-      }
-
-      if (nodePools.length && !nodePools.includes(job.get('nodePool'))) {
         return false;
       }
 

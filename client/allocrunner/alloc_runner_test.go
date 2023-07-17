@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package allocrunner
 
 import (
@@ -14,25 +11,22 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/require"
 )
 
 // destroy does a blocking destroy on an alloc runner
@@ -2457,66 +2451,4 @@ func TestAllocRunner_PreKill_RunOnDone(t *testing.T) {
 		wait.Timeout(5*time.Second),
 		wait.Gap(500*time.Millisecond),
 	))
-}
-
-func TestAllocRunner_GetUpdatePriority(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := mock.Alloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{"run_for": "2ms"}
-	alloc.DesiredStatus = "stop"
-
-	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
-	t.Cleanup(cleanup)
-
-	arIface, err := NewAllocRunner(conf)
-	must.NoError(t, err)
-	ar := arIface.(*allocRunner)
-
-	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
-		InterfaceName: "eth0",
-		Address:       "192.168.1.1",
-		DNS:           &structs.DNSConfig{},
-	})
-
-	calloc := ar.clientAlloc(map[string]*structs.TaskState{})
-	ar.AcknowledgeState(&arstate.State{
-		ClientStatus:      calloc.ClientStatus,
-		ClientDescription: calloc.ClientDescription,
-		DeploymentStatus:  calloc.DeploymentStatus,
-		TaskStates:        calloc.TaskStates,
-		NetworkStatus:     calloc.NetworkStatus,
-	})
-
-	must.Eq(t, cstructs.AllocUpdatePriorityNone, ar.GetUpdatePriority(calloc))
-
-	// clientAlloc mutates the state, so verify this doesn't break the check
-	// without state having been updated
-	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.Eq(t, cstructs.AllocUpdatePriorityNone, ar.GetUpdatePriority(calloc))
-
-	// make a no-op state update
-	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
-		InterfaceName: "eth0",
-		Address:       "192.168.1.1",
-		DNS:           &structs.DNSConfig{},
-	})
-	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.Eq(t, cstructs.AllocUpdatePriorityNone, ar.GetUpdatePriority(calloc))
-
-	// make a low priority state update
-	ar.SetNetworkStatus(&structs.AllocNetworkStatus{
-		InterfaceName: "eth0",
-		Address:       "192.168.1.2",
-		DNS:           &structs.DNSConfig{},
-	})
-	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.Eq(t, cstructs.AllocUpdatePriorityTypical, ar.GetUpdatePriority(calloc))
-
-	// make a state update that should be detected as high priority
-	ar.SetClientStatus(structs.AllocClientStatusFailed)
-	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
-	must.Eq(t, cstructs.AllocUpdatePriorityUrgent, ar.GetUpdatePriority(calloc))
 }

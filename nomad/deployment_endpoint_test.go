@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -36,7 +33,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Lookup the deployments
@@ -68,7 +65,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
@@ -125,8 +122,8 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 	d2 := mock.Deployment()
 	d2.JobID = j2.ID
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 98, nil, j1), "UpsertJob")
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, j2), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 98, j1), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 99, j2), "UpsertJob")
 
 	// Upsert a deployment we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -174,7 +171,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Mark the deployment as failed
@@ -224,7 +221,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
@@ -301,7 +298,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
@@ -318,7 +315,7 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	a.JobID = j.ID
 	a.DeploymentID = d.ID
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j2), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j2), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -378,7 +375,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Mark the deployment as failed
@@ -421,7 +418,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
@@ -500,7 +497,7 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 	}
 
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -565,7 +562,7 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 	}
 
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -651,7 +648,7 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 	a.DeploymentID = d.ID
 
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -719,7 +716,7 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 	a.DeploymentID = d.ID
 
 	state := s1.fsm.State()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -809,7 +806,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 
 	// Create the second job, deployment and alloc
 	j2 := j.Copy()
@@ -825,7 +822,7 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	a.JobID = j.ID
 	a.DeploymentID = d.ID
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j2), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j2), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -899,7 +896,7 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 	j.TaskGroups[0].Update = structs.DefaultUpdateStrategy.Copy()
 	j.TaskGroups[0].Update.MaxParallel = 2
 	j.TaskGroups[0].Update.AutoRevert = true
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 
 	// Create the second job, deployment and alloc. Job has same spec as original
 	j2 := j.Copy()
@@ -914,7 +911,7 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 	a.JobID = j.ID
 	a.DeploymentID = d.ID
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j2), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, j2), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
 
@@ -982,7 +979,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	d.JobID = j.ID
 	state := s1.fsm.State()
 
-	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, j), must.Sprint("UpsertJob"))
 	must.Nil(t, state.UpsertDeployment(1000, d), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments
@@ -1020,7 +1017,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	d2.Namespace = "prod"
 	d2.JobID = j2.ID
 	must.Nil(t, state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
-	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, j2), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, j2), must.Sprint("UpsertJob"))
 	must.Nil(t, state.UpsertDeployment(1003, d2), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments with wildcard namespace
@@ -1276,7 +1273,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), must.Sprint("UpsertJob"))
+	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, j), must.Sprint("UpsertJob"))
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -1568,7 +1565,7 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	summary := mock.JobSummary(a.JobID)
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
@@ -1606,7 +1603,7 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	summary := mock.JobSummary(a.JobID)
 	state := s1.fsm.State()
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
 	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
@@ -1681,7 +1678,7 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	a.DeploymentID = d.ID
 	summary := mock.JobSummary(a.JobID)
 
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j), "UpsertJob")
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, j), "UpsertJob")
 	assert.Nil(state.UpsertDeployment(2, d), "UpsertDeployment")
 	assert.Nil(state.UpsertJobSummary(3, summary), "UpsertJobSummary")
 

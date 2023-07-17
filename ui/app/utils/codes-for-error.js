@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // Returns an array of error codes as strings for an Ember error object
 export default function codesForError(error) {
   const codes = [error.code];

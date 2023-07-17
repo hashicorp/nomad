@@ -1,19 +1,10 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <div data-test-topo-viz-datacenter class="boxed-section topo-viz-datacenter">
   <div data-test-topo-viz-datacenter-label class="boxed-section-head is-hollow">
-    <span class="tooltip" aria-label="Datacenter"><strong>{{@datacenter.name}}</strong></span>
-    <span class="bumper-left tooltip" aria-label="Number of Allocations">{{this.scheduledAllocations.length}} Allocs</span>
-    <span class="bumper-left tooltip" aria-label="Number of Nodes">{{@datacenter.nodes.length}} Nodes</span>
-    <span class="bumper-left is-faded">
-      <span class="tooltip" aria-label="Memory Allocated">{{format-bytes this.aggregatedAllocationResources.memory start="MiB"}}</span> /
-      <span class="tooltip" aria-label="Total Memory">{{format-bytes this.aggregatedNodeResources.memory start="MiB"}},</span>
-      <span class="tooltip" aria-label="CPU Allocated">{{format-hertz this.aggregatedAllocationResources.cpu}}</span> /
-      <span class="tooltip" aria-label="Total CPU">{{format-hertz this.aggregatedNodeResources.cpu}}</span>
-    </span>
+    <strong>{{@datacenter.name}}</strong>
+    <span class="bumper-left">{{this.scheduledAllocations.length}} Allocs</span>
+    <span class="bumper-left">{{@datacenter.nodes.length}} Nodes</span>
+    <span class="bumper-left is-faded">{{format-bytes this.aggregatedAllocationResources.memory start="MiB"}}/{{format-bytes this.aggregatedNodeResources.memory start="MiB"}},
+      {{format-hertz this.aggregatedAllocationResources.cpu}}/{{format-hertz this.aggregatedNodeResources.cpu}}</span>
   </div>
   <div class="boxed-section-body">
     <FlexMasonry @columns={{if @isSingleColumn 1 2}} @items={{@datacenter.nodes}} as |node|>

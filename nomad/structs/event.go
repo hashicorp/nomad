@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 // EventStreamRequest is used to stream events from a servers EventBroker
@@ -24,7 +21,6 @@ const (
 	TopicAllocation     Topic = "Allocation"
 	TopicJob            Topic = "Job"
 	TopicNode           Topic = "Node"
-	TopicNodePool       Topic = "NodePool"
 	TopicACLPolicy      Topic = "ACLPolicy"
 	TopicACLToken       Topic = "ACLToken"
 	TopicACLRole        Topic = "ACLRole"
@@ -38,8 +34,6 @@ const (
 	TypeNodeEligibilityUpdate         = "NodeEligibility"
 	TypeNodeDrain                     = "NodeDrain"
 	TypeNodeEvent                     = "NodeStreamEvent"
-	TypeNodePoolUpserted              = "NodePoolUpserted"
-	TypeNodePoolDeleted               = "NodePoolDeleted"
 	TypeDeploymentUpdate              = "DeploymentStatusUpdate"
 	TypeDeploymentPromotion           = "DeploymentPromotion"
 	TypeDeploymentAllocHealth         = "DeploymentAllocHealth"
@@ -134,11 +128,6 @@ type DeploymentEvent struct {
 // NodeStreamEvent holds a newly updated Node
 type NodeStreamEvent struct {
 	Node *Node
-}
-
-// NodePoolEvent holds a newly updated NodePool.
-type NodePoolEvent struct {
-	NodePool *NodePool
 }
 
 type ACLTokenEvent struct {

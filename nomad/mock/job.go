@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package mock
 
 import (
@@ -17,7 +14,6 @@ func Job() *structs.Job {
 		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
-		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeService,
 		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
@@ -259,7 +255,6 @@ func SystemBatchJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-sysbatch-%s", uuid.Short()),
 		Name:        "my-sysbatch",
 		Namespace:   structs.DefaultNamespace,
-		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeSysBatch,
 		Priority:    10,
 		Datacenters: []string{"dc1"},
@@ -348,7 +343,6 @@ func BatchJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-batch-%s", uuid.Generate()),
 		Name:        "batch-job",
 		Namespace:   structs.DefaultNamespace,
-		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeBatch,
 		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,
@@ -413,7 +407,6 @@ func SystemJob() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
 		Namespace:   structs.DefaultNamespace,
-		NodePool:    structs.NodePoolDefault,
 		ID:          fmt.Sprintf("mock-system-%s", uuid.Generate()),
 		Name:        "my-job",
 		Type:        structs.JobTypeSystem,
@@ -493,7 +486,6 @@ func MaxParallelJob() *structs.Job {
 		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
 		Name:        "my-job",
 		Namespace:   structs.DefaultNamespace,
-		NodePool:    structs.NodePoolDefault,
 		Type:        structs.JobTypeService,
 		Priority:    structs.JobDefaultPriority,
 		AllAtOnce:   false,

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build linux
 
 package getter
@@ -75,19 +72,17 @@ func lockdown(allocDir, taskDir string) error {
 
 func additionalFilesForVCS() []*landlock.Path {
 	const (
-		homeSSHDir     = ".ssh"                     // git ssh
-		homeKnownHosts = ".ssh/known_hosts"         // git ssh
-		etcPasswd      = "/etc/passwd"              // git ssh
-		etcKnownHosts  = "/etc/ssh/ssh_known_hosts" // git ssh
-		gitGlobalFile  = "/etc/gitconfig"           // https://git-scm.com/docs/git-config#SCOPES
-		hgGlobalFile   = "/etc/mercurial/hgrc"      // https://www.mercurial-scm.org/doc/hgrc.5.html#files
-		hgGlobalDir    = "/etc/mercurial/hgrc.d"    // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		sshDir        = ".ssh"                  // git ssh
+		knownHosts    = ".ssh/known_hosts"      // git ssh
+		etcPasswd     = "/etc/passwd"           // git ssh
+		gitGlobalFile = "/etc/gitconfig"        // https://git-scm.com/docs/git-config#SCOPES
+		hgGlobalFile  = "/etc/mercurial/hgrc"   // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		hgGlobalDir   = "/etc/mercurial/hgrc.d" // https://www.mercurial-scm.org/doc/hgrc.5.html#files
 	)
 	return filesForVCS(
-		homeSSHDir,
-		homeKnownHosts,
+		sshDir,
+		knownHosts,
 		etcPasswd,
-		etcKnownHosts,
 		gitGlobalFile,
 		hgGlobalFile,
 		hgGlobalDir,
@@ -95,37 +90,33 @@ func additionalFilesForVCS() []*landlock.Path {
 }
 
 func filesForVCS(
-	homeSSHDir,
-	homeKnownHosts,
+	sshDir,
+	knownHosts,
 	etcPasswd,
-	etcKnownHosts,
 	gitGlobalFile,
 	hgGlobalFile,
 	hgGlobalDir string) []*landlock.Path {
 
 	// omit ssh if there is no home directory
 	home := findHomeDir()
-	homeSSHDir = filepath.Join(home, homeSSHDir)
-	homeKnownHosts = filepath.Join(home, homeKnownHosts)
+	sshDir = filepath.Join(home, sshDir)
+	knownHosts = filepath.Join(home, knownHosts)
 
-	// detect if p exists
+	// only add if a path exists
 	exists := func(p string) bool {
 		_, err := os.Stat(p)
 		return err == nil
 	}
 
 	result := make([]*landlock.Path, 0, 6)
-	if exists(homeSSHDir) {
-		result = append(result, landlock.Dir(homeSSHDir, "r"))
+	if exists(sshDir) {
+		result = append(result, landlock.Dir(sshDir, "r"))
 	}
-	if exists(homeKnownHosts) {
-		result = append(result, landlock.File(homeKnownHosts, "rw"))
+	if exists(knownHosts) {
+		result = append(result, landlock.File(knownHosts, "rw"))
 	}
 	if exists(etcPasswd) {
 		result = append(result, landlock.File(etcPasswd, "r"))
-	}
-	if exists(etcKnownHosts) {
-		result = append(result, landlock.File(etcKnownHosts, "r"))
 	}
 	if exists(gitGlobalFile) {
 		result = append(result, landlock.File(gitGlobalFile, "r"))

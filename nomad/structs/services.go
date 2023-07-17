@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -68,8 +65,7 @@ type ServiceCheck struct {
 	Interval               time.Duration       // Interval of the check
 	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus          string              // Initial status of the check
-	TLSServerName          string              // ServerName to use for SNI and TLS verification when (Type=https and Protocol=https) or (Type=grpc and GRPCUseTLS=true)
-	TLSSkipVerify          bool                // Skip TLS verification when (type=https and Protocol=https) or (type=grpc and grpc_use_tls=true)
+	TLSSkipVerify          bool                // Skip TLS verification when Protocol=https
 	Method                 string              // HTTP Method to use (GET by default)
 	Header                 map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 	CheckRestart           *CheckRestart       // If and when a task should be restarted based on checks
@@ -181,10 +177,6 @@ func (sc *ServiceCheck) Equal(o *ServiceCheck) bool {
 	}
 
 	if sc.TLSSkipVerify != o.TLSSkipVerify {
-		return false
-	}
-
-	if sc.TLSServerName != o.TLSServerName {
 		return false
 	}
 
@@ -383,11 +375,6 @@ func (sc *ServiceCheck) validateNomad() error {
 		return fmt.Errorf("failures_before_critical may only be set for Consul service checks")
 	}
 
-	// tls_server_name is consul only
-	if sc.TLSServerName != "" {
-		return fmt.Errorf("tls_server_name may only be set for Consul service checks")
-	}
-
 	return nil
 }
 
@@ -474,9 +461,6 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.TLSSkipVerify, "true")
-
-	// Only include TLSServerName if set to maintain ID stability with Nomad <1.6.0
-	hashStringIfNonEmpty(h, sc.TLSServerName)
 
 	// maintain artisanal map hashing to maintain ID stability
 	hashHeader(h, sc.Header)
@@ -815,9 +799,6 @@ func (s *Service) ValidateName(name string) error {
 	// (https://tools.ietf.org/html/rfc952), RFC-1123 §2.1
 	// (https://tools.ietf.org/html/rfc1123), and RFC-2782
 	// (https://tools.ietf.org/html/rfc2782).
-	//  This validation is enforced on Nomad, but not on Consul, however if
-	//  consul-template is being used, service names with dots in them wont be
-	//  admissible.
 	re := regexp.MustCompile(`^(?i:[a-z0-9]|[a-z0-9][a-z0-9\-]{0,61}[a-z0-9])$`)
 	if !re.MatchString(name) {
 		return fmt.Errorf("Service name must be valid per RFC 1123 and can contain only alphanumeric characters or dashes and must be no longer than 63 characters")

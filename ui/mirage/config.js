@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Ember from 'ember';
 import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
@@ -110,19 +105,6 @@ export default function () {
 
     const job = server.create('job', { id: jobName });
     return new Response(200, {}, this.serialize(job));
-  });
-
-  this.get('/job/:id/submission', function (schema, req) {
-    return new Response(
-      200,
-      {},
-      JSON.stringify({
-        Source: 'the job source v0',
-        Format: 'hcl2',
-        VariableFlags: { X: 'x', Y: '42', Z: 'true' },
-        Variables: 'var file content',
-      })
-    );
   });
 
   this.post('/job/:id/plan', function (schema, req) {
@@ -336,10 +318,6 @@ export default function () {
 
   this.post('/node/:id/drain', function ({ nodes }, { params }) {
     return this.serialize(nodes.find(params.id));
-  });
-
-  this.get('/node/pools', function ({ nodePools }) {
-    return this.serialize(nodePools.all());
   });
 
   this.get('/allocations');

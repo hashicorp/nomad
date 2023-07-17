@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 // Context defines the scope in which a search for Nomad object operates, and
@@ -14,7 +11,6 @@ const (
 	Evals           Context = "evals"
 	Jobs            Context = "jobs"
 	Nodes           Context = "nodes"
-	NodePools       Context = "node_pools"
 	Namespaces      Context = "namespaces"
 	Quotas          Context = "quotas"
 	Recommendations Context = "recommendations"

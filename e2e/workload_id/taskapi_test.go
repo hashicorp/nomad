@@ -1,13 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package workload_id
 
 import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -89,22 +85,6 @@ func testTaskAPIWindows(t *testing.T) {
 	must.NoError(t, err)
 	if len(winNodes) == 0 {
 		t.Skip("no Windows clients")
-	}
-
-	found := false
-	for _, nodeID := range winNodes {
-		node, _, err := nomad.Nodes().Info(nodeID, nil)
-		must.NoError(t, err)
-		if name := node.Attributes["os.name"]; strings.Contains(name, "2016") {
-			t.Logf("Node %s is too old to support unix sockets: %s", nodeID, name)
-			continue
-		}
-
-		found = true
-		break
-	}
-	if !found {
-		t.Skip("no Windows clients with unix socket support")
 	}
 
 	jobID := "api-win-" + uuid.Short()

@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Add leader status to output of `nomad server members -json`
-```

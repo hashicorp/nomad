@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package version
 
 import (
@@ -19,7 +16,7 @@ var (
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "1.6.0"
+	Version = "1.5.8"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release

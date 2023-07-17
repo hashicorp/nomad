@@ -586,10 +586,6 @@
           {
             "title": "get",
             "path": "commands/license/get"
-          },
-          {
-            "title": "inspect",
-            "path": "commands/license/inspect"
           }
         ]
       },
@@ -669,43 +665,6 @@
           {
             "title": "status",
             "path": "commands/node/status"
-          }
-        ]
-      },
-      {
-        "title": "node pool",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "commands/node-pool"
-          },
-          {
-            "title": "apply",
-            "path": "commands/node-pool/apply"
-          },
-          {
-            "title": "delete",
-            "path": "commands/node-pool/delete"
-          },
-          {
-            "title": "info",
-            "path": "commands/node-pool/info"
-          },
-          {
-            "title": "init",
-            "path": "commands/node-pool/init"
-          },
-          {
-            "title": "jobs",
-            "path": "commands/node-pool/jobs"
-          },
-          {
-            "title": "list",
-            "path": "commands/node-pool/list"
-          },
-          {
-            "title": "nodes",
-            "path": "commands/node-pool/nodes"
           }
         ]
       },
@@ -1745,14 +1704,6 @@
         "path": "other-specifications/acl-policy"
       },
       {
-        "title": "Namespace",
-        "path": "other-specifications/namespace"
-      },
-      {
-        "title": "Node Pool",
-        "path": "other-specifications/node-pool"
-      },
-      {
         "title": "Variables",
         "path": "other-specifications/variables"
       },
@@ -1820,10 +1771,6 @@
           {
             "title": "containerd",
             "href": "/plugins/drivers/community/containerd"
-          },
-          {
-            "title": "Pledge",
-            "href": "/plugins/drivers/community/pledge"
           },
           {
             "title": "Firecracker driver",

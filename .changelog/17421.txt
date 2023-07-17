@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: update github.com/hashicorp/raft from 1.3.11 to 1.5.0
-```

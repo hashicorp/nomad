@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -203,14 +200,6 @@ type ClientConfig struct {
 
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
-
-	// NodePool defines the node pool in which the client is registered.
-	//
-	// If the node pool does not exist, it will be created automatically if the
-	// node registers in the authoritative region. In non-authoritative
-	// regions, the node is kept in the 'initializing' status until the node
-	// pool is created and replicated.
-	NodePool string `hcl:"node_pool"`
 
 	// Options is used for configuration of nomad internals,
 	// like fingerprinters and drivers. The format is:
@@ -669,11 +658,6 @@ type ServerConfig struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority *int `hcl:"job_max_priority"`
-
-	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
-	// before being discarded automatically. If unset, the maximum size defaults
-	// to 1 MB. If the value is zero, no job sources will be stored.
-	JobMaxSourceSize *string `hcl:"job_max_source_size"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -692,7 +676,6 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
 	ns.EnableEventBroker = pointer.Copy(s.EnableEventBroker)
 	ns.EventBufferSize = pointer.Copy(s.EventBufferSize)
-	ns.JobMaxSourceSize = pointer.Copy(s.JobMaxSourceSize)
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
@@ -1078,7 +1061,7 @@ func (a *Addresses) Copy() *Addresses {
 	return &na
 }
 
-// NormalizedAddrs is used to control the addresses we advertise out for
+// AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
 type NormalizedAddrs struct {
@@ -1277,7 +1260,6 @@ func DefaultConfig() *Config {
 		UI:             config.DefaultUIConfig(),
 		Client: &ClientConfig{
 			Enabled:               false,
-			NodePool:              structs.NodePoolDefault,
 			MaxKillTimeout:        "30s",
 			ClientMinPort:         14000,
 			ClientMaxPort:         14512,
@@ -1329,7 +1311,6 @@ func DefaultConfig() *Config {
 				LimitResults:  100,
 				MinTermLength: 2,
 			},
-			JobMaxSourceSize: pointer.Of("1M"),
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -1999,8 +1980,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.EventBufferSize = b.EventBufferSize
 	}
 
-	result.JobMaxSourceSize = pointer.Merge(s.JobMaxSourceSize, b.JobMaxSourceSize)
-
 	if b.PlanRejectionTracker != nil {
 		result.PlanRejectionTracker = result.PlanRejectionTracker.Merge(b.PlanRejectionTracker)
 	}
@@ -2064,9 +2043,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
-	}
-	if b.NodePool != "" {
-		result.NodePool = b.NodePool
 	}
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface

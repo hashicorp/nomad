@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
@@ -116,84 +111,28 @@ export default Factory.extend({
     });
 
     if (group.createAllocations) {
-      if (group.allocStatusDistribution) {
-        const statusProbabilities = group.allocStatusDistribution || {
-          running: 0.6,
-          failed: 0.05,
-          unknown: 0.25,
-          lost: 0.1,
-        };
-      
-        const totalAllocations = group.count;
-        const allocationsByStatus = {};
-      
-        Object.entries(statusProbabilities).forEach(([status, prob]) => {
-          allocationsByStatus[status] = Math.round(totalAllocations * prob);
-        });
-      
-        let currentStatusIndex = 0;
-        const statusKeys = Object.keys(allocationsByStatus);
-      
-        Array(totalAllocations)
-          .fill(null)
-          .forEach((_, i) => {
-            let clientStatus;
-      
-            while (allocationsByStatus[statusKeys[currentStatusIndex]] === 0) {
-              currentStatusIndex++;
-            }
-      
-            clientStatus = statusKeys[currentStatusIndex];
-            allocationsByStatus[clientStatus]--;
-      
-            const props = {
-              jobId: group.job.id,
-              namespace: group.job.namespace,
-              taskGroup: group.name,
-              name: `${group.name}.[${i}]`,
-              rescheduleSuccess: group.withRescheduling
-                ? faker.random.boolean()
-                : null,
-              rescheduleAttempts: group.withRescheduling
-                ? faker.random.number({ min: 1, max: 5 })
-                : 0,
-              clientStatus,
-              deploymentStatus: {
-                Canary: false,
-                Healthy: false,
-              },
-            };
-      
-            if (group.withRescheduling) {
-              server.create('allocation', 'rescheduled', props);
-            } else {
-              server.create('allocation', props);
-            }
-          });
-      } else {
-        Array(group.count)
-          .fill(null)
-          .forEach((_, i) => {
-            const props = {
-              jobId: group.job.id,
-              namespace: group.job.namespace,
-              taskGroup: group.name,
-              name: `${group.name}.[${i}]`,
-              rescheduleSuccess: group.withRescheduling
-                ? faker.random.boolean()
-                : null,
-              rescheduleAttempts: group.withRescheduling
-                ? faker.random.number({ min: 1, max: 5 })
-                : 0,
-            };
+      Array(group.count)
+        .fill(null)
+        .forEach((_, i) => {
+          const props = {
+            jobId: group.job.id,
+            namespace: group.job.namespace,
+            taskGroup: group.name,
+            name: `${group.name}.[${i}]`,
+            rescheduleSuccess: group.withRescheduling
+              ? faker.random.boolean()
+              : null,
+            rescheduleAttempts: group.withRescheduling
+              ? faker.random.number({ min: 1, max: 5 })
+              : 0,
+          };
 
-            if (group.withRescheduling) {
-              server.create('allocation', 'rescheduled', props);
-            } else {
-              server.create('allocation', props);
-            }
-          });
-      }
+          if (group.withRescheduling) {
+            server.create('allocation', 'rescheduled', props);
+          } else {
+            server.create('allocation', props);
+          }
+        });
     }
 
     if (group.withServices) {

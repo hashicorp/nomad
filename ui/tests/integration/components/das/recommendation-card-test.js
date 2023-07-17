@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
@@ -129,13 +124,9 @@ module('Integration | Component | das/recommendation-card', function (hooks) {
     assert.equal(RecommendationCard.totalsTable.percentDiff.cpu, '−27%');
     assert.equal(RecommendationCard.totalsTable.percentDiff.memory, '+33%');
 
-    assert.dom('.copy-button').hasTextContaining('job-name / group-name');
-
-    const clipboardText = document
-      .querySelector('.copy-button > button')
-      .getAttribute('data-clipboard-text');
+    assert.equal(RecommendationCard.copyButton.text, 'job-name / group-name');
     assert.ok(
-      clipboardText.endsWith(
+      RecommendationCard.copyButton.clipboardText.endsWith(
         'optimize.summary:job-name/group-name?namespace=namespace'
       )
     );

@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Adds a Download as .nomad.hcl button to jobspec editing in the UI
-```

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
@@ -15,7 +10,6 @@ export default class JobsRunTemplatesNewController extends Controller {
   @service system;
   @tracked templateName = null;
   @tracked templateNamespace = 'default';
-  @service notifications;
 
   get namespaceOptions() {
     const namespaces = this.store
@@ -66,18 +60,22 @@ export default class JobsRunTemplatesNewController extends Controller {
     try {
       await this.model.save({ adapterOptions: { overwrite } });
 
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Job template saved',
         message: `${this.templateName} successfully saved`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
 
       this.router.transitionTo('jobs.run.templates');
     } catch (e) {
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Job template cannot be saved.',
         message: e,
-        color: 'critical',
+        type: 'error',
+        destroyOnClick: false,
+        timeout: 5000,
       });
     }
   }

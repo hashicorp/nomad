@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -17,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"go.etcd.io/bbolt"
@@ -34,7 +30,6 @@ allocations/
    |--> alloc          -> allocEntry{*structs.Allocation}
 	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
-	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
 	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
@@ -53,9 +48,6 @@ dynamicplugins/
 
 nodemeta/
 |--> meta -> map[string]*string
-
-node/
-|--> registration -> *cstructs.NodeRegistration
 */
 
 var (
@@ -89,9 +81,6 @@ var (
 	// allocNetworkStatusKey is the key *structs.AllocNetworkStatus is
 	// stored under
 	allocNetworkStatusKey = []byte("network_status")
-
-	// acknowledgedStateKey is the key *arstate.State is stored under
-	acknowledgedStateKey = []byte("acknowledged_state")
 
 	allocVolumeKey = []byte("alloc_volume")
 
@@ -127,12 +116,6 @@ var (
 
 	// nodeMetaKey is the key at which dynamic node metadata is stored.
 	nodeMetaKey = []byte("meta")
-
-	// nodeBucket is the bucket name in which data about the node is stored.
-	nodeBucket = []byte("node")
-
-	// nodeRegistrationKey is the key at which node registration data is stored.
-	nodeRegistrationKey = []byte("node_registration")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -408,54 +391,6 @@ func (s *BoltStateDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkSta
 	}
 
 	return entry.NetworkStatus, nil
-}
-
-// PutAcknowledgedState stores an allocation's last acknowledged state or
-// returns an error if it could not be stored.
-func (s *BoltStateDB) PutAcknowledgedState(allocID string, state *arstate.State, opts ...WriteOption) error {
-	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
-		allocBkt, err := getAllocationBucket(tx, allocID)
-		if err != nil {
-			return err
-		}
-
-		entry := acknowledgedStateEntry{
-			State: state,
-		}
-		return allocBkt.Put(acknowledgedStateKey, &entry)
-	})
-}
-
-// GetAcknowledgedState retrieves an allocation's last acknowledged state
-func (s *BoltStateDB) GetAcknowledgedState(allocID string) (*arstate.State, error) {
-	var entry acknowledgedStateEntry
-
-	err := s.db.View(func(tx *boltdd.Tx) error {
-		allAllocsBkt := tx.Bucket(allocationsBucketName)
-		if allAllocsBkt == nil {
-			// No state, return
-			return nil
-		}
-
-		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
-		if allocBkt == nil {
-			// No state for alloc, return
-			return nil
-		}
-
-		return allocBkt.Get(acknowledgedStateKey, &entry)
-	})
-
-	// It's valid for this field to be nil/missing
-	if boltdd.IsErrNotFound(err) {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return entry.State, nil
 }
 
 type allocVolumeStatesEntry struct {
@@ -963,45 +898,11 @@ func getNodeMeta(b *boltdd.Bucket) (map[string]*string, error) {
 	return m, nil
 }
 
-func (s *BoltStateDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(nodeBucket)
-		if err != nil {
-			return err
-		}
-
-		return b.Put(nodeRegistrationKey, reg)
-	})
-}
-
-func (s *BoltStateDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
-	var reg cstructs.NodeRegistration
-	err := s.db.View(func(tx *boltdd.Tx) error {
-		b := tx.Bucket(nodeBucket)
-		if b == nil {
-			return nil
-		}
-		return b.Get(nodeRegistrationKey, &reg)
-	})
-
-	if boltdd.IsErrNotFound(err) {
-		return nil, nil
-	}
-
-	return &reg, err
-}
-
 // init initializes metadata entries in a newly created state database.
 func (s *BoltStateDB) init() error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		return addMeta(tx.BoltTx())
 	})
-}
-
-// acknowledgedStateEntry wraps values in the acknowledged_state bucket, so we
-// can expand it in the future if need be
-type acknowledgedStateEntry struct {
-	State *arstate.State
 }
 
 // updateWithOptions enables adjustments to db.Update operation, including Batch mode.

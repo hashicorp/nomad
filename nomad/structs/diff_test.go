@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -441,76 +438,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
-		{
-			// NodePool added
-			Old: &Job{},
-			New: &Job{
-				NodePool: "default",
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "NodePool",
-						Old:  "",
-						New:  "default",
-					},
-				},
-			},
-		},
-		{
-			// NodePool removed
-			Old: &Job{
-				NodePool: "default",
-			},
-			New: &Job{},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "NodePool",
-						Old:  "default",
-						New:  "",
-					},
-				},
-			},
-		},
-		{
-			// NodePool changed
-			Old: &Job{
-				NodePool: "default",
-			},
-			New: &Job{
-				NodePool: "foo",
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "NodePool",
-						Old:  "default",
-						New:  "foo",
-					},
-				},
-			},
-		},
-		{
-			// NodePool unchanged
-			Old: &Job{
-				NodePool: "foo",
-			},
-			New: &Job{
-				NodePool: "foo",
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeNone,
-			},
-		},
-
 		{
 			// Periodic added
 			Old: &Job{},
@@ -3084,12 +3011,6 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "SuccessBeforePassing",
 										Old:  "3",
 										New:  "5",
-									},
-									{
-										Type: DiffTypeNone,
-										Name: "TLSServerName",
-										Old:  "",
-										New:  "",
 									},
 									{
 										Type: DiffTypeNone,
@@ -6633,12 +6554,6 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
-										Name: "TLSServerName",
-										Old:  "",
-										New:  "",
-									},
-									{
-										Type: DiffTypeNone,
 										Name: "TLSSkipVerify",
 										Old:  "false",
 										New:  "false",
@@ -6887,7 +6802,6 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -6910,12 +6824,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "",
 								New:  "SIGUSR1",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "DisableFile",
-								Old:  "",
-								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -6954,7 +6862,6 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -6977,12 +6884,6 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "DisableFile",
-								Old:  "true",
 								New:  "",
 							},
 							{
@@ -7023,7 +6924,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7033,7 +6933,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns2",
 					Policies:     []string{"bar", "baz"},
 					Env:          false,
-					DisableFile:  false,
 					ChangeMode:   "restart",
 					ChangeSignal: "foo",
 				},
@@ -7056,12 +6955,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "foo",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "DisableFile",
-								Old:  "true",
-								New:  "false",
 							},
 							{
 								Type: DiffTypeEdited,
@@ -7108,7 +7001,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7118,7 +7010,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"bar", "baz"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7141,12 +7032,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "SIGUSR1",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "DisableFile",
-								Old:  "true",
-								New:  "true",
 							},
 							{
 								Type: DiffTypeNone,

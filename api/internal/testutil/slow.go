@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package testutil
 
 import (
@@ -29,7 +26,6 @@ func Parallel(t *testing.T) {
 }
 
 func RequireRoot(t *testing.T) {
-	t.Helper()
 	if syscall.Getuid() != 0 {
 		t.Skip("test requires root")
 	}

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
@@ -38,7 +33,6 @@ module('Acceptance | tokens', function (hooks) {
     faker.seed(1);
 
     server.create('agent');
-    server.create('node-pool');
     node = server.create('node');
     job = server.create('job');
     managementToken = server.create('token');
@@ -61,7 +55,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.ok(document.title.includes('Authorization'));
+    assert.equal(document.title, 'Authorization - Mirage - Nomad');
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -223,10 +217,10 @@ module('Acceptance | tokens', function (hooks) {
     // TTL Action
     await Jobs.visit();
     assert
-      .dom('.flash-message.alert-warning button')
+      .dom('.flash-message.alert-error button')
       .exists('A global alert exists and has a clickable button');
 
-    await click('.flash-message.alert-warning button');
+    await click('.flash-message.alert-error button');
     assert.equal(
       currentURL(),
       '/settings/tokens',
@@ -312,7 +306,7 @@ module('Acceptance | tokens', function (hooks) {
     assert.timeout(6000);
     const nearlyExpiringToken = server.create('token', {
       name: 'Not quite dead yet',
-      expirationTime: moment().add(10, 'm').add(3, 's').toDate(),
+      expirationTime: moment().add(10, 'm').add(5, 's').toDate(),
     });
 
     await Tokens.visit();
@@ -323,7 +317,7 @@ module('Acceptance | tokens', function (hooks) {
     // short-circuiting our Ember Concurrency loop.
     setTimeout(() => {
       assert
-        .dom('.flash-message.alert-warning')
+        .dom('.flash-message.alert-error')
         .doesNotExist('No notification yet for a token with 10m5s left');
       notificationNotRendered();
       setTimeout(async () => {
@@ -332,7 +326,7 @@ module('Acceptance | tokens', function (hooks) {
         });
 
         assert
-          .dom('.flash-message.alert-warning')
+          .dom('.flash-message.alert-error')
           .exists('Notification is rendered at the 10m mark');
         notificationRendered();
         run.cancelTimers();

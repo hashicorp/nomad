@@ -1,3 +1,0 @@
-```release-note:bug
-ui: fixes an issue where the allocations table on child (periodic, parameterized) job pages wouldn't update when accessed via their parent
-```

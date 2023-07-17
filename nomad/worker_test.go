@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -471,7 +468,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	job := mock.Job()
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
 	// Create the register request
@@ -541,7 +538,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	job := mock.Job()
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 0, job)
 	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{eval1})
 
 	stoppedAlloc := mock.Alloc()
@@ -592,7 +589,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 
 	// Create the job
 	job := mock.Job()
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 
 	// Create the register request
 	eval1 := mock.Eval()

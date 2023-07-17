@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -67,11 +64,6 @@ type Config struct {
 	// EventBufferSize is the amount of events to hold in memory.
 	EventBufferSize int64
 
-	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
-	// before being discarded automatically. A value of zero indicates no job
-	// sources will be stored.
-	JobMaxSourceSize int
-
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
@@ -134,6 +126,9 @@ type Config struct {
 	// Build is a string that is gossiped around, and can be used to help
 	// operators track which versions are actively deployed
 	Build string
+
+	// BuildDate is the time of the git commit used to build the program.
+	BuildDate time.Time
 
 	// Revision is a string that carries the version.GitCommit of Nomad that
 	// was compiled.
@@ -394,8 +389,10 @@ type Config struct {
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
 
-	// LicenseConfig stores information about the Enterprise license loaded for the server.
+	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
+	LicenseEnv    string
+	LicensePath   string
 
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 export function getCodeMirrorInstance() {
   return function () {
     return document.querySelector('.CodeMirror').CodeMirror;

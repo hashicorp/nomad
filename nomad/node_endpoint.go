@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -52,10 +49,6 @@ const (
 	// NodeHeartbeatEventReregistered is the message used when the node becomes
 	// reregistered by the heartbeat.
 	NodeHeartbeatEventReregistered = "Node reregistered by heartbeat"
-
-	// NodeWaitingForNodePool is the message used when the node is waiting for
-	// its node pool to be created.
-	NodeWaitingForNodePool = "Node registered but waiting for node pool to be created"
 )
 
 // Node endpoint is used for client interactions
@@ -139,15 +132,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if args.Node.SecretID == "" {
 		return fmt.Errorf("missing node secret ID for client registration")
 	}
-	if args.Node.NodePool != "" {
-		err := structs.ValidateNodePoolName(args.Node.NodePool)
-		if err != nil {
-			return fmt.Errorf("invalid node pool: %v", err)
-		}
-		if args.Node.NodePool == structs.NodePoolAll {
-			return fmt.Errorf("node is not allowed to register in node pool %q", structs.NodePoolAll)
-		}
-	}
 
 	// Default the status if none is given
 	if args.Node.Status == "" {
@@ -160,11 +144,6 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	// Default to eligible for scheduling if unset
 	if args.Node.SchedulingEligibility == "" {
 		args.Node.SchedulingEligibility = structs.NodeSchedulingEligible
-	}
-
-	// Default the node pool if none is given.
-	if args.Node.NodePool == "" {
-		args.Node.NodePool = structs.NodePoolDefault
 	}
 
 	// Set the timestamp when the node is registered
@@ -208,18 +187,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		n.srv.addNodeConn(n.ctx)
 	}
 
-	// Commit this update via Raft.
-	//
-	// Only the authoritative region is allowed to create the node pool for the
-	// node if it doesn't exist yet. This prevents non-authoritative regions
-	// from having to push their local state to the authoritative region.
-	//
-	// Nodes in non-authoritative regions that are registered with a new node
-	// pool are kept in the `initializing` status until the node pool is
-	// created and replicated.
-	if n.srv.Region() == n.srv.config.AuthoritativeRegion {
-		args.CreateNodePool = true
-	}
+	// Commit this update via Raft
 	_, index, err := n.srv.raftApply(structs.NodeRegisterRequestType, args)
 	if err != nil {
 		n.logger.Error("register failed", "error", err)
@@ -509,24 +477,15 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 // Clients with non-terminal allocations must first call UpdateAlloc to be able
 // to transition from the initializing status to ready.
 //
-// Clients node pool must exist for them to be able to transition from
-// initializing to ready.
-//
 //	                ┌────────────────────────────────────── No ───┐
 //	                │                                             │
 //	             ┌──▼───┐          ┌─────────────┐       ┌────────┴────────┐
 //	── Register ─► init ├─ ready ──► Has allocs? ├─ Yes ─► Allocs updated? │
-//	             └──▲──▲┘          └─────┬───────┘       └────────┬────────┘
-//	                │  │                 │                        │
-//	                │  │                 └─ No ─┐  ┌─────── Yes ──┘
-//	                │  │                        │  │
-//	                │  │               ┌────────▼──▼───────┐
-//	                │  └──────────No───┤ Node pool exists? │
-//	                │                  └─────────┬─────────┘
-//	                │                            │
-//	              ready                         Yes
-//	                │                            │
-//	         ┌──────┴───────┐                ┌───▼───┐         ┌──────┐
+//	             └──▲───┘          └─────┬───────┘       └────────┬────────┘
+//	                │                    │                        │
+//	              ready                  └─ No ─┐  ┌─────── Yes ──┘
+//	                │                           │  │
+//	         ┌──────┴───────┐                ┌──▼──▼─┐         ┌──────┐
 //	         │ disconnected ◄─ disconnected ─┤ ready ├─ down ──► down │
 //	         └──────────────┘                └───▲───┘         └──┬───┘
 //	                                             │                │
@@ -594,8 +553,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	switch node.Status {
 	case structs.NodeStatusInit:
 		if args.Status == structs.NodeStatusReady {
-			// Keep node in the initializing status if it has allocations but
-			// they are not updated.
 			allocs, err := snap.AllocsByNodeTerminal(ws, args.NodeID, false)
 			if err != nil {
 				return fmt.Errorf("failed to query node allocs: %v", err)
@@ -603,25 +560,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 			allocsUpdated := node.LastAllocUpdateIndex > node.LastMissedHeartbeatIndex
 			if len(allocs) > 0 && !allocsUpdated {
-				n.logger.Debug(fmt.Sprintf("marking node as %s due to outdated allocation information", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
-			}
-
-			// Keep node in the initialing status if it's in a node pool that
-			// doesn't exist.
-			pool, err := snap.NodePoolByName(ws, node.NodePool)
-			if err != nil {
-				return fmt.Errorf("failed to query node pool: %v", err)
-			}
-			if pool == nil {
-				n.logger.Debug(fmt.Sprintf("marking node as %s due to missing node pool", structs.NodeStatusInit))
-				args.Status = structs.NodeStatusInit
-				if !node.HasEvent(NodeWaitingForNodePool) {
-					args.NodeEvent = structs.NewNodeEvent().
-						SetSubsystem(structs.NodeEventSubsystemCluster).
-						SetMessage(NodeWaitingForNodePool).
-						AddDetail("node_pool", node.NodePool)
-				}
 			}
 		}
 	case structs.NodeStatusDisconnected:
@@ -632,7 +571,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Commit this update via Raft
 	var index uint64
-	if node.Status != args.Status || args.NodeEvent != nil {
+	if node.Status != args.Status {
 		// Attach an event if we are updating the node status to ready when it
 		// is down via a heartbeat
 		if node.Status == structs.NodeStatusDown && args.NodeEvent == nil {
@@ -1690,11 +1629,12 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	var sysJobs []*structs.Job
 	for jobI := sysJobsIter.Next(); jobI != nil; jobI = sysJobsIter.Next() {
 		job := jobI.(*structs.Job)
-		// Avoid creating evals for jobs that don't run in this datacenter or
-		// node pool. We could perform an entire feasibility check here, but
-		// datacenter/pool is a good optimization to start with as their
-		// cardinality tends to be low so the check shouldn't add much work.
-		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) {
+		// Avoid creating evals for jobs that don't run in this
+		// datacenter. We could perform an entire feasibility check
+		// here, but datacenter is a good optimization to start with as
+		// datacenter cardinality tends to be low so the check
+		// shouldn't add much work.
+		if node.IsInAnyDC(job.Datacenters) {
 			sysJobs = append(sysJobs, job)
 		}
 	}

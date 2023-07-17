@@ -248,61 +248,6 @@ The `policy` field for the node rule can have one of the following values:
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
 
-## Node Pools rules
-
-Node pool rules are defined with a `node_pool` block. An ACL policy can
-include zero, one, or more node pool rules.
-
-Node pool rule controls access to the [Node Pools API][api_node_pool] such as
-create, update, and list node pools.
-
-Each node pool rule is labeled with the node pool name it applies to. You may
-use wildcard globs (`"*"`) in the label to apply a rule to multiple node pools.
-
-Similarly to [namespace rules](#namespace-rules) only one `node_pool` rule can
-be applied. First an _exact match_ is tried before falling back to a glob-based
-lookup, where the rule with the greatest number of matched characters is
-chosen.
-
-Each node pool rule can include a coarse-grained `policy` field and a
-fine-grained `capabilities` field.
-
-The `policy` field for node pool rules can have one of the following values.
-
-- `read` allows node pools to be listed and read but not modified.
-- `write` allows node pools to be read, create, updated, and deleted.
-- `deny` forbids node pools to be read or modified. Deny takes precedence when
-  multiple policies are associated with a token.
-
-In addition to the coarse-grained `policy`, you can provide a fine-grained list
-of `capabilities`.
-
-- `deny` forbids node pools to be read or modified. Deny takes precedence when
-  multiple policies are associated with a token.
-- `delete` allows node pools to be deleted.
-- `read` allows node pools to be listed and read.
-- `write` allows node pools to be created and updated.
-
-The coarse-grained policy permissions are shorthand for the following
-fine-grained capabilities.
-
-| Policy  | Capabilities              |
-| ------- | ------------------------- |
-| `deny`  | `deny`                    |
-| `read`  | `read`                    |
-| `write` | `delete`, `read`, `write` |
-
-If you provide both a `policy` and `capabilities` list the capabilities are
-merged. For example, the policy below adds the `write` capability to the `read`
-policy, thus allowing `read` and `write` permission but no `delete`.
-
-```hcl
-node_pool "dev-*" {
-  policy       = "read"
-  capabilities = ["write"]
-}
-```
-
 ## Agent rules
 
 The `agent` rule controls access to the [Agent API][api_agent] such as join and
@@ -469,7 +414,6 @@ agent {
 [api_search]: /nomad/api-docs/search
 [api_agent]: /nomad/api-docs/agent/
 [api_node]: /nomad/api-docs/nodes/
-[api_node_pool]: /nomad/api-docs/node-pools/
 [api_operator]: /nomad/api-docs/operator/
 [api_quota]: /nomad/api-docs/quotas/
 [host_volumes]: /nomad/docs/configuration/client#host_volume-block

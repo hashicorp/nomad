@@ -7,10 +7,12 @@ description: |
 
 # Command: license
 
-~> License commands are only available with Nomad Enterprise.
+~> License commands are new in Nomad 0.12.0 and are only available with Nomad Enterprise.
 
-The `license` commands can be used to retrieve license information from a server,
-or inspect and validate a license.
+The `license` command provides cluster level management of the Nomad Enterprise license.
+
+If ACLs are enabled then a token with operator privileges may be required in order to use
+this command.
 
 Click [here](https://www.hashicorp.com/products/nomad/trial) to get a trial license for Nomad Enterprise.
 
@@ -21,8 +23,6 @@ Usage: `nomad license <subcommand> [options]`
 Run `nomad license <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
-- [`license get`][get] - Get the current license from a server
-- [`license inspect`][inspect] - Inspect and validate a license
+- [`license get`][get] - Get the current license
 
-[get]: /nomad/docs/commands/license/get 'Get the current license from a server'
-[inspect]: /nomad/docs/commands/license/inspect 'Inspect and validate a license'
+[get]: /nomad/docs/commands/license/get 'Get the current license'

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build linux
 
 package getter
@@ -32,8 +29,8 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	t.Setenv("HOME", fakeHome)
 
 	const (
-		homeSSH        = ".ssh"
-		homeKnownHosts = ".ssh/known_hosts"
+		ssh        = ".ssh"
+		knownHosts = ".ssh/known_hosts"
 	)
 
 	var (
@@ -41,9 +38,8 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 		hgFile         = filepath.Join(fakeEtc, "hgrc")
 		hgDir          = filepath.Join(fakeEtc, "hgrc.d")
 		etcPasswd      = filepath.Join(fakeEtc, "passwd")
-		etcKnownHosts  = filepath.Join(fakeEtc, "ssh/ssh_known_hosts")
-		sshDir         = filepath.Join(fakeHome, homeSSH)
-		knownHostsFile = filepath.Join(fakeHome, homeKnownHosts)
+		sshDir         = filepath.Join(fakeHome, ssh)
+		knownHostsFile = filepath.Join(fakeHome, knownHosts)
 	)
 
 	err := os.WriteFile(gitConfig, []byte("git"), filePerm)
@@ -55,35 +51,20 @@ func TestUtil_loadVersionControlGlobalConfigs(t *testing.T) {
 	err = os.Mkdir(hgDir, dirPerm)
 	must.NoError(t, err)
 
-	err = os.WriteFile(etcPasswd, []byte("etc passwd"), filePerm)
-	must.NoError(t, err)
-
-	err = os.Mkdir(filepath.Join(fakeEtc, "ssh"), dirPerm)
-	must.NoError(t, err)
-
-	err = os.WriteFile(etcKnownHosts, []byte("etc known hosts"), filePerm)
+	err = os.WriteFile(etcPasswd, []byte("x:y:z"), filePerm)
 	must.NoError(t, err)
 
 	err = os.Mkdir(sshDir, dirPerm)
 	must.NoError(t, err)
 
-	err = os.WriteFile(knownHostsFile, []byte("home known hosts"), filePerm)
+	err = os.WriteFile(knownHostsFile, []byte("abc123"), filePerm)
 	must.NoError(t, err)
 
-	paths := filesForVCS(
-		homeSSH,
-		homeKnownHosts,
-		etcPasswd,
-		etcKnownHosts,
-		gitConfig,
-		hgFile,
-		hgDir,
-	)
+	paths := filesForVCS(ssh, knownHosts, etcPasswd, gitConfig, hgFile, hgDir)
 	must.SliceEqual(t, []*landlock.Path{
 		landlock.Dir(sshDir, "r"),
 		landlock.File(knownHostsFile, "rw"),
 		landlock.File(etcPasswd, "r"),
-		landlock.File(etcKnownHosts, "r"),
 		landlock.File(gitConfig, "r"),
 		landlock.File(hgFile, "r"),
 		landlock.Dir(hgDir, "r"),

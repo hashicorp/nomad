@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -244,7 +241,7 @@ namespace "default" {
 			// Create a job.
 			job := mock.MinJob()
 			state := srv.Agent.Server().State()
-			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), nil, job)
+			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), job)
 			must.NoError(t, err)
 			defer func() {
 				client.Jobs().Deregister(job.ID, true, &api.WriteOptions{

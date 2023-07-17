@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // @ts-check
 import { attr, belongsTo } from '@ember-data/model';
 import Model from '@ember-data/model';

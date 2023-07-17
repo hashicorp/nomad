@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
 import Model from '@ember-data/model';
@@ -27,7 +22,6 @@ export default class Node extends Model {
   @shortUUIDProperty('id') shortId;
   @attr('number') modifyIndex;
   @attr('string') version;
-  @attr('string') nodePool;
 
   // Available from single response
   @attr('string') httpAddr;

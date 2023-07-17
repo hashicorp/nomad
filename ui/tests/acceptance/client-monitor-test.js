@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { currentURL } from '@ember/test-helpers';
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
@@ -21,7 +16,6 @@ module('Acceptance | client monitor', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
     node = server.create('node');
 
     managementToken = server.create('token');

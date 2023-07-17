@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -1144,7 +1141,6 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		Namespace:     alloc.Namespace,
 		NodeName:      alloc.NodeName,
 		NodeID:        alloc.NodeID,
-		ParentJobID:   alloc.Job.ParentID,
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
@@ -1529,8 +1525,6 @@ func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
 	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
 		float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
-		float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
-	metrics.IncrCounterWithLabels([]string{"client", "allocs", "cpu", "total_ticks_count"},
 		float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
 	if allocatedCPU > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "allocated"},

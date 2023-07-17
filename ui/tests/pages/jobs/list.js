@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import {
   attribute,
   create,
@@ -36,9 +31,8 @@ export default create({
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),
     name: text('[data-test-job-name]'),
-    link: attribute('href', '[data-test-job-name] a'),
     namespace: text('[data-test-job-namespace]'),
-    nodePool: text('[data-test-job-node-pool]'),
+    link: attribute('href', '[data-test-job-name] a'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),
     priority: text('[data-test-job-priority]'),
@@ -64,7 +58,6 @@ export default create({
     seekHelp: clickable('[data-test-error-message] a'),
     gotoJobs: clickable('[data-test-error-jobs-link]'),
     gotoClients: clickable('[data-test-error-clients-link]'),
-    gotoSignin: clickable('[data-test-error-signin-link]'),
   },
 
   pageSizeSelect: pageSizeSelect(),

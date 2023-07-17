@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -723,74 +720,6 @@ func TestParsePagination(t *testing.T) {
 			parsePagination(req, opts)
 			require.Equal(t, tc.ExpectedNextToken, opts.NextToken)
 			require.Equal(t, tc.ExpectedPerPage, opts.PerPage)
-		})
-	}
-}
-
-func TestParseNodeListStubFields(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name        string
-		req         string
-		expected    *structs.NodeStubFields
-		expectedErr string
-	}{
-		{
-			name: "parse resources",
-			req:  "/v1/nodes?resources=true",
-			expected: &structs.NodeStubFields{
-				Resources: true,
-			},
-		},
-		{
-			name: "parse os",
-			req:  "/v1/nodes?os=true",
-			expected: &structs.NodeStubFields{
-				OS: true,
-			},
-		},
-		{
-			name: "no resources but with os",
-			req:  "/v1/nodes?resources=false&os=true",
-			expected: &structs.NodeStubFields{
-				OS: true,
-			},
-		},
-		{
-			name:        "invalid resources value",
-			req:         "/v1/nodes?resources=invalid",
-			expectedErr: `Failed to parse value of "resources"`,
-		},
-		{
-			name:        "invalid os value",
-			req:         "/v1/nodes?os=invalid",
-			expectedErr: `Failed to parse value of "os"`,
-		},
-		{
-			name:     "invalid key is ignored",
-			req:      "/v1/nodes?key=invalid",
-			expected: &structs.NodeStubFields{},
-		},
-		{
-			name:     "no field",
-			req:      "/v1/nodes",
-			expected: &structs.NodeStubFields{},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req, err := http.NewRequest("GET", tc.req, nil)
-			must.NoError(t, err)
-
-			got, err := parseNodeListStubFields(req)
-			if tc.expectedErr != "" {
-				must.ErrorContains(t, err, tc.expectedErr)
-			} else {
-				must.NoError(t, err)
-				must.Eq(t, tc.expected, got)
-			}
 		})
 	}
 }

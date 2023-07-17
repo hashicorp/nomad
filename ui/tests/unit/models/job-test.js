@@ -1,12 +1,6 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { run } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
-import sinon from 'sinon';
 
 module('Unit | Model | job', function (hooks) {
   setupTest(hooks);
@@ -137,54 +131,5 @@ module('Unit | Model | job', function (hooks) {
         .reduce((sum, allocs) => sum + allocs, 0),
       'lostAllocs is the sum of all group lostAllocs'
     );
-  });
-
-  module('#parse', function () {
-    test('it parses JSON', async function (assert) {
-      const store = this.owner.lookup('service:store');
-      const model = store.createRecord('job');
-
-      model.set('_newDefinition', '{"name": "Tomster"}');
-
-      const setIdByPayloadSpy = sinon.spy(model, 'setIdByPayload');
-
-      const result = await model.parse();
-
-      assert.deepEqual(
-        model.get('_newDefinitionJSON'),
-        { name: 'Tomster' },
-        'Sets _newDefinitionJSON correctly'
-      );
-      assert.ok(
-        setIdByPayloadSpy.calledWith({ name: 'Tomster' }),
-        'setIdByPayload is called with the parsed JSON'
-      );
-      assert.deepEqual(result, '{"name": "Tomster"}', 'Returns the JSON input');
-    });
-
-    test('it dispatches a POST request to the /parse endpoint (eagerly assumes HCL specification) if JSON parse method errors', async function (assert) {
-      assert.expect(2);
-
-      const store = this.owner.lookup('service:store');
-      const model = store.createRecord('job');
-
-      model.set('_newDefinition', 'invalidJSON');
-
-      const adapter = store.adapterFor('job');
-      adapter.parse = sinon.stub().resolves('invalidJSON');
-
-      await model.parse();
-
-      assert.ok(
-        adapter.parse.calledWith('invalidJSON', undefined),
-        'adapter parse method should be called'
-      );
-
-      assert.deepEqual(
-        model.get('_newDefinitionJSON'),
-        'invalidJSON',
-        '_newDefinitionJSON is set'
-      );
-    });
   });
 });

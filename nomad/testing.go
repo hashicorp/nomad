@@ -1,9 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -45,11 +43,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	return s, c
 }
 
-// TestConfigForServer provides a fully functional Config to pass to NewServer()
-// It can be changed beforehand to induce different behavior such as specific errors.
-func TestConfigForServer(t testing.T) *Config {
-	t.Helper()
-
+func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 	// Setup the default settings
 	config := DefaultConfig()
 
@@ -101,22 +95,6 @@ func TestConfigForServer(t testing.T) *Config {
 		MinTermLength: 2,
 	}
 
-	// Get random ports for RPC and Serf
-	ports := ci.PortAllocator.Grab(2)
-	config.RPCAddr = &net.TCPAddr{
-		IP:   []byte{127, 0, 0, 1},
-		Port: ports[0],
-	}
-	config.SerfConfig.MemberlistConfig.BindPort = ports[1]
-
-	// max job submission source size
-	config.JobMaxSourceSize = 1e6
-
-	return config
-}
-
-func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
-	config := TestConfigForServer(t)
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)
@@ -126,12 +104,18 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 	cConfigs := consul.NewMockConfigsAPI(config.Logger)
 	cACLs := consul.NewMockACLsAPI(config.Logger)
 
-	var server *Server
-	var err error
-
 	for i := 10; i >= 0; i-- {
+		// Get random ports, need to cleanup later
+		ports := ci.PortAllocator.Grab(2)
+
+		config.RPCAddr = &net.TCPAddr{
+			IP:   []byte{127, 0, 0, 1},
+			Port: ports[0],
+		}
+		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
+
 		// Create server
-		server, err = NewServer(config, cCatalog, cConfigs, cACLs)
+		server, err := NewServer(config, cCatalog, cConfigs, cACLs)
 		if err == nil {
 			return server, func() {
 				ch := make(chan error)
@@ -161,17 +145,9 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
 			time.Sleep(wait)
 		}
-
-		// if it failed for port reasons, try new ones
-		ports := ci.PortAllocator.Grab(2)
-		config.RPCAddr = &net.TCPAddr{
-			IP:   []byte{127, 0, 0, 1},
-			Port: ports[0],
-		}
-		config.SerfConfig.MemberlistConfig.BindPort = ports[1]
 	}
 
-	return nil, nil, fmt.Errorf("error starting test server: %w", err)
+	return nil, nil, errors.New("unable to acquire ports for test server")
 }
 
 func TestJoin(t testing.T, servers ...*Server) {

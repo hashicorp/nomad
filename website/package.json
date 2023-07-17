@@ -9,11 +9,11 @@
   },
   "devDependencies": {
     "@hashicorp/platform-cli": "^2.6.0",
-    "@hashicorp/platform-content-conformance": "^0.0.11",
+    "@hashicorp/platform-content-conformance": "^0.0.7",
     "dart-linkcheck": "^2.0.15",
     "husky": "4.3.8",
-    "next": "^13.4.2",
-    "prettier": "2.8.8"
+    "next": "^12.3.1",
+    "prettier": "2.2.1"
   },
   "husky": {
     "hooks": {

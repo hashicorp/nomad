@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
@@ -46,7 +41,6 @@ module('Acceptance | client detail', function (hooks) {
   hooks.beforeEach(function () {
     window.localStorage.clear();
 
-    server.create('node-pool');
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 
@@ -76,7 +70,7 @@ module('Acceptance | client detail', function (hooks) {
   test('/clients/:id should have a breadcrumb trail linking back to clients', async function (assert) {
     await ClientDetail.visit({ id: node.id });
 
-    assert.ok(document.title.includes(`Client ${node.name}`));
+    assert.equal(document.title, `Client ${node.name} - Mirage - Nomad`);
 
     assert.equal(
       Layout.breadcrumbFor('clients.index').text,
@@ -1258,7 +1252,6 @@ module('Acceptance | client detail', function (hooks) {
       return Array.from(new Set(allocs.mapBy('jobId'))).sort();
     },
     async beforeEach() {
-      server.create('node-pool');
       server.createList('job', 5);
       await ClientDetail.visit({ id: node.id });
     },
@@ -1277,7 +1270,6 @@ module('Acceptance | client detail', function (hooks) {
       'Unknown',
     ],
     async beforeEach() {
-      server.create('node-pool');
       server.createList('job', 5, { createAllocations: false });
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
@@ -1309,7 +1301,6 @@ module('Acceptance | client detail (multi-namespace)', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 

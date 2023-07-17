@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
@@ -8,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -74,7 +72,6 @@ const (
 	dockerLabelNamespace     = "com.hashicorp.nomad.namespace"
 	dockerLabelNodeName      = "com.hashicorp.nomad.node_name"
 	dockerLabelNodeID        = "com.hashicorp.nomad.node_id"
-	dockerLabelParentJobID   = "com.hashicorp.nomad.parent_job_id"
 )
 
 type pauseContainerStore struct {
@@ -865,7 +862,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 			}
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
-			f, err := os.ReadFile(con[1])
+			f, err := ioutil.ReadFile(con[1])
 			if err != nil {
 				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
 			}
@@ -1324,9 +1321,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 		if glob.Glob(configurationExtraLabel, "job_id") {
 			labels[dockerLabelJobID] = task.JobID
-		}
-		if glob.Glob(configurationExtraLabel, "parent_job_id") && len(task.ParentJobID) > 0 {
-			labels[dockerLabelParentJobID] = task.ParentJobID
 		}
 		if glob.Glob(configurationExtraLabel, "task_group_name") {
 			labels[dockerLabelTaskGroupName] = task.TaskGroupName

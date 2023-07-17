@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 plugin_dir = "/opt/nomad/plugins"
 
 client {
@@ -39,11 +36,5 @@ plugin "docker" {
     volumes {
       enabled = true
     }
-  }
-}
-
-plugin "nomad-pledge-driver" {
-  config {
-    pledge_executable = "/usr/local/bin/pledge"
   }
 }

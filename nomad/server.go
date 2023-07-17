@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -317,11 +314,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")
-
-	// Validate enterprise license before anything stateful happens
-	if err = config.LicenseConfig.Validate(); err != nil {
-		return nil, err
-	}
 
 	// Create the server
 	s := &Server{
@@ -846,11 +838,8 @@ func (s *Server) Reload(newConfig *Config) error {
 		}
 	}
 
-	if newConfig.LicenseConfig.LicenseEnvBytes != "" || newConfig.LicenseConfig.LicensePath != "" {
-		if err = s.EnterpriseState.ReloadLicense(newConfig); err != nil {
-			s.logger.Error("error reloading license", "error", err)
-			_ = multierror.Append(&mErr, err)
-		}
+	if newConfig.LicenseEnv != "" || newConfig.LicensePath != "" {
+		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
 	// Because this is a new configuration, we extract the worker pool arguments without acquiring a lock
@@ -1256,7 +1245,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewKeyringEndpoint(s, ctx, s.encrypter))
 	_ = server.Register(NewNamespaceEndpoint(s, ctx))
 	_ = server.Register(NewNodeEndpoint(s, ctx))
-	_ = server.Register(NewNodePoolEndpoint(s, ctx))
 	_ = server.Register(NewPeriodicEndpoint(s, ctx))
 	_ = server.Register(NewPlanEndpoint(s, ctx))
 	_ = server.Register(NewRegionEndpoint(s, ctx))

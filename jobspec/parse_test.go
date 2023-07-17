@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package jobspec
 
 import (
@@ -369,11 +366,10 @@ func TestParse(t *testing.T) {
 									},
 								},
 								Vault: &api.Vault{
-									Namespace:   stringToPtr("ns1"),
-									Policies:    []string{"foo", "bar"},
-									Env:         boolToPtr(true),
-									DisableFile: boolToPtr(false),
-									ChangeMode:  stringToPtr(vaultChangeModeRestart),
+									Namespace:  stringToPtr("ns1"),
+									Policies:   []string{"foo", "bar"},
+									Env:        boolToPtr(true),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 								Templates: []*api.Template{
 									{
@@ -436,7 +432,6 @@ func TestParse(t *testing.T) {
 								Vault: &api.Vault{
 									Policies:     []string{"foo", "bar"},
 									Env:          boolToPtr(false),
-									DisableFile:  boolToPtr(false),
 									ChangeMode:   stringToPtr(vaultChangeModeSignal),
 									ChangeSignal: stringToPtr("SIGUSR1"),
 								},
@@ -803,19 +798,17 @@ func TestParse(t *testing.T) {
 							{
 								Name: "redis",
 								Vault: &api.Vault{
-									Policies:    []string{"group"},
-									Env:         boolToPtr(true),
-									DisableFile: boolToPtr(false),
-									ChangeMode:  stringToPtr(vaultChangeModeRestart),
+									Policies:   []string{"group"},
+									Env:        boolToPtr(true),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 							{
 								Name: "redis2",
 								Vault: &api.Vault{
-									Policies:    []string{"task"},
-									Env:         boolToPtr(false),
-									DisableFile: boolToPtr(true),
-									ChangeMode:  stringToPtr(vaultChangeModeRestart),
+									Policies:   []string{"task"},
+									Env:        boolToPtr(false),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 						},
@@ -826,10 +819,9 @@ func TestParse(t *testing.T) {
 							{
 								Name: "redis",
 								Vault: &api.Vault{
-									Policies:    []string{"job"},
-									Env:         boolToPtr(true),
-									DisableFile: boolToPtr(false),
-									ChangeMode:  stringToPtr(vaultChangeModeRestart),
+									Policies:   []string{"job"},
+									Env:        boolToPtr(true),
+									ChangeMode: stringToPtr(vaultChangeModeRestart),
 								},
 							},
 						},

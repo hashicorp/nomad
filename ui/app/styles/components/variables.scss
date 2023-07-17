@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 .section.single-variable {
   margin-top: 1.5rem;
 
@@ -201,9 +196,6 @@ table.variable-items {
       display: grid;
       grid-template-columns: auto auto 1fr;
       gap: 0.5rem;
-      & > code {
-        white-space: pre-wrap;
-      }
     }
   }
 }

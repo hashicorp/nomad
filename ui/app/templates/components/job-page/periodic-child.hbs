@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <JobPage @job={{@job}} as |jobPage|>
   <jobPage.ui.Body>
     <jobPage.ui.Error />
@@ -22,7 +17,8 @@
         </span>
       </:before-namespace>
     </jobPage.ui.StatsBox>
-    <jobPage.ui.StatusPanel @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} />
+    <jobPage.ui.JobClientStatusSummary />
+    <jobPage.ui.Summary @forceCollapsed={{@job.hasClientStatus}} />
     <jobPage.ui.PlacementFailures />
     <jobPage.ui.TaskGroups @sortProperty={{@sortProperty}} @sortDescending={{@sortDescending}} />
     <jobPage.ui.RecentAllocations @activeTask={{@activeTask}} @setActiveTaskQueryParam={{@setActiveTaskQueryParam}} />

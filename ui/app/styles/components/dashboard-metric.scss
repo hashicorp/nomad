@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 .dashboard-metric {
   &:not(:last-child) {
     margin-bottom: 1.5em;
@@ -16,12 +11,6 @@
     text-align: left;
     font-weight: $weight-bold;
     font-size: $size-3;
-
-    &.justify {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
 
     .metric-units {
       font-size: $size-4;

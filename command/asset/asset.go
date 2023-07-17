@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package asset
 
 import _ "embed"
@@ -16,9 +13,3 @@ var JobConnect []byte
 
 //go:embed connect-short.nomad.hcl
 var JobConnectShort []byte
-
-//go:embed pool.nomad.hcl
-var NodePoolSpec []byte
-
-//go:embed pool.nomad.json
-var NodePoolSpecJSON []byte

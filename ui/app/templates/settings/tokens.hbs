@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{page-title "Authorization"}}
 <section class="section authorization-page">
   {{#if this.isValidatingToken}}
@@ -112,7 +107,7 @@
             <Input
               id="token-input"
               class="input"
-              @type="password"
+              @type="text"
               placeholder="{{if this.hasJWTAuthMethods "36-character token secret or JWT" "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"}}"
               {{autofocus}}
               {{on "input" (action (mut this.secret) value="target.value")}}

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -919,7 +916,6 @@ type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
 	Env          *bool    `hcl:"env,optional"`
-	DisableFile  *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
 }
@@ -927,9 +923,6 @@ type Vault struct {
 func (v *Vault) Canonicalize() {
 	if v.Env == nil {
 		v.Env = pointerOf(true)
-	}
-	if v.DisableFile == nil {
-		v.DisableFile = pointerOf(false)
 	}
 	if v.Namespace == nil {
 		v.Namespace = pointerOf("")

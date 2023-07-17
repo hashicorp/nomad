@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -106,7 +103,6 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
-	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
@@ -380,19 +376,6 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
-	// Validate node pool name early to prevent agent from starting but the
-	// client failing to register.
-	if pool := config.Client.NodePool; pool != "" {
-		if err := structs.ValidateNodePoolName(pool); err != nil {
-			c.Ui.Error(fmt.Sprintf("Invalid node pool: %v", err))
-			return false
-		}
-		if pool == structs.NodePoolAll {
-			c.Ui.Error(fmt.Sprintf("Invalid node pool: node is not allowed to register in node pool %q", structs.NodePoolAll))
-			return false
-		}
-	}
-
 	for _, volumeConfig := range config.Client.HostVolumes {
 		if volumeConfig.Path == "" {
 			c.Ui.Error("Missing path in host_volume config")
@@ -650,7 +633,6 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-state-dir":                     complete.PredictDirs("*"),
 		"-alloc-dir":                     complete.PredictDirs("*"),
 		"-node-class":                    complete.PredictAnything,
-		"-node-pool":                     complete.PredictAnything,
 		"-servers":                       complete.PredictAnything,
 		"-meta":                          complete.PredictAnything,
 		"-config":                        configFilePredictor,
@@ -803,12 +785,6 @@ func (c *Command) Run(args []string) int {
 	info["region"] = fmt.Sprintf("%s (DC: %s)", config.Region, config.Datacenter)
 	info["bind addrs"] = c.getBindAddrSynopsis()
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
-	if config.Server.Enabled {
-		serverConfig, err := c.agent.serverConfig()
-		if err == nil {
-			info["node id"] = serverConfig.NodeID
-		}
-	}
 
 	// Sort the keys for output
 	infoKeys := make([]string, 0, len(info))
@@ -1428,12 +1404,6 @@ Client Options:
   -node-class
     Mark this node as a member of a node-class. This can be used to label
     similar node types.
-
-  -node-pool
-    Register this node in this node pool. If the node pool does not exist it
-    will be created automatically if the node registers in the authoritative
-    region. In non-authoritative regions, the node is kept in the
-    'initializing' status until the node pool is created and replicated.
 
   -meta
     User specified metadata to associated with the node. Each instance of -meta

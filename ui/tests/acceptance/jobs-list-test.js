@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -22,7 +17,6 @@ module('Acceptance | jobs list', function (hooks) {
 
   hooks.beforeEach(function () {
     // Required for placing allocations (a result of creating jobs)
-    server.create('node-pool');
     server.create('node');
 
     managementToken = server.create('token');
@@ -47,7 +41,7 @@ module('Acceptance | jobs list', function (hooks) {
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
     faker.seed(1);
     const jobsCount = JobsList.pageSize + 1;
-    server.createList('job', jobsCount, { createAllocations: true });
+    server.createList('job', jobsCount, { createAllocations: false });
 
     await JobsList.visit();
 
@@ -71,7 +65,6 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(jobRow.name, job.name, 'Name');
     assert.notOk(jobRow.hasNamespace);
-    assert.equal(jobRow.nodePool, job.nodePool, 'Node Pool');
     assert.equal(jobRow.link, `/ui/jobs/${job.id}@default`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
@@ -272,7 +265,6 @@ module('Acceptance | jobs list', function (hooks) {
     paramName: 'type',
     expectedOptions: [
       'Batch',
-      'Pack',
       'Parameterized',
       'Periodic',
       'Service',
