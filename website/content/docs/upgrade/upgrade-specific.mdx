@@ -13,6 +13,35 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.4.11
+
+#### Namespace ACL policies require a label
+
+Nomad 1.4.11 does not allow ACL policies for namespaces without a label. Prior
+to this version, ACL policies for namespaces were allowed to be defined without
+a label, and the documented behavior in this case was that the policy would be
+applied to the `default` namespace.
+
+A bug in this logic caused the policy to be incorrectly applied to a different
+namespace. For example, the policy below would be applied to a namespace called
+`policy` instead of `default`.
+
+```hcl
+namespace {
+  policy = "read"
+}
+```
+
+To avoid further confusion and potential security incidents, this functionality
+was removed and now all namespace policies are required to have a label.
+
+Tokens currently attached to an invalid policy will stop working after the
+upgrade, so you should fix invalid policies to have an explicit namespace label
+before upgrading Nomad.
+
+After the policies are fixed, the existing tokens with those policies will
+continue to work and do not need to be regenerated.
+
 ## Nomad 1.4.5, 1.3.10
 
 #### Pause Container Reconciliation Regression
