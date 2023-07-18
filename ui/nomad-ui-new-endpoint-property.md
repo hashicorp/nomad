@@ -1,6 +1,6 @@
 ## Today's goals:
 - talk through passing data from an endpoint through to the user
-- dive a little deeper into Ember models, adapters, and serializers
+- dive a little deeper into Ember models and serializers
 
 ---
 
@@ -22,6 +22,18 @@
   ```
   {{row.model.snapshotCreateDelta}}
   ```
+
+---
+
+## Exposing a property cont'd
+
+General pattern:
+  - Endpoint
+    - -> Browser XHR
+      - -> Serializer (normaliz)
+        - -> Model
+          - -> Routes
+            - -> Components
 
 ---
 
@@ -90,6 +102,28 @@ and in our template, ui/app/templates/evaluations/index.hbs:
 ### Why here?
 - If we know that the only context in which something is useful is in a modified state, we can fully manipulate it at the serializer layer. We can rename the property itself, change its format, change its meaning, etc. All instances of the thing we're modifying in the front-end will adhere to the rules we set here.
 
+---
+
+## Brief aside: Serializers and conventions
+
+You may have noticed that SnapshotIndex because snapshotIndex. How and why?
+
+Ember ships with 3 serializers by default and they offer a lot of customizability — the front-end being just one of the many consumers of our API means that we shouldn't let it determine our API's format, so Ember lets us adhere to whatever format our API is already in.
+
+You can read more about them at https://guides.emberjs.com/release/models/customizing-serializers but the gist is that they all have some defaults around relationships that can be modified like this:
+
+```
+  keyForAttribute(attr) {
+    return capitalize(camelize(attr)); // my_property_name because MyPropertyName
+  }
+```
+or
+
+```
+  keyForAttribute(attr) {
+    return attr.replace(/_/g, '-'); // my_property_name becomes my-property-name
+  }
+```
 ---
 
 ## Modifying the payload, as far as our app is concerned
