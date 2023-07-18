@@ -184,25 +184,26 @@ func (s *StateStore) varSetCASTxn(tx WriteTxn, idx uint64, req *structs.VarApply
 		return req.ConflictResponse(idx, zeroVal)
 	}
 
-	// If the variable is locked, it can only be updated by providing the correct
-	// lock ID.
-	if svEx.VariableMetadata.Lock != nil {
-		if req.Var.VariableMetadata.Lock.ID == "" ||
-			req.Var.VariableMetadata.Lock.ID != svEx.VariableMetadata.Lock.ID {
+	if ok {
+		// If the variable exists and is locked, it can only be updated by providing the correct
+		// lock ID.
+		// If the variable is locked, it can only be updated by providing the correct
+		// lock ID.
+		if isLocked(svEx.Lock, req) {
 			zeroVal := &structs.VariableEncrypted{
 				VariableMetadata: structs.VariableMetadata{
-					Namespace: sv.Namespace,
-					Path:      sv.Path,
+					Namespace: svEx.Namespace,
+					Path:      svEx.Path,
 				},
 			}
 			return req.ConflictResponse(idx, zeroVal)
 		}
-	}
 
-	// If the existing index does not match the provided CAS index arg, then we
-	// shouldn't update anything and can safely return early here.
-	if ok && sv.ModifyIndex != svEx.ModifyIndex {
-		return req.ConflictResponse(idx, svEx)
+		// If the existing index does not match the provided CAS index arg, then we
+		// shouldn't update anything and can safely return early here.
+		if sv.ModifyIndex != svEx.ModifyIndex {
+			return req.ConflictResponse(idx, svEx)
+		}
 	}
 
 	// If we made it this far, we should perform the set.
@@ -230,17 +231,14 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 
 		// If the variable is locked, it can only be updated by providing the correct
 		// lock ID.
-		if existing.VariableMetadata.Lock != nil {
-			if req.Var.VariableMetadata.Lock == nil ||
-				req.Var.VariableMetadata.Lock.ID != existing.VariableMetadata.Lock.ID {
-				zeroVal := &structs.VariableEncrypted{
-					VariableMetadata: structs.VariableMetadata{
-						Namespace: sv.Namespace,
-						Path:      sv.Path,
-					},
-				}
-				return req.ConflictResponse(idx, zeroVal)
+		if isLocked(existing.Lock, req) {
+			zeroVal := &structs.VariableEncrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Namespace: sv.Namespace,
+					Path:      sv.Path,
+				},
 			}
+			return req.ConflictResponse(idx, zeroVal)
 		}
 
 		sv.CreateIndex = existing.CreateIndex
@@ -422,6 +420,16 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApp
 		return req.ConflictResponse(idx, svEx)
 	}
 
+	if ok && isLocked(sv.Lock, req) {
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
+	}
+
 	// If the existing index does not match the provided CAS index arg, then we
 	// shouldn't update anything and can safely return early here.
 	if !ok || sv.ModifyIndex != svEx.ModifyIndex {
@@ -445,12 +453,21 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.VarApplyS
 		return req.SuccessResponse(idx, nil)
 	}
 
+	sv := existingRaw.(*structs.VariableEncrypted)
+	if isLocked(sv.Lock, req) {
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
+	}
+
 	existingQuota, err := tx.First(TableVariablesQuotas, indexID, req.Var.Namespace)
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("variable quota lookup failed: %v", err))
 	}
-
-	sv := existingRaw.(*structs.VariableEncrypted)
 
 	// Track quota usage
 	if existingQuota != nil {
@@ -627,4 +644,15 @@ func (s *StateStore) VarLockRelease(idx uint64,
 	}
 
 	return resp
+}
+
+func isLocked(lock *structs.VariableLock, req *structs.VarApplyStateRequest) bool {
+	if lock != nil {
+		if req.Var.VariableMetadata.Lock == nil ||
+			req.Var.VariableMetadata.Lock.ID != lock.ID {
+
+			return true
+		}
+	}
+	return false
 }
