@@ -184,12 +184,25 @@ func (s *StateStore) varSetCASTxn(tx WriteTxn, idx uint64, req *structs.VarApply
 		return req.ConflictResponse(idx, zeroVal)
 	}
 
-	if ok {
-		// If the existing index does not match the provided CAS index arg, then we
-		// shouldn't update anything and can safely return early here.
-		if sv.ModifyIndex != svEx.ModifyIndex {
-			return req.ConflictResponse(idx, svEx)
+	// If the variable is locked, it can only be updated by providing the correct
+	// lock ID.
+	if svEx.VariableMetadata.Lock != nil {
+		if req.Var.VariableMetadata.Lock.ID == "" ||
+			req.Var.VariableMetadata.Lock.ID != svEx.VariableMetadata.Lock.ID {
+			zeroVal := &structs.VariableEncrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Namespace: sv.Namespace,
+					Path:      sv.Path,
+				},
+			}
+			return req.ConflictResponse(idx, zeroVal)
 		}
+	}
+
+	// If the existing index does not match the provided CAS index arg, then we
+	// shouldn't update anything and can safely return early here.
+	if ok && sv.ModifyIndex != svEx.ModifyIndex {
+		return req.ConflictResponse(idx, svEx)
 	}
 
 	// If we made it this far, we should perform the set.
