@@ -270,4 +270,14 @@ export default class EvaluationsController extends Controller {
     this.nextToken = null;
     this.previousTokens = [];
   }
+
+  @action isHighestOnPage(index) {
+    console.log('I have called isHighestOnPage', index, this.model);
+    return (
+      this.model
+        .mapBy('snapshotIndex')
+        .sort((a, b) => b - a)
+        .indexOf(index) === 0
+    );
+  }
 }

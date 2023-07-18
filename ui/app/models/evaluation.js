@@ -34,6 +34,9 @@ export default class Evaluation extends Model {
   @attr('number') modifyIndex;
   @attr('date') modifyTime;
 
+  @attr() snapshotIndex;
+  @attr('number') snapshotDelta;
+
   @attr('number') createIndex;
   @attr('date') createTime;
 
@@ -51,5 +54,9 @@ export default class Evaluation extends Model {
 
   get nodeId() {
     return this.belongsTo('node').id();
+  }
+
+  get evaluationSnapshotIndexIsEven() {
+    return this.snapshotIndex % 2 === 0;
   }
 }

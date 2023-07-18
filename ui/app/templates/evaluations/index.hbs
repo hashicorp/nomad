@@ -73,6 +73,18 @@
           <th>
             Placement Failures
           </th>
+          <th>
+            Snapshot Index
+          </th>
+          <th>
+            Is snapshot index highest?
+          </th>
+          <th>
+            Even?
+          </th>
+          <th>
+            Delta
+          </th>
         </t.head>
         <t.body as |row|>
           <tr
@@ -130,6 +142,18 @@
               {{else}}
                 False
               {{/if}}
+            </td>
+            <td>
+              {{row.model.snapshotIndex}}
+            </td>
+            <td>
+              {{compute (action this.isHighestOnPage) row.model.snapshotIndex}}
+            </td>
+            <td>
+              {{row.model.evaluationSnapshotIndexIsEven}}
+            </td>
+            <td>
+              {{row.model.snapshotDelta}}
             </td>
           </tr>
         </t.body>

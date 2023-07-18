@@ -18,6 +18,8 @@
         <t.sort-by @prop="triggeredBy">Triggered By</t.sort-by>
         <t.sort-by @prop="status">Status</t.sort-by>
         <t.sort-by @prop="hasPlacementFailures">Placement Failures</t.sort-by>
+        <t.sort-by @prop="snapshotDelta">Delta</t.sort-by>
+
       </t.head>
       <t.body as |row|>
         <tr data-test-evaluation="{{row.model.shortId}}">
@@ -34,6 +36,9 @@
             {{else}}
               False
             {{/if}}
+          </td>
+          <td>
+            {{row.model.snapshotDelta}}
           </td>
         </tr>
       </t.body>

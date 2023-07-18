@@ -16,9 +16,12 @@ export default class Evaluation extends ApplicationSerializer {
   separateNanos = ['CreateTime', 'ModifyTime'];
 
   normalize(typeHash, hash) {
+    console.log('HASH', hash);
     hash.PlainJobId = hash.JobID;
     hash.Namespace = hash.Namespace || get(hash, 'Job.Namespace') || 'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
+
+    hash.SnapshotDelta = hash.SnapshotIndex - hash.CreateIndex;
 
     const relatedEvals = hash.RelatedEvals;
 
