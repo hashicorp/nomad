@@ -190,5 +190,11 @@ func (c *PubKeyCache) getPubKey(ctx context.Context, keyID string) (*structs.Key
 // credentials based on their expiration time and now.
 func ExpiryToRenewTime(exp time.Time, now func() time.Time) time.Duration {
 	left := exp.Sub(now())
+
+	const minWait = 10 * time.Second
+	if left < minWait {
+		left = minWait
+	}
+
 	return (left / 2) + helper.RandomStagger(left/10)
 }

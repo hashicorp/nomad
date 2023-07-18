@@ -1166,7 +1166,13 @@ func (wi *WorkloadIdentity) Canonicalize() {
 		wi.Audiences = []string{wi.Name}
 	}
 
-	wi.TTL = 1 * time.Hour
-	wi.Splay = 15 * time.Minute
-	wi.ChangeMode = "noop"
+	if wi.TTL == 0 {
+		wi.TTL = 1 * time.Hour
+	}
+	if wi.Splay == 0 {
+		wi.Splay = 15 * time.Minute
+	}
+	if wi.ChangeMode == "" {
+		wi.ChangeMode = "noop"
+	}
 }

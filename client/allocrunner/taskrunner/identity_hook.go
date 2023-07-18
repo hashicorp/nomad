@@ -229,13 +229,11 @@ func (h *identityHook) run(nextExp time.Time) {
 
 	// Wait until we need to renew again.
 	wait := keymgr.ExpiryToRenewTime(nextExp, time.Now)
-	h.logger.Debug(">>>>> getting new workload identities IN", "in", wait, "next_exp", nextExp)
 
 	timer, timerStop := helper.NewSafeTimer(wait)
 	defer timerStop()
 
 	for err := h.ctx.Err(); err == nil; {
-		h.logger.Debug(">>>>> getting new workload identities SLEEPING")
 		select {
 		case <-timer.C:
 			h.logger.Debug("getting new workload identities")
