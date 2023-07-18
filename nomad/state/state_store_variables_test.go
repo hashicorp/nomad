@@ -199,6 +199,68 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.Eq(t, expectedQuotaSize+1, quotaUsed.Size)
 
 	})
+
+	// Acquire lock on first variable to test upserting on a locked variable.
+	t.Run("5 lock and upsert", func(t *testing.T) {
+		acquireIndex := uint64(60)
+		sv3 := svs[0].Copy()
+		sv3.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp := testState.VarLockAcquire(acquireIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: &sv3,
+			})
+
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		afterAcquireIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, acquireIndex, afterAcquireIndex)
+
+		// Attempt to upsert variable without the lock ID
+		update4Index := uint64(65)
+		sv4 := svs[0].Copy()
+		sv4.KeyID = "sv4-update"
+		sv4.ModifyIndex = update4Index
+
+		resp = testState.VarSet(update4Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: &sv4,
+		})
+
+		must.NoError(t, resp.Error)
+		afterFailedUpsertIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+
+		must.Eq(t, afterAcquireIndex, afterFailedUpsertIndex, must.Sprintf("index should not have changed"))
+		must.True(t, resp.IsConflict())
+
+		// Attempt to upsert variable but this time include the lock ID
+		sv4.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp = testState.VarSet(update4Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: &sv4,
+		})
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		updateActualIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, update4Index, updateActualIndex, must.Sprintf("index should have changed"))
+
+		// Iterate all the stored variables and assert indexes have been updated as expected
+		got, err := getAllVariables(testState, ws)
+		must.NoError(t, err)
+		must.Len(t, 2, got)
+		must.Eq(t, update4Index, got[0].ModifyIndex)
+	})
 }
 
 func TestStateStore_DeleteVariable(t *testing.T) {
