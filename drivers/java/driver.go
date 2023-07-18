@@ -12,11 +12,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
@@ -332,19 +330,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			return fp
 		}
 
-		mount, err := cgutil.FindCgroupMountpointDir()
-		if err != nil {
-			fp.Health = drivers.HealthStateUnhealthy
-			fp.HealthDescription = drivers.NoCgroupMountMessage
-			d.logger.Warn(fp.HealthDescription, "error", err)
-			return fp
-		}
-
-		if mount == "" {
-			fp.Health = drivers.HealthStateUnhealthy
-			fp.HealthDescription = drivers.CgroupMountEmpty
-			return fp
-		}
+		// SETH
+		// set unhealthy if cgroups unavailable
 	}
 	if runtime.GOOS == "darwin" {
 		_, err := checkForMacJVM()

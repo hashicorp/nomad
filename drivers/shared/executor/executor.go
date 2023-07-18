@@ -22,7 +22,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	shelpers "github.com/hashicorp/nomad/helper/stats"
@@ -246,14 +245,11 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
-	// containment is used to cleanup resources created by the executor
-	// currently only used for killing pids via freezer cgroup on linux
-	containment resources.Containment
+	// probably a proclib thing here (pid collector, etc.)
 
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
-	pidCollector   *pidCollector
 
 	logger hclog.Logger
 }
@@ -271,7 +267,7 @@ func NewExecutor(logger hclog.Logger) Executor {
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
-		pidCollector:   newPidCollector(logger),
+		// proclib thing
 	}
 }
 
@@ -346,7 +342,8 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
-	go e.pidCollector.collectPids(e.processExited, e.getAllPids)
+	// SETH collect pids in the background (?)
+
 	go e.wait()
 	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
@@ -581,12 +578,8 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, cleanupChildrenErr))
 		}
 	} else {
+		// SETH
 		// there is containment available (e.g. cgroups) so defer to that implementation
-		// for killing the processes
-		if cleanupErr := e.containment.Cleanup(); cleanupErr != nil {
-			e.logger.Warn("containment cleanup failed", "error", cleanupErr)
-			merr.Errors = append(merr.Errors, cleanupErr)
-		}
 	}
 
 	if err = merr.ErrorOrNil(); err != nil {
@@ -631,16 +624,14 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 			timer.Reset(interval)
 		}
 
-		pidStats, err := e.pidCollector.pidStats()
-		if err != nil {
-			e.logger.Warn("error collecting stats", "error", err)
-			return
-		}
+		// SETH get pidStats
 
 		select {
 		case <-ctx.Done():
 			return
-		case ch <- aggregatedResourceUsage(e.systemCpuStats, pidStats):
+
+			// SETH send pidStats somewhere
+			// case ch <- aggregatedResourceUsage(e.systemCpuStats, pidStats):
 		}
 	}
 }

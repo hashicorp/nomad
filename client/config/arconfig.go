@@ -7,14 +7,12 @@ import (
 	"context"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	arinterfaces "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -89,9 +87,6 @@ type AllocRunnerConfig struct {
 
 	// DriverManager handles dispensing of driver plugins
 	DriverManager drivermanager.Manager
-
-	// CpusetManager configures the cpuset cgroup if supported by the platform
-	CpusetManager cgutil.CpusetManager
 
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.

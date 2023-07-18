@@ -23,7 +23,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-set"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -153,7 +152,6 @@ type Driver struct {
 	infinityClient   *docker.Client // for wait and stop calls (use getInfinityClient())
 
 	danglingReconciler *containerReconciler
-	cpusetFixer        CpusetFixer
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
@@ -401,17 +399,6 @@ CREATE:
 	} else {
 		d.logger.Debug("re-attaching to container", "container_id",
 			container.ID, "container_state", container.State.String())
-	}
-
-	if !cgutil.UseV2 {
-		// This does not apply to cgroups.v2, which only allows setting the PID
-		// into exactly 1 group. For cgroups.v2, we use the cpuset fixer to reconcile
-		// the cpuset value into the cgroups created by docker in the background.
-		if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
-			if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
-				return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
-			}
-		}
 	}
 
 	collectingLogs := loggingIsEnabled(d.config, cfg)
@@ -911,15 +898,6 @@ func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (
 	return hard * 1024 * 1024, softBytes
 }
 
-// Extract the cgroup parent from the nomad cgroup (only for linux/v2)
-func cgroupParent(resources *drivers.Resources) string {
-	var parent string
-	if cgutil.UseV2 && resources != nil && resources.LinuxResources != nil {
-		parent, _ = cgutil.SplitPath(resources.LinuxResources.CpusetCgroupPath)
-	}
-	return parent
-}
-
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -992,7 +970,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &docker.HostConfig{
-		CgroupParent: cgroupParent(task.Resources), // if applicable
+		// SETH set CgroupParent (?)
 
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit

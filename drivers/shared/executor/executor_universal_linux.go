@@ -6,19 +6,14 @@ package executor
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/client/lib/resources"
-	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/specconv"
+	// "github.com/opencontainers/runc/libcontainer/configs"
+	// "github.com/opencontainers/runc/libcontainer/specconv"
 )
 
 // setCmdUser takes a user id as a string and looks up the user, and sets the command
@@ -69,74 +64,13 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 	return nil
 }
 
-// configureResourceContainer configured the cgroups to be used to track pids
+// configureResourceContainer configurs the cgroups to be used to track pids
 // created by the executor
 func (e *UniversalExecutor) configureResourceContainer(pid int) error {
-	cfg := &configs.Config{
-		Cgroups: &configs.Cgroup{
-			Resources: &configs.Resources{},
-		},
-	}
-
-	// note: this was always here, but not used until cgroups v2 support
-	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
-	}
-
-	lookup := func(env []string, name string) (result string) {
-		for _, s := range env {
-			if strings.HasPrefix(s, name+"=") {
-				result = strings.TrimLeft(s, name+"=")
-				return
-			}
-		}
-		return
-	}
-
-	if cgutil.UseV2 {
-		// in v2 we have the definitive cgroup; create and enter it
-
-		// use the task environment variables for determining the cgroup path -
-		// not ideal but plumbing the values directly requires grpc protobuf changes
-		parent := lookup(e.commandCfg.Env, taskenv.CgroupParent)
-		allocID := lookup(e.commandCfg.Env, taskenv.AllocID)
-		task := lookup(e.commandCfg.Env, taskenv.TaskName)
-		if parent == "" || allocID == "" || task == "" {
-			return fmt.Errorf(
-				"environment variables %s must be set",
-				strings.Join([]string{taskenv.CgroupParent, taskenv.AllocID, taskenv.TaskName}, ","),
-			)
-		}
-		scope := cgutil.CgroupScope(allocID, task)
-		path := filepath.Join("/", cgutil.GetCgroupParent(parent), scope)
-		cfg.Cgroups.Path = path
-		e.containment = resources.Contain(e.logger, cfg.Cgroups)
-		return e.containment.Apply(pid)
-
-	} else {
-		// in v1 create a freezer cgroup for use by containment
-
-		if err := cgutil.ConfigureBasicCgroups(cfg); err != nil {
-			// Log this error to help diagnose cases where nomad is run with too few
-			// permissions, but don't return an error. There is no separate check for
-			// cgroup creation permissions, so this may be the happy path.
-			e.logger.Warn("failed to create cgroup",
-				"docs", "https://www.nomadproject.io/docs/drivers/raw_exec.html#no_cgroups",
-				"error", err)
-			return nil
-		}
-		path := cfg.Cgroups.Path
-		e.logger.Trace("cgroup created, now need to apply", "path", path)
-		e.containment = resources.Contain(e.logger, cfg.Cgroups)
-		return e.containment.Apply(pid)
-	}
-}
-
-func (e *UniversalExecutor) getAllPids() (resources.PIDs, error) {
-	if e.containment == nil {
-		return getAllPidsByScanning()
-	}
-	return e.containment.GetPIDs(), nil
+	// SETH
+	// - set cfg.Cgroups.Resources.Devices += specconv.AllowedDevices
+	// - do pid "containment" (group so we can track utilization and kill later)
+	return nil
 }
 
 // withNetworkIsolation calls the passed function the network namespace `spec`

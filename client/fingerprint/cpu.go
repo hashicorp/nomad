@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hashicorp/nomad/lib/cpuset"
-
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -116,15 +114,7 @@ func (f *CPUFingerprint) setReservableCores(request *FingerprintRequest, respons
 	if len(reservable) > 0 {
 		f.logger.Debug("reservable cores set by config", "cpuset", reservable)
 	} else {
-		cgroupParent := request.Config.CgroupParent
-		if reservable = f.deriveReservableCores(cgroupParent); reservable != nil {
-			if request.Node.ReservedResources != nil {
-				forNode := request.Node.ReservedResources.Cpu.ReservedCpuCores
-				reservable = cpuset.New(reservable...).Difference(cpuset.New(forNode...)).ToSlice()
-				f.logger.Debug("client configuration reserves these cores for node", "cores", forNode)
-			}
-			f.logger.Debug("set of reservable cores available for tasks", "cores", reservable)
-		}
+		// SETH set reservable cores attribute as detected
 	}
 
 	response.AddAttribute("cpu.reservablecores", strconv.Itoa(len(reservable)))

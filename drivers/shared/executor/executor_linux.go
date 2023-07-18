@@ -7,7 +7,6 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,8 +21,6 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -63,7 +60,8 @@ type LibcontainerExecutor struct {
 	totalCpuStats  *stats.CpuStats
 	userCpuStats   *stats.CpuStats
 	systemCpuStats *stats.CpuStats
-	pidCollector   *pidCollector
+
+	// SETH probably libproc thing here
 
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
@@ -82,7 +80,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
-		pidCollector:   newPidCollector(logger),
+		// SETH pid collector
 	}
 }
 
@@ -176,7 +174,8 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
-	go l.pidCollector.collectPids(l.userProcExited, l.getAllPids)
+
+	// SETH collect pids in the background
 	go l.wait()
 
 	return &ProcessState{
@@ -184,18 +183,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		ExitCode: -1,
 		Time:     time.Now(),
 	}, nil
-}
-
-func (l *LibcontainerExecutor) getAllPids() (resources.PIDs, error) {
-	pids, err := l.container.Processes()
-	if err != nil {
-		return nil, err
-	}
-	m := make(resources.PIDs, 1)
-	for _, pid := range pids {
-		m[pid] = resources.NewPID(pid)
-	}
-	return m, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -347,11 +334,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			return
 		}
 
-		pidStats, err := l.pidCollector.pidStats()
-		if err != nil {
-			l.logger.Warn("error collecting stats", "error", err)
-			return
-		}
+		// SETH get pidStats
 
 		ts := time.Now()
 		stats := lstats.CgroupStats
@@ -395,7 +378,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 				CpuStats:    cs,
 			},
 			Timestamp: ts.UTC().UnixNano(),
-			Pids:      pidStats,
+			Pids:      nil, // SETH set pid stats
 		}
 
 		select {
@@ -651,65 +634,15 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 }
 
 func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+	// SETH
+	// this is configuring libcontainer to our needs
+	// - create cgroup if necessary (?)
+	// - set cgroup path (cfg.Cgroups.Path)
+	// - set amound of memory to consume
+	// - set cpu shares, cpu weight
+	// - set memory swappiness
+	// - set cpu
 	// If resources are not limited then manually create cgroups needed
-	if !command.ResourceLimits {
-		return cgutil.ConfigureBasicCgroups(cfg)
-	}
-
-	// set cgroups path
-	if cgutil.UseV2 {
-		// in v2, the cgroup must have been created by the client already,
-		// which breaks a lot of existing tests that run drivers without a client
-		if command.Resources == nil || command.Resources.LinuxResources == nil || command.Resources.LinuxResources.CpusetCgroupPath == "" {
-			return errors.New("cgroup path must be set")
-		}
-		parent, cgroup := cgutil.SplitPath(command.Resources.LinuxResources.CpusetCgroupPath)
-		cfg.Cgroups.Path = filepath.Join("/", parent, cgroup)
-	} else {
-		// in v1, the cgroup is created using /nomad, which is a bug because it
-		// does not respect the cgroup_parent client configuration
-		// (but makes testing easy)
-		id := uuid.Generate()
-		cfg.Cgroups.Path = filepath.Join("/", cgutil.DefaultCgroupV1Parent, id)
-	}
-
-	if command.Resources == nil || command.Resources.NomadResources == nil {
-		return nil
-	}
-
-	// Total amount of memory allowed to consume
-	res := command.Resources.NomadResources
-	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
-	if memHard <= 0 {
-		memHard = res.Memory.MemoryMB
-		memSoft = 0
-	}
-
-	if memHard > 0 {
-		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
-		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
-
-		// Disable swap if possible, to avoid issues on the machine
-		cfg.Cgroups.Resources.MemorySwappiness = cgutil.MaybeDisableMemorySwappiness()
-	}
-
-	cpuShares := res.Cpu.CpuShares
-	if cpuShares < 2 {
-		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
-	}
-
-	// Set the relative CPU shares for this cgroup, and convert for cgroupv2
-	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
-	cfg.Cgroups.Resources.CpuWeight = cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
-
-	if command.Resources.LinuxResources != nil && command.Resources.LinuxResources.CpusetCgroupPath != "" {
-		cfg.Hooks = lconfigs.Hooks{
-			lconfigs.CreateRuntime: lconfigs.HookList{
-				newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
-			},
-		}
-	}
-
 	return nil
 }
 

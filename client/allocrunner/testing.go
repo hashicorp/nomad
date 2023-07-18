@@ -18,7 +18,6 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	"github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -91,7 +90,6 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		PrevAllocMigrator:  allocwatcher.NoopPrevAlloc{},
 		DeviceManager:      devicemanager.NoopMockManager(),
 		DriverManager:      drivermanager.TestDriverManager(t),
-		CpusetManager:      new(cgutil.NoopCpusetManager),
 		ServersContactedCh: make(chan struct{}),
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
 		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),

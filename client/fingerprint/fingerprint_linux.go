@@ -4,6 +4,6 @@
 package fingerprint
 
 func initPlatformFingerprints(fps map[string]Factory) {
-	fps["cgroup"] = NewCGroupFingerprint
+	// SETH setup cgroup fingerprinter
 	fps["bridge"] = NewBridgeFingerprint
 }

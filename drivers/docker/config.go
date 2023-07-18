@@ -781,8 +781,6 @@ func (d *Driver) SetConfig(c *base.Config) error {
 
 	d.danglingReconciler = newReconciler(d)
 
-	d.cpusetFixer = newCpusetFixer(d)
-
 	go d.recoverPauseContainers(d.ctx)
 
 	return nil

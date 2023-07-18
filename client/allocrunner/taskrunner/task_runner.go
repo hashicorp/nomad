@@ -11,13 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/exp/slices"
-
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -27,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -43,6 +39,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -231,9 +228,6 @@ type TaskRunner struct {
 	// statistics
 	devicemanager devicemanager.Manager
 
-	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
-	cpusetCgroupPathGetter cgutil.CgroupPathGetter
-
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
@@ -303,9 +297,6 @@ type Config struct {
 	// CSIManager is used to manage the mounting of CSI volumes into tasks
 	CSIManager csimanager.Manager
 
-	// CpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
-	CpusetCgroupPathGetter cgutil.CgroupPathGetter
-
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -362,43 +353,42 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                  config.Alloc,
-		allocID:                config.Alloc.ID,
-		clientConfig:           config.ClientConfig,
-		task:                   config.Task,
-		taskDir:                config.TaskDir,
-		taskName:               config.Task.Name,
-		taskLeader:             config.Task.Leader,
-		envBuilder:             envBuilder,
-		dynamicRegistry:        config.DynamicRegistry,
-		consulServiceClient:    config.Consul,
-		consulProxiesClient:    config.ConsulProxies,
-		siClient:               config.ConsulSI,
-		vaultClient:            config.Vault,
-		state:                  tstate,
-		localState:             state.NewLocalState(),
-		allocHookResources:     config.AllocHookResources,
-		stateDB:                config.StateDB,
-		stateUpdater:           config.StateUpdater,
-		deviceStatsReporter:    config.DeviceStatsReporter,
-		killCtx:                killCtx,
-		killCtxCancel:          killCancel,
-		shutdownCtx:            trCtx,
-		shutdownCtxCancel:      trCancel,
-		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
-		restartCh:              make(chan struct{}, restartChCap),
-		waitCh:                 make(chan struct{}),
-		csiManager:             config.CSIManager,
-		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
-		devicemanager:          config.DeviceManager,
-		driverManager:          config.DriverManager,
-		maxEvents:              defaultMaxEvents,
-		serversContactedCh:     config.ServersContactedCh,
-		startConditionMetCh:    config.StartConditionMetCh,
-		shutdownDelayCtx:       config.ShutdownDelayCtx,
-		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
-		serviceRegWrapper:      config.ServiceRegWrapper,
-		getter:                 config.Getter,
+		alloc:                 config.Alloc,
+		allocID:               config.Alloc.ID,
+		clientConfig:          config.ClientConfig,
+		task:                  config.Task,
+		taskDir:               config.TaskDir,
+		taskName:              config.Task.Name,
+		taskLeader:            config.Task.Leader,
+		envBuilder:            envBuilder,
+		dynamicRegistry:       config.DynamicRegistry,
+		consulServiceClient:   config.Consul,
+		consulProxiesClient:   config.ConsulProxies,
+		siClient:              config.ConsulSI,
+		vaultClient:           config.Vault,
+		state:                 tstate,
+		localState:            state.NewLocalState(),
+		allocHookResources:    config.AllocHookResources,
+		stateDB:               config.StateDB,
+		stateUpdater:          config.StateUpdater,
+		deviceStatsReporter:   config.DeviceStatsReporter,
+		killCtx:               killCtx,
+		killCtxCancel:         killCancel,
+		shutdownCtx:           trCtx,
+		shutdownCtxCancel:     trCancel,
+		triggerUpdateCh:       make(chan struct{}, triggerUpdateChCap),
+		restartCh:             make(chan struct{}, restartChCap),
+		waitCh:                make(chan struct{}),
+		csiManager:            config.CSIManager,
+		devicemanager:         config.DeviceManager,
+		driverManager:         config.DriverManager,
+		maxEvents:             defaultMaxEvents,
+		serversContactedCh:    config.ServersContactedCh,
+		startConditionMetCh:   config.StartConditionMetCh,
+		shutdownDelayCtx:      config.ShutdownDelayCtx,
+		shutdownDelayCancelFn: config.ShutdownDelayCancelFn,
+		serviceRegWrapper:     config.ServiceRegWrapper,
+		getter:                config.Getter,
 	}
 
 	// Create the logger based on the allocation ID
@@ -846,14 +836,8 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
-	if tr.cpusetCgroupPathGetter != nil {
-		tr.logger.Trace("waiting for cgroup to exist for", "allocID", tr.allocID, "task", tr.task)
-		cpusetCgroupPath, err := tr.cpusetCgroupPathGetter(tr.killCtx)
-		if err != nil {
-			return err
-		}
-		taskConfig.Resources.LinuxResources.CpusetCgroupPath = cpusetCgroupPath
-	}
+
+	// SETH set taskConfig.Resources.LinuxResources.CpusetCgroupPath here (?)
 
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
