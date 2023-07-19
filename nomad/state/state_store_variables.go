@@ -420,6 +420,7 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApp
 		return req.ConflictResponse(idx, svEx)
 	}
 
+	// If the variable is locked, it can only be deleted providing the correct lock ID
 	if ok && isLocked(sv.Lock, req) {
 		zeroVal := &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -665,17 +666,6 @@ func (s *StateStore) updateVarsAndIndexTxn(tx WriteTxn, idx uint64, sv *structs.
 		return fmt.Errorf("failed updating variable index: %w", err)
 	}
 	return nil
-}
-
-func isLocked(lock *structs.VariableLock, req *structs.VarApplyStateRequest) bool {
-	if lock != nil {
-		if req.Var.VariableMetadata.Lock == nil ||
-			req.Var.VariableMetadata.Lock.ID != lock.ID {
-
-			return true
-		}
-	}
-	return false
 }
 
 func isLocked(lock *structs.VariableLock, req *structs.VarApplyStateRequest) bool {
