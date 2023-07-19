@@ -11,11 +11,13 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
+import { inject as service } from '@ember/service';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
 @classic
 export default class Job extends Model {
+  @service store;
   @attr('string') region;
   @attr('string') name;
   @attr('string') plainId;
@@ -355,7 +357,7 @@ export default class Job extends Model {
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
 
-  @computed('variables', 'parent', 'plainId')
+  @computed('variables.[]', 'parent', 'plainId')
   get pathLinkedVariable() {
     if (this.parent.get('id')) {
       return this.variables?.findBy(

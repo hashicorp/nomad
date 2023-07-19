@@ -19,7 +19,9 @@ export default class JobsJobVariablesRoute extends Route {
     }
   }
   async model() {
-    const variables = await this.store.findAll('variable');
+    const variables = await this.store.findAll('variable', {
+      reload: true,
+    });
     return { variables, job: this.modelFor('jobs.job') };
   }
 }

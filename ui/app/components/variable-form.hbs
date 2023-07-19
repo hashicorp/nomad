@@ -22,7 +22,7 @@
         @job={{@model.pathLinkedEntities.job}}
         @group={{@model.pathLinkedEntities.group}}
         @task={{@model.pathLinkedEntities.task}}
-        @namespace={{this.variableNamespace}}
+        @namespace={{or this.variableNamespace "default"}}
       />
     {{/if}}
 
