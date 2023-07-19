@@ -847,7 +847,6 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: sv,
 		}
-
 		resp = ts.VarDeleteCAS(15, req)
 		must.True(t, resp.IsConflict())
 
@@ -857,6 +856,15 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 				Var: &svCopy,
 			})
 
+		must.True(t, resp.IsOk())
+
+		// A CAS delete with a correct index should succeed.
+		req = &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: sv,
+		}
+
+		resp = ts.VarDeleteCAS(20, req)
 		must.True(t, resp.IsOk())
 	})
 
