@@ -406,17 +406,6 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApp
 		return req.ConflictResponse(idx, svEx)
 	}
 
-	// If the variable is locked, it can only be deleted providing the correct lock ID
-	if ok && isLocked(sv.Lock, req) {
-		zeroVal := &structs.VariableEncrypted{
-			VariableMetadata: structs.VariableMetadata{
-				Namespace: sv.Namespace,
-				Path:      sv.Path,
-			},
-		}
-		return req.ConflictResponse(idx, zeroVal)
-	}
-
 	// If the existing index does not match the provided CAS index arg, then we
 	// shouldn't update anything and can safely return early here.
 	if !ok || sv.ModifyIndex != svEx.ModifyIndex {
