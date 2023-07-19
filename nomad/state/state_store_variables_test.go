@@ -819,10 +819,10 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		must.Eq(t, sv.VariableMetadata, resp.Conflict.VariableMetadata)
 	})
 
-	t.Run("locked_var-cas_ok", func(t *testing.T) {
+	t.Run("real_locked_var-cas_0", func(t *testing.T) {
 		ci.Parallel(t)
 		sv := mock.VariableEncrypted()
-		sv.Path = "real_var/cas_ok"
+		sv.Path = "real_var/cas_0"
 		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
@@ -847,7 +847,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: sv,
 		}
-		resp = ts.VarDeleteCAS(0, req)
+		resp = ts.VarDeleteCAS(15, req)
 		must.True(t, resp.IsConflict())
 
 		resp = ts.VarLockRelease(20,
@@ -856,8 +856,15 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 				Var: &svCopy,
 			})
 
-		svCopy.VariableMetadata.Lock = nil
+		must.True(t, resp.IsOk())
 
+		// A CAS delete with a correct index should succeed.
+		req = &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: sv,
+		}
+
+		resp = ts.VarDeleteCAS(20, req)
 		must.True(t, resp.IsOk())
 	})
 
