@@ -32,6 +32,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -319,6 +320,10 @@ type Client struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// wranglers is used to keep track of processes and manage their interaction
+	// with drivers and stuff
+	wranglers *proclib.Wranglers
 }
 
 var (
@@ -354,6 +359,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Create the logger
 	logger := cfg.Logger.ResetNamedIntercept("client")
 
+	// Create the process wranglers
+	wranglers := proclib.New(&proclib.Configs{
+		ParentCgroup:  cfg.CgroupParent,
+		ReservedCores: cfg.ReservableCores,
+		TotalCompute:  cfg.CpuCompute,
+	})
+
 	// Create the client
 	c := &Client{
 		config:               cfg,
@@ -381,6 +393,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
+		wranglers:            wranglers,
 	}
 
 	// we can't have this set in the default Config because of import cycles

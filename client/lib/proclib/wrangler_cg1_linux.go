@@ -10,7 +10,7 @@ type LinuxWranglerCG1 struct {
 	parentCgroup string
 }
 
-func newCG1(c *Configs) ProcessWrangler {
+func newCG1(c *Configs) create {
 	return func(task Task) ProcessWrangler {
 		nlog.Info("newCG1()", "task", task)
 		return &LinuxWranglerCG1{
