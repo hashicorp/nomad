@@ -79,10 +79,10 @@ mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Installing third-party tools"
-sudo apt-get install -y docker-ce docker-ce-cli
 
 # Docker
-sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli
+echo "Installing Docker CE"
+sudo apt-get install -y docker-ce docker-ce-cli
 
 # Java
 echo "Installing Java"
