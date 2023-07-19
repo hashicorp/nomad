@@ -32,7 +32,7 @@ func TestCPU_CPUModelName(t *testing.T) {
 	must.NotEq(t, "", name)
 }
 
-func TestCPU_CPUTotalTicksAvailable(t *testing.T) {
-	ticks := TotalTicksAvailable()
+func TestCPU_CPUCpuTotalTicks(t *testing.T) {
+	ticks := CpuTotalTicks()
 	must.Positive(t, ticks)
 }
