@@ -4,6 +4,8 @@
 package fingerprint
 
 import (
+	"github.com/shoenig/netlog"
+
 	"fmt"
 	"strconv"
 
@@ -51,6 +53,7 @@ func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *Fing
 	f.setReservableCores(request, response)
 
 	f.setTotalCompute(request, response)
+	netlog.Cyan("CPUF.Fingerprint", "rp", fmt.Sprintf("%#v", response))
 
 	f.setResponseResources(response)
 

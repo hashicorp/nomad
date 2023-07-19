@@ -449,7 +449,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	wranglers := proclib.New(&proclib.Configs{
 		ParentCgroup:  c.config.CgroupParent,
 		ReservedCores: c.config.ReservableCores, // config or fp
-		TotalCompute:  c.config.CpuCompute,
+		TotalCompute:  c.config.CpuCompute,      // config or fp
 	})
 	c.wranglers = wranglers
 
@@ -1494,6 +1494,7 @@ func (c *Client) setupNode() error {
 		node.NodeResources = &structs.NodeResources{}
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
+		node.NodeResources.Cpu = newConfig.Node.NodeResources.Cpu
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1646,9 +1647,7 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// update the response networks with the config
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
-		response.NodeResources.Networks = updateNetworks(
-			response.NodeResources.Networks,
-			newConfig)
+		response.NodeResources.Networks = updateNetworks(response.NodeResources.Networks, newConfig)
 		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
 			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
@@ -1661,6 +1660,12 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 			nodeHasChanged = true
 		}
 
+		// update config with total cpu compute if it was detected
+		// note: the env fingerprinters always run second which updates this
+		// last
+		if cpu := int(response.NodeResources.Cpu.CpuShares); cpu > 0 {
+			newConfig.CpuCompute = cpu
+		}
 	}
 
 	netlog.Yellow("hi", "nodeHashChanged", nodeHasChanged, "newConfig.CpuCompute", newConfig.CpuCompute)

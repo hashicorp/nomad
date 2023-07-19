@@ -51,7 +51,7 @@ var ec2NetSpeedTable = map[*regexp.Regexp]int{
 
 // EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
-	StaticFingerprinter
+	StaticFingerprinter // hi
 
 	// endpoint for EC2 metadata as expected by AWS SDK
 	endpoint string
