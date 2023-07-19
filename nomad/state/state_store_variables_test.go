@@ -1009,7 +1009,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 	})
 }
 
-func TestStateStore_Release(t *testing.T) {
+func TestStateStore_ReleaseLock(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
