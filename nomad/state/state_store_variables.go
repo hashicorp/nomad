@@ -420,6 +420,7 @@ func (s *StateStore) svDeleteCASTxn(tx WriteTxn, idx uint64, req *structs.VarApp
 		return req.ConflictResponse(idx, svEx)
 	}
 
+	// If the variable is locked, it can only be deleted providing the correct lock ID
 	if ok && isLocked(sv.Lock, req) {
 		zeroVal := &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -613,37 +614,52 @@ func (s *StateStore) VarLockRelease(idx uint64,
 		return req.ErrorResponse(idx, fmt.Errorf("failed variable lookup: %s", err))
 	}
 
-	if raw == nil {
+	sv, ok := raw.(*structs.VariableEncrypted)
+	if !ok {
 		return req.ErrorResponse(idx, errVarNotFound)
 	}
-
-	sv, _ := raw.(*structs.VariableEncrypted)
 
 	if sv.Lock == nil || sv.Lock.ID == "" {
 		return req.ErrorResponse(idx, errLockNotFound)
 	}
 
 	if sv.Lock.ID != req.Var.Lock.ID {
-		// Avoid showing the variable data while doing a lock release
-		svCopy := sv.Copy()
-		svCopy.VariableData = structs.VariableData{}
-		return req.ConflictResponse(idx, &svCopy)
+		// Avoid showing the variable data on a failed lock release
+		zeroVal := &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Namespace: sv.Namespace,
+				Path:      sv.Path,
+			},
+		}
+		return req.ConflictResponse(idx, zeroVal)
 	}
 
 	updated := sv.Copy()
 	updated.Lock = nil
+	updated.ModifyIndex = idx
 
-	req.Var = &updated
-	resp := s.varSetTxn(tx, idx, req)
-	if resp.IsError() {
-		return resp
+	err = s.updateVarsAndIndexTxn(tx, idx, &updated)
+	if err != nil {
+		req.ErrorResponse(idx, fmt.Errorf("failed lock release: %s", err))
 	}
 
 	if err := tx.Commit(); err != nil {
 		return req.ErrorResponse(idx, err)
 	}
 
-	return resp
+	return req.SuccessResponse(idx, &updated.VariableMetadata)
+}
+
+func (s *StateStore) updateVarsAndIndexTxn(tx WriteTxn, idx uint64, sv *structs.VariableEncrypted) error {
+	if err := tx.Insert(TableVariables, sv); err != nil {
+		return fmt.Errorf("failed inserting variable: %w", err)
+	}
+
+	if err := tx.Insert(tableIndex,
+		&IndexEntry{TableVariables, idx}); err != nil {
+		return fmt.Errorf("failed updating variable index: %w", err)
+	}
+	return nil
 }
 
 func isLocked(lock *structs.VariableLock, req *structs.VarApplyStateRequest) bool {
