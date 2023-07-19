@@ -15,6 +15,10 @@ plugin "nomad-driver-podman" {
     volumes {
       enabled = true
     }
+    auth {
+      helper = "test.sh"
+      config = "/etc/auth.json"
+    }
   }
 }
 
