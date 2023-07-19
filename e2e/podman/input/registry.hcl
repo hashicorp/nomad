@@ -125,7 +125,7 @@ podman push --tls-verify=false --authfile=local/auth.json docker.io/library/bash
 
       config {
         command = "bash"
-        args    = ["-c", "chmod +x local/script.sh && local/script.sh"]
+        args    = ["local/script.sh"]
       }
 
       resources {
