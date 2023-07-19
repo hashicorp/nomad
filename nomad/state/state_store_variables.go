@@ -609,7 +609,7 @@ func (s *StateStore) VarLockRelease(idx uint64,
 		return req.ErrorResponse(idx, errLockNotFound)
 	}
 
-	if sv.Lock.ID != req.Var.Lock.ID {
+	if req.Var.Lock != nil && sv.Lock.ID != req.Var.Lock.ID {
 		// Avoid showing the variable data on a failed lock release
 		zeroVal := &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
