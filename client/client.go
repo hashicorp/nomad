@@ -4,6 +4,8 @@
 package client
 
 import (
+	"github.com/shoenig/netlog"
+
 	"errors"
 	"fmt"
 	"net"
@@ -359,13 +361,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Create the logger
 	logger := cfg.Logger.ResetNamedIntercept("client")
 
-	// Create the process wranglers
-	wranglers := proclib.New(&proclib.Configs{
-		ParentCgroup:  cfg.CgroupParent,
-		ReservedCores: cfg.ReservableCores,
-		TotalCompute:  cfg.CpuCompute,
-	})
-
 	// Create the client
 	c := &Client{
 		config:               cfg,
@@ -393,7 +388,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
-		wranglers:            wranglers,
 	}
 
 	// we can't have this set in the default Config because of import cycles
@@ -451,9 +445,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
-	// SETH can we move wrangler creation and assignment here?
-	// setting the config that has been updated (?) modified (?) by the
-	// fingerprinter first pass
+	// Create the process wranglers
+	wranglers := proclib.New(&proclib.Configs{
+		ParentCgroup:  c.config.CgroupParent,
+		ReservedCores: c.config.ReservableCores, // config or fp
+		TotalCompute:  c.config.CpuCompute,
+	})
+	c.wranglers = wranglers
 
 	// Build the allow/denylists of drivers.
 	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
@@ -1664,6 +1662,8 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 		}
 
 	}
+
+	netlog.Yellow("hi", "nodeHashChanged", nodeHasChanged, "newConfig.CpuCompute", newConfig.CpuCompute)
 
 	if nodeHasChanged {
 		c.config = newConfig
