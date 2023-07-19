@@ -580,9 +580,9 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 		return req.ErrorResponse(idx, fmt.Errorf("variable lookup failed: %v", err))
 	}
 
+	sv, ok := raw.(*structs.VariableEncrypted)
 	// If the variable exist, we must make sure it doesn't hold a lock already
-	if raw != nil {
-		sv := raw.(*structs.VariableEncrypted)
+	if ok {
 		if sv.VariableMetadata.Lock != nil {
 			return req.ErrorResponse(idx, errVarAlreadyLocked)
 		}
