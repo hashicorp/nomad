@@ -404,7 +404,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 		// Test that the happy path works
 		{
 			// Make the HTTP request
-			req, err := http.NewRequest(http.MethodGet, "/v1/allocation/"+alloc.ID+"/stop", nil)
+			req, err := http.NewRequest(http.MethodPost, "/v1/allocation/"+alloc.ID+"/stop", nil)
 			require.NoError(err)
 			respW := httptest.NewRecorder()
 
