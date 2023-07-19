@@ -51,10 +51,6 @@ func getEnterpriseFuzzyResourceIter(context structs.Context, _ *acl.ACL, _ strin
 	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 }
 
-func sufficientSearchPermsEnt(aclObj *acl.ACL) bool {
-	return true
-}
-
 func filteredSearchContextsEnt(aclObj *acl.ACL, namespace string, context structs.Context) bool {
 	return true
 }
