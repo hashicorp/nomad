@@ -38,13 +38,13 @@ the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-securi
 - `key_file` `(string: "")` - Specifies the path to the key file to use for
   Nomad's TLS communication.
 
-- `http` `(bool: false)` - Specifies if TLS should be enabled on the HTTP
+- `http` `(bool: false)` - Specifies if mTLS should be enabled on the HTTP
   endpoints on the Nomad agent, including the API.
 
-- `rpc` `(bool: false)` - Specifies if TLS should be enabled on the RPC
-  endpoints and [Raft][raft] traffic between the Nomad servers. Enabling this on
-  a Nomad client makes the client use TLS for making RPC requests to the Nomad
-  servers.
+- `rpc` `(bool: false)` - Toggle the option to enable mTLS on the RPC endpoints 
+   and [Raft][raft] traffic. When this setting is activated, it establishes protection 
+   both between Nomad servers and from the clients back to the servers, ensuring 
+   mutual authentication.
 
 - `rpc_upgrade_mode` `(bool: false)` - This option should be used only when the
   cluster is being upgraded to TLS, and removed after the migration is
