@@ -11,10 +11,11 @@ import (
 	"fmt"
 	"sync"
 
+	"google.golang.org/grpc"
+
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"google.golang.org/grpc"
 )
 
 var _ csi.CSIPlugin = &Client{}
@@ -78,6 +79,10 @@ type Client struct {
 	NextControllerListSnapshotsErr      error
 	ControllerListSnapshotsCallCount    int64
 
+	NextControllerExpandVolumeResponse *csi.ControllerExpandVolumeResponse
+	NextControllerExpandVolumeErr      error
+	ControllerExpandVolumeCallCount    int64
+
 	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
 	NextNodeGetCapabilitiesErr      error
 	NodeGetCapabilitiesCallCount    int64
@@ -98,6 +103,10 @@ type Client struct {
 
 	NextNodeUnpublishVolumeErr   error
 	NodeUnpublishVolumeCallCount int64
+
+	NextNodeExpandVolumeResponse *csi.NodeExpandVolumeResponse
+	NextNodeExpandVolumeErr      error
+	NodeExpandVolumeCallCount    int64
 }
 
 // PluginInfo describes the type and version of a plugin.
@@ -235,6 +244,13 @@ func (c *Client) ControllerListSnapshots(ctx context.Context, req *csi.Controlle
 	return c.NextControllerListSnapshotsResponse, c.NextControllerListSnapshotsErr
 }
 
+func (c *Client) ControllerExpandVolume(ctx context.Context, in *csi.ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerExpandVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerExpandVolumeCallCount++
+	return c.NextControllerExpandVolumeResponse, c.NextControllerExpandVolumeErr
+}
+
 func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
@@ -300,6 +316,14 @@ func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 	return c.NextNodeUnpublishVolumeErr
 }
 
+func (c *Client) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest, opts ...grpc.CallOption) (*csi.NodeExpandVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.NodeExpandVolumeCallCount++
+	return c.NextNodeExpandVolumeResponse, c.NextNodeExpandVolumeErr
+}
+
 // Close the client and ensure any connections are cleaned up.
 func (c *Client) Close() error {
 
@@ -325,6 +349,9 @@ func (c *Client) Close() error {
 	c.NextControllerUnpublishVolumeResponse = nil
 	c.NextControllerUnpublishVolumeErr = fmt.Errorf("closed client")
 
+	c.NextControllerExpandVolumeResponse = nil
+	c.NextControllerExpandVolumeErr = fmt.Errorf("closed client")
+
 	c.NextControllerValidateVolumeErr = fmt.Errorf("closed client")
 
 	c.NextNodeGetCapabilitiesResponse = nil
@@ -340,6 +367,9 @@ func (c *Client) Close() error {
 	c.NextNodePublishVolumeErr = fmt.Errorf("closed client")
 
 	c.NextNodeUnpublishVolumeErr = fmt.Errorf("closed client")
+
+	c.NextNodeExpandVolumeResponse = nil
+	c.NextNodeExpandVolumeErr = fmt.Errorf("closed client")
 
 	return nil
 }

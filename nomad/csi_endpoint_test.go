@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -124,6 +125,83 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint64(999), resp.Index)
 	require.Equal(t, vols[0].ID, resp.Volume.ID)
+}
+
+func TestCSIVolume_pluginValidateVolume(t *testing.T) {
+	// bare minimum server for this method
+	store := state.TestStateStore(t)
+	srv := &Server{
+		fsm: &nomadFSM{state: store},
+	}
+	// has our method under test
+	csiVolume := &CSIVolume{srv: srv}
+	// volume for which we will request a valid plugin
+	vol := &structs.CSIVolume{PluginID: "neat-plugin"}
+
+	// plugin not found
+	got, err := csiVolume.pluginValidateVolume(vol)
+	must.Nil(t, got, must.Sprint("nonexistent plugin should be nil"))
+	must.ErrorContains(t, err, "no CSI plugin named")
+
+	// we'll upsert this plugin after optionally modifying it
+	basePlug := &structs.CSIPlugin{
+		ID: vol.PluginID,
+		// these should be set on the volume after success
+		Provider: "neat-provider",
+		Version:  "v0",
+		// explicit zero values, because these modify behavior we care about
+		ControllerRequired: false,
+		ControllersHealthy: 0,
+	}
+
+	cases := []struct {
+		name         string
+		updatePlugin func(*structs.CSIPlugin)
+		expectErr    string
+	}{
+		{
+			name: "controller not required",
+		},
+		{
+			name: "controller unhealthy",
+			updatePlugin: func(p *structs.CSIPlugin) {
+				p.ControllerRequired = true
+			},
+			expectErr: "no healthy controllers",
+		},
+		{
+			name: "controller healthy",
+			updatePlugin: func(p *structs.CSIPlugin) {
+				p.ControllerRequired = true
+				p.ControllersHealthy = 1
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			vol := vol.Copy()
+			plug := basePlug.Copy()
+
+			if tc.updatePlugin != nil {
+				tc.updatePlugin(plug)
+			}
+			must.NoError(t, store.UpsertCSIPlugin(1000, plug))
+
+			got, err := csiVolume.pluginValidateVolume(vol)
+
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.NotNil(t, got, must.Sprint("plugin should not be nil"))
+				must.Eq(t, vol.Provider, plug.Provider)
+				must.Eq(t, vol.ProviderVersion, plug.Version)
+			} else {
+				must.Error(t, err, must.Sprint("expect error:", tc.expectErr))
+				must.ErrorContains(t, err, tc.expectErr)
+				must.Nil(t, got, must.Sprint("plugin should be nil"))
+			}
+		})
+	}
 }
 
 func TestCSIVolumeEndpoint_Register(t *testing.T) {
@@ -1701,6 +1779,143 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	require.Equal(t, "page2", resp.NextToken)
 }
 
+func TestCSIVolume_expandVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanupSrv := TestServer(t, nil)
+	t.Cleanup(cleanupSrv)
+	testutil.WaitForLeader(t, srv.RPC)
+	t.Log("server started 👍")
+
+	_, fake, _, fakeVolID := testClientWithCSI(t, srv)
+
+	endpoint := NewCSIVolumeEndpoint(srv, nil)
+	plug, vol, err := endpoint.volAndPluginLookup(structs.DefaultNamespace, fakeVolID)
+	must.NoError(t, err)
+
+	// ensure nil checks
+	expectErr := "unexpected nil value"
+	err = endpoint.expandVolume(nil, plug, &csi.CapacityRange{})
+	must.EqError(t, err, expectErr)
+	err = endpoint.expandVolume(vol, nil, &csi.CapacityRange{})
+	must.EqError(t, err, expectErr)
+	err = endpoint.expandVolume(vol, plug, nil)
+	must.EqError(t, err, expectErr)
+
+	// these tests must be run in order, as they mutate vol along the way
+	cases := []struct {
+		Name string
+
+		NewMin int64
+		NewMax int64
+
+		ExpectMin      int64
+		ExpectMax      int64
+		ControllerResp int64 // new capacity for the mock controller response
+		ExpectCapacity int64 // expected resulting capacity on the volume
+		ExpectErr      string
+	}{
+		{
+			// successful expansion from initial vol with no capacity values.
+			Name:   "success",
+			NewMin: 1000,
+			NewMax: 2000,
+
+			ExpectMin:      1000,
+			ExpectMax:      2000,
+			ControllerResp: 1000,
+			ExpectCapacity: 1000,
+		},
+		{
+			// with min/max both zero, no action should be taken,
+			// so expect no change to desired or actual capacity on the volume.
+			Name:   "zero",
+			NewMin: 0,
+			NewMax: 0,
+
+			ExpectMin:      1000,
+			ExpectMax:      2000,
+			ControllerResp: 999999, // this should not come into play
+			ExpectCapacity: 1000,
+		},
+		{
+			// increasing min is what actually triggers an expand to occur.
+			Name:   "increase min",
+			NewMin: 1500,
+			NewMax: 2000,
+
+			ExpectMin:      1500,
+			ExpectMax:      2000,
+			ControllerResp: 1500,
+			ExpectCapacity: 1500,
+		},
+		{
+			// min going down is okay, but no expand should occur.
+			Name:   "reduce min",
+			NewMin: 500,
+			NewMax: 2000,
+
+			ExpectMin:      500,
+			ExpectMax:      2000,
+			ControllerResp: 999999,
+			ExpectCapacity: 1500,
+		},
+		{
+			// max going up is okay, but no expand should occur.
+			Name:   "increase max",
+			NewMin: 500,
+			NewMax: 5000,
+
+			ExpectMin:      500,
+			ExpectMax:      5000,
+			ControllerResp: 999999,
+			ExpectCapacity: 1500,
+		},
+		{
+			// max lower than min is logically impossible.
+			Name:      "max below min",
+			NewMin:    3,
+			NewMax:    2,
+			ExpectErr: "max requested capacity (2 B) less than or equal to min (3 B)",
+		},
+		{
+			// volume size cannot be reduced.
+			Name:      "max below current",
+			NewMax:    2,
+			ExpectErr: "max requested capacity (2 B) less than or equal to current (1.5 kB)",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			fake.NextControllerExpandVolumeResponse = &cstructs.ClientCSIControllerExpandVolumeResponse{
+				CapacityBytes:         tc.ControllerResp,
+				NodeExpansionRequired: true,
+			}
+
+			err = endpoint.expandVolume(vol, plug, &csi.CapacityRange{
+				RequiredBytes: tc.NewMin,
+				LimitBytes:    tc.NewMax,
+			})
+
+			if tc.ExpectErr != "" {
+				must.EqError(t, err, tc.ExpectErr)
+				return
+			}
+
+			must.NoError(t, err)
+
+			test.Eq(t, tc.ExpectCapacity, vol.Capacity,
+				test.Sprint("unexpected capacity"))
+			test.Eq(t, tc.ExpectMin, vol.RequestedCapacityMin,
+				test.Sprint("unexpected min"))
+			test.Eq(t, tc.ExpectMax, vol.RequestedCapacityMax,
+				test.Sprint("unexpected max"))
+		})
+	}
+
+}
+
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
@@ -2042,4 +2257,79 @@ func TestCSI_SerializedControllerRPC(t *testing.T) {
 	// plugin1 RPCs should not block plugin2 RPCs
 	must.GreaterEq(t, 50*time.Millisecond, totals["plugin2"])
 	must.Less(t, 100*time.Millisecond, totals["plugin2"])
+}
+
+// testClientWithCSI sets up a client with a fake CSI plugin.
+// Much of the plugin/volume configuration is only to pass validation;
+// callers should modify MockClientCSI's Next* fields.
+func testClientWithCSI(t *testing.T, srv *Server) (c *client.Client, m *MockClientCSI, plugID, volID string) {
+	t.Helper()
+
+	m = newMockClientCSI()
+	plugID = "fake-plugin"
+	volID = "fake-volume"
+
+	c, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+			c.Node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+				plugID: {
+					PluginID: plugID,
+					Healthy:  true,
+					ControllerInfo: &structs.CSIControllerInfo{
+						// Supports.* everything, but Next* values must be set on the mock.
+						SupportsAttachDetach:             true,
+						SupportsClone:                    true,
+						SupportsCondition:                true,
+						SupportsCreateDelete:             true,
+						SupportsCreateDeleteSnapshot:     true,
+						SupportsExpand:                   true,
+						SupportsGet:                      true,
+						SupportsGetCapacity:              true,
+						SupportsListSnapshots:            true,
+						SupportsListVolumes:              true,
+						SupportsListVolumesAttachedNodes: true,
+						SupportsReadOnlyAttach:           true,
+					},
+					RequiresControllerPlugin: true,
+				},
+			}
+			c.Node.CSINodePlugins = map[string]*structs.CSIInfo{
+				plugID: {
+					PluginID: plugID,
+					Healthy:  true,
+					NodeInfo: &structs.CSINodeInfo{
+						ID:                c.Node.GetID(),
+						SupportsCondition: true,
+						SupportsExpand:    true,
+						SupportsStats:     true,
+					},
+				},
+			}
+		},
+		map[string]interface{}{"CSI": m}, // MockClientCSI
+	)
+	t.Cleanup(func() { test.NoError(t, cleanup()) })
+	testutil.WaitForClient(t, srv.RPC, c.NodeID(), c.Region())
+	t.Log("client started with fake CSI plugin 👍")
+
+	// Register a minimum-viable fake volume
+	req := &structs.CSIVolumeRegisterRequest{
+		Volumes: []*structs.CSIVolume{{
+			PluginID:  plugID,
+			ID:        volID,
+			Namespace: structs.DefaultNamespace,
+			RequestedCapabilities: []*structs.CSIVolumeCapability{
+				{
+					AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				},
+			},
+		}},
+		WriteRequest: structs.WriteRequest{Region: srv.Region()},
+	}
+	must.NoError(t, srv.RPC("CSIVolume.Register", req, &structs.CSIVolumeRegisterResponse{}))
+	t.Logf("CSI volume %s registered 👍", volID)
+
+	return c, m, plugID, volID
 }
