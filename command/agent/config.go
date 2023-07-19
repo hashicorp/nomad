@@ -1334,7 +1334,7 @@ func DefaultConfig() *Config {
 				MinTermLength: 2,
 			},
 			JobMaxSourceSize:   pointer.Of("1M"),
-			JobTrackedVersions: pointer.Of(6),
+			JobTrackedVersions: pointer.Of(structs.JobTrackedVersions),
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
