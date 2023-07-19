@@ -451,6 +451,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	}
 
+	// SETH can we move wrangler creation and assignment here?
+	// setting the config that has been updated (?) modified (?) by the
+	// fingerprinter first pass
+
 	// Build the allow/denylists of drivers.
 	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
 	allowlistDrivers := cfg.ReadStringListToMap("driver.allowlist", "driver.whitelist")
