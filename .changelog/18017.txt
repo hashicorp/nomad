@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where namespace were not canonicalize on snapshot restore, resulting in potential nil access panic
+```
