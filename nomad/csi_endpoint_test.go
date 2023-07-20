@@ -19,7 +19,6 @@ import (
 	cconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1981,18 +1980,24 @@ func TestCSI_SerializedControllerRPC(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(3)
 
-	timeCh := make(chan lang.Pair[string, time.Duration])
+	timeCh := make(chan struct {
+		pluginID string
+		dur      time.Duration
+	})
 
 	testFn := func(pluginID string, dur time.Duration) {
 		defer wg.Done()
-		c := NewCSIVolumeEndpoint(srv, nil)
+		c := &CSIVolume{srv: srv, logger: nil}
 		now := time.Now()
 		err := c.serializedControllerRPC(pluginID, func() error {
 			time.Sleep(dur)
 			return nil
 		})
 		elapsed := time.Since(now)
-		timeCh <- lang.Pair[string, time.Duration]{pluginID, elapsed}
+		timeCh <- struct {
+			pluginID string
+			dur      time.Duration
+		}{pluginID, elapsed}
 		must.NoError(t, err)
 	}
 
@@ -2002,8 +2007,8 @@ func TestCSI_SerializedControllerRPC(t *testing.T) {
 
 	totals := map[string]time.Duration{}
 	for i := 0; i < 3; i++ {
-		pair := <-timeCh
-		totals[pair.First] += pair.Second
+		result := <-timeCh
+		totals[result.pluginID] += result.dur
 	}
 
 	wg.Wait()
