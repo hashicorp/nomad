@@ -26,10 +26,18 @@ func New(configs *Configs) *Wranglers {
 	return nil
 }
 
-func (w *Wranglers) SetAttributes(m map[string]string) {
+func (w *Wranglers) SystemCompute() {
 	// todo
 }
 
-func (w *Wranglers) TotalCompute() {
+func (w *Wranglers) UsableCompute() {
+	// todo
+}
 
+func (w *Wranglers) SystemCores() {
+	// todo
+}
+
+func (w *Wranglers) UsableCores() {
+	// todo
 }
