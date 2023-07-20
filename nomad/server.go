@@ -218,6 +218,13 @@ type Server struct {
 	// volumeWatcher is used to release volume claims
 	volumeWatcher *volumewatcher.Watcher
 
+	// volumeControllerFutures is a map of plugin IDs to pending controller RPCs. If
+	// no RPC is pending for a given plugin, this may be nil.
+	volumeControllerFutures map[string]context.Context
+
+	// volumeControllerLock synchronizes access controllerFutures map
+	volumeControllerLock sync.Mutex
+
 	// keyringReplicator is used to replicate root encryption keys from the
 	// leader
 	keyringReplicator *KeyringReplicator
@@ -445,6 +452,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		s.logger.Error("failed to create volume watcher", "error", err)
 		return nil, fmt.Errorf("failed to create volume watcher: %v", err)
 	}
+	s.volumeControllerFutures = map[string]context.Context{}
 
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
