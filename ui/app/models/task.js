@@ -82,4 +82,20 @@ export default class Task extends Fragment {
       );
     }
   }
+
+  // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
+  async getPathLinkedVariable() {
+    if (!this._job) {
+      await this._fetchParentJob();
+    }
+    await this._job.variables;
+    let jobID = this._job.plainId;
+    if (this._job.parent.get('plainId')) {
+      jobID = this._job.parent.get('plainId');
+    }
+    return await this._job.variables?.findBy(
+      'path',
+      `nomad/jobs/${jobID}/${this.taskGroup.name}/${this.name}`
+    );
+  }
 }

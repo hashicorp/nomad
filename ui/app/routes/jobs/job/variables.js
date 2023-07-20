@@ -19,9 +19,45 @@ export default class JobsJobVariablesRoute extends Route {
     }
   }
   async model() {
-    const variables = await this.store.findAll('variable', {
-      reload: true,
+    let job = this.modelFor('jobs.job');
+    let taskGroups = job.taskGroups;
+    // let tasks = taskGroups.map((tg) => tg.tasks).flat();
+    let tasks = taskGroups.map((tg) => tg.tasks.toArray()).flat();
+    tasks.forEach((task) => {
+      if (!task._job) {
+        task._job = job;
+      }
     });
+
+    let jobVariable = await job.getPathLinkedVariable();
+    console.log('job first', jobVariable);
+    let groupVariables = await Promise.all(
+      taskGroups.map((tg) => tg.getPathLinkedVariable())
+    );
+    console.log('then gruppes', groupVariables);
+    // let jobVariable = await job.pathLinkedVariable;
+    let taskVariables = await Promise.all(
+      tasks.map((task) => task.getPathLinkedVariable())
+    );
+
+    let allJobsVariable;
+    try {
+      allJobsVariable = await this.store.findRecord('variable', 'nomad/jobs');
+      console.log('allJobsVariable', allJobsVariable);
+    } catch (error) {
+      console.log('allJobsVariable error', error);
+    }
+    console.log('tasks then', taskVariables);
+    // const variables = await this.store.findAll('variable', {
+    //   reload: true,
+    // });
+
+    const variables = [
+      allJobsVariable,
+      jobVariable,
+      ...groupVariables,
+      ...taskVariables,
+    ].compact();
     return { variables, job: this.modelFor('jobs.job') };
   }
 }

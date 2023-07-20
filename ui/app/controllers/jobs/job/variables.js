@@ -6,6 +6,7 @@
 // @ts-check
 
 import Controller from '@ember/controller';
+import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 // eslint-disable-next-line no-unused-vars
 import VariableModel from '../../../models/variable';
@@ -47,21 +48,35 @@ export default class JobsJobVariablesController extends Controller {
       .slice(0, 2);
   }
 
+  @computed('job.taskGroups.@each.tasks')
+  get taskGroupTasksVariables() {
+    return this.job.taskGroups.reduce((acc, tg) => {
+      return acc.concat(tg.tasks.mapBy('pathLinkedVariable'));
+    }, []);
+  }
+
   /**
    * @returns {import("../../../utils/path-tree").VariableFolder}
    */
+  // Compute on the taskGroups' tasks' variables
+  @computed(
+    'job.taskGroups.@each.pathLinkedVariable',
+    'job.taskGroups.@each.tasks.@each.pathLinkedVariable'
+  )
   get jobRelevantVariables() {
     /**
      * @type {MutableArray<VariableModel>}
      */
-    let flatVariables = A([
-      this.variables.findBy('path', 'nomad/jobs'),
-      this.job.pathLinkedVariable,
-      ...this.job.taskGroups.mapBy('pathLinkedVariable'),
-      ...this.job.taskGroups
-        .map((tg) => tg.tasks.mapBy('pathLinkedVariable'))
-        .flat(),
-    ]).compact();
+    // console.log('jRV', this.job.taskGroups.map((tg) => tg.tasks.mapBy('pathLinkedVariable')).flat());
+    // let flatVariables = A([
+    //   this.variables.findBy('path', 'nomad/jobs'),
+    //   this.job.pathLinkedVariable,
+    //   ...this.job.taskGroups.mapBy('pathLinkedVariable'),
+    //   ...this.taskGroupTasksVariables,
+    // ]).compact();
+
+    let flatVariables = this.variables;
+    console.log('flatvars then', flatVariables);
 
     /**
      * @type {import("../../../utils/path-tree").VariableFile[]}

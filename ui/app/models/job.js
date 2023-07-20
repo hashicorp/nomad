@@ -17,7 +17,6 @@ const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
 @classic
 export default class Job extends Model {
-  @service store;
   @attr('string') region;
   @attr('string') name;
   @attr('string') plainId;
@@ -366,6 +365,19 @@ export default class Job extends Model {
       );
     } else {
       return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+    }
+  }
+
+  // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
+  async getPathLinkedVariable() {
+    await this.variables;
+    if (this.parent.get('id')) {
+      return await this.variables?.findBy(
+        'path',
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
+      );
+    } else {
+      return await this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
     }
   }
 }

@@ -258,7 +258,6 @@ export default class VariableFormComponent extends Component {
       });
 
       if (this.args.model.pathLinkedEntities?.job) {
-        console.log('can i read job', this.can.can('read job'));
         if (
           (this.can.can('read job'),
           null,
