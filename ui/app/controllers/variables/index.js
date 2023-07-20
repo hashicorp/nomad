@@ -20,6 +20,10 @@ export default class VariablesIndexController extends Controller {
     this.router.transitionTo('variables.variable', variable.path);
   }
 
+  @action goToNewVariable() {
+    this.router.transitionTo('variables.new');
+  }
+
   @controller variables;
 
   @action
