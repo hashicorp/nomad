@@ -11,7 +11,6 @@ import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
-import { inject as service } from '@ember/service';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 

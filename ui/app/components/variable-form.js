@@ -257,16 +257,12 @@ export default class VariableFormComponent extends Component {
         color: 'success',
       });
 
-      if (this.args.model.pathLinkedEntities?.job) {
-        if (
-          (this.can.can('read job'),
-          null,
-          {
-            namespace: this.variableNamespace || 'default',
-          })
-        ) {
-          this.updateJobVariables(this.args.model.pathLinkedEntities.job);
-        }
+      if (
+        this.can.can('read job', null, {
+          namespace: this.variableNamespace || 'default',
+        })
+      ) {
+        this.updateJobVariables(this.args.model.pathLinkedEntities.job);
       }
 
       this.removeExitHandler();
