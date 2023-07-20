@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -272,21 +273,46 @@ func (a *ClientCSI) clientIDsForController(pluginID string) ([]string, error) {
 
 	clientIDs := []string{}
 
+	if len(plugin.Controllers) == 0 {
+		return nil, fmt.Errorf("failed to find instances of controller plugin %q", pluginID)
+	}
+
+	var merr error
 	for clientID, controller := range plugin.Controllers {
-		if !controller.IsController() || !controller.Healthy {
-			// we don't have separate types for CSIInfo depending on
-			// whether it's a controller or node. this error shouldn't
-			// make it to production but is to aid developers during
-			// development
+		if !controller.IsController() {
+			// we don't have separate types for CSIInfo depending on whether
+			// it's a controller or node. this error should never make it to
+			// production
+			merr = errors.Join(merr, fmt.Errorf(
+				"plugin instance %q is not a controller but was registered as one - this is always a bug", controller.AllocID))
 			continue
 		}
-		node, err := getNodeForRpc(snap, clientID)
-		if err == nil && node != nil && node.Ready() {
-			clientIDs = append(clientIDs, clientID)
+
+		if !controller.Healthy {
+			merr = errors.Join(merr, fmt.Errorf(
+				"plugin instance %q is not healthy", controller.AllocID))
+			continue
 		}
+
+		node, err := getNodeForRpc(snap, clientID)
+		if err != nil || node == nil {
+			merr = errors.Join(merr, fmt.Errorf(
+				"cannot find node %q for plugin instance %q", clientID, controller.AllocID))
+			continue
+		}
+
+		if node.Status != structs.NodeStatusReady {
+			merr = errors.Join(merr, fmt.Errorf(
+				"node %q for plugin instance %q is not ready", clientID, controller.AllocID))
+			continue
+		}
+
+		clientIDs = append(clientIDs, clientID)
 	}
+
 	if len(clientIDs) == 0 {
-		return nil, fmt.Errorf("failed to find clients running controller plugin %q", pluginID)
+		return nil, fmt.Errorf("failed to find clients running controller plugin %q: %v",
+			pluginID, merr)
 	}
 
 	// Many plugins don't handle concurrent requests as described in the spec,
