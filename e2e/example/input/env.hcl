@@ -23,6 +23,7 @@ job "env" {
     }
 
     task "task" {
+      user   = "nobody"
       driver = "raw_exec"
 
       config {

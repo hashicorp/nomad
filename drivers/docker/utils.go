@@ -103,7 +103,7 @@ func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 }
 
 // authFromDockerConfig generate an authBackend for a dockercfg-compatible file.
-// The authBackend can either be from explicit auth definitions or via credential
+// The authBacken can either be from explicit auth definitions or via credential
 // helpers
 func authFromDockerConfig(file string) authBackend {
 	return func(repo string) (*docker.AuthConfiguration, error) {
