@@ -11,10 +11,14 @@ import (
 )
 
 const (
-	sysRoot      = "/sys/devices/system"
-	nodeOnline   = sysRoot + "/node/online"
-	distanceFile = sysRoot + "/node/node%d/distance"
-	cpulistFile  = sysRoot + "/node/node%d/cpulist"
+	sysRoot       = "/sys/devices/system"
+	nodeOnline    = sysRoot + "/node/online"
+	cpuOnline     = sysRoot + "/cpu/online"
+	distanceFile  = sysRoot + "/node/node%d/distance"
+	cpulistFile   = sysRoot + "/node/node%d/cpulist"
+	cpuMaxFile    = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
+	cpuBaseFile   = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_base_freq"
+	cpuSocketFile = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
 )
 
 func ScanSysfs() *Topology {
@@ -37,13 +41,10 @@ var (
 )
 
 func discoverOnline(st *Topology) {
-	s, err := os.ReadFile(nodeOnline)
-	if err != nil {
-		return
+	ids, err := getIDSet[nodeID](nodeOnline)
+	if err == nil {
+		st.nodes = ids
 	}
-
-	ids := idset.Parse[nodeID](string(s))
-	st.nodes = ids
 }
 
 func discoverCosts(st *Topology) {
@@ -54,7 +55,7 @@ func discoverCosts(st *Topology) {
 	}
 
 	_ = st.nodes.ForEach(func(id nodeID) error {
-		s, err := os.ReadFile(fmt.Sprintf(distanceFile, id))
+		s, err := getString(distanceFile, id)
 		if err != nil {
 			return err
 		}
@@ -68,14 +69,74 @@ func discoverCosts(st *Topology) {
 }
 
 func discoverCores(st *Topology) {
-	_ = st.nodes.ForEach(func(id nodeID) error {
-		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, id))
+	onlineCores, err := getIDSet[coreID](cpuOnline)
+	if err != nil {
+		return
+	}
+	st.cpus = make([]Core, onlineCores.Size())
+
+	_ = st.nodes.ForEach(func(node nodeID) error {
+		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
 		if err != nil {
 			return err
 		}
 
-		ids := idset.Parse[coreID](string(s))
-		fmt.Println("node", id, "core ids", ids)
+		cores := idset.Parse[coreID](string(s))
+		fmt.Println("node", node, "core ids", cores)
+		_ = cores.ForEach(func(core coreID) error {
+			socket, err := getNumeric[socketID](cpuSocketFile, core)
+			if err != nil {
+				fmt.Println("err", err)
+				return err
+			}
+
+			max, err := getNumeric[hz](cpuMaxFile, core)
+			if err != nil {
+				fmt.Println("err", err)
+				return err
+			}
+
+			st.insert(node, socket, core, max, 0)
+			return nil
+		})
 		return nil
 	})
 }
+
+func getIDSet[T idset.ID](path string, args ...any) (*idset.Set[T], error) {
+	path = fmt.Sprintf(path, args...)
+	s, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return idset.Parse[T](string(s)), nil
+}
+
+func getNumeric[T int | idset.ID](path string, args ...any) (T, error) {
+	path = fmt.Sprintf(path, args...)
+	s, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	i, err := strconv.Atoi(strings.TrimSpace(string(s)))
+	if err != nil {
+		return 0, err
+	}
+	return T(i), nil
+}
+
+func getString(path string, args ...any) (string, error) {
+	path = fmt.Sprintf(path, args...)
+	s, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(s)), nil
+}
+
+// YOU ARE HERE
+// - P v E detection?
+// base freq?
+
+// fallbacks ?
+// better error handling?

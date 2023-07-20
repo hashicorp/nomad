@@ -5,6 +5,9 @@
 package numalib
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/hashicorp/nomad/client/lib/idset"
 )
 
@@ -12,6 +15,7 @@ type (
 	nodeID   uint8
 	socketID uint8
 	coreID   uint16
+	hz       uint64
 	Latency  uint8
 )
 
@@ -19,7 +23,22 @@ type (
 type Topology struct {
 	nodes     *idset.Set[nodeID]
 	distances distances
-	sockets   []Socket
+	cpus      []Core
+}
+
+type Core struct {
+	node   nodeID
+	socket socketID
+	id     coreID
+	max    hz
+	base   hz
+}
+
+func (c Core) String() string {
+	return fmt.Sprintf(
+		"(%d %d %d %d %d)",
+		c.node, c.socket, c.id, c.max, c.base,
+	)
 }
 
 type distances [][]Latency
@@ -28,15 +47,20 @@ func (d distances) cost(a, b nodeID) Latency {
 	return d[a][b]
 }
 
-// Socket represents one physical I.C. that plugs into the motherboard. There
-// can be one or more scokets in a system. Also called a package.
-type Socket struct {
-	id    uint8
-	cores []Core
+func (st *Topology) insert(node nodeID, socket socketID, core coreID, max, base hz) {
+	st.cpus[core] = Core{
+		node:   node,
+		socket: socket,
+		id:     core,
+		max:    max,
+		base:   base,
+	}
 }
 
-type Core struct {
-	id      uint16
-	threads uint8
-	node    uint8
+func (st *Topology) String() string {
+	var sb strings.Builder
+	for _, cpu := range st.cpus {
+		sb.WriteString(cpu.String())
+	}
+	return sb.String()
 }
