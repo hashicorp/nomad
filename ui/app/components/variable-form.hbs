@@ -10,7 +10,8 @@
   {{#if @model.isNew}}
     {{#unless this.isJobTemplateVariable}}
       <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+        <p>Prefix your path with <code>nomad/jobs</code> to automatically make your variable accessible to all jobs. <br />
+        Adding job name, group name, or task name will make your variable available to that specific job, group, or task. <br />
         Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>
     {{/unless}}
