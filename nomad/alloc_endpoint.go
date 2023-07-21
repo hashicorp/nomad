@@ -340,17 +340,12 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 		return structs.ErrPermissionDenied
 	}
 
-	// Ensure the request is from an authenticated node
-	nodeID := args.GetIdentity()
-	if nodeID == nil {
-		return structs.ErrPermissionDenied
-	}
-	if nodeID.ClientID == "" {
-		// Not a Node ID, reject
-		return structs.ErrPermissionDenied
-	}
-
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_identities"}, time.Now())
+
+	if len(args.Identities) == 0 {
+		// Client bug
+		return fmt.Errorf("no identities requested")
+	}
 
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -374,6 +369,7 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 					thresholdMet = true
 					break
 				}
+				a.logger.Debug("threshold not met", "min", args.QueryOptions.MinQueryIndex, "max", out.ModifyIndex)
 			}
 
 			// If we could not find an alloc updated after the desired index, note
@@ -399,18 +395,6 @@ func (a *Alloc) GetIdentities(args *structs.AllocIdentitiesRequest, reply *struc
 				if out == nil {
 					// Alloc may have been GC'd and therefore should not be able to get
 					// new identities.
-					reply.Rejections = append(reply.Rejections, structs.WorkloadIdentityRejection{
-						WorkloadIdentityRequest: idReq,
-						Reason:                  structs.WIRejectionReasonMissingAlloc,
-					})
-					continue
-				}
-
-				if out.NodeID != nodeID.ClientID {
-					// Mismatch between requesting node id and alloc's node id. This is
-					// likely a bug, but could be a malicious attempt to steal workload
-					// identities. Return NotFound to avoid divulging sensitive
-					// information.
 					reply.Rejections = append(reply.Rejections, structs.WorkloadIdentityRejection{
 						WorkloadIdentityRequest: idReq,
 						Reason:                  structs.WIRejectionReasonMissingAlloc,

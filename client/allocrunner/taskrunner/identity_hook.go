@@ -181,7 +181,6 @@ func (h *identityHook) getSignedIDs(missingIDs map[string]*structs.WorkloadIdent
 		})
 	}
 
-	//TODO(schmichael) plumb in rpc
 	tokens, err := h.widMgr.GetIdentities(h.ctx, h.allocIndex, ids)
 	if err != nil {
 		return err
@@ -220,6 +219,7 @@ func (h *identityHook) run(nextExp time.Time) {
 	// req is a list of identities to request be signed
 	req := make([]structs.WorkloadIdentityRequest, len(origWIDSpecs))
 	for i, widspec := range origWIDSpecs {
+		widspecs[widspec.Name] = widspec
 		req[i] = structs.WorkloadIdentityRequest{
 			AllocID:      h.tr.allocID,
 			TaskName:     h.taskName,
@@ -251,6 +251,15 @@ func (h *identityHook) run(nextExp time.Time) {
 			h.logger.Warn("failed to get workload identities", "error", err, "retry_in", wait)
 			continue
 		}
+		if len(tokens) == 0 {
+			// Wait and retry
+			//TODO standardize somewhere? base it off something meaningful?!
+			const base = 10 * time.Second
+			const jitter = 20 * time.Second
+			timer.Reset(base + helper.RandomStagger(jitter))
+			h.logger.Warn("failed to get workload identities", "error", "no tokens", "retry_in", wait)
+			continue
+		}
 
 		var minExp time.Time
 
@@ -270,12 +279,15 @@ func (h *identityHook) run(nextExp time.Time) {
 				return
 			}
 
+			h.logger.Debug(">>>> minexp", "minexp", minExp, "token", widspec.Name, "exp", token.Exp)
 			if minExp.IsZero() || minExp.After(token.Exp) {
 				minExp = token.Exp
 			}
 		}
 
-		timer.Reset(keymgr.ExpiryToRenewTime(minExp, time.Now))
+		wait = keymgr.ExpiryToRenewTime(minExp, time.Now)
+		h.logger.Debug("waiting to renew tokens", "wait_until", wait)
+		timer.Reset(wait)
 	}
 }
 

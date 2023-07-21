@@ -5,7 +5,9 @@ package keymgr
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -141,7 +143,7 @@ func (c *PubKeyCache) Run() {
 func (c *PubKeyCache) ParseJWT(ctx context.Context, raw string) (*structs.IdentityClaims, error) {
 	token, err := jwt.ParseSigned(raw)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing jwt: %w", err)
 	}
 
 	keyID, err := joseutil.KeyID(token)
@@ -155,7 +157,7 @@ func (c *PubKeyCache) ParseJWT(ctx context.Context, raw string) (*structs.Identi
 	}
 
 	ic := structs.IdentityClaims{}
-	if err := token.Claims(pubKey.PublicKey, &ic); err != nil {
+	if err := token.Claims(ed25519.PublicKey(pubKey.PublicKey), &ic); err != nil {
 		return nil, err
 	}
 

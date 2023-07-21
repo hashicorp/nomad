@@ -44,6 +44,7 @@ func NewWIDMgr(c WIDMgrConfig) *WIDMgr {
 
 func (m *WIDMgr) GetIdentities(ctx context.Context, minIndex uint64, req []structs.WorkloadIdentityRequest) ([]IdentityToken, error) {
 	args := structs.AllocIdentitiesRequest{
+		Identities: req,
 		QueryOptions: structs.QueryOptions{
 			Region:        m.region,
 			MinQueryIndex: minIndex,
@@ -67,12 +68,12 @@ func (m *WIDMgr) GetIdentities(ctx context.Context, minIndex uint64, req []struc
 		claims, err := m.pubKeyCache.ParseJWT(ctx, sid.JWT)
 		if err != nil {
 			//TODO what to do about errors? add to rejections?
-			m.logger.Error("wat")
+			m.logger.Error("error parsing or validating jwt", "error", err, "jwt", sid.JWT, "sid", sid.IdentityName)
 			continue
 		}
 
 		ids = append(ids, IdentityToken{
-			Name: sid.TaskName,
+			Name: sid.IdentityName,
 			JWT:  sid.JWT,
 			Exp:  claims.Expiry.Time(),
 		})
