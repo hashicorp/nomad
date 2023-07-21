@@ -984,13 +984,50 @@ module('Acceptance | variables', function (hooks) {
     });
   });
 
-  // module('Job Variables Page', function () {
-  //   // Test: If the user has no variable read access, no subnav exists
-  //   // Test: If the user has variable read access, but no variables, the subnav exists but contains only a message
-  //   // Test: If the user has variable read access, and variables, the subnav exists and contains a list of variables
-  //   // Test: The nomad/jobs variable is always included if it exists
-  //   // Test: Multiple task variables are included, and make a maximum of 1 API request
-  //   // Test: Intro text shows examples of variables at groups and tasks
-  //   // Test: No variables + variable write access gets a link to create one, otehrwise no link.
-  // });
+  module('Job Variables Page', function () {
+    // Test: If the user has no variable read access, no subnav exists
+    test('If the user has no variable read access, no subnav exists', async function (assert) {
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find('n0-v4r5-4cc355');
+      // const variablesToken = server.db.tokens.find("f3w3r-53cur3-v4r14bl35");
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await visit(
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
+      );
+      console.log('currentURL', currentURL());
+      // Variables tab isn't in subnav
+      assert.dom('[data-test-tab="variables"]').doesNotExist();
+
+      // Attempting to access it directly will boot you to /jobs
+      await visit(
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`
+      );
+      assert.equal(currentURL(), '/jobs?namespace=*');
+
+      window.localStorage.nomadTokenSecret = null; // Reset Token
+    });
+    // Test: If the user has variable read access, but no variables, the subnav exists but contains only a message
+    test('If the user has variable read access, but no variables, the subnav exists but contains only a message', async function (assert) {
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await visit(
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
+      );
+      assert.dom('[data-test-tab="variables"]').exists();
+      await click('[data-test-tab="variables"] a');
+      assert.equal(
+        currentURL(),
+        `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`
+      );
+    });
+
+    // Test: If the user has variable read access, and variables, the subnav exists and contains a list of variables
+    // Test: The nomad/jobs variable is always included if it exists
+    // Test: Multiple task variables are included, and make a maximum of 1 API request
+    // Test: Intro text shows examples of variables at groups and tasks
+    // Test: No variables + variable write access gets a link to create one, otehrwise no link.
+    // Test: Notifications links differ from when you have 1 group/task and multiple
+    // Test: if a variable exists, the notification link goes to edit it; otherwise, creates new with pre-defined path
+  });
 });

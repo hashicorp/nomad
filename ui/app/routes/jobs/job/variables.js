@@ -18,7 +18,7 @@ export default class JobsJobVariablesRoute extends Route {
 
   beforeModel() {
     if (this.can.cannot('list variables')) {
-      this.router.transitionTo(`/jobs/job`);
+      this.router.transitionTo(`/jobs`);
     }
   }
   async model() {

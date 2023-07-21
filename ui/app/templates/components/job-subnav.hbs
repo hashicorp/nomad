@@ -84,15 +84,17 @@
         </LinkTo>
       </li>
     {{/unless}}
-    <li data-test-tab="variables">
-      <LinkTo
-        @route="jobs.job.variables"
-        @model={{@job}}
-        @activeClass="is-active"
-      >
-        Variables
-      </LinkTo>
-    </li>
+    {{#if (can "list variables")}}
+      <li data-test-tab="variables">
+        <LinkTo
+          @route="jobs.job.variables"
+          @model={{@job}}
+          @activeClass="is-active"
+        >
+          Variables
+        </LinkTo>
+      </li>
+    {{/if}}
 
   </ul>
 </div>
