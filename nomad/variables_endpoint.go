@@ -21,13 +21,89 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+var (
+	errVarIsLocked = errors.New("var is already lock")
+)
+
+type lockedVars interface {
+	Create(id string, ttl time.Duration, afterFn func())
+	StopAndRemove(id string)
+	Get(id string) *time.Timer
+}
+
+func (sv *Variables) startLockLease(vm structs.VariableMetadata, wr structs.WriteRequest) {
+	lockID := fmt.Sprintf("%s:%s", vm.Namespace, vm.Path)
+
+	lock := sv.lockedVars.Get(lockID)
+	if lock != nil {
+		// If this was to happen, there is a sync issue somewhere else
+		sv.logger.Error("attempting to lock a locked variable: %s", lockID)
+	}
+
+	sv.lockedVars.Create(lockID, vm.Lock.TTL, func() {
+		_ = time.AfterFunc(vm.Lock.LockDelay, func() {
+			args := structs.VarApplyStateRequest{
+				Op: structs.VarOpLockRelease,
+				Var: &structs.VariableEncrypted{
+					VariableMetadata: vm,
+				},
+				WriteRequest: wr,
+			}
+
+			// Retry with exponential backoff to remove the lock
+			for attempt := 0; attempt < 6; attempt++ {
+				_, _, err := sv.srv.raftApply(structs.VarApplyStateRequestType, args)
+				if err == nil {
+					sv.lockedVars.StopAndRemove(lockID)
+					return
+				}
+				sv.logger.Error("variable lock expiration failed",
+					"namespace", vm.Namespace, "path", vm.Path,
+					"lock_id", lockID, "error", err)
+				// This exponential backoff will extend the lock Delay beyond the expected
+				// time if there is any raft error.
+				time.Sleep((1 << attempt) * 10 * time.Second)
+			}
+
+		})
+	})
+	return
+}
+
+func (sv *Variables) stopLockLease(vm structs.VariableMetadata) {
+	lockID := fmt.Sprintf("%s:%s", vm.Namespace, vm.Path)
+
+	lock := sv.lockedVars.Get(lockID)
+	if lock != nil {
+		// If this was to happen, there is a sync issue somewhere else
+		sv.logger.Debug("attempting to release an unlocked variable: %s", lockID)
+	}
+
+	sv.lockedVars.StopAndRemove(lockID)
+}
+
+func (sv *Variables) renewLockLease(vm structs.VariableMetadata) {
+	lockID := fmt.Sprintf("%s:%s", vm.Namespace, vm.Path)
+
+	lock := sv.lockedVars.Get(lockID)
+	if lock != nil {
+		// If this was to happen, there is a sync issue somewhere else.
+		sv.logger.Debug("attempting to release an unlocked variable: %s", lockID)
+	}
+
+	// The create function resets the timer when it exists already, there is no need to provide the
+	// release function again.
+	sv.lockedVars.Create(lockID, vm.Lock.TTL, nil)
+}
+
 // Variables encapsulates the variables RPC endpoint which is
 // callable via the Variables RPCs and externally via the "/v1/var{s}"
 // HTTP API.
 type Variables struct {
-	srv    *Server
-	ctx    *RPCContext
-	logger hclog.Logger
+	srv        *Server
+	ctx        *RPCContext
+	logger     hclog.Logger
+	lockedVars lockedVars
 
 	encrypter *Encrypter
 }
@@ -139,8 +215,17 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	if err != nil {
 		return err
 	}
+
 	*reply = *r
 	reply.Index = index
+
+	switch args.Op {
+	case structs.VarOpLockAcquire:
+		sv.startLockLease(sveArgs.Var.VariableMetadata, args.WriteRequest)
+	case structs.VarOpLockRelease:
+		sv.stopLockLease(sveArgs.Var.VariableMetadata)
+	}
+
 	return nil
 }
 
@@ -675,10 +760,10 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return errors.New("")
 	}
 
-	// TODO: TTL timer.
-	//  use server TTL method or similar to update the TTL timer with new
-	//  expiry.
 	*reply.VarMeta = encryptedVar.Copy().VariableMetadata
 	reply.Index = encryptedVar.ModifyIndex
+
+	sv.renewLockLease(encryptedVar.VariableMetadata)
+
 	return nil
 }

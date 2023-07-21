@@ -1001,7 +1001,9 @@ func (s *Server) createVariableLockTTLTimer(variable *structs.VariableEncrypted)
 	// The lock ID is used a couple of times, so grab this now.
 	lockID := variable.LockID()
 
-	s.lockTTLTimer.Create(lockID, lockTTL, func() { s.invalidateVariableLock(lockID, variable) })
+	s.lockTTLTimer.Create(lockID, lockTTL, func() {
+		s.invalidateVariableLock(lockID, variable)
+	})
 }
 
 // invalidateVariableLock exponentially tries to update Nomad's state to remove
