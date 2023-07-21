@@ -64,18 +64,14 @@
   @branch={{this.jobRelevantVariables}}
 />
 {{else}}
-  <p>
-    Job <strong>{{this.model.job.name}}</strong> does not currently have access to any variables.
-
+  <section class="job-variables-message">
+    <p data-test-no-auto-vars-message>
+      Job <strong>{{this.model.job.name}}</strong> does not have automatic access to any variables, but may have access by virtue of policies associated with this job's tasks' workload identities. See <a href="https://developer.hashicorp.com/nomad/docs/concepts/workload-identity#workload-associated-acl-policies" target="_blank" rel="noopener noreferrer">Workload-Associated ACL Policies</a> for more information.
+    </p>
     {{#if (can "write variable")}}
-      <LinkTo
-        @route="variables.new"
-        @query={{hash path=(concat "nomad/jobs/" this.model.job.name)}}
-      >
-        Create a Variable
-      </LinkTo> to get started.
+      <Hds::Button data-test-create-variable-button @text="Create a Variable" @size="large" @route="variables.new" @query={{hash path=(concat "nomad/jobs/" this.model.job.name)}} />
     {{/if}}
-  </p>
+  </section>
 {{/if}}
 
 

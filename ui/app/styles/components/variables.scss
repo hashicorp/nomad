@@ -224,6 +224,12 @@ table.variable-items {
   }
 }
 
+.job-variables-message {
+  p {
+    margin-bottom: 1rem;
+  }
+}
+
 @keyframes slide-in {
   0% {
     top: 10px;

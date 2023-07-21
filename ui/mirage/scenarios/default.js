@@ -204,6 +204,7 @@ function smallCluster(server) {
     'just some arbitrary file',
     'another arbitrary file',
     'another arbitrary file again',
+    'nomad/jobs',
   ].forEach((path) => server.create('variable', { id: path }));
 
   server.create('variable', {

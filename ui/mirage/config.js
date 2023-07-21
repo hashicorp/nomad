@@ -964,7 +964,7 @@ export default function () {
     if (!variable) {
       return new Response(404, {}, {});
     }
-    return variables.find(params.id);
+    return variable;
   });
 
   this.put('/var/:id', function (schema, request) {

@@ -985,11 +985,9 @@ module('Acceptance | variables', function (hooks) {
   });
 
   module('Job Variables Page', function () {
-    // Test: If the user has no variable read access, no subnav exists
     test('If the user has no variable read access, no subnav exists', async function (assert) {
       allScenarios.variableTestCluster(server);
       const variablesToken = server.db.tokens.find('n0-v4r5-4cc355');
-      // const variablesToken = server.db.tokens.find("f3w3r-53cur3-v4r14bl35");
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await visit(
         `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
@@ -1006,11 +1004,52 @@ module('Acceptance | variables', function (hooks) {
 
       window.localStorage.nomadTokenSecret = null; // Reset Token
     });
-    // Test: If the user has variable read access, but no variables, the subnav exists but contains only a message
+
     test('If the user has variable read access, but no variables, the subnav exists but contains only a message', async function (assert) {
       allScenarios.variableTestCluster(server);
       const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await visit(
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+      );
+      assert.dom('[data-test-tab="variables"]').exists();
+      await click('[data-test-tab="variables"] a');
+      assert.equal(
+        currentURL(),
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+      );
+      assert.dom('[data-test-no-auto-vars-message]').exists();
+      assert.dom('[data-test-create-variable-button]').doesNotExist();
+
+      window.localStorage.nomadTokenSecret = null; // Reset Token
+    });
+
+    test('If the user has variable write access, but no variables, the subnav exists but contains only a message and a create button', async function (assert) {
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find('53cur3-v4r14bl35');
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+      await visit(
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+      );
+      assert.dom('[data-test-tab="variables"]').exists();
+      await click('[data-test-tab="variables"] a');
+      assert.equal(
+        currentURL(),
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+      );
+      assert.dom('[data-test-no-auto-vars-message]').exists();
+      assert.dom('[data-test-create-variable-button]').exists();
+
+      await percySnapshot(assert);
+      window.localStorage.nomadTokenSecret = null; // Reset Token
+    });
+
+    test('If the user has variable read access, and variables, the subnav exists and contains a list of variables', async function (assert) {
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+      // in variablesTestCluster, job0 has path-linked variables, others do not.
       await visit(
         `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
       );
@@ -1020,11 +1059,58 @@ module('Acceptance | variables', function (hooks) {
         currentURL(),
         `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}/variables`
       );
+      assert.dom('[data-test-file-row]').exists({ count: 3 });
+      window.localStorage.nomadTokenSecret = null; // Reset Token
     });
 
-    // Test: If the user has variable read access, and variables, the subnav exists and contains a list of variables
-    // Test: The nomad/jobs variable is always included if it exists
-    // Test: Multiple task variables are included, and make a maximum of 1 API request
+    test('The nomad/jobs variable is always included, if it exists', async function (assert) {
+      allScenarios.variableTestCluster(server);
+      const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+      window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+      server.create('variable', {
+        id: 'nomad/jobs',
+        keyValues: [],
+      });
+
+      // in variablesTestCluster, job0 has path-linked variables, others do not.
+      await visit(
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+      );
+      assert.dom('[data-test-tab="variables"]').exists();
+      await click('[data-test-tab="variables"] a');
+      assert.equal(
+        currentURL(),
+        `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+      );
+      assert.dom('[data-test-file-row]').exists({ count: 1 });
+      assert.dom('[data-test-file-row="nomad/jobs"]').exists();
+    });
+
+    // test.only('Multiple task variables are included, and make a maximum of 1 API request', async function (assert) {
+    //   allScenarios.variableTestCluster(server);
+    //   const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+    //   window.localStorage.nomadTokenSecret = variablesToken.secretId;
+
+    //   server.create('variable', {
+    //     id: 'nomad/jobs',
+    //     keyValues: [],
+    //   });
+
+    //   // in variablesTestCluster, job0 has path-linked variables, others do not.
+    //   await visit(
+    //     `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
+    //   );
+    //   assert.dom('[data-test-tab="variables"]').exists();
+    //   await click('[data-test-tab="variables"] a');
+    //   assert.equal(
+    //     currentURL(),
+    //     `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
+    //   );
+    //   assert.dom('[data-test-file-row]').exists({ count: 1 });
+    //   assert.dom('[data-test-file-row="nomad/jobs"]').exists();
+    // });
+
     // Test: Intro text shows examples of variables at groups and tasks
     // Test: No variables + variable write access gets a link to create one, otehrwise no link.
     // Test: Notifications links differ from when you have 1 group/task and multiple

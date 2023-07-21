@@ -37,9 +37,12 @@ export default class JobsJobVariablesRoute extends Route {
 
     let allJobsVariable;
     try {
-      allJobsVariable = await this.store.findRecord('variable', 'nomad/yobs');
+      let variables = await this.store.query('variable', {
+        path: 'nomad/jobs',
+      });
+      allJobsVariable = variables.findBy('path', 'nomad/jobs');
     } catch (e) {
-      if (e.errors.findBy('status', 404)) {
+      if (e.errors?.findBy('status', 404)) {
         allJobsVariable = null;
       }
     }
