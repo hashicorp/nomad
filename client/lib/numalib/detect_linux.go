@@ -1,6 +1,8 @@
 package numalib
 
 import (
+	"github.com/shoenig/netlog"
+
 	"fmt"
 	"os"
 	"strconv"
@@ -86,11 +88,19 @@ func discoverCores(st *Topology) {
 				return err
 			}
 
-			max, err := getNumeric[Hz](cpuMaxFile, core)
+			max, err := getNumeric[KHz](cpuMaxFile, core)
 			if err != nil {
 				fmt.Println("err", err)
 				return err
 			}
+
+			base, err := getNumeric[KHz](cpuBaseFile, core)
+			if err != nil {
+				fmt.Println("err", err)
+				return err
+			}
+
+			netlog.Cyan("cpu", "max", uint64(max), "mhz", max)
 
 			siblings, err := getIDSet[coreID](cpuSiblingFile, core)
 			if err != nil {
@@ -98,7 +108,7 @@ func discoverCores(st *Topology) {
 				return err
 			}
 
-			st.insert(node, socket, core, gradeOf(siblings), max, 0)
+			st.insert(node, socket, core, gradeOf(siblings), max, base)
 			return nil
 		})
 		return nil

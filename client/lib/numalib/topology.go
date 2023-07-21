@@ -41,17 +41,17 @@ type (
 	nodeID   uint8
 	socketID uint8
 	coreID   uint16
-	Hz       uint64
+	KHz      uint64
 	MHz      uint64
 	GHz      float64
 	Latency  uint8
 )
 
-func (hz Hz) MHz() MHz {
-	return MHz(hz / 1_000_000)
+func (hz KHz) MHz() MHz {
+	return MHz(hz / 1000)
 }
 
-func (hz Hz) String() string {
+func (hz KHz) String() string {
 	return strconv.FormatUint(uint64(hz.MHz()), 10)
 }
 
@@ -67,9 +67,9 @@ type Core struct {
 	socket socketID
 	id     coreID
 	grade  grade
-	base   Hz // cpuinfo_base_freq (primary choice)
-	max    Hz // cpuinfo_max_freq (second choice)
-	guess  Hz // best effort (fallback)
+	base   MHz // cpuinfo_base_freq (primary choice)
+	max    MHz // cpuinfo_max_freq (second choice)
+	guess  MHz // best effort (fallback)
 }
 
 func (c Core) String() string {
@@ -79,7 +79,7 @@ func (c Core) String() string {
 	)
 }
 
-func (c Core) Hz() Hz {
+func (c Core) MHz() MHz {
 	switch {
 	case c.base > 0:
 		return c.base
@@ -95,14 +95,14 @@ func (d distances) cost(a, b nodeID) Latency {
 	return d[a][b]
 }
 
-func (st *Topology) insert(node nodeID, socket socketID, core coreID, grade grade, max, base Hz) {
+func (st *Topology) insert(node nodeID, socket socketID, core coreID, grade grade, max, base KHz) {
 	st.cpus[core] = Core{
 		node:   node,
 		socket: socket,
 		id:     core,
 		grade:  grade,
-		max:    max,
-		base:   base,
+		max:    max.MHz(),
+		base:   base.MHz(),
 	}
 }
 
@@ -114,10 +114,10 @@ func (st *Topology) String() string {
 	return sb.String()
 }
 
-func (st *Topology) TotalCompute() Hz {
-	var total Hz
+func (st *Topology) TotalCompute() MHz {
+	var total MHz
 	for _, cpu := range st.cpus {
-		total += cpu.Hz()
+		total += cpu.MHz()
 	}
 	return total
 }
@@ -146,14 +146,14 @@ func (st *Topology) NumECores() int {
 	return total
 }
 
-func (st *Topology) CoreSpeeds() (Hz, Hz) {
-	var pCore, eCore Hz
+func (st *Topology) CoreSpeeds() (MHz, MHz) {
+	var pCore, eCore MHz
 	for _, cpu := range st.cpus {
 		switch cpu.grade {
 		case performance:
-			pCore = cpu.Hz()
+			pCore = cpu.MHz()
 		case efficiency:
-			eCore = cpu.Hz()
+			eCore = cpu.MHz()
 		}
 	}
 	return pCore, eCore
