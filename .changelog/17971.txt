@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where the state of poststop tasks could be corrupted by client gc
+```
