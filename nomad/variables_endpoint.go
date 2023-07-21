@@ -67,7 +67,6 @@ func (sv *Variables) startLockLease(vm structs.VariableMetadata, wr structs.Writ
 
 		})
 	})
-	return
 }
 
 func (sv *Variables) stopLockLease(vm structs.VariableMetadata) {
