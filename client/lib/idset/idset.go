@@ -74,6 +74,22 @@ func Parse[T ID](list string) *Set[T] {
 	return result
 }
 
+func From[T, U ID](slice []U) *Set[T] {
+	result := Empty[T]()
+	for _, item := range slice {
+		result.items.Insert(T(item))
+	}
+	return result
+}
+
+func (s *Set[T]) Contains(item T) bool {
+	return s.items.Contains(item)
+}
+
+func (s *Set[T]) Insert(item T) {
+	s.items.Insert(item)
+}
+
 func (s *Set[T]) Slice() []T {
 	items := s.items.Slice()
 	slices.Sort(items)

@@ -23,19 +23,17 @@ const (
 	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
 )
 
-func ScanSysfs() *Topology {
-	st := new(Topology)
+type Sysfs struct{}
 
+func (s *Sysfs) ScanSystem(top *Topology) {
 	// detect the online numa nodes
-	discoverOnline(st)
+	discoverOnline(top)
 
 	// detect cross numa node latency costs
-	discoverCosts(st)
+	discoverCosts(top)
 
-	// detect cores
-	discoverCores(st)
-
-	return st
+	// detect core performance data
+	discoverCores(top)
 }
 
 func discoverOnline(st *Topology) {
@@ -67,7 +65,7 @@ func discoverCosts(st *Topology) {
 }
 
 func discoverCores(st *Topology) {
-	onlineCores, err := getIDSet[coreID](cpuOnline)
+	onlineCores, err := getIDSet[CoreID](cpuOnline)
 	if err != nil {
 		return
 	}
@@ -79,9 +77,9 @@ func discoverCores(st *Topology) {
 			return err
 		}
 
-		cores := idset.Parse[coreID](string(s))
+		cores := idset.Parse[CoreID](string(s))
 		fmt.Println("node", node, "core ids", cores)
-		_ = cores.ForEach(func(core coreID) error {
+		_ = cores.ForEach(func(core CoreID) error {
 			socket, err := getNumeric[socketID](cpuSocketFile, core)
 			if err != nil {
 				fmt.Println("err", err)
@@ -99,7 +97,7 @@ func discoverCores(st *Topology) {
 
 			netlog.Cyan("cpu", "max", uint64(max), "mhz", max, "base", base)
 
-			siblings, err := getIDSet[coreID](cpuSiblingFile, core)
+			siblings, err := getIDSet[CoreID](cpuSiblingFile, core)
 			if err != nil {
 				fmt.Println("err", err)
 				return err
@@ -144,8 +142,5 @@ func getString(path string, args ...any) (string, error) {
 }
 
 // YOU ARE HERE
-// - P v E detection?
-// base freq?
-
 // fallbacks ?
 // better error handling?

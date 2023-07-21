@@ -19,7 +19,7 @@ const (
 	efficiency  grade = false
 )
 
-func gradeOf(siblings *idset.Set[coreID]) grade {
+func gradeOf(siblings *idset.Set[CoreID]) grade {
 	switch siblings.Size() {
 	case 0, 1:
 		return efficiency
@@ -40,7 +40,7 @@ func (g grade) String() string {
 type (
 	nodeID   uint8
 	socketID uint8
-	coreID   uint16
+	CoreID   uint16
 	KHz      uint64
 	MHz      uint64
 	GHz      float64
@@ -60,16 +60,21 @@ type Topology struct {
 	nodes     *idset.Set[nodeID]
 	distances distances
 	cpus      []Core
+
+	// explicit overrides from client configuration
+	overrideTotalCompute   MHz
+	overrideWitholdCompute MHz
 }
 
 type Core struct {
-	node   nodeID
-	socket socketID
-	id     coreID
-	grade  grade
-	base   MHz // cpuinfo_base_freq (primary choice)
-	max    MHz // cpuinfo_max_freq (second choice)
-	guess  MHz // best effort (fallback)
+	node    nodeID
+	socket  socketID
+	id      CoreID
+	grade   grade
+	disable bool // indicates whether Nomad must not use this core
+	base    MHz  // cpuinfo_base_freq (primary choice)
+	max     MHz  // cpuinfo_max_freq (second choice)
+	guess   MHz  // best effort (fallback)
 }
 
 func (c Core) String() string {
@@ -95,7 +100,7 @@ func (d distances) cost(a, b nodeID) Latency {
 	return d[a][b]
 }
 
-func (st *Topology) insert(node nodeID, socket socketID, core coreID, grade grade, max, base KHz) {
+func (st *Topology) insert(node nodeID, socket socketID, core CoreID, grade grade, max, base KHz) {
 	st.cpus[core] = Core{
 		node:   node,
 		socket: socket,
@@ -122,6 +127,16 @@ func (st *Topology) TotalCompute() MHz {
 	return total
 }
 
+func (st *Topology) UsableCompute() MHz {
+	var total MHz
+	for _, cpu := range st.cpus {
+		if !cpu.disable {
+			total += cpu.MHz()
+		}
+	}
+	return total
+}
+
 func (st *Topology) NumCores() int {
 	return len(st.cpus)
 }
@@ -144,6 +159,16 @@ func (st *Topology) NumECores() int {
 		}
 	}
 	return total
+}
+
+func (st *Topology) UsableCores() *idset.Set[CoreID] {
+	result := idset.Empty[CoreID]()
+	for _, cpu := range st.cpus {
+		if !cpu.disable {
+			result.Insert(cpu.id)
+		}
+	}
+	return result
 }
 
 func (st *Topology) CoreSpeeds() (MHz, MHz) {
