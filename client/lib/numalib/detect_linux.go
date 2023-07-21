@@ -3,7 +3,6 @@ package numalib
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -11,14 +10,15 @@ import (
 )
 
 const (
-	sysRoot       = "/sys/devices/system"
-	nodeOnline    = sysRoot + "/node/online"
-	cpuOnline     = sysRoot + "/cpu/online"
-	distanceFile  = sysRoot + "/node/node%d/distance"
-	cpulistFile   = sysRoot + "/node/node%d/cpulist"
-	cpuMaxFile    = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
-	cpuBaseFile   = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_base_freq"
-	cpuSocketFile = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
+	sysRoot        = "/sys/devices/system"
+	nodeOnline     = sysRoot + "/node/online"
+	cpuOnline      = sysRoot + "/cpu/online"
+	distanceFile   = sysRoot + "/node/node%d/distance"
+	cpulistFile    = sysRoot + "/node/node%d/cpulist"
+	cpuMaxFile     = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
+	cpuBaseFile    = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_base_freq"
+	cpuSocketFile  = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
+	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
 )
 
 func ScanSysfs() *Topology {
@@ -35,10 +35,6 @@ func ScanSysfs() *Topology {
 
 	return st
 }
-
-var (
-	distanceRe = regexp.MustCompile(`^/sys/devices/system/node/node([\d]+)/distance$`)
-)
 
 func discoverOnline(st *Topology) {
 	ids, err := getIDSet[nodeID](nodeOnline)
@@ -90,13 +86,19 @@ func discoverCores(st *Topology) {
 				return err
 			}
 
-			max, err := getNumeric[hz](cpuMaxFile, core)
+			max, err := getNumeric[Hz](cpuMaxFile, core)
 			if err != nil {
 				fmt.Println("err", err)
 				return err
 			}
 
-			st.insert(node, socket, core, max, 0)
+			siblings, err := getIDSet[coreID](cpuSiblingFile, core)
+			if err != nil {
+				fmt.Println("err", err)
+				return err
+			}
+
+			st.insert(node, socket, core, gradeOf(siblings), max, 0)
 			return nil
 		})
 		return nil
