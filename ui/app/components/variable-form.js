@@ -292,6 +292,9 @@ export default class VariableFormComponent extends Component {
    * and force an update to the job's pathLinkedVariable getter.
    */
   async updateJobVariables(jobName) {
+    if (!jobName) {
+      return;
+    }
     const fullJobId = JSON.stringify([
       jobName,
       this.variableNamespace || 'default',

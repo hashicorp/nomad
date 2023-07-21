@@ -983,4 +983,14 @@ module('Acceptance | variables', function (hooks) {
       });
     });
   });
+
+  // module('Job Variables Page', function () {
+  //   // Test: If the user has no variable read access, no subnav exists
+  //   // Test: If the user has variable read access, but no variables, the subnav exists but contains only a message
+  //   // Test: If the user has variable read access, and variables, the subnav exists and contains a list of variables
+  //   // Test: The nomad/jobs variable is always included if it exists
+  //   // Test: Multiple task variables are included, and make a maximum of 1 API request
+  //   // Test: Intro text shows examples of variables at groups and tasks
+  //   // Test: No variables + variable write access gets a link to create one, otehrwise no link.
+  // });
 });
