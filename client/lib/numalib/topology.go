@@ -6,6 +6,7 @@ package numalib
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -41,8 +42,18 @@ type (
 	socketID uint8
 	coreID   uint16
 	Hz       uint64
+	MHz      uint64
+	GHz      float64
 	Latency  uint8
 )
+
+func (hz Hz) MHz() MHz {
+	return MHz(hz / 1_000_000)
+}
+
+func (hz Hz) String() string {
+	return strconv.FormatUint(uint64(hz.MHz()), 10)
+}
 
 // A Topology provides a bird-eye view of the system NUMA topology.
 type Topology struct {
@@ -133,4 +144,17 @@ func (st *Topology) NumECores() int {
 		}
 	}
 	return total
+}
+
+func (st *Topology) CoreSpeeds() (Hz, Hz) {
+	var pCore, eCore Hz
+	for _, cpu := range st.cpus {
+		switch cpu.grade {
+		case performance:
+			pCore = cpu.Hz()
+		case efficiency:
+			eCore = cpu.Hz()
+		}
+	}
+	return pCore, eCore
 }
