@@ -352,6 +352,15 @@ module('Acceptance | keyboard', function (hooks) {
       });
       assert.equal(
         currentURL(),
+        `/jobs/${jobID}@default/clients`,
+        'Shift+ArrowRight takes you to the next tab (Clients)'
+      );
+
+      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
+        shiftKey: true,
+      });
+      assert.equal(
+        currentURL(),
         `/jobs/${jobID}@default/services`,
         'Shift+ArrowRight takes you to the next tab (Services)'
       );
