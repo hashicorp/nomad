@@ -47,7 +47,7 @@
     {{this.job.displayType.type}}
   </td>
   <td data-test-job-node-pool>
-    {{this.job.nodePool}}
+    {{#if this.job.nodePool}}{{this.job.nodePool}}{{else}}-{{/if}}
   </td>
   <td data-test-job-priority>
     {{this.job.priority}}
