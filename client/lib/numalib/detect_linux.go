@@ -18,7 +18,7 @@ const (
 	distanceFile   = sysRoot + "/node/node%d/distance"
 	cpulistFile    = sysRoot + "/node/node%d/cpulist"
 	cpuMaxFile     = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
-	cpuBaseFile    = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_base_freq"
+	cpuBaseFile    = sysRoot + "/cpu/cpu%d/cpufreq/base_frequency"
 	cpuSocketFile  = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
 	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
 )
@@ -94,13 +94,10 @@ func discoverCores(st *Topology) {
 				return err
 			}
 
-			base, err := getNumeric[KHz](cpuBaseFile, core)
-			if err != nil {
-				fmt.Println("err", err)
-				return err
-			}
+			base, _ := getNumeric[KHz](cpuBaseFile, core)
+			// not set on many systems
 
-			netlog.Cyan("cpu", "max", uint64(max), "mhz", max)
+			netlog.Cyan("cpu", "max", uint64(max), "mhz", max, "base", base)
 
 			siblings, err := getIDSet[coreID](cpuSiblingFile, core)
 			if err != nil {
