@@ -247,7 +247,7 @@
         <span class="term">
           Node Pool
         </span>
-        {{this.model.nodePool}}
+        {{#if this.model.nodePool}}{{this.model.nodePool}}{{else}}-{{/if}}
       </span>
       {{#if this.model.nodeClass}}
         <span class="pair" data-test-node-class>

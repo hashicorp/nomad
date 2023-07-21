@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug that could cause an error when accessing a region running versions of Nomad prior to 1.6.0
+```
