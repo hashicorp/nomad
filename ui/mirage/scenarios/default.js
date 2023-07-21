@@ -358,12 +358,12 @@ function mediumCluster(server) {
 
 function variableTestCluster(server) {
   faker.seed(1);
+  createTokens(server);
   server.create('token', {
     name: 'Novars Murphy',
     id: 'n0-v4r5-4cc355',
     type: 'client',
   });
-  createTokens(server);
   createNamespaces(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node-pool', 3);
