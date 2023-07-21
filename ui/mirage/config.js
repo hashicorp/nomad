@@ -74,22 +74,6 @@ export default function () {
     })
   );
 
-  this.get(
-    '/job',
-    withBlockingSupport(function ({ jobs }, { queryParams }) {
-      const json = this.serialize(jobs.all());
-      const namespace = queryParams.namespace || 'default';
-      return json
-        .filter((job) => {
-          if (namespace === '*') return true;
-          return namespace === 'default'
-            ? !job.NamespaceID || job.NamespaceID === namespace
-            : job.NamespaceID === namespace;
-        })
-        .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
-    })
-  );
-
   this.post('/jobs', function (schema, req) {
     const body = JSON.parse(req.requestBody);
 
