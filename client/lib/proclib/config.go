@@ -8,29 +8,14 @@ import (
 // build-tag specific. These are not the final representative values, just what
 // was set in agent configuration.
 type Configs struct {
-	// ParentCgroup can be set in Nomad client config. By default this value
-	// is "/nomad" on cgroups v1, and "nomad.slice" in cgroups v2.
-	//
-	// Linux only.
-	ParentCgroup string
-
-	// ReservedCores can be set in Nomad client config. By default this value is
-	// not set, implying there are no reserved cores (i.e. the Nomad client may
-	// use all cores on the system).
-	ReservedCores []uint16
-
-	// TotalCompute can be set in Nomad client config. By default this value is
-	// not set, implying the the client should automatically detect the total
-	// available compute by scanning the system.
-	TotalCompute int
 }
 
 func (c *Configs) Log(log hclog.Logger) {
 	log.Trace(
 		"configs",
-		"parent_cgroup", c.ParentCgroup,
-		"reserved_cores", c.ReservedCores,
-		"total_compute", c.TotalCompute,
+		// "parent_cgroup", c.ParentCgroup,
+		// "reserved_cores", c.ReservedCores,
+		// "total_compute", c.TotalCompute,
 	)
 }
 

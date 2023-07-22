@@ -7,15 +7,12 @@ package proclib
 //
 // e.g. Ubuntu 20.04 / RHEL 8 and previous versions.
 type LinuxWranglerCG1 struct {
-	parentCgroup string
 }
 
 func newCG1(c *Configs) create {
 	return func(task Task) ProcessWrangler {
 		nlog.Info("newCG1()", "task", task)
-		return &LinuxWranglerCG1{
-			parentCgroup: c.ParentCgroup,
-		}
+		return &LinuxWranglerCG1{}
 	}
 }
 

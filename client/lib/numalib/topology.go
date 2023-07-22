@@ -6,6 +6,7 @@ package numalib
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -38,7 +39,7 @@ func (g grade) String() string {
 }
 
 type (
-	nodeID   uint8
+	NodeID   uint8
 	socketID uint8
 	CoreID   uint16
 	KHz      uint64
@@ -57,7 +58,7 @@ func (hz KHz) String() string {
 
 // A Topology provides a bird-eye view of the system NUMA topology.
 type Topology struct {
-	nodes     *idset.Set[nodeID]
+	nodes     *idset.Set[NodeID]
 	distances distances
 	cpus      []Core
 
@@ -67,7 +68,7 @@ type Topology struct {
 }
 
 type Core struct {
-	node    nodeID
+	node    NodeID
 	socket  socketID
 	id      CoreID
 	grade   grade
@@ -96,11 +97,37 @@ func (c Core) MHz() MHz {
 
 type distances [][]Latency
 
-func (d distances) cost(a, b nodeID) Latency {
+func (d distances) cost(a, b NodeID) Latency {
 	return d[a][b]
 }
 
-func (st *Topology) insert(node nodeID, socket socketID, core CoreID, grade grade, max, base KHz) {
+func (st *Topology) SupportsNUMA() bool {
+	switch runtime.GOOS {
+	case "linux":
+		return true
+	default:
+		return false
+	}
+}
+
+func (st *Topology) Nodes() *idset.Set[NodeID] {
+	if !st.SupportsNUMA() {
+		return nil
+	}
+	return st.nodes
+}
+
+func (st *Topology) NodeCores(node NodeID) *idset.Set[CoreID] {
+	result := idset.Empty[CoreID]()
+	for _, cpu := range st.cpus {
+		if cpu.node == node {
+			result.Insert(cpu.id)
+		}
+	}
+	return result
+}
+
+func (st *Topology) insert(node NodeID, socket socketID, core CoreID, grade grade, max, base KHz) {
 	st.cpus[core] = Core{
 		node:   node,
 		socket: socket,

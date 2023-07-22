@@ -447,9 +447,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// Create the process wranglers
 	wranglers := proclib.New(&proclib.Configs{
-		ParentCgroup:  c.config.CgroupParent,
-		ReservedCores: c.config.ReservableCores, // config or fp
-		TotalCompute:  c.config.CpuCompute,      // config or fp
+		// ParentCgroup:  c.config.CgroupParent,
+		// ReservedCores: nil,
+		// TotalCompute:  c.config.CpuCompute, // config or fp
 	})
 	c.wranglers = wranglers
 

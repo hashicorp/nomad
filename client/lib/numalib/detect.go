@@ -10,9 +10,14 @@ type SystemScanner interface {
 	ScanSystem(*Topology)
 }
 
-func DefaultScanners() []SystemScanner {
+// PlatformScanners is the set of scanners unique to each operating system.
+//
+// todo: move into os files
+func PlatformScanners() []SystemScanner {
 	return []SystemScanner{
 		new(Sysfs),
+		new(Cgroups1),
+		new(Cgroups2),
 		// more
 	}
 }
@@ -64,9 +69,11 @@ type ConfigScanner struct {
 
 func (cs *ConfigScanner) ScanSystem(top *Topology) {
 	// disable cores that are not reservable (i.e. override cgroups)
-	for _, cpu := range top.cpus {
-		if !cs.ReservableCores.Contains(cpu.id) {
-			cpu.disable = true
+	if cs.ReservableCores != nil {
+		for _, cpu := range top.cpus {
+			if !cs.ReservableCores.Contains(cpu.id) {
+				cpu.disable = true
+			}
 		}
 	}
 

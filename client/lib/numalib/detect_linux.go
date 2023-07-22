@@ -1,3 +1,5 @@
+//go:build linux
+
 package numalib
 
 import (
@@ -9,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 )
 
 const (
@@ -37,7 +40,7 @@ func (s *Sysfs) ScanSystem(top *Topology) {
 }
 
 func discoverOnline(st *Topology) {
-	ids, err := getIDSet[nodeID](nodeOnline)
+	ids, err := getIDSet[NodeID](nodeOnline)
 	if err == nil {
 		st.nodes = ids
 	}
@@ -50,7 +53,7 @@ func discoverCosts(st *Topology) {
 		st.distances[i] = make([]Latency, dimension)
 	}
 
-	_ = st.nodes.ForEach(func(id nodeID) error {
+	_ = st.nodes.ForEach(func(id NodeID) error {
 		s, err := getString(distanceFile, id)
 		if err != nil {
 			return err
@@ -71,7 +74,7 @@ func discoverCores(st *Topology) {
 	}
 	st.cpus = make([]Core, onlineCores.Size())
 
-	_ = st.nodes.ForEach(func(node nodeID) error {
+	_ = st.nodes.ForEach(func(node NodeID) error {
 		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
 		if err != nil {
 			return err
@@ -144,3 +147,28 @@ func getString(path string, args ...any) (string, error) {
 // YOU ARE HERE
 // fallbacks ?
 // better error handling?
+
+// cgroups
+
+type Cgroups1 struct{}
+
+func (s *Cgroups1) ScanSystem(top *Topology) {
+	// detect reservable cores by reading cgroups file
+}
+
+type Cgroups2 struct{}
+
+func (s *Cgroups2) ScanSystem(top *Topology) {
+	// detect effective cores in the nomad.slice cgroup
+	ed := cgroupslib.Open("cpuset.cpus.effective")
+	content, err := ed.Read()
+	if err == nil {
+		ids := idset.Parse[CoreID](content)
+		netlog.Green("scan", "ids", ids)
+		for _, cpu := range top.cpus {
+			if !ids.Contains(cpu.id) {
+				cpu.disable = true
+			}
+		}
+	}
+}
