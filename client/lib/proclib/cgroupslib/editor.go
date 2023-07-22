@@ -9,6 +9,36 @@ import (
 	"path/filepath"
 )
 
+func pathTo(parts ...string) string {
+	switch GetMode() {
+	case CG1:
+		panic("todo")
+	default:
+		parts = append([]string{"/sys/fs/cgroup"}, parts...)
+		return filepath.Join(parts...)
+	}
+}
+
+func readRoot(filename string) (string, error) {
+	switch GetMode() {
+	case CG1:
+		panic("todo")
+	default:
+		b, err := os.ReadFile(pathTo(filename))
+		return string(bytes.TrimSpace(b)), err
+	}
+}
+
+func writeRoot(filename, content string) error {
+	switch GetMode() {
+	case CG1:
+		panic("todo")
+	default:
+		path := pathTo(filename)
+		return os.WriteFile(path, []byte(content), 0644)
+	}
+}
+
 // An Editor is used for reading and writing cgroup interface files. Implementations
 // are provided for cgroups v1 and cgroups v2.
 type Editor interface {

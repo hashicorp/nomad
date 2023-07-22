@@ -7,8 +7,6 @@ import (
 )
 
 func New(configs *Configs) *Wranglers {
-	configs.Log(nlog)
-
 	w := &Wranglers{
 		configs: configs,
 		m:       make(map[Task]ProcessWrangler),

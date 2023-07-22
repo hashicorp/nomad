@@ -4,8 +4,6 @@
 package client
 
 import (
-	"github.com/shoenig/netlog"
-
 	"errors"
 	"fmt"
 	"net"
@@ -447,9 +445,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// Create the process wranglers
 	wranglers := proclib.New(&proclib.Configs{
-		// ParentCgroup:  c.config.CgroupParent,
-		// ReservedCores: nil,
-		// TotalCompute:  c.config.CpuCompute, // config or fp
+		Logger: c.logger.Named("proclib"),
 	})
 	c.wranglers = wranglers
 
@@ -1667,8 +1663,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 			newConfig.CpuCompute = cpu
 		}
 	}
-
-	netlog.Yellow("hi", "nodeHashChanged", nodeHasChanged, "newConfig.CpuCompute", newConfig.CpuCompute)
 
 	if nodeHasChanged {
 		c.config = newConfig

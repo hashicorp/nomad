@@ -3,8 +3,6 @@
 package numalib
 
 import (
-	"github.com/shoenig/netlog"
-
 	"fmt"
 	"os"
 	"strconv"
@@ -98,8 +96,6 @@ func discoverCores(st *Topology) {
 			base, _ := getNumeric[KHz](cpuBaseFile, core)
 			// not set on many systems
 
-			netlog.Cyan("cpu", "max", uint64(max), "mhz", max, "base", base)
-
 			siblings, err := getIDSet[CoreID](cpuSiblingFile, core)
 			if err != nil {
 				fmt.Println("err", err)
@@ -159,12 +155,13 @@ func (s *Cgroups1) ScanSystem(top *Topology) {
 type Cgroups2 struct{}
 
 func (s *Cgroups2) ScanSystem(top *Topology) {
+
 	// detect effective cores in the nomad.slice cgroup
 	ed := cgroupslib.Open("cpuset.cpus.effective")
 	content, err := ed.Read()
+	fmt.Println("HIHIHI Cgroups effective", content, err)
 	if err == nil {
 		ids := idset.Parse[CoreID](content)
-		netlog.Green("scan", "ids", ids)
 		for _, cpu := range top.cpus {
 			if !ids.Contains(cpu.id) {
 				cpu.disable = true

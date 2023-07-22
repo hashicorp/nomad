@@ -4,8 +4,6 @@
 package client
 
 import (
-	"github.com/shoenig/netlog"
-
 	"sync"
 	"time"
 
@@ -190,8 +188,6 @@ func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, name str
 // is meant to be run continuously, a process is launched to perform this
 // fingerprint on an ongoing basis in the background.
 func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint) (bool, error) {
-	netlog.Yellow("FM.fingerprint", "name", name)
-
 	var response fingerprint.FingerprintResponse
 
 	fm.nodeLock.Lock()
