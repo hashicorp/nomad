@@ -105,6 +105,9 @@ type AllocRunnerConfig struct {
 
 	// Getter is an interface for retrieving artifacts.
 	Getter interfaces.ArtifactGetter
+
+	// Wranglers is an interface for managing unix/windows processes.
+	Wranglers interfaces.ProcessWranglers
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

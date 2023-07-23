@@ -3,6 +3,9 @@
 package proclib
 
 import (
+	"github.com/shoenig/netlog"
+
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 )
 
@@ -12,25 +15,42 @@ import (
 // e.g. Ubuntu 22.04 / RHEL 9 and later versions.
 type LinuxWranglerCG2 struct {
 	task Task
+	log  hclog.Logger
 }
 
 func newCG2(c *Configs) create {
+	netlog.Yellow("newCG2", "create", c.Logger)
+
 	cgroupslib.Init(c.Logger.Named("cgv2"))
 
 	return func(task Task) ProcessWrangler {
-		nlog.Info("newCG2()", "task", task)
-		return &LinuxWranglerCG2{}
+		return &LinuxWranglerCG2{
+			task: task,
+			log:  c.Logger,
+		}
 	}
 }
 
+func (w LinuxWranglerCG2) Initialize() error {
+	w.log.Info("Create", "task", w.task)
+
+	// create cgroup for the task
+
+	return nil
+}
+
 func (w *LinuxWranglerCG2) Kill() error {
-	nlog.Info("Kill()")
+	w.log.Info("Kill()", "task", w.task)
+
+	// write to cgroup.kill
 
 	return nil
 }
 
 func (w *LinuxWranglerCG2) Cleanup() error {
-	nlog.Info("Cleanup()")
+	w.log.Info("Cleanup()", "task", w.task)
+
+	// delete cgroup from disk
 
 	return nil
 }

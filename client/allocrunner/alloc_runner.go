@@ -196,6 +196,9 @@ type allocRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// wranglers is an interface for managing unix/windows processes.
+	wranglers cinterfaces.ProcessWranglers
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -236,8 +239,11 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		serviceRegWrapper:        config.ServiceRegWrapper,
 		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
+		wranglers:                config.Wranglers,
 		hookResources:            cstructs.NewAllocHookResources(),
 	}
+
+	fmt.Println("HI5", config.Wranglers)
 
 	// Create the logger based on the allocation ID
 	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
@@ -292,8 +298,11 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ShutdownDelayCtx:    ar.shutdownDelayCtx,
 			ServiceRegWrapper:   ar.serviceRegWrapper,
 			Getter:              ar.getter,
+			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
 		}
+
+		fmt.Println("HI4", ar.wranglers)
 
 		// Create, but do not Run, the task runner
 		tr, err := taskrunner.NewTaskRunner(trConfig)

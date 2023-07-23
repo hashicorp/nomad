@@ -1,6 +1,8 @@
 package proclib
 
 import (
+	"github.com/shoenig/netlog"
+
 	"fmt"
 	"sync"
 )
@@ -19,12 +21,13 @@ type create func(Task) ProcessWrangler
 type Wranglers struct {
 	configs *Configs
 	create  create
-	lock    sync.Mutex
-	m       map[Task]ProcessWrangler
+
+	lock sync.Mutex
+	m    map[Task]ProcessWrangler
 }
 
-func (w *Wranglers) Add(task Task) {
-	nlog.Trace("Wranglers.Add()", "task", task)
+func (w *Wranglers) Setup(task Task) error {
+	w.configs.Logger.Info("Setup()", "task", task)
 
 	// since we do not know the cgroup in the alloc/task runner hook, we need
 	// to be able to modify the process wrangler in a post start hook? or do
@@ -33,16 +36,40 @@ func (w *Wranglers) Add(task Task) {
 	// create process wrangler for task
 	pw := w.create(task)
 
+	pw.Initialize()
+
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
 	// keep track of the process wrangler for task
+	netlog.Green("Wranglers.Setup()", "task", task, "pw", pw)
 	w.m[task] = pw
+
+	return nil
+}
+
+func (w *Wranglers) Destroy(task Task) error {
+	w.configs.Logger.Info("Destroy()", "task", task)
+
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	netlog.Yellow("Wranglers.Destroy", "task", task, "w", w)
+	netlog.Yellow("C", "w.m", w.m)
+	netlog.Yellow("C", "w.m[task]", w.m[task])
+
+	w.m[task].Kill()
+	w.m[task].Cleanup()
+
+	delete(w.m, task)
+
+	return nil
 }
 
 // A ProcessWrangler is initialized (in AR?) and used to manage the thing
 // used to manage the underlying process of a Task (e.g. cgroups).
 type ProcessWrangler interface {
+	Initialize() error
 	Kill() error
 	Cleanup() error
 }

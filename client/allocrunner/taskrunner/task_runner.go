@@ -260,6 +260,10 @@ type TaskRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
+
+	// wranglers manage unix/windows processes leveraging operating
+	// system features like cgroups
+	wranglers cinterfaces.ProcessWranglers
 }
 
 type Config struct {
@@ -326,6 +330,9 @@ type Config struct {
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
 
+	// Wranglers is an interface for managing unix/windows processes.
+	Wranglers cinterfaces.ProcessWranglers
+
 	// AllocHookResources is how taskrunner hooks can get state written by
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
@@ -389,7 +396,10 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		shutdownDelayCancelFn: config.ShutdownDelayCancelFn,
 		serviceRegWrapper:     config.ServiceRegWrapper,
 		getter:                config.Getter,
+		wranglers:             config.Wranglers,
 	}
+
+	fmt.Println("HI3", config.Wranglers)
 
 	// Create the logger based on the allocation ID
 	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)

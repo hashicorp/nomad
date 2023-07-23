@@ -448,6 +448,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		Logger: c.logger.Named("proclib"),
 	})
 	c.wranglers = wranglers
+	fmt.Println("HI7", c.wranglers)
 
 	// Build the allow/denylists of drivers.
 	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
@@ -1235,7 +1236,10 @@ func (c *Client) restoreState() error {
 			CheckStore:          c.checkStore,
 			RPCClient:           c,
 			Getter:              c.getter,
+			Wranglers:           c.wranglers,
 		}
+
+		fmt.Println("HI6", c.wranglers)
 
 		ar, err := c.allocrunnerFactory(arConf)
 		if err != nil {
@@ -2714,6 +2718,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		CheckStore:          c.checkStore,
 		RPCClient:           c,
 		Getter:              c.getter,
+		Wranglers:           c.wranglers,
 	}
 
 	ar, err := c.allocrunnerFactory(arConf)

@@ -21,5 +21,5 @@ func New(configs *Configs) *Wranglers {
 		panic("must enable cgroups v1 or v2")
 	}
 
-	return nil
+	return w
 }

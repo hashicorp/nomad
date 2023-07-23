@@ -16,6 +16,10 @@ func newCG1(c *Configs) create {
 	}
 }
 
+func (w *LinuxWranglerCG1) Initialize() error {
+	return nil
+}
+
 func (w *LinuxWranglerCG1) Kill() error {
 	return nil
 }
