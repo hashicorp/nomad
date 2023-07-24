@@ -1006,7 +1006,7 @@ module('Acceptance | variables', function (hooks) {
 
     test('If the user has variable read access, but no variables, the subnav exists but contains only a message', async function (assert) {
       allScenarios.variableTestCluster(server);
-      const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+      const variablesToken = server.db.tokens.find(LIMITED_VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await visit(
         `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
@@ -1026,7 +1026,7 @@ module('Acceptance | variables', function (hooks) {
     test('If the user has variable write access, but no variables, the subnav exists but contains only a message and a create button', async function (assert) {
       assert.expect(4);
       allScenarios.variableTestCluster(server);
-      const variablesToken = server.db.tokens.find('53cur3-v4r14bl35');
+      const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
       await visit(
         `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
@@ -1046,7 +1046,7 @@ module('Acceptance | variables', function (hooks) {
 
     test('If the user has variable read access, and variables, the subnav exists and contains a list of variables', async function (assert) {
       allScenarios.variableTestCluster(server);
-      const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+      const variablesToken = server.db.tokens.find(LIMITED_VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
       // in variablesTestCluster, job0 has path-linked variables, others do not.
@@ -1065,7 +1065,7 @@ module('Acceptance | variables', function (hooks) {
 
     test('The nomad/jobs variable is always included, if it exists', async function (assert) {
       allScenarios.variableTestCluster(server);
-      const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
+      const variablesToken = server.db.tokens.find(LIMITED_VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
 
       server.create('variable', {
@@ -1232,6 +1232,5 @@ module('Acceptance | variables', function (hooks) {
           `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[1].name}`
         );
     });
-    // Test: No variables + variable write access gets a link to create one, otehrwise no link.
   });
 });
