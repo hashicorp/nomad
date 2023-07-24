@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fix panic in `alloc logs` command when receiving empty stdout or stderr log frames
+```
