@@ -157,6 +157,21 @@ type ExecCommand struct {
 	Capabilities []string
 }
 
+// Cgroup returns the path to the cgroup the Nomad client is managing for the
+// task that is about to be run.
+//
+// On cgroups v1 systems this returns the path to the cpuset cgroup specifically.
+//
+// On cgroups v2 systems this returns the patah to the task's scope.
+//
+// On non-Linux systems this returns the empty string and has no meaning.
+func (c *ExecCommand) Cgroup() string {
+	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
+		return ""
+	}
+	return c.Resources.LinuxResources.CpusetCgroupPath
+}
+
 // SetWriters sets the writer for the process stdout and stderr. This should
 // not be used if writing to a file path such as a fifo file. SetStdoutWriter
 // is mainly used for unit testing purposes.

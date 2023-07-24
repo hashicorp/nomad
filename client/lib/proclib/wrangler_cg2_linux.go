@@ -33,16 +33,16 @@ func newCG2(c *Configs) create {
 
 func (w LinuxWranglerCG2) Initialize() error {
 	w.log.Info("Create", "task", w.task)
-
 	// create cgroup for the task
-
-	return nil
+	// e.g. mkdir /sys/fs/cgroup/nomad.slice/<scope>
+	return cgroupslib.CreateCG2(w.task.AllocID, w.task.Task)
 }
 
 func (w *LinuxWranglerCG2) Kill() error {
 	w.log.Info("Kill()", "task", w.task)
 
-	// write to cgroup.kill
+	// todo: write to cgroup.kill
+	cgroupslib.KillCG2(w.task.AllocID, w.task.Task)
 
 	return nil
 }
@@ -51,6 +51,5 @@ func (w *LinuxWranglerCG2) Cleanup() error {
 	w.log.Info("Cleanup()", "task", w.task)
 
 	// delete cgroup from disk
-
-	return nil
+	return cgroupslib.DeleteCG2(w.task.AllocID, w.task.Task)
 }

@@ -3,6 +3,8 @@
 package cgroupslib
 
 import (
+	"github.com/shoenig/netlog"
+
 	"bytes"
 	"fmt"
 	"os"
@@ -49,8 +51,34 @@ type Editor interface {
 	Write(string) error
 }
 
-func Join(allocID, task, file string) string {
-	return fmt.Sprintf("%s.%s.scope/%s", allocID, task, file)
+// taskScope returns the name of the scope directory for the task of the
+// given allocation.
+func taskScope(allocID, task string) string {
+	return fmt.Sprintf("%s.%s.scope", allocID, task)
+}
+
+func PathCG2(allocID, task string) string {
+	return pathTo(NomadCgroupParent, taskScope(allocID, task))
+}
+
+func fileCG2(allocID, task, filename string) string {
+	return filepath.Join(pathTo(allocID, task, filename))
+}
+
+func CreateCG2(allocID, task string) error {
+	p := PathCG2(allocID, task)
+	return os.MkdirAll(p, 0755)
+}
+
+func KillCG2(allocID, task string) error {
+	e := Open(fileCG2(allocID, task, "cgroup.kill"))
+	netlog.Red("kill", "alloc", allocID, "task", task)
+	return e.Write("1")
+}
+
+func DeleteCG2(allocID, task string) error {
+	p := PathCG2(allocID, task)
+	return os.RemoveAll(p)
 }
 
 func Open(filepath string) Editor {

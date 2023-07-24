@@ -4,6 +4,8 @@
 package taskrunner
 
 import (
+	"github.com/shoenig/netlog"
+
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -402,7 +405,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	fmt.Println("HI3", config.Wranglers)
 
 	// Create the logger based on the allocation ID
-	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
+	// tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
+	tr.logger = netlog.New("TR", netlog.WithGreen())
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
@@ -841,13 +845,24 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	}
 }
 
+func (tr *TaskRunner) assignCgroup(taskConfig *drivers.TaskConfig) {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF:
+		return
+	case cgroupslib.CG1:
+		panic("todo")
+	case cgroupslib.CG2:
+		p := cgroupslib.PathCG2(tr.allocID, tr.taskName)
+		taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
+		netlog.Cyan("assigned cgroup", "path", p)
+	}
+}
+
 // runDriver runs the driver and waits for it to exit
 // runDriver emits an appropriate task event on success/failure
 func (tr *TaskRunner) runDriver() error {
-
 	taskConfig := tr.buildTaskConfig()
-
-	// SETH set taskConfig.Resources.LinuxResources.CpusetCgroupPath here (?)
+	tr.assignCgroup(taskConfig)
 
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
@@ -972,6 +987,7 @@ func (tr *TaskRunner) initDriver() error {
 // the handle exit result if one is available and store any error in the task
 // runner killErr value.
 func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.ExitResult {
+	tr.logger.Info("handleKill")
 	// Run the pre killing hooks
 	tr.preKill()
 
@@ -1057,6 +1073,8 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 // killTask will retry with an exponential backoff and will give up at a
 // given limit. Returns an error if the task could not be killed.
 func (tr *TaskRunner) killTask(handle *DriverHandle, resultCh <-chan *drivers.ExitResult) (*drivers.ExitResult, error) {
+	tr.logger.Info("killTask", "alloc_id", tr.allocID, "task", tr.taskName)
+
 	// Cap the number of times we attempt to kill the task.
 	var err error
 	for i := 0; i < killFailureLimit; i++ {

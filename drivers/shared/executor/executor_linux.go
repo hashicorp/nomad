@@ -6,7 +6,10 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -21,6 +24,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -75,8 +79,9 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		logger.Error("unable to initialize stats", "error", err)
 	}
 	return &LibcontainerExecutor{
-		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
-		logger:         logger,
+		id: strings.ReplaceAll(uuid.Generate(), "-", "_"),
+		// logger:         logger,
+		logger:         netlog.New("lc.executor"),
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),
 		systemCpuStats: stats.NewCpuStats(),
@@ -109,7 +114,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	// A container groups processes under the same isolation enforcement
-	containerCfg, err := newLibcontainerConfig(command)
+	containerCfg, err := l.newLibcontainerConfig(command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
@@ -235,18 +240,25 @@ func (l *LibcontainerExecutor) wait() {
 // Shutdown stops all processes started and cleans up any resources
 // created (such as mountpoints, devices, etc).
 func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) error {
+	l.logger = netlog.New("LW")
+
+	l.logger.Info("LE.Shutdown() ^^^")
+
 	if l.container == nil {
+		l.logger.Info("$$$ container is nil")
 		return nil
 	}
 
 	status, err := l.container.Status()
 	if err != nil {
+		l.logger.Info("$$$ err", "error", err)
 		return err
 	}
 
 	defer l.container.Destroy()
 
 	if status == libcontainer.Stopped {
+		l.logger.Info("$$$ is stopped")
 		return nil
 	}
 
@@ -257,6 +269,7 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 
 		sig, ok := signals.SignalLookup[signal]
 		if !ok {
+			l.logger.Info("$$$ bad signal")
 			return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
 		}
 
@@ -264,13 +277,16 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		// shutdown; hence `false` arg.
 		err = l.container.Signal(sig, false)
 		if err != nil {
+			l.logger.Info("$$$ error on signal", "error", err)
 			return err
 		}
 
 		select {
 		case <-l.userProcExited:
+			l.logger.Info("grace PROC EXIT")
 			return nil
 		case <-time.After(grace):
+			l.logger.Info("grace TIMEOUT")
 			// Force kill all container processes after grace period,
 			// hence `true` argument.
 			if err := l.container.Signal(os.Kill, true); err != nil {
@@ -278,16 +294,20 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			}
 		}
 	} else {
+		l.logger.Info("Signal no grace")
 		err := l.container.Signal(os.Kill, true)
 		if err != nil {
+			l.logger.Info("no grace fail", "error", err)
 			return err
 		}
 	}
 
 	select {
 	case <-l.userProcExited:
+		l.logger.Info("no grace PROC EXIT")
 		return nil
 	case <-time.After(time.Second * 15):
+		l.logger.Info("no grace TIMEOUT")
 		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
 }
@@ -633,7 +653,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	return nil
 }
 
-func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	// SETH
 	// this is configuring libcontainer to our needs
 	// - create cgroup if necessary (?)
@@ -643,10 +663,49 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	// - set memory swappiness
 	// - set cpu
 	// If resources are not limited then manually create cgroups needed
+
+	if !command.ResourceLimits {
+		return nil
+	}
+
+	cg := command.Cgroup()
+	if cg == "" {
+		return errors.New("cgroup must be set")
+	}
+
+	// set the libcontainer hook for writing the PID to cgroup.procs file
+	configureCgroupHook(cfg, command)
+
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		return configureCG1()
+	case cgroupslib.CG2:
+		return l.configureCG2(cfg, cg)
+	default:
+		return nil
+	}
+}
+
+func configureCgroupHook(cfg *lconfigs.Config, command *ExecCommand) {
+	cfg.Hooks = lconfigs.Hooks{
+		lconfigs.CreateRuntime: lconfigs.HookList{
+			newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
+		},
+	}
+}
+
+func configureCG1() error {
+	panic("todo")
+}
+
+func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, cg string) error {
+	scope := filepath.Base(cg)
+	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
+	l.logger.Info("configureCG2", "path", cfg.Cgroups.Path)
 	return nil
 }
 
-func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
+func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
@@ -670,7 +729,7 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		return nil, err
 	}
 
-	if err := configureCgroups(cfg, command); err != nil {
+	if err := l.configureCgroups(cfg, command); err != nil {
 		return nil, err
 	}
 
