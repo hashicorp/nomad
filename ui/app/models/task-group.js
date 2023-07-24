@@ -28,7 +28,7 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${JSON.parse(this.job.parent.get('id'))[0]}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
       );
     } else {
       return this.job.variables?.findBy(
@@ -44,7 +44,7 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return await this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${JSON.parse(this.job.parent.get('id'))[0]}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
       );
     } else {
       return await this.job.variables?.findBy(
