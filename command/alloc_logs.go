@@ -394,11 +394,15 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 		case stdoutErr := <-stdoutErrCh:
 			return fmt.Errorf("received an error from stdout log stream: %v", stdoutErr)
 		case stdoutFrame := <-stdoutFrames:
-			logUI.Output(string(stdoutFrame.Data))
+			if stdoutFrame != nil {
+				logUI.Output(string(stdoutFrame.Data))
+			}
 		case stderrErr := <-stderrErrCh:
 			return fmt.Errorf("received an error from stderr log stream: %v", stderrErr)
 		case stderrFrame := <-stderrFrames:
-			logUI.Warn(string(stderrFrame.Data))
+			if stderrFrame != nil {
+				logUI.Warn(string(stderrFrame.Data))
+			}
 		}
 	}
 }
