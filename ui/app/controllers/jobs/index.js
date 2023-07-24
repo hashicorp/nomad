@@ -19,6 +19,7 @@ import {
 import classic from 'ember-classic-decorator';
 
 const DEFAULT_SORT_PROPERTY = 'modifyIndex';
+const DEFAULT_SORT_DESCENDING = true;
 
 @classic
 export default class IndexController extends Controller.extend(
@@ -296,12 +297,19 @@ export default class IndexController extends Controller.extend(
 
   @computed('sortProperty', 'searchTerm')
   get unsortedSearchState() {
-    return this.sortProperty === DEFAULT_SORT_PROPERTY && !!this.searchTerm;
+    return (
+      this.sortProperty === DEFAULT_SORT_PROPERTY &&
+      this.sortDescending === DEFAULT_SORT_DESCENDING &&
+      !!this.searchTerm
+    );
   }
 
   @alias('filteredJobs') listToSearch;
   @alias('listSearched') listToSort;
 
+  // sortedJobs is what we use to populate the table;
+  // If the user has searched but not sorted, we return the (fuzzy) searched list verbatim
+  // If the user has sorted, we allow the fuzzy search to filter down the list, but return it in a sorted order.
   get sortedJobs() {
     return this.unsortedSearchState ? this.listSearched : this.listSorted;
   }
