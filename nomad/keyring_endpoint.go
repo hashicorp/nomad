@@ -373,6 +373,7 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 	if done, err := k.srv.forward("Keyring.ListPublic", args, args, reply); done {
 		return err
 	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "list_public"}, time.Now())
 

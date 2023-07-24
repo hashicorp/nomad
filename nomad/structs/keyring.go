@@ -273,7 +273,7 @@ type KeyringPublicKey struct {
 	KeyID     string
 	PublicKey []byte
 
-	// Algorithm should be the JWA "alg" parameter. So "EdDSA" for Ed25519 public
+	// Algorithm should be the JWT "alg" parameter. So "EdDSA" for Ed25519 public
 	// keys used to validate signatures.
 	Algorithm string
 
