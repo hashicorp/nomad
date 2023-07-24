@@ -18,6 +18,8 @@ import {
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
+const DEFAULT_SORT_PROPERTY = 'modifyIndex';
+
 @classic
 export default class IndexController extends Controller.extend(
   Sortable,
@@ -65,7 +67,7 @@ export default class IndexController extends Controller.extend(
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;
 
-  sortProperty = 'modifyIndex';
+  sortProperty = DEFAULT_SORT_PROPERTY;
   sortDescending = true;
 
   @computed
@@ -292,9 +294,17 @@ export default class IndexController extends Controller.extend(
     });
   }
 
+  @computed('sortProperty', 'searchTerm')
+  get unsortedSearchState() {
+    return this.sortProperty === DEFAULT_SORT_PROPERTY && !!this.searchTerm;
+  }
+
   @alias('filteredJobs') listToSearch;
   @alias('listSearched') listToSort;
-  @alias('listSorted') sortedJobs;
+
+  get sortedJobs() {
+    return this.unsortedSearchState ? this.listSearched : this.listSorted;
+  }
 
   isShowingDeploymentDetails = false;
 
