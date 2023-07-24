@@ -18,13 +18,13 @@
           <code>
             <EditableVariableLink @path="nomad/jobs" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
           </code>
-           to grant all your jobs access</li>
+           for access in all tasks in all jobs</li>
         <li data-test-variables-intro-job>
           Use
           <code>
             <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
           </code>
-          to grant this job access
+          for access from all tasks in this job
         </li>
         <li data-test-variables-intro-groups>
           Use
@@ -32,12 +32,12 @@
             {{#each this.firstFewTaskGroupNames as |name|}}
               <code><EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} /></code>,
             {{/each}}
-            etc. to grant a specific task group access
+            etc. for access from all tasks in a specific task group
           {{else}}
             <code>
               <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{object-at 0 this.firstFewTaskGroupNames}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
             </code>
-            to grant your task group access
+            for access from all tasks in a specific task group
           {{/if}}
         </li>
         <li data-test-variables-intro-tasks>
@@ -46,11 +46,11 @@
             {{#each this.firstFewTaskNames as |name|}}
               <code><EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} /></code>,
             {{/each}}
-            etc. to grant a specific task access
+            etc. for access from a specific task
           {{else}}
             <code>
               <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{object-at 0 this.firstFewTaskNames}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
-            </code> to grant your task access
+            </code> for access from a specific task
           {{/if}}
         </li>
       </ul>
