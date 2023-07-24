@@ -932,7 +932,8 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 				Var: allVars[0],
 			})
 
-		must.ErrorIs(t, resp.Error, errVarAlreadyLocked)
+		must.NoError(t, resp.Error)
+		must.Eq(t, structs.VarOpResultConflict, resp.Result)
 		// Ensure the create and modify were NOT modified
 		must.Eq(t, 20, allVars[0].CreateIndex, must.Sprintf("%s: incorrect create index", allVars[0].Path))
 		must.Eq(t, 20, allVars[0].ModifyIndex, must.Sprintf("%s: incorrect modify index", allVars[0].Path))

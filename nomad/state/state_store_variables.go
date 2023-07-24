@@ -545,6 +545,7 @@ func (s *StateStore) VariablesQuotaByNamespace(ws memdb.WatchSet, namespace stri
 
 // VarLockAcquire is the method used to append a lock to a variable, if the
 // variable doesn't exists, it is created.
+// IMPORTANT: this method overwrites the variable, data included.
 func (s *StateStore) VarLockAcquire(idx uint64,
 	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
 	tx := s.db.WriteTxn(idx)
@@ -560,11 +561,14 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	// If the variable exist, we must make sure it doesn't hold a lock already
 	if ok {
 		if sv.VariableMetadata.Lock != nil {
-			return req.ErrorResponse(idx, errVarAlreadyLocked)
+			zeroVal := &structs.VariableEncrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Namespace: sv.Namespace,
+					Path:      sv.Path,
+				},
+			}
+			return req.ConflictResponse(idx, zeroVal)
 		}
-
-		// Update the data to avoid overwriting the variable's items while creating the lock
-		req.Var.VariableData = sv.VariableData
 	}
 
 	resp := s.varSetTxn(tx, idx, req)
