@@ -619,7 +619,7 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 
 		// Calculate the penalty based on number of collisions
 		// TODO(preetha): Figure out if batch jobs need a different scoring penalty where collisions matter less
-		if collisions > 0 {
+		if collisions > 0 && iter.desiredCount > 0 {
 			scorePenalty := -1 * float64(collisions+1) / float64(iter.desiredCount)
 			option.Scores = append(option.Scores, scorePenalty)
 			iter.ctx.Metrics().ScoreNode(option.Node, "job-anti-affinity", scorePenalty)
