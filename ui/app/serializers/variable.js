@@ -21,12 +21,14 @@ export default class VariableSerializer extends ApplicationSerializer {
     if (!hash.Items) {
       hash.Items = { '': '' };
     }
-    hash.KeyValues = Object.entries(hash.Items).map(([key, value]) => {
-      return {
-        key,
-        value,
-      };
-    });
+    hash.KeyValues = Object.entries(hash.Items)
+      .map(([key, value]) => {
+        return {
+          key,
+          value,
+        };
+      })
+      .sort((a, b) => a.key.localeCompare(b.key));
     delete hash.Items;
     return super.normalizeFindRecordResponse(
       store,
