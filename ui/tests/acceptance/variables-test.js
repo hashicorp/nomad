@@ -1024,6 +1024,7 @@ module('Acceptance | variables', function (hooks) {
     });
 
     test('If the user has variable write access, but no variables, the subnav exists but contains only a message and a create button', async function (assert) {
+      assert.expect(4);
       allScenarios.variableTestCluster(server);
       const variablesToken = server.db.tokens.find('53cur3-v4r14bl35');
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
@@ -1111,10 +1112,6 @@ module('Acceptance | variables', function (hooks) {
         id: 'nomad/jobs/test-job',
         keyValues: [],
       });
-      server.create('variable', {
-        id: 'nomad/jobs/test-job/group1',
-        keyValues: [],
-      });
       // Create a variable for each task
 
       server.db.tasks.forEach((task) => {
@@ -1149,8 +1146,92 @@ module('Acceptance | variables', function (hooks) {
     });
 
     // Test: Intro text shows examples of variables at groups and tasks
+    test('The intro text shows examples of variables at groups and tasks', async function (assert) {
+      //#region setup
+      server.create('node-pool');
+      server.create('node');
+      let token = server.create('token', { type: 'management' });
+      let job = server.create('job', {
+        createAllocations: true,
+        groupTaskCount: 2,
+        resourceSpec: Array(1).fill('M: 257, C: 500'), // 1 group
+        shallow: false,
+        name: 'test-job',
+        id: 'test-job',
+        type: 'service',
+        activeDeployment: false,
+        namespaceId: 'default',
+      });
+      server.create('variable', {
+        id: 'nomad/jobs/test-job',
+        keyValues: [],
+      });
+      // Create a variable for each taskGroup
+      server.db.taskGroups.forEach((group) => {
+        server.create('variable', {
+          id: `nomad/jobs/test-job/${group.name}`,
+          keyValues: [],
+        });
+      });
+
+      window.localStorage.nomadTokenSecret = token.secretId;
+
+      //#endregion setup
+
+      await visit(`/jobs/${job.id}@${job.namespace}`);
+      assert.dom('[data-test-tab="variables"]').exists();
+      await click('[data-test-tab="variables"] a');
+      assert.equal(currentURL(), `/jobs/${job.id}@${job.namespace}/variables`);
+
+      assert.dom('.job-variables-intro').exists();
+
+      // All-jobs reminder is there, link is to create a new variable
+      assert.dom('[data-test-variables-intro-all-jobs]').exists();
+      assert.dom('[data-test-variables-intro-all-jobs] a').exists();
+      assert
+        .dom('[data-test-variables-intro-all-jobs] a')
+        .hasAttribute('href', '/ui/variables/new?path=nomad%2Fjobs');
+
+      // This-job reminder is there, and since the variable exists, link is to edit it
+      assert.dom('[data-test-variables-intro-job]').exists();
+      assert.dom('[data-test-variables-intro-job] a').exists();
+      assert
+        .dom('[data-test-variables-intro-job] a')
+        .hasAttribute(
+          'href',
+          `/ui/variables/var/nomad/jobs/${job.id}@${job.namespace}/edit`
+        );
+
+      // Group reminder is there, and since the variable exists, link is to edit it
+      assert.dom('[data-test-variables-intro-groups]').exists();
+      assert.dom('[data-test-variables-intro-groups] a').exists({ count: 1 });
+      assert
+        .dom('[data-test-variables-intro-groups]')
+        .doesNotContainText('etc.');
+      assert
+        .dom('[data-test-variables-intro-groups] a')
+        .hasAttribute(
+          'href',
+          `/ui/variables/var/nomad/jobs/${job.id}/${server.db.taskGroups[0].name}@${job.namespace}/edit`
+        );
+
+      // Task reminder is there, and variables don't exist, so link is to create them, plus etc. reminder text
+      assert.dom('[data-test-variables-intro-tasks]').exists();
+      assert.dom('[data-test-variables-intro-tasks] a').exists({ count: 2 });
+      assert.dom('[data-test-variables-intro-tasks]').containsText('etc.');
+      assert
+        .dom('[data-test-variables-intro-tasks] code:nth-of-type(1) a')
+        .hasAttribute(
+          'href',
+          `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[0].name}`
+        );
+      assert
+        .dom('[data-test-variables-intro-tasks] code:nth-of-type(2) a')
+        .hasAttribute(
+          'href',
+          `/ui/variables/new?path=nomad%2Fjobs%2F${job.id}%2F${server.db.taskGroups[0].name}%2F${server.db.tasks[1].name}`
+        );
+    });
     // Test: No variables + variable write access gets a link to create one, otehrwise no link.
-    // Test: Notifications links differ from when you have 1 group/task and multiple
-    // Test: if a variable exists, the notification link goes to edit it; otherwise, creates new with pre-defined path
   });
 });

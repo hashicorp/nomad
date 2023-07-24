@@ -14,19 +14,19 @@
     <A.Description>
       <p>Tasks in this job can have <a href="https://developer.hashicorp.com/nomad/docs/concepts/variables#task-access-to-variables" target="_blank" rel="noopener noreferrer">automatic access to Nomad Variables</a>.</p>
       <ul>
-        <li>Use 
+        <li data-test-variables-intro-all-jobs>Use 
           <code>
             <EditableVariableLink @path="nomad/jobs" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
           </code>
            to grant all your jobs access</li>
-        <li>
+        <li data-test-variables-intro-job>
           Use
           <code>
             <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
           </code>
           to grant this job access
         </li>
-        <li>
+        <li data-test-variables-intro-groups>
           Use
           {{#if (gt this.firstFewTaskGroupNames.length 1)}}
             {{#each this.firstFewTaskGroupNames as |name|}}
@@ -40,7 +40,7 @@
             to grant your task group access
           {{/if}}
         </li>
-        <li>
+        <li data-test-variables-intro-tasks>
           Use
           {{#if (gt this.firstFewTaskNames.length 1)}}
             {{#each this.firstFewTaskNames as |name|}}
