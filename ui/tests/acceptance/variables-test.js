@@ -992,7 +992,6 @@ module('Acceptance | variables', function (hooks) {
       await visit(
         `/jobs/${server.db.jobs[0].id}@${server.db.jobs[0].namespace}`
       );
-      console.log('currentURL', currentURL());
       // Variables tab isn't in subnav
       assert.dom('[data-test-tab="variables"]').doesNotExist();
 
@@ -1087,29 +1086,67 @@ module('Acceptance | variables', function (hooks) {
       assert.dom('[data-test-file-row="nomad/jobs"]').exists();
     });
 
-    // test.only('Multiple task variables are included, and make a maximum of 1 API request', async function (assert) {
-    //   allScenarios.variableTestCluster(server);
-    //   const variablesToken = server.db.tokens.find('f3w3r-53cur3-v4r14bl35');
-    //   window.localStorage.nomadTokenSecret = variablesToken.secretId;
+    test('Multiple task variables are included, and make a maximum of 1 API request', async function (assert) {
+      //#region setup
+      server.create('node-pool');
+      server.create('node');
+      let token = server.create('token', { type: 'management' });
+      let job = server.create('job', {
+        createAllocations: true,
+        groupTaskCount: 10,
+        resourceSpec: Array(3).fill('M: 257, C: 500'), // 3 groups
+        shallow: false,
+        name: 'test-job',
+        id: 'test-job',
+        type: 'service',
+        activeDeployment: false,
+        namespaceId: 'default',
+      });
 
-    //   server.create('variable', {
-    //     id: 'nomad/jobs',
-    //     keyValues: [],
-    //   });
+      server.create('variable', {
+        id: 'nomad/jobs',
+        keyValues: [],
+      });
+      server.create('variable', {
+        id: 'nomad/jobs/test-job',
+        keyValues: [],
+      });
+      server.create('variable', {
+        id: 'nomad/jobs/test-job/group1',
+        keyValues: [],
+      });
+      // Create a variable for each task
 
-    //   // in variablesTestCluster, job0 has path-linked variables, others do not.
-    //   await visit(
-    //     `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}`
-    //   );
-    //   assert.dom('[data-test-tab="variables"]').exists();
-    //   await click('[data-test-tab="variables"] a');
-    //   assert.equal(
-    //     currentURL(),
-    //     `/jobs/${server.db.jobs[1].id}@${server.db.jobs[1].namespace}/variables`
-    //   );
-    //   assert.dom('[data-test-file-row]').exists({ count: 1 });
-    //   assert.dom('[data-test-file-row="nomad/jobs"]').exists();
-    // });
+      server.db.tasks.forEach((task) => {
+        let groupName = server.db.taskGroups.findBy(
+          (group) => group.id === task.taskGroupId
+        ).name;
+        server.create('variable', {
+          id: `nomad/jobs/test-job/${groupName}/${task.name}`,
+          keyValues: [],
+        });
+      });
+      window.localStorage.nomadTokenSecret = token.secretId;
+
+      //#endregion setup
+
+      //#region operation
+      await visit(`/jobs/${job.id}@${job.namespace}/variables`);
+
+      // 2 requests: one for the main nomad/vars variable, and one for a prefix of job name
+      let requests = server.pretender.handledRequests.filter(
+        (request) =>
+          request.url === '/v1/vars?path=nomad%2Fjobs' ||
+          request.url === `/v1/vars?prefix=nomad%2Fjobs%2F${job.name}`
+      );
+      assert.equal(requests.length, 2);
+
+      // Should see 32 rows: nomad/jobs, job-name, and 30 task variables
+      assert.dom('[data-test-file-row]').exists({ count: 32 });
+      //#endregion operation
+
+      window.localStorage.nomadTokenSecret = null; // Reset Token
+    });
 
     // Test: Intro text shows examples of variables at groups and tasks
     // Test: No variables + variable write access gets a link to create one, otehrwise no link.

@@ -105,7 +105,7 @@ function smallCluster(server) {
     createAllocations: true,
     groupTaskCount: activelyDeployingTasksPerGroup,
     shallow: true,
-    resourceSpec: Array(activelyDeployingJobGroups).fill(['M: 257, C: 500']),
+    resourceSpec: Array(activelyDeployingJobGroups).fill('M: 257, C: 500'),
     noDeployments: true, // manually created below
     activeDeployment: true,
     allocStatusDistribution: {
