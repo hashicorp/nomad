@@ -513,10 +513,18 @@ func (b *BlockedEvals) UnblockNode(nodeID string, index uint64) {
 		return
 	}
 
+	numQuotaLimit := 0
 	for e := range evals {
 		b.system.Remove(e)
+		delete(b.jobs, structs.NewNamespacedID(e.JobID, e.Namespace))
+		delete(b.captured, e.ID)
+
+		if e.QuotaLimitReached != "" {
+			numQuotaLimit++
+		}
 		b.stats.Unblock(e)
 	}
+	b.stats.TotalQuotaLimit -= numQuotaLimit
 
 	b.evalBroker.EnqueueAll(evals)
 }
@@ -593,6 +601,7 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 		b.stats.TotalQuotaLimit -= numQuotaLimit
 		for eval := range unblocked {
 			b.stats.Unblock(eval)
+			b.system.Remove(eval)
 		}
 
 		// Enqueue all the unblocked evals into the broker.
