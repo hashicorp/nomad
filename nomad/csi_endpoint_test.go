@@ -826,6 +826,129 @@ func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
 	require.Equal(t, structs.DefaultNamespace, resp2.Volumes[0].Namespace)
 }
 
+func TestCSIVolumeEndpoint_ListNodeID(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerShutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer testServerShutdown()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	testState := testServer.fsm.State()
+	rpcClientCodec := rpcClient(t, testServer)
+
+	// Create the test namespace which is needed before upserting volumes.
+	namespace1 := "namespace-1"
+	must.NoError(t, testState.UpsertNamespaces(10, []*structs.Namespace{{Name: namespace1}}))
+
+	// Generate two test volumes, each in a different namespace.
+	volID1 := uuid.Generate()
+	volID2 := uuid.Generate()
+
+	vols := []*structs.CSIVolume{{
+		ID:        volID1,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "minnie",
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
+	}, {
+		ID:        volID2,
+		Namespace: namespace1,
+		PluginID:  "mikey",
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
+	}}
+	must.NoError(t, testState.UpsertCSIVolume(20, vols))
+
+	// Generate a test node ID and then two allocations. Each allocation is
+	// tied to the same node, but uses distinct volumes and therefore different
+	// namespaces.
+	testNodeID := uuid.Generate()
+
+	mockAlloc1 := structs.Allocation{
+		ID:        uuid.Generate(),
+		Namespace: structs.DefaultNamespace,
+		NodeID:    testNodeID,
+		JobID:     "job-1",
+		EvalID:    uuid.Generate(),
+		Job: &structs.Job{
+			TaskGroups: []*structs.TaskGroup{
+				{
+					Name: "task-group-1",
+					Volumes: map[string]*structs.VolumeRequest{
+						"volume-key-1": {
+							Type:   structs.VolumeTypeCSI,
+							Source: volID1,
+						},
+					},
+				},
+			},
+		},
+		TaskGroup:     "task-group-1",
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusRunning,
+	}
+
+	mockAlloc2 := structs.Allocation{
+		ID:        uuid.Generate(),
+		Namespace: namespace1,
+		NodeID:    testNodeID,
+		JobID:     "job-2",
+		EvalID:    uuid.Generate(),
+		Job: &structs.Job{
+			TaskGroups: []*structs.TaskGroup{
+				{
+					Name: "task-group-2",
+					Volumes: map[string]*structs.VolumeRequest{
+						"volume-key-2": {
+							Type:   structs.VolumeTypeCSI,
+							Source: volID2,
+						},
+					},
+				},
+			},
+		},
+		TaskGroup:     "task-group-2",
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusRunning,
+	}
+
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 30, []*structs.Allocation{
+		&mockAlloc1, &mockAlloc2}))
+
+	// Perform a list request specifying the node ID generated above, but also
+	// the namespace sentinel.
+	listByNodeReq1 := structs.CSIVolumeListRequest{
+		NodeID: testNodeID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: structs.AllNamespacesSentinel,
+		},
+	}
+	var listByNodeResp1 structs.CSIVolumeListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(rpcClientCodec, "CSIVolume.List", &listByNodeReq1, &listByNodeResp1))
+	must.Len(t, 2, listByNodeResp1.Volumes)
+	must.Eq(t, 20, listByNodeResp1.Index)
+
+	// Perform a list request specifying the node ID generated above and a targeted
+	// namespace.
+	listByNodeReq2 := structs.CSIVolumeListRequest{
+		NodeID: testNodeID,
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			Namespace: namespace1,
+		},
+	}
+	var listByNodeResp2 structs.CSIVolumeListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(rpcClientCodec, "CSIVolume.List", &listByNodeReq2, &listByNodeResp2))
+	must.Len(t, 1, listByNodeResp2.Volumes)
+	must.Eq(t, volID2, listByNodeResp2.Volumes[0].ID)
+	must.Eq(t, 20, listByNodeResp2.Index)
+}
+
 func TestCSIVolumeEndpoint_List_PaginationFiltering(t *testing.T) {
 	ci.Parallel(t)
 	s1, cleanupS1 := TestServer(t, nil)
