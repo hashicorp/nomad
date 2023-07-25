@@ -2518,10 +2518,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					},
 				},
 				RestartPolicy: &api.RestartPolicy{
-					Interval: pointer.Of(1 * time.Second),
-					Attempts: pointer.Of(5),
-					Delay:    pointer.Of(10 * time.Second),
-					Mode:     pointer.Of("delay"),
+					Interval:        pointer.Of(1 * time.Second),
+					Attempts:        pointer.Of(5),
+					Delay:           pointer.Of(10 * time.Second),
+					Mode:            pointer.Of("delay"),
+					RenderTemplates: pointer.Of(false),
 				},
 				ReschedulePolicy: &api.ReschedulePolicy{
 					Interval:      pointer.Of(12 * time.Hour),
@@ -2661,10 +2662,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						RestartPolicy: &api.RestartPolicy{
-							Interval: pointer.Of(2 * time.Second),
-							Attempts: pointer.Of(10),
-							Delay:    pointer.Of(20 * time.Second),
-							Mode:     pointer.Of("delay"),
+							Interval:        pointer.Of(2 * time.Second),
+							Attempts:        pointer.Of(10),
+							Delay:           pointer.Of(20 * time.Second),
+							Mode:            pointer.Of("delay"),
+							RenderTemplates: pointer.Of(false),
 						},
 						Services: []*api.Service{
 							{
@@ -2927,10 +2929,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					},
 				},
 				RestartPolicy: &structs.RestartPolicy{
-					Interval: 1 * time.Second,
-					Attempts: 5,
-					Delay:    10 * time.Second,
-					Mode:     "delay",
+					Interval:        1 * time.Second,
+					Attempts:        5,
+					Delay:           10 * time.Second,
+					Mode:            "delay",
+					RenderTemplates: false,
 				},
 				Spreads: []*structs.Spread{
 					{
@@ -3075,10 +3078,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						RestartPolicy: &structs.RestartPolicy{
-							Interval: 2 * time.Second,
-							Attempts: 10,
-							Delay:    20 * time.Second,
-							Mode:     "delay",
+							Interval:        2 * time.Second,
+							Attempts:        10,
+							Delay:           20 * time.Second,
+							Mode:            "delay",
+							RenderTemplates: false,
 						},
 						Services: []*structs.Service{
 							{
@@ -3283,10 +3287,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					},
 				},
 				RestartPolicy: &api.RestartPolicy{
-					Interval: pointer.Of(1 * time.Second),
-					Attempts: pointer.Of(5),
-					Delay:    pointer.Of(10 * time.Second),
-					Mode:     pointer.Of("delay"),
+					Interval:        pointer.Of(1 * time.Second),
+					Attempts:        pointer.Of(5),
+					Delay:           pointer.Of(10 * time.Second),
+					Mode:            pointer.Of("delay"),
+					RenderTemplates: pointer.Of(false),
 				},
 				EphemeralDisk: &api.EphemeralDisk{
 					SizeMB:  pointer.Of(100),
@@ -3404,10 +3409,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					},
 				},
 				RestartPolicy: &structs.RestartPolicy{
-					Interval: 1 * time.Second,
-					Attempts: 5,
-					Delay:    10 * time.Second,
-					Mode:     "delay",
+					Interval:        1 * time.Second,
+					Attempts:        5,
+					Delay:           10 * time.Second,
+					Mode:            "delay",
+					RenderTemplates: false,
 				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB:  100,
@@ -3462,10 +3468,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						RestartPolicy: &structs.RestartPolicy{
-							Interval: 1 * time.Second,
-							Attempts: 5,
-							Delay:    10 * time.Second,
-							Mode:     "delay",
+							Interval:        1 * time.Second,
+							Attempts:        5,
+							Delay:           10 * time.Second,
+							Mode:            "delay",
+							RenderTemplates: false,
 						},
 						Meta: map[string]string{
 							"lol": "code",

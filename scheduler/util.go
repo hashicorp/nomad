@@ -258,6 +258,12 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		return difference("volume request", a.Volumes, b.Volumes)
 	}
 
+	// Check if restart.render_templates is updated
+	// this requires a destructive update for template hook to receive the new config
+	if a.RestartPolicy.RenderTemplates != b.RestartPolicy.RenderTemplates {
+		return difference("group restart render_templates", a.RestartPolicy.RenderTemplates, b.RestartPolicy.RenderTemplates)
+	}
+
 	// Check each task
 	for _, at := range a.Tasks {
 		bt := b.LookupTask(at.Name)
@@ -318,6 +324,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		// stdout/stderr of the task
 		if at.LogConfig.Disabled != bt.LogConfig.Disabled {
 			return difference("task log disabled", at.LogConfig.Disabled, bt.LogConfig.Disabled)
+		}
+
+		// Check if restart.render_templates is updated
+		if at.RestartPolicy.RenderTemplates != bt.RestartPolicy.RenderTemplates {
+			return difference("task restart render_templates", at.RestartPolicy.RenderTemplates, bt.RestartPolicy.RenderTemplates)
 		}
 	}
 
