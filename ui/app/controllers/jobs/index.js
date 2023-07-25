@@ -295,7 +295,7 @@ export default class IndexController extends Controller.extend(
     });
   }
 
-  @computed('sortProperty', 'searchTerm')
+  @computed('searchTerm', 'sortDescending', 'sortProperty')
   get unsortedSearchState() {
     return (
       this.sortProperty === DEFAULT_SORT_PROPERTY &&
