@@ -1058,10 +1058,11 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Consul = apiConsulToStructs(taskGroup.Consul)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
-		Attempts: *taskGroup.RestartPolicy.Attempts,
-		Interval: *taskGroup.RestartPolicy.Interval,
-		Delay:    *taskGroup.RestartPolicy.Delay,
-		Mode:     *taskGroup.RestartPolicy.Mode,
+		Attempts:        *taskGroup.RestartPolicy.Attempts,
+		Interval:        *taskGroup.RestartPolicy.Interval,
+		Delay:           *taskGroup.RestartPolicy.Delay,
+		Mode:            *taskGroup.RestartPolicy.Mode,
+		RenderTemplates: *taskGroup.RestartPolicy.RenderTemplates,
 	}
 
 	if taskGroup.ShutdownDelay != nil {
@@ -1209,10 +1210,11 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	if apiTask.RestartPolicy != nil {
 		structsTask.RestartPolicy = &structs.RestartPolicy{
-			Attempts: *apiTask.RestartPolicy.Attempts,
-			Interval: *apiTask.RestartPolicy.Interval,
-			Delay:    *apiTask.RestartPolicy.Delay,
-			Mode:     *apiTask.RestartPolicy.Mode,
+			Attempts:        *apiTask.RestartPolicy.Attempts,
+			Interval:        *apiTask.RestartPolicy.Interval,
+			Delay:           *apiTask.RestartPolicy.Delay,
+			Mode:            *apiTask.RestartPolicy.Mode,
+			RenderTemplates: *apiTask.RestartPolicy.RenderTemplates,
 		}
 	}
 

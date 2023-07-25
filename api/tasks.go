@@ -88,10 +88,11 @@ type AllocCheckStatuses map[string]AllocCheckStatus
 // RestartPolicy defines how the Nomad client restarts
 // tasks in a taskgroup when they fail
 type RestartPolicy struct {
-	Interval *time.Duration `hcl:"interval,optional"`
-	Attempts *int           `hcl:"attempts,optional"`
-	Delay    *time.Duration `hcl:"delay,optional"`
-	Mode     *string        `hcl:"mode,optional"`
+	Interval        *time.Duration `hcl:"interval,optional"`
+	Attempts        *int           `hcl:"attempts,optional"`
+	Delay           *time.Duration `hcl:"delay,optional"`
+	Mode            *string        `hcl:"mode,optional"`
+	RenderTemplates *bool          `mapstructure:"render_templates" hcl:"render_templates,optional"`
 }
 
 func (r *RestartPolicy) Merge(rp *RestartPolicy) {
@@ -106,6 +107,9 @@ func (r *RestartPolicy) Merge(rp *RestartPolicy) {
 	}
 	if rp.Mode != nil {
 		r.Mode = rp.Mode
+	}
+	if rp.RenderTemplates != nil {
+		r.RenderTemplates = rp.RenderTemplates
 	}
 }
 
@@ -580,10 +584,11 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 // in nomad/structs/structs.go
 func defaultServiceJobRestartPolicy() *RestartPolicy {
 	return &RestartPolicy{
-		Delay:    pointerOf(15 * time.Second),
-		Attempts: pointerOf(2),
-		Interval: pointerOf(30 * time.Minute),
-		Mode:     pointerOf(RestartPolicyModeFail),
+		Delay:           pointerOf(15 * time.Second),
+		Attempts:        pointerOf(2),
+		Interval:        pointerOf(30 * time.Minute),
+		Mode:            pointerOf(RestartPolicyModeFail),
+		RenderTemplates: pointerOf(false),
 	}
 }
 
@@ -591,10 +596,11 @@ func defaultServiceJobRestartPolicy() *RestartPolicy {
 // in nomad/structs/structs.go
 func defaultBatchJobRestartPolicy() *RestartPolicy {
 	return &RestartPolicy{
-		Delay:    pointerOf(15 * time.Second),
-		Attempts: pointerOf(3),
-		Interval: pointerOf(24 * time.Hour),
-		Mode:     pointerOf(RestartPolicyModeFail),
+		Delay:           pointerOf(15 * time.Second),
+		Attempts:        pointerOf(3),
+		Interval:        pointerOf(24 * time.Hour),
+		Mode:            pointerOf(RestartPolicyModeFail),
+		RenderTemplates: pointerOf(false),
 	}
 }
 

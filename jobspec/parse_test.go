@@ -193,10 +193,11 @@ func TestParse(t *testing.T) {
 							"elb_checks":   "3",
 						},
 						RestartPolicy: &api.RestartPolicy{
-							Interval: timeToPtr(10 * time.Minute),
-							Attempts: intToPtr(5),
-							Delay:    timeToPtr(15 * time.Second),
-							Mode:     stringToPtr("delay"),
+							Interval:        timeToPtr(10 * time.Minute),
+							Attempts:        intToPtr(5),
+							Delay:           timeToPtr(15 * time.Second),
+							Mode:            stringToPtr("delay"),
+							RenderTemplates: boolToPtr(false),
 						},
 						Spreads: []*api.Spread{
 							{

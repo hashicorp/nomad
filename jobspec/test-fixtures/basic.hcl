@@ -102,10 +102,11 @@ job "binstore-storagelocker" {
     }
 
     restart {
-      attempts = 5
-      interval = "10m"
-      delay    = "15s"
-      mode     = "delay"
+      attempts         = 5
+      interval         = "10m"
+      delay            = "15s"
+      mode             = "delay"
+      render_templates = false
     }
 
     reschedule {
