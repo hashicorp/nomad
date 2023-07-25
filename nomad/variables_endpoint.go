@@ -93,11 +93,8 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return err
 	}
 
-	// The read permission modify the way the response is populated. If ACL is not
-	// used, read permission is granted by default.
-	var canRead bool = true
+	// IF ACL is being used,
 	if aclObj != nil {
-		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
 		err := hasOperationPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
 		if err != nil {
 			return err
@@ -112,7 +109,8 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	var ev *structs.VariableEncrypted
 
 	switch args.Op {
-	case structs.VarOpSet, structs.VarOpCAS:
+	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
+		structs.VarOpLockRelease:
 		ev, err = sv.encrypt(args.Var)
 		if err != nil {
 			return fmt.Errorf("variable error: encrypt: %w", err)
@@ -129,15 +127,6 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 				ModifyIndex: args.Var.ModifyIndex,
 			},
 		}
-
-	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
-		ev, err = sv.encrypt(args.Var)
-		if err != nil {
-			return fmt.Errorf("variable error: encrypt: %w", err)
-		}
-
-		now := time.Now().UnixNano()
-		ev.ModifyTime = now
 	}
 
 	// Make a SVEArgs
@@ -153,16 +142,9 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return fmt.Errorf("raft apply failed: %w", err)
 	}
 
-	r, err := sv.makeVariablesApplyResponse(args, out.(*structs.VarApplyStateResponse), canRead)
+	r, err := sv.makeVariablesApplyResponse(args, out.(*structs.VarApplyStateResponse), aclObj)
 	if err != nil {
 		return err
-	}
-
-	// Verify the caller is providing the correct lockID, meaning it is the
-	// lock holder and has access to the lock information or is management call.
-	// If not, remove the lock information from response.
-	if isVarLocked(args, r) || !aclObj.IsManagement() {
-		r.Output.VariableMetadata.Lock = nil
 	}
 
 	*reply = *r
@@ -211,16 +193,8 @@ func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs
 func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	switch args.Op {
 	case structs.VarOpLockAcquire:
-		// If the variable doesn't have an ID, it means a lock is
-		// being created on a variable that doesn't exist, the variable needs to
-		// be created.
-		if args.Var.GetID() == "" {
-			args.Var.Canonicalize()
-		}
-
-		if err := args.Var.ValidateForLock(); err != nil {
-			return err
-		}
+		args.Var.Canonicalize()
+		return args.Var.ValidateForLock()
 
 	case structs.VarOpSet, structs.VarOpCAS:
 		args.Var.Canonicalize()
@@ -248,7 +222,7 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 // VariableDataItems
 func (sv *Variables) makeVariablesApplyResponse(
 	req *structs.VariablesApplyRequest, eResp *structs.VarApplyStateResponse,
-	canRead bool) (*structs.VariablesApplyResponse, error) {
+	aclObj *acl.ACL) (*structs.VariablesApplyResponse, error) {
 
 	out := structs.VariablesApplyResponse{
 		Op:        eResp.Op,
@@ -258,6 +232,15 @@ func (sv *Variables) makeVariablesApplyResponse(
 		WriteMeta: eResp.WriteMeta,
 	}
 
+	// The read permission modify the way the response is populated. If ACL is not
+	// used, read permission is granted by default.
+	var canRead bool = true
+	var isManagement = true
+	if aclObj != nil {
+		canRead = hasReadPermission(aclObj, eResp.Conflict.Namespace, eResp.Conflict.Path)
+		isManagement = aclObj.IsManagement()
+	}
+
 	if eResp.IsOk() {
 		if eResp.WrittenSVMeta != nil {
 			// The writer is allowed to read their own write
@@ -265,7 +248,15 @@ func (sv *Variables) makeVariablesApplyResponse(
 				VariableMetadata: *eResp.WrittenSVMeta,
 				Items:            req.Var.Items.Copy(),
 			}
+
+			// Verify the caller is providing the correct lockID, meaning it is the
+			// lock holder and has access to the lock information or is a management call.
+			// If locked, remove the lock information from response.
+			if isVarLocked(req, eResp.WrittenSVMeta) || !isManagement {
+				out.Output.VariableMetadata.Lock = nil
+			}
 		}
+
 		return &out, nil
 	}
 
@@ -320,7 +311,7 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 
 	defer metrics.MeasureSince([]string{"nomad", "variables", "read"}, time.Now())
 
-	_, _, err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+	aclObj, _, err := sv.handleMixedAuthEndpoint(args.QueryOptions,
 		acl.PolicyRead, args.Path)
 	if err != nil {
 		return err
@@ -343,7 +334,12 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 				if err != nil {
 					return err
 				}
+
 				ov := dv.Copy()
+				if aclObj != nil && !aclObj.IsManagement() {
+					ov.Lock = nil
+				}
+
 				reply.Data = &ov
 				reply.Index = out.ModifyIndex
 			} else {
@@ -432,6 +428,11 @@ func (sv *Variables) List(
 				func(raw interface{}) error {
 					sv := raw.(*structs.VariableEncrypted)
 					svStub := sv.VariableMetadata
+
+					if aclObj != nil && !aclObj.IsManagement() {
+						sv.VariableMetadata.Lock = nil
+					}
+
 					svs = append(svs, &svStub)
 					return nil
 				})
@@ -725,7 +726,11 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 	return nil
 }
 
-func isVarLocked(req *structs.VariablesApplyRequest, eResp *structs.VariablesApplyResponse) bool {
-	return req.Var.Lock == nil || eResp.Output.VariableMetadata.Lock == nil ||
-		req.Var.Lock.ID != eResp.Output.VariableMetadata.Lock.ID
+func isVarLocked(req *structs.VariablesApplyRequest, respVarMeta *structs.VariableMetadata) bool {
+	reqLock := req.Var.VariableMetadata.Lock
+	savedLock := respVarMeta.Lock
+
+	return reqLock != nil &&
+		savedLock != nil &&
+		reqLock.ID != savedLock.ID
 }
