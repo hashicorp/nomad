@@ -4,6 +4,8 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"context"
 	"fmt"
 	"io"
@@ -21,10 +23,11 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -260,30 +263,32 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
-	// probably a proclib thing here (pid collector, etc.)
-
-	totalCpuStats  *stats.CpuStats
-	userCpuStats   *stats.CpuStats
-	systemCpuStats *stats.CpuStats
+	top            cpustats.Topology
+	totalCpuStats  *cpustats.Tracker
+	userCpuStats   *cpustats.Tracker
+	systemCpuStats *cpustats.Tracker
+	processStats   procstats.ProcessStats
 
 	logger hclog.Logger
 }
 
 // NewExecutor returns an Executor
 func NewExecutor(logger hclog.Logger) Executor {
-	logger = logger.Named("executor")
-	if err := shelpers.Init(); err != nil {
-		logger.Error("unable to initialize stats", "error", err)
-	}
+	logger = netlog.New("NewExecutor()")
+	top := numalib.Scan(numalib.PlatformScanners())
 
-	return &UniversalExecutor{
-		logger:         logger,
+	ue := &UniversalExecutor{
+		logger:         logger.Named("executor"),
+		top:            top,
 		processExited:  make(chan interface{}),
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-		// proclib thing
+		totalCpuStats:  cpustats.New(top),
+		userCpuStats:   cpustats.New(top),
+		systemCpuStats: cpustats.New(top),
 	}
+	ue.logger = netlog.New("raw.executor")
+	ue.processStats = procstats.New(ue)
+	ue.logger.Info("HIHIHIHI", "top", top)
+	return ue
 }
 
 // Version returns the api version of the executor
@@ -640,13 +645,13 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 		}
 
 		// SETH get pidStats
+		stats := e.processStats.StatProcesses()
+		e.logger.Info("handleStats", "stats", stats)
 
 		select {
 		case <-ctx.Done():
 			return
-
-			// SETH send pidStats somewhere
-			// case ch <- aggregatedResourceUsage(e.systemCpuStats, pidStats):
+			// case ch <- procstats.Aggregate(e.systemCpuStats, stats):
 		}
 	}
 }

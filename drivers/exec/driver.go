@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -134,6 +135,9 @@ type Driver struct {
 	// whether it has been successful
 	fingerprintSuccess *bool
 	fingerprintLock    sync.Mutex
+
+	// topology contains the system cpu / memory topology
+	topology *numalib.Topology
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
@@ -239,10 +243,11 @@ type TaskState struct {
 func NewExecDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer: eventer.NewEventer(ctx, logger),
-		tasks:   newTaskStore(),
-		ctx:     ctx,
-		logger:  logger,
+		eventer:  eventer.NewEventer(ctx, logger),
+		tasks:    newTaskStore(),
+		ctx:      ctx,
+		logger:   logger,
+		topology: numalib.Scan(numalib.PlatformScanners()),
 	}
 }
 

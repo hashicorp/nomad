@@ -27,7 +27,7 @@ type Wranglers struct {
 }
 
 func (w *Wranglers) Setup(task Task) error {
-	w.configs.Logger.Info("Setup()", "task", task)
+	w.configs.Logger.Info("Setup() hi", "task", task)
 
 	// since we do not know the cgroup in the alloc/task runner hook, we need
 	// to be able to modify the process wrangler in a post start hook? or do

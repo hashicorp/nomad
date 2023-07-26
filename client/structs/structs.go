@@ -9,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )

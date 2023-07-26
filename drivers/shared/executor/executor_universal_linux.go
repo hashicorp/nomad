@@ -10,6 +10,9 @@ import (
 	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	// "github.com/opencontainers/runc/libcontainer/configs"
@@ -64,12 +67,44 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 	return nil
 }
 
+func (e *UniversalExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		return e.listProcessesCG1()
+	case cgroupslib.CG2:
+		return e.listProcessesCG2()
+	default:
+		return nil
+	}
+}
+
+func (e *UniversalExecutor) listProcessesCG1() *set.Set[procstats.ProcessID] {
+
+	return nil
+}
+
+func (e *UniversalExecutor) listProcessesCG2() *set.Set[procstats.ProcessID] {
+	cgroup := e.commandCfg.Cgroup
+	e.logger.Info("list processes cg2", "cgroup", cgroup)
+	// task and alloc id, or cgroup (?)
+	// read cgroup
+	return nil
+}
+
 // configureResourceContainer configurs the cgroups to be used to track pids
 // created by the executor
 func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 	// SETH
 	// - set cfg.Cgroups.Resources.Devices += specconv.AllowedDevices
 	// - do pid "containment" (group so we can track utilization and kill later)
+
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+	case cgroupslib.CG2:
+		_ = procstats.New(e)
+
+	}
+
 	return nil
 }
 

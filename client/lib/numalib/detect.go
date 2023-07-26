@@ -70,23 +70,23 @@ type ConfigScanner struct {
 func (cs *ConfigScanner) ScanSystem(top *Topology) {
 	// disable cores that are not reservable (i.e. override cgroups)
 	if cs.ReservableCores != nil {
-		for _, cpu := range top.cpus {
-			if !cs.ReservableCores.Contains(cpu.id) {
-				cpu.disable = true
+		for _, cpu := range top.Cores {
+			if !cs.ReservableCores.Contains(cpu.ID) {
+				cpu.Disable = true
 			}
 		}
 	}
 
 	// disable cores that are not usable (i.e. hide from scheduler)
-	for _, cpu := range top.cpus {
-		if cs.ReservedCores.Contains(cpu.id) {
-			cpu.disable = true
+	for _, cpu := range top.Cores {
+		if cs.ReservedCores.Contains(cpu.ID) {
+			cpu.Disable = true
 		}
 	}
 
 	// set total compute from client configuration
-	top.overrideTotalCompute = cs.TotalCompute
+	top.OverrideTotalCompute = cs.TotalCompute
 
 	// set the reserved compute from client configuration
-	top.overrideWitholdCompute = cs.ReservedCompute
+	top.OverrideWitholdCompute = cs.ReservedCompute
 }

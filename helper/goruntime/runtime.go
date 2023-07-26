@@ -1,7 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package stats
+// Package goruntime contains helper functions related to the Go runtime.
+package goruntime
 
 import (
 	"runtime"

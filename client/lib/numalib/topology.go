@@ -13,14 +13,14 @@ import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 )
 
-type grade bool
+type CoreGrade bool
 
 const (
-	performance grade = true
-	efficiency  grade = false
+	performance CoreGrade = true
+	efficiency  CoreGrade = false
 )
 
-func gradeOf(siblings *idset.Set[CoreID]) grade {
+func gradeOf(siblings *idset.Set[CoreID]) CoreGrade {
 	switch siblings.Size() {
 	case 0, 1:
 		return efficiency
@@ -29,7 +29,7 @@ func gradeOf(siblings *idset.Set[CoreID]) grade {
 	}
 }
 
-func (g grade) String() string {
+func (g CoreGrade) String() string {
 	switch g {
 	case performance:
 		return "performance"
@@ -40,7 +40,7 @@ func (g grade) String() string {
 
 type (
 	NodeID   uint8
-	socketID uint8
+	SocketID uint8
 	CoreID   uint16
 	KHz      uint64
 	MHz      uint64
@@ -58,46 +58,46 @@ func (hz KHz) String() string {
 
 // A Topology provides a bird-eye view of the system NUMA topology.
 type Topology struct {
-	nodes     *idset.Set[NodeID]
-	distances distances
-	cpus      []Core
+	NodeIDs   *idset.Set[NodeID] `json:"node_ids"`
+	Distances Distances          `json:"distances"`
+	Cores     []Core             `json:"cores"`
 
 	// explicit overrides from client configuration
-	overrideTotalCompute   MHz
-	overrideWitholdCompute MHz
+	OverrideTotalCompute   MHz `json:"override_total_compute"`
+	OverrideWitholdCompute MHz `json:"override_withhold_compute"`
 }
 
 type Core struct {
-	node    NodeID
-	socket  socketID
-	id      CoreID
-	grade   grade
-	disable bool // indicates whether Nomad must not use this core
-	base    MHz  // cpuinfo_base_freq (primary choice)
-	max     MHz  // cpuinfo_max_freq (second choice)
-	guess   MHz  // best effort (fallback)
+	NodeID     NodeID    `json:"node_id"`
+	SocketID   SocketID  `json:"socket_id"`
+	ID         CoreID    `json:"id"`
+	Grade      CoreGrade `json:"grade"`
+	Disable    bool      `json:"disable"`     // indicates whether Nomad must not use this core
+	BaseSpeed  MHz       `json:"base_speed"`  // cpuinfo_base_freq (primary choice)
+	MaxSpeed   MHz       `json:"max_speed"`   // cpuinfo_max_freq (second choice)
+	GuessSpeed MHz       `json:"guess_speed"` // best effort (fallback)
 }
 
 func (c Core) String() string {
 	return fmt.Sprintf(
 		"(%d %d %d %s %d %d)",
-		c.node, c.socket, c.id, c.grade, c.max, c.base,
+		c.NodeID, c.SocketID, c.ID, c.Grade, c.MaxSpeed, c.BaseSpeed,
 	)
 }
 
 func (c Core) MHz() MHz {
 	switch {
-	case c.base > 0:
-		return c.base
-	case c.max > 0:
-		return c.max
+	case c.BaseSpeed > 0:
+		return c.BaseSpeed
+	case c.MaxSpeed > 0:
+		return c.MaxSpeed
 	}
-	return c.guess
+	return c.GuessSpeed
 }
 
-type distances [][]Latency
+type Distances [][]Latency
 
-func (d distances) cost(a, b NodeID) Latency {
+func (d Distances) cost(a, b NodeID) Latency {
 	return d[a][b]
 }
 
@@ -114,33 +114,33 @@ func (st *Topology) Nodes() *idset.Set[NodeID] {
 	if !st.SupportsNUMA() {
 		return nil
 	}
-	return st.nodes
+	return st.NodeIDs
 }
 
 func (st *Topology) NodeCores(node NodeID) *idset.Set[CoreID] {
 	result := idset.Empty[CoreID]()
-	for _, cpu := range st.cpus {
-		if cpu.node == node {
-			result.Insert(cpu.id)
+	for _, cpu := range st.Cores {
+		if cpu.NodeID == node {
+			result.Insert(cpu.ID)
 		}
 	}
 	return result
 }
 
-func (st *Topology) insert(node NodeID, socket socketID, core CoreID, grade grade, max, base KHz) {
-	st.cpus[core] = Core{
-		node:   node,
-		socket: socket,
-		id:     core,
-		grade:  grade,
-		max:    max.MHz(),
-		base:   base.MHz(),
+func (st *Topology) insert(node NodeID, socket SocketID, core CoreID, grade CoreGrade, max, base KHz) {
+	st.Cores[core] = Core{
+		NodeID:    node,
+		SocketID:  socket,
+		ID:        core,
+		Grade:     grade,
+		MaxSpeed:  max.MHz(),
+		BaseSpeed: base.MHz(),
 	}
 }
 
 func (st *Topology) String() string {
 	var sb strings.Builder
-	for _, cpu := range st.cpus {
+	for _, cpu := range st.Cores {
 		sb.WriteString(cpu.String())
 	}
 	return sb.String()
@@ -148,7 +148,7 @@ func (st *Topology) String() string {
 
 func (st *Topology) TotalCompute() MHz {
 	var total MHz
-	for _, cpu := range st.cpus {
+	for _, cpu := range st.Cores {
 		total += cpu.MHz()
 	}
 	return total
@@ -156,8 +156,8 @@ func (st *Topology) TotalCompute() MHz {
 
 func (st *Topology) UsableCompute() MHz {
 	var total MHz
-	for _, cpu := range st.cpus {
-		if !cpu.disable {
+	for _, cpu := range st.Cores {
+		if !cpu.Disable {
 			total += cpu.MHz()
 		}
 	}
@@ -165,13 +165,13 @@ func (st *Topology) UsableCompute() MHz {
 }
 
 func (st *Topology) NumCores() int {
-	return len(st.cpus)
+	return len(st.Cores)
 }
 
 func (st *Topology) NumPCores() int {
 	var total int
-	for _, cpu := range st.cpus {
-		if cpu.grade == performance {
+	for _, cpu := range st.Cores {
+		if cpu.Grade == performance {
 			total++
 		}
 	}
@@ -180,8 +180,8 @@ func (st *Topology) NumPCores() int {
 
 func (st *Topology) NumECores() int {
 	var total int
-	for _, cpu := range st.cpus {
-		if cpu.grade == efficiency {
+	for _, cpu := range st.Cores {
+		if cpu.Grade == efficiency {
 			total++
 		}
 	}
@@ -190,9 +190,9 @@ func (st *Topology) NumECores() int {
 
 func (st *Topology) UsableCores() *idset.Set[CoreID] {
 	result := idset.Empty[CoreID]()
-	for _, cpu := range st.cpus {
-		if !cpu.disable {
-			result.Insert(cpu.id)
+	for _, cpu := range st.Cores {
+		if !cpu.Disable {
+			result.Insert(cpu.ID)
 		}
 	}
 	return result
@@ -200,8 +200,8 @@ func (st *Topology) UsableCores() *idset.Set[CoreID] {
 
 func (st *Topology) CoreSpeeds() (MHz, MHz) {
 	var pCore, eCore MHz
-	for _, cpu := range st.cpus {
-		switch cpu.grade {
+	for _, cpu := range st.Cores {
+		switch cpu.Grade {
 		case performance:
 			pCore = cpu.MHz()
 		case efficiency:

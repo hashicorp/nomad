@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
-
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

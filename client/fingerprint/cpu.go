@@ -4,8 +4,6 @@
 package fingerprint
 
 import (
-	// "github.com/shoenig/netlog"
-
 	"fmt"
 	"runtime"
 	"strconv"
@@ -55,7 +53,13 @@ func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *Fing
 
 	f.setResponseResources(response)
 
+	// indicate we successfully detected the system cpu / memory configuration
 	response.Detected = true
+
+	// pass the topology back up to the client
+	response.UpdateInitialResult = func(ir *InitialResult) {
+		ir.Topology = f.top
+	}
 
 	return nil
 }

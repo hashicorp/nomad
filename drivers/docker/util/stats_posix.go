@@ -10,7 +10,6 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/stats"
 )
 
 var (
@@ -22,6 +21,8 @@ var (
 )
 
 func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage {
+	// need to get topology in here
+
 	measuredMems := DockerCgroupV1MeasuredMemStats
 
 	// use a simple heuristic to check if cgroup-v2 is used.
@@ -56,7 +57,9 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage
 	cs.UserMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
 		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
-	cs.TotalTicks = (cs.Percent / 100) * float64(stats.TotalTicksAvailable()) / float64(runtime.NumCPU())
+
+	// SETH TODO get from topology somehow
+	// cs.TotalTicks = (cs.Percent / 100) * float64(stats.TotalTicksAvailable()) / float64(runtime.NumCPU())
 
 	return &cstructs.TaskResourceUsage{
 		ResourceUsage: &cstructs.ResourceUsage{

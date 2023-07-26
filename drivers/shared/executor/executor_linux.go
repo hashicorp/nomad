@@ -23,12 +23,14 @@ import (
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -61,11 +63,11 @@ type LibcontainerExecutor struct {
 
 	logger hclog.Logger
 
-	totalCpuStats  *stats.CpuStats
-	userCpuStats   *stats.CpuStats
-	systemCpuStats *stats.CpuStats
-
-	// SETH probably libproc thing here
+	top            cpustats.Topology
+	totalCpuStats  *cpustats.Tracker
+	userCpuStats   *cpustats.Tracker
+	systemCpuStats *cpustats.Tracker
+	processStats   procstats.ProcessStats
 
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
@@ -74,19 +76,22 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-	logger = logger.Named("isolated_executor")
-	if err := shelpers.Init(); err != nil {
-		logger.Error("unable to initialize stats", "error", err)
+	top := numalib.Scan(numalib.PlatformScanners())
+	le := &LibcontainerExecutor{
+		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
+		logger:         logger.Named("isolated_executor"),
+		totalCpuStats:  cpustats.New(top),
+		userCpuStats:   cpustats.New(top),
+		systemCpuStats: cpustats.New(top),
+		top:            top,
 	}
-	return &LibcontainerExecutor{
-		id: strings.ReplaceAll(uuid.Generate(), "-", "_"),
-		// logger:         logger,
-		logger:         netlog.New("lc.executor"),
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-		// SETH pid collector
-	}
+	le.logger = netlog.New("lc.executor")
+	le.processStats = procstats.New(le)
+	return le
+}
+
+func (l *LibcontainerExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+	return nil
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
@@ -160,9 +165,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 	l.userProc = process
 
-	l.totalCpuStats = stats.NewCpuStats()
-	l.userCpuStats = stats.NewCpuStats()
-	l.systemCpuStats = stats.NewCpuStats()
+	// SETH todo
+	l.totalCpuStats = cpustats.New(nil)
+	l.userCpuStats = cpustats.New(nil)
+	l.systemCpuStats = cpustats.New(nil)
 
 	// Starts the task
 	if err := container.Run(process); err != nil {

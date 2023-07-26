@@ -23,6 +23,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -137,6 +138,9 @@ type Driver struct {
 	// gpuRuntime indicates nvidia-docker runtime availability
 	gpuRuntime bool
 
+	// top contains information about the system topology
+	top cpustats.Topology
+
 	// A tri-state boolean to know if the fingerprinting has happened and
 	// whether it has been successful
 	fingerprintSuccess *bool
@@ -155,7 +159,7 @@ type Driver struct {
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
-func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
+func NewDockerDriver(ctx context.Context, top cpustats.Topology, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	driver := &Driver{
 		eventer:         eventer.NewEventer(ctx, logger),

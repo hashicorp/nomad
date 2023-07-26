@@ -123,8 +123,9 @@ var (
 
 	// PluginConfig is the docker config factory function registered in the plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, l) },
+		Config: map[string]interface{}{},
+		// SETH how to plumb in topology, or create one?
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, nil, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC.

@@ -40,18 +40,18 @@ func (s *Sysfs) ScanSystem(top *Topology) {
 func discoverOnline(st *Topology) {
 	ids, err := getIDSet[NodeID](nodeOnline)
 	if err == nil {
-		st.nodes = ids
+		st.NodeIDs = ids
 	}
 }
 
 func discoverCosts(st *Topology) {
-	dimension := st.nodes.Size()
-	st.distances = make(distances, st.nodes.Size())
+	dimension := st.NodeIDs.Size()
+	st.Distances = make(Distances, st.NodeIDs.Size())
 	for i := 0; i < dimension; i++ {
-		st.distances[i] = make([]Latency, dimension)
+		st.Distances[i] = make([]Latency, dimension)
 	}
 
-	_ = st.nodes.ForEach(func(id NodeID) error {
+	_ = st.NodeIDs.ForEach(func(id NodeID) error {
 		s, err := getString(distanceFile, id)
 		if err != nil {
 			return err
@@ -59,7 +59,7 @@ func discoverCosts(st *Topology) {
 
 		for i, c := range strings.Fields(string(s)) {
 			cost, _ := strconv.Atoi(c)
-			st.distances[id][i] = Latency(cost)
+			st.Distances[id][i] = Latency(cost)
 		}
 		return nil
 	})
@@ -70,26 +70,23 @@ func discoverCores(st *Topology) {
 	if err != nil {
 		return
 	}
-	st.cpus = make([]Core, onlineCores.Size())
+	st.Cores = make([]Core, onlineCores.Size())
 
-	_ = st.nodes.ForEach(func(node NodeID) error {
+	_ = st.NodeIDs.ForEach(func(node NodeID) error {
 		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
 		if err != nil {
 			return err
 		}
 
 		cores := idset.Parse[CoreID](string(s))
-		fmt.Println("node", node, "core ids", cores)
 		_ = cores.ForEach(func(core CoreID) error {
-			socket, err := getNumeric[socketID](cpuSocketFile, core)
+			socket, err := getNumeric[SocketID](cpuSocketFile, core)
 			if err != nil {
-				fmt.Println("err", err)
 				return err
 			}
 
 			max, err := getNumeric[KHz](cpuMaxFile, core)
 			if err != nil {
-				fmt.Println("err", err)
 				return err
 			}
 
@@ -98,7 +95,6 @@ func discoverCores(st *Topology) {
 
 			siblings, err := getIDSet[CoreID](cpuSiblingFile, core)
 			if err != nil {
-				fmt.Println("err", err)
 				return err
 			}
 
@@ -159,12 +155,11 @@ func (s *Cgroups2) ScanSystem(top *Topology) {
 	// detect effective cores in the nomad.slice cgroup
 	ed := cgroupslib.Open("cpuset.cpus.effective")
 	content, err := ed.Read()
-	fmt.Println("HIHIHI Cgroups effective", content, err)
 	if err == nil {
 		ids := idset.Parse[CoreID](content)
-		for _, cpu := range top.cpus {
-			if !ids.Contains(cpu.id) {
-				cpu.disable = true
+		for _, cpu := range top.Cores {
+			if !ids.Contains(cpu.ID) {
+				cpu.Disable = true
 			}
 		}
 	}

@@ -31,7 +31,9 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/hoststats"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -42,15 +44,14 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
-	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -324,6 +325,10 @@ type Client struct {
 	// wranglers is used to keep track of processes and manage their interaction
 	// with drivers and stuff
 	wranglers *proclib.Wranglers
+
+	// topology represents the system memory / cpu topology detected via
+	// fingerprinting
+	topology *numalib.Topology
 }
 
 var (
@@ -433,14 +438,20 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	c.fingerprintManager = NewFingerprintManager(
-		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
-		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
-
+		cfg.PluginSingletonLoader,
+		c.GetConfig,
+		cfg.Node,
+		c.shutdownCh,
+		c.updateNodeFromFingerprint,
+		c.logger,
+	)
 	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
-	if err := c.fingerprintManager.Run(); err != nil {
+	if ir, err := c.fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
+	} else {
+		c.topology = ir.Topology
 	}
 
 	// Create the process wranglers
@@ -513,7 +524,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	go c.heartbeatStop.watch()
 
 	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(c.logger, c.GetConfig().AllocDir, c.devicemanager.AllStats)
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.topology, c.GetConfig().AllocDir, c.devicemanager.AllStats)
 	c.hostStatsCollector = statsCollector
 
 	// Add the garbage collector
@@ -897,7 +908,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat())),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
-		"runtime": hstats.RuntimeStats(),
+		"runtime": goruntime.RuntimeStats(),
 	}
 	return stats
 }
