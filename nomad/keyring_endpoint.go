@@ -364,7 +364,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 // ListPublic signing keys used for workload identities. This RPC is used to
 // back a JWKS endpoint.
 //
-// Unauthenticated.
+// Unauthenticated because public keys are not sensitive.
 func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.KeyringListPublicResponse) error {
 
 	// JWKS is a public endpoint: intentionally ignore auth errors and only
