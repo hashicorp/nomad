@@ -69,7 +69,39 @@ func TestServer_invalidateVariableLock(t *testing.T) {
 	testServer.lockTTLTimer.Create(mockVar1.LockID(), mockVar1.Lock.TTL, func() {})
 
 	// Perform the invalidation call.
-	testServer.invalidateVariableLock(mockVar1.LockID(), mockVar1)
+	testServer.invalidateVariableLock(*mockVar1)
+
+	// Ensure the TTL timer has been removed.
+	must.Nil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
+
+	// Pull the variable out of state and check that the lock ID has been
+	// removed.
+	_, varGetResp, err := testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	must.NoError(t, err)
+	must.NotNil(t, varGetResp.Lock)
+	must.Eq(t, "", varGetResp.LockID())
+}
+
+func TestServer_renewVariableLockTimer(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, testServerCleanup := TestServer(t, nil)
+	defer testServerCleanup()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// Generate a variable that includes a lock entry and upsert this into our
+	// state.
+	mockVar1 := mock.VariableEncrypted()
+	mockVar1.Lock = &structs.VariableLock{
+		ID:        uuid.Generate(),
+		TTL:       10 * time.Millisecond,
+		LockDelay: 10 * time.Millisecond,
+	}
+
+	upsertResp1 := testServer.fsm.State().VarSet(10, &structs.VarApplyStateRequest{Var: mockVar1, Op: structs.VarOpLockAcquire})
+	must.NoError(t, upsertResp1.Error)
+
+	testServer.CreateVariableLockTTLTimer(*mockVar1)
 
 	// Ensure the TTL timer has been removed.
 	must.Nil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))

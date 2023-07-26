@@ -35,23 +35,23 @@ var (
 type variableTimmers interface {
 	CreateVariableLockTTLTimer(structs.VariableEncrypted)
 	RemoveVariableLockTTLTimer(structs.VariableEncrypted)
-	RenewTTLTimer(structs.VariableEncrypted)
+	RenewTTLTimer(structs.VariableEncrypted) error
 }
 
 // Variables encapsulates the variables RPC endpoint which is
 // callable via the Variables RPCs and externally via the "/v1/var{s}"
 // HTTP API.
 type Variables struct {
-	srv     *Server
-	ctx     *RPCContext
-	logger  hclog.Logger
-	timmers variableTimmers
+	srv    *Server
+	ctx    *RPCContext
+	logger hclog.Logger
+	timers variableTimmers
 
 	encrypter *Encrypter
 }
 
 func NewVariablesEndpoint(srv *Server, ctx *RPCContext, enc *Encrypter) *Variables {
-	return &Variables{srv: srv, ctx: ctx, logger: srv.logger.Named("variables"), encrypter: enc, timmers: srv}
+	return &Variables{srv: srv, ctx: ctx, logger: srv.logger.Named("variables"), encrypter: enc, timers: srv}
 }
 
 // Apply is used to apply a SV update request to the data store.
@@ -137,12 +137,15 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	}
 
 	// Apply the update.
-	out, index, err := sv.srv.raftApply(structs.VarApplyStateRequestType, sveArgs)
+	o, index, err := sv.srv.raftApply(structs.VarApplyStateRequestType, sveArgs)
 	if err != nil {
 		return fmt.Errorf("raft apply failed: %w", err)
 	}
 
-	r, err := sv.makeVariablesApplyResponse(args, out.(*structs.VarApplyStateResponse), aclObj)
+	out, _ := o.(*structs.VarApplyStateResponse)
+
+	// The return value depends on the operation results and the callers permissions
+	r, err := sv.makeVariablesApplyResponse(args, out, aclObj)
 	if err != nil {
 		return err
 	}
@@ -150,11 +153,13 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	*reply = *r
 	reply.Index = index
 
-	switch args.Op {
-	case structs.VarOpLockAcquire:
-		sv.timmers.CreateVariableLockTTLTimer(ev.Copy())
-	case structs.VarOpLockRelease:
-		sv.timmers.RemoveVariableLockTTLTimer(ev.Copy())
+	if !out.IsConflict() {
+		switch args.Op {
+		case structs.VarOpLockAcquire:
+			sv.timers.CreateVariableLockTTLTimer(ev.Copy())
+		case structs.VarOpLockRelease:
+			sv.timers.RemoveVariableLockTTLTimer(ev.Copy())
+		}
 	}
 
 	return nil
@@ -233,7 +238,7 @@ func (sv *Variables) makeVariablesApplyResponse(
 	}
 
 	// The read permission modify the way the response is populated. If ACL is not
-	// used, read permission is granted by default.
+	// used, read permission is granted by default and very call is treated as management.
 	var canRead bool = true
 	var isManagement = true
 	if aclObj != nil {
@@ -722,7 +727,14 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 	*reply.VarMeta = encryptedVar.Copy().VariableMetadata
 	reply.Index = encryptedVar.ModifyIndex
 
-	sv.timmers.RenewTTLTimer(encryptedVar.Copy())
+	// if the lock exists in the variable, but not in the timer, it means
+	// it expired and cant be renewed anymore. The delay will take care of
+	// removing the lock from the variable when it expires.
+	err = sv.timers.RenewTTLTimer(encryptedVar.Copy())
+	if err != nil {
+		return errLockNotFound
+	}
+
 	return nil
 }
 

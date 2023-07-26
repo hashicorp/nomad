@@ -1,10 +1,15 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+var (
+	errTimerNotFound = errors.New("lock doesn't have a running timer ")
 )
 
 // restoreLockTTLTimers iterates the stored variables and creates a lock TTL
@@ -32,11 +37,10 @@ func (s *Server) restoreLockTTLTimers() error {
 	return nil
 }
 
-// CreateVariableLockTTLTimer creates a TTL timer for the given lock. The
-// passed ID is expected to be generated via the variable NamespacedID
-// function.
+// CreateVariableLockTTLTimer creates a TTL timer for the given lock.
+// It is in charge of integrating the delay after the TTL expires.
 func (s *Server) CreateVariableLockTTLTimer(variable structs.VariableEncrypted) {
-
+	s.logger.Debug("locks: adding lock", "namespace", variable.Namespace, "path", variable.Path)
 	// Adjust the given TTL by multiplier of 2. This is done to give a client a
 	// grace period and to compensate for network and processing delays. The
 	// contract is that a variable lock is not expired before the TTL expires,
@@ -50,10 +54,14 @@ func (s *Server) CreateVariableLockTTLTimer(variable structs.VariableEncrypted) 
 	lock := s.lockTTLTimer.Get(lockID)
 	if lock != nil {
 		// If this was to happen, there is a sync issue somewhere else
-		s.logger.Error("attempting to lock a locked variable: %s", lockID)
+		s.logger.Error("attempting to recreate existing lock: %s", lockID)
 	}
 
 	s.lockTTLTimer.Create(lockID, lockTTL, func() {
+		s.logger.Debug("locks: lock TTL expired, starting delay",
+			"namespace", variable.Namespace, "path", variable.Path)
+		s.lockTTLTimer.StopAndRemove(lockID)
+
 		_ = time.AfterFunc(variable.Lock.LockDelay, func() {
 			s.invalidateVariableLock(variable)
 		})
@@ -65,9 +73,11 @@ func (s *Server) CreateVariableLockTTLTimer(variable structs.VariableEncrypted) 
 // has expired.
 func (s *Server) invalidateVariableLock(variable structs.VariableEncrypted) {
 	lockID := variable.LockID()
-	s.lockTTLTimer.StopAndRemove(lockID)
 
-	// Remove the lock from teh variable
+	s.logger.Debug("locks: lock delay expired, removing lock",
+		"namespace", variable.Namespace, "path", variable.Path)
+
+	// Remove the lock from the variable
 	variable.VariableMetadata.Lock = nil
 
 	args := structs.VarApplyStateRequest{
@@ -88,7 +98,7 @@ func (s *Server) invalidateVariableLock(variable structs.VariableEncrypted) {
 
 			return
 		}
-		s.logger.Error("variable lock expiration failed",
+		s.logger.Error("lock expiration failed",
 			"namespace", variable.Namespace, "path", variable.Path,
 			"lock_id", lockID, "error", err)
 		// This exponential backoff will extend the lock Delay beyond the expected
@@ -97,18 +107,21 @@ func (s *Server) invalidateVariableLock(variable structs.VariableEncrypted) {
 	}
 }
 
-func (s *Server) RenewTTLTimer(variable structs.VariableEncrypted) {
+func (s *Server) RenewTTLTimer(variable structs.VariableEncrypted) error {
 	lockID := variable.LockID()
+
+	s.logger.Debug("locks: renewing the lock",
+		"namespace", variable.Namespace, "path", variable.Path)
+
 	lock := s.lockTTLTimer.Get(lockID)
 	if lock == nil {
-		// If this was to happen, there is a sync issue somewhere else.
-		s.logger.Error("attempting to renew an unlocked variable: %s", lockID)
-		return
+		return errTimerNotFound
 	}
 
 	// The create function resets the timer when it exists already, there is no
 	// need to provide the release function again.
 	s.lockTTLTimer.Create(lockID, variable.Lock.TTL, nil)
+	return nil
 }
 
 // RemoveVariableLockTTLTimer creates a TTL timer for the given lock. The
@@ -122,11 +135,9 @@ func (s *Server) RemoveVariableLockTTLTimer(variable structs.VariableEncrypted) 
 	lock := s.lockTTLTimer.Get(lockID)
 	if lock == nil {
 		// If this was to happen, there is a sync issue somewhere else.
-		s.logger.Error("attempting to renew an unlocked variable: %s", lockID)
+		s.logger.Error("attempting to removed missing lock: %s", lockID)
 		return
 	}
 
-	// The create function resets the timer when it exists already, there is no
-	// need to provide the release function again.
-	s.lockTTLTimer.Create(lockID, variable.Lock.TTL, nil)
+	s.lockTTLTimer.StopAndRemove(lockID)
 }
