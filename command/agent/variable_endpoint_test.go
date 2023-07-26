@@ -41,7 +41,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.EqualError(t, err, ErrInvalidMethod)
 		})
 		t.Run("error_parse_list", func(t *testing.T) {
-			req, err := http.NewRequest("GET", "/v1/vars?wait=99a", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/vars?wait=99a", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			_, _ = s.Server.VariablesListRequest(respW, req)
@@ -49,7 +49,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.Equal(t, "Invalid wait time", string(respW.Body.Bytes()))
 		})
 		t.Run("error_rpc_list", func(t *testing.T) {
-			req, err := http.NewRequest("GET", "/v1/vars?region=bad", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/vars?region=bad", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariablesListRequest(respW, req)
@@ -58,7 +58,7 @@ func TestHTTP_Variables(t *testing.T) {
 		})
 		t.Run("list", func(t *testing.T) {
 			// Test the empty list case
-			req, err := http.NewRequest("GET", "/v1/vars", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/vars", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -75,7 +75,7 @@ func TestHTTP_Variables(t *testing.T) {
 			}
 
 			// Make the HTTP request
-			req, err = http.NewRequest("GET", "/v1/vars", nil)
+			req, err = http.NewRequest(http.MethodGet, "/v1/vars", nil)
 			require.NoError(t, err)
 			respW = httptest.NewRecorder()
 
@@ -92,7 +92,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.Len(t, obj.([]*structs.VariableMetadata), 4)
 
 			// test prefix query
-			req, err = http.NewRequest("GET", "/v1/vars?prefix="+svs[0].Path, nil)
+			req, err = http.NewRequest(http.MethodGet, "/v1/vars?prefix="+svs[0].Path, nil)
 			require.NoError(t, err)
 			respW = httptest.NewRecorder()
 
@@ -112,7 +112,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.Nil(t, obj)
 		})
 		t.Run("error_parse_query", func(t *testing.T) {
-			req, err := http.NewRequest("GET", "/v1/var/does/not/exist?wait=99a", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/var/does/not/exist?wait=99a", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			_, _ = s.Server.VariableSpecificRequest(respW, req)
@@ -120,7 +120,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.Equal(t, "Invalid wait time", string(respW.Body.Bytes()))
 		})
 		t.Run("error_rpc_query", func(t *testing.T) {
-			req, err := http.NewRequest("GET", "/v1/var/does/not/exist?region=bad", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/var/does/not/exist?region=bad", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -129,7 +129,7 @@ func TestHTTP_Variables(t *testing.T) {
 		})
 		t.Run("query_unset_path", func(t *testing.T) {
 			// Make a request for a non-existing variable
-			req, err := http.NewRequest("GET", "/v1/var/", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/var/", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -138,7 +138,7 @@ func TestHTTP_Variables(t *testing.T) {
 		})
 		t.Run("query_unset_variable", func(t *testing.T) {
 			// Make a request for a non-existing variable
-			req, err := http.NewRequest("GET", "/v1/var/not/real", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/var/not/real", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -152,7 +152,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.NoError(t, rpcWriteSV(s, sv1, out))
 
 			// Query a variable
-			req, err := http.NewRequest("GET", "/v1/var/"+sv1.Path, nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/var/"+sv1.Path, nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -171,7 +171,7 @@ func TestHTTP_Variables(t *testing.T) {
 		sv1 := mock.Variable()
 		t.Run("error_parse_create", func(t *testing.T) {
 			buf := encodeBrokenReq(&sv1)
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/"+sv1.Path, buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -180,7 +180,7 @@ func TestHTTP_Variables(t *testing.T) {
 		})
 		t.Run("error_rpc_create", func(t *testing.T) {
 			buf := encodeReq(sv1)
-			req, err := http.NewRequest("PUT", "/v1/var/does/not/exist?region=bad", buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/does/not/exist?region=bad", buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -191,7 +191,7 @@ func TestHTTP_Variables(t *testing.T) {
 			sv2 := sv1.Copy()
 			sv2.Items = nil
 			buf := encodeReq(sv2)
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/"+sv1.Path, buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -200,7 +200,7 @@ func TestHTTP_Variables(t *testing.T) {
 		})
 		t.Run("create", func(t *testing.T) {
 			buf := encodeReq(sv1)
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/"+sv1.Path, buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 			obj, err := s.Server.VariableSpecificRequest(respW, req)
@@ -231,7 +231,7 @@ func TestHTTP_Variables(t *testing.T) {
 			// break the request body
 			badBuf := encodeBrokenReq(&sv1U)
 
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path, badBuf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/"+sv1.Path, badBuf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -249,7 +249,7 @@ func TestHTTP_Variables(t *testing.T) {
 
 			// test broken rpc error
 			buf := encodeReq(&sv1U)
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?region=bad", buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/"+sv1.Path+"?region=bad", buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -266,7 +266,7 @@ func TestHTTP_Variables(t *testing.T) {
 			svU.Items["new"] = "new"
 			// Make the HTTP request
 			buf := encodeReq(&svU)
-			req, err := http.NewRequest("PUT", "/v1/var/"+sv.Path, buf)
+			req, err := http.NewRequest(http.MethodPut, "/v1/var/"+sv.Path, buf)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -304,7 +304,7 @@ func TestHTTP_Variables(t *testing.T) {
 			// Make the HTTP request
 			{
 				buf := encodeReq(&svU)
-				req, err := http.NewRequest("PUT", "/v1/var/"+svU.Path+"?cas=1", buf)
+				req, err := http.NewRequest(http.MethodPut, "/v1/var/"+svU.Path+"?cas=1", buf)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -331,7 +331,7 @@ func TestHTTP_Variables(t *testing.T) {
 			// Make the HTTP request
 			{
 				buf := encodeReq(&svU)
-				req, err := http.NewRequest("PUT", "/v1/var/"+svU.Path+"?cas="+fmt.Sprint(sv.ModifyIndex), buf)
+				req, err := http.NewRequest(http.MethodPut, "/v1/var/"+svU.Path+"?cas="+fmt.Sprint(sv.ModifyIndex), buf)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -382,7 +382,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.NoError(t, rpcWriteSV(s, sv1, nil))
 
 			// Make the HTTP request
-			req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path+"?region=bad", nil)
+			req, err := http.NewRequest(http.MethodDelete, "/v1/var/"+sv1.Path+"?region=bad", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
@@ -399,7 +399,7 @@ func TestHTTP_Variables(t *testing.T) {
 
 			// Make the HTTP request
 			{
-				req, err := http.NewRequest("DELETE", "/v1/var/"+sv.Path+"?cas=1", nil)
+				req, err := http.NewRequest(http.MethodDelete, "/v1/var/"+sv.Path+"?cas=1", nil)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -427,7 +427,7 @@ func TestHTTP_Variables(t *testing.T) {
 			}
 			// Make the HTTP request
 			{
-				req, err := http.NewRequest("DELETE", "/v1/var/"+sv.Path+"?cas="+fmt.Sprint(sv.ModifyIndex), nil)
+				req, err := http.NewRequest(http.MethodDelete, "/v1/var/"+sv.Path+"?cas="+fmt.Sprint(sv.ModifyIndex), nil)
 				require.NoError(t, err)
 				respW := httptest.NewRecorder()
 
@@ -448,7 +448,7 @@ func TestHTTP_Variables(t *testing.T) {
 			require.NoError(t, rpcWriteSV(s, sv1, nil))
 
 			// Make the HTTP request
-			req, err := http.NewRequest("DELETE", "/v1/var/"+sv1.Path, nil)
+			req, err := http.NewRequest(http.MethodDelete, "/v1/var/"+sv1.Path, nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
 
