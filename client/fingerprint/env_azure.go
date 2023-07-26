@@ -103,7 +103,7 @@ func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, erro
 		return "", err
 	}
 
-	if res.StatusCode >= 400 {
+	if res.StatusCode >= http.StatusBadRequest {
 		return "", ReqError{res.StatusCode}
 	}
 
