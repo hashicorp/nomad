@@ -55,6 +55,7 @@ func (s *Server) CreateVariableLockTTLTimer(variable structs.VariableEncrypted) 
 	if lock != nil {
 		// If this was to happen, there is a sync issue somewhere else
 		s.logger.Error("attempting to recreate existing lock: %s", lockID)
+		return
 	}
 
 	s.lockTTLTimer.Create(lockID, lockTTL, func() {
@@ -95,9 +96,9 @@ func (s *Server) invalidateVariableLock(variable structs.VariableEncrypted) {
 	for attempt := 0; attempt < maxAttemptsToRaftApply; attempt++ {
 		_, _, err := s.raftApply(structs.VarApplyStateRequestType, args)
 		if err == nil {
-
 			return
 		}
+
 		s.logger.Error("lock expiration failed",
 			"namespace", variable.Namespace, "path", variable.Path,
 			"lock_id", lockID, "error", err)
@@ -118,9 +119,16 @@ func (s *Server) RenewTTLTimer(variable structs.VariableEncrypted) error {
 		return errTimerNotFound
 	}
 
+	// Adjust the given TTL by multiplier of 2. This is done to give a client a
+	// grace period and to compensate for network and processing delays. The
+	// contract is that a variable lock is not expired before the TTL expires,
+	// but there is no explicit promise about the upper bound so this is
+	// allowable.
+	lockTTL := variable.Lock.TTL * 2
+
 	// The create function resets the timer when it exists already, there is no
 	// need to provide the release function again.
-	s.lockTTLTimer.Create(lockID, variable.Lock.TTL, nil)
+	s.lockTTLTimer.Create(lockID, lockTTL, nil)
 	return nil
 }
 
