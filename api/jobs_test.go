@@ -320,10 +320,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(15 * time.Second),
+							Attempts:        pointerOf(2),
+							Interval:        pointerOf(30 * time.Minute),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -405,10 +406,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(3),
-							Interval: pointerOf(24 * time.Hour),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(15 * time.Second),
+							Attempts:        pointerOf(3),
+							Interval:        pointerOf(24 * time.Hour),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(1),
@@ -495,10 +497,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(15 * time.Second),
+							Attempts:        pointerOf(2),
+							Interval:        pointerOf(30 * time.Minute),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -663,10 +666,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 						Name:  pointerOf("cache"),
 						Count: pointerOf(1),
 						RestartPolicy: &RestartPolicy{
-							Interval: pointerOf(5 * time.Minute),
-							Attempts: pointerOf(10),
-							Delay:    pointerOf(25 * time.Second),
-							Mode:     pointerOf("delay"),
+							Interval:        pointerOf(5 * time.Minute),
+							Attempts:        pointerOf(10),
+							Delay:           pointerOf(25 * time.Second),
+							Mode:            pointerOf("delay"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -707,10 +711,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 									}},
 								},
 								RestartPolicy: &RestartPolicy{
-									Interval: pointerOf(5 * time.Minute),
-									Attempts: pointerOf(20),
-									Delay:    pointerOf(25 * time.Second),
-									Mode:     pointerOf("delay"),
+									Interval:        pointerOf(5 * time.Minute),
+									Attempts:        pointerOf(20),
+									Delay:           pointerOf(25 * time.Second),
+									Mode:            pointerOf("delay"),
+									RenderTemplates: pointerOf(false),
 								},
 								Resources: &Resources{
 									CPU:      pointerOf(500),
@@ -835,7 +840,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "update_merge",
 			input: &Job{
@@ -928,10 +932,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(15 * time.Second),
+							Attempts:        pointerOf(2),
+							Interval:        pointerOf(30 * time.Minute),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -975,10 +980,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(15 * time.Second),
+							Attempts:        pointerOf(2),
+							Interval:        pointerOf(30 * time.Minute),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -1016,7 +1022,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "restart_merge",
 			input: &Job{
@@ -1036,8 +1041,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name: "task1",
 								RestartPolicy: &RestartPolicy{
-									Attempts: pointerOf(5),
-									Delay:    pointerOf(1 * time.Second),
+									Attempts:        pointerOf(5),
+									Delay:           pointerOf(1 * time.Second),
+									RenderTemplates: pointerOf(true),
 								},
 							},
 						},
@@ -1105,10 +1111,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(15 * time.Second),
+							Attempts:        pointerOf(2),
+							Interval:        pointerOf(30 * time.Minute),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -1140,10 +1147,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Resources:   DefaultResources(),
 								KillTimeout: pointerOf(5 * time.Second),
 								RestartPolicy: &RestartPolicy{
-									Attempts: pointerOf(5),
-									Delay:    pointerOf(1 * time.Second),
-									Interval: pointerOf(30 * time.Minute),
-									Mode:     pointerOf("fail"),
+									Attempts:        pointerOf(5),
+									Delay:           pointerOf(1 * time.Second),
+									Interval:        pointerOf(30 * time.Minute),
+									Mode:            pointerOf("fail"),
+									RenderTemplates: pointerOf(true),
 								},
 							},
 						},
@@ -1157,10 +1165,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 							SizeMB:  pointerOf(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(20 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:           pointerOf(20 * time.Second),
+							Attempts:        pointerOf(2),
+							Interval:        pointerOf(30 * time.Minute),
+							Mode:            pointerOf("fail"),
+							RenderTemplates: pointerOf(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
 							Attempts:      pointerOf(0),
@@ -1192,10 +1201,11 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Resources:   DefaultResources(),
 								KillTimeout: pointerOf(5 * time.Second),
 								RestartPolicy: &RestartPolicy{
-									Delay:    pointerOf(20 * time.Second),
-									Attempts: pointerOf(2),
-									Interval: pointerOf(30 * time.Minute),
-									Mode:     pointerOf("fail"),
+									Delay:           pointerOf(20 * time.Second),
+									Attempts:        pointerOf(2),
+									Interval:        pointerOf(30 * time.Minute),
+									Mode:            pointerOf("fail"),
+									RenderTemplates: pointerOf(false),
 								},
 							},
 						},
