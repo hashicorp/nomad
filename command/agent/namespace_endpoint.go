@@ -8,7 +8,7 @@ import (
 )
 
 func (s *HTTPServer) NamespacesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -35,11 +35,11 @@ func (s *HTTPServer) NamespaceSpecificRequest(resp http.ResponseWriter, req *htt
 		return nil, CodedError(400, "Missing Namespace Name")
 	}
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.namespaceQuery(resp, req, name)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.namespaceUpdate(resp, req, name)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.namespaceDelete(resp, req, name)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -47,7 +47,7 @@ func (s *HTTPServer) NamespaceSpecificRequest(resp http.ResponseWriter, req *htt
 }
 
 func (s *HTTPServer) NamespaceCreateRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 

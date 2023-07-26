@@ -23,7 +23,7 @@ func TestHTTP_DeploymentList(t *testing.T) {
 		assert.Nil(state.UpsertDeployment(1000, d2), "UpsertDeployment")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/deployments", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/deployments", nil)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -56,7 +56,7 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 		assert.Nil(state.UpsertDeployment(1000, d2), "UpsertDeployment")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/deployments?prefix=aaab", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/deployments?prefix=aaab", nil)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -113,7 +113,7 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/deployment/allocations/"+d.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/deployment/allocations/"+d.ID, nil)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -147,7 +147,7 @@ func TestHTTP_DeploymentQuery(t *testing.T) {
 		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/deployment/"+d.ID, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/deployment/"+d.ID, nil)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -190,7 +190,7 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/deployment/pause/"+d.ID, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/deployment/pause/"+d.ID, buf)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -231,7 +231,7 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/deployment/pause/"+d.ID, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/deployment/pause/"+d.ID, buf)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -276,7 +276,7 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		buf := encodeReq(args)
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/deployment/allocation-health/"+d.ID, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/deployment/allocation-health/"+d.ID, buf)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
@@ -306,7 +306,7 @@ func TestHTTP_DeploymentFail(t *testing.T) {
 		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
 
 		// Make the HTTP request
-		req, err := http.NewRequest("PUT", "/v1/deployment/fail/"+d.ID, nil)
+		req, err := http.NewRequest(http.MethodPut, "/v1/deployment/fail/"+d.ID, nil)
 		assert.Nil(err, "HTTP Request")
 		respW := httptest.NewRecorder()
 
