@@ -26,7 +26,7 @@ func TestHTTP_NamespaceList(t *testing.T) {
 		assert.Nil(s.Agent.RPC("Namespace.UpsertNamespaces", &args, &resp))
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/namespaces", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/namespaces", nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -57,7 +57,7 @@ func TestHTTP_NamespaceQuery(t *testing.T) {
 		assert.Nil(s.Agent.RPC("Namespace.UpsertNamespaces", &args, &resp))
 
 		// Make the HTTP request
-		req, err := http.NewRequest("GET", "/v1/namespace/"+ns1.Name, nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/namespace/"+ns1.Name, nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -82,7 +82,7 @@ func TestHTTP_NamespaceCreate(t *testing.T) {
 		// Make the HTTP request
 		ns1 := mock.Namespace()
 		buf := encodeReq(ns1)
-		req, err := http.NewRequest("PUT", "/v1/namespace", buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/namespace", buf)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -113,7 +113,7 @@ func TestHTTP_NamespaceUpdate(t *testing.T) {
 		// Make the HTTP request
 		ns1 := mock.Namespace()
 		buf := encodeReq(ns1)
-		req, err := http.NewRequest("PUT", "/v1/namespace/"+ns1.Name, buf)
+		req, err := http.NewRequest(http.MethodPut, "/v1/namespace/"+ns1.Name, buf)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
@@ -150,7 +150,7 @@ func TestHTTP_NamespaceDelete(t *testing.T) {
 		assert.Nil(s.Agent.RPC("Namespace.UpsertNamespaces", &args, &resp))
 
 		// Make the HTTP request
-		req, err := http.NewRequest("DELETE", "/v1/namespace/"+ns1.Name, nil)
+		req, err := http.NewRequest(http.MethodDelete, "/v1/namespace/"+ns1.Name, nil)
 		assert.Nil(err)
 		respW := httptest.NewRecorder()
 
