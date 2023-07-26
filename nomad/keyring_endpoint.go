@@ -405,8 +405,8 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 				}
 
 				keyMeta := raw.(*structs.RootKeyMeta)
-				if keyMeta.Inactive() {
-					// Skip inactive keys
+				if keyMeta.State == structs.RootKeyStateDeprecated {
+					// Only include valid keys
 					continue
 				}
 
