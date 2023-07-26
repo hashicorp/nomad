@@ -22,9 +22,9 @@ const jobNotFoundErr = "job not found"
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobListRequest(resp, req)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobUpdate(resp, req, "")
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -231,7 +231,7 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 }
 
 func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	allAllocs, _ := strconv.ParseBool(req.URL.Query().Get("all"))
@@ -260,7 +260,7 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
@@ -283,7 +283,7 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	all, _ := strconv.ParseBool(req.URL.Query().Get("all"))
@@ -308,7 +308,7 @@ func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobSpecificRequest{
@@ -329,11 +329,11 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 
 func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobQuery(resp, req, jobID)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobUpdate(resp, req, jobID)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.jobDelete(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -499,9 +499,9 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobI
 func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.jobScaleStatus(resp, req, jobID)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.jobScaleAction(resp, req, jobID)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)

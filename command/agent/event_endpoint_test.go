@@ -29,7 +29,7 @@ func TestEventStream(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		ctx, cancel := context.WithCancel(context.Background())
-		req, err := http.NewRequestWithContext(ctx, "GET", "/v1/event/stream", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/v1/event/stream", nil)
 		require.Nil(t, err)
 		resp := httptest.NewRecorder()
 
@@ -76,7 +76,7 @@ func TestEventStream_NamespaceQuery(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		req, err := http.NewRequestWithContext(ctx, "GET", "/v1/event/stream?namespace=foo", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/v1/event/stream?namespace=foo", nil)
 		require.Nil(t, err)
 		resp := httptest.NewRecorder()
 
