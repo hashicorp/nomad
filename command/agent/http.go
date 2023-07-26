@@ -538,7 +538,7 @@ func (s *HTTPServer) handleRootFallthrough() http.Handler {
 			if req.URL.RawQuery != "" {
 				url = url + "?" + req.URL.RawQuery
 			}
-			http.Redirect(w, req, url, 307)
+			http.Redirect(w, req, url, http.StatusTemporaryRedirect)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -754,7 +754,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if wait := query.Get("wait"); wait != "" {
 		dur, err := time.ParseDuration(wait)
 		if err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte("Invalid wait time"))
 			return true
 		}
@@ -763,7 +763,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if idx := query.Get("index"); idx != "" {
 		index, err := strconv.ParseUint(idx, 10, 64)
 		if err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte("Invalid index"))
 			return true
 		}
@@ -782,7 +782,7 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 		}
 		staleQuery, err := strconv.ParseBool(staleVal[0])
 		if err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			_, _ = resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
 			return
 		}

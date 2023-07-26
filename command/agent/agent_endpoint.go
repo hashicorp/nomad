@@ -56,7 +56,7 @@ func nomadMember(m serf.Member) Member {
 }
 
 func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -128,7 +128,7 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 }
 
 func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -415,9 +415,9 @@ func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter,
 // servers for a given agent.
 func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.updateServers(resp, req)
-	case "GET":
+	case http.MethodGet:
 		return s.listServers(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -549,7 +549,7 @@ type joinResult struct {
 }
 
 func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
