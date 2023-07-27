@@ -212,8 +212,8 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 		}
 
 	case structs.VarOpLockRelease:
-		if args.Var == nil || args.Var.Path == "" ||
-			args.Var.Namespace == "" || args.Var.Lock.ID == "" {
+		if args.Var == nil || args.Var.Lock == nil ||
+			args.Var.Lock.ID == "" {
 			return errors.New("release requires all lock information")
 		}
 
@@ -242,7 +242,7 @@ func (sv *Variables) makeVariablesApplyResponse(
 	var canRead bool = true
 	var isManagement = true
 	if aclObj != nil {
-		canRead = hasReadPermission(aclObj, eResp.Conflict.Namespace, eResp.Conflict.Path)
+		canRead = hasReadPermission(aclObj, req.Var.Namespace, req.Var.Path)
 		isManagement = aclObj.IsManagement()
 	}
 
@@ -724,7 +724,8 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return errVarIsLocked
 	}
 
-	*reply.VarMeta = encryptedVar.Copy().VariableMetadata
+	updatedVar := encryptedVar.Copy()
+	reply.VarMeta = &updatedVar.VariableMetadata
 	reply.Index = encryptedVar.ModifyIndex
 
 	// if the lock exists in the variable, but not in the timer, it means
