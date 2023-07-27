@@ -136,8 +136,8 @@ func getString(path string, args ...any) (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-// YOU ARE HERE
-// fallbacks ?
+// SETH TODO:
+// fallbacks (e.g. dmi decode)
 // better error handling?
 
 // cgroups

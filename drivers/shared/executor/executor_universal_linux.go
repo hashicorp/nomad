@@ -116,7 +116,7 @@ func (e *UniversalExecutor) openCG(command *ExecCommand) (int, func(), error) {
 // configureResourceContainer configurs the cgroups to be used to track pids
 // created by the executor
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
-	// SETH
+	// SETH TODO
 	// - set cfg.Cgroups.Resources.Devices += specconv.AllowedDevices
 	// - do pid "containment" (group so we can track utilization and kill later)
 
@@ -131,8 +131,6 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	e.childCmd.SysProcAttr.CgroupFD = fd
 
 	e.logger.Info("configured cgroup for executor", "pid", pid)
-
-	// YOU ARE HERE - why does the child not spawn in the cgroup?
 
 	// switch cgroupslib.GetMode() {
 	// case cgroupslib.CG1:

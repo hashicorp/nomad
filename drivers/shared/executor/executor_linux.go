@@ -76,7 +76,7 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-	top := numalib.Scan(numalib.PlatformScanners())
+	top := numalib.Scan(numalib.PlatformScanners()) // todo: grpc
 	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger.Named("isolated_executor"),
@@ -91,6 +91,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 }
 
 func (l *LibcontainerExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+	// YOU ARE HERE
 	return nil
 }
 
