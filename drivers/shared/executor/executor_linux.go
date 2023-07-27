@@ -91,8 +91,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 }
 
 func (l *LibcontainerExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
-	// YOU ARE HERE
-	return nil
+	return procstats.List(l.command)
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
