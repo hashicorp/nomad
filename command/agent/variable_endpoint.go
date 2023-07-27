@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	renewLockQueryParam = "renew"
+	renewLockQueryParam = "lock-renew"
 
 	acquireLockQueryParam = string(structs.VarOpLockAcquire)
 	releaseLockQueryParam = string(structs.VarOpLockRelease)
@@ -71,7 +71,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 		}
 
 		if lockOperation == renewLockQueryParam {
-			return s.variableLockRenew(resp, req)
+			return s.variableLockRenew(resp, req, path)
 		}
 
 		return s.variableLockOperation(resp, req, path, lockOperation)
@@ -83,7 +83,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	}
 }
 
-func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Request, path string) (interface{}, error) {
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -92,8 +92,7 @@ func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Reque
 	}
 
 	args := structs.VariablesRenewLockRequest{
-		Path: Variable.Path,
-
+		Path:   path,
 		LockID: Variable.Lock.ID,
 	}
 
@@ -172,6 +171,7 @@ func (s *HTTPServer) variableUpsert(resp http.ResponseWriter, req *http.Request,
 	if err := decodeBody(req, &Variable); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
+
 	if len(Variable.Items) == 0 {
 		return nil, CodedError(http.StatusBadRequest, "variable missing required Items object")
 	}
