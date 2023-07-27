@@ -40,16 +40,10 @@ func (w LinuxWranglerCG2) Initialize() error {
 
 func (w *LinuxWranglerCG2) Kill() error {
 	w.log.Info("Kill()", "task", w.task)
-
-	// todo: write to cgroup.kill
-	cgroupslib.KillCG2(w.task.AllocID, w.task.Task)
-
-	return nil
+	return cgroupslib.KillCG2(w.task.AllocID, w.task.Task)
 }
 
 func (w *LinuxWranglerCG2) Cleanup() error {
 	w.log.Info("Cleanup()", "task", w.task)
-
-	// delete cgroup from disk
 	return cgroupslib.DeleteCG2(w.task.AllocID, w.task.Task)
 }

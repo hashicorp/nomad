@@ -71,8 +71,8 @@ func CreateCG2(allocID, task string) error {
 }
 
 func KillCG2(allocID, task string) error {
-	e := Open(fileCG2(allocID, task, "cgroup.kill"))
 	netlog.Red("kill", "alloc", allocID, "task", task)
+	e := Open(fileCG2(allocID, task, "cgroup.kill"))
 	return e.Write("1")
 }
 

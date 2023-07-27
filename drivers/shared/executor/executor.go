@@ -575,6 +575,11 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		proc.Kill()
 	}
 
+	// Issue sigkill to the process group (if possible)
+	if err = e.killProcessTree(proc); err != nil {
+		e.logger.Warn("failed to shutdown process group", "pid", proc.Pid, "error", err)
+	}
+
 	// Wait for process to exit
 	select {
 	case <-e.processExited:
@@ -583,22 +588,10 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 		merr.Errors = append(merr.Errors, fmt.Errorf("process did not exit after 15 seconds"))
 	}
 
-	// prefer killing the process via platform-dependent resource containment
-	killByContainment := e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup
-
-	if !killByContainment {
-		// there is no containment, so kill the group the old fashioned way by sending
-		// SIGKILL to the negative pid
-		if cleanupChildrenErr := e.killProcessTree(proc); cleanupChildrenErr != nil && cleanupChildrenErr.Error() != finishedErr {
-			merr.Errors = append(merr.Errors,
-				fmt.Errorf("can't kill process with pid %d: %v", e.childCmd.Process.Pid, cleanupChildrenErr))
-		}
-	} else {
-		// SETH
-		// there is containment available (e.g. cgroups) so defer to that implementation
-	}
-
 	if err = merr.ErrorOrNil(); err != nil {
+		// Note that proclib in the TR shutdown may also dispatch a final platform
+		// cleanup technique (e.g. cgroup kill), but if we get to the point where
+		// that matters the Task was doing something naughty.
 		e.logger.Warn("failed to shutdown due to some error", "error", err.Error())
 		return err
 	}
