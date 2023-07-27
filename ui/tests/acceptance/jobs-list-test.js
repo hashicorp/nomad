@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -170,6 +170,47 @@ module('Acceptance | jobs list', function (hooks) {
     await JobsList.search.fillIn('foobar');
 
     assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
+  });
+
+  test('Search order overrides Sort order', async function (assert) {
+    server.create('job', { name: 'car', modifyIndex: 1, priority: 200 });
+    server.create('job', { name: 'cat', modifyIndex: 2, priority: 150 });
+    server.create('job', { name: 'dog', modifyIndex: 3, priority: 100 });
+    server.create('job', { name: 'dot', modifyIndex: 4, priority: 50 });
+
+    await JobsList.visit();
+
+    // Expect list to be in reverse modifyIndex order by default
+    assert.equal(JobsList.jobs.objectAt(0).name, 'dot');
+    assert.equal(JobsList.jobs.objectAt(1).name, 'dog');
+    assert.equal(JobsList.jobs.objectAt(2).name, 'cat');
+    assert.equal(JobsList.jobs.objectAt(3).name, 'car');
+
+    // When sorting by name, expect list to be in alphabetical order
+    await click('[data-test-sort-by="name"]'); // sorts desc
+    await click('[data-test-sort-by="name"]'); // sorts asc
+
+    assert.equal(JobsList.jobs.objectAt(0).name, 'car');
+    assert.equal(JobsList.jobs.objectAt(1).name, 'cat');
+    assert.equal(JobsList.jobs.objectAt(2).name, 'dog');
+    assert.equal(JobsList.jobs.objectAt(3).name, 'dot');
+
+    // When searching, the "name" sort is locked in. Fuzzy results for cat return both car and cat, but cat first.
+    await JobsList.search.fillIn('cat');
+    assert.equal(JobsList.jobs.length, 2);
+    assert.equal(JobsList.jobs.objectAt(0).name, 'cat'); // higher fuzzy
+    assert.equal(JobsList.jobs.objectAt(1).name, 'car');
+
+    // Clicking priority sorter will maintain the search filter, but change the order
+    await click('[data-test-sort-by="priority"]'); // sorts desc
+    assert.equal(JobsList.jobs.objectAt(0).name, 'car'); // higher priority first
+    assert.equal(JobsList.jobs.objectAt(1).name, 'cat');
+
+    // Modifying search again will prioritize search "fuzzy" order
+    await JobsList.search.fillIn(''); // trigger search reset
+    await JobsList.search.fillIn('cat');
+    assert.equal(JobsList.jobs.objectAt(0).name, 'cat'); // higher fuzzy
+    assert.equal(JobsList.jobs.objectAt(1).name, 'car');
   });
 
   test('when a cluster has namespaces, each job row includes the job namespace', async function (assert) {
