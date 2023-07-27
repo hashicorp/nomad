@@ -11,6 +11,9 @@ type UIConfig struct {
 	// Enabled is used to enable the web UI
 	Enabled bool `hcl:"enabled"`
 
+	// Disable frame-ancestors CSP header
+	DisableFrameAncestors bool `hcl:"disable_frame_ancestors"`
+
 	// Consul configures deep links for Consul UI
 	Consul *ConsulUIConfig `hcl:"consul"`
 
