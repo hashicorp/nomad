@@ -926,17 +926,22 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 
 	t.Run("2 lock on same variable", func(t *testing.T) {
 		/* Attempt to acquire the lock on the same variable again. */
+		sv := *allVars[0]
+		sv.Lock = &structs.VariableLock{
+			ID: "aDifferentLockID",
+		}
+
 		resp := testState.VarLockAcquire(insertIndex+1,
 			&structs.VarApplyStateRequest{
 				Op:  structs.VarOpLockAcquire,
-				Var: allVars[0],
+				Var: &sv,
 			})
 
 		must.NoError(t, resp.Error)
 		must.Eq(t, structs.VarOpResultConflict, resp.Result)
 		// Ensure the create and modify were NOT modified
-		must.Eq(t, 20, allVars[0].CreateIndex, must.Sprintf("%s: incorrect create index", allVars[0].Path))
-		must.Eq(t, 20, allVars[0].ModifyIndex, must.Sprintf("%s: incorrect modify index", allVars[0].Path))
+		must.Eq(t, 20, sv.CreateIndex, must.Sprintf("%s: incorrect create index", sv.Path))
+		must.Eq(t, 20, sv.ModifyIndex, must.Sprintf("%s: incorrect modify index", sv.Path))
 
 	})
 	t.Run("3 release lock", func(t *testing.T) {

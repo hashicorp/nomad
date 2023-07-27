@@ -560,13 +560,15 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	sv, ok := raw.(*structs.VariableEncrypted)
 	// If the variable exist, we must make sure it doesn't hold a lock already
 	if ok {
-		if sv.VariableMetadata.Lock != nil {
+
+		if isLocked(sv.VariableMetadata.Lock, req) {
 			zeroVal := &structs.VariableEncrypted{
 				VariableMetadata: structs.VariableMetadata{
 					Namespace: sv.Namespace,
 					Path:      sv.Path,
 				},
 			}
+
 			return req.ConflictResponse(idx, zeroVal)
 		}
 	}
