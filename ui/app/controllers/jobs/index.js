@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
+//@ts-check
+
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
@@ -17,6 +19,7 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+import { tracked } from '@glimmer/tracking';
 
 const DEFAULT_SORT_PROPERTY = 'modifyIndex';
 const DEFAULT_SORT_DESCENDING = true;
@@ -295,12 +298,21 @@ export default class IndexController extends Controller.extend(
     });
   }
 
-  @computed('searchTerm', 'sortDescending', 'sortProperty')
-  get unsortedSearchState() {
+  @computed('searchTerm')
+  get sortAtLastSearch() {
+    return {
+      sortProperty: this.sortProperty,
+      sortDescending: this.sortDescending,
+      searchTerm: this.searchTerm,
+    };
+  }
+
+  @computed('sortAtLastSearch', 'searchTerm', 'sortDescending', 'sortProperty')
+  get prioritizeSearchOrder() {
     return (
-      this.sortProperty === DEFAULT_SORT_PROPERTY &&
-      this.sortDescending === DEFAULT_SORT_DESCENDING &&
-      !!this.searchTerm
+      !!this.searchTerm &&
+      this.sortAtLastSearch.sortProperty === this.sortProperty &&
+      this.sortAtLastSearch.sortDescending === this.sortDescending
     );
   }
 
@@ -311,7 +323,7 @@ export default class IndexController extends Controller.extend(
   // If the user has searched but not sorted, we return the (fuzzy) searched list verbatim
   // If the user has sorted, we allow the fuzzy search to filter down the list, but return it in a sorted order.
   get sortedJobs() {
-    return this.unsortedSearchState ? this.listSearched : this.listSorted;
+    return this.prioritizeSearchOrder ? this.listSearched : this.listSorted;
   }
 
   isShowingDeploymentDetails = false;
