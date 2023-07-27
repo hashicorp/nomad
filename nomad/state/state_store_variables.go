@@ -567,6 +567,7 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 					Path:      sv.Path,
 				},
 			}
+
 			return req.ConflictResponse(idx, zeroVal)
 		}
 	}
