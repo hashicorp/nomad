@@ -274,9 +274,7 @@ type UniversalExecutor struct {
 
 // NewExecutor returns an Executor
 func NewExecutor(logger hclog.Logger) Executor {
-	logger = netlog.New("NewExecutor()")
-	top := numalib.Scan(numalib.PlatformScanners())
-
+	top := numalib.Scan(numalib.PlatformScanners()) // todo: grpc
 	ue := &UniversalExecutor{
 		logger:         logger.Named("executor"),
 		top:            top,
@@ -287,7 +285,6 @@ func NewExecutor(logger hclog.Logger) Executor {
 	}
 	ue.logger = netlog.New("raw.executor")
 	ue.processStats = procstats.New(ue)
-	ue.logger.Info("HIHIHIHI", "top", top)
 	return ue
 }
 
@@ -644,14 +641,13 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 			timer.Reset(interval)
 		}
 
-		// SETH get pidStats
 		stats := e.processStats.StatProcesses()
 		e.logger.Info("handleStats", "stats", stats)
 
 		select {
 		case <-ctx.Done():
 			return
-			// case ch <- procstats.Aggregate(e.systemCpuStats, stats):
+		case ch <- procstats.Aggregate(e.systemCpuStats, stats):
 		}
 	}
 }

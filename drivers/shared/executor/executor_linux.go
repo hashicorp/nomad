@@ -165,10 +165,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 	l.userProc = process
 
-	// SETH todo
-	l.totalCpuStats = cpustats.New(nil)
-	l.userCpuStats = cpustats.New(nil)
-	l.systemCpuStats = cpustats.New(nil)
+	l.totalCpuStats = cpustats.New(l.top)
+	l.userCpuStats = cpustats.New(l.top)
+	l.systemCpuStats = cpustats.New(l.top)
 
 	// Starts the task
 	if err := container.Run(process); err != nil {
@@ -340,9 +339,12 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 	defer close(ch)
 	timer := time.NewTimer(0)
 
-	measuredMemStats := ExecutorCgroupV1MeasuredMemStats
-	if cgroups.IsCgroup2UnifiedMode() {
-		measuredMemStats = ExecutorCgroupV2MeasuredMemStats
+	var measurableMemStats []string
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		measurableMemStats = ExecutorCgroupV1MeasuredMemStats
+	case cgroupslib.CG2:
+		measurableMemStats = ExecutorCgroupV2MeasuredMemStats
 	}
 
 	for {
@@ -354,16 +356,19 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			timer.Reset(interval)
 		}
 
+		// the moment we collect this round of stats
+		ts := time.Now()
+
+		// get actual stats from the container
 		lstats, err := l.container.Stats()
 		if err != nil {
 			l.logger.Warn("error collecting stats", "error", err)
 			return
 		}
-
-		// SETH get pidStats
-
-		ts := time.Now()
 		stats := lstats.CgroupStats
+
+		// get the map of process pids in this contianer
+		pstats := l.processStats.StatProcesses()
 
 		// Memory Related Stats
 		swap := stats.MemoryStats.SwapUsage
@@ -380,7 +385,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-			Measured:       measuredMemStats,
+			Measured:       measurableMemStats,
 		}
 
 		// CPU Related Stats
@@ -404,7 +409,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 				CpuStats:    cs,
 			},
 			Timestamp: ts.UTC().UnixNano(),
-			Pids:      nil, // SETH set pid stats
+			Pids:      pstats,
 		}
 
 		select {
