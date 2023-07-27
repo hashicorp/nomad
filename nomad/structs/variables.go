@@ -411,26 +411,6 @@ func (vd VariableDecrypted) ValidateForLock() error {
 	return vd.Lock.Validate()
 }
 
-// A new variable can be crated just to support a lock, it doesn't require to hold
-// any items and it will validate the lock.
-func (vd VariableDecrypted) ValidateForLock() error {
-	var mErr multierror.Error
-	if vd.Namespace == AllNamespacesSentinel {
-		mErr.Errors = append(mErr.Errors, errWildCardNamespace)
-		return &mErr
-	}
-
-	if vd.Items.Size() > maxVariableSize {
-		return errQuotaExhausted
-	}
-
-	if err := ValidatePath(vd.Path); err != nil {
-		return err
-	}
-
-	return vd.Lock.Validate()
-}
-
 func ValidatePath(path string) error {
 	if len(path) == 0 {
 		return fmt.Errorf("variable requires path")
