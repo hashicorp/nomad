@@ -346,6 +346,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		StdoutPath:         cfg.StdoutPath,
 		StderrPath:         cfg.StderrPath,
 		NetworkIsolation:   cfg.NetworkIsolation,
+		Resources:          cfg.Resources.Copy(),
 	}
 
 	ps, err := exec.Launch(execCmd)

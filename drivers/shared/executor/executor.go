@@ -316,13 +316,12 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
-	// Maybe setup containment (for now, cgroups only only on linux)
-	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
-		pid := os.Getpid()
-		if err := e.configureResourceContainer(pid); err != nil {
-			e.logger.Error("failed to configure resource container", "pid", pid, "error", err)
-			return nil, err
-		}
+	// setup containment (i.e. cgroups on linux)
+	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
+		e.logger.Error("failed to configure resource container", "error", err)
+		return nil, err
+	} else {
+		defer cleanup()
 	}
 
 	stdout, err := e.commandCfg.Stdout()
@@ -642,7 +641,7 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 		}
 
 		stats := e.processStats.StatProcesses()
-		e.logger.Info("handleStats", "stats", stats)
+		// e.logger.Info("handleStats", "stats", stats)
 
 		select {
 		case <-ctx.Done():
