@@ -11,6 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 const (
@@ -35,10 +38,41 @@ const (
 	// Reply: VariablesByNameResponse
 	VariablesReadRPCMethod = "Variables.Read"
 
+	// VariablesRenewLockRPCMethod is the RPC method for renewing the lease on
+	// a lock according to its namespace, path and lock ID.
+	//
+	// Args: VariablesRenewLockRequest
+	// Reply: VariablesRenewLockResponse
+	VariablesRenewLockRPCMethod = "Variables.RenewLock"
+
 	// maxVariableSize is the maximum size of the unencrypted contents of a
 	// variable. This size is deliberately set low and is not configurable, to
 	// discourage DoS'ing the cluster
 	maxVariableSize = 65536
+
+	// minVariableLockTTL and maxVariableLockTTL determine the range of valid durations for the
+	// TTL on a lock.They come from the experience on Consul.
+	minVariableLockTTL = 10 * time.Second
+	maxVariableLockTTL = 24 * time.Hour
+
+	// defaultLockTTL is the default value used to maintain a lock before it needs to
+	// be renewed. The actual value comes from the experience with Consul.
+	defaultLockTTL = 15 * time.Second
+
+	// defaultLockDelay is the default a lock will be blocked after the TTL
+	// went by without any renews. It is intended to prevent split brain situations.
+	// The actual value comes from the experience with Consul.
+	defaultLockDelay = 15 * time.Second
+)
+
+var (
+	errNoPath             = errors.New("missing path")
+	errNoNamespace        = errors.New("missing namespace")
+	errNoLock             = errors.New("missing lock ID")
+	errWildCardNamespace  = errors.New("can not target wildcard (\"*\")namespace")
+	errQuotaExhausted     = errors.New("variables are limited to 64KiB in total size")
+	errNegativeDelayOrTTL = errors.New("Lock delay and TTL must be positive")
+	errInvalidTTL         = errors.New("TTL must be between 10 seconds and 24 hours")
 )
 
 // VariableMetadata is the metadata envelope for a Variable, it is the list
@@ -130,6 +164,35 @@ func (vl *VariableLock) Copy() *VariableLock {
 	*nvl = *vl
 
 	return nvl
+}
+
+func (vl *VariableLock) Canonicalize() {
+	// If the lock ID is empty, it means this is a creation of a lock on this variable.
+	if vl.ID == "" {
+		vl.ID = uuid.Generate()
+	}
+
+	if vl.LockDelay == 0 {
+		vl.LockDelay = defaultLockDelay
+	}
+
+	if vl.TTL == 0 {
+		vl.TTL = defaultLockTTL
+	}
+}
+
+func (vl *VariableLock) Validate() error {
+	var mErr *multierror.Error
+
+	if vl.LockDelay < 0 || vl.TTL < 0 {
+		mErr = multierror.Append(mErr, errNegativeDelayOrTTL)
+	}
+
+	if vl.TTL > maxVariableLockTTL || vl.TTL < minVariableLockTTL {
+		mErr = multierror.Append(mErr, errInvalidTTL)
+	}
+
+	return mErr
 }
 
 func (vi VariableItems) Size() uint64 {
@@ -244,14 +307,34 @@ func (vd VariableDecrypted) Validate() error {
 		return errors.New("variables are limited to 64KiB in total size")
 	}
 
-	if err := validatePath(vd.Path); err != nil {
+	if err := ValidatePath(vd.Path); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validatePath(path string) error {
+// A new variable can be crated just to support a lock, it doesn't require to hold
+// any items and it will validate the lock.
+func (vd VariableDecrypted) ValidateForLock() error {
+	var mErr multierror.Error
+	if vd.Namespace == AllNamespacesSentinel {
+		mErr.Errors = append(mErr.Errors, errWildCardNamespace)
+		return &mErr
+	}
+
+	if vd.Items.Size() > maxVariableSize {
+		return errQuotaExhausted
+	}
+
+	if err := ValidatePath(vd.Path); err != nil {
+		return err
+	}
+
+	return vd.Lock.Validate()
+}
+
+func ValidatePath(path string) error {
 	if len(path) == 0 {
 		return fmt.Errorf("variable requires path")
 	}
@@ -289,6 +372,10 @@ func validatePath(path string) error {
 func (vd *VariableDecrypted) Canonicalize() {
 	if vd.Namespace == "" {
 		vd.Namespace = DefaultNamespace
+	}
+
+	if vd.Lock != nil {
+		vd.Lock.Canonicalize()
 	}
 }
 
@@ -504,4 +591,35 @@ type VariablesReadRequest struct {
 type VariablesReadResponse struct {
 	Data *VariableDecrypted
 	QueryMeta
+}
+
+// VariablesRenewLockRequest is used to renew the lease on a lock. This request
+// behaves like a write because the renewal needs to be forwarded to the leader
+// where the timers and lock work is kept.
+type VariablesRenewLockRequest struct {
+	//Namespace string
+	Path   string
+	LockID string
+
+	WriteRequest
+}
+
+func (v *VariablesRenewLockRequest) Validate() error {
+	var mErr multierror.Error
+
+	if v.Path == "" {
+		mErr.Errors = append(mErr.Errors, errNoPath)
+	}
+	if v.LockID == "" {
+		mErr.Errors = append(mErr.Errors, errNoLock)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// VariablesRenewLockResponse is sent back to the user to inform them of success or failure
+// of the renewal process.
+type VariablesRenewLockResponse struct {
+	VarMeta *VariableMetadata
+	WriteMeta
 }
