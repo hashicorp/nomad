@@ -5,6 +5,7 @@ package state
 
 import (
 	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
 	"testing"
@@ -65,16 +66,8 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.Eq(t, insertIndex, initialIndex)
 
 		// List all the variables in the table
-		iter, err := testState.Variables(ws)
+		got, err := getAllVariables(testState, ws)
 		must.NoError(t, err)
-
-		got := []*structs.VariableEncrypted{}
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.VariableEncrypted)
-			var svCopy structs.VariableEncrypted
-			svCopy = sv.Copy()
-			got = append(got, &svCopy)
-		}
 		must.Len(t, 2, got, must.Sprintf("incorrect number of variables found"))
 
 		// Ensure the create and modify indexes are populated correctly.
@@ -148,19 +141,9 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, update1Index, updateActualIndex, must.Sprintf("index should have changed"))
 
-		// Get the variables from the table.
-		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
-
-		got := []*structs.VariableEncrypted{}
-
 		// Iterate all the stored variables and assert indexes have been updated as expected
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.VariableEncrypted)
-			var svCopy structs.VariableEncrypted
-			svCopy = sv.Copy()
-			got = append(got, &svCopy)
-		}
+		got, err := getAllVariables(testState, ws)
+		must.NoError(t, err)
 		must.Len(t, 2, got)
 		must.Eq(t, update1Index, got[0].ModifyIndex)
 		must.Eq(t, insertIndex, got[1].ModifyIndex)
@@ -215,6 +198,68 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, expectedQuotaSize+1, quotaUsed.Size)
 
+	})
+
+	// Acquire lock on first variable to test upserting on a locked variable.
+	t.Run("5 lock and upsert", func(t *testing.T) {
+		acquireIndex := uint64(60)
+		sv3 := svs[0].Copy()
+		sv3.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp := testState.VarLockAcquire(acquireIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: &sv3,
+			})
+
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		afterAcquireIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, acquireIndex, afterAcquireIndex)
+
+		// Attempt to upsert variable without the lock ID
+		update4Index := uint64(65)
+		sv4 := svs[0].Copy()
+		sv4.KeyID = "sv4-update"
+		sv4.ModifyIndex = update4Index
+
+		resp = testState.VarSet(update4Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: &sv4,
+		})
+
+		must.NoError(t, resp.Error)
+		afterFailedUpsertIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+
+		must.Eq(t, afterAcquireIndex, afterFailedUpsertIndex, must.Sprintf("index should not have changed"))
+		must.True(t, resp.IsConflict())
+
+		// Attempt to upsert variable but this time include the lock ID
+		sv4.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp = testState.VarSet(update4Index, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: &sv4,
+		})
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		updateActualIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, update4Index, updateActualIndex, must.Sprintf("index should have changed"))
+
+		// Iterate all the stored variables and assert indexes have been updated as expected
+		got, err := getAllVariables(testState, ws)
+		must.NoError(t, err)
+		must.Len(t, 2, got)
+		must.Eq(t, update4Index, got[0].ModifyIndex)
 	})
 }
 
@@ -303,8 +348,66 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 		must.Eq(t, expectedQuotaSize, quotaUsed.Size)
 	})
 
-	t.Run("3 delete remaining variable", func(t *testing.T) {
-		delete2Index := uint64(30)
+	t.Run("3 lock the variable and attempt to delete it", func(t *testing.T) {
+		ws := memdb.NewWatchSet()
+		acquireIndex := uint64(25)
+		lsv := svs[1].Copy()
+		lsv.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp := testState.VarLockAcquire(acquireIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: &lsv,
+			})
+
+		must.NoError(t, resp.Error)
+		must.True(t, resp.IsOk())
+
+		deleteLockedIndex := uint64(27)
+
+		// Attempt to delete without the lock ID
+		resp2 := testState.VarDelete(deleteLockedIndex, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: svs[1],
+		})
+
+		must.NoError(t, resp2.Error)
+		must.True(t, resp2.IsConflict())
+
+		// Check that the index for the table was  not modified.
+		failedDeleteIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, acquireIndex, failedDeleteIndex)
+
+		svs, err := getAllVariables(testState, ws)
+		must.NoError(t, err)
+		must.One(t, len(svs))
+
+		// Release lock
+		releaseIndex := uint64(30)
+
+		lsv.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp3 := testState.VarLockRelease(releaseIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockRelease,
+				Var: &lsv,
+			})
+		must.NoError(t, err)
+		must.True(t, resp3.IsOk())
+
+		svs, err = getAllVariables(testState, ws)
+		must.NoError(t, err)
+		must.One(t, len(svs))
+
+	})
+
+	t.Run("4 delete remaining variable", func(t *testing.T) {
+		delete2Index := uint64(40)
 
 		resp := testState.VarDelete(delete2Index, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpDelete,
@@ -581,6 +684,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 		}
 	})
 }
+
 func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
@@ -714,6 +818,48 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 		must.NotNil(t, resp.Conflict)
 		must.Eq(t, sv.VariableMetadata, resp.Conflict.VariableMetadata)
 	})
+
+	t.Run("real_locked_var-cas_0", func(t *testing.T) {
+		ci.Parallel(t)
+		sv := mock.VariableEncrypted()
+		sv.Path = "real_var/cas_0"
+		resp := ts.VarSet(10, &structs.VarApplyStateRequest{
+			Op:  structs.VarOpSet,
+			Var: sv,
+		})
+		must.True(t, resp.IsOk())
+
+		svCopy := sv.Copy()
+		svCopy.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "theLockID",
+		}
+
+		resp = ts.VarLockAcquire(15,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: &svCopy,
+			})
+
+		must.True(t, resp.IsOk())
+
+		// A CAS delete with a correct index should succeed.
+		req := &structs.VarApplyStateRequest{
+			Op:  structs.VarOpDelete,
+			Var: sv,
+		}
+
+		resp = ts.VarDeleteCAS(15, req)
+		must.True(t, resp.IsConflict())
+
+		resp = ts.VarLockRelease(20,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockRelease,
+				Var: &svCopy,
+			})
+
+		must.True(t, resp.IsOk())
+	})
+
 	t.Run("real_var-cas_ok", func(t *testing.T) {
 		ci.Parallel(t)
 		sv := mock.VariableEncrypted()
@@ -729,7 +875,249 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: sv,
 		}
-		resp = ts.VarDeleteCAS(0, req)
+		resp = ts.VarDeleteCAS(10, req)
 		must.True(t, resp.IsOk())
 	})
+}
+
+func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+	ws := memdb.NewWatchSet()
+
+	mv := mock.VariableEncrypted()
+
+	mv.Path = "thePath"
+	mv.Lock = &structs.VariableLock{
+		ID: "theLockID",
+	}
+
+	insertIndex := uint64(20)
+
+	allVars, err := getAllVariables(testState, ws)
+	must.NoError(t, err)
+
+	t.Run("1 lock on missing variable", func(t *testing.T) {
+		/* Attempt to acquire the lock on a variable that doesn't exist. */
+		resp := testState.VarLockAcquire(insertIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: mv,
+			})
+
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		initialIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, insertIndex, initialIndex)
+
+		got, err := getAllVariables(testState, ws)
+		must.Eq(t, len(allVars)+1, len(got), must.Sprintf("incorrect number of variables found"))
+
+		// Ensure the create and modify indexes are populated correctly.
+		must.Eq(t, 20, got[0].CreateIndex, must.Sprintf("%s: incorrect create index", got[0].Path))
+		must.Eq(t, 20, got[0].ModifyIndex, must.Sprintf("%s: incorrect modify index", got[0].Path))
+
+		// Ensure the lock was persisted.
+		must.Eq(t, "theLockID", got[0].Lock.ID)
+		allVars = got
+	})
+
+	t.Run("2 lock on same variable", func(t *testing.T) {
+		/* Attempt to acquire the lock on the same variable again. */
+		sv := *allVars[0]
+		sv.Lock = &structs.VariableLock{
+			ID: "aDifferentLockID",
+		}
+
+		resp := testState.VarLockAcquire(insertIndex+1,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: &sv,
+			})
+
+		must.NoError(t, resp.Error)
+		must.Eq(t, structs.VarOpResultConflict, resp.Result)
+		// Ensure the create and modify were NOT modified
+		must.Eq(t, 20, sv.CreateIndex, must.Sprintf("%s: incorrect create index", sv.Path))
+		must.Eq(t, 20, sv.ModifyIndex, must.Sprintf("%s: incorrect modify index", sv.Path))
+
+	})
+	t.Run("3 release lock", func(t *testing.T) {
+		/*  Test to release the lock  */
+		allVars, err := getAllVariables(testState, ws)
+		releaseIndex := uint64(40)
+		resp := testState.VarLockRelease(releaseIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockRelease,
+				Var: allVars[0],
+			})
+
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		afterReleaseIndex, err := testState.Index(TableVariables)
+
+		must.NoError(t, err)
+		must.Eq(t, releaseIndex, afterReleaseIndex)
+
+		// Ensure the lock was removed, but the variable was not.
+		sve, err := testState.GetVariable(ws, mv.Namespace, mv.Path)
+		must.NoError(t, err)
+		must.NotNil(t, sve)
+		must.Nil(t, sve.VariableMetadata.Lock)
+
+		// Ensure the create and modify indexes are populated correctly.
+		must.Eq(t, 20, sve.CreateIndex, must.Sprintf("%s: incorrect create index", sve.Path))
+		must.Eq(t, 40, sve.ModifyIndex, must.Sprintf("%s: incorrect modify index", sve.Path))
+
+		// Ensure the variable data didn't change
+		must.Eq(t, mv.Data, sve.Data)
+	})
+
+	t.Run("3 reacquire lock", func(t *testing.T) {
+		/*  Reacquire the lock, testing the mechanism to lock a previously existing variable */
+		acquireIndex := uint64(60)
+		resp := testState.VarLockAcquire(acquireIndex,
+			&structs.VarApplyStateRequest{
+				Op:  structs.VarOpLockAcquire,
+				Var: mv,
+			})
+
+		must.NoError(t, resp.Error)
+
+		// Check that the index for the table was modified as expected.
+		afterAcquireIndex, err := testState.Index(TableVariables)
+		must.NoError(t, err)
+		must.Eq(t, acquireIndex, afterAcquireIndex)
+
+		sve, err := testState.GetVariable(ws, mv.Namespace, mv.Path)
+		must.NoError(t, err)
+
+		// Ensure the create and modify indexes are populated correctly.
+		must.Eq(t, 20, sve.CreateIndex, must.Sprintf("%s: incorrect create index", sve.Path))
+		must.Eq(t, 60, sve.ModifyIndex, must.Sprintf("%s: incorrect modify index", sve.Path))
+
+		// Ensure the lock was persisted again.
+		must.Eq(t, "theLockID", sve.Lock.ID)
+
+		// Ensure the variable data didn't change
+		must.Eq(t, mv.Data, sve.Data)
+	})
+}
+
+func TestStateStore_ReleaseLock(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	insertIndex := uint64(20)
+	resp := testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+		Op: structs.VarOpSet,
+		Var: &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Path:      "/non/lock/variable/path",
+				Namespace: "default",
+			},
+			VariableData: mock.VariableEncrypted().VariableData,
+		},
+	})
+	insertIndex++
+	must.NoError(t, resp.Error)
+
+	resp = testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+		Op: structs.VarOpSet,
+		Var: &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Path:      "lock/variable/path",
+				Namespace: "default",
+				Lock: &structs.VariableLock{
+					ID: "theLockID",
+				},
+			},
+			VariableData: mock.VariableEncrypted().VariableData,
+		},
+	})
+	must.NoError(t, resp.Error)
+
+	testCases := []struct {
+		name       string
+		lookUpPath string
+		lockID     string
+		expErr     error
+		expResult  structs.VarOpResult
+	}{
+		{
+			name:       "variable_not_found",
+			lookUpPath: "fake/path/",
+			expErr:     errVarNotFound,
+			expResult:  structs.VarOpResultError,
+		},
+		{
+			name:       "variable_has_no_lock",
+			lookUpPath: "/non/lock/variable/path",
+			expErr:     errLockNotFound,
+			expResult:  structs.VarOpResultError,
+		},
+		{
+			name:       "lock_id_doesn't_match",
+			lookUpPath: "lock/variable/path",
+			lockID:     "wrongLockID",
+			expErr:     nil,
+			expResult:  structs.VarOpResultConflict,
+		},
+		{
+			name:       "lock_released",
+			lookUpPath: "lock/variable/path",
+			lockID:     "theLockID",
+			expErr:     nil,
+			expResult:  structs.VarOpResultOk,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			req := &structs.VarApplyStateRequest{
+				Op: structs.VarOpLockRelease,
+				Var: &structs.VariableEncrypted{
+					VariableMetadata: structs.VariableMetadata{
+						Path:      tc.lookUpPath,
+						Namespace: "default",
+					},
+				},
+			}
+
+			if tc.lockID != "" {
+				req.Var.VariableMetadata.Lock = &structs.VariableLock{
+					ID: tc.lockID,
+				}
+			}
+
+			resp = testState.VarLockRelease(insertIndex, req)
+
+			if !errors.Is(tc.expErr, resp.Error) {
+				t.Fatalf("expected error, got %s", resp.Error)
+			}
+
+			must.Eq(t, tc.expResult, resp.Result)
+		})
+	}
+}
+
+func getAllVariables(ss *StateStore, ws memdb.WatchSet) ([]*structs.VariableEncrypted, error) {
+	// List all the variables in the table
+	iter, err := ss.Variables(ws)
+	if err != nil {
+		return []*structs.VariableEncrypted{}, err
+	}
+
+	got := []*structs.VariableEncrypted{}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		sv := raw.(*structs.VariableEncrypted)
+		var svCopy structs.VariableEncrypted
+		svCopy = sv.Copy()
+		got = append(got, &svCopy)
+	}
+
+	return got, nil
 }

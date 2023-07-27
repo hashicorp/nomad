@@ -6,10 +6,17 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	renewLockQueryParam   = "renew"
+	acquireLockQueryParam = "acquire"
+	releaseLockQueryParam = "release"
 )
 
 func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -40,16 +47,81 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	if len(path) == 0 {
 		return nil, CodedError(http.StatusBadRequest, "missing variable path")
 	}
+
 	switch req.Method {
 	case http.MethodGet:
 		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
+
+		queryParams := req.URL.Query()
+		_, renewLock := queryParams[renewLockQueryParam]
+		_, acquireLock := queryParams[acquireLockQueryParam]
+		_, releaseLock := queryParams[releaseLockQueryParam]
+
+		if renewLock || acquireLock || releaseLock {
+			if !isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
+				return nil, CodedError(http.StatusBadRequest, "multiple lock operations")
+			}
+			return s.variableLockOperation(resp, req, queryParams)
+		}
+
 		return s.variableUpsert(resp, req, path)
 	case http.MethodDelete:
 		return s.variableDelete(resp, req, path)
 	default:
 		return nil, CodedError(http.StatusBadRequest, ErrInvalidMethod)
 	}
+}
+
+func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.Request,
+	operation url.Values) (interface{}, error) {
+
+	// Parse the Variable
+	var Variable structs.VariableDecrypted
+	if err := decodeBody(req, &Variable); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
+	if operation[renewLockQueryParam][0] == renewLockQueryParam {
+		args := structs.VariablesRenewLockRequest{
+			Path: Variable.Path,
+
+			LockID: Variable.Lock.ID,
+		}
+
+		s.parseWriteRequest(req, &args.WriteRequest)
+
+		var out structs.VariablesRenewLockResponse
+		if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
+			return nil, err
+		}
+
+		return out.VarMeta, nil
+	}
+
+	// At this point, the operation can be either acquire or release, and they are
+	// both handled by the VariablesApplyRPCMethod.
+	args := structs.VariablesApplyRequest{
+		Op:  structs.VarOpSet,
+		Var: &Variable,
+	}
+
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.VariablesApplyResponse
+	err := s.agent.RPC(structs.VariablesApplyRPCMethod, &args, &out)
+	defer setIndex(resp, out.WriteMeta.Index)
+	if err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	}
+
+	if out.Conflict != nil {
+		resp.WriteHeader(http.StatusConflict)
+		return out.Conflict, nil
+	}
+
+	// Finally, we know that this is a success response, send it to the caller
+	return out.Output, nil
 }
 
 func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
@@ -75,6 +147,7 @@ func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) variableUpsert(resp http.ResponseWriter, req *http.Request,
 	path string) (interface{}, error) {
+
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
 	if err := decodeBody(req, &Variable); err != nil {
@@ -185,4 +258,8 @@ func parseCAS(req *http.Request) (bool, uint64, error) {
 		return true, ci, nil
 	}
 	return false, 0, nil
+}
+
+func isOneAndOnlyOneSet(a, b, c bool) bool {
+	return (a || b || c) && !a != !b != !c != !(a && b && c)
 }

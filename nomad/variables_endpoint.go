@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -49,12 +50,14 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 	defer metrics.MeasureSince([]string{
 		"nomad", "variables", "apply", string(args.Op)}, time.Now())
+	// TODO: Add metrics for acquire and release if the operation is lock related
 
-	// Check if the Namespace is explicitly set on the variable. If
-	// not, use the RequestNamespace
 	if args.Var == nil {
 		return fmt.Errorf("variable must not be nil")
 	}
+
+	// Check if the Namespace is explicitly set on the variable. If
+	// not, use the RequestNamespace
 	targetNS := args.Var.Namespace
 	if targetNS == "" {
 		targetNS = args.RequestNamespace()
@@ -66,7 +69,24 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return fmt.Errorf("all servers must be running version %v or later to apply variables", minVersionKeyring)
 	}
 
-	canRead, err := svePreApply(sv, args, args.Var)
+	// Perform the ACL resolution.
+	aclObj, err := sv.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+
+	// The read permission modify the way the response is populated. If ACL is not
+	// used, read permission is granted by default.
+	var canRead bool = true
+	if aclObj != nil {
+		canRead = hasReadPermission(aclObj, args.Var.Namespace, args.Var.Path)
+		err := hasOperationPermissions(aclObj, args.Var.Namespace, args.Var.Path, args.Op)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = canonicalizeAndValidate(args)
 	if err != nil {
 		return err
 	}
@@ -82,6 +102,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		now := time.Now().UnixNano()
 		ev.CreateTime = now // existing will override if it exists
 		ev.ModifyTime = now
+
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		ev = &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
@@ -90,6 +111,15 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 				ModifyIndex: args.Var.ModifyIndex,
 			},
 		}
+
+	case structs.VarOpLockAcquire, structs.VarOpLockRelease:
+		ev, err = sv.encrypt(args.Var)
+		if err != nil {
+			return fmt.Errorf("variable error: encrypt: %w", err)
+		}
+
+		now := time.Now().UnixNano()
+		ev.ModifyTime = now
 	}
 
 	// Make a SVEArgs
@@ -104,6 +134,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	if err != nil {
 		return fmt.Errorf("raft apply failed: %w", err)
 	}
+
 	r, err := sv.makeVariablesApplyResponse(args, out.(*structs.VarApplyStateResponse), canRead)
 	if err != nil {
 		return err
@@ -113,56 +144,69 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	return nil
 }
 
-func svePreApply(sv *Variables, args *structs.VariablesApplyRequest, vd *structs.VariableDecrypted) (canRead bool, err error) {
+func hasReadPermission(aclObj *acl.ACL, namespace, path string) bool {
+	return aclObj.AllowVariableOperation(namespace,
+		path, acl.VariablesCapabilityRead, nil)
+}
 
-	canRead = false
-	var aclObj *acl.ACL
+func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs.VarOp) error {
 
-	// Perform the ACL resolution.
-	if aclObj, err = sv.srv.ResolveACL(args); err != nil {
-		return
-	} else if aclObj != nil {
-		hasPerm := func(perm string) bool {
-			return aclObj.AllowVariableOperation(args.Var.Namespace,
-				args.Var.Path, perm, nil)
-		}
-		canRead = hasPerm(acl.VariablesCapabilityRead)
-
-		switch args.Op {
-		case structs.VarOpSet, structs.VarOpCAS:
-			if !hasPerm(acl.VariablesCapabilityWrite) {
-				err = structs.ErrPermissionDenied
-				return
-			}
-		case structs.VarOpDelete, structs.VarOpDeleteCAS:
-			if !hasPerm(acl.VariablesCapabilityDestroy) {
-				err = structs.ErrPermissionDenied
-				return
-			}
-		default:
-			err = fmt.Errorf("svPreApply: unexpected VarOp received: %q", args.Op)
-			return
-		}
-	} else {
-		// ACLs are not enabled.
-		canRead = true
+	hasPerm := func(perm string) bool {
+		return aclObj.AllowVariableOperation(namespace,
+			path, perm, nil)
 	}
 
+	switch op {
+	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
+		structs.VarOpLockRelease:
+		if !hasPerm(acl.VariablesCapabilityWrite) {
+			return structs.ErrPermissionDenied
+		}
+	case structs.VarOpDelete, structs.VarOpDeleteCAS:
+		if !hasPerm(acl.VariablesCapabilityDestroy) {
+			return structs.ErrPermissionDenied
+		}
+	default:
+		return fmt.Errorf("svPreApply: unexpected VarOp received: %q", op)
+	}
+
+	return nil
+}
+
+func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	switch args.Op {
+	case structs.VarOpLockAcquire:
+		// If the variable doesn't have an ID, it means a lock is
+		// being created on a variable that doesn't exist, the variable needs to
+		// be created.
+		if args.Var.GetID() == "" {
+			args.Var.Canonicalize()
+		}
+
+		if err := args.Var.ValidateForLock(); err != nil {
+			return err
+		}
+
 	case structs.VarOpSet, structs.VarOpCAS:
 		args.Var.Canonicalize()
-		if err = args.Var.Validate(); err != nil {
-			return
-		}
+
+		return args.Var.Validate()
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			err = fmt.Errorf("delete requires a Path")
-			return
+			return fmt.Errorf("delete requires a Path")
 		}
+
+	case structs.VarOpLockRelease:
+		if args.Var == nil || args.Var.Path == "" ||
+			args.Var.Namespace == "" || args.Var.Lock.ID == "" {
+			return errors.New("release requires all lock information")
+		}
+
+		return structs.ValidatePath(args.Var.Path)
 	}
 
-	return
+	return nil
 }
 
 // MakeVariablesApplyResponse merges the output of this VarApplyStateResponse with the
@@ -578,4 +622,62 @@ func (sv *Variables) groupForAlloc(claims *structs.IdentityClaims) (string, erro
 		return "", structs.ErrPermissionDenied
 	}
 	return alloc.TaskGroup, nil
+}
+
+// RenewLock is used to apply a SV renew lock operation on a variable to maintain the lease.
+func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *structs.VariablesRenewLockResponse) error {
+	authErr := sv.srv.Authenticate(sv.ctx, args)
+	if done, err := sv.srv.forward(structs.VariablesRenewLockRPCMethod, args, args, reply); done {
+		return err
+	}
+
+	sv.srv.MeasureRPCRate("variables", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	defer metrics.MeasureSince([]string{
+		"nomad", "variables", "lock", "renew"}, time.Now())
+
+	aclObj, err := sv.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+
+	// ACLs are enabled, check for the correct permissions
+	if aclObj != nil {
+		if !aclObj.AllowVariableOperation(args.WriteRequest.Namespace, args.Path, acl.VariablesCapabilityWrite, nil) {
+			return structs.ErrPermissionDenied
+		}
+	}
+
+	if err := args.Validate(); err != nil {
+		return err
+	}
+
+	stateSnapshot, err := sv.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	_, encryptedVar, err := stateSnapshot.VarGet(nil, args.WriteRequest.Namespace, args.Path)
+	if err != nil {
+		return err
+	}
+	if encryptedVar == nil {
+		return errors.New("")
+	}
+	if encryptedVar.Lock == nil {
+		return errors.New("")
+	}
+	if encryptedVar.Lock.ID == args.LockID {
+		return errors.New("")
+	}
+
+	// TODO: TTL timer.
+	//  use server TTL method or similar to update the TTL timer with new
+	//  expiry.
+	*reply.VarMeta = encryptedVar.Copy().VariableMetadata
+	reply.Index = encryptedVar.ModifyIndex
+	return nil
 }

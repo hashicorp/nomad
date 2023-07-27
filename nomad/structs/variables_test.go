@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -316,5 +317,98 @@ func TestStructs_VariableDecrypted_Validate(t *testing.T) {
 		} else {
 			must.Error(t, err, must.Sprintf("should get error for: %s", tc.path))
 		}
+	}
+}
+
+func TestStructs_VariablesRenewLockRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name    string
+		request *VariablesRenewLockRequest
+		expErr  error
+	}{
+		{
+			name: "missing_lockID",
+			request: &VariablesRenewLockRequest{
+				Path: "path",
+			},
+			expErr: errNoLock,
+		},
+		{
+			name: "missing_path",
+			request: &VariablesRenewLockRequest{
+				LockID: "lockID",
+			},
+			expErr: errNoPath,
+		},
+		{
+			name: "valid_request",
+			request: &VariablesRenewLockRequest{
+				Path:   "path",
+				LockID: "lockID",
+			},
+			expErr: nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.request.Validate()
+			if !errors.Is(err, tc.expErr) {
+				t.Errorf("Expected error %v, but got error %v", tc.expErr, err)
+			}
+		})
+	}
+}
+
+func TestStructs_Lock_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		lock   *VariableLock
+		expErr error
+	}{
+		{
+			name: "lock_delay_is_negative",
+			lock: &VariableLock{
+				TTL:       5 * time.Second,
+				LockDelay: -5 * time.Second,
+			},
+			expErr: errNegativeDelayOrTTL,
+		},
+		{
+			name: "lock_ttl_is_negative",
+			lock: &VariableLock{
+				TTL:       -5 * time.Second,
+				LockDelay: 5 * time.Second,
+			},
+			expErr: errNegativeDelayOrTTL,
+		},
+		{
+			name: "lock_ttl_is_bigger_than_max",
+			lock: &VariableLock{
+				TTL:       maxVariableLockTTL + 5*time.Second,
+				LockDelay: 5 * time.Second,
+			},
+			expErr: errInvalidTTL,
+		},
+		{
+			name: "lock_ttl_is_smaller_than_min",
+			lock: &VariableLock{
+				TTL:       5 * time.Second,
+				LockDelay: minVariableLockTTL - 5*time.Second,
+			},
+			expErr: errInvalidTTL,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.lock.Validate()
+			if !errors.Is(err, tc.expErr) {
+				t.Errorf("Expected error %v, but got error %v", tc.expErr, err)
+			}
+		})
 	}
 }
