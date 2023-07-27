@@ -86,7 +86,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		top:            top,
 	}
 	le.logger = netlog.New("lc.executor")
-	le.processStats = procstats.New(le)
+	le.processStats = procstats.New(top, le)
 	return le
 }
 

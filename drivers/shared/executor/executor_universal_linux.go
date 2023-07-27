@@ -6,7 +6,9 @@ package executor
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/ns"
@@ -85,11 +87,20 @@ func (e *UniversalExecutor) listProcessesCG1() *set.Set[procstats.ProcessID] {
 }
 
 func (e *UniversalExecutor) listProcessesCG2() *set.Set[procstats.ProcessID] {
-	// cgroup := e.commandCfg.Cgroup
-	// e.logger.Info("list processes cg2", "cgroup", cgroup())
-	// task and alloc id, or cgroup (?)
-	// read cgroup
-	return nil
+	cgroup := filepath.Join(e.commandCfg.Cgroup(), "cgroup.procs")
+	ed := cgroupslib.OpenPath(cgroup)
+	v, err := ed.Read()
+	if err != nil {
+		e.logger.Error("ListProcs", "error", err, "cgroup", cgroup)
+		return set.New[procstats.ProcessID](0)
+	}
+	e.logger.Info("ListProcs", "v", v, "path", cgroup)
+	fields := strings.Fields(v)
+	return set.FromFunc(fields, func(s string) procstats.ProcessID {
+		i, err := strconv.Atoi(s)
+		e.logger.Info("Atoi", "error", err)
+		return procstats.ProcessID(i)
+	})
 }
 
 func (e *UniversalExecutor) openCG(command *ExecCommand) (int, func(), error) {

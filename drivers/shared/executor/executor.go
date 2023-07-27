@@ -284,7 +284,7 @@ func NewExecutor(logger hclog.Logger) Executor {
 		systemCpuStats: cpustats.New(top),
 	}
 	ue.logger = netlog.New("raw.executor")
-	ue.processStats = procstats.New(ue)
+	ue.processStats = procstats.New(top, ue)
 	return ue
 }
 

@@ -81,16 +81,31 @@ func DeleteCG2(allocID, task string) error {
 	return os.RemoveAll(p)
 }
 
-func Open(filepath string) Editor {
+// OpenPath opens the complete filepath p.
+func OpenPath(p string) Editor {
+	switch GetMode() {
+	case CG1:
+		return &Editor1{
+			// todo
+		}
+	default:
+		return &Editor2{
+			path: p,
+		}
+	}
+}
+
+// TODO rename "OpenFile"
+func Open(filename string) Editor {
 	switch GetMode() {
 	case CG1:
 		return &Editor1{
 			Root: "todo",
-			File: filepath,
+			File: "todo",
 		}
 	default:
 		return &Editor2{
-			File: filepath,
+			path: filepath.Join("/sys/fs/cgroup", NomadCgroupParent, filename),
 		}
 	}
 }
@@ -112,12 +127,11 @@ func (e *Editor1) Write(string) error {
 }
 
 type Editor2 struct {
-	File string
+	path string // the complete filepath
 }
 
 func (e *Editor2) Read() (string, error) {
-	file := filepath.Join("/sys/fs/cgroup", NomadCgroupParent, e.File)
-	b, err := os.ReadFile(file)
+	b, err := os.ReadFile(e.path)
 	if err != nil {
 		return "", err
 	}
