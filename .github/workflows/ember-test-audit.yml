@@ -15,12 +15,12 @@ jobs:
   time-base:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
           ref: ${{ github.event.pull_request.base.sha }}
-      - uses: nanasess/setup-chromedriver@95301782a076fbe8c9ecf54395a4689f7b195285 # v2.0.0
+      - uses: nanasess/setup-chromedriver@6fb8f5ffa6b7dc11e631ff695fbd2fec0b04bb52 # v2.1.1
       - name: Use Node.js
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
+        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
         with:
           node-version: '18'
       - run: yarn --frozen-lockfile
@@ -34,10 +34,10 @@ jobs:
   time-pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: nanasess/setup-chromedriver@95301782a076fbe8c9ecf54395a4689f7b195285 # v2.0.0
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: nanasess/setup-chromedriver@6fb8f5ffa6b7dc11e631ff695fbd2fec0b04bb52 # v2.1.1
       - name: Use Node.js
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
+        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
         with:
           node-version: '18'
       - run: yarn --frozen-lockfile
@@ -85,4 +85,3 @@ jobs:
 permissions:
   contents: read
   pull-requests: write
-
