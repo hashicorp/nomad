@@ -227,6 +227,7 @@ const (
       attempts = 10
       mode     = "delay"
       interval = "15s"
+	  render_templates = false
     }
   }
 }`
