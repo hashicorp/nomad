@@ -224,10 +224,10 @@ const (
       resources {}
     }
     restart {
-      attempts = 10
-      mode     = "delay"
-      interval = "15s"
-	  render_templates = false
+      attempts         = 10
+      mode             = "delay"
+      interval         = "15s"
+      render_templates = false
     }
   }
 }`
