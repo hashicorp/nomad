@@ -52,7 +52,7 @@ jobs:
             echo "::error::Version ${{ github.event.inputs.version }} is invalid"
             exit 1
           fi
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - uses: ./.github/actions/vault-secrets
         with:
           paths: |-
@@ -74,12 +74,12 @@ jobs:
           echo "go-version=$(cat .go-version)" >> "$GITHUB_OUTPUT"
 
       - name: Setup go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
           go-version: ${{ steps.get-go-version.outputs.go-version }}
 
       - name: Setup node and yarn
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
+        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
         with:
           node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
