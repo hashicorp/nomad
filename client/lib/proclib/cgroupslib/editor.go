@@ -81,6 +81,15 @@ func DeleteCG2(allocID, task string) error {
 	return os.RemoveAll(p)
 }
 
+// OpenScopeFile is useful when you have a complete cgroups v2 scope path,
+// and want to edit a specific file.
+func OpenScopeFile(cgroup, filename string) *Editor2 {
+	p := filepath.Join(cgroup, filename)
+	return &Editor2{
+		path: p,
+	}
+}
+
 // OpenPath opens the complete filepath p.
 func OpenPath(p string) Editor {
 	switch GetMode() {
@@ -96,6 +105,8 @@ func OpenPath(p string) Editor {
 }
 
 // TODO rename "OpenFile"
+//
+// Open filename, which is the path off of the parent.
 func Open(filename string) Editor {
 	switch GetMode() {
 	case CG1:
@@ -138,7 +149,6 @@ func (e *Editor2) Read() (string, error) {
 	return string(bytes.TrimSpace(b)), nil
 }
 
-func (e *Editor2) Write(string) error {
-	// todo
-	return nil
+func (e *Editor2) Write(s string) error {
+	return os.WriteFile(e.path, []byte(s), 0644)
 }

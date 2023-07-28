@@ -11,9 +11,11 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"golang.org/x/sys/unix"
 	// "github.com/opencontainers/runc/libcontainer/configs"
 	// "github.com/opencontainers/runc/libcontainer/specconv"
@@ -71,8 +73,7 @@ func (e *UniversalExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
 	return procstats.List(e.commandCfg)
 }
 
-func (e *UniversalExecutor) openCG(command *ExecCommand) (int, func(), error) {
-	cgroup := command.Cgroup()
+func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 	fd, err := unix.Open(cgroup, unix.O_PATH, 0)
 	cleanup := func() {
 		_ = unix.Close(fd)
@@ -80,26 +81,72 @@ func (e *UniversalExecutor) openCG(command *ExecCommand) (int, func(), error) {
 	return fd, cleanup, err
 }
 
-// configureResourceContainer configurs the cgroups to be used to track pids
-// created by the executor
+// configureResourceContainer on Linux configures the cgroups to be used to track
+// pids created by the executor
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
 	// SETH TODO
-	// - set cfg.Cgroups.Resources.Devices += specconv.AllowedDevices
 	// - do pid "containment" (group so we can track utilization and kill later)
+	cgroup := command.Cgroup()
 
 	// get file descriptor of the cgroup made for this task
-	fd, fdCleanup, err := e.openCG(command)
+	fd, fdCleanup, err := e.statCG(cgroup)
 	if err != nil {
 		return nil, err
 	}
-
 	// configure child process to spawn in the cgroup
 	e.childCmd.SysProcAttr.UseCgroupFD = true
 	e.childCmd.SysProcAttr.CgroupFD = fd
 
+	// manually configure cgroup for cpu / memory constraints
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+	default:
+		e.configureCG2(cgroup, command)
+	}
+
 	e.logger.Info("configured cgroup for executor", "pid", pid)
 
 	return fdCleanup, nil
+}
+
+func (e *UniversalExecutor) configureCG1() {
+	panic("todo")
+}
+
+func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
+	// write memory cgroup files
+	memHard, memSoft := e.computeMemory(command)
+	ed := cgroupslib.OpenScopeFile(cgroup, "memory.max")
+	_ = ed.Write(fmt.Sprintf("%d", memHard))
+	if memSoft > 0 {
+		ed = cgroupslib.OpenScopeFile(cgroup, "memory.low")
+		_ = ed.Write(fmt.Sprintf("%d", memSoft))
+	}
+
+	// write cpu cgroup files
+	// YOU ARE HERE (finish writing all the files with correct values)
+	cpuWeight := e.computeCPU(command)
+	ed = cgroupslib.OpenScopeFile(cgroup, "cpu.weight")
+	_ = ed.Write(fmt.Sprintf("%d", cpuWeight))
+}
+
+func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
+	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
+	return cpuWeight
+}
+
+// computeMemory returns the hard and soft memory limits for the task
+func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
+	mem := command.Resources.NomadResources.Memory
+	memHard, memSoft := mem.MemoryMaxMB, mem.MemoryMB
+	if memHard <= 0 {
+		memHard = mem.MemoryMB
+		memSoft = 0
+	}
+	memHardBytes := memHard * 1024 * 1024
+	memSoftBytes := memSoft * 1024 * 1024
+	return memHardBytes, memSoftBytes
 }
 
 // withNetworkIsolation calls the passed function the network namespace `spec`
