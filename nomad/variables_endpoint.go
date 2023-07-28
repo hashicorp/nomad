@@ -435,7 +435,7 @@ func (sv *Variables) List(
 					svStub := sv.VariableMetadata
 
 					if aclObj != nil && !aclObj.IsManagement() {
-						sv.VariableMetadata.Lock = nil
+						svStub.Lock = nil
 					}
 
 					svs = append(svs, &svStub)
