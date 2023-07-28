@@ -35,11 +35,11 @@ func TestTimer(t *testing.T) {
 
 	// Perform a create, read, update, and delete on a single timer.
 	timer.Create("test-timer-2", time.Millisecond, func() { newTimerCh <- 1 })
-	must.Eq(t, 1, timer.timerNum())
+	must.Eq(t, 1, timer.TimerNum())
 	waitForTimer()
 
 	// Ensure the timer is still held within the mapping.
-	must.Eq(t, 1, timer.timerNum())
+	must.Eq(t, 1, timer.TimerNum())
 
 	// Update the timer and check that it fires again.
 	timer.Create("test-timer-2", time.Millisecond, nil)
@@ -57,7 +57,7 @@ func TestTimer(t *testing.T) {
 
 	// Ensure that stopping a stopped timer does not break anything.
 	timer.StopAndRemove("test-timer-2")
-	must.Eq(t, 0, timer.timerNum())
+	must.Eq(t, 0, timer.TimerNum())
 
 	// Create two timers, stopping them using the StopAll function to signify
 	// leadership loss.
@@ -71,5 +71,5 @@ func TestTimer(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	must.Eq(t, 0, timer.timerNum())
+	must.Eq(t, 0, timer.TimerNum())
 }

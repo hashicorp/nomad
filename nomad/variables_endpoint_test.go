@@ -660,7 +660,6 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestVariablesEndpoint_ListFiltering(t *testing.T) {
@@ -759,7 +758,6 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		"nomad/jobs/job1/group/web",
 	}
 	must.Eq(t, expect, found)
-
 }
 
 func TestVariablesEndpoint_ComplexACLPolicies(t *testing.T) {
@@ -1340,7 +1338,7 @@ func TestVariablesEndpoint_List_Lock_ACL(t *testing.T) {
 	// Creating and locking the variable directly on the state store allows us to
 	// set up the lock ID and bypass the timers.
 	ssResp := state.VarLockAcquire(100, &structs.VarApplyStateRequest{
-		Op:  structs.VarOpSet,
+		Op:  structs.VarOpLockAcquire,
 		Var: sv1,
 	})
 
@@ -1434,7 +1432,7 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 	}
 
 	ssResp := state.VarLockAcquire(100, &structs.VarApplyStateRequest{
-		Op:  structs.VarOpSet,
+		Op:  structs.VarOpLockAcquire,
 		Var: &svEnc,
 	})
 
@@ -1470,5 +1468,306 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &readResp))
 		must.Nil(t, readResp.Data.VariableMetadata.Lock)
 	})
+}
 
+func TestVariablesEndpoint_RenewLock(t *testing.T) {
+	ci.Parallel(t)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+	codec := rpcClient(t, srv)
+	state := srv.fsm.State()
+
+	unlockedVar := mock.VariableEncrypted()
+
+	vsResp := state.VarSet(102, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: unlockedVar,
+	})
+	must.NoError(t, vsResp.Error)
+
+	lockedVar := mock.VariableEncrypted()
+	lockedVar.VariableMetadata.Lock = &structs.VariableLock{
+		TTL:       24 * time.Hour,
+		LockDelay: 15 * time.Second,
+	}
+
+	//runningTimers := srv.lockTTLTimer.TimerNum()
+	// Creating and locking the variable directly on the state store allows us to
+	// set up the lock ID and bypass the timers.
+	vlResp := state.VarLockAcquire(100, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpLockAcquire,
+		Var: lockedVar,
+	})
+
+	must.NoError(t, vlResp.Error)
+
+	rnReq := structs.VariablesRenewLockRequest{
+		Path: "missing/variable",
+		WriteRequest: structs.WriteRequest{
+			Region: "global",
+		},
+	}
+
+	//runningTimers := srv.lockTTLTimer.TimerNum()
+
+	rnResp := new(structs.VariablesApplyResponse)
+	err := msgpackrpc.CallWithCodec(codec, structs.VariablesRenewLockRPCMethod, &rnReq, rnResp)
+
+	must.NoError(t, err)
+
+	/*
+	   	t.Run("acquire lock on locked variable without lockID", func(t *testing.T) {
+	   		sv := mockVar.Copy()
+	   		sv.VariableMetadata.Lock = &structs.VariableLock{
+	   			TTL:       24 * time.Hour,
+	   			LockDelay: 15 * time.Second,
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpLockAcquire,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		runningTimers := srv.lockTTLTimer.TimerNum()
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, runningTimers, srv.lockTTLTimer.TimerNum())
+	   		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+	   	})
+
+	   	t.Run("successfully re acquire lock on locked variable with the lockID", func(t *testing.T) {
+	   		sv := latest.Copy()
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpLockAcquire,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		runningTimers := srv.lockTTLTimer.TimerNum()
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
+	   		must.Eq(t, sv.Items, applyResp.Output.Items)
+
+	   		must.Eq(t, runningTimers, srv.lockTTLTimer.TimerNum())
+
+	   		latest = applyResp.Output.Copy()
+	   	})
+
+	   	t.Run("upsert locked variable without the lockID", func(t *testing.T) {
+	   		sv := mockVar.Copy()
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpSet,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+	   	})
+
+	   	t.Run("successfully upsert locked variable with the lockID", func(t *testing.T) {
+	   		sv := latest.Copy()
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpSet,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
+	   		must.Eq(t, sv.Items, applyResp.Output.Items)
+
+	   		latest = applyResp.Output.Copy()
+	   	})
+
+	   	t.Run("upsert locked variable with correct CAS without the lockID", func(t *testing.T) {
+	   		sv := latest.Copy()
+	   		sv.VariableMetadata.Lock = &structs.VariableLock{}
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpCAS,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+	   	})
+
+	   	t.Run("upsert locked variable with wrong CAS without the lockID", func(t *testing.T) {
+	   		sv := mockVar.Copy()
+	   		sv.VariableMetadata.Lock = &structs.VariableLock{}
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpCAS,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+	   	})
+
+	   	t.Run("upsert locked variable wrong CAS and the lockID", func(t *testing.T) {
+	   		sv := latest.Copy()
+
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   			"item2": "not so important info",
+	   		}
+
+	   		sv.ModifyIndex = sv.ModifyIndex + 30
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpCAS,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+	   	})
+
+	   	t.Run("successfully upsert locked variable with CAS and the lockID", func(t *testing.T) {
+	   		sv := latest.Copy()
+
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   			"item2": "not so important info",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpCAS,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
+	   		must.Eq(t, sv.Items, applyResp.Output.Items)
+
+	   		latest = applyResp.Output.Copy()
+	   	})
+
+	   	t.Run("release locked variable without the lockID", func(t *testing.T) {
+	   		sv := mockVar.Copy()
+	   		sv.VariableMetadata.Lock = &structs.VariableLock{
+	   			ID: "wrongID",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpLockRelease,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		runningTimers := srv.lockTTLTimer.TimerNum()
+
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultConflict, applyResp.Result)
+	   		must.Eq(t, runningTimers, srv.lockTTLTimer.TimerNum())
+
+	   })
+
+	   	t.Run("successfully release locked variable with the lockID", func(t *testing.T) {
+	   		sv := latest.Copy()
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpLockRelease,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		runningTimers := srv.lockTTLTimer.TimerNum()
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
+	   		must.Eq(t, runningTimers-1, srv.lockTTLTimer.TimerNum())
+	   		must.Nil(t, applyResp.Output.Lock)
+	   		must.Eq(t, latest.Items, applyResp.Output.Items)
+
+	   		latest = applyResp.Output.Copy()
+	   	})
+
+	   	t.Run("successfully acquire lock on variable with new data", func(t *testing.T) {
+	   		sv := latest.Copy()
+
+	   		sv.VariableMetadata.Lock = &structs.VariableLock{
+	   			TTL:       24 * time.Hour,
+	   			LockDelay: 15 * time.Second,
+	   		}
+
+	   		sv.Items = structs.VariableItems{
+	   			"item1": "very important info",
+	   			"item2": "not so important info",
+	   			"item3": "the password",
+	   		}
+
+	   		applyReq := structs.VariablesApplyRequest{
+	   			Op:           structs.VarOpLockAcquire,
+	   			Var:          &sv,
+	   			WriteRequest: structs.WriteRequest{Region: "global"},
+	   		}
+
+	   		runningTimers := srv.lockTTLTimer.TimerNum()
+	   		applyResp := new(structs.VariablesApplyResponse)
+	   		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+	   		must.NoError(t, err)
+	   		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
+	   		must.Eq(t, runningTimers+1, srv.lockTTLTimer.TimerNum())
+	   		must.Eq(t, sv.Items, applyResp.Output.Items)
+
+	   		latest = applyResp.Output.Copy()
+	   	})
+	*/
 }
