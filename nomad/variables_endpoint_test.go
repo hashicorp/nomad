@@ -1558,7 +1558,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 	})
 
 	t.Run("successfully renewing lock", func(t *testing.T) {
-		// Add a running timer for the lock so it is consider active and can be renewed
+		// Add a running timer for the lock so it is consider active and can be renewed.
 		srv.lockTTLTimer.Create(vlResp.WrittenSVMeta.LockID(), 30*time.Second, func() {})
 
 		rnReq := structs.VariablesRenewLockRequest{
