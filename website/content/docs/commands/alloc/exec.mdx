@@ -41,7 +41,8 @@ capabilities for the allocation's namespace.
 
 - `-task`: Sets the task to exec command in.
 
-- `-job`: Use a random allocation from the specified job ID.
+- `-job`: Use a random allocation from the specified job or job ID prefix,
+  preferring a running allocation.
 
 - `-i`: Pass stdin to the container, defaults to true. Pass `-i=false` to
   disable explicitly.
