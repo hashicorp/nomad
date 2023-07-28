@@ -39,7 +39,8 @@ consistent evaluation when Nomad spans multiple time zones.
   option also includes predefined expressions such as `@daily` or `@weekly`.
 
 - `crons` - A cron expressions configuring the interval the job is launched
-  at. Like `cron`, but support multiple entity.
+  at. Like `cron`, but support expressions. The job will run at the next
+  time that matches any of the expressions.
 
 - `prohibit_overlap` `(bool: false)` - Specifies if this job should wait until
   previous instances of this job have completed. This only applies to this job;

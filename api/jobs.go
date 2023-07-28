@@ -855,7 +855,7 @@ func (p *PeriodicConfig) Canonicalize() {
 // returned. The `time.Location` of the returned value matches that of the
 // passed time.
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
-	// Once spec parsing
+	// Single spec parsing
 	if p != nil && *p.SpecType == PeriodicSpecCron {
 		if p.Spec != nil && *p.Spec != "" {
 			return cronParseNext(fromTime, *p.Spec)
@@ -863,19 +863,14 @@ func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	}
 
 	// multiple specs parsing
-	times := make([]time.Time, len(p.Specs))
 	var nextTime time.Time
-	var err error
-	for i, spec := range p.Specs {
-		times[i], err = cronParseNext(fromTime, spec)
+	for _, spec := range p.Specs {
+		t, err := cronParseNext(fromTime, spec)
 		if err != nil {
 			return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
 		}
-	}
-	nextTime = times[0]
-	for _, next := range times {
-		if next.Before(nextTime) {
-			nextTime = next
+		if nextTime.IsZero() || t.Before(nextTime) {
+			nextTime = t
 		}
 	}
 	return nextTime, nil

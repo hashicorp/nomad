@@ -4797,6 +4797,12 @@ func (j *Job) Warnings() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// cron -> crons
+	if j.Periodic.Spec != "" {
+		err := fmt.Errorf("cron is deprecated and may be removed in a future release. Use crons instead")
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5685,25 +5691,20 @@ func CronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
-		// Once spec parsing
+		// Single spec parsing
 		if p.Spec != "" {
 			return CronParseNext(fromTime, p.Spec)
 		}
 
 		// multiple specs parsing
-		times := make([]time.Time, len(p.Specs))
 		var nextTime time.Time
-		var err error
-		for i, spec := range p.Specs {
-			times[i], err = CronParseNext(fromTime, spec)
+		for _, spec := range p.Specs {
+			t, err := CronParseNext(fromTime, spec)
 			if err != nil {
-				return times[i], err
+				return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
 			}
-		}
-		nextTime = times[0]
-		for _, next := range times {
-			if next.Before(nextTime) {
-				nextTime = next
+			if nextTime.IsZero() || t.Before(nextTime) {
+				nextTime = t
 			}
 		}
 		return nextTime, nil

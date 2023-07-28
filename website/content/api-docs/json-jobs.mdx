@@ -337,7 +337,8 @@ The `Job` object supports the following keys:
     documentation of supported cron specs and the predefined expressions.
 
   - `Specs` - A cron expressions configuring the interval the job is launched
-    at. Like `Spec`, but support multiple entity.
+    at. Like `Spec`, but support multiple expressions. The job will
+    run at the next time that matches any of the expressions.
 
   - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can be set
     to true to enforce that the periodic job doesn't spawn a new instance of the
