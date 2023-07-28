@@ -724,18 +724,17 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return errVarIsLocked
 	}
 
-	updatedVar := encryptedVar.Copy()
-	reply.VarMeta = &updatedVar.VariableMetadata
-	reply.Index = encryptedVar.ModifyIndex
-
 	// if the lock exists in the variable, but not in the timer, it means
 	// it expired and cant be renewed anymore. The delay will take care of
 	// removing the lock from the variable when it expires.
 	err = sv.timers.RenewTTLTimer(encryptedVar.Copy())
 	if err != nil {
-		return errLockNotFound
+		return errVarIsLocked
 	}
 
+	updatedVar := encryptedVar.Copy()
+	reply.VarMeta = &updatedVar.VariableMetadata
+	reply.Index = encryptedVar.ModifyIndex
 	return nil
 }
 
