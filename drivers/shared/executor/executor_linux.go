@@ -185,7 +185,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
 
-	// SETH collect pids in the background
 	go l.wait()
 
 	return &ProcessState{
@@ -665,6 +664,8 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 }
 
 func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+	// note: an alloc TR hook pre-creates the cgroup(s) in both v1 and v2
+
 	// SETH
 	// this is configuring libcontainer to our needs
 	// - create cgroup if necessary (?)
@@ -685,19 +686,21 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *E
 	}
 
 	// set the libcontainer hook for writing the PID to cgroup.procs file
-	configureCgroupHook(cfg, command)
+	l.configureCgroupHook(cfg, command)
 
+	// set the libcontainer memory limits
+	l.configureCgroupMemory(cfg, command)
+
+	// set cgroup v1/v2 specific attributes (cpu, path)
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		return configureCG1()
-	case cgroupslib.CG2:
-		return l.configureCG2(cfg, cg)
+		return l.configureCG1(cfg)
 	default:
-		return nil
+		return l.configureCG2(cfg, command, cg)
 	}
 }
 
-func configureCgroupHook(cfg *lconfigs.Config, command *ExecCommand) {
+func (*LibcontainerExecutor) configureCgroupHook(cfg *lconfigs.Config, command *ExecCommand) {
 	cfg.Hooks = lconfigs.Hooks{
 		lconfigs.CreateRuntime: lconfigs.HookList{
 			newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
@@ -705,14 +708,39 @@ func configureCgroupHook(cfg *lconfigs.Config, command *ExecCommand) {
 	}
 }
 
-func configureCG1() error {
+func (l *LibcontainerExecutor) configureCgroupMemory(cfg *lconfigs.Config, command *ExecCommand) {
+	// Total amount of memory allowed to consume
+	res := command.Resources.NomadResources
+	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
+	if memHard <= 0 {
+		memHard = res.Memory.MemoryMB
+		memSoft = 0
+	}
+
+	cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
+	cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
+
+	// Disable swap if possible, to avoid issues on the machine
+	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
+}
+
+func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config) error {
 	panic("todo")
 }
 
-func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, cg string) error {
+func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+	// Set the v2 specific unified path
 	scope := filepath.Base(cg)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
-	l.logger.Info("configureCG2", "path", cfg.Cgroups.Path)
+
+	res := command.Resources.NomadResources
+	cpuShares := res.Cpu.CpuShares // a cgroups v1 concept
+	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
+	// sets cpu.weight, which the kernel also translates to cpu.weight.nice
+	// despite what the libcontainer docs say, this sets priority not bandwidth
+	cfg.Cgroups.Resources.CpuWeight = cpuWeight
+
+	// todo: we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
 	return nil
 }
 

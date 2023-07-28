@@ -1,8 +1,6 @@
 package procstats
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"strconv"
 	"sync"
@@ -81,7 +79,7 @@ func (lps *linuxProcStats) StatProcesses() ProcUsages {
 	lps.lock.Lock()
 	defer lps.lock.Unlock()
 
-	nlog := netlog.New("LPS.StatProcesses")
+	// SETH TODO: this needs to actually use the cache
 
 	if !lps.expired() {
 		return lps.cache
@@ -93,7 +91,6 @@ func (lps *linuxProcStats) StatProcesses() ProcUsages {
 	// create the response resource usage map
 	var result = make(ProcUsages)
 	for pid, s := range lps.latest {
-		nlog.Info("pids", "pid", pid)
 		p, err := process.NewProcess(int32(pid))
 		if err != nil {
 			continue

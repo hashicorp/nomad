@@ -22,8 +22,8 @@ func Init(log hclog.Logger) {
 			return
 		}
 
-		required := set.From[string]([]string{"cpuset", "cpu", "io", "memory", "pids"})
-		enabled := set.From[string](strings.Fields(s))
+		required := set.From([]string{"cpuset", "cpu", "io", "memory", "pids"})
+		enabled := set.From(strings.Fields(s))
 		needed := required.Difference(enabled)
 
 		if needed.Size() == 0 {
