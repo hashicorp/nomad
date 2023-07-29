@@ -2,6 +2,10 @@
 
 package cgroupslib
 
+import (
+	"sync"
+)
+
 var (
 	// NomadCgroupParent is a global variable because trust me, setting this
 	// from the Nomad client initalization is much less painful than trying to
@@ -27,7 +31,15 @@ const (
 	OFF
 )
 
+var (
+	mode      Mode
+	detection sync.Once
+)
+
 // GetMode returns the cgroups mode of operation.
 func GetMode() Mode {
-	return CG2
+	detection.Do(func() {
+		mode = detect()
+	})
+	return mode
 }
