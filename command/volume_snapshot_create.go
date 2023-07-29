@@ -16,7 +16,7 @@ type VolumeSnapshotCreateCommand struct {
 
 func (c *VolumeSnapshotCreateCommand) Help() string {
 	helpText := `
-Usage: nomad volume snapshot create <volume id> snapshot_name
+Usage: nomad volume snapshot create <volume id> <snapshot_name>
 
   Create a snapshot of an external storage volume. This command requires a
   volume ID or prefix and snapthost name. If there is an exact match based on
@@ -96,8 +96,8 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 
 	// Check that we at least one argument
 	args = flags.Args()
-	if l := len(args); l <= 1 {
-		c.Ui.Error("This command takes two argument: <vol id> <snapshot name>")
+	if l := len(args); l != 2 {
+		c.Ui.Error("This command takes two arguments: <vol id> <snapshot name>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
