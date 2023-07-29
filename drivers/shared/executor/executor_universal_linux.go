@@ -128,6 +128,9 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	cpuWeight := e.computeCPU(command)
 	ed = cgroupslib.OpenScopeFile(cgroup, "cpu.weight")
 	_ = ed.Write(fmt.Sprintf("%d", cpuWeight))
+
+	// cores?
+	e.logger.Info("CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
 }
 
 func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
