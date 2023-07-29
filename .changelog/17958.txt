@@ -1,0 +1,3 @@
+```release-note:bug
+cli: make snapshot name requiered in creating volume snapshots
+```
