@@ -294,7 +294,8 @@ func TestHTTP_Variables(t *testing.T) {
 				require.Equal(t, &svU, out)
 			}
 		})
-		t.Run("update-cas", func(t *testing.T) {
+
+		t.Run("update_cas", func(t *testing.T) {
 			sv := mock.Variable()
 			require.NoError(t, rpcWriteSV(s, sv, sv))
 
@@ -375,7 +376,164 @@ func TestHTTP_Variables(t *testing.T) {
 				require.Equal(t, fmt.Sprint(svU.Items), fmt.Sprint(out.Items))
 			}
 		})
-		rpcResetSV(s)
+
+		t.Run("error_cas_and_acquire_lock", func(t *testing.T) {
+			svLA := sv1.Copy()
+			svLA.Items["new"] = "new"
+
+			// break the request body
+			badBuf := encodeBrokenReq(&svLA)
+
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?cas=1&"+acquireLockQueryParam, badBuf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "CAS can't be used with lock operations")
+
+			var cErr HTTPCodedError
+			require.ErrorAs(t, err, &cErr)
+			require.Equal(t, http.StatusBadRequest, cErr.Code())
+			require.Nil(t, obj)
+		})
+		t.Run("error_parse_acquire_lock", func(t *testing.T) {
+			svLA := sv1.Copy()
+			svLA.Items["new"] = "new"
+
+			// break the request body
+			badBuf := encodeBrokenReq(&svLA)
+
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?"+acquireLockQueryParam, badBuf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "unexpected EOF")
+			var cErr HTTPCodedError
+			require.ErrorAs(t, err, &cErr)
+			require.Equal(t, http.StatusBadRequest, cErr.Code())
+			require.Nil(t, obj)
+		})
+		t.Run("error_rpc_acquire_lock", func(t *testing.T) {
+			svLA := sv1.Copy()
+			svLA.Items["new"] = "new"
+
+			// test broken rpc error
+			buf := encodeReq(&svLA)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?region=bad&"+acquireLockQueryParam, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+
+		t.Run("acquire_lock", func(t *testing.T) {
+			svLA := sv1
+
+			svLA.Items["new"] = "new"
+			// Make the HTTP request
+			buf := encodeReq(&svLA)
+			req, err := http.NewRequest("PUT", "/v1/var/"+svLA.Path+"?"+acquireLockQueryParam, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.NoError(t, err)
+
+			// Test the returned object and rehydrate to a VariableDecrypted
+			require.NotNil(t, obj)
+			out, ok := obj.(*structs.VariableDecrypted)
+			require.True(t, ok, "Unable to convert obj to VariableDecrypted")
+
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, fmt.Sprint(out.ModifyIndex), respW.HeaderMap.Get("X-Nomad-Index"))
+
+			// Check for the lock
+			require.NotNil(t, out.VariableMetadata.Lock)
+			require.NotEmpty(t, out.LockID())
+
+			// Check that written varible does not equal the input to rule out input mutation
+			require.NotEqual(t, &svLA.Items, out.Items)
+
+			// Update the lock information for the following tests
+			sv1.VariableMetadata = out.VariableMetadata
+		})
+
+		t.Run("error_rpc_renew_lock", func(t *testing.T) {
+			svRL := sv1.Copy()
+
+			// test broken rpc error
+			buf := encodeReq(&svRL)
+			req, err := http.NewRequest("PUT", "/v1/var/"+sv1.Path+"?region=bad&"+renewLockQueryParam, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			// Make the request
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.EqualError(t, err, "No path to region")
+			require.Nil(t, obj)
+		})
+
+		t.Run("renew_lock", func(t *testing.T) {
+			svRL := sv1.Copy()
+
+			// Make the HTTP request
+			buf := encodeReq(&svRL)
+			req, err := http.NewRequest("PUT", "/v1/var/"+svRL.Path+"?"+renewLockQueryParam, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.NoError(t, err)
+
+			// Test the returned object and rehydrate to a VariableDecrypted
+			require.NotNil(t, obj)
+			out, ok := obj.(*structs.VariableMetadata)
+			require.True(t, ok, "Unable to convert obj to VariableDecrypted")
+
+			// Check for the lock
+			require.NotNil(t, out.Lock)
+			require.Equal(t, sv1.LockID(), out.Lock.ID)
+		})
+
+		t.Run("release_lock", func(t *testing.T) {
+			svLR := sv1
+
+			svLR.Items["new"] = "new"
+			// Make the HTTP request
+			buf := encodeReq(&svLR)
+			req, err := http.NewRequest("PUT", "/v1/var/"+svLR.Path+"?"+releaseLockQueryParam, buf)
+			require.NoError(t, err)
+			respW := httptest.NewRecorder()
+
+			obj, err := s.Server.VariableSpecificRequest(respW, req)
+			require.NoError(t, err)
+
+			// Test the returned object and rehydrate to a VariableDecrypted
+			require.NotNil(t, obj)
+			out, ok := obj.(*structs.VariableDecrypted)
+			require.True(t, ok, "Unable to convert obj to VariableDecrypted")
+
+			// Check for the index
+			require.NotZero(t, respW.HeaderMap.Get("X-Nomad-Index"))
+			require.Equal(t, fmt.Sprint(out.ModifyIndex), respW.HeaderMap.Get("X-Nomad-Index"))
+
+			// Check for the lock
+			require.Nil(t, out.VariableMetadata.Lock)
+			require.Empty(t, out.LockID())
+
+			// Check that written variable is equal the input
+			require.Equal(t, sv1.Items, out.Items)
+
+			// Remove the lock information from the mock variable for the following tests
+			sv1.VariableMetadata = out.VariableMetadata
+		})
 
 		t.Run("error_rpc_delete", func(t *testing.T) {
 			sv1 := mock.Variable()

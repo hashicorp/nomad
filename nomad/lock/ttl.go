@@ -91,7 +91,7 @@ func (t *TTLTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
 		timer.Reset(period)
 		select {
 		case <-timer.C:
-			metrics.SetGauge([]string{"variables", "locks", "ttl_timer", "num"}, float32(t.timerNum()))
+			metrics.SetGauge([]string{"variables", "locks", "ttl_timer", "num"}, float32(t.TimerNum()))
 		case <-shutdownCh:
 			return
 		}
@@ -99,7 +99,7 @@ func (t *TTLTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
 }
 
 // timerNum returns the number of registered timers.
-func (t *TTLTimer) timerNum() int {
+func (t *TTLTimer) TimerNum() int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	return len(t.ttlTimers)
