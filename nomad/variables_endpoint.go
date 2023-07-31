@@ -198,6 +198,11 @@ func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs
 func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	switch args.Op {
 	case structs.VarOpLockAcquire:
+		// In case the user wants to use the default values so no lock data was provided.
+		if args.Var.VariableMetadata.Lock == nil {
+			args.Var.VariableMetadata.Lock = &structs.VariableLock{}
+		}
+
 		args.Var.Canonicalize()
 		return args.Var.ValidateForLock()
 
