@@ -57,11 +57,11 @@ Logs Specific Options:
     Show full information.
 
   -task <task-name>
-    Sets the task to view the logs. If task name is given with both an argument 
+    Sets the task to view the logs. If task name is given with both an argument
 	and the '-task' option, preference is given to the '-task' option.
 
   -job <job-id>
-    Use a random allocation from the specified job ID.
+    Use a random allocation from the specified job ID or prefix.
 
   -f
     Causes the output to not stop when the end of the logs are reached, but
@@ -167,7 +167,13 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if l.job {
-		allocID, err = getRandomJobAllocID(client, args[0])
+		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+		if err != nil {
+			l.Ui.Error(err.Error())
+			return 1
+		}
+
+		allocID, err = getRandomJobAllocID(client, jobID, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
