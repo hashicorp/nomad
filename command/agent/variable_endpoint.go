@@ -93,7 +93,7 @@ func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Reque
 
 	args := structs.VariablesRenewLockRequest{
 		Path:   path,
-		LockID: Variable.Lock.ID,
+		LockID: Variable.LockID(),
 	}
 
 	s.parseWriteRequest(req, &args.WriteRequest)
