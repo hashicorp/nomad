@@ -45,7 +45,7 @@ type Variables struct {
 	srv    *Server
 	ctx    *RPCContext
 	logger hclog.Logger
-	timers variableTimmers
+	timers variableTimers
 
 	encrypter *Encrypter
 }
@@ -262,7 +262,7 @@ func (sv *Variables) makeVariablesApplyResponse(
 			// Verify the caller is providing the correct lockID, meaning it is the
 			// lock holder and has access to the lock information or is a management call.
 			// If locked, remove the lock information from response.
-			if isVarLocked(req, eResp.WrittenSVMeta) || !isManagement {
+			if isCallerOwner(req, eResp.WrittenSVMeta) || !isManagement {
 				out.Output.VariableMetadata.Lock = nil
 			}
 		}
@@ -743,7 +743,7 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 	return nil
 }
 
-func isVarLocked(req *structs.VariablesApplyRequest, respVarMeta *structs.VariableMetadata) bool {
+func isCallerOwner(req *structs.VariablesApplyRequest, respVarMeta *structs.VariableMetadata) bool {
 	reqLock := req.Var.VariableMetadata.Lock
 	savedLock := respVarMeta.Lock
 
