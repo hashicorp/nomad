@@ -86,49 +86,83 @@ func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 // configureResourceContainer on Linux configures the cgroups to be used to track
 // pids created by the executor
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
-	// SETH TODO
-	// - do pid "containment" (group so we can track utilization and kill later)
+
+	// get our cgroup reference (cpuset in v1)
 	cgroup := command.Cgroup()
 
-	// get file descriptor of the cgroup made for this task
-	fd, fdCleanup, err := e.statCG(cgroup)
-	if err != nil {
-		return nil, err
-	}
-	// configure child process to spawn in the cgroup
-	e.childCmd.SysProcAttr.UseCgroupFD = true
-	e.childCmd.SysProcAttr.CgroupFD = fd
+	// cgCleanup will be called after the task has been launched
+	// v1: remove the executor process from the task's cgroups
+	// v2: let go of the file descriptor of the task's cgroup
+	var cgCleanup func()
 
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
 		e.configureCG1(cgroup, command)
+		cgCleanup = e.enterCG1(cgroup)
 	default:
 		e.configureCG2(cgroup, command)
+		// configure child process to spawn in the cgroup
+		// get file descriptor of the cgroup made for this task
+		fd, cleanup, err := e.statCG(cgroup)
+		if err != nil {
+			return nil, err
+		}
+		e.childCmd.SysProcAttr.UseCgroupFD = true
+		e.childCmd.SysProcAttr.CgroupFD = fd
+		cgCleanup = cleanup
 	}
 
 	e.logger.Info("configured cgroup for executor", "pid", pid)
 
-	return fdCleanup, nil
+	return cgCleanup, nil
+}
+
+// enterCG1 will write the executor PID (i.e. itself) into the cgroups we
+// created for the task - so that the task and its children will spawn in
+// those cgroups. The cleanup function moves the executor out of the task's
+// cgroups and into the nomad/ parent cgroups.
+func (e *UniversalExecutor) enterCG1(cgroup string) func() {
+	pid := strconv.Itoa(unix.Getpid())
+
+	// write pid to all the groups
+	ifaces := []string{"freezer" /*"cpuset"*/, "cpu", "memory"}
+	for _, iface := range ifaces {
+		ed := cgroupslib.OpenFromCpusetCG1(cgroup, iface, "cgroup.procs")
+		err := ed.Write(pid)
+		if err != nil {
+			e.logger.Warn("failed to write cgroup", "interface", iface, "error", err)
+		}
+	}
+
+	// cleanup func that moves executor back up to nomad cgroup
+	return func() {
+		for _, iface := range ifaces {
+			ed := cgroupslib.OpenParentCG1(iface, "cgroup.procs")
+			err := ed.Write(pid)
+			if err != nil {
+				e.logger.Warn("failed to move executor cgroup", "interface", iface, "error", err)
+			}
+		}
+	}
 }
 
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
-	nlog := netlog.New("UE.CG1")
-	nlog.Info("cgroup", cgroup)
-
-	// memHard, memSoft := e.computeMemory(command)
-	// ed := cgroupslib.OpenCG1
-	// need to be able to open cg1 files
-
 	memHard, memSoft := e.computeMemory(command)
-	// YOU ARE HERE, what files to write?
-	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory.max")
-	_ = ed.Write(fmt.Sprintf("%d", memHard))
+	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory", "memory.limit_in_bytes")
+	_ = ed.Write(strconv.FormatInt(memHard, 10))
 	if memSoft > 0 {
-		ed = cgroupslib.OpenScopeFile(cgroup, "memory.low")
-		_ = ed.Write(fmt.Sprintf("%d", memSoft))
+		ed = cgroupslib.OpenFromCpusetCG1(cgroup, "memory", "memory.soft_limit_in_bytes")
+		_ = ed.Write(strconv.FormatInt(memSoft, 10))
 	}
-	// write cpu files
+
+	// write cpu cgroup files YOU ARE HERE (shares)
+	cpuShares := strconv.FormatInt(command.Resources.LinuxResources.CPUShares, 10)
+	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu", "cpu.shares")
+	_ = ed.Write(cpuShares)
+
+	// TODO(shoenig) manage cpuset
+	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
@@ -142,13 +176,12 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	}
 
 	// write cpu cgroup files
-	// YOU ARE HERE (finish writing all the files with correct values)
 	cpuWeight := e.computeCPU(command)
 	ed = cgroupslib.OpenScopeFile(cgroup, "cpu.weight")
 	_ = ed.Write(fmt.Sprintf("%d", cpuWeight))
 
-	// cores?
-	e.logger.Info("CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
+	// TODO(shoenig) manage cpuset
+	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
 }
 
 func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
@@ -184,5 +217,8 @@ func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) er
 			return f()
 		})
 	}
+
+	nlog := netlog.New("wNI")
+	nlog.Info("no netowrk isolation")
 	return f()
 }

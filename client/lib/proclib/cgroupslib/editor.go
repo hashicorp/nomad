@@ -6,6 +6,7 @@ import (
 	"github.com/shoenig/netlog"
 
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,11 +51,21 @@ func writeRoot(filename, content string) error {
 	}
 }
 
+func OpenParentCG1(iface, filename string) Editor {
+	return &Editor1{
+		path: filepath.Join("/sys/fs/cgroup", iface, NomadCgroupParent, filename),
+	}
+}
+
 // An Editor is used for reading and writing cgroup interface files. Implementations
 // are provided for cgroups v1 and cgroups v2.
 type Editor interface {
 	// Read the contents of an interface file.
 	Read() (string, error)
+
+	// ReadPIDs reads the contents of the interface file, parsing it as a set of
+	// process IDs.
+	ReadPIDs() (*set.Set[int], error)
 
 	// Write the contents to an interface file.
 	Write(string) error
@@ -76,16 +87,16 @@ func PathCG2(allocID, task string) string {
 }
 
 // PathsCG1 returns the set of directories in which interface files for the
-// given allocID:task can be found. The cpuset cgroup is always listed first
-// because it's special and we reference it in places.
+// given allocID:task can be found. The interfaces are always in this order:
+// [cpuset, freezer, cpu, memory]
 func PathsCG1(allocID, task string) []string {
 	dir := scope(allocID, task)
 	return []string{
 		// always start with cpuset
 		pathTo("cpuset", NomadCgroupParent, dir), // TODO (partitions)
+		pathTo("freezer", NomadCgroupParent, dir),
 		pathTo("cpu", NomadCgroupParent, dir),
 		pathTo("memory", NomadCgroupParent, dir),
-		pathTo("freezer", NomadCgroupParent, dir),
 	}
 }
 
@@ -147,6 +158,18 @@ func ThawCG1(allocID, task string) error {
 	return nil
 }
 
+// DeleteCG1 will delete each cgroup path associated with the alloc::task.
+func DeleteCG1(allocID, task string) error {
+	paths := PathsCG1(allocID, task)
+	var errs error
+	for _, p := range paths {
+		if err := os.RemoveAll(p); err != nil {
+			errors.Join(errs, err)
+		}
+	}
+	return errs
+}
+
 // OpenScopeFile is useful when you have a complete cgroups v2 scope path,
 // and want to edit a specific file.
 func OpenScopeFile(cgroup, filename string) *Editor2 {
@@ -203,12 +226,15 @@ func OpenCG1(iface, alloc, task, file string) Editor {
 }
 
 type Editor1 struct {
-	path string
+	path string // the complete filepath
 }
 
 func (e *Editor1) Read() (string, error) {
-	// todo
-	return "", nil
+	b, err := os.ReadFile(e.path)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes.TrimSpace(b)), nil
 }
 
 func (e *Editor1) ReadPIDs() (*set.Set[int], error) {
@@ -223,9 +249,8 @@ func (e *Editor1) ReadPIDs() (*set.Set[int], error) {
 	}), nil
 }
 
-func (e *Editor1) Write(string) error {
-	// todo
-	return nil
+func (e *Editor1) Write(s string) error {
+	return os.WriteFile(e.path, []byte(s), 0644)
 }
 
 type Editor2 struct {
@@ -238,6 +263,10 @@ func (e *Editor2) Read() (string, error) {
 		return "", err
 	}
 	return string(bytes.TrimSpace(b)), nil
+}
+
+func (e *Editor2) ReadPIDs() (*set.Set[int], error) {
+	panic("not yet implemented")
 }
 
 func (e *Editor2) Write(s string) error {
