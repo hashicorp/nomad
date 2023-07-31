@@ -124,10 +124,10 @@ func (e *UniversalExecutor) enterCG1(cgroup string) func() {
 	pid := strconv.Itoa(unix.Getpid())
 
 	// write pid to all the groups
-	ifaces := []string{"freezer" /*"cpuset"*/, "cpu", "memory"}
+	ifaces := []string{"freezer", "cpu", "memory"} // todo: cpuset
 	for _, iface := range ifaces {
-		ed := cgroupslib.OpenFromCpusetCG1(cgroup, iface, "cgroup.procs")
-		err := ed.Write(pid)
+		ed := cgroupslib.OpenFromCpusetCG1(cgroup, iface)
+		err := ed.Write("cgroup.procs", pid)
 		if err != nil {
 			e.logger.Warn("failed to write cgroup", "interface", iface, "error", err)
 		}
@@ -136,8 +136,7 @@ func (e *UniversalExecutor) enterCG1(cgroup string) func() {
 	// cleanup func that moves executor back up to nomad cgroup
 	return func() {
 		for _, iface := range ifaces {
-			ed := cgroupslib.OpenParentCG1(iface, "cgroup.procs")
-			err := ed.Write(pid)
+			err := cgroupslib.WriteNomadCG1(iface, "cgroup.procs", pid)
 			if err != nil {
 				e.logger.Warn("failed to move executor cgroup", "interface", iface, "error", err)
 			}
@@ -147,17 +146,17 @@ func (e *UniversalExecutor) enterCG1(cgroup string) func() {
 
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 	memHard, memSoft := e.computeMemory(command)
-	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory", "memory.limit_in_bytes")
-	_ = ed.Write(strconv.FormatInt(memHard, 10))
+	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+	_ = ed.Write("memory.limit_in_bytes", strconv.FormatInt(memHard, 10))
 	if memSoft > 0 {
-		ed = cgroupslib.OpenFromCpusetCG1(cgroup, "memory", "memory.soft_limit_in_bytes")
-		_ = ed.Write(strconv.FormatInt(memSoft, 10))
+		ed = cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memSoft, 10))
 	}
 
 	// write cpu cgroup files YOU ARE HERE (shares)
 	cpuShares := strconv.FormatInt(command.Resources.LinuxResources.CPUShares, 10)
-	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu", "cpu.shares")
-	_ = ed.Write(cpuShares)
+	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu")
+	_ = ed.Write("cpu.shares", cpuShares)
 
 	// TODO(shoenig) manage cpuset
 	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
@@ -166,17 +165,17 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	// write memory cgroup files
 	memHard, memSoft := e.computeMemory(command)
-	ed := cgroupslib.OpenScopeFile(cgroup, "memory.max")
-	_ = ed.Write(fmt.Sprintf("%d", memHard))
+	ed := cgroupslib.OpenPath(cgroup)
+	_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
 	if memSoft > 0 {
-		ed = cgroupslib.OpenScopeFile(cgroup, "memory.low")
-		_ = ed.Write(fmt.Sprintf("%d", memSoft))
+		ed = cgroupslib.OpenPath(cgroup)
+		_ = ed.Write("memory.low", strconv.FormatInt(memSoft, 10))
 	}
 
 	// write cpu cgroup files
 	cpuWeight := e.computeCPU(command)
-	ed = cgroupslib.OpenScopeFile(cgroup, "cpu.weight")
-	_ = ed.Write(fmt.Sprintf("%d", cpuWeight))
+	ed = cgroupslib.OpenPath(cgroup)
+	_ = ed.Write("cpu.weight", strconv.FormatUint(cpuWeight, 10))
 
 	// TODO(shoenig) manage cpuset
 	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)

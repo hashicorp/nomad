@@ -90,7 +90,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 	return le
 }
 
-func (l *LibcontainerExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
 	return procstats.List(l.command)
 }
 

@@ -3,6 +3,7 @@
 package cgroupslib
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ func Init(log hclog.Logger) {
 	case CG1:
 	case CG2:
 		// minimum controllers must be set first
-		s, err := readRoot("cgroup.subtree_control")
+		s, err := readRootCG2("cgroup.subtree_control")
 		if err != nil {
 			log.Error("failed to create nomad cgroup", "error", err)
 			return
@@ -37,7 +38,7 @@ func Init(log hclog.Logger) {
 		}
 
 		activation := strings.TrimSpace(sb.String())
-		if err = writeRoot("cgroup.subtree_control", activation); err != nil {
+		if err = writeRootCG2("cgroup.subtree_control", activation); err != nil {
 			log.Error("failed to create nomad cgroup", "error", err)
 			return
 		}
@@ -49,5 +50,40 @@ func Init(log hclog.Logger) {
 		}
 
 		log.Debug("top level nomad.slice cgroup initialized", "controllers", needed)
+	}
+}
+
+func readRootCG2(filename string) (string, error) {
+	p := filepath.Join(root, filename)
+	b, err := os.ReadFile(p)
+	return string(bytes.TrimSpace(b)), err
+}
+
+func writeRootCG2(filename, content string) error {
+	p := filepath.Join(root, filename)
+	return os.WriteFile(p, []byte(content), 0644)
+}
+
+// ReadNomadCG2 reads an interface file under the nomad.slice parent cgroup
+// (or whatever its name is configured to be)
+func ReadNomadCG2(filename string) (string, error) {
+	p := filepath.Join(root, NomadCgroupParent, filename)
+	b, err := os.ReadFile(p)
+	return string(bytes.TrimSpace(b)), err
+}
+
+func WriteNomadCG1(iface, filename, content string) error {
+	p := filepath.Join(root, iface, NomadCgroupParent, filename)
+	return os.WriteFile(p, []byte(content), 0644)
+}
+
+// LinuxResourcesPath returns the filepath to the directory that the field
+// x.Resources.LinuxResources.CpusetCgroupPath is expected to hold on to
+func LinuxResourcesPath(allocID, task string) string {
+	switch GetMode() {
+	case CG1:
+		return filepath.Join(root, "cpuset", NomadCgroupParent, scopeCG1(allocID, task))
+	default:
+		return filepath.Join(root, NomadCgroupParent, scopeCG2(allocID, task))
 	}
 }

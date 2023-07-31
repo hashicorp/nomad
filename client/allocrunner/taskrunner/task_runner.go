@@ -846,19 +846,8 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 }
 
 func (tr *TaskRunner) assignCgroup(taskConfig *drivers.TaskConfig) {
-	switch cgroupslib.GetMode() {
-	case cgroupslib.OFF:
-		return
-	case cgroupslib.CG1:
-		// e.g. /sys/fs/cgroup/<interface>/<parent>/<alloc>.<task>/_files_
-		paths := cgroupslib.PathsCG1(tr.allocID, tr.taskName)
-		p := paths[0] // cpuset
-		taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
-	case cgroupslib.CG2:
-		p := cgroupslib.PathCG2(tr.allocID, tr.taskName)
-		taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
-	}
-	netlog.Cyan("assigned cgroup", "path", taskConfig.Resources.LinuxResources.CpusetCgroupPath)
+	p := cgroupslib.LinuxResourcesPath(taskConfig.AllocID, taskConfig.Name)
+	taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
 }
 
 // runDriver runs the driver and waits for it to exit

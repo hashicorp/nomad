@@ -14,7 +14,9 @@ var (
 	ExecutorBasicMeasuredCpuStats = []string{"System Mode", "User Mode", "Percent"}
 )
 
-type ProcessID uint32
+// ProcessID is an alias for int; it just helps us identify where PIDs from
+// the kernel are being used.
+type ProcessID = int
 
 // ProcUsages is a map from PID to the resources that process is consuming.
 //

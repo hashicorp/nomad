@@ -151,10 +151,8 @@ func (s *Cgroups1) ScanSystem(top *Topology) {
 type Cgroups2 struct{}
 
 func (s *Cgroups2) ScanSystem(top *Topology) {
-
 	// detect effective cores in the nomad.slice cgroup
-	ed := cgroupslib.Open("cpuset.cpus.effective")
-	content, err := ed.Read()
+	content, err := cgroupslib.ReadNomadCG2("cpuset.cpus.effective")
 	if err == nil {
 		ids := idset.Parse[CoreID](content)
 		for _, cpu := range top.Cores {

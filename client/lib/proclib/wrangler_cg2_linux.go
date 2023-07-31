@@ -14,31 +14,32 @@ import (
 type LinuxWranglerCG2 struct {
 	task Task
 	log  hclog.Logger
+	cg   cgroupslib.Lifecycle
 }
 
 func newCG2(c *Configs) create {
-	cgroupslib.Init(c.Logger.Named("cgv2"))
+	logger := c.Logger.Named("cg2")
+	cgroupslib.Init(logger)
 	return func(task Task) ProcessWrangler {
 		return &LinuxWranglerCG2{
 			task: task,
 			log:  c.Logger,
+			cg:   cgroupslib.Factory(task.AllocID, task.Task),
 		}
 	}
 }
 
 func (w LinuxWranglerCG2) Initialize() error {
-	w.log.Info("init cgroup", "task", w.task)
-	// create cgroup for the task
-	// e.g. mkdir /sys/fs/cgroup/nomad.slice/<scope>
-	return cgroupslib.CreateCG2(w.task.AllocID, w.task.Task)
+	w.log.Info("Initialize()", "task", w.task)
+	return w.cg.Setup()
 }
 
 func (w *LinuxWranglerCG2) Kill() error {
 	w.log.Info("Kill()", "task", w.task)
-	return cgroupslib.KillCG2(w.task.AllocID, w.task.Task)
+	return w.cg.Kill()
 }
 
 func (w *LinuxWranglerCG2) Cleanup() error {
 	w.log.Info("Cleanup()", "task", w.task)
-	return cgroupslib.DeleteCG2(w.task.AllocID, w.task.Task)
+	return w.cg.Teardown()
 }

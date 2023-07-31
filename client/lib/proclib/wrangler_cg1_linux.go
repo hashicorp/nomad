@@ -3,12 +3,10 @@
 package proclib
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
-	"golang.org/x/sys/unix"
 	"oss.indeed.com/go/libtime/decay"
 )
 
@@ -19,48 +17,29 @@ import (
 type LinuxWranglerCG1 struct {
 	task Task
 	log  hclog.Logger
+	cg   cgroupslib.Lifecycle
 }
 
 func newCG1(c *Configs) create {
-	cgroupslib.Init(c.Logger.Named("cgv1"))
+	logger := c.Logger.Named("cg1")
+	cgroupslib.Init(logger)
 	return func(task Task) ProcessWrangler {
 		return &LinuxWranglerCG1{
 			task: task,
-			log:  c.Logger.Named("wrangle_cg1"),
+			log:  logger,
+			cg:   cgroupslib.Factory(task.AllocID, task.Task),
 		}
 	}
 }
 
 func (w *LinuxWranglerCG1) Initialize() error {
-	w.log.Info("init cgroups", "task", w.task)
-	return cgroupslib.CreateCG1(w.task.AllocID, w.task.Task)
+	w.log.Info("Initialize()", "task", w.task)
+	return w.cg.Setup()
 }
 
 func (w *LinuxWranglerCG1) Kill() error {
 	w.log.Info("Kill()", "task", w.task)
-
-	err := cgroupslib.FreezeCG1(w.task.AllocID, w.task.Task)
-	if err != nil {
-		return err
-	}
-
-	// iterate processes in the freezer group and signal them
-	paths := cgroupslib.PathsCG1(w.task.AllocID, w.task.Task)
-	ed := cgroupslib.OpenPath(filepath.Join(paths[1], "cgroup.procs"))
-	pids, err := ed.ReadPIDs()
-	if err != nil {
-		return err
-	}
-
-	// manually issue sigkill to each process
-	signal := unix.SignalNum("SIGKILL")
-	pids.ForEach(func(pid int) bool {
-		_ = unix.Kill(pid, signal)
-		return true
-	})
-
-	// unthaw the processes so they can die
-	return cgroupslib.ThawCG1(w.task.AllocID, w.task.Task)
+	return w.cg.Kill()
 }
 
 func (w *LinuxWranglerCG1) Cleanup() error {
@@ -71,7 +50,7 @@ func (w *LinuxWranglerCG1) Cleanup() error {
 	// have been issued a kill signal and need to be reaped
 
 	rm := func() (bool, error) {
-		err := cgroupslib.DeleteCG1(w.task.AllocID, w.task.Task)
+		err := w.cg.Teardown()
 		if err != nil {
 			return true, err
 		}
