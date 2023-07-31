@@ -3,8 +3,6 @@
 package proclib
 
 import (
-	"github.com/shoenig/netlog"
-
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 )
@@ -19,10 +17,7 @@ type LinuxWranglerCG2 struct {
 }
 
 func newCG2(c *Configs) create {
-	netlog.Yellow("newCG2", "create", c.Logger)
-
 	cgroupslib.Init(c.Logger.Named("cgv2"))
-
 	return func(task Task) ProcessWrangler {
 		return &LinuxWranglerCG2{
 			task: task,
@@ -32,7 +27,7 @@ func newCG2(c *Configs) create {
 }
 
 func (w LinuxWranglerCG2) Initialize() error {
-	w.log.Info("Create", "task", w.task)
+	w.log.Info("init cgroup", "task", w.task)
 	// create cgroup for the task
 	// e.g. mkdir /sys/fs/cgroup/nomad.slice/<scope>
 	return cgroupslib.CreateCG2(w.task.AllocID, w.task.Task)
