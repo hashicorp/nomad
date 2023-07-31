@@ -1104,6 +1104,103 @@ func TestStateStore_ReleaseLock(t *testing.T) {
 	}
 }
 
+func TestStateStore_Release(t *testing.T) {
+	ci.Parallel(t)
+	testState := testStateStore(t)
+
+	insertIndex := uint64(20)
+	resp := testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+		Op: structs.VarOpSet,
+		Var: &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Path:      "/non/lock/variable/path",
+				Namespace: "default",
+			},
+			VariableData: mock.VariableEncrypted().VariableData,
+		},
+	})
+	insertIndex++
+	must.NoError(t, resp.Error)
+
+	resp = testState.VarSet(insertIndex, &structs.VarApplyStateRequest{
+		Op: structs.VarOpSet,
+		Var: &structs.VariableEncrypted{
+			VariableMetadata: structs.VariableMetadata{
+				Path:      "lock/variable/path",
+				Namespace: "default",
+				Lock: &structs.VariableLock{
+					ID: "theLockID",
+				},
+			},
+			VariableData: mock.VariableEncrypted().VariableData,
+		},
+	})
+	must.NoError(t, resp.Error)
+
+	testCases := []struct {
+		name       string
+		lookUpPath string
+		lockID     string
+		expErr     error
+		expResult  structs.VarOpResult
+	}{
+		{
+			name:       "variable_not_found",
+			lookUpPath: "fake/path/",
+			expErr:     errVarNotFound,
+			expResult:  structs.VarOpResultError,
+		},
+		{
+			name:       "variable_has_no_lock",
+			lookUpPath: "/non/lock/variable/path",
+			expErr:     errLockNotFound,
+			expResult:  structs.VarOpResultError,
+		},
+		{
+			name:       "lock_id_doesn't_match",
+			lookUpPath: "lock/variable/path",
+			lockID:     "wrongLockID",
+			expErr:     nil,
+			expResult:  structs.VarOpResultConflict,
+		},
+		{
+			name:       "lock_released",
+			lookUpPath: "lock/variable/path",
+			lockID:     "theLockID",
+			expErr:     nil,
+			expResult:  structs.VarOpResultOk,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			req := &structs.VarApplyStateRequest{
+				Op: structs.VarOpLockRelease,
+				Var: &structs.VariableEncrypted{
+					VariableMetadata: structs.VariableMetadata{
+						Path:      tc.lookUpPath,
+						Namespace: "default",
+					},
+				},
+			}
+
+			if tc.lockID != "" {
+				req.Var.VariableMetadata.Lock = &structs.VariableLock{
+					ID: tc.lockID,
+				}
+			}
+
+			resp = testState.VarLockRelease(insertIndex, req)
+
+			if !errors.Is(tc.expErr, resp.Error) {
+				t.Fatalf("expected error, got %s", resp.Error)
+			}
+
+			must.Eq(t, tc.expResult, resp.Result)
+		})
+	}
+}
+
 func getAllVariables(ss *StateStore, ws memdb.WatchSet) ([]*structs.VariableEncrypted, error) {
 	// List all the variables in the table
 	iter, err := ss.Variables(ws)

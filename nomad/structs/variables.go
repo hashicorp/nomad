@@ -5,6 +5,7 @@ package structs
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -153,6 +154,77 @@ func (vl *VariableLock) Equal(vl2 *VariableLock) bool {
 	return true
 }
 
+// MarshalJSON implements the json.Marshaler interface and allows
+// VariableLock.TTL and VariableLock.Delay to be marshaled correctly.
+func (vl *VariableLock) MarshalJSON() ([]byte, error) {
+	type Alias VariableLock
+	exported := &struct {
+		TTL       string
+		LockDelay string
+		*Alias
+	}{
+		TTL:       vl.TTL.String(),
+		LockDelay: vl.LockDelay.String(),
+		Alias:     (*Alias)(vl),
+	}
+
+	if vl.TTL == 0 {
+		exported.TTL = ""
+	}
+
+	if vl.LockDelay == 0 {
+		exported.LockDelay = ""
+	}
+	return json.Marshal(exported)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface and allows
+// VariableLock.TTL and VariableLock.Delay to be unmarshalled correctly.
+func (vl *VariableLock) UnmarshalJSON(data []byte) (err error) {
+	type Alias VariableLock
+	aux := &struct {
+		TTL       interface{}
+		LockDelay interface{}
+		*Alias
+	}{
+		Alias: (*Alias)(vl),
+	}
+
+	if err = json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if aux.TTL != nil {
+		switch v := aux.TTL.(type) {
+		case string:
+			if v != "" {
+				if vl.TTL, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			vl.TTL = time.Duration(v)
+		}
+
+	}
+
+	if aux.LockDelay != nil {
+		switch v := aux.LockDelay.(type) {
+		case string:
+			if v != "" {
+				if vl.LockDelay, err = time.ParseDuration(v); err != nil {
+					return err
+				}
+			}
+		case float64:
+			vl.LockDelay = time.Duration(v)
+		}
+
+	}
+
+	return nil
+}
+
 // Copy creates a deep copy of the variable lock. This copy can then be safely
 // modified. It handles nil objects.
 func (vl *VariableLock) Copy() *VariableLock {
@@ -192,7 +264,7 @@ func (vl *VariableLock) Validate() error {
 		mErr = multierror.Append(mErr, errInvalidTTL)
 	}
 
-	return mErr
+	return mErr.ErrorOrNil()
 }
 
 func (vi VariableItems) Size() uint64 {
@@ -303,12 +375,17 @@ func (vd VariableDecrypted) Validate() error {
 	if len(vd.Items) == 0 {
 		return errors.New("empty variables are invalid")
 	}
+
 	if vd.Items.Size() > maxVariableSize {
 		return errors.New("variables are limited to 64KiB in total size")
 	}
 
 	if err := ValidatePath(vd.Path); err != nil {
 		return err
+	}
+
+	if vd.Lock != nil {
+		return vd.Lock.Validate()
 	}
 
 	return nil

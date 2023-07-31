@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,10 +14,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	renewLockQueryParam   = "renew"
-	acquireLockQueryParam = "acquire"
-	releaseLockQueryParam = "release"
+var (
+	renewLockQueryParam = "lock-renew"
+
+	acquireLockQueryParam = string(structs.VarOpLockAcquire)
+	releaseLockQueryParam = string(structs.VarOpLockRelease)
 )
 
 func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -52,20 +54,28 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	case http.MethodGet:
 		return s.variableQuery(resp, req, path)
 	case http.MethodPut, http.MethodPost:
-
-		queryParams := req.URL.Query()
-		_, renewLock := queryParams[renewLockQueryParam]
-		_, acquireLock := queryParams[acquireLockQueryParam]
-		_, releaseLock := queryParams[releaseLockQueryParam]
-
-		if renewLock || acquireLock || releaseLock {
-			if !isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
-				return nil, CodedError(http.StatusBadRequest, "multiple lock operations")
-			}
-			return s.variableLockOperation(resp, req, queryParams)
+		urlParams := req.URL.Query()
+		lockOperation, err := getLockOperation(urlParams)
+		if err != nil {
+			return nil, CodedError(http.StatusBadRequest, err.Error())
 		}
 
-		return s.variableUpsert(resp, req, path)
+		cq := req.URL.Query().Get("cas")
+
+		if cq != "" && lockOperation != "" {
+			return nil, CodedError(http.StatusBadRequest, "CAS can't be used with lock operations")
+		}
+
+		if lockOperation == "" {
+			return s.variableUpsert(resp, req, path)
+		}
+
+		if lockOperation == renewLockQueryParam {
+			return s.variableLockRenew(resp, req, path)
+		}
+
+		return s.variableLockOperation(resp, req, path, lockOperation)
+
 	case http.MethodDelete:
 		return s.variableDelete(resp, req, path)
 	default:
@@ -73,8 +83,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	}
 }
 
-func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.Request,
-	operation url.Values) (interface{}, error) {
+func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Request, path string) (interface{}, error) {
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -82,29 +91,38 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	if operation[renewLockQueryParam][0] == renewLockQueryParam {
-		args := structs.VariablesRenewLockRequest{
-			Path: Variable.Path,
+	args := structs.VariablesRenewLockRequest{
+		Path:   path,
+		LockID: Variable.LockID(),
+	}
 
-			LockID: Variable.Lock.ID,
-		}
+	s.parseWriteRequest(req, &args.WriteRequest)
 
-		s.parseWriteRequest(req, &args.WriteRequest)
+	var out structs.VariablesRenewLockResponse
+	if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
 
-		var out structs.VariablesRenewLockResponse
-		if err := s.agent.RPC(structs.VariablesRenewLockRPCMethod, &args, &out); err != nil {
-			return nil, err
-		}
+	return out.VarMeta, nil
+}
 
-		return out.VarMeta, nil
+func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.Request,
+	path, operation string) (interface{}, error) {
+
+	// Parse the Variable
+	var Variable structs.VariableDecrypted
+	if err := decodeBody(req, &Variable); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	// At this point, the operation can be either acquire or release, and they are
 	// both handled by the VariablesApplyRPCMethod.
 	args := structs.VariablesApplyRequest{
-		Op:  structs.VarOpSet,
+		Op:  structs.VarOp(operation),
 		Var: &Variable,
 	}
+
+	Variable.Path = path
 
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -112,7 +130,7 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 	err := s.agent.RPC(structs.VariablesApplyRPCMethod, &args, &out)
 	defer setIndex(resp, out.WriteMeta.Index)
 	if err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
+		return nil, err
 	}
 
 	if out.Conflict != nil {
@@ -153,6 +171,7 @@ func (s *HTTPServer) variableUpsert(resp http.ResponseWriter, req *http.Request,
 	if err := decodeBody(req, &Variable); err != nil {
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
+
 	if len(Variable.Items) == 0 {
 		return nil, CodedError(http.StatusBadRequest, "variable missing required Items object")
 	}
@@ -262,4 +281,31 @@ func parseCAS(req *http.Request) (bool, uint64, error) {
 
 func isOneAndOnlyOneSet(a, b, c bool) bool {
 	return (a || b || c) && !a != !b != !c != !(a && b && c)
+}
+
+// getLockOperation returns the lock operation to be performed in case there is
+// one. It returns error if more than one is set.
+func getLockOperation(queryParams url.Values) (string, error) {
+	_, renewLock := queryParams[renewLockQueryParam]
+	_, acquireLock := queryParams[acquireLockQueryParam]
+	_, releaseLock := queryParams[releaseLockQueryParam]
+
+	if !renewLock && !acquireLock && !releaseLock {
+		return "", nil
+	}
+
+	if !isOneAndOnlyOneSet(renewLock, acquireLock, releaseLock) {
+		return "", errors.New("multiple lock operations")
+	}
+
+	switch {
+	case renewLock:
+		return renewLockQueryParam, nil
+	case acquireLock:
+		return acquireLockQueryParam, nil
+	case releaseLock:
+		return releaseLockQueryParam, nil
+	default:
+		return "", errors.New("unspecified lock operation")
+	}
 }
