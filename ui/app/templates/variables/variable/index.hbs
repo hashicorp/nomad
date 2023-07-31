@@ -64,7 +64,7 @@
     @job={{this.model.pathLinkedEntities.job}}
     @group={{this.model.pathLinkedEntities.group}}
     @task={{this.model.pathLinkedEntities.task}}
-    @namespace={{this.model.namespace}}
+    @namespace={{or this.model.namespace "default"}}
   />
 {{/if}}
 
