@@ -1,0 +1,3 @@
+```release-note:bug
+migration: Fixed a bug where previous alloc logs were destroyed when migrating ephemeral_disk on the same client
+```
