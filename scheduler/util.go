@@ -260,8 +260,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 
 	// Check if restart.render_templates is updated
 	// this requires a destructive update for template hook to receive the new config
-	if a.RestartPolicy.RenderTemplates != b.RestartPolicy.RenderTemplates {
-		return difference("group restart render_templates", a.RestartPolicy.RenderTemplates, b.RestartPolicy.RenderTemplates)
+	if c := renderTemplatesUpdated(a.RestartPolicy, b.RestartPolicy,
+		"group restart render_templates"); c.modified {
+		return c
 	}
 
 	// Check each task
@@ -327,9 +328,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		}
 
 		// Check if restart.render_templates is updated
-		if at.RestartPolicy.RenderTemplates != bt.RestartPolicy.RenderTemplates {
-			return difference("task restart render_templates", at.RestartPolicy.RenderTemplates, bt.RestartPolicy.RenderTemplates)
+		if c := renderTemplatesUpdated(at.RestartPolicy, bt.RestartPolicy,
+			"task restart render_templates"); c.modified {
+			return c
 		}
+
 	}
 
 	// none of the fields that trigger a destructive update were modified,
@@ -572,6 +575,23 @@ func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 	}
 
 	return same
+}
+
+// renderTemplatesUpdated returns the difference in the RestartPolicy's
+// render_templates field, if set
+func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison {
+
+	noRenderA := a == nil || !a.RenderTemplates
+	noRenderB := b == nil || !b.RenderTemplates
+
+	if noRenderA && !noRenderB {
+		return difference(msg, false, true)
+	}
+	if !noRenderA && noRenderB {
+		return difference(msg, true, false)
+	}
+
+	return same // both nil, or one nil and the other false
 }
 
 // setStatus is used to update the status of the evaluation
