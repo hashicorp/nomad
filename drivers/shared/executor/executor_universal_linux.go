@@ -19,8 +19,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"golang.org/x/sys/unix"
-	// "github.com/opencontainers/runc/libcontainer/configs"
-	// "github.com/opencontainers/runc/libcontainer/specconv"
 )
 
 // setCmdUser takes a user id as a string and looks up the user, and sets the command
