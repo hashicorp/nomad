@@ -27,32 +27,36 @@ export default class JobsJobVariablesRoute extends Route {
     let taskGroups = job.taskGroups;
     let tasks = taskGroups.map((tg) => tg.tasks.toArray()).flat();
 
-    let jobVariable = await job.getPathLinkedVariable();
-    let groupVariables = await Promise.all(
-      taskGroups.map((tg) => tg.getPathLinkedVariable())
+    let jobVariablePromise = job.getPathLinkedVariable();
+    let groupVariablesPromises = taskGroups.map((tg) =>
+      tg.getPathLinkedVariable()
     );
-    let taskVariables = await Promise.all(
-      tasks.map((task) => task.getPathLinkedVariable())
+    let taskVariablesPromises = tasks.map((task) =>
+      task.getPathLinkedVariable()
     );
 
-    let allJobsVariable;
-    try {
-      let variables = await this.store.query('variable', {
+    let allJobsVariablePromise = this.store
+      .query('variable', {
         path: 'nomad/jobs',
+      })
+      .then((variables) => {
+        return variables.findBy('path', 'nomad/jobs');
+      })
+      .catch((e) => {
+        if (e.errors?.findBy('status', 404)) {
+          return null;
+        }
+        throw e;
       });
-      allJobsVariable = variables.findBy('path', 'nomad/jobs');
-    } catch (e) {
-      if (e.errors?.findBy('status', 404)) {
-        allJobsVariable = null;
-      }
-    }
 
-    const variables = A([
-      allJobsVariable,
-      jobVariable,
-      ...groupVariables,
-      ...taskVariables,
-    ]).compact();
+    const variables = A(
+      await Promise.all([
+        allJobsVariablePromise,
+        jobVariablePromise,
+        ...groupVariablesPromises,
+        ...taskVariablesPromises,
+      ])
+    ).compact();
 
     return { variables, job: this.modelFor('jobs.job') };
   }

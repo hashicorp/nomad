@@ -58,7 +58,7 @@ export default class Task extends Fragment {
   @fragmentArray('volume-mount', { defaultValue: () => [] }) volumeMounts;
 
   async _fetchParentJob() {
-    let job = await this.store.peekRecord('job', this.taskGroup.job.id);
+    let job = this.store.peekRecord('job', this.taskGroup.job.id);
     if (!job) {
       job = await this.store.findRecord('job', this.taskGroup.job.id, {
         reload: true,
@@ -90,8 +90,12 @@ export default class Task extends Fragment {
     }
     await this._job.variables;
     let jobID = this._job.plainId;
-    if (this._job.parent.get('plainId')) {
-      jobID = this._job.parent.get('plainId');
+    // not getting plainID because we dont know the resolution status of the task's job's parent yet
+    let parentID = this._job.belongsTo('parent').id()
+      ? JSON.parse(this._job.belongsTo('parent').id())[0]
+      : null;
+    if (parentID) {
+      jobID = parentID;
     }
     return await this._job.variables?.findBy(
       'path',

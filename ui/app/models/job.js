@@ -371,12 +371,12 @@ export default class Job extends Model {
   async getPathLinkedVariable() {
     await this.variables;
     if (this.parent.get('id')) {
-      return await this.variables?.findBy(
+      return this.variables?.findBy(
         'path',
         `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
       );
     } else {
-      return await this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
     }
   }
 }
