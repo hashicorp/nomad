@@ -32,7 +32,7 @@ var (
 	errVarIsLocked      = errors.New("attempting to modify locked variable")
 )
 
-type variableTimmers interface {
+type variableTimers interface {
 	CreateVariableLockTTLTimer(structs.VariableEncrypted)
 	RemoveVariableLockTTLTimer(structs.VariableEncrypted)
 	RenewTTLTimer(structs.VariableEncrypted) error
