@@ -362,10 +362,10 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	alloc := mock.Alloc()
-	claim := alloc.ToTaskIdentityClaims(nil, "web")
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, "web", alloc.LookupTask("web").Identity, time.Now())
 	e := srv.encrypter
 
-	out, _, err := e.SignClaims(claim)
+	out, _, err := e.SignClaims(claims)
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)

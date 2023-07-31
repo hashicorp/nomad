@@ -26,6 +26,7 @@
     "client/hoststats/...",
     "client/structs/...",
     "client/taskenv/...",
+    "client/widmgr/...",
     "command/agent/...",
     "command/raft_tools/...",
     "command/ui/...",

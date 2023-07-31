@@ -315,9 +315,13 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 			return c
 		}
 
-		// Inspect Identity being exposed
+		// Inspect Identities being exposed
 		if !at.Identity.Equal(bt.Identity) {
 			return difference("task identity", at.Identity, bt.Identity)
+		}
+
+		if !slices.EqualFunc(at.Identities, bt.Identities, func(a, b *structs.WorkloadIdentity) bool { return a.Equal(b) }) {
+			return difference("task identity", at.Identities, bt.Identities)
 		}
 
 		// Most LogConfig updates are in-place but if we change Disabled we need

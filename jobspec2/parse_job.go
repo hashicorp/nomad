@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"golang.org/x/exp/slices"
 )
 
 func normalizeJob(jc *jobConfig) {
@@ -52,6 +53,23 @@ func normalizeJob(jc *jobConfig) {
 
 			if t.Vault == nil {
 				t.Vault = jc.Vault
+			}
+
+			//COMPAT To preserve compatibility with pre-1.7 agents, move the default
+			//       identity to Task.Identity.
+			defaultIdx := -1
+			for i, wid := range t.Identities {
+				if wid.Name == "" || wid.Name == "default" {
+					t.Identity = wid
+					defaultIdx = i
+					break
+				}
+			}
+
+			// If the default identity was found in Identities above, remove it from the
+			// slice.
+			if defaultIdx >= 0 {
+				t.Identities = slices.Delete(t.Identities, defaultIdx, defaultIdx+1)
 			}
 		}
 	}

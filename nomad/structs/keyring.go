@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"time"
 
@@ -270,7 +271,11 @@ type KeyringListPublicResponse struct {
 // KeyringPublicKey is the public key component of a signing key. Used to build
 // a JWKS endpoint.
 type KeyringPublicKey struct {
-	KeyID     string
+	KeyID string
+
+	// PublicKey must be read via GetPublicKey for use with cryptographic
+	// functions such as go-jose's Claims(pubKey, claims) as those functions
+	// inspect the concrete type to vary behavior.
 	PublicKey []byte
 
 	// Algorithm should be the JWT "alg" parameter. So "EdDSA" for Ed25519 public
@@ -287,4 +292,17 @@ type KeyringPublicKey struct {
 	// CreateTime + root_key_rotation_threshold = when consumers should look for
 	// a new key. Therefore this field can be used for cache control.
 	CreateTime int64
+}
+
+// GetPublicKey returns the concrete PublicKey type. This *must* be used to
+// retrieve the public key as functions such as go-jose's Claims(pubKey,
+// claims) inspect pubKey's concrete type.
+func (pubKey *KeyringPublicKey) GetPublicKey() (any, error) {
+	switch alg := pubKey.Algorithm; alg {
+	case PubKeyAlgEdDSA:
+		// Convert public key bytes to an ed25519 public key
+		return ed25519.PublicKey(pubKey.PublicKey), nil
+	default:
+		return nil, fmt.Errorf("unknown algorithm: %q", alg)
+	}
 }

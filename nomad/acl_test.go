@@ -129,11 +129,11 @@ func TestAuthenticate_mTLS(t *testing.T) {
 	alloc2.JobID = job.ID
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
 
-	claims1 := alloc1.ToTaskIdentityClaims(nil, "web")
+	claims1 := structs.NewIdentityClaims(job, alloc1, "web", alloc1.LookupTask("web").Identity, time.Now())
 	claims1Token, _, err := leader.encrypter.SignClaims(claims1)
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 
-	claims2 := alloc2.ToTaskIdentityClaims(nil, "web")
+	claims2 := structs.NewIdentityClaims(job, alloc2, "web", alloc2.LookupTask("web").Identity, time.Now())
 	claims2Token, _, err := leader.encrypter.SignClaims(claims2)
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 
