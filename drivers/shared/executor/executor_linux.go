@@ -694,7 +694,7 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *E
 	// set cgroup v1/v2 specific attributes (cpu, path)
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		return l.configureCG1(cfg)
+		return l.configureCG1(cfg, command, cg)
 	default:
 		return l.configureCG2(cfg, command, cg)
 	}
@@ -724,8 +724,15 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *lconfigs.Config, comma
 	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
 }
 
-func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config) error {
-	panic("todo")
+func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+	// Set the v1 parent relative path (i.e. /nomad/<scope>)
+	scope := filepath.Base(cg)
+	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
+
+	// set cpu.shares
+	res := command.Resources.NomadResources
+	cfg.Cgroups.CpuShares = uint64(res.Cpu.CpuShares)
+	return nil
 }
 
 func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecCommand, cg string) error {

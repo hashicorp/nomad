@@ -4,6 +4,8 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -100,6 +102,7 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
+		e.configureCG1(cgroup, command)
 	default:
 		e.configureCG2(cgroup, command)
 	}
@@ -109,8 +112,23 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	return fdCleanup, nil
 }
 
-func (e *UniversalExecutor) configureCG1() {
-	panic("todo")
+func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
+	nlog := netlog.New("UE.CG1")
+	nlog.Info("cgroup", cgroup)
+
+	// memHard, memSoft := e.computeMemory(command)
+	// ed := cgroupslib.OpenCG1
+	// need to be able to open cg1 files
+
+	memHard, memSoft := e.computeMemory(command)
+	// YOU ARE HERE, what files to write?
+	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory.max")
+	_ = ed.Write(fmt.Sprintf("%d", memHard))
+	if memSoft > 0 {
+		ed = cgroupslib.OpenScopeFile(cgroup, "memory.low")
+		_ = ed.Write(fmt.Sprintf("%d", memSoft))
+	}
+	// write cpu files
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {

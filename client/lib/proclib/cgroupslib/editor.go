@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/go-set"
 )
@@ -74,13 +75,17 @@ func PathCG2(allocID, task string) string {
 	return pathTo(NomadCgroupParent, scope(allocID, task))
 }
 
+// PathsCG1 returns the set of directories in which interface files for the
+// given allocID:task can be found. The cpuset cgroup is always listed first
+// because it's special and we reference it in places.
 func PathsCG1(allocID, task string) []string {
 	dir := scope(allocID, task)
 	return []string{
-		pathTo("freezer", NomadCgroupParent, dir),
+		// always start with cpuset
 		pathTo("cpuset", NomadCgroupParent, dir), // TODO (partitions)
 		pathTo("cpu", NomadCgroupParent, dir),
 		pathTo("memory", NomadCgroupParent, dir),
+		pathTo("freezer", NomadCgroupParent, dir),
 	}
 }
 
@@ -171,6 +176,17 @@ func OpenPath(p string) Editor {
 func Open(filename string) Editor {
 	return &Editor2{
 		path: filepath.Join(root, NomadCgroupParent, filename),
+	}
+}
+
+// OpenFromCpusetCG1 opens the given interface file using the cpuset cgroup
+// path as a basis, since that is the only path we keep track of in the Nomad
+// client for each task.
+func OpenFromCpusetCG1(cg, iface, filename string) Editor {
+	p := strings.Replace(cg, "cpuset", iface, 1)
+	p = filepath.Join(p, filename)
+	return &Editor1{
+		path: p,
 	}
 }
 
