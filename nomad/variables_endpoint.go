@@ -243,7 +243,7 @@ func (sv *Variables) makeVariablesApplyResponse(
 	}
 
 	// The read permission modify the way the response is populated. If ACL is not
-	// used, read permission is granted by default and very call is treated as management.
+	// used, read permission is granted by default and every call is treated as management.
 	var canRead bool = true
 	var isManagement = true
 	if aclObj != nil {
