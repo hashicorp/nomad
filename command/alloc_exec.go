@@ -51,7 +51,7 @@ Exec Specific Options:
     Sets the task to exec command in
 
   -job
-    Use a random allocation from the specified job ID.
+    Use a random allocation from the specified job ID or prefix.
 
   -i
     Pass stdin to the container, defaults to true.  Pass -i=false to disable.
@@ -162,8 +162,13 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		jobID := args[0]
-		allocStub, err = getRandomJobAlloc(client, jobID)
+		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
+		if err != nil {
+			l.Ui.Error(err.Error())
+			return 1
+		}
+
+		allocStub, err = getRandomJobAlloc(client, jobID, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
