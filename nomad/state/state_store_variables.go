@@ -202,6 +202,7 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 	if err != nil {
 		return req.ErrorResponse(idx, fmt.Errorf("failed sve lookup: %s", err))
 	}
+
 	existing, _ := existingRaw.(*structs.VariableEncrypted)
 
 	existingQuota, err := tx.First(TableVariablesQuotas, indexID, sv.Namespace)
@@ -497,7 +498,6 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	sv, ok := raw.(*structs.VariableEncrypted)
 	// If the variable exist, we must make sure it doesn't hold a lock already
 	if ok {
-
 		if isLocked(sv.VariableMetadata.Lock, req) {
 			zeroVal := &structs.VariableEncrypted{
 				VariableMetadata: structs.VariableMetadata{
@@ -505,7 +505,6 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 					Path:      sv.Path,
 				},
 			}
-
 			return req.ConflictResponse(idx, zeroVal)
 		}
 	}
@@ -548,6 +547,7 @@ func (s *StateStore) VarLockRelease(idx uint64,
 			VariableMetadata: structs.VariableMetadata{
 				Namespace: sv.Namespace,
 				Path:      sv.Path,
+				Lock:      &structs.VariableLock{},
 			},
 		}
 		return req.ConflictResponse(idx, zeroVal)
@@ -556,6 +556,11 @@ func (s *StateStore) VarLockRelease(idx uint64,
 	updated := sv.Copy()
 	updated.Lock = nil
 	updated.ModifyIndex = idx
+
+	// Avoid overwriting the variable data when releasing the lock, to prevent
+	// a delay release to remove customer data.
+
+	updated.Data = sv.Data
 
 	err = s.updateVarsAndIndexTxn(tx, idx, &updated)
 	if err != nil {
