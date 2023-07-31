@@ -19,7 +19,6 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
-import { tracked } from '@glimmer/tracking';
 
 const DEFAULT_SORT_PROPERTY = 'modifyIndex';
 const DEFAULT_SORT_DESCENDING = true;
@@ -72,7 +71,7 @@ export default class IndexController extends Controller.extend(
   @readOnly('userSettings.pageSize') pageSize;
 
   sortProperty = DEFAULT_SORT_PROPERTY;
-  sortDescending = true;
+  sortDescending = DEFAULT_SORT_DESCENDING;
 
   @computed
   get searchProps() {
@@ -298,6 +297,7 @@ export default class IndexController extends Controller.extend(
     });
   }
 
+  // eslint-disable-next-line ember/require-computed-property-dependencies
   @computed('searchTerm')
   get sortAtLastSearch() {
     return {
@@ -307,13 +307,26 @@ export default class IndexController extends Controller.extend(
     };
   }
 
-  @computed('sortAtLastSearch', 'searchTerm', 'sortDescending', 'sortProperty')
+  @computed(
+    'searchTerm',
+    'sortAtLastSearch.{sortDescending,sortProperty}',
+    'sortDescending',
+    'sortProperty'
+  )
   get prioritizeSearchOrder() {
-    return (
+    let shouldPrioritizeSearchOrder =
       !!this.searchTerm &&
       this.sortAtLastSearch.sortProperty === this.sortProperty &&
-      this.sortAtLastSearch.sortDescending === this.sortDescending
-    );
+      this.sortAtLastSearch.sortDescending === this.sortDescending;
+    if (shouldPrioritizeSearchOrder) {
+      /* eslint-disable ember/no-side-effects */
+      this.set('sortDescending', DEFAULT_SORT_DESCENDING);
+      this.set('sortProperty', DEFAULT_SORT_PROPERTY);
+      this.set('sortAtLastSearch.sortProperty', DEFAULT_SORT_PROPERTY);
+      this.set('sortAtLastSearch.sortDescending', DEFAULT_SORT_DESCENDING);
+    }
+    /* eslint-enable ember/no-side-effects */
+    return shouldPrioritizeSearchOrder;
   }
 
   @alias('filteredJobs') listToSearch;
