@@ -6,9 +6,8 @@
 package util
 
 import (
-	"runtime"
-
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
@@ -20,8 +19,12 @@ var (
 	DockerCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage {
+func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cstructs.TaskResourceUsage {
 	// need to get topology in here
+	var (
+		totalCompute = top.TotalCompute()
+		totalCores   = top.NumCores()
+	)
 
 	measuredMems := DockerCgroupV1MeasuredMemStats
 
@@ -50,16 +53,15 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage
 	// Calculate percentage
 	cs.Percent = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-		s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, runtime.NumCPU())
+		s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, totalCores)
 	cs.SystemMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
+		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, totalCores)
 	cs.UserMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
+		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, totalCores)
 
-	// SETH TODO get from topology somehow
-	// cs.TotalTicks = (cs.Percent / 100) * float64(stats.TotalTicksAvailable()) / float64(runtime.NumCPU())
+	cs.TotalTicks = (cs.Percent / 100) * float64(totalCompute) / float64(totalCores)
 
 	return &cstructs.TaskResourceUsage{
 		ResourceUsage: &cstructs.ResourceUsage{

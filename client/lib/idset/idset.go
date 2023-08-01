@@ -3,11 +3,11 @@ package idset
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-set"
+	"golang.org/x/exp/slices"
 )
 
 // An ID is representative of a non-negative identifier of something like
