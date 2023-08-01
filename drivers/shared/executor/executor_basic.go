@@ -8,8 +8,7 @@ package executor
 import (
 	"os/exec"
 
-	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/resources"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 

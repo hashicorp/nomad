@@ -20,7 +20,6 @@ var (
 )
 
 func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cstructs.TaskResourceUsage {
-	// need to get topology in here
 	var (
 		totalCompute = top.TotalCompute()
 		totalCores   = top.NumCores()
