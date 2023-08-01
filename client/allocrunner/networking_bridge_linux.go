@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package allocrunner
 
 import (
@@ -38,16 +35,14 @@ type bridgeNetworkConfigurator struct {
 	cni         *cniNetworkConfigurator
 	allocSubnet string
 	bridgeName  string
-	hairpinMode bool
 
 	logger hclog.Logger
 }
 
-func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange string, hairpinMode bool, cniPath string, ignorePortMappingHostIP bool) (*bridgeNetworkConfigurator, error) {
+func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange, cniPath string, ignorePortMappingHostIP bool) (*bridgeNetworkConfigurator, error) {
 	b := &bridgeNetworkConfigurator{
 		bridgeName:  bridgeName,
 		allocSubnet: ipRange,
-		hairpinMode: hairpinMode,
 		logger:      log,
 	}
 
@@ -59,7 +54,7 @@ func newBridgeNetworkConfigurator(log hclog.Logger, bridgeName, ipRange string, 
 		b.allocSubnet = defaultNomadAllocSubnet
 	}
 
-	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(*b))
+	c, err := newCNINetworkConfiguratorWithConf(log, cniPath, bridgeNetworkAllocIfPrefix, ignorePortMappingHostIP, buildNomadBridgeNetConfig(b.bridgeName, b.allocSubnet))
 	if err != nil {
 		return nil, err
 	}
@@ -139,16 +134,10 @@ func (b *bridgeNetworkConfigurator) Teardown(ctx context.Context, alloc *structs
 	return b.cni.Teardown(ctx, alloc, spec)
 }
 
-func buildNomadBridgeNetConfig(b bridgeNetworkConfigurator) []byte {
-	return []byte(fmt.Sprintf(nomadCNIConfigTemplate,
-		b.bridgeName,
-		b.hairpinMode,
-		b.allocSubnet,
-		cniAdminChainName))
+func buildNomadBridgeNetConfig(bridgeName, subnet string) []byte {
+	return []byte(fmt.Sprintf(nomadCNIConfigTemplate, bridgeName, subnet, cniAdminChainName))
 }
 
-// Update website/content/docs/networking/cni.mdx when the bridge configuration
-// is modified.
 const nomadCNIConfigTemplate = `{
 	"cniVersion": "0.4.0",
 	"name": "nomad",
@@ -158,17 +147,16 @@ const nomadCNIConfigTemplate = `{
 		},
 		{
 			"type": "bridge",
-			"bridge": %q,
+			"bridge": "%s",
 			"ipMasq": true,
 			"isGateway": true,
 			"forceAddress": true,
-			"hairpinMode": %v,
 			"ipam": {
 				"type": "host-local",
 				"ranges": [
 					[
 						{
-							"subnet": %q
+							"subnet": "%s"
 						}
 					]
 				],
@@ -180,7 +168,7 @@ const nomadCNIConfigTemplate = `{
 		{
 			"type": "firewall",
 			"backend": "iptables",
-			"iptablesAdminChainName": %q
+			"iptablesAdminChainName": "%s"
 		},
 		{
 			"type": "portmap",

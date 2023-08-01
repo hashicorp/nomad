@@ -1,19 +1,58 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 section.notifications {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100;
-  justify-items: right;
-  display: grid;
+  bottom: 10px;
+  right: 10px;
 
   .flash-message {
-    &:not(:last-child) {
-      margin-bottom: 1rem;
+    width: 300px;
+    transition: all 700ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 1px 1px 4px 0px rgb(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    padding-right: 20px;
+
+    &.alert-success {
+      background-color: lighten($nomad-green, 50%);
+    }
+    &.alert-error {
+      background-color: lighten($danger, 45%);
+    }
+
+    h3 {
+      font-weight: bold;
+    }
+
+    span.close-button {
+      position: absolute;
+      top: 0;
+      right: 0;
+      padding: 10px;
+      line-height: 100%;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .alert-progress {
+      width: 100%;
+      border-radius: 3px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      .alert-progressBar {
+        background-color: $nomad-green;
+        height: 2px;
+        width: 0%;
+      }
+    }
+
+    &.active {
+      .alert-progress {
+        .alert-progressBar {
+          width: 100%;
+        }
+      }
     }
   }
 }

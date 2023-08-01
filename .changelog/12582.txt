@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: `nomad job stop` can be used to stop multiple jobs concurrently.
-```

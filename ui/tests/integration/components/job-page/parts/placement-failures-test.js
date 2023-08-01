@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
 import hbs from 'htmlbars-inline-precompile';
@@ -24,7 +19,6 @@ module(
       this.store = this.owner.lookup('service:store');
       this.server = startMirage();
       this.server.create('namespace');
-      this.server.create('node-pool');
     });
 
     hooks.afterEach(function () {

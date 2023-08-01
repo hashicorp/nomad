@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package tlsutil
 
 import (
@@ -22,13 +19,11 @@ import (
 
 const (
 	// See README.md for documentation
-	cacert        = "./testdata/nomad-agent-ca.pem"
-	fooclientcert = "./testdata/regionFoo-client-nomad.pem"
-	fooclientkey  = "./testdata/regionFoo-client-nomad-key.pem"
-	fooservercert = "./testdata/regionFoo-server-nomad.pem"
-	fooserverkey  = "./testdata/regionFoo-server-nomad-key.pem"
-	badcert       = "./testdata/badRegion-client-bad.pem"
-	badkey        = "./testdata/badRegion-client-bad-key.pem"
+	cacert  = "./testdata/ca.pem"
+	foocert = "./testdata/nomad-foo.pem"
+	fookey  = "./testdata/nomad-foo-key.pem"
+	badcert = "./testdata/nomad-bad.pem"
+	badkey  = "./testdata/nomad-bad-key.pem"
 )
 
 func TestConfig_AppendCA_None(t *testing.T) {
@@ -117,7 +112,7 @@ func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
 
 	require := require.New(t)
 
-	const cacertWhitespace = "./testdata/whitespace-agent-ca.pem"
+	const cacertWhitespace = "./testdata/ca-whitespace.pem"
 	conf := &Config{
 		CAFile: cacertWhitespace,
 	}
@@ -298,8 +293,8 @@ func TestConfig_LoadKeyPair_Valid(t *testing.T) {
 	ci.Parallel(t)
 
 	conf := &Config{
-		CertFile:  fooclientcert,
-		KeyFile:   fooclientkey,
+		CertFile:  foocert,
+		KeyFile:   fookey,
 		KeyLoader: &config.KeyLoader{},
 	}
 	cert, err := conf.LoadKeyPair()
@@ -393,8 +388,8 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 	conf := &Config{
 		VerifyOutgoing: true,
 		CAFile:         cacert,
-		CertFile:       fooclientcert,
-		KeyFile:        fooclientkey,
+		CertFile:       foocert,
+		KeyFile:        fookey,
 		KeyLoader:      &config.KeyLoader{},
 	}
 	tlsConf, err := conf.OutgoingTLSConfig()
@@ -509,8 +504,8 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 
 	config := &Config{
 		CAFile:               cacert,
-		CertFile:             fooservercert,
-		KeyFile:              fooserverkey,
+		CertFile:             foocert,
+		KeyFile:              fookey,
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
 		KeyLoader:            &config.KeyLoader{},
@@ -547,8 +542,8 @@ func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 	t.SkipNow()
 	config := &Config{
 		CAFile:               cacert,
-		CertFile:             fooclientcert,
-		KeyFile:              fooclientkey,
+		CertFile:             foocert,
+		KeyFile:              fookey,
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
 	}
@@ -582,8 +577,8 @@ func TestConfig_wrapTLS_OK(t *testing.T) {
 
 	config := &Config{
 		CAFile:         cacert,
-		CertFile:       fooclientcert,
-		KeyFile:        fooclientkey,
+		CertFile:       foocert,
+		KeyFile:        fookey,
 		VerifyOutgoing: true,
 		KeyLoader:      &config.KeyLoader{},
 	}
@@ -657,8 +652,8 @@ func TestConfig_IncomingTLS(t *testing.T) {
 	conf := &Config{
 		VerifyIncoming: true,
 		CAFile:         cacert,
-		CertFile:       fooclientcert,
-		KeyFile:        fooclientkey,
+		CertFile:       foocert,
+		KeyFile:        fookey,
 		KeyLoader:      &config.KeyLoader{},
 	}
 	tlsC, err := conf.IncomingTLSConfig()
@@ -686,8 +681,8 @@ func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
 
 	conf := &Config{
 		VerifyIncoming: true,
-		CertFile:       fooclientcert,
-		KeyFile:        fooclientkey,
+		CertFile:       foocert,
+		KeyFile:        fookey,
 		KeyLoader:      &config.KeyLoader{},
 	}
 	_, err := conf.IncomingTLSConfig()
@@ -788,8 +783,8 @@ func TestConfig_ParseCiphers_Valid(t *testing.T) {
 	require := require.New(t)
 
 	tlsConfig := &config.TLSConfig{
-		CertFile:  fooclientcert,
-		KeyFile:   fooclientkey,
+		CertFile:  foocert,
+		KeyFile:   fookey,
 		KeyLoader: &config.KeyLoader{},
 		TLSCipherSuites: strings.Join([]string{
 			"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
@@ -858,8 +853,8 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 	}
 
 	empty := &config.TLSConfig{
-		CertFile:  fooclientcert,
-		KeyFile:   fooclientkey,
+		CertFile:  foocert,
+		KeyFile:   fookey,
 		KeyLoader: &config.KeyLoader{},
 	}
 	parsedCiphers, err := ParseCiphers(empty)
@@ -882,8 +877,8 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	for _, cipher := range invalidCiphers {
 		tlsConfig := &config.TLSConfig{
 			TLSCipherSuites: cipher,
-			CertFile:        fooclientcert,
-			KeyFile:         fooclientkey,
+			CertFile:        foocert,
+			KeyFile:         fookey,
 			KeyLoader:       &config.KeyLoader{},
 		}
 		parsedCiphers, err := ParseCiphers(tlsConfig)
@@ -904,8 +899,8 @@ func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
 	{
 		tlsConfig := &config.TLSConfig{
 			TLSCipherSuites: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305",
-			CertFile:        fooclientcert,
-			KeyFile:         fooclientkey,
+			CertFile:        foocert,
+			KeyFile:         fookey,
 			KeyLoader:       &config.KeyLoader{},
 		}
 		parsedCiphers, err := ParseCiphers(tlsConfig)
@@ -917,8 +912,8 @@ func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
 	{
 		tlsConfig := &config.TLSConfig{
 			TLSCipherSuites: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
-			CertFile:        fooclientcert,
-			KeyFile:         fooclientkey,
+			CertFile:        foocert,
+			KeyFile:         fookey,
 			KeyLoader:       &config.KeyLoader{},
 		}
 		parsedCiphers, err := ParseCiphers(tlsConfig)
@@ -974,8 +969,8 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 
 	conf := &config.TLSConfig{
 		TLSCipherSuites: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-		CertFile:        fooclientcert,
-		KeyFile:         fooclientkey,
+		CertFile:        foocert,
+		KeyFile:         fookey,
 		KeyLoader:       &config.KeyLoader{},
 	}
 
@@ -1026,8 +1021,8 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 			},
 			new: &config.TLSConfig{
 				CAFile:   cacert,
-				CertFile: fooclientcert,
-				KeyFile:  fooclientkey,
+				CertFile: foocert,
+				KeyFile:  fookey,
 			},
 			shouldReload: true,
 			errorStr:     "Different TLS Configuration should reload",

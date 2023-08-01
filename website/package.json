@@ -7,13 +7,12 @@
     "node": "14.x - 16.x",
     "npm": ">=7.0.0"
   },
+  "dependencies": {},
   "devDependencies": {
-    "@hashicorp/platform-cli": "^2.6.0",
-    "@hashicorp/platform-content-conformance": "^0.0.11",
-    "dart-linkcheck": "^2.0.15",
+    "@hashicorp/platform-cli": "^2.1.0",
+    "dart-linkcheck": "2.0.15",
     "husky": "4.3.8",
-    "next": "^13.4.2",
-    "prettier": "2.8.8"
+    "prettier": "2.2.1"
   },
   "husky": {
     "hooks": {
@@ -27,7 +26,6 @@
     "generate:readme": "next-hashicorp markdown-blocks README.md",
     "lint": "next-hashicorp lint",
     "start": "./scripts/website-start.sh",
-    "linkcheck": "linkcheck https://www.nomadproject.io",
-    "content-check": "hc-content --config base-docs"
+    "linkcheck": "linkcheck https://www.nomadproject.io"
   }
 }

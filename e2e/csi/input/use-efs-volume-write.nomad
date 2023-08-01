@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # a job that mounts an EFS volume and writes its job ID as a file
 job "use-efs-volume" {
   datacenters = ["dc1"]

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -17,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/hashicorp/go-hclog"
 	kms "github.com/hashicorp/go-kms-wrapping/v2"
 	"github.com/hashicorp/go-kms-wrapping/v2/aead"
@@ -389,26 +386,6 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	return &structs.RootKey{
 		Meta: meta,
 		Key:  key,
-	}, nil
-}
-
-// GetPublicKey returns the public signing key for the requested key id or an
-// error if the key could not be found.
-func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	ks, err := e.keysetByIDLocked(keyID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &structs.KeyringPublicKey{
-		KeyID:      ks.rootKey.Meta.KeyID,
-		PublicKey:  ks.privateKey.Public().(ed25519.PublicKey),
-		Algorithm:  structs.PubKeyAlgEdDSA,
-		Use:        structs.PubKeyUseSig,
-		CreateTime: ks.rootKey.Meta.CreateTime,
 	}, nil
 }
 

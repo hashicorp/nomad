@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -9,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1036,34 +1032,4 @@ func TestDeleteNodeForType_Monolith_NilNode(t *testing.T) {
 
 	_, ok = plug.Controllers["foo"]
 	require.False(t, ok)
-}
-
-func TestTaskCSIPluginConfig_Equal(t *testing.T) {
-	ci.Parallel(t)
-
-	must.Equal[*TaskCSIPluginConfig](t, nil, nil)
-	must.NotEqual[*TaskCSIPluginConfig](t, nil, new(TaskCSIPluginConfig))
-
-	must.StructEqual(t, &TaskCSIPluginConfig{
-		ID:                  "abc123",
-		Type:                CSIPluginTypeMonolith,
-		MountDir:            "/opt/csi/mount",
-		StagePublishBaseDir: "/base",
-		HealthTimeout:       42 * time.Second,
-	}, []must.Tweak[*TaskCSIPluginConfig]{{
-		Field: "ID",
-		Apply: func(c *TaskCSIPluginConfig) { c.ID = "def345" },
-	}, {
-		Field: "Type",
-		Apply: func(c *TaskCSIPluginConfig) { c.Type = CSIPluginTypeNode },
-	}, {
-		Field: "MountDir",
-		Apply: func(c *TaskCSIPluginConfig) { c.MountDir = "/csi" },
-	}, {
-		Field: "StagePublishBaseDir",
-		Apply: func(c *TaskCSIPluginConfig) { c.StagePublishBaseDir = "/opt/base" },
-	}, {
-		Field: "HealthTimeout",
-		Apply: func(c *TaskCSIPluginConfig) { c.HealthTimeout = 1 * time.Second },
-	}})
 }

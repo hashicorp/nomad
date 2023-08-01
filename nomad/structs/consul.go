@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 // Consul represents optional per-group consul configuration.
@@ -19,8 +16,8 @@ func (c *Consul) Copy() *Consul {
 	}
 }
 
-// Equal returns whether c and o are the same.
-func (c *Consul) Equal(o *Consul) bool {
+// Equals returns whether c and o are the same.
+func (c *Consul) Equals(o *Consul) bool {
 	if c == nil || o == nil {
 		return c == o
 	}

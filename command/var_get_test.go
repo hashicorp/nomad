@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -68,7 +65,9 @@ func TestVarGetCommand(t *testing.T) {
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	t.Cleanup(func() {
+		srv.Shutdown()
+	})
 
 	testCases := []struct {
 		name     string
@@ -112,7 +111,7 @@ func TestVarGetCommand(t *testing.T) {
 			_, err = client.Namespaces().Register(&api.Namespace{Name: testNS}, nil)
 			require.NoError(t, err)
 			t.Cleanup(func() {
-				_, _ = client.Namespaces().Delete(testNS, nil)
+				client.Namespaces().Delete(testNS, nil)
 			})
 
 			// Create a var to get
@@ -166,6 +165,8 @@ func TestVarGetCommand(t *testing.T) {
 	}
 	t.Run("Autocomplete", func(t *testing.T) {
 		ci.Parallel(t)
+		_, client, url, shutdownFn := testAPIClient(t)
+		defer shutdownFn()
 
 		ui := cli.NewMockUi()
 		cmd := &VarGetCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -174,18 +175,14 @@ func TestVarGetCommand(t *testing.T) {
 		testNS := strings.Map(validNS, t.Name())
 		_, err := client.Namespaces().Register(&api.Namespace{Name: testNS}, nil)
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			_, _ = client.Namespaces().Delete(testNS, nil)
-		})
+		t.Cleanup(func() { client.Namespaces().Delete(testNS, nil) })
 
 		sv := testVariable()
 		sv.Path = "special/variable"
 		sv.Namespace = testNS
 		sv, _, err = client.Variables().Create(sv, nil)
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			_, _ = client.Variables().Delete(sv.Path, nil)
-		})
+		t.Cleanup(func() { client.Variables().Delete(sv.Path, nil) })
 
 		args := complete.Args{Last: "s"}
 		predictor := cmd.AutocompleteArgs()

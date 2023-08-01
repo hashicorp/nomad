@@ -120,11 +120,9 @@ func (ar *emptyAllocRunner) AllocState() *state.State {
 	return ar.allocState.Copy()
 }
 
-func (ar *emptyAllocRunner) PersistState() error           { return nil }
-func (ar *emptyAllocRunner) AcknowledgeState(*state.State) {}
-func (ar *emptyAllocRunner) GetUpdatePriority(*structs.Allocation) cstructs.AllocUpdatePriority {
-	return cstructs.AllocUpdatePriorityUrgent
-}
+func (ar *emptyAllocRunner) PersistState() error                                     { return nil }
+func (ar *emptyAllocRunner) AcknowledgeState(*state.State)                           {}
+func (ar *emptyAllocRunner) LastAcknowledgedStateIsCurrent(*structs.Allocation) bool { return false }
 
 func (ar *emptyAllocRunner) SetClientStatus(status string) {
 	ar.allocLock.Lock()

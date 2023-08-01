@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -110,9 +107,6 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 				LocalServiceAddress: "lsa",
 				LocalServicePort:    80,
 			},
-			Meta: map[string]string{
-				"test-key": "test-value",
-			},
 		}
 		css.Canonicalize()
 		must.Eq(t, &ConsulSidecarService{
@@ -121,9 +115,6 @@ func TestConsulSidecarService_Canonicalize(t *testing.T) {
 			Proxy: &ConsulProxy{
 				LocalServiceAddress: "lsa",
 				LocalServicePort:    80},
-			Meta: map[string]string{
-				"test-key": "test-value",
-			},
 		}, css)
 	})
 }
@@ -181,7 +172,6 @@ func TestConsulUpstream_Copy(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: "remote"},
-			Config:               map[string]any{"connect_timeout_ms": 5000},
 		}
 		result := cu.Copy()
 		must.Eq(t, cu, result)
@@ -205,7 +195,6 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
-			Config:               make(map[string]any),
 		}
 		cu.Canonicalize()
 		must.Eq(t, &ConsulUpstream{
@@ -215,7 +204,6 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
-			Config:               nil,
 		}, cu)
 	})
 }

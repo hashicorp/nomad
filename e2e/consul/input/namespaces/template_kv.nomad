@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "template_kv" {
   datacenters = ["dc1"]
   type        = "batch"

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 export default {
   LEFT_ARROW: '\x1b[D',
   UP_ARROW: '\x1b[A',

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package drivers
 
 import (
@@ -77,7 +74,6 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 
 		caps.MountConfigs = MountConfigSupport(resp.Capabilities.MountConfigs)
 		caps.RemoteTasks = resp.Capabilities.RemoteTasks
-		caps.DisableLogCollection = resp.Capabilities.DisableLogCollection
 	}
 
 	return caps, nil
@@ -490,10 +486,6 @@ func (d *driverPluginClient) CreateNetwork(allocID string, _ *NetworkCreateReque
 }
 
 func (d *driverPluginClient) DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error {
-	if spec == nil {
-		return nil
-	}
-
 	req := &proto.DestroyNetworkRequest{
 		AllocId:       allocID,
 		IsolationSpec: NetworkIsolationSpecToProto(spec),

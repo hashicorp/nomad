@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "deployment_auto.nomad" {
   datacenters = ["dc1", "dc2"]
 
@@ -13,15 +10,14 @@ job "deployment_auto.nomad" {
     count = 3
 
     update {
-      max_parallel     = 3
-      auto_promote     = true
-      canary           = 2
-      min_healthy_time = "1s"
+      max_parallel = 3
+      auto_promote = true
+      canary       = 2
     }
 
     network {
       port "db" {
-        to = 1234
+        static = 9000
       }
     }
 
@@ -31,12 +27,13 @@ job "deployment_auto.nomad" {
       env {
         version = "0"
       }
-
       config {
         image   = "busybox:1"
         command = "nc"
-        args    = ["-ll", "-p", "1234", "-e", "/bin/cat"]
-        ports   = ["db"]
+
+        # change args to update the job, the only changes
+        args  = ["-ll", "-p", "1234", "-e", "/bin/cat"]
+        ports = ["db"]
       }
 
       resources {

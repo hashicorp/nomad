@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
@@ -25,7 +20,6 @@ module('Unit | Adapter | Deployment', function (hooks) {
       this.server.create('region', { id: 'region-1' });
       this.server.create('region', { id: 'region-2' });
 
-      this.server.create('node-pool');
       this.server.create('node');
       const job = this.server.create('job', { createAllocations: false });
       const deploymentRecord = server.schema.deployments.where({

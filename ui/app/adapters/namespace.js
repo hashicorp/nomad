@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Watchable from './watchable';
 import codesForError from '../utils/codes-for-error';
 import classic from 'ember-classic-decorator';

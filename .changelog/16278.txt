@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Added new `nomad job restart` command to restart all allocations for a job
-```

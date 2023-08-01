@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 variable "nodeID" {
   type = string
 }
@@ -36,7 +33,6 @@ job "disconnect-node" {
 
     task "task" {
       driver = "raw_exec"
-      user   = "root"
       config {
         command = "/bin/sh"
         args = ["-c",

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package vaultclient
 
 import (
@@ -10,13 +7,10 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
 	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -359,17 +353,4 @@ func TestVaultClient_RenewalTime_Short(t *testing.T) {
 	assert.Equal(t, 29*time.Second, renewalTime(dice, 58))
 	assert.Equal(t, 15*time.Second, renewalTime(dice, 30))
 	assert.Equal(t, 1*time.Second, renewalTime(dice, 2))
-}
-
-func TestVaultClient_SetUserAgent(t *testing.T) {
-	ci.Parallel(t)
-
-	conf := config.DefaultConfig()
-	conf.VaultConfig.Enabled = pointer.Of(true)
-	logger := testlog.HCLogger(t)
-	c, err := NewVaultClient(conf.VaultConfig, logger, nil)
-	must.NoError(t, err)
-
-	ua := c.client.Headers().Get("User-Agent")
-	must.Eq(t, useragent.String(), ua)
 }

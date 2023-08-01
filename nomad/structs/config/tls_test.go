@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package config
 
 import (
@@ -52,11 +49,11 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 
 	require := require.New(t)
 	const (
-		cafile  = "../../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badcert = "../../../helper/tlsutil/testdata/badRegion-client-bad.pem"
-		badkey  = "../../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
+		cafile   = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "../../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
 
 	// Assert that both mismatching certificate and key files are considered
@@ -71,8 +68,8 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 
 		b := &TLSConfig{
 			CAFile:   cafile,
-			CertFile: badcert,
-			KeyFile:  badkey,
+			CertFile: foocert2,
+			KeyFile:  fookey2,
 		}
 		isEqual, err := a.CertificateInfoIsEqual(b)
 		require.Nil(err)
@@ -90,7 +87,7 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 
 		b := &TLSConfig{
 			CAFile:   cafile,
-			CertFile: badcert,
+			CertFile: foocert2,
 			KeyFile:  fookey,
 		}
 		isEqual, err := a.CertificateInfoIsEqual(b)
@@ -110,7 +107,7 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 		b := &TLSConfig{
 			CAFile:   cafile,
 			CertFile: foocert,
-			KeyFile:  badkey,
+			KeyFile:  fookey2,
 		}
 		isEqual, err := a.CertificateInfoIsEqual(b)
 		require.Nil(err)
@@ -124,7 +121,7 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 		b := &TLSConfig{
 			CAFile:   cafile,
 			CertFile: foocert,
-			KeyFile:  badkey,
+			KeyFile:  fookey2,
 		}
 		isEqual, err := a.CertificateInfoIsEqual(b)
 		require.Nil(err)
@@ -136,13 +133,13 @@ func TestTLS_CertificateInfoIsEqual_FalseWhenUnequal(t *testing.T) {
 		a := &TLSConfig{
 			CAFile:   cafile,
 			CertFile: foocert,
-			KeyFile:  badkey,
+			KeyFile:  fookey2,
 		}
 
 		b := &TLSConfig{
 			CAFile:   cafile,
 			CertFile: "invalid_file",
-			KeyFile:  badkey,
+			KeyFile:  fookey2,
 		}
 		isEqual, err := a.CertificateInfoIsEqual(b)
 		require.NotNil(err)
@@ -157,9 +154,9 @@ func TestTLS_CertificateInfoIsEqual_TrueWhenEqual(t *testing.T) {
 
 	require := require.New(t)
 	const (
-		cafile  = "../../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	a := &TLSConfig{
 		CAFile:   cafile,
@@ -183,9 +180,9 @@ func TestTLS_Copy(t *testing.T) {
 
 	require := require.New(t)
 	const (
-		cafile  = "../../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile  = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	a := &TLSConfig{
 		CAFile:                      cafile,
@@ -216,11 +213,11 @@ func TestTLS_GetKeyloader(t *testing.T) {
 func TestTLS_SetChecksum(t *testing.T) {
 	require := require.New(t)
 	const (
-		cafile  = "../../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
-		badcert = "../../../helper/tlsutil/testdata/badRegion-client-bad.pem"
-		badkey  = "../../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
+		cafile   = "../../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		foocert2 = "../../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey2  = "../../../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
 
 	a := &TLSConfig{
@@ -231,8 +228,8 @@ func TestTLS_SetChecksum(t *testing.T) {
 	a.SetChecksum()
 	oldChecksum := a.Checksum
 
-	a.CertFile = badcert
-	a.KeyFile = badkey
+	a.CertFile = foocert2
+	a.KeyFile = fookey2
 
 	a.SetChecksum()
 

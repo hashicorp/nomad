@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import hbs from 'htmlbars-inline-precompile';
 import DelayedArray from '../utils/delayed-array';
 import DelayedTruth from '../utils/delayed-truth';

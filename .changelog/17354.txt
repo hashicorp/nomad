@@ -1,3 +1,0 @@
-```release-note:improvement
-client: prioritize allocation updates to reduce Raft and RPC load
-```

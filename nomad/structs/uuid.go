@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 // MaxUUIDsPerWriteRequest is the maximum number of UUIDs that can be included

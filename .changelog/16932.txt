@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Job status and deployment redesign
-```

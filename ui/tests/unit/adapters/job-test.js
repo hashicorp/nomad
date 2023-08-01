@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { next } from '@ember/runloop';
 import { assign } from '@ember/polyfills';
 import { settled } from '@ember/test-helpers';
@@ -12,9 +7,6 @@ import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { AbortController } from 'fetch';
 import { TextEncoderLite } from 'text-encoder-lite';
 import base64js from 'base64-js';
-import addToPath from 'nomad-ui/utils/add-to-path';
-import sinon from 'sinon';
-import { resolve } from 'rsvp';
 
 module('Unit | Adapter | Job', function (hooks) {
   setupTest(hooks);
@@ -34,7 +26,6 @@ module('Unit | Adapter | Job', function (hooks) {
 
       this.server.create('namespace');
       this.server.create('namespace', { id: 'some-namespace' });
-      this.server.create('node-pool');
       this.server.create('node');
       this.server.create('job', { id: 'job-1', namespaceId: 'default' });
       this.server.create('job', { id: 'job-2', namespaceId: 'some-namespace' });
@@ -524,20 +515,6 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(request.method, 'DELETE');
   });
 
-  test('purge requests include the activeRegion', async function (assert) {
-    const region = 'region-2';
-    const job = await this.initializeWithJob({ region });
-
-    await this.subject().purge(job);
-
-    const request = this.server.pretender.handledRequests[0];
-    assert.equal(
-      request.url,
-      `/v1/job/${job.plainId}?purge=true&region=${region}`
-    );
-    assert.equal(request.method, 'DELETE');
-  });
-
   test('parse requests include the activeRegion', async function (assert) {
     const region = 'region-2';
     await this.initializeUI({ region });
@@ -613,71 +590,6 @@ module('Unit | Adapter | Job', function (hooks) {
       `/v1/job/${job.plainId}/dispatch?region=${region}`
     );
     assert.equal(request.method, 'POST');
-  });
-
-  module('#fetchRawSpecification', function () {
-    test('it makes a GET request to the correct URL', async function (assert) {
-      const adapter = this.owner.lookup('adapter:job');
-      const job = {
-        get: sinon.stub(),
-      };
-
-      job.get.withArgs('id').returns('["job-id"]');
-      job.get.withArgs('version').returns('job-version');
-
-      const expectedURL = addToPath(
-        adapter.urlForFindRecord('["job-id"]', 'job', null, 'submission'),
-        '',
-        'version=' + job.get('version')
-      );
-
-      // Stub the ajax method to avoid making real API calls
-      sinon.stub(adapter, 'ajax').callsFake(() => resolve({}));
-
-      await adapter.fetchRawSpecification(job);
-
-      assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
-
-      assert.equal(
-        expectedURL,
-        '/v1/job/job-id/submission?version=job-version',
-        'it formats the URL correctly'
-      );
-    });
-
-    test('it formats namespaces correctly', async function (assert) {
-      const adapter = this.owner.lookup('adapter:job');
-      const job = {
-        get: sinon.stub(),
-      };
-
-      job.get.withArgs('id').returns('["job-id"]');
-      job.get.withArgs('version').returns('job-version');
-      job.get.withArgs('namespace').returns('zoey');
-
-      const expectedURL = addToPath(
-        adapter.urlForFindRecord(
-          '["job-id", "zoey"]',
-          'job',
-          null,
-          'submission'
-        ),
-        '',
-        'version=' + job.get('version')
-      );
-
-      // Stub the ajax method to avoid making real API calls
-      sinon.stub(adapter, 'ajax').callsFake(() => resolve({}));
-
-      await adapter.fetchRawSpecification(job);
-
-      assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
-
-      assert.equal(
-        expectedURL,
-        '/v1/job/job-id/submission?namespace=zoey&version=job-version'
-      );
-    });
   });
 });
 

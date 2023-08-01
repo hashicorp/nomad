@@ -1,14 +1,11 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"text/template"
 
-	"github.com/Masterminds/sprig/v3"
 	"github.com/hashicorp/go-msgpack/codec"
 )
 
@@ -39,12 +36,14 @@ func DataFormat(format, tmpl string) (DataFormatter, error) {
 	return nil, fmt.Errorf("Unsupported format is specified.")
 }
 
-type JSONFormat struct{}
+type JSONFormat struct {
+}
 
 // TransformData returns JSON format string data.
 func (p *JSONFormat) TransformData(data interface{}) (string, error) {
 	var buf bytes.Buffer
-	err := codec.NewEncoder(&buf, jsonHandlePretty).Encode(data)
+	enc := codec.NewEncoder(&buf, jsonHandlePretty)
+	err := enc.Encode(data)
 	if err != nil {
 		return "", err
 	}
@@ -58,21 +57,21 @@ type TemplateFormat struct {
 
 // TransformData returns template format string data.
 func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
-	var out bytes.Buffer
+	var out io.Writer = new(bytes.Buffer)
 	if len(p.tmpl) == 0 {
-		return "", fmt.Errorf("template needs to be specified in golang's text/template format.")
+		return "", fmt.Errorf("template needs to be specified the golang templates.")
 	}
 
-	t, err := template.New("").Funcs(makeFuncMap()).Parse(p.tmpl)
+	t, err := template.New("format").Parse(p.tmpl)
 	if err != nil {
 		return "", err
 	}
 
-	err = t.Execute(&out, data)
+	err = t.Execute(out, data)
 	if err != nil {
 		return "", err
 	}
-	return out.String(), nil
+	return fmt.Sprint(out), nil
 }
 
 func Format(json bool, template string, data interface{}) (string, error) {
@@ -94,21 +93,8 @@ func Format(json bool, template string, data interface{}) (string, error) {
 
 	out, err := f.TransformData(data)
 	if err != nil {
-		return "", fmt.Errorf("Error formatting the data: %w", err)
+		return "", fmt.Errorf("Error formatting the data: %s", err)
 	}
 
 	return out, nil
-}
-
-func makeFuncMap() template.FuncMap {
-	fm := template.FuncMap{}
-
-	// Add the Sprig functions to the funcmap. These functions are decorated
-	// with `sprig_` to match how they are treated in consul-template
-	for k, v := range sprig.FuncMap() {
-		target := "sprig_" + k
-		fm[target] = v
-	}
-
-	return fm
 }

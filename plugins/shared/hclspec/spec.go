@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package hclspec
 
 // ObjectSpec wraps the object and returns a spec.

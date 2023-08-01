@@ -10,20 +10,21 @@ description: >-
 
 Name: `podman`
 
+Homepage: https://github.com/hashicorp/nomad-driver-podman
+
 The Podman task driver plugin for Nomad uses the [Pod Manager (podman)][podman]
 daemonless container runtime for executing Nomad tasks. Podman supports OCI
-containers and its command line tool is meant to be [a drop-in replacement]
-[podman-cli] for docker.
+containers and its command line tool is meant to be [a drop-in replacement for
+Docker's][podman-cli].
 
-Source is on [GitHub][github]
-
-Download from HashiCorp [releases][releases]
-
-The example job created by [`nomad init -short`][nomad-init] is easily adapted
-to use Podman instead:
+Due to Podman's similarity to Docker, the example job created by
+[`nomad init -short`][nomad-init] is easily adapted to use Podman instead:
 
 ```hcl
 job "redis" {
+  datacenters = ["dc1"]
+  type        = "service"
+
   group "cache" {
     network {
       port "redis" { to = 6379 }
@@ -31,8 +32,9 @@ job "redis" {
 
     task "redis" {
       driver = "podman"
+
       config {
-        image = "docker.io/library/redis:7"
+        image = "docker://redis"
         ports = ["redis"]
       }
     }
@@ -44,17 +46,20 @@ Refer to the project's [homepage][homepage] for details.
 
 ## Client Requirements
 
-The Podman task driver is not built into Nomad. It must be
+The Podman task driver is not builtin to Nomad. It must be
 [downloaded][downloaded] onto the client host in the configured plugin
 directory.
 
+- [Nomad][nomad_download] 0.12.9+
 - Linux host with [`podman`][podman] installed
-- For rootless containers you need a system supporting cgroups v2 and a few
+- For rootless containers you need a system supporting cgroup V2 and a few
   other things, follow [this tutorial][rootless_tutorial].
 
-You need a v3.x or higher podman binary and a system socket [activation unit]
-[rest_api]. It is recommended to install podman via your system's package
-manager, which will configure systemd for you.
+You need a 3.0.x podman binary and a system socket activation unit, refer to
+[https://www.redhat.com/sysadmin/podmans-new-rest-api](https://www.redhat.com/sysadmin/podmans-new-rest-api).
+
+Nomad agent, `nomad-driver-podman` and `podman` will reside on the same client,
+so you do not have to worry about the `ssh` aspects of the Podman api.
 
 Ensure that Nomad can find the plugin, refer to [`plugin_dir`][plugin_dir].
 
@@ -65,10 +70,10 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
 | Feature              | Implementation          |
 | -------------------- | ----------------------- |
 | `nomad alloc signal` | true                    |
-| `nomad alloc exec`   | true                    |
+| `nomad alloc exec`   | false                   |
 | filesystem isolation | image                   |
 | network isolation    | host, group, task, none |
-| volume mounting      | true                    |
+| volume mounting      | none                    |
 
 ## Task Configuration
 
@@ -85,8 +90,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   ```
 
 - `auth` - (Optional) Authenticate to the image registry using a static
-  credential. By setting tlsVerify to false the driver will allow using self-
-  signed certificates or plain HTTP connections to the registry.
+  credential.
 
   ```hcl
   config {
@@ -94,7 +98,6 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
     auth {
       username = "someuser"
       password = "sup3rs3creT"
-      tlsVerify = false
     }
   }
   ```
@@ -172,14 +175,6 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   ```hcl
   config {
     image = "docker://redis"
-  }
-  ```
-
-- `extra_hosts` - (Optional) Set additional hosts in the container
-
-  ```hcl
-  config {
-    extra_hosts = ["test4.localhost:127.0.0.2", "test6.localhost:[::1]"]
   }
   ```
 
@@ -493,13 +488,10 @@ configuration file.
   }
   ```
 
-- `recover_stopped` - (Deprecated) Defaults to `false`. Allows the driver to
-  start and reuse a previously stopped container after a Nomad client restart.
-  Consider a simple single node system and a complete reboot. All previously
-  managed containers will be reused instead of disposed and recreated.
-
-  !> This option may cause Nomad client to hang on startup. It now defaults to
-  being disabled and may be removed in a future release.
+- `recover_stopped` - Defaults to `true`. Allows the driver to start and reuse
+  a previously stopped container after a Nomad client restart. Consider a
+  simple single node system and a complete reboot. All previously managed
+  containers will be reused instead of disposed and recreated.
 
   ```hcl
   plugin "nomad-driver-podman" {
@@ -558,7 +550,6 @@ configuration file.
   }
   ```
 
-[github]: https://github.com/hashicorp/nomad-driver-podman
 [`count`]: /nomad/docs/job-specification/group#count
 [`disable_log_collection`]: #disable_log_collection
 [docker-ports]: /nomad/docs/drivers/docker#forwarding-and-exposing-ports
@@ -587,4 +578,3 @@ configuration file.
 [short-names]: https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md#short-name-aliasing
 [`command`]: #command
 [`client_http_timeout`]: #client_http_timeout
-[rest_api]: https://www.redhat.com/sysadmin/podmans-new-rest-api

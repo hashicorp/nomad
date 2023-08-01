@@ -1,7 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
-//go:build unix
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
 package allocdir
 
@@ -43,17 +40,17 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return nil
 	}
 
-	u, err := users.Lookup("nobody")
-	if err != nil {
-		return fmt.Errorf("Unable to find nobody user: %w", err)
-	}
-
-	uid, err := getUid(u)
+	nobody, err := users.Nobody()
 	if err != nil {
 		return err
 	}
 
-	gid, err := getGid(u)
+	uid, err := getUid(nobody)
+	if err != nil {
+		return err
+	}
+
+	gid, err := getGid(nobody)
 	if err != nil {
 		return err
 	}

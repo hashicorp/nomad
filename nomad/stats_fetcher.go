@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -46,7 +43,7 @@ func NewStatsFetcher(logger log.Logger, pool *pool.ConnPool, region string) *Sta
 // RPC to each server, so we let it finish and then clean up the in-flight
 // tracking.
 func (f *StatsFetcher) fetch(server *autopilot.Server, replyCh chan *autopilot.ServerStats) {
-	var args structs.GenericRequest
+	var args struct{}
 	var reply structs.RaftStats
 
 	// defer some cleanup to notify everything else that the fetching is no longer occurring

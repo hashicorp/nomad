@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package pointer provides helper functions related to Go pointers.
 package pointer
 
@@ -40,7 +37,7 @@ func Merge[P Primitive](previous, next *P) *P {
 //
 // May only be used on pointers to primitive types, where the comparison is
 // guaranteed to be sensible. For complex types (i.e. structs) consider implementing
-// an Equal method.
+// an Equals method.
 func Eq[P Primitive](a, b *P) bool {
 	if a == nil || b == nil {
 		return a == b

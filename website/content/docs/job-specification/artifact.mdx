@@ -138,10 +138,10 @@ artifact {
   source      = "git::git@bitbucket.org:example/nomad-examples"
   destination = "local/repo"
   options {
-    # Make sure that the system known hosts file is populated:
-    # ssh-keyscan github.com | sudo tee -a /etc/ssh/ssh_known_hosts
+    # Make sure that the Nomad user's known hosts file is populated:
+    # ssh-keyscan github.com | sudo tee -a /root/.ssh/known_hosts
     # https://github.com/hashicorp/go-getter/issues/55
-    sshkey = "${base64encode(file("/path/to/private-key"))}"
+    sshkey = "${base64encode(file(pathexpand("~/.ssh/id_rsa")))}"
   }
 }
 ```
@@ -243,12 +243,6 @@ artifact {
   source = "s3://my-bucket-example.s3-eu-west-1.amazonaws.com/my_app.tar.gz"
 }
 ```
-
-## Environment
-
-The `artifact` downloader by default does not have access to the environment variables
-set for the Nomad client. Inheritence of environment variables can be managed through the [`artifact.set_environment_variables`][client_artifact]
-client configuration.
 
 [client_artifact]: /nomad/docs/configuration/client#artifact-parameters
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'

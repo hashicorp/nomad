@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -67,7 +64,9 @@ func TestVarPurgeCommand_Online(t *testing.T) {
 
 	// Create a server
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	t.Cleanup(func() {
+		srv.Shutdown()
+	})
 
 	t.Run("unchecked", func(t *testing.T) {
 		ui := cli.NewMockUi()

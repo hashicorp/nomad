@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@glimmer/component';
 import { htmlSafe } from '@ember/template';
 import { action, get } from '@ember/object';

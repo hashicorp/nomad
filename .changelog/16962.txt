@@ -1,3 +1,0 @@
-```release-note:improvement
-jobspec: Added option for disabling task log collection in the `logs` block
-```

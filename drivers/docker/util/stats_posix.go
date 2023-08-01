@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !windows
 
 package util
@@ -56,7 +53,7 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage
 	cs.UserMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
 		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
-	cs.TotalTicks = (cs.Percent / 100) * float64(stats.CpuTotalTicks()) / float64(runtime.NumCPU())
+	cs.TotalTicks = (cs.Percent / 100) * stats.TotalTicksAvailable() / float64(runtime.NumCPU())
 
 	return &cstructs.TaskResourceUsage{
 		ResourceUsage: &cstructs.ResourceUsage{

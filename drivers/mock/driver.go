@@ -1,13 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package mock
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -671,7 +668,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts 
 
 	cmd := *h.execCommand
 	if len(execOpts.Command) == 1 && execOpts.Command[0] == "showinput" {
-		stdin, _ := io.ReadAll(execOpts.Stdin)
+		stdin, _ := ioutil.ReadAll(execOpts.Stdin)
 		cmd = Command{
 			RunFor: "1ms",
 			StdoutString: fmt.Sprintf("TTY: %v\nStdin:\n%s\n",

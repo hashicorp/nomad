@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package servicediscovery
 
 import (
@@ -48,7 +45,6 @@ func TestServiceDiscovery(t *testing.T) {
 	t.Run("TestServiceDiscovery_SimpleLoadBalancing", testSimpleLoadBalancing)
 	t.Run("TestServiceDiscovery_ChecksHappy", testChecksHappy)
 	t.Run("TestServiceDiscovery_ChecksSad", testChecksSad)
-	t.Run("TestServiceDiscovery_ServiceRegisterAfterCheckRestart", testChecksServiceReRegisterAfterCheckRestart)
 }
 
 // testMultiProvider tests service discovery where multi providers are used

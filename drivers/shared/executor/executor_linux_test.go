@@ -1,11 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package executor
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -147,7 +145,7 @@ func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
 	execCmd.ModePID = "host" // disable PID namespace
 	execCmd.ModeIPC = "host" // disable IPC namespace
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -190,7 +188,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd.ModePID = "private"
 	execCmd.ModeIPC = "private"
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -209,7 +207,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	r.NoError(err)
 
 	memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
-	data, err := os.ReadFile(memLimits)
+	data, err := ioutil.ReadFile(memLimits)
 	r.NoError(err)
 
 	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
@@ -244,7 +242,6 @@ etc/
 lib/
 lib64/
 local/
-private/
 proc/
 secrets/
 sys/
@@ -282,7 +279,7 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 
 	execCmd.ResourceLimits = true
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -344,7 +341,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 
 	execCmd.ResourceLimits = true
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -394,7 +391,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	executor.Shutdown("SIGKILL", 0)
 
 	// test that the cgroup paths are not visible
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := ioutil.TempFile("", "")
 	require.NoError(err)
 	defer os.Remove(tmpFile.Name())
 
@@ -547,7 +544,7 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 
 	execCmd.ResourceLimits = true
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	_, err := executor.Launch(execCmd)
@@ -597,7 +594,7 @@ func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
 	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "cat /proc/self/oom_score_adj"}
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	_, err = executor.Launch(execCmd)
@@ -691,7 +688,7 @@ CapAmb: 0000000000000400`,
 				execCmd.Capabilities = capsAllowed
 			}
 
-			executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 			defer executor.Shutdown("SIGKILL", 0)
 
 			_, err := executor.Launch(execCmd)
@@ -739,7 +736,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	defer allocDir.Destroy()
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t), 0)
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("", 0)
 
 	// Need to run a command which will produce continuous output but not
@@ -850,7 +847,7 @@ func TestUniversalExecutor_NoCgroup(t *testing.T) {
 	ci.Parallel(t)
 	testutil.ExecCompatible(t)
 
-	expectedBytes, err := os.ReadFile("/proc/self/cgroup")
+	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
 	require.NoError(t, err)
 
 	expected := strings.TrimSpace(string(expectedBytes))
@@ -864,7 +861,7 @@ func TestUniversalExecutor_NoCgroup(t *testing.T) {
 	execCmd.BasicProcessCgroup = false
 	execCmd.ResourceLimits = false
 
-	executor := NewExecutor(testlog.HCLogger(t), 0)
+	executor := NewExecutor(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	_, err = executor.Launch(execCmd)

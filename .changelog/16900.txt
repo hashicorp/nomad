@@ -1,3 +1,0 @@
-```release-note:bug
-fix: Added "/usr/libexec" to the landlocked directories the getter has access to
-```

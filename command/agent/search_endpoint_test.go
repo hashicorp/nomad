@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -25,7 +22,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	job.ID = jobID
 	job.TaskGroups[0].Count = 1
 	state := s.Agent.server.State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(t, err)
 }
 
@@ -61,7 +58,7 @@ func createCmdJobForTest(name, cmd string, s *TestAgent, t *testing.T) *structs.
 	job.TaskGroups[0].Tasks[0].Config["command"] = cmd
 	job.TaskGroups[0].Count = 1
 	state := s.Agent.server.State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(t, err)
 	return job
 }

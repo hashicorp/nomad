@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 id        = "VOLUME_NAME"
 name      = "VOLUME_NAME"
 type      = "csi"

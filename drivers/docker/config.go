@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
@@ -360,7 +357,6 @@ var (
 		"entrypoint":         hclspec.NewAttr("entrypoint", "list(string)", false),
 		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
 		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
-		"group_add":          hclspec.NewAttr("group_add", "list(string)", false),
 		"healthchecks":       hclspec.NewBlock("healthchecks", false, healthchecksBodySpec),
 		"hostname":           hclspec.NewAttr("hostname", "string", false),
 		"init":               hclspec.NewAttr("init", "bool", false),
@@ -368,7 +364,6 @@ var (
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
 		"ipv6_address":       hclspec.NewAttr("ipv6_address", "string", false),
-		"isolation":          hclspec.NewAttr("isolation", "string", false),
 		"labels":             hclspec.NewAttr("labels", "list(map(string))", false),
 		"load":               hclspec.NewAttr("load", "string", false),
 		"logging": hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
@@ -444,7 +439,6 @@ type TaskConfig struct {
 	Entrypoint        []string           `codec:"entrypoint"`
 	ExtraHosts        []string           `codec:"extra_hosts"`
 	ForcePull         bool               `codec:"force_pull"`
-	GroupAdd          []string           `codec:"group_add"`
 	Healthchecks      DockerHealthchecks `codec:"healthchecks"`
 	Hostname          string             `codec:"hostname"`
 	Init              bool               `codec:"init"`
@@ -452,7 +446,6 @@ type TaskConfig struct {
 	IPCMode           string             `codec:"ipc_mode"`
 	IPv4Address       string             `codec:"ipv4_address"`
 	IPv6Address       string             `codec:"ipv6_address"`
-	Isolation         string             `codec:"isolation"`
 	Labels            hclutils.MapStrStr `codec:"labels"`
 	LoadImage         string             `codec:"load"`
 	Logging           DockerLogging      `codec:"logging"`
@@ -507,11 +500,6 @@ func (d DockerDevice) toDockerDevice() (docker.Device, error) {
 
 	if d.HostPath == "" {
 		return dd, fmt.Errorf("host path must be set in configuration for devices")
-	}
-
-	// Docker's CLI defaults to HostPath in this case. See #16754
-	if dd.PathInContainer == "" {
-		dd.PathInContainer = d.HostPath
 	}
 
 	if dd.CgroupPermissions == "" {
@@ -740,7 +728,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if len(d.config.PullActivityTimeout) > 0 {
 		dur, err := time.ParseDuration(d.config.PullActivityTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'pull_activity_timeout' duration: %v", err)
+			return fmt.Errorf("failed to parse 'pull_activity_timeout' duaration: %v", err)
 		}
 		if dur < pullActivityTimeoutMinimum {
 			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
@@ -751,7 +739,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if d.config.InfraImagePullTimeout != "" {
 		dur, err := time.ParseDuration(d.config.InfraImagePullTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duration: %v", err)
+			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duaration: %v", err)
 		}
 		d.config.infraImagePullTimeoutDuration = dur
 	}
@@ -765,7 +753,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.clientConfig = c.AgentConfig.Driver
 	}
 
-	dockerClient, err := d.getDockerClient()
+	dockerClient, _, err := d.dockerClients()
 	if err != nil {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
@@ -795,6 +783,13 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 // Capabilities is returned by the Capabilities RPC and indicates what optional
 // features this driver supports.
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
-	driverCapabilities.DisableLogCollection = d.config != nil && d.config.DisableLogCollection
 	return driverCapabilities, nil
+}
+
+var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
+
+func (d *Driver) InternalCapabilities() drivers.InternalCapabilities {
+	return drivers.InternalCapabilities{
+		DisableLogCollection: d.config != nil && d.config.DisableLogCollection,
+	}
 }

@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 
 version_file=$1
 version_metadata_file=$2

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 .boxed-section {
   margin-bottom: 1.5em;
 
@@ -70,21 +65,8 @@
       border-top-right-radius: 0;
     }
 
-    .button,
-    .is-inline-block {
+    .button {
       display: inline-block;
-    }
-
-    .header-toggle {
-      display: inline-block;
-      position: relative;
-      top: 0.2em;
-      margin-left: $control-padding-horizontal;
-      margin-right: $control-padding-horizontal;
-    }
-
-    &.task-log-head .header-toggle {
-      top: 0.5em;
     }
   }
 

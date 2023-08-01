@@ -1,7 +1,4 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
+#!/bin/sh
 fail () {
     echo "pre-push hook: $@" >&2
     echo "    --no-verify to bypass this hook" >&2
@@ -16,19 +13,15 @@ if [ "$2" != "$ent" -a -f version/version_ent.go ]; then
     fail "found enterprise version file version/version_ent.go while pushing to oss remote"
 fi
 
-# do not push directly to main, stable-*, release/*
+# don't push to main, stable-*
 # ====================
 while read local_ref local_sha remote_ref remote_sha
 do
     if [ "$remote_ref" = "refs/heads/main" ]; then
-        fail "refusing to push directly to main"
+	fail "refusing to push directly to main"
     fi
 
     if echo "$remote_ref"|grep -q 'refs/heads/stable-.*'; then
-        fail "refusing to push directly to a branch prefixed \`stable-\`"
-    fi
-
-    if echo "$remote_ref"|grep -q 'refs/heads/release/.*'; then
-        fail "refusing to push directly to a branch prefixed \`release/\`"
+	fail "refusing to push directly to a branch prefixed \`stable-\`"
     fi
 done

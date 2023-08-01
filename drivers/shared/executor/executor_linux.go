@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build linux
 
 package executor
@@ -24,9 +21,10 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/lib/resources"
+	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-	"github.com/hashicorp/nomad/helper/stats"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -70,10 +68,11 @@ type LibcontainerExecutor struct {
 	exitState      *ProcessState
 }
 
-func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 	logger = logger.Named("isolated_executor")
-	stats.SetCpuTotalTicks(cpuTotalTicks)
-
+	if err := shelpers.Init(); err != nil {
+		logger.Error("unable to initialize stats", "error", err)
+	}
 	return &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger,

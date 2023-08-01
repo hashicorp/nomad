@@ -1,19 +1,8 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#if this.placementFailures}}
   {{#with this.placementFailures as |failures|}}
     <h3 class="title is-5" data-test-placement-failure-task-group>
       {{this.placementFailures.name}}
-      <Hds::Badge
-        data-test-placement-failure-coalesced-failures
-        @color="critical"
-        @type="outlined"
-        @size="small"
-        @text="{{inc failures.coalescedFailures}} unplaced"
-      />
+      <span class="badge is-light" data-test-placement-failure-coalesced-failures>{{inc failures.coalescedFailures}} unplaced</span>
     </h3>
     <ul class="simple-list">
       {{#if (eq failures.nodesEvaluated 0)}}

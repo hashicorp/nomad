@@ -1,3 +1,0 @@
-```release-note:bug
-logs: Fixed a bug where disabling log collection would prevent Windows tasks from starting
-```

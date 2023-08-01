@@ -1,3 +1,0 @@
-```release-note:improvement
-api: enable support for storing original job source
-```

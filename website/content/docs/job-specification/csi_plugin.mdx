@@ -17,11 +17,11 @@ to claim [volumes][csi_volumes].
 
 ```hcl
 csi_plugin {
-  id                     = "csi-hostpath"
-  type                   = "monolith"
-  mount_dir              = "/csi"
-  stage_publish_base_dir = "/local/csi"
-  health_timeout         = "30s"
+  id                      = "csi-hostpath"
+  type                    = "monolith"
+  mount_dir               = "/csi"
+  stage_publish__base_dir = "/local/csi"
+  health_timeout          = "30s"
 }
 ```
 

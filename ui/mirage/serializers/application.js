@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { camelize, capitalize } from '@ember/string';
 import { RestSerializer } from 'ember-cli-mirage';
 

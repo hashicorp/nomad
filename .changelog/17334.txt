@@ -1,3 +1,0 @@
-```release-note:improvement
-checks: Added support for Consul check field tls_server_name
-```

@@ -22,9 +22,8 @@ will retrieve the JSON version of the job. This JSON is valid to be submitted to
 the [Job HTTP API]. This command is useful to inspect what version of a job
 Nomad is running.
 
-When ACLs are enabled, this command requires a token with the `read-job`
-capability for the job's namespace. The `list-jobs` capability is required to
-run the command with a job prefix instead of the exact job ID.
+When ACLs are enabled, this command requires a token with the `read-job` and
+`list-jobs` capabilities for the job's namespace.
 
 ## General Options
 

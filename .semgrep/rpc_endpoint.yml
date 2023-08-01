@@ -1,88 +1,61 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 rules:
-  # Check potentially unauthenticated RPC endpoints. Technically more
-  # authorization (authz) oriented than authn, but before Nomad 1.4/1.5 that
-  # distinction wasn't as important.
+  # Check potentially unauthenticated RPC endpoints
   - id: "rpc-potentially-unauthenticated"
     patterns:
       - pattern: |
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
-      # Pattern used by typical endpoints that take an auth token or workload
-      # identity. Some of these endpoints have no context for Authenticate
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate(...)
-          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $A.$B.ResolveACL(...)
+          ... := $X.$Y.ResolveToken(...)
           ...
-      # Pattern used by endpoints that are used by both ACLs and Clients.
-      # These endpoints will always have a ctx passed to Authenticate
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := $A.$B.ResolveClientOrACL(...)
+          ... := $U.requestACLToken(...)
           ...
-      # Pattern used by ACL endpoints that need to interact with the token directly
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := args.GetIdentity().GetACLToken()
+          ... := $T.NamespaceValidator(...)
           ...
       # Pattern used by endpoints called exclusively between agents
       # (server -> server or client -> server)
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
           ...
           ... := validateTLSCertificateLevel(...)
           ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
-      # Pattern used by endpoints that support both normal ACLs and workload
-      # identity but break authentication and authorization up
-      # TODO: currently this is just for Variables and should be removed once
-      # https://github.com/hashicorp/nomad/issues/15875 is complete.
+      # Pattern used by endpoints that support both normal ACLs and
+      # workload identity
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
           ... := $T.handleMixedAuthEndpoint(...)
           ...
-      # Second pattern used by endpoints that support both normal ACLs and
+      # Pattern used by endpoints that support both normal ACLs and
       # workload identity but break authentication and authorization up
-      # TODO: currently this is just for Variables and should be removed once
-      # https://github.com/hashicorp/nomad/issues/15875 is complete.
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
           ...
-          ... := svePreApply($A, args, args.Var)
+          ... := $T.authorize(...)
           ...
       # Pattern used by some Node endpoints.
       - pattern-not-inside: |
-          authErr := $A.$B.Authenticate($A.ctx, args)
-          ...
           if done, err := $A.$B.forward($METHOD, ...); done {
             return err
           }
@@ -94,25 +67,18 @@ rules:
           patterns:
             # Endpoints that are expected not to have authentication.
             - pattern-not: '"ACL.Bootstrap"'
-            - pattern-not: '"ACL.GetClaimPolicies"'
             - pattern-not: '"ACL.ResolveToken"'
             - pattern-not: '"ACL.UpsertOneTimeToken"'
             - pattern-not: '"ACL.ExchangeOneTimeToken"'
-            - pattern-not: '"ACL.WhoAmI"'
-            - pattern-not: 'structs.ACLListAuthMethodsRPCMethod'
-            - pattern-not: 'structs.ACLOIDCAuthURLRPCMethod'
-            - pattern-not: 'structs.ACLOIDCCompleteAuthRPCMethod'
-            - pattern-not: 'structs.ACLLoginRPCMethod'
             - pattern-not: '"CSIPlugin.Get"'
             - pattern-not: '"CSIPlugin.List"'
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
             - pattern-not: '"Status.Version"'
-            - pattern-not: '"Keyring.ListPublic"'
     message: "RPC method $METHOD appears to be unauthenticated"
     languages:
       - "go"
     severity: "WARNING"
     paths:
       include:
-        - "nomad/*_endpoint.go"
+        - "*_endpoint.go"

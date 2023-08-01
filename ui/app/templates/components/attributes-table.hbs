@@ -1,9 +1,4 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
-<table class="table is-striped is-fixed is-compact is-darkened no-mobile-condense" ...attributes>
+<table class="table is-striped is-fixed is-compact is-darkened" ...attributes>
   <thead>
     <tr>
       <th class="is-one-third">Name</th>
@@ -11,11 +6,6 @@
     </tr>
   </thead>
   <tbody>
-    <AttributesSection @attributes={{@attributePairs}}
-      @editable={{@editable}}
-      @onKVEdit={{@onKVEdit}}
-      @onKVSave={{@onKVSave}}
-      @copyable={{@copyable}}
-    />
+    <AttributesSection @attributes={{@attributePairs}} />
   </tbody>
 </table>

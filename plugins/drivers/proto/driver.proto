@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 syntax = "proto3";
 package hashicorp.nomad.plugins.drivers.proto;
 option go_package = "proto";
@@ -392,10 +389,6 @@ message DriverCapabilities {
     // remote_tasks indicates whether the driver executes tasks remotely such
     // on cloud runtimes like AWS ECS.
     bool remote_tasks = 7;
-
-    // disable_log_collection indicates whether the driver has the capability of
-    // disabling log collection
-    bool disable_log_collection = 8;
 }
 
 message NetworkIsolationSpec {
@@ -495,9 +488,6 @@ message TaskConfig {
 
     // NodeId is the ID of the node where the associated allocation is running
     string node_id = 21;
-
-    // ParentJobID is the parent id for dispatch and periodic jobs
-    string parent_job_id = 22;
 }
 
 message Resources {

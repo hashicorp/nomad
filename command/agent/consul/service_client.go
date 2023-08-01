@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package consul
 
 import (
@@ -21,7 +18,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/exp/maps"
@@ -116,16 +112,14 @@ type NamespaceAPI interface {
 // - agent:read
 // - service:write
 type AgentAPI interface {
+	ServicesWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentService, error)
+	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
 	CheckRegister(check *api.AgentCheckRegistration) error
 	CheckDeregisterOpts(checkID string, q *api.QueryOptions) error
-	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
-	UpdateTTLOpts(id, output, status string, q *api.QueryOptions) error
-
+	Self() (map[string]map[string]interface{}, error)
 	ServiceRegister(service *api.AgentServiceRegistration) error
 	ServiceDeregisterOpts(serviceID string, q *api.QueryOptions) error
-	ServicesWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentService, error)
-
-	Self() (map[string]map[string]interface{}, error)
+	UpdateTTLOpts(id, output, status string, q *api.QueryOptions) error
 }
 
 // ConfigAPI is the consul/api.ConfigEntries API subset used by Nomad Server.
@@ -272,13 +266,27 @@ func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing
 	case !maps.Equal(wanted.TaggedAddresses, existing.TaggedAddresses):
 		trace("tagged_addresses", wanted.TaggedAddresses, existing.TaggedAddresses)
 		return true
-	case !helper.SliceSetEq(wanted.Tags, existing.Tags):
+	case tagsDifferent(wanted.Tags, existing.Tags):
 		trace("tags", wanted.Tags, existing.Tags)
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
 		trace("connect_sidecar", wanted.Name, existing.Service)
 		return true
 	}
+	return false
+}
+
+func tagsDifferent(a, b []string) bool {
+	if len(a) != len(b) {
+		return true
+	}
+
+	for i, valueA := range a {
+		if b[i] != valueA {
+			return true
+		}
+	}
+
 	return false
 }
 
@@ -289,9 +297,9 @@ func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing
 // comparing them to the parent service tags.
 func sidecarTagsDifferent(parent, wanted, sidecar []string) bool {
 	if len(wanted) == 0 {
-		return !helper.SliceSetEq(parent, sidecar)
+		return tagsDifferent(parent, sidecar)
 	}
-	return !helper.SliceSetEq(wanted, sidecar)
+	return tagsDifferent(wanted, sidecar)
 }
 
 // proxyUpstreamsDifferent determines if the sidecar_service.proxy.upstreams
@@ -411,7 +419,7 @@ func (o *operations) empty() bool {
 	}
 }
 
-func (o *operations) String() string {
+func (o operations) String() string {
 	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
 }
 
@@ -1164,7 +1172,6 @@ func apiCheckRegistrationToCheck(r *api.AgentCheckRegistration) *api.AgentServic
 		Body:                   r.Body,
 		TCP:                    r.TCP,
 		Status:                 r.Status,
-		TLSServerName:          r.TLSServerName,
 		TLSSkipVerify:          r.TLSSkipVerify,
 		GRPC:                   r.GRPC,
 		GRPCUseTLS:             r.GRPCUseTLS,
@@ -1654,7 +1661,6 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		if check.TLSSkipVerify {
 			chkReg.TLSSkipVerify = true
 		}
-		chkReg.TLSServerName = check.TLSServerName
 		base := url.URL{
 			Scheme: proto,
 			Host:   net.JoinHostPort(host, strconv.Itoa(port)),
@@ -1683,7 +1689,6 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		if check.TLSSkipVerify {
 			chkReg.TLSSkipVerify = true
 		}
-		chkReg.TLSServerName = check.TLSServerName
 
 	default:
 		return nil, fmt.Errorf("check type %+q not valid", check.Type)

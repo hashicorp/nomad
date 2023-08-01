@@ -1,10 +1,4 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { computed } from '@ember/object';
-import matchGlob from '../match-glob';
 
 const STATUS = [
   'queued',
@@ -32,9 +26,7 @@ export default function jobClientStatus(nodesKey, jobKey) {
 
       // Filter nodes by the datacenters defined in the job.
       const filteredNodes = nodes.filter((n) => {
-        return job.datacenters.find((dc) => {
-          return !!matchGlob(dc, n.datacenter);
-        });
+        return job.datacenters.indexOf(n.datacenter) >= 0;
       });
 
       if (job.status === 'pending') {

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -441,76 +438,6 @@ func TestJobDiff(t *testing.T) {
 				},
 			},
 		},
-
-		{
-			// NodePool added
-			Old: &Job{},
-			New: &Job{
-				NodePool: "default",
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "NodePool",
-						Old:  "",
-						New:  "default",
-					},
-				},
-			},
-		},
-		{
-			// NodePool removed
-			Old: &Job{
-				NodePool: "default",
-			},
-			New: &Job{},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "NodePool",
-						Old:  "default",
-						New:  "",
-					},
-				},
-			},
-		},
-		{
-			// NodePool changed
-			Old: &Job{
-				NodePool: "default",
-			},
-			New: &Job{
-				NodePool: "foo",
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeEdited,
-				Fields: []*FieldDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "NodePool",
-						Old:  "default",
-						New:  "foo",
-					},
-				},
-			},
-		},
-		{
-			// NodePool unchanged
-			Old: &Job{
-				NodePool: "foo",
-			},
-			New: &Job{
-				NodePool: "foo",
-			},
-			Expected: &JobDiff{
-				Type: DiffTypeNone,
-			},
-		},
-
 		{
 			// Periodic added
 			Old: &Job{},
@@ -1861,12 +1788,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "fail",
 							},
-							{
-								Type: DiffTypeAdded,
-								Name: "RenderTemplates",
-								Old:  "",
-								New:  "false",
-							},
 						},
 					},
 				},
@@ -1914,12 +1835,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "fail",
 								New:  "",
 							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "RenderTemplates",
-								Old:  "false",
-								New:  "",
-							},
 						},
 					},
 				},
@@ -1937,11 +1852,10 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 			New: &TaskGroup{
 				RestartPolicy: &RestartPolicy{
-					Attempts:        2,
-					Interval:        2 * time.Second,
-					Delay:           2 * time.Second,
-					Mode:            "delay",
-					RenderTemplates: true,
+					Attempts: 2,
+					Interval: 2 * time.Second,
+					Delay:    2 * time.Second,
+					Mode:     "delay",
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -1975,12 +1889,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "fail",
 								New:  "delay",
 							},
-							{
-								Type: DiffTypeEdited,
-								Name: "RenderTemplates",
-								Old:  "false",
-								New:  "true",
-							},
 						},
 					},
 				},
@@ -1991,20 +1899,18 @@ func TestTaskGroupDiff(t *testing.T) {
 			Contextual: true,
 			Old: &TaskGroup{
 				RestartPolicy: &RestartPolicy{
-					Attempts:        1,
-					Interval:        1 * time.Second,
-					Delay:           1 * time.Second,
-					Mode:            "fail",
-					RenderTemplates: false,
+					Attempts: 1,
+					Interval: 1 * time.Second,
+					Delay:    1 * time.Second,
+					Mode:     "fail",
 				},
 			},
 			New: &TaskGroup{
 				RestartPolicy: &RestartPolicy{
-					Attempts:        2,
-					Interval:        2 * time.Second,
-					Delay:           1 * time.Second,
-					Mode:            "fail",
-					RenderTemplates: true,
+					Attempts: 2,
+					Interval: 2 * time.Second,
+					Delay:    1 * time.Second,
+					Mode:     "fail",
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -2037,12 +1943,6 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Mode",
 								Old:  "fail",
 								New:  "fail",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "RenderTemplates",
-								Old:  "false",
-								New:  "true",
 							},
 						},
 					},
@@ -3111,12 +3011,6 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "SuccessBeforePassing",
 										Old:  "3",
 										New:  "5",
-									},
-									{
-										Type: DiffTypeNone,
-										Name: "TLSServerName",
-										Old:  "",
-										New:  "",
 									},
 									{
 										Type: DiffTypeNone,
@@ -4523,7 +4417,6 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Disabled:      true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -4533,12 +4426,6 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeAdded,
-								Name: "Disabled",
-								Old:  "",
-								New:  "true",
-							},
 							{
 								Type: DiffTypeAdded,
 								Name: "MaxFileSizeMB",
@@ -4562,7 +4449,6 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Disabled:      true,
 				},
 			},
 			New: &Task{},
@@ -4573,12 +4459,6 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeDeleted,
-								Name: "Disabled",
-								Old:  "true",
-								New:  "",
-							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "MaxFileSizeMB",
@@ -4602,14 +4482,12 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Disabled:      false,
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      2,
 					MaxFileSizeMB: 20,
-					Disabled:      true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -4619,12 +4497,6 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "Disabled",
-								Old:  "false",
-								New:  "true",
-							},
 							{
 								Type: DiffTypeEdited,
 								Name: "MaxFileSizeMB",
@@ -4649,14 +4521,12 @@ func TestTaskDiff(t *testing.T) {
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 10,
-					Disabled:      false,
 				},
 			},
 			New: &Task{
 				LogConfig: &LogConfig{
 					MaxFiles:      1,
 					MaxFileSizeMB: 20,
-					Disabled:      true,
 				},
 			},
 			Expected: &TaskDiff{
@@ -4666,12 +4536,6 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeEdited,
 						Name: "LogConfig",
 						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "Disabled",
-								Old:  "false",
-								New:  "true",
-							},
 							{
 								Type: DiffTypeEdited,
 								Name: "MaxFileSizeMB",
@@ -6660,12 +6524,6 @@ func TestTaskDiff(t *testing.T) {
 									},
 									{
 										Type: DiffTypeNone,
-										Name: "TLSServerName",
-										Old:  "",
-										New:  "",
-									},
-									{
-										Type: DiffTypeNone,
 										Name: "TLSSkipVerify",
 										Old:  "false",
 										New:  "false",
@@ -6914,7 +6772,6 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -6937,12 +6794,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "",
 								New:  "SIGUSR1",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "DisableFile",
-								Old:  "",
-								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -6981,7 +6832,6 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7004,12 +6854,6 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
-								New:  "",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "DisableFile",
-								Old:  "true",
 								New:  "",
 							},
 							{
@@ -7050,7 +6894,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7060,7 +6903,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns2",
 					Policies:     []string{"bar", "baz"},
 					Env:          false,
-					DisableFile:  false,
 					ChangeMode:   "restart",
 					ChangeSignal: "foo",
 				},
@@ -7083,12 +6925,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "foo",
-							},
-							{
-								Type: DiffTypeEdited,
-								Name: "DisableFile",
-								Old:  "true",
-								New:  "false",
 							},
 							{
 								Type: DiffTypeEdited,
@@ -7135,7 +6971,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7145,7 +6980,6 @@ func TestTaskDiff(t *testing.T) {
 					Namespace:    "ns1",
 					Policies:     []string{"bar", "baz"},
 					Env:          true,
-					DisableFile:  true,
 					ChangeMode:   "signal",
 					ChangeSignal: "SIGUSR1",
 				},
@@ -7168,12 +7002,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "SIGUSR1",
-							},
-							{
-								Type: DiffTypeNone,
-								Name: "DisableFile",
-								Old:  "true",
-								New:  "true",
 							},
 							{
 								Type: DiffTypeNone,
@@ -7712,99 +7540,6 @@ func TestTaskDiff(t *testing.T) {
 								Name: "File",
 								Old:  "foo",
 								New:  "bar",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: "Identity added",
-			Old:  &Task{},
-			New: &Task{
-				Identity: &WorkloadIdentity{
-					Env: true,
-				},
-			},
-			Expected: &TaskDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeAdded,
-						Name: "Identity",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeAdded,
-								Name: "Env",
-								Old:  "",
-								New:  "true",
-							},
-							{
-								Type: DiffTypeAdded,
-								Name: "File",
-								Old:  "",
-								New:  "false",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: "Identity removed",
-			Old: &Task{
-				Identity: &WorkloadIdentity{
-					Env: true,
-				},
-			},
-			New: &Task{},
-			Expected: &TaskDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeDeleted,
-						Name: "Identity",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeDeleted,
-								Name: "Env",
-								Old:  "true",
-							},
-							{
-								Type: DiffTypeDeleted,
-								Name: "File",
-								Old:  "false",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Name: "Identity modified",
-			Old: &Task{
-				Identity: &WorkloadIdentity{
-					Env: true,
-				},
-			},
-			New: &Task{
-				Identity: &WorkloadIdentity{
-					Env:  true,
-					File: true,
-				},
-			},
-			Expected: &TaskDiff{
-				Type: DiffTypeEdited,
-				Objects: []*ObjectDiff{
-					{
-						Type: DiffTypeEdited,
-						Name: "Identity",
-						Fields: []*FieldDiff{
-							{
-								Type: DiffTypeEdited,
-								Name: "File",
-								Old:  "false",
-								New:  "true",
 							},
 						},
 					},
@@ -8426,84 +8161,6 @@ func TestServicesDiff(t *testing.T) {
 											},
 										},
 									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}, {
-			Name:       "SidecarService with different meta",
-			Contextual: false,
-			Old: []*Service{
-				{
-					Name:      "webapp",
-					Provider:  "consul",
-					PortLabel: "http",
-					Connect: &ConsulConnect{
-						SidecarService: &ConsulSidecarService{
-							Port:  "http",
-							Proxy: &ConsulProxy{},
-							Meta: map[string]string{
-								"foo": "qux",
-							},
-						},
-						Gateway: &ConsulGateway{
-							Ingress: &ConsulIngressConfigEntry{},
-						},
-					},
-				},
-			},
-			New: []*Service{
-				{
-					Name:      "webapp",
-					Provider:  "consul",
-					PortLabel: "http",
-					Connect: &ConsulConnect{
-						SidecarService: &ConsulSidecarService{
-							Port:  "http",
-							Proxy: &ConsulProxy{},
-							Meta: map[string]string{
-								"foo":     "var",
-								"testKey": "testValue",
-							},
-						},
-						Gateway: &ConsulGateway{
-							Ingress: &ConsulIngressConfigEntry{},
-						},
-					},
-				},
-			},
-			Expected: []*ObjectDiff{
-				{
-					Type: DiffTypeEdited,
-					Name: "Service",
-					Objects: []*ObjectDiff{
-						{
-							Type:   "Edited",
-							Name:   "ConsulConnect",
-							Fields: nil,
-							Objects: []*ObjectDiff{
-								{
-									Type: "Edited",
-									Name: "SidecarService",
-									Fields: []*FieldDiff{
-										{
-											Type:        "Edited",
-											Name:        "Meta[foo]",
-											Old:         "qux",
-											New:         "var",
-											Annotations: nil,
-										},
-										{
-											Type:        "Added",
-											Name:        "Meta[testKey]",
-											Old:         "",
-											New:         "testValue",
-											Annotations: nil,
-										},
-									},
-									Objects: nil,
 								},
 							},
 						},

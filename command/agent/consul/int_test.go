@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package consul_test
 
 import (
@@ -49,7 +46,7 @@ func TestConsul_Integration(t *testing.T) {
 
 	// Create an embedded Consul server
 	testconsul, err := testutil.NewTestServerConfigT(t, func(c *testutil.TestServerConfig) {
-		c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
+		c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		// If -v wasn't specified squelch consul logging
 		if !testing.Verbose() {
 			c.Stdout = io.Discard
@@ -64,7 +61,6 @@ func TestConsul_Integration(t *testing.T) {
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
 	conf.ConsulConfig.Addr = testconsul.HTTPAddr
-	conf.APIListenerRegistrar = config.NoopAPIListenerRegistrar{}
 	consulConfig, err := conf.ConsulConfig.ApiConfig()
 	if err != nil {
 		t.Fatalf("error generating consul config: %v", err)

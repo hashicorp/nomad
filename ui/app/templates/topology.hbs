@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <Breadcrumb @crumb={{hash label="Topology" args=(array "topology")}} />
 {{page-title "Cluster Topology"}}
 <PageLayout>
@@ -370,7 +365,7 @@
               {{else}}
                 <div class="columns is-flush">
                   <div class="dashboard-metric column">
-                    <p data-test-node-count class="metric justify">
+                    <p data-test-node-count class="metric">
                       {{this.model.nodes.length}}
                       <span class="metric-label">
                         Clients
@@ -378,18 +373,10 @@
                     </p>
                   </div>
                   <div class="dashboard-metric column">
-                    <p data-test-alloc-count class="metric justify">
+                    <p data-test-alloc-count class="metric">
                       {{this.scheduledAllocations.length}}
                       <span class="metric-label">
                         Allocations
-                      </span>
-                    </p>
-                  </div>
-                  <div class="dashboard-metric column">
-                    <p data-test-node-pool-count class="metric justify">
-                      {{this.model.nodePools.length}}
-                      <span class="metric-label">
-                        Node Pools
                       </span>
                     </p>
                   </div>
@@ -487,13 +474,6 @@
             </div>
             <div class="toolbar-item is-right-aligned is-mobile-full-width">
               <div class="button-bar">
-                <MultiSelectDropdown
-                  data-test-node-pool-facet
-                  @label="Node Pool"
-                  @options={{this.optionsNodePool}}
-                  @selection={{this.selectionNodePool}}
-                  @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
-                />
                 <MultiSelectDropdown
                   data-test-datacenter-facet
                   @label="Datacenter"

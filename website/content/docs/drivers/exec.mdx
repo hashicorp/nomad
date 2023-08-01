@@ -246,21 +246,6 @@ create.
 This list is configurable through the agent client
 [configuration file](/nomad/docs/configuration/client#chroot_env).
 
-### CPU
-
-Nomad limits exec tasks' CPU based on CPU shares. CPU shares allow containers to
-burst past their CPU limits. CPU limits will only be imposed when there is contention
-for resources. When the host is under load your process may be throttled to stabilize
-QoS depending on how many shares it has. You can see how many CPU shares are available
-to your process by reading [`NOMAD_CPU_LIMIT`][runtime_env]. 1000 shares are approximately equal to 1 GHz.
-
-Please keep the implications of CPU shares in mind when you load test workloads on Nomad.
-
-If resources [`cores`][cores] is set, the task is given an isolated reserved set of
-CPU cores to make use of. The total set of cores the task may run on is the private
-set combined with the variable set of unreserved cores. The private set of CPU cores
-is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
-
 [default_pid_mode]: /nomad/docs/drivers/exec#default_pid_mode
 [default_ipc_mode]: /nomad/docs/drivers/exec#default_ipc_mode
 [cap_add]: /nomad/docs/drivers/exec#cap_add
@@ -270,5 +255,3 @@ is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [host volume]: /nomad/docs/configuration/client#host_volume-block
 [volume_mount]: /nomad/docs/job-specification/volume_mount
-[cores]: /nomad/docs/job-specification/resources#cores
-[runtime_env]: /nomad/docs/runtime/environment#job-related-variables

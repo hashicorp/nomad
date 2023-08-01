@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -42,17 +39,6 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	volume, total, free, err := f.diskFree(storageDir)
 	if err != nil {
 		return fmt.Errorf("failed to determine disk space for %s: %v", storageDir, err)
-	}
-
-	if cfg.DiskTotalMB > 0 {
-		total = uint64(cfg.DiskTotalMB) * bytesPerMegabyte
-	}
-	if cfg.DiskFreeMB > 0 {
-		free = uint64(cfg.DiskFreeMB) * bytesPerMegabyte
-	}
-
-	if total < free {
-		return fmt.Errorf("detected more free disk space (%d) than total disk space (%d), use disk_total_mb and disk_free_mb to correct", free, total)
 	}
 
 	resp.AddAttribute("unique.storage.volume", volume)

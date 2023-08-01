@@ -1,12 +1,6 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
@@ -31,7 +25,6 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server = startMirage();
 
     // Required for placing allocations (a result of creating jobs)
-    this.server.create('node-pool');
     this.server.create('node');
   });
 
@@ -84,19 +77,31 @@ module('Integration | Component | job-editor', function (hooks) {
     <JobEditor
       @job={{job}}
       @context={{context}}
+      @onSubmit={{onSubmit}} />
+  `;
+
+  const cancelableTemplate = hbs`
+    <JobEditor
+      @job={{job}}
+      @context={{context}}
+      @cancelable={{true}}
       @onSubmit={{onSubmit}}
-      @handleSaveAsTemplate={{handleSaveAsTemplate}}
-    />
+      @onCancel={{onCancel}} />
   `;
 
   const renderNewJob = async (component, job) => {
+    component.setProperties({ job, onSubmit: sinon.spy(), context: 'new' });
+    await component.render(commonTemplate);
+  };
+
+  const renderEditJob = async (component, job) => {
     component.setProperties({
       job,
       onSubmit: sinon.spy(),
-      handleSaveAsTemplate: sinon.spy(),
-      context: 'new',
+      onCancel: sinon.spy(),
+      context: 'edit',
     });
-    await component.render(commonTemplate);
+    await component.render(cancelableTemplate);
   };
 
   const planJob = async (spec) => {
@@ -111,7 +116,7 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-    assert.ok('[data-test-job-editor]', 'Editor is present');
+    assert.ok(Editor.editor.isPresent, 'Editor is present');
 
     await componentA11yAudit(this.element, assert);
   });
@@ -121,11 +126,8 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
-    const cm = getCodeMirrorInstance(['data-test-editor']);
-    cm.setValue(spec);
-    await Editor.plan();
-
+    await planJob(spec);
+    console.log('wait');
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.notOk(
       requests.includes('/v1/jobs/parse'),
@@ -142,7 +144,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.ok(
@@ -167,16 +168,13 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     assert.ok(Editor.planOutput, 'The plan is outputted');
     assert.notOk(
       Editor.editor.isPresent,
       'The editor is replaced with the plan output'
     );
-    assert
-      .dom('[data-test-plan-help-title]')
-      .exists('The plan explanation popup is shown');
+    assert.ok(Editor.planHelp.isPresent, 'The plan explanation popup is shown');
 
     await componentA11yAudit(this.element, assert);
   });
@@ -186,7 +184,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     await Editor.cancel();
     assert.ok(Editor.editor.isPresent, 'The editor is shown again');
@@ -207,14 +204,9 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server.pretender.post('/v1/jobs/parse', () => [400, {}, errorMessage]);
 
     await renderNewJob(this, job);
-
     await planJob(spec);
-    assert
-      .dom('[data-test-error="plan"]')
-      .doesNotExist('Plan error is not shown');
-    assert
-      .dom('[data-test-error="run"]')
-      .doesNotExist('Run error is not shown');
+    assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
+    assert.notOk(Editor.runError.isPresent, 'Run error is not shown');
 
     assert.ok(Editor.parseError.isPresent, 'Parse error is shown');
     assert.equal(
@@ -240,14 +232,9 @@ module('Integration | Component | job-editor', function (hooks) {
     ]);
 
     await renderNewJob(this, job);
-
     await planJob(spec);
-    assert
-      .dom('[data-test-error="parse"]')
-      .doesNotExist('Parse error is not shown');
-    assert
-      .dom('[data-test-error="run"]')
-      .doesNotExist('Run error is not shown');
+    assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
+    assert.notOk(Editor.runError.isPresent, 'Run error is not shown');
 
     assert.ok(Editor.planError.isPresent, 'Plan error is shown');
     assert.equal(
@@ -269,18 +256,12 @@ module('Integration | Component | job-editor', function (hooks) {
     this.server.pretender.post('/v1/jobs', () => [400, {}, errorMessage]);
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     await Editor.run();
+    assert.notOk(Editor.planError.isPresent, 'Plan error is not shown');
+    assert.notOk(Editor.parseError.isPresent, 'Parse error is not shown');
 
-    assert
-      .dom('[data-test-error="plan"]')
-      .doesNotExist('Plan error is not shown');
-    assert
-      .dom('[data-test-error="parse"]')
-      .doesNotExist('Parse error is not shown');
-
-    assert.dom('[data-test-error="run"]').exists('Run error is shown');
+    assert.ok(Editor.runError.isPresent, 'Run error is shown');
     assert.equal(
       Editor.runError.message,
       errorMessage,
@@ -297,7 +278,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     assert.ok(
       Editor.dryRunMessage.errored,
@@ -322,7 +302,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     assert.ok(
       Editor.dryRunMessage.succeeded,
@@ -340,24 +319,7 @@ module('Integration | Component | job-editor', function (hooks) {
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
-    this.set('job', job);
-
-    this.set('onToggleEdit', () => {});
-    this.set('onSubmit', () => {});
-    this.set('handleSaveAsTemplate', () => {});
-    this.set('onSelect', () => {});
-
-    await render(hbs`
-      <JobEditor
-        @context="edit"
-        @job={{this.job}}
-        @onToggleEdit={{this.onToggleEdit}}
-        @onSubmit={{this.onSubmit}}
-        @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
-        @onSelect={{this.onSelect}}
-      />
-    `);
-
+    await renderEditJob(this, job);
     await planJob(spec);
     await Editor.run();
     const requests = this.server.pretender.handledRequests
@@ -378,7 +340,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     await Editor.run();
     const requests = this.server.pretender.handledRequests
@@ -399,7 +360,6 @@ module('Integration | Component | job-editor', function (hooks) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
-
     await planJob(spec);
     await Editor.run();
     assert.ok(
@@ -420,78 +380,17 @@ module('Integration | Component | job-editor', function (hooks) {
 
     const job = await this.store.createRecord('job');
 
-    this.set('job', job);
-
-    this.set('onToggleEdit', () => {});
-    this.set('onSubmit', () => {});
-    this.set('handleSaveAsTemplate', () => {});
-    this.set('onSelect', () => {});
-
-    await render(hbs`
-      <JobEditor
-        @cancelable={{true}}
-        @context="new"
-        @job={{this.job}}
-        @onToggleEdit={{this.onToggleEdit}}
-        @onSubmit={{this.onSubmit}}
-        @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
-        @onSelect={{this.onSelect}}
-      />
-    `);
-
+    await renderEditJob(this, job);
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
 
     await componentA11yAudit(this.element, assert);
   });
 
-  test('constructor sets definition and variables correctly', async function (assert) {
-    // Arrange
-    const onSelect = () => {};
-    this.set('onSelect', onSelect);
-    this.set('definition', 'pablo');
-    this.set('variables', {
-      flags: { lastName: 'escobar' },
-      literal: 'isCriminal=true',
-    });
+  test('when the job-editor cancel button is clicked, the onCancel hook is called', async function (assert) {
+    const job = await this.store.createRecord('job');
 
-    // Prepare a job object with a set() method
-    const job = {
-      set(key, value) {
-        this[key] = value;
-      },
-    };
-    this.set('job', job);
-
-    // Act
-    await render(hbs`<JobEditor
-      @specification={{this.definition}}
-      @view="job-spec"
-      @variables={{this.variables}}
-      @job={{this.job}}
-      @onSelect={{this.onSelect}} />`);
-
-    // Check if the definition is set on the model
-    assert.equal(job._newDefinition, 'pablo', 'Definition is set on the model');
-
-    // Check if the newDefinitionVariables are set on the model
-    function jsonToHcl(obj) {
-      const hclLines = [];
-
-      for (const key in obj) {
-        const value = obj[key];
-        const hclValue = typeof value === 'string' ? `"${value}"` : value;
-        hclLines.push(`${key}=${hclValue}\n`);
-      }
-
-      return hclLines.join('\n');
-    }
-    const expectedVariables = jsonToHcl(this.variables.flags).concat(
-      this.variables.literal
-    );
-    assert.deepEqual(
-      job._newDefinitionVariables,
-      expectedVariables,
-      'Variables are set on the model'
-    );
+    await renderEditJob(this, job);
+    await Editor.cancelEditing();
+    assert.ok(this.onCancel.calledOnce, 'The onCancel hook was called');
   });
 });

@@ -1,3 +1,0 @@
-```release-note:improvement
-metrics: add "total_ticks_count" counter for allocs/host CPU usage
-```

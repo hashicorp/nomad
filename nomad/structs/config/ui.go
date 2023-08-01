@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package config
 
 // UIConfig contains the operator configuration of the web UI
@@ -16,9 +13,6 @@ type UIConfig struct {
 
 	// Vault configures deep links for Vault UI
 	Vault *VaultUIConfig `hcl:"vault"`
-
-	// Label configures UI label styles
-	Label *LabelUIConfig `hcl:"label"`
 }
 
 // ConsulUIConfig configures deep links to this cluster's Consul
@@ -36,13 +30,6 @@ type VaultUIConfig struct {
 	BaseUIURL string `hcl:"ui_url"`
 }
 
-// Label configures UI label styles
-type LabelUIConfig struct {
-	Text            string `hcl:"text"`
-	BackgroundColor string `hcl:"background_color"`
-	TextColor       string `hcl:"text_color"`
-}
-
 // DefaultUIConfig returns the canonical defaults for the Nomad
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
@@ -50,7 +37,6 @@ func DefaultUIConfig() *UIConfig {
 		Enabled: true,
 		Consul:  &ConsulUIConfig{},
 		Vault:   &VaultUIConfig{},
-		Label:   &LabelUIConfig{},
 	}
 }
 
@@ -83,7 +69,6 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Enabled = other.Enabled
 	result.Consul = result.Consul.Merge(other.Consul)
 	result.Vault = result.Vault.Merge(other.Vault)
-	result.Label = result.Label.Merge(other.Label)
 
 	return result
 }
@@ -140,40 +125,6 @@ func (old *VaultUIConfig) Merge(other *VaultUIConfig) *VaultUIConfig {
 
 	if other.BaseUIURL != "" {
 		result.BaseUIURL = other.BaseUIURL
-	}
-	return result
-}
-
-// Copy returns a copy of this Label UI config.
-func (old *LabelUIConfig) Copy() *LabelUIConfig {
-	if old == nil {
-		return nil
-	}
-
-	nc := new(LabelUIConfig)
-	*nc = *old
-	return nc
-}
-
-// Merge returns a new Label UI configuration by merging another Label UI
-// configuration into this one
-func (old *LabelUIConfig) Merge(other *LabelUIConfig) *LabelUIConfig {
-	result := old.Copy()
-	if result == nil {
-		result = &LabelUIConfig{}
-	}
-	if other == nil {
-		return result
-	}
-
-	if other.Text != "" {
-		result.Text = other.Text
-	}
-	if other.BackgroundColor != "" {
-		result.BackgroundColor = other.BackgroundColor
-	}
-	if other.TextColor != "" {
-		result.TextColor = other.TextColor
 	}
 	return result
 }

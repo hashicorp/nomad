@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package checks
 
 import (
@@ -18,7 +15,6 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"oss.indeed.com/go/libtime"
 )
@@ -174,18 +170,14 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 		qr.Status = structs.CheckFailure
 		return qr
 	}
-
 	for header, values := range q.Headers {
 		for _, value := range values {
 			request.Header.Add(header, value)
 		}
 	}
 
-	if len(request.Header.Get(useragent.Header)) == 0 {
-		request.Header.Set(useragent.Header, useragent.String())
-	}
-
 	request.Host = request.Header.Get("Host")
+
 	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
 

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // @ts-check
 
 import Component from '@glimmer/component';
@@ -25,14 +20,10 @@ const EMPTY_KV = {
   warnings: EmberObject.create(),
 };
 
-// Capture characters that are not _, letters, or numbers using Unicode.
-const invalidKeyCharactersRegex = new RegExp(/[^_\p{Letter}\p{Number}]/gu);
-
 export default class VariableFormComponent extends Component {
-  @service notifications;
+  @service flashMessages;
   @service router;
   @service store;
-  @service can;
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
@@ -73,21 +64,8 @@ export default class VariableFormComponent extends Component {
 
   get shouldDisableSave() {
     const disallowedPath =
-      this.path?.startsWith('nomad/') &&
-      !(
-        this.path?.startsWith('nomad/jobs') ||
-        (this.path?.startsWith('nomad/job-templates') &&
-          trimPath([this.path]) !== 'nomad/job-templates')
-      );
+      this.path?.startsWith('nomad/') && !this.path?.startsWith('nomad/jobs');
     return !!this.JSONError || !this.path || disallowedPath;
-  }
-
-  get isJobTemplateVariable() {
-    return this.path?.startsWith('nomad/job-templates/');
-  }
-
-  get jobTemplateName() {
-    return this.path.split('nomad/job-templates/').slice(-1);
   }
 
   /**
@@ -141,9 +119,7 @@ export default class VariableFormComponent extends Component {
     let existingVariable = existingVariables
       .without(this.args.model)
       .find(
-        (v) =>
-          v.path === pathValue &&
-          (v.namespace === this.variableNamespace || !this.variableNamespace)
+        (v) => v.path === pathValue && v.namespace === this.variableNamespace
       );
     if (existingVariable) {
       return {
@@ -157,16 +133,9 @@ export default class VariableFormComponent extends Component {
   @action
   validateKey(entry, e) {
     const value = e.target.value;
-    // Only letters, numbers, and _ are allowed in keys
-    const invalidChars = value.match(invalidKeyCharactersRegex);
-    if (invalidChars) {
-      const invalidCharsOuput = [...new Set(invalidChars)]
-        .sort()
-        .map((c) => `'${c}'`);
-      entry.warnings.set(
-        'dottedKeyError',
-        `${value} contains characters [${invalidCharsOuput}] that require the "index" function for direct access in templates.`
-      );
+    // No dots in key names
+    if (value.includes('.')) {
+      entry.warnings.set('dottedKeyError', 'Key should not contain a period.');
     } else {
       delete entry.warnings.dottedKeyError;
       entry.warnings.notifyPropertyChange('dottedKeyError');
@@ -183,10 +152,7 @@ export default class VariableFormComponent extends Component {
   }
 
   @action appendRow() {
-    // Clear our any entity errors
-    let newRow = copy(EMPTY_KV);
-    newRow.warnings = EmberObject.create();
-    this.keyValues.pushObject(newRow);
+    this.keyValues.pushObject(copy(EMPTY_KV));
   }
 
   @action deleteRow(row) {
@@ -208,14 +174,6 @@ export default class VariableFormComponent extends Component {
    */
   @action setModelPath(e) {
     set(this.args.model, 'path', e.target.value);
-  }
-
-  @action updateKeyValue(key, value) {
-    if (this.keyValues.find((kv) => kv.key === key)) {
-      this.keyValues.find((kv) => kv.key === key).value = value;
-    } else {
-      this.keyValues.pushObject({ key, value, warnings: EmberObject.create() });
-    }
   }
 
   @action
@@ -251,29 +209,23 @@ export default class VariableFormComponent extends Component {
       this.args.model.setAndTrimPath();
       await this.args.model.save({ adapterOptions: { overwrite } });
 
-      this.notifications.add({
+      this.flashMessages.add({
         title: 'Variable saved',
         message: `${this.path} successfully saved`,
-        color: 'success',
+        type: 'success',
+        destroyOnClick: false,
+        timeout: 5000,
       });
-
-      if (
-        this.can.can('read job', null, {
-          namespace: this.variableNamespace || 'default',
-        })
-      ) {
-        this.updateJobVariables(this.args.model.pathLinkedEntities.job);
-      }
-
       this.removeExitHandler();
       this.router.transitionTo('variables.variable', this.args.model.id);
     } catch (error) {
       notifyConflict(this)(error);
       if (!this.hasConflict) {
-        this.notifications.add({
+        this.flashMessages.add({
           title: `Error saving ${this.path}`,
           message: error,
-          color: 'critical',
+          type: 'error',
+          destroyOnClick: false,
           sticky: true,
         });
       } else {
@@ -285,34 +237,9 @@ export default class VariableFormComponent extends Component {
     }
   }
 
-  /**
-   * A job, its task groups, and tasks, all have a getter called pathLinkedVariable.
-   * These are dependent on a variables list that may already be established. If a variable
-   * is added or removed, this function will update job.variables[] list to reflect the change.
-   * and force an update to the job's pathLinkedVariable getter.
-   */
-  async updateJobVariables(jobName) {
-    if (!jobName) {
-      return;
-    }
-    const fullJobId = JSON.stringify([
-      jobName,
-      this.variableNamespace || 'default',
-    ]);
-    let job = await this.store.findRecord('job', fullJobId, { reload: true });
-    if (job) {
-      job.variables.pushObject(this.args.model);
-    }
-  }
-
   //#region JSON Editing
 
   view = this.args.view;
-
-  get isJSONView() {
-    return this.args.view === 'json';
-  }
-
   // Prevent duplicate onUpdate events when @view is set to its already-existing value,
   // which happens because parent's queryParams and toggle button both resolve independently.
   @action onViewChange([view]) {
@@ -407,8 +334,7 @@ export default class VariableFormComponent extends Component {
     return (
       this.args.model.pathLinkedEntities?.job ||
       this.args.model.pathLinkedEntities?.group ||
-      this.args.model.pathLinkedEntities?.task ||
-      trimPath([this.path]) === 'nomad/jobs'
+      this.args.model.pathLinkedEntities?.task
     );
   }
 

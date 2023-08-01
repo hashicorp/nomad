@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@ember/component';
 import { or } from '@ember/object/computed';
 import classic from 'ember-classic-decorator';

@@ -44,7 +44,7 @@ $ # Generate an HCL formatted job
 $ nomad init
 
 $ # Convert HCL to API JSON format
-$ nomad job run -output example.nomad.hcl > example.json
+$ nomad job run -output example.nomad > example.json
 
 $ # Submit with the -json flag
 $ nomad job run -json example.json

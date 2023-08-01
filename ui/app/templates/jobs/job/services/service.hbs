@@ -1,51 +1,43 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <section class="section service-list">
-  <h1 class="title">
-    <LinkTo class="back-link" @route="jobs.job.services">
-      <FlightIcon @name="chevron-left" @title="Back to services" @size="24" />
-    </LinkTo>
-    {{this.model.name}}
-  </h1>
+	<h1 class="title">
+		<LinkTo class="back-link" @route="jobs.job.services">
+			<FlightIcon
+				@name="chevron-left"
+				@title="Back to services"
+				@size="24"
+				/>
+		</LinkTo>
+		{{this.model.name}}
+	</h1>
 
-  <ListTable @source={{this.model.instances}} as |t|>
-    <t.head>
-      <th>Allocation</th>
+	<ListTable
+		@source={{this.model.instances}}
+		as |t|
+	>
+		<t.head>
+			<th>Allocation</th>
       <th>Client</th>
-      <th>IP Address &amp; Port</th>
-    </t.head>
-    <t.body as |row|>
-      <tr data-test-service-row>
-        {{#let (format-id row.model "allocation") as |allocation|}}
-          <td
-            {{keyboard-shortcut
-              enumerated=true
-              action=(action "gotoAllocation" row.model.allocation)
-            }}
-          >
-            <LinkTo
-              @route="allocations.allocation"
-              @model={{allocation.id}}
-            >{{allocation.shortId}}</LinkTo>
-          </td>
-        {{/let}}
-		{{#let (async-escape-hatch row.model "node") as |node|}}
-          <td>
-            <Tooltip @text={{node.name}}>
-              <LinkTo
-                @route="clients.client"
-                @model={{node.id}}
-              >{{node.shortId}}</LinkTo>
-            </Tooltip>
-          </td>
-        {{/let}}
+			<th>IP Address &amp; Port</th>
+		</t.head>
+		<t.body as |row|>
+			<tr data-test-service-row>
+				<td
+					{{keyboard-shortcut 
+						enumerated=true
+						action=(action "gotoAllocation" row.model.allocation)
+					}}
+				>
+					<LinkTo @route="allocations.allocation" @model={{row.model.allocation}}>{{row.model.allocation.shortId}}</LinkTo>
+				</td>
         <td>
-          {{row.model.address}}:{{row.model.port}}
+          <Tooltip @text={{row.model.node.name}}>
+            <LinkTo @route="clients.client" @model={{row.model.node.id}}>{{row.model.node.shortId}}</LinkTo>
+          </Tooltip>
         </td>
-      </tr>
-    </t.body>
-  </ListTable>
+				<td>
+					{{row.model.address}}:{{row.model.port}}
+				</td>
+			</tr>
+		</t.body>
+	</ListTable>
 </section>

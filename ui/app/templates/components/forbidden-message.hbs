@@ -1,44 +1,28 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <div data-test-error class="empty-message">
   <h3 data-test-error-title class="empty-message-headline">Not Authorized</h3>
   <p data-test-error-message class="empty-message-body">
     {{#if this.token.secret}}
-      You currently lack the
+      Your <LinkTo @route="settings.tokens">ACL token</LinkTo> does not provide the
       {{#if this.permission}}
         <code>{{this.permission}}</code>
       {{else}}
         required
       {{/if}}
-      <LinkTo @route="settings.tokens">permission</LinkTo> for this resource.<br /> Contact your administrator if this is an error.
+      permission. Contact your administrator if this is an error.
     {{else}}
-      {{#if this.authMethods}}
-        Sign in with
-        {{#each this.authMethods as |authMethod|}}
-          <LinkTo @route="settings.tokens">{{authMethod.name}}</LinkTo>, 
-        {{/each}}
-        or
-      {{/if}}
-
-      {{conditionally-capitalize "provide" (not this.authMethods.length)}} a <LinkTo @route="settings.tokens">token</LinkTo> with the
+      Provide an <LinkTo @route="settings.tokens">ACL token</LinkTo> with the
       {{#if this.permission}}
-        <code>{{this.permission}}</code>
+      <code>{{this.permission}}</code>
       {{else}}
         requisite
       {{/if}}
       permission to view this.
     {{/if}}
   </p>
-
-  {{#unless this.token.secret}}
-    <p class="empty-message-body">
-      If you have signed in via the Nomad CLI, authenticate with:
-      <div class='terminal-container'>
-        <pre class='terminal'><span class='prompt'>$</span> nomad ui -authenticate</pre>
-      </div>
-    </p>
-  {{/unless}}
+  <p class="empty-message-body">
+    If you have an ACL token configured for the CLI, authenticate with:
+    <div class='terminal-container'>
+      <pre class='terminal'><span class='prompt'>$</span> nomad ui -authenticate</pre>
+    </div>
+  </p>
 </div>

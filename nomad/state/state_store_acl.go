@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -142,7 +139,7 @@ func (s *StateStore) upsertACLRoleTxn(
 		// If the role already exists, check whether the update contains any
 		// difference. If it doesn't, we can avoid a state update as wel as
 		// updates to any blocking queries.
-		if existing.Equal(role) {
+		if existing.Equals(role) {
 			return false, nil
 		}
 

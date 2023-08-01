@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#let this.currentEvalDetail as |evaluation|}}
   {{#if this.isSideBarOpen}}
     {{keyboard-commands this.keyCommands}}
@@ -11,7 +6,7 @@
     <div
       data-test-eval-detail
       data-test-eval-detail-is-open={{this.isSideBarOpen}}
-      class="sidebar {{if this.isSideBarOpen "open"}} evaluations-sidebar"
+      class="sidebar {{if this.isSideBarOpen "open"}}"
       {{on-click-outside
         this.closeSidebar
         capture=true
@@ -162,7 +157,7 @@
           </div>
         {{/if}}
         {{! Evaluation JSON Response}}
-        <div class="boxed-section evaluation-response">
+        <div class="boxed-section">
           <div class="boxed-section-head">
             Evaluation Response
           </div>

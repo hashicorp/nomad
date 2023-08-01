@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -27,26 +24,13 @@ Usage: nomad namespace status [options] <namespace>
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
-
-Status Specific Options:
-
-  -json
-    Output the latest namespace status information in a JSON format.
-
-  -t
-    Format and display namespace status information using a Go template.
-`
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }
 
 func (c *NamespaceStatusCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
-		})
+	return c.Meta.AutocompleteFlags(FlagSetClient)
 }
 
 func (c *NamespaceStatusCommand) AutocompleteArgs() complete.Predictor {
@@ -60,12 +44,7 @@ func (c *NamespaceStatusCommand) Synopsis() string {
 func (c *NamespaceStatusCommand) Name() string { return "namespace status" }
 
 func (c *NamespaceStatusCommand) Run(args []string) int {
-	var json bool
-	var tmpl string
-
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -99,17 +78,6 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 	if len(possible) != 0 {
 		c.Ui.Error(fmt.Sprintf("Prefix matched multiple namespaces\n\n%s", formatNamespaces(possible)))
 		return 1
-	}
-
-	if json || len(tmpl) > 0 {
-		out, err := Format(json, tmpl, ns)
-		if err != nil {
-			c.Ui.Error(err.Error())
-			return 1
-		}
-
-		c.Ui.Output(out)
-		return 0
 	}
 
 	c.Ui.Output(formatNamespaceBasics(ns))
@@ -147,21 +115,6 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 				return 1
 			}
 		}
-	}
-
-	if ns.NodePoolConfiguration != nil {
-		c.Ui.Output(c.Colorize().Color("\n[bold]Node Pool Configuration[reset]"))
-		npConfig := ns.NodePoolConfiguration
-		npConfigOut := []string{
-			fmt.Sprintf("Default|%s", npConfig.Default),
-		}
-		if len(npConfig.Allowed) > 0 {
-			npConfigOut = append(npConfigOut, fmt.Sprintf("Allowed|%s", strings.Join(npConfig.Allowed, ", ")))
-		}
-		if len(npConfig.Denied) > 0 {
-			npConfigOut = append(npConfigOut, fmt.Sprintf("Denied|%s", strings.Join(npConfig.Denied, ", ")))
-		}
-		c.Ui.Output(formatKV(npConfigOut))
 	}
 
 	return 0

@@ -1,3 +1,0 @@
-```release-note:security
-variables: Fixed a bug where a workload identity without any workload-associated policies was treated as a management token [CVE-2023-1299](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-1299)
-```

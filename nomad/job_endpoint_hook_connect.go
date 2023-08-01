@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -11,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -37,10 +33,6 @@ func connectSidecarResources() *structs.Resources {
 
 // connectSidecarDriverConfig is the driver configuration used by the injected
 // connect proxy sidecar task.
-//
-// Note: must be compatible with both docker and podman. One could imagine passing
-// in the driver name in the future and switching on that if we need specific
-// configs.
 func connectSidecarDriverConfig() map[string]interface{} {
 	return map[string]interface{}{
 		"image": envoy.SidecarConfigVar,
@@ -235,23 +227,6 @@ func injectPort(group *structs.TaskGroup, label string) {
 	})
 }
 
-// groupConnectGuessTaskDriver will scan the tasks in g and try to decide which
-// task driver to use for the default sidecar proxy task definition.
-//
-// If there is at least one podman task and zero docker tasks, use podman.
-// Otherwise default to docker.
-//
-// If the sidecar_task block is set, that takes precedence and this does not apply.
-func groupConnectGuessTaskDriver(g *structs.TaskGroup) string {
-	drivers := set.FromFunc(g.Tasks, func(t *structs.Task) string {
-		return t.Driver
-	})
-	if drivers.Contains("podman") && !drivers.Contains("docker") {
-		return "podman"
-	}
-	return "docker"
-}
-
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	// Create an environment interpolator with what we have at submission time.
 	// This should only be used to interpolate connect service names which are
@@ -276,8 +251,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
-				driver := groupConnectGuessTaskDriver(g)
-				task = newConnectSidecarTask(service.Name, driver)
+				task = newConnectSidecarTask(service.Name)
 
 				// If there happens to be a task defined with the same name
 				// append an UUID fragment to the task name
@@ -500,12 +474,12 @@ func newConnectGatewayTask(prefix, service string, netHost, customizedTls bool) 
 	}
 }
 
-func newConnectSidecarTask(service, driver string) *structs.Task {
+func newConnectSidecarTask(service string) *structs.Task {
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
 		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service),
 		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, service),
-		Driver:        driver,
+		Driver:        "docker",
 		Config:        connectSidecarDriverConfig(),
 		ShutdownDelay: 5 * time.Second,
 		LogConfig: &structs.LogConfig{

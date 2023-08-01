@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { attribute, clickable, collection } from 'ember-cli-page-object';
 
 export default (scope) => ({

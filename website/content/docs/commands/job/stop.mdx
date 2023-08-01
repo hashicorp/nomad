@@ -15,22 +15,20 @@ to cancel all the running allocations.
 ## Usage
 
 ```plaintext
-nomad job stop [options] <job 1> <job 2> ... <job N>
+nomad job stop [options] <job>
 ```
 
-The `job stop` command requires at least one job ID or prefix to stop. If there
-is an exact match based on the provided job ID or prefix, then the job will be
-cancelled. Otherwise, a list of matching jobs and information will be
-displayed.
+The `job stop` command requires a single argument, specifying the job ID or
+prefix to cancel. If there is an exact match based on the provided job ID or
+prefix, then the job will be cancelled. Otherwise, a list of matching jobs and
+information will be displayed.
 
-Stop will issue a request to deregister the matched jobs and then invoke an
+Stop will issue a request to deregister the matched job and then invoke an
 interactive monitor that exits automatically once the scheduler has processed
-the requests. It is safe to exit the monitor early using ctrl+c.
+the request. It is safe to exit the monitor early using ctrl+c.
 
-When ACLs are enabled, this command requires a token with the `submit-job`
-and `read-job` capabilities for the job's namespace. The `list-jobs`
-capability is required to run the command with job prefixes instead of exact
-job IDs.
+When ACLs are enabled, this command requires a token with the `submit-job`,
+`read-job`, and `list-jobs` capabilities for the job's namespace.
 
 ## General Options
 
@@ -72,49 +70,6 @@ $ nomad job stop job1
 ==> Monitoring evaluation "43bfe672"
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "43bfe672" finished with status "complete"
-```
-
-Stop multiple jobs:
-
-```shell-session
-$ nomad job stop job1 job2
-==> 2022-12-16T15:19:28-08:00: Monitoring evaluation "166c39c5"
-==> 2022-12-16T15:19:28-08:00: Monitoring evaluation "049404c2"
-    2022-12-16T15:19:28-08:00: Evaluation triggered by job "job1"
-    2022-12-16T15:19:28-08:00: Evaluation triggered by job "job2"
-    2022-12-16T15:19:28-08:00: Evaluation within deployment: "90885ce7"
-    2022-12-16T15:19:28-08:00: Evaluation status changed: "pending" -> "complete"
-==> 2022-12-16T15:19:28-08:00: Evaluation "166c39c5" finished with status "complete"
-==> 2022-12-16T15:19:28-08:00: Monitoring deployment "90885ce7"
-  ✓ Deployment "90885ce7" successful
-
-    2022-12-16T15:19:28-08:00
-    ID          = 90885ce7
-    Job ID      = job1
-    Job Version = 0
-    Status      = successful
-    Description = Deployment completed successfully
-
-    Deployed
-    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
-    example     1        1       1        0          2022-12-16T15:29:03-08:00
-==> 2022-12-16T15:19:29-08:00: Monitoring evaluation "049404c2"
-    2022-12-16T15:19:29-08:00: Evaluation within deployment: "a13df8f8"
-    2022-12-16T15:19:29-08:00: Evaluation status changed: "pending" -> "complete"
-==> 2022-12-16T15:19:29-08:00: Evaluation "049404c2" finished with status "complete"
-==> 2022-12-16T15:19:29-08:00: Monitoring deployment "a13df8f8"
-  ✓ Deployment "a13df8f8" successful
-
-    2022-12-16T15:19:29-08:00
-    ID          = a13df8f8
-    Job ID      = job2
-    Job Version = 0
-    Status      = successful
-    Description = Deployment completed successfully
-
-    Deployed
-    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
-    example2    1        1       1        0          2022-12-16T15:29:16-08:00
 ```
 
 Stop the job with ID "job1" and return immediately:

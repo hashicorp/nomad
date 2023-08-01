@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Watchable from './watchable';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import classic from 'ember-classic-decorator';
@@ -64,13 +59,6 @@ export default class NodeAdapter extends Watchable {
         NodeID: node.id,
         DrainSpec: null,
       },
-    });
-  }
-
-  addMeta(node, newMeta) {
-    const url = `/v1/client/metadata?node_id=${node.id}`;
-    return this.ajax(url, 'POST', {
-      data: { Meta: newMeta },
     });
   }
 }

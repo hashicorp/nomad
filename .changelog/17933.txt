@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: indicate that nomad/jobs as a variable path is auto-accessible by all nomad jobs
-```

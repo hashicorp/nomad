@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # Vault cluster admin tokens expire after 6 hours, so we need to
 # generate them fresh for test runs. But we can't generate the token
 # and then use that token with the vault provider in the same

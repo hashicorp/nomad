@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
@@ -22,7 +17,7 @@ module('Integration | Component | copy-button', function (hooks) {
   test('it shows the copy icon by default', async function (assert) {
     assert.expect(2);
 
-    await render(hbs`<CopyButton />`);
+    await render(hbs`<CopyButton @class="copy-button" />`);
 
     assert.dom('.copy-button .icon-is-copy-action').exists();
     await componentA11yAudit(this.element, assert);
@@ -33,17 +28,17 @@ module('Integration | Component | copy-button', function (hooks) {
 
     const clock = sinon.useFakeTimers({ shouldAdvanceTime: true });
 
-    await render(hbs`<CopyButton @clipboardText="tomster" />`);
+    await render(hbs`<CopyButton @class="copy-button" />`);
 
     await click('.copy-button button');
     await triggerCopySuccess('.copy-button button');
 
-    assert.dom('[data-test-copy-success]').exists();
+    assert.dom('.copy-button .icon-is-copy-success').exists();
     await componentA11yAudit(this.element, assert);
 
     clock.runAll();
 
-    assert.dom('[data-test-copy-success]').doesNotExist();
+    assert.dom('.copy-button .icon-is-copy-success').doesNotExist();
     assert.dom('.copy-button .icon-is-copy-action').exists();
 
     clock.restore();
@@ -52,7 +47,7 @@ module('Integration | Component | copy-button', function (hooks) {
   test('it shows the error icon on error', async function (assert) {
     assert.expect(2);
 
-    await render(hbs`<CopyButton @clipboardText="tomster" />`);
+    await render(hbs`<CopyButton @class="copy-button" />`);
 
     await click('.copy-button button');
     await triggerCopyError('.copy-button button');

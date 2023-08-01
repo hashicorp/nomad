@@ -1,11 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -15,7 +11,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
@@ -60,10 +55,9 @@ func init() {
 // NewTestWorker returns the worker without calling it's run method.
 func NewTestWorker(shutdownCtx context.Context, srv *Server) *Worker {
 	w := &Worker{
-		srv:               srv,
-		start:             time.Now(),
-		id:                uuid.Generate(),
-		enabledSchedulers: srv.config.EnabledSchedulers,
+		srv:   srv,
+		start: time.Now(),
+		id:    uuid.Generate(),
 	}
 	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
@@ -344,54 +338,6 @@ func TestWorker_sendAck(t *testing.T) {
 	}
 }
 
-func TestWorker_runBackoff(t *testing.T) {
-	ci.Parallel(t)
-
-	srv, cleanupSrv := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-		c.EnabledSchedulers = []string{structs.JobTypeService}
-	})
-	defer cleanupSrv()
-	testutil.WaitForLeader(t, srv.RPC)
-
-	eval1 := mock.Eval()
-	eval1.ModifyIndex = 1000
-	srv.evalBroker.Enqueue(eval1)
-	must.Eq(t, 1, srv.evalBroker.Stats().TotalReady)
-
-	// make a new context here so we can still check the broker's state after
-	// we've shut down the worker
-	workerCtx, workerCancel := context.WithCancel(srv.shutdownCtx)
-	defer workerCancel()
-
-	w := NewTestWorker(workerCtx, srv)
-	doneCh := make(chan struct{})
-
-	go func() {
-		w.run(time.Millisecond)
-		doneCh <- struct{}{}
-	}()
-
-	// We expect to be paused for 10ms + 1ms but otherwise can't be all that
-	// precise here because of concurrency. But checking coverage for this test
-	// shows we've covered the logic
-	t1, cancelT1 := helper.NewSafeTimer(100 * time.Millisecond)
-	defer cancelT1()
-	select {
-	case <-doneCh:
-		t.Fatal("returned early")
-	case <-t1.C:
-	}
-
-	workerCancel()
-	<-doneCh
-
-	must.Eq(t, 1, srv.evalBroker.Stats().TotalWaiting)
-	must.Eq(t, 0, srv.evalBroker.Stats().TotalReady)
-	must.Eq(t, 0, srv.evalBroker.Stats().TotalPending)
-	must.Eq(t, 0, srv.evalBroker.Stats().TotalUnacked)
-}
-
 func TestWorker_waitForIndex(t *testing.T) {
 	ci.Parallel(t)
 
@@ -430,7 +376,6 @@ func TestWorker_waitForIndex(t *testing.T) {
 	require.Nil(t, snap)
 	require.EqualError(t, err,
 		fmt.Sprintf("timed out after %s waiting for index=%d", timeout, waitIndex))
-	require.True(t, errors.Is(err, context.DeadlineExceeded), "expect error to wrap DeadlineExceeded")
 }
 
 func TestWorker_invokeScheduler(t *testing.T) {
@@ -471,7 +416,7 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	job := mock.Job()
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1})
 
 	// Create the register request
@@ -541,7 +486,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	job := mock.Job()
 	eval1 := mock.Eval()
 	eval1.JobID = job.ID
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 0, job)
 	s1.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{eval1})
 
 	stoppedAlloc := mock.Alloc()
@@ -592,7 +537,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 
 	// Create the job
 	job := mock.Job()
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 
 	// Create the register request
 	eval1 := mock.Eval()

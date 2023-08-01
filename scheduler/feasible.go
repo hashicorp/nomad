@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -152,7 +149,7 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
+func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
 	lookupMap := make(map[string][]*structs.VolumeRequest)
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
@@ -161,14 +158,7 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*str
 			continue
 		}
 
-		if req.PerAlloc {
-			// provide a unique volume source per allocation
-			copied := req.Copy()
-			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			lookupMap[copied.Source] = append(lookupMap[copied.Source], copied)
-		} else {
-			lookupMap[req.Source] = append(lookupMap[req.Source], req)
-		}
+		lookupMap[req.Source] = append(lookupMap[req.Source], req)
 	}
 	h.volumes = lookupMap
 }
@@ -808,9 +798,6 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 
 	case "${node.class}" == target:
 		return node.NodeClass, true
-
-	case "${node.pool}" == target:
-		return node.NodePool, true
 
 	case strings.HasPrefix(target, "${attr."):
 		attr := strings.TrimSuffix(strings.TrimPrefix(target, "${attr."), "}")

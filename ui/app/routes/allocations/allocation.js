@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Route from '@ember/routing/route';
 import { inject as service } from '@ember/service';
 import { collect } from '@ember/object/computed';
@@ -13,8 +8,6 @@ import {
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyError from 'nomad-ui/utils/notify-error';
 export default class AllocationRoute extends Route.extend(WithWatchers) {
-  @service notifications;
-  @service router;
   @service store;
 
   startWatchers(controller, model) {
@@ -43,37 +36,18 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
     }
   }
 
-  async model() {
+  model() {
     // Preload the job for the allocation since it's required for the breadcrumb trail
-    try {
-      const [allocation] = await Promise.all([
-        super.model(...arguments),
-        this.store.findAll('namespace'),
-      ]);
-      if (allocation.isPartial) {
-        await allocation.reload();
-      }
-      const jobId = allocation.belongsTo('job').id();
-      await this.store.findRecord('job', jobId);
-      return allocation;
-    } catch (e) {
-      const [allocId, transition] = arguments;
-      if (e?.errors[0]?.detail === 'alloc not found' && !!transition.from) {
-        this.notifications.add({
-          title: `Error:  Not Found`,
-          message: `Allocation of id:  ${allocId} was not found.`,
-          color: 'critical',
-          sticky: true,
-        });
-        this.goBackToReferrer(transition.from.name);
-      } else {
-        notifyError(this)(e);
-      }
-    }
-  }
-
-  goBackToReferrer(referringRoute) {
-    this.router.transitionTo(referringRoute);
+    return super
+      .model(...arguments)
+      .then((allocation) => {
+        const jobId = allocation.belongsTo('job').id();
+        return this.store
+          .findRecord('job', jobId)
+          .then(() => this.store.findAll('namespace')) // namespaces belong to a job and are an asynchronous relationship so we can peak them later on
+          .then(() => allocation);
+      })
+      .catch(notifyError(this));
   }
 
   @watchRecord('allocation') watch;

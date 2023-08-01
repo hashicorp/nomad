@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -10,7 +7,7 @@ import (
 	"testing"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -23,8 +20,8 @@ func TestStateStore_GetVariable(t *testing.T) {
 	testState := testStateStore(t)
 	ws := memdb.NewWatchSet()
 	sve, err := testState.GetVariable(ws, "default", "not/a/path")
-	must.NoError(t, err)
-	must.Nil(t, sve)
+	require.NoError(t, err)
+	require.Nil(t, sve)
 }
 
 func TestStateStore_UpsertVariables(t *testing.T) {
@@ -41,9 +38,9 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 
 	insertIndex := uint64(20)
 
-	var expectedQuotaSize int64
+	var expectedQuotaSize int
 	for _, v := range svs {
-		expectedQuotaSize += int64(len(v.Data))
+		expectedQuotaSize += len(v.Data)
 	}
 
 	// Ensure new variables are inserted as expected with their
@@ -56,17 +53,17 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 				Op:  structs.VarOpSet,
 				Var: sv,
 			})
-			must.NoError(t, resp.Error)
+			require.NoError(t, resp.Error)
 		}
 
 		// Check that the index for the table was modified as expected.
 		initialIndex, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, insertIndex, initialIndex)
+		require.NoError(t, err)
+		require.Equal(t, insertIndex, initialIndex)
 
 		// List all the variables in the table
 		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		got := []*structs.VariableEncrypted{}
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
@@ -75,17 +72,17 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			svCopy = sv.Copy()
 			got = append(got, &svCopy)
 		}
-		must.Len(t, 2, got, must.Sprintf("incorrect number of variables found"))
+		require.Len(t, got, 2, "incorrect number of variables found")
 
 		// Ensure the create and modify indexes are populated correctly.
-		must.Eq(t, 21, got[0].CreateIndex, must.Sprintf("%s: incorrect create index", got[0].Path))
-		must.Eq(t, 21, got[0].ModifyIndex, must.Sprintf("%s: incorrect modify index", got[0].Path))
-		must.Eq(t, 22, got[1].CreateIndex, must.Sprintf("%s: incorrect create index", got[1].Path))
-		must.Eq(t, 22, got[1].ModifyIndex, must.Sprintf("%s: incorrect modify index", got[1].Path))
+		require.Equal(t, uint64(21), got[0].CreateIndex, "%s: incorrect create index", got[0].Path)
+		require.Equal(t, uint64(21), got[0].ModifyIndex, "%s: incorrect modify index", got[0].Path)
+		require.Equal(t, uint64(22), got[1].CreateIndex, "%s: incorrect create index", got[1].Path)
+		require.Equal(t, uint64(22), got[1].ModifyIndex, "%s: incorrect modify index", got[1].Path)
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Eq(t, expectedQuotaSize, quotaUsed.Size)
+		require.NoError(t, err)
+		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 
 		// update the mocks so the test element has the correct create/modify
 		// indexes and times now that we have validated them
@@ -94,8 +91,8 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 
 	t.Run("1a fetch variable", func(t *testing.T) {
 		sve, err := testState.GetVariable(ws, svs[0].Namespace, svs[0].Path)
-		must.NoError(t, err)
-		must.NotNil(t, sve)
+		require.NoError(t, err)
+		require.NotNil(t, sve)
 	})
 
 	// Upsert the exact same variables without any modification. In this
@@ -111,16 +108,16 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			}
 			reInsertIndex++
 			resp := testState.VarSet(reInsertIndex, svReq)
-			must.NoError(t, resp.Error)
+			require.NoError(t, resp.Error)
 		}
 
 		reInsertActualIndex, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, insertIndex, reInsertActualIndex, must.Sprintf("index should not have changed"))
+		require.NoError(t, err)
+		require.Equal(t, insertIndex, reInsertActualIndex, "index should not have changed")
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Eq(t, expectedQuotaSize, quotaUsed.Size)
+		require.NoError(t, err)
+		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
 
 	// Modify a single one of the previously inserted variables and
@@ -141,16 +138,16 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			Op:  structs.VarOpSet,
 			Var: &sv1Update,
 		})
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
 		updateActualIndex, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, update1Index, updateActualIndex, must.Sprintf("index should have changed"))
+		require.NoError(t, err)
+		require.Equal(t, update1Index, updateActualIndex, "index should have changed")
 
 		// Get the variables from the table.
 		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		got := []*structs.VariableEncrypted{}
 
@@ -161,17 +158,17 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			svCopy = sv.Copy()
 			got = append(got, &svCopy)
 		}
-		must.Len(t, 2, got)
-		must.Eq(t, update1Index, got[0].ModifyIndex)
-		must.Eq(t, insertIndex, got[1].ModifyIndex)
+		require.Len(t, got, 2)
+		require.Equal(t, update1Index, got[0].ModifyIndex)
+		require.Equal(t, insertIndex, got[1].ModifyIndex)
 
 		// update the mocks so the test element has the correct create/modify
 		// indexes and times now that we have validated them
 		svs = got
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Eq(t, expectedQuotaSize+1, quotaUsed.Size)
+		require.NoError(t, err)
+		require.Equal(t, int64(expectedQuotaSize+1), quotaUsed.Size)
 	})
 
 	// Modify the second variable but send an upsert request that
@@ -186,16 +183,16 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
 		update2ActualIndex, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, update2Index, update2ActualIndex, must.Sprintf("index should have changed"))
+		require.NoError(t, err)
+		require.Equal(t, update2Index, update2ActualIndex, "index should have changed")
 
 		// Get the variables from the table.
 		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		got := []structs.VariableEncrypted{}
 
@@ -204,16 +201,16 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 			sv := raw.(*structs.VariableEncrypted)
 			got = append(got, sv.Copy())
 		}
-		must.Len(t, 2, got)
-		must.Eq(t, svs[0].ModifyIndex, got[0].ModifyIndex)
-		must.Eq(t, update2Index, got[1].ModifyIndex)
+		require.Len(t, got, 2)
+		require.Equal(t, svs[0].ModifyIndex, got[0].ModifyIndex)
+		require.Equal(t, update2Index, got[1].ModifyIndex)
 
-		must.True(t, svs[0].Equal(got[0]))
-		must.True(t, sv2.Equal(got[1]))
+		require.True(t, svs[0].Equals(got[0]))
+		require.True(t, sv2.Equals(got[1]))
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Eq(t, expectedQuotaSize+1, quotaUsed.Size)
+		require.NoError(t, err)
+		require.Equal(t, int64(expectedQuotaSize+1), quotaUsed.Size)
 
 	})
 }
@@ -238,15 +235,15 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: svs[0],
 		})
-		must.NoError(t, resp.Error, must.Sprintf("deleting non-existing var is not an error"))
+		require.NoError(t, resp.Error, "deleting non-existing var is not an error")
 
 		actualInitialIndex, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, 0, actualInitialIndex, must.Sprintf("index should not have changed"))
+		require.NoError(t, err)
+		require.Equal(t, uint64(0), actualInitialIndex, "index should not have changed")
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(nil, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Nil(t, quotaUsed)
+		require.NoError(t, err)
+		require.Nil(t, quotaUsed)
 	})
 
 	// Upsert two variables, deletes one, then ensure the
@@ -255,7 +252,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 
 		ns := mock.Namespace()
 		ns.Name = svs[0].Namespace
-		must.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
+		require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
 
 		for _, sv := range svs {
 			svReq := &structs.VarApplyStateRequest{
@@ -264,7 +261,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 			}
 			initialIndex++
 			resp := testState.VarSet(initialIndex, svReq)
-			must.NoError(t, resp.Error)
+			require.NoError(t, resp.Error)
 		}
 
 		// Perform the delete.
@@ -274,33 +271,33 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: svs[0],
 		})
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
 		actualDelete1Index, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, delete1Index, actualDelete1Index, must.Sprintf("index should have changed"))
+		require.NoError(t, err)
+		require.Equal(t, delete1Index, actualDelete1Index, "index should have changed")
 
 		ws := memdb.NewWatchSet()
 
 		// Get the variables from the table.
 		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		var delete1Count int
-		var expectedQuotaSize int64
+		var expectedQuotaSize int
 
 		// Iterate all the stored variables and assert we have the expected
 		// number.
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
 			delete1Count++
 			v := raw.(*structs.VariableEncrypted)
-			expectedQuotaSize += int64(len(v.Data))
+			expectedQuotaSize += len(v.Data)
 		}
-		must.Eq(t, 1, delete1Count, must.Sprintf("unexpected number of variables in table"))
+		require.Equal(t, 1, delete1Count, "unexpected number of variables in table")
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Eq(t, expectedQuotaSize, quotaUsed.Size)
+		require.NoError(t, err)
+		require.Equal(t, int64(expectedQuotaSize), quotaUsed.Size)
 	})
 
 	t.Run("3 delete remaining variable", func(t *testing.T) {
@@ -310,17 +307,17 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: svs[1],
 		})
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 
 		// Check that the index for the table was modified as expected.
 		actualDelete2Index, err := testState.Index(TableVariables)
-		must.NoError(t, err)
-		must.Eq(t, delete2Index, actualDelete2Index, must.Sprintf("index should have changed"))
+		require.NoError(t, err)
+		require.Equal(t, delete2Index, actualDelete2Index, "index should have changed")
 
 		// Get the variables from the table.
 		ws := memdb.NewWatchSet()
 		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		require.NoError(t, err)
 
 		var delete2Count int
 
@@ -328,11 +325,11 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 		for raw := iter.Next(); raw != nil; raw = iter.Next() {
 			delete2Count++
 		}
-		must.Eq(t, 0, delete2Count, must.Sprintf("unexpected number of variables in table"))
+		require.Equal(t, 0, delete2Count, "unexpected number of variables in table")
 
 		quotaUsed, err := testState.VariablesQuotaByNamespace(ws, structs.DefaultNamespace)
-		must.NoError(t, err)
-		must.Eq(t, 0, quotaUsed.Size)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), quotaUsed.Size)
 	})
 }
 
@@ -343,7 +340,7 @@ func TestStateStore_GetVariables(t *testing.T) {
 	ns := mock.Namespace()
 	ns.Name = "~*magical*~"
 	initialIndex := uint64(10)
-	must.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
+	require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
 
 	// Generate some test variables in different namespaces and upsert them.
 	svs := []*structs.VariableEncrypted{
@@ -361,52 +358,52 @@ func TestStateStore_GetVariables(t *testing.T) {
 		}
 		initialIndex++
 		resp := testState.VarSet(initialIndex, svReq)
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 	}
 
 	// Look up variables using the namespace of the first mock variable.
 	ws := memdb.NewWatchSet()
 	iter, err := testState.GetVariablesByNamespace(ws, svs[0].Namespace)
-	must.NoError(t, err)
+	require.NoError(t, err)
 
 	var count1 int
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		sv := raw.(*structs.VariableEncrypted)
-		must.Eq(t, svs[0].Namespace, sv.Namespace)
-		must.Eq(t, 11, sv.CreateIndex, must.Sprintf("%s incorrect create index", sv.Path))
-		must.Eq(t, 11, sv.ModifyIndex, must.Sprintf("%s incorrect modify index", sv.Path))
+		require.Equal(t, svs[0].Namespace, sv.Namespace)
+		require.Equal(t, uint64(11), sv.CreateIndex, "%s incorrect create index", sv.Path)
+		require.Equal(t, uint64(11), sv.ModifyIndex, "%s incorrect modify index", sv.Path)
 		count1++
 	}
 
-	must.Eq(t, 1, count1)
+	require.Equal(t, 1, count1)
 
 	// Look up variables using the namespace of the second mock variable.
 	iter, err = testState.GetVariablesByNamespace(ws, svs[1].Namespace)
-	must.NoError(t, err)
+	require.NoError(t, err)
 
 	var count2 int
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count2++
 		sv := raw.(*structs.VariableEncrypted)
-		must.Eq(t, initialIndex, sv.CreateIndex, must.Sprintf("%s incorrect create index", sv.Path))
-		must.Eq(t, initialIndex, sv.ModifyIndex, must.Sprintf("%s incorrect modify index", sv.Path))
-		must.Eq(t, svs[1].Namespace, sv.Namespace)
+		require.Equal(t, initialIndex, sv.CreateIndex, "%s incorrect create index", sv.Path)
+		require.Equal(t, initialIndex, sv.ModifyIndex, "%s incorrect modify index", sv.Path)
+		require.Equal(t, svs[1].Namespace, sv.Namespace)
 	}
-	must.Eq(t, 1, count2)
+	require.Equal(t, 1, count2)
 
 	// Look up variables using a namespace that shouldn't contain any
 	// variables.
 	iter, err = testState.GetVariablesByNamespace(ws, "pony-club")
-	must.NoError(t, err)
+	require.NoError(t, err)
 
 	var count3 int
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		count3++
 	}
-	must.Eq(t, 0, count3)
+	require.Equal(t, 0, count3)
 }
 
 func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
@@ -433,7 +430,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 	ns := mock.Namespace()
 	ns.Name = "other"
 	initialIndex := uint64(10)
-	must.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
+	require.NoError(t, testState.UpsertNamespaces(initialIndex, []*structs.Namespace{ns}))
 
 	for _, sv := range svs {
 		svReq := &structs.VarApplyStateRequest{
@@ -442,7 +439,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 		}
 		initialIndex++
 		resp := testState.VarSet(initialIndex, svReq)
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 	}
 
 	t.Run("ByNamespace", func(t *testing.T) {
@@ -472,13 +469,13 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 		for _, tC := range testCases {
 			t.Run(tC.desc, func(t *testing.T) {
 				iter, err := testState.GetVariablesByNamespace(ws, tC.namespace)
-				must.NoError(t, err)
+				require.NoError(t, err)
 
 				var count int = 0
 				for raw := iter.Next(); raw != nil; raw = iter.Next() {
 					count++
 					sv := raw.(*structs.VariableEncrypted)
-					must.Eq(t, tC.namespace, sv.Namespace)
+					require.Equal(t, tC.namespace, sv.Namespace)
 				}
 			})
 		}
@@ -527,16 +524,16 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 		for _, tC := range testCases {
 			t.Run(tC.desc, func(t *testing.T) {
 				iter, err := testState.GetVariablesByNamespaceAndPrefix(ws, tC.namespace, tC.prefix)
-				must.NoError(t, err)
+				require.NoError(t, err)
 
 				var count int = 0
 				for raw := iter.Next(); raw != nil; raw = iter.Next() {
 					count++
 					sv := raw.(*structs.VariableEncrypted)
-					must.Eq(t, tC.namespace, sv.Namespace)
-					must.True(t, strings.HasPrefix(sv.Path, tC.prefix))
+					require.Equal(t, tC.namespace, sv.Namespace)
+					require.True(t, strings.HasPrefix(sv.Path, tC.prefix))
 				}
-				must.Eq(t, tC.expectedCount, count)
+				require.Equal(t, tC.expectedCount, count)
 			})
 		}
 	})
@@ -568,15 +565,15 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 		for _, tC := range testCases {
 			t.Run(tC.desc, func(t *testing.T) {
 				iter, err := testState.GetVariablesByPrefix(ws, tC.prefix)
-				must.NoError(t, err)
+				require.NoError(t, err)
 
 				var count int = 0
 				for raw := iter.Next(); raw != nil; raw = iter.Next() {
 					count++
 					sv := raw.(*structs.VariableEncrypted)
-					must.True(t, strings.HasPrefix(sv.Path, tC.prefix))
+					require.True(t, strings.HasPrefix(sv.Path, tC.prefix))
 				}
-				must.Eq(t, tC.expectedCount, count)
+				require.Equal(t, tC.expectedCount, count)
 			})
 		}
 	})
@@ -613,22 +610,22 @@ func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 		}
 		initialIndex++
 		resp := testState.VarSet(initialIndex, svReq)
-		must.NoError(t, resp.Error)
+		require.NoError(t, resp.Error)
 	}
 
 	ws := memdb.NewWatchSet()
 	iter, err := testState.GetVariablesByKeyID(ws, keyID)
-	must.NoError(t, err)
+	require.NoError(t, err)
 
 	var count int
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		sv := raw.(*structs.VariableEncrypted)
-		must.Eq(t, keyID, sv.KeyID)
-		must.Eq(t, expectedForKey[count], sv.Path)
-		must.SliceNotContains(t, expectedOrphaned, sv.Path)
+		require.Equal(t, keyID, sv.KeyID)
+		require.Equal(t, expectedForKey[count], sv.Path)
+		require.NotContains(t, expectedOrphaned, sv.Path)
 		count++
 	}
-	must.Eq(t, 5, count)
+	require.Equal(t, 5, count)
 }
 
 func printVariable(tsv *structs.VariableEncrypted) string {
@@ -669,7 +666,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpDelete,
 			Var: &varNotExist,
 		})
-		must.True(t, resp.IsOk())
+		require.True(t, resp.IsOk())
 	})
 	t.Run("missing_var-cas_1", func(t *testing.T) {
 		ci.Parallel(t)
@@ -684,9 +681,9 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Var: &varNotExist,
 		}
 		resp := ts.VarDeleteCAS(10, req)
-		must.True(t, resp.IsConflict())
-		must.NotNil(t, resp.Conflict)
-		must.Eq(t, varZero.VariableMetadata, resp.Conflict.VariableMetadata)
+		require.True(t, resp.IsConflict())
+		require.NotNil(t, resp.Conflict)
+		require.Equal(t, varZero.VariableMetadata, resp.Conflict.VariableMetadata)
 	})
 	t.Run("real_var-cas_0", func(t *testing.T) {
 		ci.Parallel(t)
@@ -700,7 +697,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
-		must.True(t, resp.IsOk(), must.Sprintf("resp: %+v", resp))
+		require.True(t, resp.IsOk(), "resp: %+v", resp)
 
 		// A CAS delete with a zero index should return a conflict when the
 		// variable exists in the state store. The conflict value should
@@ -710,9 +707,9 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Var: &svZero,
 		}
 		resp = ts.VarDeleteCAS(0, req)
-		must.True(t, resp.IsConflict(), must.Sprintf("resp: %+v", resp))
-		must.NotNil(t, resp.Conflict)
-		must.Eq(t, sv.VariableMetadata, resp.Conflict.VariableMetadata)
+		require.True(t, resp.IsConflict(), "resp: %+v", resp)
+		require.NotNil(t, resp.Conflict)
+		require.Equal(t, sv.VariableMetadata, resp.Conflict.VariableMetadata)
 	})
 	t.Run("real_var-cas_ok", func(t *testing.T) {
 		ci.Parallel(t)
@@ -722,7 +719,7 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
-		must.True(t, resp.IsOk())
+		require.True(t, resp.IsOk())
 
 		// A CAS delete with a correct index should succeed.
 		req := &structs.VarApplyStateRequest{
@@ -730,6 +727,6 @@ func TestStateStore_Variables_DeleteCAS(t *testing.T) {
 			Var: sv,
 		}
 		resp = ts.VarDeleteCAS(0, req)
-		must.True(t, resp.IsOk())
+		require.True(t, resp.IsOk())
 	})
 }

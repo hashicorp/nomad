@@ -1,51 +1,29 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <div data-test-deployment-allocations class="boxed-section">
   <div class="boxed-section-head">
     Allocations
   </div>
-  <div class="boxed-section-body {{if this.job.allocations.length "is-full-bleed"}}">
-    {{#if @deployment.allocations.length}}
-      <ListTable @source={{@deployment.allocations}} @class="allocations" as |t|>
-        <t.head>
-          <th class="is-narrow"></th>
-          <th>ID</th>
-          <th>Task Group</th>
-          <th>Created</th>
-          <th>Modified</th>
-          <th>Status</th>
-          <th>Version</th>
-          <th>Node</th>
-          <th>Volume</th>
-          <th>CPU</th>
-          <th>Memory</th>
-        </t.head>
-        <t.body as |row|>
-          <AllocationRow
-            data-test-deployment-allocation
-            @allocation={{row.model}}
-            @context="job"
-          />
-        </t.body>
-      </ListTable>
-      {{else}}
-        <div class="empty-message" data-test-empty-recent-allocations>
-          <h3
-            class="empty-message-headline"
-            data-test-empty-recent-allocations-headline
-          >
-            No Allocations
-          </h3>
-          <p
-            class="empty-message-body"
-            data-test-empty-recent-allocations-message
-          >
-            No allocations have been placed.
-          </p>
-        </div>
-    {{/if}}
+  <div class="boxed-section-body is-full-bleed">
+    <ListTable @source={{@deployment.allocations}} @class="allocations" as |t|>
+      <t.head>
+        <th class="is-narrow"></th>
+        <th>ID</th>
+        <th>Task Group</th>
+        <th>Created</th>
+        <th>Modified</th>
+        <th>Status</th>
+        <th>Version</th>
+        <th>Node</th>
+        <th>Volume</th>
+        <th>CPU</th>
+        <th>Memory</th>
+      </t.head>
+      <t.body as |row|>
+        <AllocationRow
+          data-test-deployment-allocation
+          @allocation={{row.model}}
+          @context="job"
+        />
+      </t.body>
+    </ListTable>
   </div>
 </div>

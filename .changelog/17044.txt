@@ -1,3 +1,0 @@
-```release-note:deprecation
-envoy: remove support for envoy fallback image
-```

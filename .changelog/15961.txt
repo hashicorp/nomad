@@ -1,3 +1,0 @@
-```release-note:improvement
-client: Add option to enable hairpinMode on Nomad bridge
-```

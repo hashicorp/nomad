@@ -19,8 +19,8 @@ its features in detail.
 
 ~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
 source version of Nomad. Servers running the open source version of Nomad will
-panic if they are joined to a Nomad Enterprise cluster, due to raft entries
-relating to Enterprise features not being parseable by open source Nomad.
+panic if they are joined to a Nomad Enterprise cluster. See issue [gh-9958]
+for more details.
 
 ## Nomad Enterprise Platform
 
@@ -175,3 +175,4 @@ request a trial of Nomad Enterprise.
 [multiregion deployments]: /nomad/docs/job-specification/multiregion
 [autoscaling capabilities]: /nomad/tools/autoscaling
 [scaling policies]: /nomad/tools/autoscaling/policy
+[gh-9958]: https://github.com/hashicorp/nomad/issues/9958

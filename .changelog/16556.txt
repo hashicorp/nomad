@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: stream both stdout and stderr logs by default when following an allocation
-```

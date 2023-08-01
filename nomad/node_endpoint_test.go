@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -8,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/rpc"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,7 +25,6 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -215,290 +210,6 @@ func TestClientEndpoint_Register_SecretMismatch(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "Not registering") {
 		t.Fatalf("Expecting error regarding mismatching secret id: %v", err)
 	}
-}
-
-func TestClientEndpoint_Register_NodePool(t *testing.T) {
-	ci.Parallel(t)
-
-	s, cleanupS := TestServer(t, nil)
-	defer cleanupS()
-	codec := rpcClient(t, s)
-	testutil.WaitForLeader(t, s.RPC)
-
-	testCases := []struct {
-		name        string
-		pool        string
-		expectedErr string
-		validateFn  func(*testing.T, *structs.Node)
-	}{
-		{
-			name:        "invalid node pool name",
-			pool:        "not@valid",
-			expectedErr: "invalid node pool: invalid name",
-		},
-		{
-			name:        "built-in pool all not allowed",
-			pool:        structs.NodePoolAll,
-			expectedErr: `node is not allowed to register in node pool "all"`,
-		},
-		{
-			name: "set default node pool when empty",
-			pool: "",
-			validateFn: func(t *testing.T, node *structs.Node) {
-				state := s.fsm.State()
-				ws := memdb.NewWatchSet()
-
-				// Verify node was registered with default node pool.
-				got, err := state.NodeByID(ws, node.ID)
-				must.NoError(t, err)
-				must.NotNil(t, got)
-				must.Eq(t, structs.NodePoolDefault, got.NodePool)
-			},
-		},
-		{
-			name: "set node pool requested",
-			pool: "my-pool",
-			validateFn: func(t *testing.T, node *structs.Node) {
-				state := s.fsm.State()
-				ws := memdb.NewWatchSet()
-
-				// Verify node was registered.
-				got, err := state.NodeByID(ws, node.ID)
-				must.NoError(t, err)
-				must.NotNil(t, got)
-
-				// Verify node pool was created.
-				pool, err := state.NodePoolByName(ws, "my-pool")
-				must.NoError(t, err)
-				must.NotNil(t, pool)
-
-				// Verify node was added to the pool.
-				must.Eq(t, "my-pool", got.NodePool)
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			node := mock.Node()
-			node.NodePool = tc.pool
-
-			req := &structs.NodeRegisterRequest{
-				Node:         node,
-				WriteRequest: structs.WriteRequest{Region: "global"},
-			}
-			var resp structs.GenericResponse
-			err := msgpackrpc.CallWithCodec(codec, "Node.Register", req, &resp)
-
-			if tc.expectedErr != "" {
-				must.ErrorContains(t, err, tc.expectedErr)
-			} else {
-				must.NoError(t, err)
-				if tc.validateFn != nil {
-					tc.validateFn(t, req.Node)
-				}
-			}
-		})
-	}
-}
-
-func TestClientEndpoint_Register_NodePool_Multiregion(t *testing.T) {
-	ci.Parallel(t)
-
-	// Helper function to setup client heartbeat.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	heartbeat := func(ctx context.Context, codec rpc.ClientCodec, req *structs.NodeUpdateStatusRequest) {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-			default:
-			}
-
-			var resp structs.NodeUpdateResponse
-			msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", req, &resp)
-		}
-	}
-
-	// Create servers in two regions.
-	s1, rootToken1, cleanupS1 := TestACLServer(t, func(c *Config) {
-		c.Region = "region-1"
-		c.AuthoritativeRegion = "region-1"
-	})
-	defer cleanupS1()
-	codec1 := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
-		c.Region = "region-2"
-		c.AuthoritativeRegion = "region-1"
-
-		// Speed-up replication for testing.
-		c.ReplicationBackoff = 500 * time.Millisecond
-		c.ReplicationToken = rootToken1.SecretID
-	})
-	defer cleanupS2()
-	codec2 := rpcClient(t, s2)
-	testutil.WaitForLeader(t, s2.RPC)
-
-	// Verify that registering a node with a new node pool in the authoritative
-	// region creates the node pool.
-	node1 := mock.Node()
-	node1.Status = ""
-	node1.NodePool = "new-pool-region-1"
-
-	// Register node in region-1.
-	req := &structs.NodeRegisterRequest{
-		Node:         node1,
-		WriteRequest: structs.WriteRequest{Region: "region-1"},
-	}
-	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec1, "Node.Register", req, &resp)
-	must.NoError(t, err)
-
-	// Setup heartbeat for node in region-1.
-	go heartbeat(ctx, rpcClient(t, s1), &structs.NodeUpdateStatusRequest{
-		NodeID:       node1.ID,
-		Status:       structs.NodeStatusReady,
-		WriteRequest: structs.WriteRequest{Region: "region-1"},
-	})
-
-	// Verify client becomes ready.
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			n, err := s1.State().NodeByID(nil, node1.ID)
-			if err != nil {
-				return err
-			}
-			if n.Status != structs.NodeStatusReady {
-				return fmt.Errorf("expected node to be %s, got %s", structs.NodeStatusReady, n.Status)
-			}
-			return nil
-		}),
-		wait.Timeout(10*time.Second),
-		wait.Gap(time.Second),
-	))
-
-	// Verify that registering a node with a new node pool in the
-	// non-authoritative region does not create the node pool and the client is
-	// kept in the initializing status.
-	node2 := mock.Node()
-	node2.Status = ""
-	node2.NodePool = "new-pool-region-2"
-
-	// Register node in region-2.
-	req = &structs.NodeRegisterRequest{
-		Node:         node2,
-		WriteRequest: structs.WriteRequest{Region: "region-2"},
-	}
-	err = msgpackrpc.CallWithCodec(codec2, "Node.Register", req, &resp)
-	must.NoError(t, err)
-
-	// Setup heartbeat for node in region-2.
-	go heartbeat(ctx, rpcClient(t, s2), &structs.NodeUpdateStatusRequest{
-		NodeID:       node2.ID,
-		Status:       structs.NodeStatusReady,
-		WriteRequest: structs.WriteRequest{Region: "region-2"},
-	})
-
-	// Verify client is kept at the initializing status and has a node pool
-	// missing event.
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			n, err := s2.State().NodeByID(nil, node2.ID)
-			if err != nil {
-				return err
-			}
-			if !n.HasEvent(NodeWaitingForNodePool) {
-				return fmt.Errorf("node pool missing event not found:\n%v", n.Events)
-			}
-			return nil
-		}),
-		wait.Timeout(10*time.Second),
-		wait.Gap(time.Second),
-	))
-	must.Wait(t, wait.ContinualSuccess(
-		wait.ErrorFunc(func() error {
-			n, err := s2.State().NodeByID(nil, node2.ID)
-			if err != nil {
-				return err
-			}
-			if n.Status != structs.NodeStatusInit {
-				return fmt.Errorf("expected node to be %s, got %s", structs.NodeStatusInit, n.Status)
-			}
-			return nil
-		}),
-		wait.Timeout(time.Second),
-		wait.Gap(time.Second),
-	))
-
-	// Federate regions.
-	TestJoin(t, s1, s2)
-
-	// Verify node pool from authoritative region is replicated.
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			poolName := node1.NodePool
-			pool, err := s2.State().NodePoolByName(nil, poolName)
-			if err != nil {
-				return err
-			}
-			if pool == nil {
-				return fmt.Errorf("node pool %s not found in region-2", poolName)
-			}
-			return nil
-		}),
-		wait.Timeout(10*time.Second),
-		wait.Gap(time.Second),
-	))
-
-	// Create node pool for region-2.
-	nodePoolReq := &structs.NodePoolUpsertRequest{
-		NodePools: []*structs.NodePool{{Name: node2.NodePool}},
-		WriteRequest: structs.WriteRequest{
-			Region:    "region-2",
-			AuthToken: rootToken1.SecretID,
-		},
-	}
-	var nodePoolResp *structs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec2, "NodePool.UpsertNodePools", nodePoolReq, &nodePoolResp)
-	must.NoError(t, err)
-
-	// Verify node pool exists in both regions and the node in region-2 is now
-	// ready.
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			for region, s := range map[string]*state.StateStore{
-				"region-1": s1.State(),
-				"region-2": s2.State(),
-			} {
-				poolName := node2.NodePool
-				pool, err := s.NodePoolByName(nil, poolName)
-				if err != nil {
-					return err
-				}
-				if pool == nil {
-					return fmt.Errorf("expected node pool %s to exist in region %s", poolName, region)
-				}
-			}
-
-			n, err := s2.State().NodeByID(nil, node2.ID)
-			if err != nil {
-				return err
-			}
-			if n.Status != structs.NodeStatusReady {
-				return fmt.Errorf("expected node to be %s, got %s", structs.NodeStatusReady, n.Status)
-			}
-			return nil
-		}),
-		wait.Timeout(10*time.Second),
-		wait.Gap(time.Second),
-	))
 }
 
 // Test the deprecated single node deregistration path
@@ -1064,7 +775,7 @@ func TestClientEndpoint_Register_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1155,7 +866,7 @@ func TestClientEndpoint_UpdateStatus_GetEvals(t *testing.T) {
 	// Register a system job.
 	job := mock.SystemJob()
 	state := s1.fsm.State()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1385,9 +1096,7 @@ func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
 	}
 
 	var reply structs.NodeUpdateResponse
-
-	nodeEndpoint := NewNodeEndpoint(testServer, nil)
-	require.NoError(t, nodeEndpoint.UpdateStatus(&args, &reply))
+	require.NoError(t, testServer.staticEndpoints.Node.UpdateStatus(&args, &reply))
 
 	// Query our state, to ensure the node service registrations have been
 	// removed.
@@ -1477,7 +1186,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 	// Update the eligibility and expect evals
 	dereg.DrainStrategy = nil
@@ -1941,7 +1650,7 @@ func TestClientEndpoint_UpdateEligibility(t *testing.T) {
 
 	// Register a system job
 	job := mock.SystemJob()
-	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+	require.Nil(s1.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
 
 	// Update the eligibility and expect evals
 	elig.Eligibility = structs.NodeSchedulingEligible
@@ -2938,7 +2647,7 @@ func TestClientEndpoint_UpdateAlloc(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = "mytestjob"
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	require.Nil(err)
 
 	// Inject fake allocations
@@ -3026,7 +2735,7 @@ func TestClientEndpoint_UpdateAlloc_NodeNotReady(t *testing.T) {
 	state := s1.fsm.State()
 
 	job := mock.Job()
-	err = state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	require.NoError(t, err)
 
 	alloc := mock.Alloc()
@@ -3119,7 +2828,7 @@ func TestClientEndpoint_BatchUpdate(t *testing.T) {
 
 	// Call to do the batch update
 	bf := structs.NewBatchFuture()
-	endpoint := NewNodeEndpoint(s1, nil)
+	endpoint := s1.staticEndpoints.Node
 	endpoint.batchUpdate(bf, []*structs.Allocation{clientAlloc}, nil)
 	if err := bf.Wait(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -3183,7 +2892,7 @@ func TestClientEndpoint_UpdateAlloc_Vault(t *testing.T) {
 	// Inject mock job
 	job := mock.Job()
 	job.ID = alloc.JobID
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3250,14 +2959,13 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 
 	// Inject a fake system job.
 	job := mock.SystemJob()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	idx++
 
 	// Create some evaluations
-	nodeEndpoint := NewNodeEndpoint(s1, nil)
-	ids, index, err := nodeEndpoint.createNodeEvals(node, 1)
+	ids, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3342,20 +3050,19 @@ func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
 
 	// Inject a fake system job.
 	defaultJob := mock.SystemJob()
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, defaultJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
 	require.NoError(t, err)
 	idx++
 
 	nsJob := mock.SystemJob()
 	nsJob.ID = defaultJob.ID
 	nsJob.Namespace = ns1.Name
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, nsJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
 	require.NoError(t, err)
 	idx++
 
 	// Create some evaluations
-	nodeEndpoint := NewNodeEndpoint(s1, nil)
-	evalIDs, index, err := nodeEndpoint.createNodeEvals(node, 1)
+	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.Len(t, evalIDs, 2)
@@ -3403,20 +3110,19 @@ func TestClientEndpoint_CreateNodeEvals_MultipleDCes(t *testing.T) {
 	// Inject a fake system job in the same dc
 	defaultJob := mock.SystemJob()
 	defaultJob.Datacenters = []string{"test1", "test2"}
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, defaultJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
 	require.NoError(t, err)
 	idx++
 
 	// Inject a fake system job in a different dc
 	nsJob := mock.SystemJob()
 	nsJob.Datacenters = []string{"test2", "test3"}
-	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, nsJob)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
 	require.NoError(t, err)
 	idx++
 
 	// Create evaluations
-	nodeEndpoint := NewNodeEndpoint(s1, nil)
-	evalIDs, index, err := nodeEndpoint.createNodeEvals(node, 1)
+	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node, 1)
 	require.NoError(t, err)
 	require.NotZero(t, index)
 	require.Len(t, evalIDs, 1)
@@ -4487,7 +4193,7 @@ func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
 			job.ID = tc.name + "-test-job"
 
 			if !tc.missingJob {
-				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, nil, job)
+				err = fsmState.UpsertJob(structs.MsgTypeTestSetup, 101, job)
 				require.NoError(t, err)
 			}
 
@@ -4732,7 +4438,14 @@ func TestNode_constructNodeServerInfoResponse_MissingNode(t *testing.T) {
 	node := mock.Node()
 	var reply structs.NodeUpdateResponse
 
-	nE := NewNodeEndpoint(s, nil)
+	nE := &Node{
+		srv:     s,
+		ctx:     nil,
+		logger:  s.logger.Named("client"),
+		updates: []*structs.Allocation{},
+		evals:   []*structs.Evaluation{},
+	}
+
 	snap, err := s.State().Snapshot()
 	must.NoError(t, err)
 

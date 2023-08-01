@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -21,12 +18,7 @@ import (
 // CSIController endpoint.
 type ClientCSI struct {
 	srv    *Server
-	ctx    *RPCContext
 	logger log.Logger
-}
-
-func NewClientCSIEndpoint(srv *Server, ctx *RPCContext) *ClientCSI {
-	return &ClientCSI{srv: srv, ctx: ctx, logger: srv.logger.Named("client_csi")}
 }
 
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {
@@ -35,7 +27,6 @@ func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAtt
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerAttachVolume",
 		"ClientCSI.ControllerAttachVolume",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller attach volume: %v", err)
@@ -49,7 +40,6 @@ func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerV
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerValidateVolume",
 		"ClientCSI.ControllerValidateVolume",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller validate volume: %v", err)
@@ -63,7 +53,6 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerDetachVolume",
 		"ClientCSI.ControllerDetachVolume",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller detach volume: %v", err)
@@ -77,7 +66,6 @@ func (a *ClientCSI) ControllerCreateVolume(args *cstructs.ClientCSIControllerCre
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerCreateVolume",
 		"ClientCSI.ControllerCreateVolume",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller create volume: %v", err)
@@ -91,7 +79,6 @@ func (a *ClientCSI) ControllerDeleteVolume(args *cstructs.ClientCSIControllerDel
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerDeleteVolume",
 		"ClientCSI.ControllerDeleteVolume",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller delete volume: %v", err)
@@ -105,7 +92,6 @@ func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerList
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerListVolumes",
 		"ClientCSI.ControllerListVolumes",
-		structs.RateMetricList,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller list volumes: %v", err)
@@ -119,7 +105,6 @@ func (a *ClientCSI) ControllerCreateSnapshot(args *cstructs.ClientCSIControllerC
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerCreateSnapshot",
 		"ClientCSI.ControllerCreateSnapshot",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller create snapshot: %v", err)
@@ -133,7 +118,6 @@ func (a *ClientCSI) ControllerDeleteSnapshot(args *cstructs.ClientCSIControllerD
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerDeleteSnapshot",
 		"ClientCSI.ControllerDeleteSnapshot",
-		structs.RateMetricWrite,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller delete snapshot: %v", err)
@@ -147,7 +131,6 @@ func (a *ClientCSI) ControllerListSnapshots(args *cstructs.ClientCSIControllerLi
 	err := a.sendCSIControllerRPC(args.PluginID,
 		"CSI.ControllerListSnapshots",
 		"ClientCSI.ControllerListSnapshots",
-		structs.RateMetricList,
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller list snapshots: %v", err)
@@ -155,19 +138,7 @@ func (a *ClientCSI) ControllerListSnapshots(args *cstructs.ClientCSIControllerLi
 	return nil
 }
 
-func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod, op string, args cstructs.CSIControllerRequest, reply interface{}) error {
-
-	// client requests aren't RequestWithIdentity, so we use a placeholder here
-	// to populate the identity data for metrics
-	identityReq := &structs.GenericRequest{}
-	authErr := a.srv.Authenticate(a.ctx, identityReq)
-	a.srv.MeasureRPCRate("client_csi", op, identityReq)
-
-	// only servers can send these client RPCs
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelServer)
-	if authErr != nil || err != nil {
-		return structs.ErrPermissionDenied
-	}
+func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod string, args cstructs.CSIControllerRequest, reply interface{}) error {
 
 	clientIDs, err := a.clientIDsForController(pluginID)
 	if err != nil {
@@ -209,18 +180,6 @@ func (a *ClientCSI) isRetryable(err error) bool {
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_node", "detach_volume"}, time.Now())
-
-	// client requests aren't RequestWithIdentity, so we use a placeholder here
-	// to populate the identity data for metrics
-	identityReq := &structs.GenericRequest{}
-	authErr := a.srv.Authenticate(a.ctx, identityReq)
-	a.srv.MeasureRPCRate("client_csi", structs.RateMetricWrite, identityReq)
-
-	// only servers can send these client RPCs
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelServer)
-	if authErr != nil || err != nil {
-		return structs.ErrPermissionDenied
-	}
 
 	// Make sure Node is valid and new enough to support RPC
 	snap, err := a.srv.State().Snapshot()

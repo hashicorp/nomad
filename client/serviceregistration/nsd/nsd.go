@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nsd
 
 import (
@@ -8,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -140,24 +136,13 @@ func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistrat
 // enabled. This covers situations where the feature is disabled, yet still has
 // allocations which, when stopped need their registrations removed.
 func (s *ServiceRegistrationHandler) RemoveWorkload(workload *serviceregistration.WorkloadServices) {
-	wg := new(sync.WaitGroup)
-	wg.Add(len(workload.Services))
-
 	for _, serviceSpec := range workload.Services {
-		go s.removeWorkload(wg, workload, serviceSpec)
+		go s.removeWorkload(workload, serviceSpec)
 	}
-
-	// wait for all workload removals to complete
-	wg.Wait()
 }
 
 func (s *ServiceRegistrationHandler) removeWorkload(
-	wg *sync.WaitGroup,
-	workload *serviceregistration.WorkloadServices,
-	serviceSpec *structs.Service,
-) {
-	// unblock wait group when we are done
-	defer wg.Done()
+	workload *serviceregistration.WorkloadServices, serviceSpec *structs.Service) {
 
 	// Stop check watcher
 	//

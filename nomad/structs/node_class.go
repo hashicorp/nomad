@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package structs
 
 import (
@@ -45,7 +42,7 @@ func (n *Node) ComputeClass() error {
 // included in the computed node class.
 func (n Node) HashInclude(field string, v interface{}) (bool, error) {
 	switch field {
-	case "Datacenter", "Attributes", "Meta", "NodeClass", "NodePool", "NodeResources":
+	case "Datacenter", "Attributes", "Meta", "NodeClass", "NodeResources":
 		return true, nil
 	default:
 		return false, nil

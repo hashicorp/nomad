@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 const { test, expect } = require('@playwright/test');
 
 test('authenticated users can see their policies', async ({ page }) => {

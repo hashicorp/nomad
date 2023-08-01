@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: adds a toggle and localStorage property to Word Wrap logs and job definitions
-```

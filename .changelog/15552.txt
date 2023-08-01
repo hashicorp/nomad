@@ -1,3 +1,0 @@
-```release-note:bug
-server: Fixed a bug where rejoin_after_leave config was not being respected
-```

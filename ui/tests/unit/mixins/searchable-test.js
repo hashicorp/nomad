@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { alias } from '@ember/object/computed';
 import EmberObject, { computed } from '@ember/object';
 import { module, test } from 'qunit';

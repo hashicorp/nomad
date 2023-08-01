@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package executor
 
 import (
@@ -49,7 +46,6 @@ func init() {
 			Plugins: GetPluginMap(
 				logger,
 				executorConfig.FSIsolation,
-				executorConfig.CpuTotalTicks,
 			),
 			GRPCServer: plugin.DefaultGRPCServer,
 			Logger:     logger,

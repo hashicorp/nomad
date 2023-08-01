@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -51,7 +48,7 @@ Exec Specific Options:
     Sets the task to exec command in
 
   -job
-    Use a random allocation from the specified job ID or prefix.
+    Use a random allocation from the specified job ID.
 
   -i
     Pass stdin to the container, defaults to true.  Pass -i=false to disable.
@@ -162,13 +159,8 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
-		if err != nil {
-			l.Ui.Error(err.Error())
-			return 1
-		}
-
-		allocStub, err = getRandomJobAlloc(client, jobID, ns)
+		jobID := args[0]
+		allocStub, err = getRandomJobAlloc(client, jobID)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1

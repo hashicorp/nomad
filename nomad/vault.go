@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -15,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/useragent"
 	tomb "gopkg.in/tomb.v2"
 
 	metrics "github.com/armon/go-metrics"
@@ -378,7 +374,7 @@ func (v *vaultClient) SetConfig(config *config.VaultConfig) error {
 	defer v.l.Unlock()
 
 	// If reloading the same config, no-op
-	if v.config.Equal(config) {
+	if v.config.Equals(config) {
 		return nil
 	}
 
@@ -456,7 +452,6 @@ func (v *vaultClient) buildClient() error {
 		v.logger.Error("failed to create Vault client and not retrying", "error", err)
 		return err
 	}
-	useragent.SetHeaders(client)
 
 	// Store the client, create/assign the /sys client
 	v.client = client
@@ -467,7 +462,6 @@ func (v *vaultClient) buildClient() error {
 			v.logger.Error("failed to create Vault sys client and not retrying", "error", err)
 			return err
 		}
-		useragent.SetHeaders(v.clientSys)
 		client.SetNamespace(v.config.Namespace)
 	} else {
 		v.clientSys = client

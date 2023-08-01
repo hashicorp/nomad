@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -23,6 +20,7 @@ func (c *OperatorGossipKeyringGenerateCommand) Synopsis() string {
 func (c *OperatorGossipKeyringGenerateCommand) Help() string {
 	helpText := `
 Usage: nomad operator gossip keying generate
+Alias: nomad operator keygen
 
   Generates a new 32-byte encryption key that can be used to configure the
   agent to encrypt traffic. The output of this command is already

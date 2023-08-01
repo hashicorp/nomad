@@ -1,18 +1,7 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <h1 class="variable-title title with-flex">
   <div>
     <FlightIcon @name="file-text" />
     {{this.model.path}}
-      <CopyButton
-        @inset={{true}}
-        @compact={{true}}
-        @clipboardText={{this.model.path}}
-      />
-
     <Toggle
       {{keyboard-shortcut 
         label="Toggle View (JSON/List)"
@@ -64,7 +53,7 @@
     @job={{this.model.pathLinkedEntities.job}}
     @group={{this.model.pathLinkedEntities.group}}
     @task={{this.model.pathLinkedEntities.task}}
-    @namespace={{or this.model.namespace "default"}}
+    @namespace={{this.model.namespace}}
   />
 {{/if}}
 
@@ -118,7 +107,7 @@
             </button>
 
             {{#if row.model.isVisible}}
-              <code>{{row.model.value}}</code>
+              {{row.model.value}}
             {{else}}
               ********
             {{/if}}

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -22,9 +19,8 @@ Usage: nomad job allocs [options] <job>
 
   Display allocations for a particular job.
 
-  When ACLs are enabled, this command requires a token with the 'read-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID.
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
 
 General Options:
 
@@ -109,15 +105,27 @@ func (c *JobAllocsCommand) Run(args []string) int {
 		return 1
 	}
 
+	jobID := strings.TrimSpace(args[0])
+
 	// Check if the job exists
-	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobs, _, err := client.Jobs().PrefixList(jobID)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		c.Ui.Error(fmt.Sprintf("Error listing jobs: %s", err))
 		return 1
 	}
+	if len(jobs) == 0 {
+		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
+		return 1
+	}
+	if len(jobs) > 1 {
+		if (jobID != jobs[0].ID) || (c.allNamespaces() && jobs[0].ID == jobs[1].ID) {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
+	}
 
-	q := &api.QueryOptions{Namespace: namespace}
+	jobID = jobs[0].ID
+	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 
 	allocs, _, err := client.Jobs().Allocations(jobID, all, q)
 	if err != nil {

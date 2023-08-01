@@ -1,11 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package rawexec
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -339,7 +337,7 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().SharedAllocDir, file)
-	act, err := os.ReadFile(outputFile)
+	act, err := ioutil.ReadFile(outputFile)
 	require.NoError(err)
 	require.Exactly(exp, act)
 	require.NoError(harness.DestroyTask(task.ID, true))
@@ -384,7 +382,7 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	var pidData []byte
 	testutil.WaitForResult(func() (bool, error) {
 		var err error
-		pidData, err = os.ReadFile(filepath.Join(task.TaskDir().Dir, pidFile))
+		pidData, err = ioutil.ReadFile(filepath.Join(task.TaskDir().Dir, pidFile))
 		if err != nil {
 			return false, err
 		}

@@ -1,17 +1,11 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
@@ -180,35 +174,7 @@ func (m *Meta) allNamespaces() bool {
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
-	ui := m.Ui
-	coloredUi := false
-
-	// Meta.Ui may wrap other cli.Ui instances, so unwrap them until we find a
-	// *cli.ColoredUi or there is nothing left to unwrap.
-	for {
-		if ui == nil {
-			break
-		}
-
-		_, coloredUi = ui.(*cli.ColoredUi)
-		if coloredUi {
-			break
-		}
-
-		v := reflect.ValueOf(ui)
-		if v.Kind() == reflect.Ptr {
-			v = v.Elem()
-		}
-		for i := 0; i < v.NumField(); i++ {
-			if !v.Field(i).CanInterface() {
-				continue
-			}
-			ui, _ = v.Field(i).Interface().(cli.Ui)
-			if ui != nil {
-				break
-			}
-		}
-	}
+	_, coloredUi := m.Ui.(*cli.ColoredUi)
 
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
@@ -248,90 +214,6 @@ func (m *Meta) SetupUi(args []string) {
 			Ui:         m.Ui,
 		}
 	}
-}
-
-// FormatWarnings returns a string with the warnings formatted for CLI output.
-func (m *Meta) FormatWarnings(header string, warnings string) string {
-	return m.Colorize().Color(
-		fmt.Sprintf("[bold][yellow]%s Warnings:\n%s[reset]\n",
-			header,
-			warnings,
-		))
-}
-
-// JobByPrefixFilterFunc is a function used to filter jobs when performing a
-// prefix match. Only jobs that return true are included in the prefix match.
-type JobByPrefixFilterFunc func(*api.JobListStub) bool
-
-// NoJobWithPrefixError is the error returned when the job prefix doesn't
-// return any matches.
-type NoJobWithPrefixError struct {
-	Prefix string
-}
-
-func (e *NoJobWithPrefixError) Error() string {
-	return fmt.Sprintf("No job(s) with prefix or ID %q found", e.Prefix)
-}
-
-// JobByPrefix returns the job that best matches the given prefix. Returns an
-// error if there are no matches or if there are more than one exact match
-// across namespaces.
-func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (*api.Job, error) {
-	jobID, namespace, err := m.JobIDByPrefix(client, prefix, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	q := &api.QueryOptions{Namespace: namespace}
-	job, _, err := client.Jobs().Info(jobID, q)
-	if err != nil {
-		return nil, fmt.Errorf("Error querying job %q: %s", jobID, err)
-	}
-	job.Namespace = pointer.Of(namespace)
-
-	return job, nil
-}
-
-// JobIDByPrefix provides best effort match for the given job prefix.
-// Returns the prefix itself if job prefix search is not allowed and an error
-// if there are no matches or if there are more than one exact match across
-// namespaces.
-func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter JobByPrefixFilterFunc) (string, string, error) {
-	// Search job by prefix. Return an error if there is not an exact match.
-	jobs, _, err := client.Jobs().PrefixList(prefix)
-	if err != nil {
-		if strings.Contains(err.Error(), api.PermissionDeniedErrorContent) {
-			return prefix, "", nil
-		}
-		return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
-	}
-
-	if filter != nil {
-		var filtered []*api.JobListStub
-		for _, j := range jobs {
-			if filter(j) {
-				filtered = append(filtered, j)
-			}
-		}
-		jobs = filtered
-	}
-
-	if len(jobs) == 0 {
-		return "", "", &NoJobWithPrefixError{Prefix: prefix}
-	}
-	if len(jobs) > 1 {
-		exactMatch := prefix == jobs[0].ID
-		matchInMultipleNamespaces := m.allNamespaces() && jobs[0].ID == jobs[1].ID
-		if !exactMatch || matchInMultipleNamespaces {
-			return "", "", fmt.Errorf(
-				"Prefix %q matched multiple jobs\n\n%s",
-				prefix,
-				createStatusListOutput(jobs, m.allNamespaces()),
-			)
-		}
-	}
-
-	return jobs[0].ID, jobs[0].JobSummary.Namespace, nil
 }
 
 type usageOptsFlags uint8

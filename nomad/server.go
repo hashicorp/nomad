@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -25,7 +22,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/acl"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -38,7 +35,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
-	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -156,6 +152,10 @@ type Server struct {
 	rpcTLS    *tls.Config
 	rpcCancel context.CancelFunc
 
+	// staticEndpoints is the set of static endpoints that can be reused across
+	// all RPC connections
+	staticEndpoints endpoints
+
 	// streamingRpcs is the registry holding our streaming RPC handlers.
 	streamingRpcs *structs.StreamingRpcRegistry
 
@@ -263,12 +263,7 @@ type Server struct {
 	workersEventCh   chan interface{}
 
 	// aclCache is used to maintain the parsed ACL objects
-	aclCache *structs.ACLCache[*acl.ACL]
-
-	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
-	// the provider performs background HTTP requests. When the Nomad server is
-	// shutting down, the oidcProviderCache.Shutdown() function must be called.
-	oidcProviderCache *oidc.ProviderCache
+	aclCache *lru.TwoQueueCache
 
 	// leaderAcl is the management ACL token that is valid when resolved by the
 	// current leader.
@@ -293,6 +288,36 @@ type Server struct {
 	shutdownCtx    context.Context
 	shutdownCancel context.CancelFunc
 	shutdownCh     <-chan struct{}
+}
+
+// Holds the RPC endpoints
+type endpoints struct {
+	Status              *Status
+	Node                *Node
+	Job                 *Job
+	CSIVolume           *CSIVolume
+	CSIPlugin           *CSIPlugin
+	Deployment          *Deployment
+	Region              *Region
+	Search              *Search
+	Periodic            *Periodic
+	System              *System
+	Operator            *Operator
+	ACL                 *ACL
+	Scaling             *Scaling
+	Enterprise          *EnterpriseEndpoints
+	Event               *Event
+	Namespace           *Namespace
+	Variables           *Variables
+	Keyring             *Keyring
+	ServiceRegistration *ServiceRegistration
+
+	// Client endpoints
+	ClientStats       *ClientStats
+	FileSystem        *FileSystem
+	Agent             *Agent
+	ClientAllocations *ClientAllocations
+	ClientCSI         *ClientCSI
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -320,15 +345,13 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 
 	// Create the ACL object cache
-	aclCache := structs.NewACLCache[*acl.ACL](aclCacheSize)
+	aclCache, err := lru.New2Q(aclCacheSize)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the logger
 	logger := config.Logger.ResetNamedIntercept("nomad")
-
-	// Validate enterprise license before anything stateful happens
-	if err = config.LicenseConfig.Validate(); err != nil {
-		return nil, err
-	}
 
 	// Create the server
 	s := &Server{
@@ -400,11 +423,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 		return nil, err
 	}
 	s.encrypter = encrypter
-
-	// Set up the OIDC provider cache. This is needed by the setupRPC, but must
-	// be done separately so that the server can stop all background processes
-	// when it shuts down itself.
-	s.oidcProviderCache = oidc.NewProviderCache()
 
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {
@@ -713,12 +731,6 @@ func (s *Server) Shutdown() error {
 	// Stop being able to set Configuration Entries
 	s.consulConfigEntries.Stop()
 
-	// Shutdown the OIDC provider cache which contains background resources and
-	// processes.
-	if s.oidcProviderCache != nil {
-		s.oidcProviderCache.Shutdown()
-	}
-
 	return nil
 }
 
@@ -854,11 +866,8 @@ func (s *Server) Reload(newConfig *Config) error {
 		}
 	}
 
-	if newConfig.LicenseConfig.LicenseEnvBytes != "" || newConfig.LicenseConfig.LicensePath != "" {
-		if err = s.EnterpriseState.ReloadLicense(newConfig); err != nil {
-			s.logger.Error("error reloading license", "error", err)
-			_ = multierror.Append(&mErr, err)
-		}
+	if newConfig.LicenseEnv != "" || newConfig.LicensePath != "" {
+		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
 	// Because this is a new configuration, we extract the worker pool arguments without acquiring a lock
@@ -868,18 +877,6 @@ func (s *Server) Reload(newConfig *Config) error {
 			reloadSchedulers(s, newVals)
 		}
 		reloadSchedulers(s, newVals)
-	}
-
-	raftRC := raft.ReloadableConfig{
-		TrailingLogs:      newConfig.RaftConfig.TrailingLogs,
-		SnapshotInterval:  newConfig.RaftConfig.SnapshotInterval,
-		SnapshotThreshold: newConfig.RaftConfig.SnapshotThreshold,
-		HeartbeatTimeout:  newConfig.RaftConfig.HeartbeatTimeout,
-		ElectionTimeout:   newConfig.RaftConfig.ElectionTimeout,
-	}
-
-	if err := s.raft.ReloadConfig(raftRC); err != nil {
-		multierror.Append(&mErr, err)
 	}
 
 	return mErr.ErrorOrNil()
@@ -1092,8 +1089,8 @@ func (s *Server) setupDeploymentWatcher() error {
 	s.deploymentWatcher = deploymentwatcher.NewDeploymentsWatcher(
 		s.logger,
 		raftShim,
-		NewDeploymentEndpoint(s, nil),
-		NewJobEndpoints(s, nil),
+		s.staticEndpoints.Deployment,
+		s.staticEndpoints.Job,
 		s.config.DeploymentQueryRateLimit,
 		deploymentwatcher.CrossDeploymentUpdateBatchDuration,
 	)
@@ -1104,7 +1101,7 @@ func (s *Server) setupDeploymentWatcher() error {
 // setupVolumeWatcher creates a volume watcher that sends CSI RPCs
 func (s *Server) setupVolumeWatcher() error {
 	s.volumeWatcher = volumewatcher.NewVolumesWatcher(
-		s.logger, NewCSIVolumeEndpoint(s, nil), s.getLeaderAcl())
+		s.logger, s.staticEndpoints.CSIVolume, s.getLeaderAcl())
 
 	return nil
 }
@@ -1146,10 +1143,10 @@ func (s *Server) setupVaultClient() error {
 // setupRPC is used to setup the RPC listener
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Populate the static RPC server
-	s.setupRpcServer(s.rpcServer, nil)
-
-	// Setup streaming endpoints
-	s.setupStreamingEndpoints(s.rpcServer)
+	err := s.setupRpcServer(s.rpcServer, nil)
+	if err != nil {
+		return err
+	}
 
 	listener, err := s.createRPCListener()
 	if err != nil {
@@ -1207,78 +1204,96 @@ func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	return nil
 }
 
-// setupStreamingEndpoints is used to populate an RPC server with streaming
-// endpoints. This only gets called at server startup.
-func (s *Server) setupStreamingEndpoints(server *rpc.Server) {
-	// The endpoints are client RPCs and don't include a connection
-	// context. They also need to be registered as streaming endpoints in their
-	// register() methods.
+// setupRpcServer is used to populate an RPC server with endpoints
+func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) error {
 
-	clientAllocs := NewClientAllocationsEndpoint(s)
-	clientAllocs.register()
+	// Add the static endpoints to the RPC server.
+	if s.staticEndpoints.Status == nil {
+		// Initialize the list just once
+		s.staticEndpoints.ACL = &ACL{srv: s, logger: s.logger.Named("acl")}
+		s.staticEndpoints.Job = NewJobEndpoints(s)
+		s.staticEndpoints.CSIVolume = &CSIVolume{srv: s, logger: s.logger.Named("csi_volume")}
+		s.staticEndpoints.CSIPlugin = &CSIPlugin{srv: s, logger: s.logger.Named("csi_plugin")}
+		s.staticEndpoints.Operator = &Operator{srv: s, logger: s.logger.Named("operator")}
+		s.staticEndpoints.Operator.register()
 
-	fsEndpoint := NewFileSystemEndpoint(s)
-	fsEndpoint.register()
+		s.staticEndpoints.Periodic = &Periodic{srv: s, logger: s.logger.Named("periodic")}
+		s.staticEndpoints.Region = &Region{srv: s, logger: s.logger.Named("region")}
+		s.staticEndpoints.Scaling = &Scaling{srv: s, logger: s.logger.Named("scaling")}
+		s.staticEndpoints.Status = &Status{srv: s, logger: s.logger.Named("status")}
+		s.staticEndpoints.System = &System{srv: s, logger: s.logger.Named("system")}
+		s.staticEndpoints.Search = &Search{srv: s, logger: s.logger.Named("search")}
+		s.staticEndpoints.Namespace = &Namespace{srv: s}
+		s.staticEndpoints.Variables = &Variables{srv: s, logger: s.logger.Named("variables"), encrypter: s.encrypter}
+		s.staticEndpoints.Keyring = &Keyring{srv: s, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
 
-	agentEndpoint := NewAgentEndpoint(s)
-	agentEndpoint.register()
+		s.staticEndpoints.Enterprise = NewEnterpriseEndpoints(s)
 
-	// Event is a streaming-only endpoint so we don't want to register it as a
-	// normal RPC
-	eventEndpoint := NewEventEndpoint(s)
-	eventEndpoint.register()
+		// These endpoints are dynamic because they need access to the
+		// RPCContext, but they also need to be called directly in some cases,
+		// so store them into staticEndpoints for later access, but don't
+		// register them as static.
+		s.staticEndpoints.Deployment = &Deployment{srv: s, logger: s.logger.Named("deployment")}
+		s.staticEndpoints.Node = &Node{srv: s, logger: s.logger.Named("client")}
+		s.staticEndpoints.ServiceRegistration = &ServiceRegistration{srv: s}
 
-	// Operator takes a RPC context but also has a streaming RPC that needs to
-	// be registered
-	operatorEndpoint := NewOperatorEndpoint(s, nil)
-	operatorEndpoint.register()
-}
+		// Client endpoints
+		s.staticEndpoints.ClientStats = &ClientStats{srv: s, logger: s.logger.Named("client_stats")}
+		s.staticEndpoints.ClientAllocations = &ClientAllocations{srv: s, logger: s.logger.Named("client_allocs")}
+		s.staticEndpoints.ClientAllocations.register()
+		s.staticEndpoints.ClientCSI = &ClientCSI{srv: s, logger: s.logger.Named("client_csi")}
 
-// setupRpcServer is used to populate an RPC server with endpoints. This gets
-// called at startup but also once for every new RPC connection so that RPC
-// handlers can have per-connection context.
-func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
-	// These endpoints are client RPCs and don't include a connection context
-	_ = server.Register(NewClientStatsEndpoint(s))
-	_ = server.Register(newNodeMetaEndpoint(s))
+		// Streaming endpoints
+		s.staticEndpoints.FileSystem = &FileSystem{srv: s, logger: s.logger.Named("client_fs")}
+		s.staticEndpoints.FileSystem.register()
 
-	// These endpoints have their streaming component registered in
-	// setupStreamingEndpoints, but their non-streaming RPCs are registered
-	// here.
-	_ = server.Register(NewClientAllocationsEndpoint(s))
-	_ = server.Register(NewFileSystemEndpoint(s))
-	_ = server.Register(NewAgentEndpoint(s))
-	_ = server.Register(NewOperatorEndpoint(s, ctx))
+		s.staticEndpoints.Agent = &Agent{srv: s}
+		s.staticEndpoints.Agent.register()
 
-	// All other endpoints include the connection context and don't need to be
-	// registered as streaming endpoints
+		s.staticEndpoints.Event = &Event{srv: s}
+		s.staticEndpoints.Event.register()
 
-	_ = server.Register(NewACLEndpoint(s, ctx))
-	_ = server.Register(NewAllocEndpoint(s, ctx))
-	_ = server.Register(NewClientCSIEndpoint(s, ctx))
-	_ = server.Register(NewCSIVolumeEndpoint(s, ctx))
-	_ = server.Register(NewCSIPluginEndpoint(s, ctx))
-	_ = server.Register(NewDeploymentEndpoint(s, ctx))
-	_ = server.Register(NewEvalEndpoint(s, ctx))
-	_ = server.Register(NewJobEndpoints(s, ctx))
-	_ = server.Register(NewKeyringEndpoint(s, ctx, s.encrypter))
-	_ = server.Register(NewNamespaceEndpoint(s, ctx))
-	_ = server.Register(NewNodeEndpoint(s, ctx))
-	_ = server.Register(NewNodePoolEndpoint(s, ctx))
-	_ = server.Register(NewPeriodicEndpoint(s, ctx))
-	_ = server.Register(NewPlanEndpoint(s, ctx))
-	_ = server.Register(NewRegionEndpoint(s, ctx))
-	_ = server.Register(NewScalingEndpoint(s, ctx))
-	_ = server.Register(NewSearchEndpoint(s, ctx))
-	_ = server.Register(NewServiceRegistrationEndpoint(s, ctx))
-	_ = server.Register(NewStatusEndpoint(s, ctx))
-	_ = server.Register(NewSystemEndpoint(s, ctx))
-	_ = server.Register(NewVariablesEndpoint(s, ctx, s.encrypter))
+	}
 
-	// Register non-streaming
+	// Register the static handlers
+	server.Register(s.staticEndpoints.ACL)
+	server.Register(s.staticEndpoints.Job)
+	server.Register(s.staticEndpoints.CSIVolume)
+	server.Register(s.staticEndpoints.CSIPlugin)
+	server.Register(s.staticEndpoints.Operator)
+	server.Register(s.staticEndpoints.Periodic)
+	server.Register(s.staticEndpoints.Region)
+	server.Register(s.staticEndpoints.Scaling)
+	server.Register(s.staticEndpoints.Status)
+	server.Register(s.staticEndpoints.System)
+	server.Register(s.staticEndpoints.Search)
+	s.staticEndpoints.Enterprise.Register(server)
+	server.Register(s.staticEndpoints.ClientStats)
+	server.Register(s.staticEndpoints.ClientAllocations)
+	server.Register(s.staticEndpoints.ClientCSI)
+	server.Register(s.staticEndpoints.FileSystem)
+	server.Register(s.staticEndpoints.Agent)
+	server.Register(s.staticEndpoints.Namespace)
+	server.Register(s.staticEndpoints.Variables)
 
-	ent := NewEnterpriseEndpoints(s, ctx)
-	ent.Register(server)
+	// Create new dynamic endpoints and add them to the RPC server.
+	alloc := &Alloc{srv: s, ctx: ctx, logger: s.logger.Named("alloc")}
+	deployment := &Deployment{srv: s, ctx: ctx, logger: s.logger.Named("deployment")}
+	eval := &Eval{srv: s, ctx: ctx, logger: s.logger.Named("eval")}
+	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}
+	plan := &Plan{srv: s, ctx: ctx, logger: s.logger.Named("plan")}
+	serviceReg := &ServiceRegistration{srv: s, ctx: ctx}
+	keyringReg := &Keyring{srv: s, ctx: ctx, logger: s.logger.Named("keyring"), encrypter: s.encrypter}
+
+	// Register the dynamic endpoints
+	server.Register(alloc)
+	server.Register(deployment)
+	server.Register(eval)
+	server.Register(node)
+	server.Register(plan)
+	_ = server.Register(serviceReg)
+	_ = server.Register(keyringReg)
+	return nil
 }
 
 // setupRaft is used to setup and initialize Raft
@@ -1547,6 +1562,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 			return nil, err
 		}
 	}
+	conf.RejoinAfterLeave = true
 	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
 	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
 	// allow for convergence in 99.9% of nodes in a 10 node cluster

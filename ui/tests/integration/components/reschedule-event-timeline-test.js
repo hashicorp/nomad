@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
@@ -18,7 +13,6 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
-    this.server.create('node-pool');
     this.server.create('node');
     this.server.create('job', { createAllocations: false });
   });

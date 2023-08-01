@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Model from '@ember-data/model';
 import { belongsTo } from '@ember-data/model';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';

@@ -1,3 +1,0 @@
-```release-note:improvement
-volumes: Allow `per_alloc` to be used with host_volumes
-```

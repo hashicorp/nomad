@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -381,7 +378,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 
 	state := s1.fsm.State()
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -910,7 +907,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 		job.ID = "notsafetodelete"
 		job.Status = structs.JobStatusRunning
 		index++
-		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, job))
 
 		evalsNotSafeToDelete := []*structs.Evaluation{}
 		for i := 0; i < 3; i++ {

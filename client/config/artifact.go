@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package config
 
 import (
@@ -22,63 +19,61 @@ type ArtifactConfig struct {
 	HgTimeout  time.Duration
 	S3Timeout  time.Duration
 
-	DecompressionLimitFileCount int
 	DecompressionLimitSize      int64
-
-	DisableFilesystemIsolation bool
-	SetEnvironmentVariables    string
+	DecompressionLimitFileCount int
 }
 
 // ArtifactConfigFromAgent creates a new internal readonly copy of the client
 // agent's ArtifactConfig. The config should have already been validated.
 func ArtifactConfigFromAgent(c *config.ArtifactConfig) (*ArtifactConfig, error) {
-	httpReadTimeout, err := time.ParseDuration(*c.HTTPReadTimeout)
+	newConfig := &ArtifactConfig{}
+
+	t, err := time.ParseDuration(*c.HTTPReadTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing HTTPReadTimeout: %w", err)
 	}
+	newConfig.HTTPReadTimeout = t
 
-	httpMaxSize, err := humanize.ParseBytes(*c.HTTPMaxSize)
+	s, err := humanize.ParseBytes(*c.HTTPMaxSize)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing HTTPMaxSize: %w", err)
 	}
+	newConfig.HTTPMaxBytes = int64(s)
 
-	gcsTimeout, err := time.ParseDuration(*c.GCSTimeout)
+	t, err = time.ParseDuration(*c.GCSTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing GCSTimeout: %w", err)
 	}
+	newConfig.GCSTimeout = t
 
-	gitTimeout, err := time.ParseDuration(*c.GitTimeout)
+	t, err = time.ParseDuration(*c.GitTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing GitTimeout: %w", err)
 	}
+	newConfig.GitTimeout = t
 
-	hgTimeout, err := time.ParseDuration(*c.HgTimeout)
+	t, err = time.ParseDuration(*c.HgTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing HgTimeout: %w", err)
 	}
+	newConfig.HgTimeout = t
 
-	s3Timeout, err := time.ParseDuration(*c.S3Timeout)
+	t, err = time.ParseDuration(*c.S3Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing S3Timeout: %w", err)
 	}
+	newConfig.S3Timeout = t
 
-	decompressionSizeLimit, err := humanize.ParseBytes(*c.DecompressionSizeLimit)
+	s, err = humanize.ParseBytes(*c.DecompressionSizeLimit)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing DecompressionLimitSize: %w", err)
 	}
+	newConfig.DecompressionLimitSize = int64(s)
 
-	return &ArtifactConfig{
-		HTTPReadTimeout:             httpReadTimeout,
-		HTTPMaxBytes:                int64(httpMaxSize),
-		GCSTimeout:                  gcsTimeout,
-		GitTimeout:                  gitTimeout,
-		HgTimeout:                   hgTimeout,
-		S3Timeout:                   s3Timeout,
-		DecompressionLimitFileCount: *c.DecompressionFileCountLimit,
-		DecompressionLimitSize:      int64(decompressionSizeLimit),
-		DisableFilesystemIsolation:  *c.DisableFilesystemIsolation,
-		SetEnvironmentVariables:     *c.SetEnvironmentVariables,
-	}, nil
+	// no parsing its just an int
+	newConfig.DecompressionLimitFileCount = *c.DecompressionFileCountLimit
+
+	return newConfig, nil
 }
 
 func (a *ArtifactConfig) Copy() *ArtifactConfig {

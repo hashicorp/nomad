@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "connect_sidecars" {
   datacenters = ["dc1"]
   type        = "service"

@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: sort variable key/values alphabetically by key when editing
-```

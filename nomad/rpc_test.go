@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -42,7 +39,6 @@ import (
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc
 // calls to the passed server.
 func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
-	t.Helper()
 	addr := s.config.RPCAddr
 	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
 	if err != nil {
@@ -51,36 +47,6 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 	// Write the Nomad RPC byte to set the mode
 	conn.Write([]byte{byte(pool.RpcNomad)})
 	return pool.NewClientCodec(conn)
-}
-
-// rpcClientWithTLS is a test helper method to return a ClientCodec to use to
-// make RPC calls to the passed server via mTLS
-func rpcClientWithTLS(t *testing.T, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
-	t.Helper()
-
-	// configure TLS, ignoring client-side validation
-	tlsConf, err := tlsutil.NewTLSConfiguration(cfg, true, true)
-	must.NoError(t, err)
-	outTLSConf, err := tlsConf.OutgoingTLSConfig()
-	must.NoError(t, err)
-	outTLSConf.InsecureSkipVerify = true
-
-	// make the TCP connection
-	conn, err := net.DialTimeout("tcp", srv.config.RPCAddr.String(), time.Second)
-
-	// write the TLS byte to set the mode
-	_, err = conn.Write([]byte{byte(pool.RpcTLS)})
-	must.NoError(t, err)
-
-	// connect w/ TLS
-	tlsConn := tls.Client(conn, outTLSConf)
-	must.NoError(t, tlsConn.Handshake())
-
-	// write the Nomad RPC byte to set the mode
-	_, err = tlsConn.Write([]byte{byte(pool.RpcNomad)})
-	must.NoError(t, err)
-
-	return pool.NewClientCodec(tlsConn)
 }
 
 func TestRPC_forwardLeader(t *testing.T) {
@@ -105,7 +71,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 	if remote != nil {
 		var out struct{}
-		err := s1.forwardLeader(remote, "Status.Ping", &structs.GenericRequest{}, &out)
+		err := s1.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -118,7 +84,7 @@ func TestRPC_forwardLeader(t *testing.T) {
 
 	if remote != nil {
 		var out struct{}
-		err := s2.forwardLeader(remote, "Status.Ping", &structs.GenericRequest{}, &out)
+		err := s2.forwardLeader(remote, "Status.Ping", struct{}{}, &out)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -181,12 +147,12 @@ func TestRPC_forwardRegion(t *testing.T) {
 	testutil.WaitForLeader(t, s2.RPC)
 
 	var out struct{}
-	err := s1.forwardRegion("global", "Status.Ping", &structs.GenericRequest{}, &out)
+	err := s1.forwardRegion("global", "Status.Ping", struct{}{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = s2.forwardRegion("global", "Status.Ping", &structs.GenericRequest{}, &out)
+	err = s2.forwardRegion("global", "Status.Ping", struct{}{}, &out)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -223,9 +189,9 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -265,9 +231,9 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -331,9 +297,9 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -441,9 +407,9 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -579,9 +545,9 @@ func TestRPC_TLS_in_TLS(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile  = "../helper/tlsutil/testdata/ca.pem"
+		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
 	s, cleanup := TestServer(t, func(c *Config) {
@@ -639,9 +605,9 @@ func TestRPC_Limits_OK(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile   = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert  = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey   = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile   = "../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 		maxConns = 10 // limit must be < this for testing
 	)
 
@@ -1370,13 +1336,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	}
 
 	// Generate CA certificate and write it to disk.
-	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{
-		Name:               "Nomad CA",
-		Country:            "ZZ",
-		Days:               5,
-		Organization:       "CustOrgUnit",
-		OrganizationalUnit: "CustOrgUnit",
-	})
+	h.caPEM, h.pk, err = tlsutil.GenerateCA(tlsutil.CAOpts{Days: 5, Domain: "nomad"})
 	must.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(h.dir, "ca.pem"), []byte(h.caPEM), 0600)

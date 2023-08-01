@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: Added a ui.label block to agent config, letting operators set a visual label and color for their Nomad instance
-```

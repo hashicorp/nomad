@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { run } from '@ember/runloop';
 
 // These are private store methods called by store "finder" methods.

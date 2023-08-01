@@ -1,3 +1,0 @@
-```release-note:feature
-**SSO via OIDC**: Allow users to authenticate with Nomad via OIDC providers
-```

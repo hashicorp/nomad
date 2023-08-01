@@ -34,15 +34,12 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `cores` <code>(`int`: &lt;optional&gt;)</code> - Specifies the number of CPU cores
-  to reserve specifically for the task. This may not be used with `cpu`. The behavior
-  of setting `cores` is specific to each task driver (e.g. [docker][docker_cpu], [exec][exec_cpu]).
+- `cores` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Specifies the number of CPU cores to reserve
+  for the task. This may not be used with `cpu`.
 
 - `memory` `(int: 300)` - Specifies the memory required in MB.
 
-- `memory_max` <code>(`int`: &lt;optional&gt;)</code> - Optionally, specifies the
-  maximum memory the task may use, if the client has excess memory capacity, in MB.
-  See [Memory Oversubscription](#memory-oversubscription) for more details.
+- `memory_max` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See [Memory Oversubscription](#memory-oversubscription) for more details.
 
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
@@ -97,7 +94,7 @@ the task may exceed the limit and be interrupted; if the task memory is too
 high, the cluster is left underutilized.
 
 To help maximize cluster memory utilization while allowing a safety margin for
-unexpected load spikes, Nomad allows job authors to set two separate memory
+unexpected load spikes, Nomad 1.1. lets job authors set two separate memory
 limits:
 
 * `memory`: the reserve limit to represent the task’s typical memory usage —
@@ -112,15 +109,14 @@ may kill oversubscribed tasks and reschedule them to other clients. The exact
 mechanism for memory pressure is specific to the task driver, operating system,
 and application runtime.
 
-The `memory_max` limit attribute is currently supported by the official
-`docker`, `exec`, and `java` task drivers.  Consult the documentation of
+The new max limit attribute is currently supported by the official `docker`,
+`exec`, and `java` task drivers.  Consult the documentation of
 community-supported task drivers for their memory oversubscription support.
 
-Memory oversubscription is opt-in. Nomad operators can enable [Memory
-Oversubscription in the scheduler configuration][api_sched_config]. Enterprise
-customers can use [Resource Quotas][tutorial_quota] to limit the memory
-oversubscription and enable or disable memory oversubscription per [node
-pool][np_sched_config].
+Memory oversubscription is opt-in. Nomad operators can enable [Memory Oversubscription in the scheduler
+configuration](/nomad/api-docs/operator/scheduler#update-scheduler-configuration). Enterprise customers can use [Resource
+Quotas](/nomad/tutorials/governance-and-policy/quotas) to limit the memory
+oversubscription.
 
 To avoid degrading the cluster experience, we recommend examining and monitoring
 resource utilization and considering the following suggestions:
@@ -137,9 +133,4 @@ resource utilization and considering the following suggestions:
   1GB in aggregate before the memory becomes contended and allocations get
   killed.
 
-[api_sched_config]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration
 [device]: /nomad/docs/job-specification/device 'Nomad device Job Specification'
-[docker_cpu]: /nomad/docs/drivers/docker#cpu
-[exec_cpu]: /nomad/docs/drivers/exec#cpu
-[np_sched_config]: /nomad/docs/other-specifications/node-pool#memory_oversubscription_enabled
-[tutorial_quota]: /nomad/tutorials/governance-and-policy/quotas

@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <td data-test-icon class="is-narrow">
   {{#if this.node.unhealthyDrivers.length}}
     <span class="tooltip text-center" role="tooltip" aria-label="Client has unhealthy drivers">
@@ -18,9 +13,6 @@
   </span>
 </td>
 <td data-test-client-address class="is-200px is-truncatable">{{this.node.httpAddr}}</td>
-<td data-test-client-node-pool title="{{this.node.nodePool}}">
-  {{#if this.node.nodePool}}{{this.node.nodePool}}{{else}}-{{/if}}
-</td>
 <td data-test-client-datacenter>{{this.node.datacenter}}</td>
 <td data-test-client-version>{{this.node.version}}</td>
 <td data-test-client-volumes>{{if this.node.hostVolumes.length this.node.hostVolumes.length}}</td>

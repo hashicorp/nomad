@@ -67,18 +67,18 @@ List view:
 
 ```shell-session
 $ nomad node status
-ID        Node Pool  DC   Name   Class   Drain  Eligibility  Status
-a72dfba2  default    dc1  node1  <none>  false  eligible     ready
-1f3f03ea  dev        dc1  node2  <none>  false  eligible     ready
+ID        DC   Name   Class   Drain  Eligibility  Status
+a72dfba2  dc1  node1  <none>  false  eligible     ready
+1f3f03ea  dc1  node2  <none>  false  eligible     ready
 ```
 
 List view, with operating system name:
 
 ```shell-session
 $ nomad node status -os
-ID        Node Pool  DC   Name   Class   OS      Drain  Eligibility  Status
-a72dfba2  default    dc1  node1  <none>  ubuntu  false  eligible     ready
-f73e3993  dev        dc1  node2  <none>  centos  false  eligible     ready
+ID        DC   Name   Class   OS      Drain  Eligibility  Status
+a72dfba2  dc1  node1  <none>  ubuntu  false  eligible     ready
+f73e3993  dc1  node2  <none>  centos  false  eligible     ready
 ```
 
 List view, with quiet:
@@ -91,29 +91,28 @@ $ nomad node status -quiet
 f35be281-85a5-d1e6-d268-6e8a6f0684df
 ```
 
-**NOTE**: `-quiet` cannot be used in conjunction with `-verbose` or `-json`.
+**NOTE**: `-quiet` cannot be used in conjuction with `-verbose` or `-json`.
 
 List view, with running allocations:
 
 ```shell-session
 $ nomad node status -allocs
-ID        Node Pool  DC   Name   Class   Drain  Eligibility  Status  Running Allocs
-4d2ba53b  default    dc1  node1  <none>  false  eligible     ready   1
-34dfba32  dev        dc1  node2  <none>  false  eligible     ready   3
+ID        DC   Name   Class   Drain  Eligibility  Status  Running Allocs
+4d2ba53b  dc1  node1  <none>  false  eligible     ready   1
+34dfba32  dc1  node2  <none>  false  eligible     ready   3
 ```
 
 Single-node view in short mode:
 
 ```shell-session
 $ nomad node status -short 1f3f03ea
-ID        = c754da1f
-Name      = nomad
-Node Pool = default
-Class     = <none>
-DC        = dc1
-Drain     = false
-Status    = ready
-Uptime    = 17h2m25s
+ID     = c754da1f
+Name   = nomad
+Class  = <none>
+DC     = dc1
+Drain  = false
+Status = ready
+Uptime = 17h2m25s
 
 Allocations
 ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
@@ -124,14 +123,13 @@ Full output for a single node:
 
 ```shell-session
 $ nomad node status 1f3f03ea
-ID        = c754da1f
-Name      = nomad-server01
-Node Pool = default
-Class     = <none>
-DC        = dc1
-Drain     = false
-Status    = ready
-Uptime    = 17h42m50s
+ID     = c754da1f
+Name    = nomad-server01
+Class   = <none>
+DC      = dc1
+Drain   = false
+Status  = ready
+Uptime  = 17h42m50s
 
 Drivers
 Driver    Detected  Healthy
@@ -168,14 +166,13 @@ Using `-self` when on a Nomad Client:
 
 ```shell-session
 $ nomad node status -self
-ID        = c754da1f
-Name      = nomad-client01
-Node Pool = default
-Class     = <none>
-DC        = dc1
-Drain     = false
-Status    = ready
-Uptime    = 17h7m41s
+ID     = c754da1f
+Name   = nomad-client01
+Class  = <none>
+DC     = dc1
+Drain  = false
+Status = ready
+Uptime = 17h7m41s
 
 Drivers
 Driver    Detected  Healthy
@@ -239,14 +236,13 @@ Using `-stats` to see detailed to resource usage information on the node:
 
 ```shell-session
 $ nomad node status -stats c754da1f
-ID        = c754da1f
-Name      = nomad-client01
-Node Pool = default
-Class     = <none>
-DC        = dc1
-Drain     = false
-Status    = ready
-Uptime    = 17h7m41s
+ID     = c754da1f
+Name   = nomad-client01
+Class  = <none>
+DC     = dc1
+Drain  = false
+Status = ready
+Uptime = 17h7m41s
 
 Drivers
 Driver    Detected  Healthy
@@ -321,21 +317,20 @@ To view verbose information about the node:
 
 ```shell-session
 $ nomad node status -verbose c754da1f
-ID        = c754da1f-6337-b86d-47dc-2ef4c71aca14
-Name      = nomad
-Node Pool = default
-Class     = <none>
-DC        = dc1
-Drain     = false
-Status    = ready
-Uptime    = 17h7m41s
+ID     = c754da1f-6337-b86d-47dc-2ef4c71aca14
+Name   = nomad
+Class  = <none>
+DC     = dc1
+Drain  = false
+Status = ready
+Uptime = 17h7m41s
 
 Host Volumes
 Name  ReadOnly  Source
 
 CSI Volumes
-ID        Name  Namespace  Plugin ID  Schedulable  Access Mode         Mount Options
-402f2c83  vol   default    plug       true         single-node-writer  <none>
+ID        Name  Plugin ID  Schedulable  Access Mode         Mount Options
+402f2c83  vol   plug       true         single-node-writer  <none>
 
 Drivers
 Driver    Detected  Healthy  Message                        Time

@@ -1,22 +1,15 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package e2eutil
 
 import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
 
 // AllocsByName sorts allocs by Name
@@ -69,38 +62,11 @@ func WaitForAllocStatusComparison(query func() ([]string, error), comparison fun
 	return err
 }
 
-// SingleAllocID returns the ID for the first allocation found for jobID in namespace
-// at the specified job version number. Will retry for ten seconds before returning
-// an error.
-//
-// Should only be used with jobs containing a single task group.
-func SingleAllocID(t *testing.T, jobID, namespace string, version int) string {
-	var id string
-	f := func() error {
-		allocations, err := AllocsForJob(jobID, namespace)
-		if err != nil {
-			return err
-		}
-		for _, m := range allocations {
-			if m["Version"] == strconv.Itoa(version) {
-				id = m["ID"]
-				return nil
-			}
-		}
-		return fmt.Errorf("id not found for %s/%s/%d", namespace, jobID, version)
-	}
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(f),
-		wait.Timeout(10*time.Second),
-		wait.Gap(1*time.Second),
-	))
-	return id
-}
-
 // AllocsForJob returns a slice of key->value maps, each describing the values
 // of the 'nomad job status' Allocations section (not actual
 // structs.Allocation objects, query the API if you want those)
 func AllocsForJob(jobID, ns string) ([]map[string]string, error) {
+
 	var nsArg = []string{}
 	if ns != "" {
 		nsArg = []string{"-namespace", ns}
@@ -265,13 +231,10 @@ const (
 	LogsStdOut
 )
 
-func AllocLogs(allocID, namespace string, logStream LogStream) (string, error) {
+func AllocLogs(allocID string, logStream LogStream) (string, error) {
 	cmd := []string{"nomad", "alloc", "logs"}
 	if logStream == LogsStdErr {
 		cmd = append(cmd, "-stderr")
-	}
-	if namespace != "" {
-		cmd = append(cmd, "-namespace", namespace)
 	}
 	cmd = append(cmd, allocID)
 	return Command(cmd[0], cmd[1:]...)

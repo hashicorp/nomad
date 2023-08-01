@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -137,8 +134,7 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Get the ready nodes in the required datacenters
 	if !s.job.Stopped() {
-		s.nodes, s.notReadyNodes, s.nodesByDC, err = readyNodesInDCsAndPool(
-			s.state, s.job.Datacenters, s.job.NodePool)
+		s.nodes, s.notReadyNodes, s.nodesByDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
@@ -156,7 +152,7 @@ func (s *SystemScheduler) process() (bool, error) {
 	// Construct the placement stack
 	s.stack = NewSystemStack(s.sysbatch, s.ctx)
 	if !s.job.Stopped() {
-		s.setJob(s.job)
+		s.stack.SetJob(s.job)
 	}
 
 	// Compute the target job allocations
@@ -209,26 +205,6 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Success!
 	return true, nil
-}
-
-// setJob updates the stack with the given job and job's node pool scheduler
-// configuration.
-func (s *SystemScheduler) setJob(job *structs.Job) error {
-	// Fetch node pool and global scheduler configuration to determine how to
-	// configure the scheduler.
-	pool, err := s.state.NodePoolByName(nil, job.NodePool)
-	if err != nil {
-		return fmt.Errorf("failed to get job node pool %q: %v", job.NodePool, err)
-	}
-
-	_, schedConfig, err := s.state.SchedulerConfig()
-	if err != nil {
-		return fmt.Errorf("failed to get scheduler configuration: %v", err)
-	}
-
-	s.stack.SetJob(job)
-	s.stack.SetSchedulerConfiguration(schedConfig.WithNodePool(pool))
-	return nil
 }
 
 // computeJobAllocs is used to reconcile differences between the job,
@@ -417,7 +393,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = s.nodesByDC
-			s.ctx.Metrics().NodesInPool = len(s.nodes)
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
@@ -439,7 +414,6 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Store the available nodes by datacenter
 		s.ctx.Metrics().NodesAvailable = s.nodesByDC
-		s.ctx.Metrics().NodesInPool = len(s.nodes)
 
 		// Compute top K scoring node metadata
 		s.ctx.Metrics().PopulateScoreMetaData()

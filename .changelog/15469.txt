@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: add a nomad operator client state command
-```

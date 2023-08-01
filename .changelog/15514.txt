@@ -1,3 +1,0 @@
-```release-note:breaking-change
-artifact: environment variables no longer inherited by default from Nomad client
-```

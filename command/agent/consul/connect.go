@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package consul
 
 import (
@@ -12,7 +9,6 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -132,7 +128,6 @@ func connectSidecarRegistration(serviceID string, info structs.AllocInfo, css *s
 		Address: cMapping.HostIP,
 		Proxy:   proxy,
 		Checks:  checks,
-		Meta:    maps.Clone(css.Meta),
 	}, nil
 }
 
@@ -207,7 +202,6 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,
 			MeshGateway:          connectMeshGateway(upstream.MeshGateway),
-			Config:               maps.Clone(upstream.Config),
 		}
 	}
 	return upstreams

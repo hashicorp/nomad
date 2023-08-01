@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -112,21 +109,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	err = store.UpsertACLTokens(structs.MsgTypeTestSetup, 1150, []*structs.ACLToken{aclToken})
 	must.NoError(t, err)
 
-	variablesRPC := NewVariablesEndpoint(srv, nil, srv.encrypter)
-
-	testFn := func(args *structs.QueryOptions, cap, path string) error {
-		err := srv.Authenticate(nil, args)
-		if err != nil {
-			return structs.ErrPermissionDenied
-		}
-		_, _, err = variablesRPC.handleMixedAuthEndpoint(
-			*args, cap, path)
-		return err
-	}
-
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
-		err := testFn(
-			&structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
+		_, _, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+			structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -137,8 +122,8 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
-		err := testFn(&structs.QueryOptions{
-			AuthToken: idToken, Namespace: structs.DefaultNamespace}, acl.PolicyList,
+		_, _, err = srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+			structs.QueryOptions{AuthToken: idToken, Namespace: structs.DefaultNamespace}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -384,9 +369,8 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			err := testFn(
-				&structs.QueryOptions{AuthToken: tc.token, Namespace: ns},
-				tc.cap, tc.path)
+			_, _, err := srv.staticEndpoints.Variables.handleMixedAuthEndpoint(
+				structs.QueryOptions{AuthToken: tc.token, Namespace: ns}, tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
 			} else {

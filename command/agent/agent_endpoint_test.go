@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -810,7 +807,7 @@ func TestHTTP_AgentSetServers_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.AgentServersRequest(respW, req)
 			require.NotNil(err)
-			require.ErrorContains(err, structs.ErrPermissionDenied.Error())
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
@@ -864,7 +861,7 @@ func TestHTTP_AgentListServers_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.AgentServersRequest(respW, req)
 			require.NotNil(err)
-			require.ErrorContains(err, structs.ErrPermissionDenied.Error())
+			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure

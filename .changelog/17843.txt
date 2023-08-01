@@ -1,3 +1,0 @@
-```release-note:improvement
-docker: Added option for labeling container with parent job ID of periodic/dispatch jobs
-```

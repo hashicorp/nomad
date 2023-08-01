@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -5742,7 +5739,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 							nextReplacement := replacement.Copy()
 							nextReplacement.ID = uuid.Generate()
 							nextReplacement.ClientStatus = structs.AllocClientStatusRunning
-							nextReplacement.DesiredStatus = structs.AllocDesiredStatusRun
+							nextReplacement.DesiredStatus = structs.AllocClientStatusRunning
 							nextReplacement.PreviousAllocation = replacement.ID
 							nextReplacement.CreateIndex += 1
 

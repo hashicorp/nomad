@@ -1,25 +1,17 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package version
 
 import (
 	"bytes"
 	"fmt"
-	"time"
 )
 
 var (
-	// BuildDate is the time of the git commit used to build the program,
-	// in RFC3339 format. It is filled in by the compiler via makefile.
-	BuildDate string
-
 	// The git commit that was compiled. This will be filled in by the compiler.
 	GitCommit   string
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "1.6.2"
+	Version = "1.4.13"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
@@ -32,7 +24,6 @@ var (
 
 // VersionInfo
 type VersionInfo struct {
-	BuildDate         time.Time
 	Revision          string
 	Version           string
 	VersionPrerelease string
@@ -59,11 +50,7 @@ func GetVersion() *VersionInfo {
 		rel = "dev"
 	}
 
-	// on parse error, will be zero value time.Time{}
-	built, _ := time.Parse(time.RFC3339, BuildDate)
-
 	return &VersionInfo{
-		BuildDate:         built,
 		Revision:          GitCommit,
 		Version:           ver,
 		VersionPrerelease: rel,
@@ -97,12 +84,8 @@ func (c *VersionInfo) FullVersionNumber(rev bool) string {
 		fmt.Fprintf(&versionString, "+%s", c.VersionMetadata)
 	}
 
-	if !c.BuildDate.IsZero() {
-		fmt.Fprintf(&versionString, "\nBuildDate %s", c.BuildDate.Format(time.RFC3339))
-	}
-
 	if rev && c.Revision != "" {
-		fmt.Fprintf(&versionString, "\nRevision %s", c.Revision)
+		fmt.Fprintf(&versionString, " (%s)", c.Revision)
 	}
 
 	return versionString.String()

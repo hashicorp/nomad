@@ -1,15 +1,12 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru/v2"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/time/rate"
 )
@@ -39,7 +36,7 @@ func (n *NoopBadNodeTracker) Add(string) bool {
 // frequency and recency.
 type CachedBadNodeTracker struct {
 	logger    hclog.Logger
-	cache     *lru.TwoQueueCache[string, *badNodeStats]
+	cache     *lru.TwoQueueCache
 	limiter   *rate.Limiter
 	window    time.Duration
 	threshold int
@@ -75,7 +72,7 @@ func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerCon
 		With("window", config.Window).
 		With("threshold", config.Threshold)
 
-	cache, err := lru.New2Q[string, *badNodeStats](config.CacheSize)
+	cache, err := lru.New2Q(config.CacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new bad node tracker: %v", err)
 	}
@@ -96,11 +93,12 @@ func NewCachedBadNodeTracker(logger hclog.Logger, config CachedBadNodeTrackerCon
 // cache. If the cache is full the least recently updated or accessed node is
 // evicted.
 func (c *CachedBadNodeTracker) Add(nodeID string) bool {
-	stats, ok := c.cache.Get(nodeID)
+	value, ok := c.cache.Get(nodeID)
 	if !ok {
-		stats = newBadNodeStats(nodeID, c.window)
-		c.cache.Add(nodeID, stats)
+		value = newBadNodeStats(nodeID, c.window)
+		c.cache.Add(nodeID, value)
 	}
+	stats := value.(*badNodeStats)
 
 	now := time.Now()
 	stats.record(now)
@@ -149,12 +147,13 @@ func (c *CachedBadNodeTracker) isBad(t time.Time, stats *badNodeStats) bool {
 
 func (c *CachedBadNodeTracker) emitStats() {
 	now := time.Now()
-	for _, nodeID := range c.cache.Keys() {
-		stats, _ := c.cache.Get(nodeID)
+	for _, k := range c.cache.Keys() {
+		value, _ := c.cache.Get(k)
+		stats := value.(*badNodeStats)
 		score := stats.score(now)
 
 		labels := []metrics.Label{
-			{Name: "node_id", Value: nodeID},
+			{Name: "node_id", Value: k.(string)},
 		}
 		metrics.SetGaugeWithLabels([]string{"nomad", "plan", "rejection_tracker", "node_score"}, float32(score), labels)
 	}

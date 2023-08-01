@@ -1,24 +1,15 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import classic from 'ember-classic-decorator';
-import { watchRecord } from 'nomad-ui/utils/properties/watch';
-import { collect } from '@ember/object/computed';
-import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 @classic
-export default class JobRoute extends Route.extend(WithWatchers) {
+export default class JobRoute extends Route {
   @service can;
   @service store;
   @service token;
   @service router;
-  @service notifications;
 
   serialize(model) {
     return { job_name: model.get('idWithNamespace') };
@@ -61,17 +52,4 @@ export default class JobRoute extends Route.extend(WithWatchers) {
       })
       .catch(notifyError(this));
   }
-
-  startWatchers(controller, model) {
-    if (!model) {
-      return;
-    }
-    controller.set('watchers', {
-      job: this.watch.perform(model),
-    });
-  }
-
-  @watchRecord('job', { shouldSurfaceErrors: true }) watch;
-  @collect('watch')
-  watchers;
 }

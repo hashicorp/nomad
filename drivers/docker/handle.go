@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package docker
 
 import (
@@ -25,17 +22,8 @@ import (
 )
 
 type taskHandle struct {
-	// dockerClient is useful for normal docker API calls. It should be used
-	// for all calls that aren't Wait() or Stop() (and their variations).
-	dockerClient *docker.Client
-
-	// infinityClient is useful for
-	// - the Wait docker API call(s) (no limit on container lifetime)
-	// - the Stop docker API call(s) (context with task kill_timeout required)
-	// Do not use this client for any other docker API calls, instead use the
-	// normal dockerClient which includes a default timeout.
-	infinityClient *docker.Client
-
+	client                *docker.Client
+	waitClient            *docker.Client
 	logger                hclog.Logger
 	dlogger               docklog.DockerLogger
 	dloggerPluginClient   *plugin.Client
@@ -89,7 +77,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 		Container:    h.containerID,
 		Context:      ctx,
 	}
-	exec, err := h.dockerClient.CreateExec(createExecOpts)
+	exec, err := h.client.CreateExec(createExecOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -104,12 +92,12 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 		ErrorStream:  stderr,
 		Context:      ctx,
 	}
-	if err := h.dockerClient.StartExec(exec.ID, startOpts); err != nil {
+	if err := client.StartExec(exec.ID, startOpts); err != nil {
 		return nil, err
 	}
 	execResult.Stdout = stdout.Bytes()
 	execResult.Stderr = stderr.Bytes()
-	res, err := h.dockerClient.InspectExec(exec.ID)
+	res, err := client.InspectExec(exec.ID)
 	if err != nil {
 		return execResult, err
 	}
@@ -129,14 +117,13 @@ func (h *taskHandle) Signal(ctx context.Context, s os.Signal) error {
 	// MacOS signals to the correct signal number for docker. Or we change the
 	// interface to take a signal string and leave it up to driver to map?
 
+	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
 		ID:      h.containerID,
-		Signal:  docker.Signal(sysSig),
+		Signal:  dockerSignal,
 		Context: ctx,
 	}
-
-	// remember Kill just means send a signal; this is not the complex StopContainer case
-	return h.dockerClient.KillContainer(opts)
+	return h.client.KillContainer(opts)
 }
 
 // parseSignal interprets the signal name into an os.Signal. If no name is
@@ -169,13 +156,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 	// Signal is used to kill the container with the desired signal before
 	// calling StopContainer
 	if signal == "" {
-		// give the context timeout some wiggle room beyond the kill timeout
-		// docker will use, so we can happy path even in the force kill case
-		graciousTimeout := killTimeout + dockerTimeout
-		ctx, cancel := context.WithTimeout(context.Background(), graciousTimeout)
-		defer cancel()
-		apiTimeout := uint(killTimeout.Seconds())
-		err = h.infinityClient.StopContainerWithContext(h.containerID, apiTimeout, ctx)
+		err = h.waitClient.StopContainer(h.containerID, uint(killTimeout.Seconds()))
 	} else {
 		ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
 		defer cancel()
@@ -207,8 +188,8 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
 		case <-ctx.Done():
 		}
 
-		// Stop the container forcefully.
-		err = h.dockerClient.StopContainer(h.containerID, 0)
+		// Stop the container
+		err = h.client.StopContainer(h.containerID, 0)
 	}
 
 	if err != nil {
@@ -246,7 +227,7 @@ func (h *taskHandle) shutdownLogger() {
 func (h *taskHandle) run() {
 	defer h.shutdownLogger()
 
-	exitCode, werr := h.infinityClient.WaitContainer(h.containerID)
+	exitCode, werr := h.waitClient.WaitContainer(h.containerID)
 	if werr != nil {
 		h.logger.Error("failed to wait for container; already terminated")
 	}
@@ -255,20 +236,13 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
-	container, ierr := h.dockerClient.InspectContainerWithOptions(docker.InspectContainerOptions{
+	container, ierr := h.waitClient.InspectContainerWithOptions(docker.InspectContainerOptions{
 		ID: h.containerID,
 	})
 	oom := false
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)
 	} else if container.State.OOMKilled {
-		h.logger.Error("OOM Killed",
-			"container_id", h.containerID,
-			"container_image", h.containerImage,
-			"nomad_job_name", h.task.JobName,
-			"nomad_task_name", h.task.Name,
-			"nomad_alloc_id", h.task.AllocID)
-
 		// Note that with cgroups.v2 the cgroup OOM killer is not
 		// observed by docker container status. But we can't test the
 		// exit code, as 137 is used for any SIGKILL
@@ -280,8 +254,8 @@ func (h *taskHandle) run() {
 	close(h.doneCh)
 
 	// Stop the container just incase the docker daemon's wait returned
-	// incorrectly.
-	if err := h.dockerClient.StopContainer(h.containerID, 0); err != nil {
+	// incorrectly
+	if err := h.client.StopContainer(h.containerID, 0); err != nil {
 		_, noSuchContainer := err.(*docker.NoSuchContainer)
 		_, containerNotRunning := err.(*docker.ContainerNotRunning)
 		if !containerNotRunning && !noSuchContainer {

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -79,7 +76,7 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 	req := CSIVolumeRegisterRequest{
 		Volumes: []*CSIVolume{vol},
 	}
-	meta, err := v.client.put("/v1/volume/csi/"+vol.ID, req, nil, w)
+	meta, err := v.client.write("/v1/volume/csi/"+vol.ID, req, nil, w)
 	return meta, err
 }
 
@@ -98,7 +95,7 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 	}
 
 	resp := &CSIVolumeCreateResponse{}
-	meta, err := v.client.put(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
+	meta, err := v.client.write(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
 	return resp.Volumes, meta, err
 }
 
@@ -142,7 +139,7 @@ func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) (*CSISna
 	}
 	w.SetHeadersFromCSISecrets(snap.Secrets)
 	resp := &CSISnapshotCreateResponse{}
-	meta, err := v.client.put("/v1/volumes/snapshot", req, resp, w)
+	meta, err := v.client.write("/v1/volumes/snapshot", req, resp, w)
 	return resp, meta, err
 }
 

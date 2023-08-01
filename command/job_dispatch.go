@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -36,10 +33,7 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   detach flag.
 
   When ACLs are enabled, this command requires a token with the 'dispatch-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  capability for the job's namespace.
 
 General Options:
 
@@ -144,6 +138,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
+	job := args[0]
 	var payload []byte
 	var readErr error
 
@@ -180,22 +175,11 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if the job exists
-	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, func(j *api.JobListStub) bool {
-		return j.ParameterizedJob
-	})
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-
 	// Dispatch the job
 	w := &api.WriteOptions{
 		IdempotencyToken: idempotencyToken,
-		Namespace:        namespace,
 	}
-	resp, _, err := client.Jobs().Dispatch(jobID, metaMap, payload, idPrefixTemplate, w)
+	resp, _, err := client.Jobs().Dispatch(job, metaMap, payload, idPrefixTemplate, w)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1

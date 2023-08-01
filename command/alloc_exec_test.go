@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -25,7 +22,7 @@ var _ cli.Command = &AllocExecCommand{}
 func TestAllocExecCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	cases := []struct {
 		name          string
@@ -60,7 +57,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 		{
 			"job not found",
 			[]string{"-address=" + url, "-job", "example", "/bin/bash"},
-			`No job(s) with prefix or ID "example" found`,
+			`job "example" doesn't exist`,
 		},
 		{
 			"command missing",
@@ -145,7 +142,7 @@ func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	ui := cli.NewMockUi()
 	cmd := &AllocExecCommand{Meta: Meta{Ui: ui, flagAddress: url}}
@@ -167,7 +164,7 @@ func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
 func TestAllocExecCommand_Run(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
-	defer srv.Shutdown()
+	defer stopTestAgent(srv)
 
 	// Wait for a node to be ready
 	waitForNodes(t, client)

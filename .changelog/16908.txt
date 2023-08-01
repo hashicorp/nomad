@@ -1,3 +1,0 @@
-```release-note:improvement
-deps: Updated consul-template to v0.31.0
-```

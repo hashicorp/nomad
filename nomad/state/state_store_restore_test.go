@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -13,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,36 +46,28 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	mockJob1 := mock.Job()
+	job := mock.Job()
 
 	restore, err := state.Restore()
-	must.NoError(t, err)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
-	err = restore.JobRestore(mockJob1)
-	must.NoError(t, err)
-	must.NoError(t, restore.Commit())
+	err = restore.JobRestore(job)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	require.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
-	out, err := state.JobByID(ws, mockJob1.Namespace, mockJob1.ID)
-	must.NoError(t, err)
-	must.Eq(t, mockJob1, out)
+	out, err := state.JobByID(ws, job.Namespace, job.ID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
-	// Test upgrade to 1.6 or greater to simulate restoring a job which does
-	// not have a node pool set.
-	mockJob2 := mock.Job()
-	mockJob2.NodePool = ""
-
-	restore, err = state.Restore()
-	must.NoError(t, err)
-
-	err = restore.JobRestore(mockJob2)
-	must.NoError(t, err)
-	must.NoError(t, restore.Commit())
-
-	ws = memdb.NewWatchSet()
-	out, err = state.JobByID(ws, mockJob2.Namespace, mockJob2.ID)
-	must.NoError(t, err)
-	must.Eq(t, structs.NodePoolDefault, out.NodePool)
+	if !reflect.DeepEqual(out, job) {
+		t.Fatalf("Bad: %#v %#v", out, job)
+	}
 }
 
 func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
@@ -638,50 +626,4 @@ func TestStateStore_ACLRoleRestore(t *testing.T) {
 	out, err := testState.GetACLRoleByName(ws, aclRole.Name)
 	require.NoError(t, err)
 	require.Equal(t, aclRole, out)
-}
-
-func TestStateStore_ACLAuthMethodRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test registrations and index.
-	expectedIndex := uint64(13)
-	authMethod := mock.ACLOIDCAuthMethod()
-	authMethod.CreateIndex = expectedIndex
-	authMethod.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	require.NoError(t, err)
-	require.NoError(t, restore.ACLAuthMethodRestore(authMethod))
-	require.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored registrations.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLAuthMethodByName(ws, authMethod.Name)
-	require.NoError(t, err)
-	require.Equal(t, authMethod, out)
-}
-
-func TestStateStore_ACLBindingRuleRestore(t *testing.T) {
-	ci.Parallel(t)
-	testState := testStateStore(t)
-
-	// Set up our test ACL binding rule and index.
-	expectedIndex := uint64(13)
-	aclBindingRule := mock.ACLBindingRule()
-	aclBindingRule.CreateIndex = expectedIndex
-	aclBindingRule.ModifyIndex = expectedIndex
-
-	restore, err := testState.Restore()
-	must.NoError(t, err)
-	must.NoError(t, restore.ACLBindingRuleRestore(aclBindingRule))
-	must.NoError(t, restore.Commit())
-
-	// Check the state is now populated as we expect and that we can find the
-	// restored ACL binding rule.
-	ws := memdb.NewWatchSet()
-	out, err := testState.GetACLBindingRule(ws, aclBindingRule.ID)
-	must.NoError(t, err)
-	must.Eq(t, aclBindingRule, out)
 }

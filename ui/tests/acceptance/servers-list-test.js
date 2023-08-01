@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -17,7 +12,6 @@ import faker from 'nomad-ui/mirage/faker';
 
 const minimumSetup = () => {
   faker.seed(1);
-  server.createList('node-pool', 1);
   server.createList('node', 1);
   server.createList('agent', 1);
 };
@@ -43,7 +37,6 @@ module('Acceptance | servers list', function (hooks) {
 
   test('/servers should list all servers', async function (assert) {
     faker.seed(1);
-    server.createList('node-pool', 1);
     server.createList('node', 1);
     server.createList('agent', 10);
 
@@ -68,7 +61,7 @@ module('Acceptance | servers list', function (hooks) {
       );
     });
 
-    assert.ok(document.title.includes('Servers'));
+    assert.equal(document.title, 'Servers - Nomad');
   });
 
   test('each server should show high-level info of the server', async function (assert) {

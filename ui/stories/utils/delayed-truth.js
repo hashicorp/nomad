@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import EmberObject from '@ember/object';
 import { next } from '@ember/runloop';
 

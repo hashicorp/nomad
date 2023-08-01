@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
@@ -27,6 +22,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       return;
     }
     controller.set('watchers', {
+      model: this.watch.perform(model),
       summary: this.watchSummary.perform(model.get('summary')),
       allocations: this.watchAllocations.perform(model),
       evaluations: this.watchEvaluations.perform(model),
@@ -58,6 +54,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     return super.setupController(...arguments);
   }
 
+  @watchRecord('job') watch;
   @watchQuery('job') watchAllJobs;
   @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
@@ -66,6 +63,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
   @collect(
+    'watch',
     'watchAllJobs',
     'watchSummary',
     'watchAllocations',

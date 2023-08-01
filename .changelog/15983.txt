@@ -1,3 +1,0 @@
-```release-note:improvement
-variables: Increased maximum size to 64KiB
-```

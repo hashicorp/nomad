@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 module "nomad_server" {
   source     = "./provision-nomad"
   depends_on = [aws_instance.server]
@@ -28,18 +25,18 @@ module "nomad_server" {
 
 # TODO: split out the different Linux targets (ubuntu, centos, arm, etc.) when
 # they're available
-module "nomad_client_ubuntu_jammy_amd64" {
+module "nomad_client_ubuntu_bionic_amd64" {
   source     = "./provision-nomad"
-  depends_on = [aws_instance.client_ubuntu_jammy_amd64]
-  count      = var.client_count_ubuntu_jammy_amd64
+  depends_on = [aws_instance.client_ubuntu_bionic_amd64]
+  count      = var.client_count_ubuntu_bionic_amd64
 
   platform = "linux"
   arch     = "linux_amd64"
   role     = "client"
   index    = count.index
-  instance = aws_instance.client_ubuntu_jammy_amd64[count.index]
+  instance = aws_instance.client_ubuntu_bionic_amd64[count.index]
 
-  nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy_amd64) ? var.nomad_local_binary_client_ubuntu_jammy_amd64[count.index] : var.nomad_local_binary
+  nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_bionic_amd64) ? var.nomad_local_binary_client_ubuntu_bionic_amd64[count.index] : var.nomad_local_binary
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package template
 
 import (
@@ -27,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/users"
@@ -188,7 +184,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 	if consul {
 		var err error
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
-			c.Peering = nil // fix for older versions of Consul (<1.13.0) that don't support peering
+			c.Peering = nil  // fix for older versions of Consul (<1.13.0) that don't support peering
 		})
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
@@ -517,7 +513,6 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 }
 
 func TestTaskTemplateManager_Permissions(t *testing.T) {
-	clienttestutil.RequireRoot(t)
 	ci.Parallel(t)
 	// Make a template that will render immediately
 	content := "hello, world!"
@@ -2563,6 +2558,9 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	cu, err := users.Current()
 	require.NoError(t, err)
 
+	cg, err := users.LookupGroupId(cu.Gid)
+	require.NoError(t, err)
+
 	file := "my.tmpl"
 	template := &structs.Template{
 		// EmbeddedTmpl set below as it needs the taskDir
@@ -2574,7 +2572,7 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 
 	// Add template now that we know the taskDir
 	harness.templates[0].EmbeddedTmpl = fmt.Sprintf(`Testing writeToFile...
-{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cu.Gid+`" "0644" }}
+{{ "hello" | writeToFile "%s" "`+cu.Username+`" "`+cg.Name+`" "0644" }}
 ...done
 `, filepath.Join(harness.taskDir, "writetofile.out"))
 

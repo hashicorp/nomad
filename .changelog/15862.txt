@@ -1,3 +1,0 @@
-```release-note:bug
-services: Fixed a bug where services would fail to register if task initially fails
-```

@@ -1,10 +1,5 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
-import { currentURL, click, find } from '@ember/test-helpers';
+import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -30,7 +25,6 @@ module('Acceptance | job allocations', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function () {
-    server.create('node-pool');
     server.create('node');
 
     job = server.create('job', {
@@ -75,33 +69,6 @@ module('Acceptance | job allocations', function (hooks) {
     });
 
     assert.equal(document.title, `Job ${job.name} allocations - Nomad`);
-  });
-
-  test('clicking an allocation results in the correct endpoint being hit', async function (assert) {
-    server.createList('allocation', Allocations.pageSize - 1, {
-      shallow: true,
-    });
-    allocations = server.schema.allocations.where({ jobId: job.id }).models;
-
-    await Allocations.visit({ id: job.id });
-
-    const firstAllocation = find('[data-test-allocation]');
-    await click(firstAllocation);
-
-    const requestToAllocationEndpoint = server.pretender.handledRequests.find(
-      (request) =>
-        request.url.includes(
-          `/v1/allocation/${firstAllocation.dataset.testAllocation}`
-        )
-    );
-
-    assert.ok(requestToAllocationEndpoint, 'the correct endpoint is hit');
-
-    assert.equal(
-      currentURL(),
-      `/allocations/${firstAllocation.dataset.testAllocation}`,
-      'the URL is correct'
-    );
   });
 
   test('allocations table is sortable', async function (assert) {
@@ -239,7 +206,6 @@ module('Acceptance | job allocations', function (hooks) {
       ).sort();
     },
     async beforeEach() {
-      server.create('node-pool');
       job = server.create('job', {
         type: 'service',
         status: 'running',

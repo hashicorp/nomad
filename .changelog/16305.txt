@@ -1,3 +1,0 @@
-```release-note:breaking-change
-api: job register and register requests from API clients older than version 0.12.1 will not longer emit an evaluation
-```

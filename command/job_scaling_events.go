@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -30,10 +27,8 @@ Usage: nomad job scaling-events [options] <args>
 
   List the scaling events for the specified job.
 
-  When ACLs are enabled, this command requires a token with either the
-  'read-job' or 'read-job-scaling' capability for the job's namespace. The
-  'list-jobs' capability is required to run the command with a job prefix
-  instead of the exact job ID.
+  When ACLs are enabled, this command requires a token with the
+  'read-job-scaling' capability for the job's namespace.
 
 General Options:
 
@@ -81,6 +76,9 @@ func (j *JobScalingEventsCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Get the job ID.
+	jobID := args[0]
+
 	// Get the HTTP client.
 	client, err := j.Meta.Client()
 	if err != nil {
@@ -88,16 +86,7 @@ func (j *JobScalingEventsCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check if the job exists
-	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := j.JobIDByPrefix(client, jobIDPrefix, nil)
-	if err != nil {
-		j.Ui.Error(err.Error())
-		return 1
-	}
-
-	q := &api.QueryOptions{Namespace: namespace}
-	events, _, err := client.Jobs().ScaleStatus(jobID, q)
+	events, _, err := client.Jobs().ScaleStatus(jobID, nil)
 	if err != nil {
 		j.Ui.Error(fmt.Sprintf("Error listing scaling events: %s", err))
 		return 1

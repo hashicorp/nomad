@@ -332,42 +332,29 @@ Common commands:
     agent       Runs a Nomad agent
 
 Other commands:
-    acl                 Interact with ACL policies and tokens
-    agent-info          Display status information about the local agent
-    config              Interact with configurations
-    deployment          Interact with deployments
-    eval                Interact with evaluations
-    exec                Execute commands in task
-    fmt                 Rewrites Nomad config and job files to canonical format
-    license             Interact with Nomad Enterprise License
-    login               Login to Nomad using an auth method
-    monitor             Stream logs from a Nomad agent
-    namespace           Interact with namespaces
-    operator            Provides cluster-level tools for Nomad operators
-    plugin              Inspect plugins
-    quota               Interact with quotas
-    recommendation      Interact with the Nomad recommendation endpoint
-    scaling             Interact with the Nomad scaling endpoint
-    sentinel            Interact with Sentinel policies
-    server              Interact with servers
-    service             Interact with registered services
-    system              Interact with the system API
-    tls                 Generate Self Signed TLS Certificates for Nomad
-    ui                  Open the Nomad Web UI
-    var                 Interact with variables
-    version             Prints the Nomad version
-    volume              Interact with volumes
+    acl             Interact with ACL policies and tokens
+    agent-info      Display status information about the local agent
+    deployment      Interact with deployments
+    eval            Interact with evaluations
+    exec            Execute commands in task
+    monitor         Stream logs from a Nomad agent
+    namespace       Interact with namespaces
+    operator        Provides cluster-level tools for Nomad operators
+    quota           Interact with quotas
+    sentinel        Interact with Sentinel policies
+    server          Interact with servers
+    system          Interact with the system API
+    ui              Open the Nomad Web UI
+    version         Prints the Nomad version
 ```
 
 ---
 
 ## Compiling from Source ((#from-source))
 
-To compile from source, you will need [Go](https://golang.org) installed at the
-version described by the [.go-version][go-version] file. You should properly
-configure your Go environment, including setting a `GOPATH` environment variable
-and ensuring `GOPATH/bin` is within your `PATH`. A copy of
-[`git`](https://www.git-scm.com/) is also needed in your `PATH`.
+To compile from source, you will need [Go](https://golang.org) installed and
+configured properly (including a `GOPATH` environment variable set), as well
+as a copy of [`git`](https://www.git-scm.com/) in your `PATH`.
 
 1. Clone the Nomad repository from GitHub into your `GOPATH`:
 
@@ -393,7 +380,7 @@ and ensuring `GOPATH/bin` is within your `PATH`. A copy of
    $ make dev
    ```
 
-[consul-dev]: /consul/tutorials/certification-associate-tutorials/get-started-agent#start-the-agent
+[consul-dev]: https://learn.hashicorp.com/consul/getting-started/agent#starting-the-agent
 
 [consul-download]: /consul/downloads
 
@@ -402,4 +389,3 @@ and ensuring `GOPATH/bin` is within your `PATH`. A copy of
 [gh-7865]: https://github.com/hashicorp/nomad/issues/7865
 
 [gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
-[go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version

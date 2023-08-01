@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: added a button to copy variable path to clipboard
-```

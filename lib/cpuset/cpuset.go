@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package cpuset
 
 import (
@@ -145,8 +142,8 @@ func (c CPUSet) ContainsAny(other CPUSet) bool {
 	return false
 }
 
-// Equal tests the equality of the elements in the CPUSet
-func (c CPUSet) Equal(other CPUSet) bool {
+// Equals tests the equality of the elements in the CPUSet
+func (c CPUSet) Equals(other CPUSet) bool {
 	return reflect.DeepEqual(c.cpus, other.cpus)
 }
 

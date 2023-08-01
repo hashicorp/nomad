@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !ent
 // +build !ent
 
@@ -12,17 +9,6 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 )
-
-func (n *Namespace) Canonicalize() {}
-
-func (n *NamespaceNodePoolConfiguration) Canonicalize() {}
-
-func (n *NamespaceNodePoolConfiguration) Validate() error {
-	if n != nil {
-		return errors.New("Node Pools Governance is unlicensed.")
-	}
-	return nil
-}
 
 func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
 	if m != nil {

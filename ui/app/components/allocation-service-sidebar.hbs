@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <div
   class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
   {{on-click-outside
@@ -102,7 +97,7 @@
                 Tags
               </span>
               {{#each @service.tags as |tag|}}
-                <span class="tag is-service">{{tag}}</span>
+                <span class="tag">{{tag}}</span>
               {{/each}}
               {{#each @service.canary_tags as |tag|}}
                 <span class="tag canary is-service">{{tag}}</span>

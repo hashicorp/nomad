@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { clickable, isPresent, text } from 'ember-cli-page-object';
 
 export default function (selectorBase = 'data-test-error') {

@@ -1,31 +1,12 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
 <form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
 
   {{#if @model.isNew}}
-    {{#unless this.isJobTemplateVariable}}
-      <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>nomad/jobs</code> to automatically make your variable accessible to all jobs. <br />
-        Adding job name, group name, or task name will make your variable available to that specific job, group, or task. <br />
-        Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
-      </div>
-    {{/unless}}
-
-    {{#if this.shouldShowLinkedEntities}}
-      <VariableForm::RelatedEntities
-        @new={{true}}
-        @job={{@model.pathLinkedEntities.job}}
-        @group={{@model.pathLinkedEntities.group}}
-        @task={{@model.pathLinkedEntities.task}}
-        @namespace={{or this.variableNamespace "default"}}
-      />
-    {{/if}}
-
+    <div class="related-entities related-entities-hint">
+      <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+      Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+    </div>
   {{/if}}
 
   {{#if this.hasConflict}}
@@ -73,21 +54,11 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{concat this.duplicatePathWarning.path "@" (or this.variableNamespace "default")}}
+            @model={{this.duplicatePathWarning.path}}
           >
             edit the existing variable
           </LinkTo>
           .
-        </p>
-      {{/if}}
-      {{#if this.isJobTemplateVariable}}
-        <p class="help job-template-hint">
-          Use this variable to generate job templates with
-          <code>nomad job init -template={{this.jobTemplateName}}
-            <CopyButton
-              @clipboardText="nomad job init -template={{this.jobTemplateName}}"
-            />
-          </code>
         </p>
       {{/if}}
     </label>
@@ -103,83 +74,83 @@
       }}
     />
   </div>
-  {{#if this.isJobTemplateVariable}}
-    <VariableForm::JobTemplateEditor
-      @keyValues={{this.keyValues}}
-      @updateKeyValue={{this.updateKeyValue}}
-    />
-  {{else}}
-    {{#if (eq this.view "json")}}
+  {{#if (eq this.view "json")}}
+    <div
+      class="editor-wrapper boxed-section-body is-full-bleed
+        {{if this.JSONError 'error'}}"
+    >
       <div
-        class="editor-wrapper boxed-section-body is-full-bleed
-          {{if this.JSONError 'error'}}"
-      >
-        <div
-          data-test-json-editor
-          {{code-mirror
-            content=this.JSONItems
-            onUpdate=this.updateCode
-            extraKeys=(hash Cmd-Enter=(action "save"))
-          }}
-        ></div>
-        {{#if this.JSONError}}
-          <p class="help is-danger">
-            {{this.JSONError}}
-          </p>
-        {{/if}}
-      </div>
-    {{else}}
-      {{#each this.keyValues as |entry iter|}}
-        <div class="key-value">
-          <label>
-            <span>
-              Key
-            </span>
-            <Input
-              data-test-var-key
-              @type="text"
-              @value={{entry.key}}
-              class="input"
-              {{autofocus ignore=(eq iter 0)}}
-              {{on "input" (fn this.validateKey entry)}}
-            />
-          </label>
-          <VariableForm::InputGroup @entry={{entry}} />
+        data-test-json-editor
+        {{code-mirror
+          content=this.JSONItems
+          onUpdate=this.updateCode
+          extraKeys=(hash Cmd-Enter=(action "save"))
+        }}
+      ></div>
+      {{#if this.JSONError}}
+        <p class="help is-danger">
+          {{this.JSONError}}
+        </p>
+      {{/if}}
+    </div>
+  {{else}}
+    {{#each this.keyValues as |entry iter|}}
+      <div class="key-value">
+        <label>
+          <span>
+            Key
+          </span>
+          <Input
+            data-test-var-key
+            @type="text"
+            @value={{entry.key}}
+            class="input"
+            {{autofocus ignore=(eq iter 0)}}
+            {{on "input" (fn this.validateKey entry)}}
+          />
+        </label>
+        <VariableForm::InputGroup @entry={{entry}} />
+        {{#if (eq entry this.keyValues.lastObject)}}
+          <button
+            class="add-more button is-info is-inverted"
+            type="button"
+            disabled={{not (and entry.key entry.value)}}
+            {{on "click" this.appendRow}}
+          >
+            Add More
+          </button>
+        {{else}}
           <button
             class="delete-row button is-danger is-inverted"
             type="button"
             {{on "click" (action this.deleteRow entry)}}
-            disabled={{eq this.keyValues.length 1}}
           >
             Delete
           </button>
-          {{#each-in entry.warnings as |k v|}}
-            <span class="key-value-error help is-danger">
-              {{v}}
-            </span>
-          {{/each-in}}
-        </div>
-      {{/each}}
-    {{/if}}
+        {{/if}}
+        {{#each-in entry.warnings as |k v|}}
+          <span class="key-value-error help is-danger">
+            {{v}}
+          </span>
+        {{/each-in}}
+      </div>
+    {{/each}}
+  {{/if}}
+
+  {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
+    <VariableForm::RelatedEntities
+      @new={{true}}
+      @job={{@model.pathLinkedEntities.job}}
+      @group={{@model.pathLinkedEntities.group}}
+      @task={{@model.pathLinkedEntities.task}}
+      @namespace={{this.variableNamespace}}
+    />
   {{/if}}
 
   <footer>
-    {{#unless this.isJSONView}}
-      {{#unless this.isJobTemplateVariable}}
-        <button
-          class="add-more button is-info is-inverted"
-          type="button"
-          disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}}
-          {{on "click" this.appendRow}}
-          data-test-add-kv
-        >
-          Add More
-        </button>
-      {{/unless}}
-    {{/unless}}
     <button
       disabled={{this.shouldDisableSave}}
-      class="button is-primary save"
+      class="button is-primary"
       type="submit"
       data-test-submit-var
     >

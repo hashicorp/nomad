@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -61,7 +58,7 @@ func (d *Deployments) Fail(deploymentID string, q *WriteOptions) (*DeploymentUpd
 	req := &DeploymentFailRequest{
 		DeploymentID: deploymentID,
 	}
-	wm, err := d.client.put("/v1/deployment/fail/"+deploymentID, req, &resp, q)
+	wm, err := d.client.write("/v1/deployment/fail/"+deploymentID, req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +72,7 @@ func (d *Deployments) Pause(deploymentID string, pause bool, q *WriteOptions) (*
 		DeploymentID: deploymentID,
 		Pause:        pause,
 	}
-	wm, err := d.client.put("/v1/deployment/pause/"+deploymentID, req, &resp, q)
+	wm, err := d.client.write("/v1/deployment/pause/"+deploymentID, req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -89,7 +86,7 @@ func (d *Deployments) PromoteAll(deploymentID string, q *WriteOptions) (*Deploym
 		DeploymentID: deploymentID,
 		All:          true,
 	}
-	wm, err := d.client.put("/v1/deployment/promote/"+deploymentID, req, &resp, q)
+	wm, err := d.client.write("/v1/deployment/promote/"+deploymentID, req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,7 +100,7 @@ func (d *Deployments) PromoteGroups(deploymentID string, groups []string, q *Wri
 		DeploymentID: deploymentID,
 		Groups:       groups,
 	}
-	wm, err := d.client.put("/v1/deployment/promote/"+deploymentID, req, &resp, q)
+	wm, err := d.client.write("/v1/deployment/promote/"+deploymentID, req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -116,7 +113,7 @@ func (d *Deployments) Unblock(deploymentID string, q *WriteOptions) (*Deployment
 	req := &DeploymentUnblockRequest{
 		DeploymentID: deploymentID,
 	}
-	wm, err := d.client.put("/v1/deployment/unblock/"+deploymentID, req, &resp, q)
+	wm, err := d.client.write("/v1/deployment/unblock/"+deploymentID, req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,7 +129,7 @@ func (d *Deployments) SetAllocHealth(deploymentID string, healthy, unhealthy []s
 		HealthyAllocationIDs:   healthy,
 		UnhealthyAllocationIDs: unhealthy,
 	}
-	wm, err := d.client.put("/v1/deployment/allocation-health/"+deploymentID, req, &resp, q)
+	wm, err := d.client.write("/v1/deployment/allocation-health/"+deploymentID, req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,11 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -16,7 +12,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -31,11 +26,8 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/client"
-	"github.com/hashicorp/nomad/command/agent/event"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -82,23 +74,9 @@ var (
 type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
 type handlerByteFn func(resp http.ResponseWriter, req *http.Request) ([]byte, error)
 
-type RPCer interface {
-	RPC(string, any, any) error
-	Server() *nomad.Server
-	Client() *client.Client
-	Stats() map[string]map[string]string
-	GetConfig() *Config
-	GetMetricsSink() *metrics.InmemSink
-}
-
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
-	agent RPCer
-
-	// eventAuditor is the enterprise audit log feature which is needed by the
-	// HTTP server.
-	eventAuditor event.Auditor
-
+	agent      *Agent
 	mux        *http.ServeMux
 	listener   net.Listener
 	listenerCh chan struct{}
@@ -166,14 +144,13 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		// Create the server
 		srv := &HTTPServer{
-			agent:        agent,
-			eventAuditor: agent.auditor,
-			mux:          http.NewServeMux(),
-			listener:     ln,
-			listenerCh:   make(chan struct{}),
-			logger:       agent.httpLogger,
-			Addr:         ln.Addr().String(),
-			wsUpgrader:   wsUpgrader,
+			agent:      agent,
+			mux:        http.NewServeMux(),
+			listener:   ln,
+			listenerCh: make(chan struct{}),
+			logger:     agent.httpLogger,
+			Addr:       ln.Addr().String(),
+			wsUpgrader: wsUpgrader,
 		}
 		srv.registerHandlers(config.EnableDebug)
 
@@ -193,50 +170,42 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		srvs = append(srvs, srv)
 	}
 
-	// Return early on errors
-	if serverInitializationErrors != nil {
-		for _, srv := range srvs {
-			srv.Shutdown()
-		}
-
-		return srvs, serverInitializationErrors
-	}
-
-	// This HTTP server is only created when running in client mode, otherwise
+	// This HTTP server is only create when running in client mode, otherwise
 	// the builtinDialer and builtinListener will be nil.
 	if agent.builtinDialer != nil && agent.builtinListener != nil {
 		srv := &HTTPServer{
-			agent:        agent,
-			eventAuditor: agent.auditor,
-			mux:          http.NewServeMux(),
-			listener:     agent.builtinListener,
-			listenerCh:   make(chan struct{}),
-			logger:       agent.httpLogger,
-			Addr:         "builtin",
-			wsUpgrader:   wsUpgrader,
+			agent:      agent,
+			mux:        http.NewServeMux(),
+			listener:   agent.builtinListener,
+			listenerCh: make(chan struct{}),
+			logger:     agent.httpLogger,
+			Addr:       "builtin",
+			wsUpgrader: wsUpgrader,
 		}
 
 		srv.registerHandlers(config.EnableDebug)
 
-		// builtinServer adds a wrapper to always authenticate requests
 		httpServer := http.Server{
 			Addr:     srv.Addr,
-			Handler:  newAuthMiddleware(srv, srv.mux),
+			Handler:  srv.mux,
 			ErrorLog: newHTTPServerLogger(srv.logger),
 		}
-
-		agent.taskAPIServer.SetServer(&httpServer)
 
 		go func() {
 			defer close(srv.listenerCh)
 			httpServer.Serve(agent.builtinListener)
 		}()
 
-		// Don't append builtin servers to srvs as they don't need to be reloaded
-		// when TLS changes. This does mean they need to be shutdown independently.
+		srvs = append(srvs, srv)
 	}
 
-	return srvs, nil
+	if serverInitializationErrors != nil {
+		for _, srv := range srvs {
+			srv.Shutdown()
+		}
+	}
+
+	return srvs, serverInitializationErrors
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If
@@ -386,9 +355,6 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
 	s.mux.HandleFunc("/v1/node/", s.wrap(s.NodeSpecificRequest))
 
-	s.mux.HandleFunc("/v1/node/pools", s.wrap(s.NodePoolsRequest))
-	s.mux.HandleFunc("/v1/node/pool/", s.wrap(s.NodePoolSpecificRequest))
-
 	s.mux.HandleFunc("/v1/allocations", s.wrap(s.AllocsRequest))
 	s.mux.HandleFunc("/v1/allocation/", s.wrap(s.AllocSpecificRequest))
 
@@ -421,26 +387,10 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/role", s.wrap(s.ACLRoleRequest))
 	s.mux.HandleFunc("/v1/acl/role/", s.wrap(s.ACLRoleSpecificRequest))
 
-	// Register our ACL auth-method handlers.
-	s.mux.HandleFunc("/v1/acl/auth-methods", s.wrap(s.ACLAuthMethodListRequest))
-	s.mux.HandleFunc("/v1/acl/auth-method", s.wrap(s.ACLAuthMethodRequest))
-	s.mux.HandleFunc("/v1/acl/auth-method/", s.wrap(s.ACLAuthMethodSpecificRequest))
-
-	// Register our ACL binding rule handlers.
-	s.mux.HandleFunc("/v1/acl/binding-rules", s.wrap(s.ACLBindingRuleListRequest))
-	s.mux.HandleFunc("/v1/acl/binding-rule", s.wrap(s.ACLBindingRuleRequest))
-	s.mux.HandleFunc("/v1/acl/binding-rule/", s.wrap(s.ACLBindingRuleSpecificRequest))
-
-	// Register out ACL OIDC SSO and auth handlers.
-	s.mux.HandleFunc("/v1/acl/oidc/auth-url", s.wrap(s.ACLOIDCAuthURLRequest))
-	s.mux.HandleFunc("/v1/acl/oidc/complete-auth", s.wrap(s.ACLOIDCCompleteAuthRequest))
-	s.mux.HandleFunc("/v1/acl/login", s.wrap(s.ACLLoginRequest))
-
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
 	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
 	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
-	s.mux.Handle("/v1/client/metadata", wrapCORS(s.wrap(s.NodeMetaRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
@@ -501,11 +451,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.VariablesListRequest)))
 	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
-	// JWKS Handler
-	s.mux.HandleFunc("/.well-known/jwks.json", s.wrap(s.JWKSRequest))
-
-	agentConfig := s.agent.GetConfig()
-	uiConfigEnabled := agentConfig.UI != nil && agentConfig.UI.Enabled
+	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
 
 	if uiEnabled && uiConfigEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
@@ -524,7 +470,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/", s.handleRootFallthrough())
 
 	if enableDebug {
-		if !agentConfig.DevMode {
+		if !s.agent.config.DevMode {
 			s.logger.Warn("enable_debug is set to true. This is insecure and should not be enabled in production")
 		}
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -536,78 +482,6 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 
 	// Register enterprise endpoints.
 	s.registerEnterpriseHandlers()
-}
-
-// builtinAPI is a wrapper around serving the HTTP API to arbitrary listeners
-// such as the Task API. It is necessary because the HTTP servers are created
-// *after* the client has been initialized, so this wrapper blocks Serve
-// requests from task api hooks until the HTTP server is setup and ready to
-// accept from new listeners.
-//
-// bufconndialer provides similar functionality to consul-template except it
-// satisfies the Dialer API as opposed to the Serve(Listener) API.
-type builtinAPI struct {
-	// srvReadyCh is closed when srv is ready
-	srvReadyCh chan struct{}
-
-	// srv is a builtin http server. Must lock around setting as it could happen
-	// concurrently with shutting down.
-	srv     *http.Server
-	srvLock sync.Mutex
-}
-
-func newBuiltinAPI() *builtinAPI {
-	return &builtinAPI{
-		srvReadyCh: make(chan struct{}),
-	}
-}
-
-// SetServer sets the API HTTP server for Serve to add listeners to.
-//
-// It must be called exactly once and will noop on subsequent calls.
-func (b *builtinAPI) SetServer(srv *http.Server) {
-	select {
-	case <-b.srvReadyCh:
-		return
-	default:
-	}
-
-	b.srvLock.Lock()
-	defer b.srvLock.Unlock()
-
-	b.srv = srv
-	close(b.srvReadyCh)
-}
-
-// Serve the HTTP API on the listener unless the context is canceled before the
-// HTTP API is ready to serve listeners. A non-nil error will always be
-// returned, but http.ErrServerClosed and net.ErrClosed can likely be ignored
-// as they indicate the server or listener is being shutdown.
-func (b *builtinAPI) Serve(ctx context.Context, l net.Listener) error {
-	select {
-	case <-ctx.Done():
-		// Caller canceled context before server was ready.
-		return ctx.Err()
-	case <-b.srvReadyCh:
-		// Server ready for listeners! Continue on...
-	}
-
-	return b.srv.Serve(l)
-}
-
-func (b *builtinAPI) Shutdown() {
-	b.srvLock.Lock()
-	defer b.srvLock.Unlock()
-
-	if b.srv != nil {
-		b.srv.Close()
-	}
-
-	select {
-	case <-b.srvReadyCh:
-	default:
-		close(b.srvReadyCh)
-	}
 }
 
 // HTTPCodedError is used to provide the HTTP error code
@@ -703,7 +577,7 @@ func errCodeFromHandler(err error) (int, string) {
 // wrap is used to wrap functions to make them more convenient
 func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
-		setHeaders(resp, s.agent.GetConfig().HTTPAPIResponseHeaders)
+		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
 		start := time.Now()
@@ -785,7 +659,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 // Handler functions are responsible for setting Content-Type Header
 func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *http.Request) ([]byte, error)) func(resp http.ResponseWriter, req *http.Request) {
 	f := func(resp http.ResponseWriter, req *http.Request) {
-		setHeaders(resp, s.agent.GetConfig().HTTPAPIResponseHeaders)
+		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
 		start := time.Now()
@@ -929,7 +803,7 @@ func (s *HTTPServer) parseRegion(req *http.Request, r *string) {
 	if other := req.URL.Query().Get("region"); other != "" {
 		*r = other
 	} else if *r == "" {
-		*r = s.agent.GetConfig().Region
+		*r = s.agent.config.Region
 	}
 }
 
@@ -979,7 +853,7 @@ func parseInt(req *http.Request, field string) (*int, error) {
 // parseToken is used to parse the X-Nomad-Token param
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
-		*token = strings.TrimSpace(other)
+		*token = other
 		return
 	}
 
@@ -1047,39 +921,6 @@ func parseReverse(req *http.Request, b *structs.QueryOptions) {
 	b.Reverse = query.Get("reverse") == "true"
 }
 
-// parseNode parses the node_id query parameter for node specific requests.
-func parseNode(req *http.Request, nodeID *string) {
-	if n := req.URL.Query().Get("node_id"); n != "" {
-		*nodeID = n
-	}
-}
-
-// parseNodeListStubFields parses query parameters related to node list stubs
-// fields.
-func parseNodeListStubFields(req *http.Request) (*structs.NodeStubFields, error) {
-	fields := &structs.NodeStubFields{}
-
-	// Parse resources field selection.
-	resources, err := parseBool(req, "resources")
-	if err != nil {
-		return nil, err
-	}
-	if resources != nil {
-		fields.Resources = *resources
-	}
-
-	// Parse OS field selection.
-	os, err := parseBool(req, "os")
-	if err != nil {
-		return nil, err
-	}
-	if os != nil {
-		fields.OS = *os
-	}
-
-	return fields, nil
-}
-
 // parseWriteRequest is a convenience method for endpoints that need to parse a
 // write request.
 func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteRequest) {
@@ -1120,65 +961,4 @@ func wrapCORS(f func(http.ResponseWriter, *http.Request)) http.Handler {
 // method list and returns a http.Handler
 func wrapCORSWithAllowedMethods(f func(http.ResponseWriter, *http.Request), methods ...string) http.Handler {
 	return allowCORSWithMethods(methods...).Handler(http.HandlerFunc(f))
-}
-
-// authMiddleware implements the http.Handler interface to enforce
-// authentication for *all* requests. Even with ACLs enabled there are
-// endpoints which are accessible without authenticating. This middleware is
-// used for the Task API to enfoce authentication for all API access.
-type authMiddleware struct {
-	srv     *HTTPServer
-	wrapped http.Handler
-}
-
-func newAuthMiddleware(srv *HTTPServer, h http.Handler) http.Handler {
-	return &authMiddleware{
-		srv:     srv,
-		wrapped: h,
-	}
-}
-
-func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	args := structs.GenericRequest{}
-	reply := structs.ACLWhoAmIResponse{}
-	if a.srv.parse(resp, req, &args.Region, &args.QueryOptions) {
-		// Error parsing request, 400
-		resp.WriteHeader(http.StatusBadRequest)
-		resp.Write([]byte(http.StatusText(http.StatusBadRequest)))
-		return
-	}
-
-	if args.AuthToken == "" {
-		// 401 instead of 403 since no token was present.
-		resp.WriteHeader(http.StatusUnauthorized)
-		resp.Write([]byte(http.StatusText(http.StatusUnauthorized)))
-		return
-	}
-
-	if err := a.srv.agent.RPC("ACL.WhoAmI", &args, &reply); err != nil {
-		// When ACLs are enabled, WhoAmI returns ErrPermissionDenied on bad
-		// credentials, so convert it to a Forbidden response code.
-		if strings.HasSuffix(err.Error(), structs.ErrPermissionDenied.Error()) {
-			a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
-			resp.WriteHeader(http.StatusForbidden)
-			resp.Write([]byte(http.StatusText(http.StatusForbidden)))
-			return
-		}
-
-		a.srv.logger.Error("error authenticating built API request", "error", err, "url", req.URL, "method", req.Method)
-		resp.WriteHeader(http.StatusInternalServerError)
-		resp.Write([]byte("Server error authenticating request\n"))
-		return
-	}
-
-	// Require an acl token or workload identity
-	if reply.Identity == nil || (reply.Identity.ACLToken == nil && reply.Identity.Claims == nil) {
-		a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
-		resp.WriteHeader(http.StatusForbidden)
-		resp.Write([]byte(http.StatusText(http.StatusForbidden)))
-		return
-	}
-
-	a.srv.logger.Trace("Authenticated request", "id", reply.Identity, "method", req.Method, "url", req.URL)
-	a.wrapped.ServeHTTP(resp, req)
 }

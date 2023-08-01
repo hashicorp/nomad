@@ -1,7 +1,0 @@
-```release-note:improvement
-cli: Add job prefix match to the `nomad job dispatch`, `nomad job eval`, `nomad job scale`, and `nomad job scaling-events` commands
-```
-
-```release-note:improvement
-cli: Add support for the wildcard namespace `*` to the `nomad job dispatch`, `nomad job eval`, `nomad job scale`, and `nomad job scaling-events` commands
-```

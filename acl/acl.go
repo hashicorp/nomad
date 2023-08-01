@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package acl
 
 import (
@@ -8,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	iradix "github.com/hashicorp/go-immutable-radix/v2"
+	iradix "github.com/hashicorp/go-immutable-radix"
 	glob "github.com/ryanuber/go-glob"
 )
 
@@ -50,26 +47,23 @@ type ACL struct {
 	// management tokens are allowed to do anything
 	management bool
 
-	// The attributes below map polices that have fine-grained capabilities
-	// with a capabilitySet.
-	//
-	// The attributes prefixed with `wildcard` maps the policies for glob
-	// patterns to a capabilitySet. We use an iradix for the purposes of
-	// ordered iteration.
-	namespaces         *iradix.Tree[capabilitySet]
-	wildcardNamespaces *iradix.Tree[capabilitySet]
+	// namespaces maps a namespace to a capabilitySet
+	namespaces *iradix.Tree
 
-	nodePools         *iradix.Tree[capabilitySet]
-	wildcardNodePools *iradix.Tree[capabilitySet]
+	// wildcardNamespaces maps a glob pattern of a namespace to a capabilitySet
+	// We use an iradix for the purposes of ordered iteration.
+	wildcardNamespaces *iradix.Tree
 
-	hostVolumes         *iradix.Tree[capabilitySet]
-	wildcardHostVolumes *iradix.Tree[capabilitySet]
+	// hostVolumes maps a named host volume to a capabilitySet
+	hostVolumes *iradix.Tree
 
-	variables         *iradix.Tree[capabilitySet]
-	wildcardVariables *iradix.Tree[capabilitySet]
+	// wildcardHostVolumes maps a glob pattern of host volume names to a capabilitySet
+	// We use an iradix for the purposes of ordered iteration.
+	wildcardHostVolumes *iradix.Tree
 
-	// The attributes below store the policy value for policies that don't have
-	// fine-grained capabilities.
+	variables         *iradix.Tree
+	wildcardVariables *iradix.Tree
+
 	agent    string
 	node     string
 	operator string
@@ -103,17 +97,12 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 
 	// Create the ACL object
 	acl := &ACL{}
-	nsTxn := iradix.New[capabilitySet]().Txn()
-	wnsTxn := iradix.New[capabilitySet]().Txn()
-
-	npTxn := iradix.New[capabilitySet]().Txn()
-	wnpTxn := iradix.New[capabilitySet]().Txn()
-
-	hvTxn := iradix.New[capabilitySet]().Txn()
-	whvTxn := iradix.New[capabilitySet]().Txn()
-
-	svTxn := iradix.New[capabilitySet]().Txn()
-	wsvTxn := iradix.New[capabilitySet]().Txn()
+	nsTxn := iradix.New().Txn()
+	wnsTxn := iradix.New().Txn()
+	hvTxn := iradix.New().Txn()
+	whvTxn := iradix.New().Txn()
+	svTxn := iradix.New().Txn()
+	wsvTxn := iradix.New().Txn()
 
 	for _, policy := range policies {
 	NAMESPACES:
@@ -127,7 +116,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			if globDefinition {
 				raw, ok := wnsTxn.Get([]byte(ns.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					wnsTxn.Insert([]byte(ns.Name), capabilities)
@@ -135,7 +124,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			} else {
 				raw, ok := nsTxn.Get([]byte(ns.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					nsTxn.Insert([]byte(ns.Name), capabilities)
@@ -149,7 +138,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 					if globDefinition || strings.Contains(pathPolicy.PathSpec, "*") {
 						raw, ok := wsvTxn.Get(key)
 						if ok {
-							svCapabilities = raw
+							svCapabilities = raw.(capabilitySet)
 						} else {
 							svCapabilities = make(capabilitySet)
 						}
@@ -157,7 +146,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 					} else {
 						raw, ok := svTxn.Get(key)
 						if ok {
-							svCapabilities = raw
+							svCapabilities = raw.(capabilitySet)
 						} else {
 							svCapabilities = make(capabilitySet)
 						}
@@ -186,42 +175,6 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			}
 		}
 
-	NODEPOOLS:
-		for _, np := range policy.NodePools {
-			// Use wildcard transaction if policy name uses glob matching.
-			txn := npTxn
-			if strings.Contains(np.Name, "*") {
-				txn = wnpTxn
-			}
-
-			// Check for existing capabilities.
-			var capabilities capabilitySet
-
-			raw, ok := txn.Get([]byte(np.Name))
-			if ok {
-				capabilities = raw
-			} else {
-				capabilities = make(capabilitySet)
-				txn.Insert([]byte(np.Name), capabilities)
-			}
-
-			// Deny always takes precedence.
-			if capabilities.Check(NodePoolCapabilityDeny) {
-				continue NODEPOOLS
-			}
-
-			// Add in all the capabilities.
-			for _, cap := range np.Capabilities {
-				if cap == NodePoolCapabilityDeny {
-					// Overwrite any existing capabilities.
-					capabilities.Clear()
-					capabilities.Set(NodePoolCapabilityDeny)
-					continue NODEPOOLS
-				}
-				capabilities.Set(cap)
-			}
-		}
-
 	HOSTVOLUMES:
 		for _, hv := range policy.HostVolumes {
 			// Should the volume be matched using a glob?
@@ -233,7 +186,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			if globDefinition {
 				raw, ok := whvTxn.Get([]byte(hv.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					whvTxn.Insert([]byte(hv.Name), capabilities)
@@ -241,7 +194,7 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 			} else {
 				raw, ok := hvTxn.Get([]byte(hv.Name))
 				if ok {
-					capabilities = raw
+					capabilities = raw.(capabilitySet)
 				} else {
 					capabilities = make(capabilitySet)
 					hvTxn.Insert([]byte(hv.Name), capabilities)
@@ -283,16 +236,11 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 	}
 
-	// Finalize policies with capabilities.
+	// Finalize the namespaces
 	acl.namespaces = nsTxn.Commit()
 	acl.wildcardNamespaces = wnsTxn.Commit()
-
-	acl.nodePools = npTxn.Commit()
-	acl.wildcardNodePools = wnpTxn.Commit()
-
 	acl.hostVolumes = hvTxn.Commit()
 	acl.wildcardHostVolumes = whvTxn.Commit()
-
 	acl.variables = svTxn.Commit()
 	acl.wildcardVariables = wsvTxn.Commit()
 
@@ -370,73 +318,6 @@ func (a *ACL) AllowNamespace(ns string) bool {
 	}
 
 	return !capabilities.Check(PolicyDeny)
-}
-
-// AllowNodePoolOperation returns true if the given operation is allowed in the
-// node pool specified.
-func (a *ACL) AllowNodePoolOperation(pool string, op string) bool {
-	// Hot path if ACL is not enabled or if it's a management token.
-	if a == nil || a.management {
-		return true
-	}
-
-	// Check for matching capability set.
-	capabilities, ok := a.matchingNodePoolCapabilitySet(pool)
-	if !ok {
-		return false
-	}
-
-	// Check if the capability has been granted.
-	return capabilities.Check(op)
-}
-
-// AllowNodePool returns true if any operation is allowed for the node pool.
-func (a *ACL) AllowNodePool(pool string) bool {
-	// Hot path if ACL is not enabled or if it's a management token.
-	if a == nil || a.management {
-		return true
-	}
-
-	// Check for matching capability set.
-	capabilities, ok := a.matchingNodePoolCapabilitySet(pool)
-	if !ok {
-		return false
-	}
-
-	if len(capabilities) == 0 {
-		return false
-	}
-
-	return !capabilities.Check(PolicyDeny)
-}
-
-// AllowNodePoolSearch returns true if any operation is allowed in at least one
-// node pool.
-//
-// This is a very loose check and is expected that callers perform more precise
-// verification later.
-func (a *ACL) AllowNodePoolSearch() bool {
-	// Hot path if ACL is not enabled or token is management.
-	if a == nil || a.management {
-		return true
-	}
-
-	// Check for any non-deny capabilities.
-	iter := a.nodePools.Root().Iterator()
-	for _, capability, ok := iter.Next(); ok; _, capability, ok = iter.Next() {
-		if !capability.Check(NodePoolCapabilityDeny) {
-			return true
-		}
-	}
-
-	iter = a.wildcardNodePools.Root().Iterator()
-	for _, capability, ok := iter.Next(); ok; _, capability, ok = iter.Next() {
-		if !capability.Check(NodePoolCapabilityDeny) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // AllowHostVolumeOperation checks if a given operation is allowed for a host volume
@@ -531,7 +412,7 @@ func (a *ACL) matchingNamespaceCapabilitySet(ns string) (capabilitySet, bool) {
 	// Check for a concrete matching capability set
 	raw, ok := a.namespaces.Get([]byte(ns))
 	if ok {
-		return raw, true
+		return raw.(capabilitySet), true
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
@@ -559,7 +440,8 @@ func (a *ACL) anyNamespaceAllowsAnyOp() bool {
 func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
 	allow := false
 
-	checkFn := func(_ []byte, v capabilitySet) bool {
+	checkFn := func(_ []byte, iv interface{}) bool {
+		v := iv.(capabilitySet)
 		allow = cb(v)
 		return allow
 	}
@@ -573,17 +455,6 @@ func (a *ACL) anyNamespaceAllows(cb func(capabilitySet) bool) bool {
 	return allow
 }
 
-// matchingNodePoolCapabilitySet returns the capabilitySet that closest match
-// the node pool.
-func (a *ACL) matchingNodePoolCapabilitySet(pool string) (capabilitySet, bool) {
-	raw, ok := a.nodePools.Get([]byte(pool))
-	if ok {
-		return raw, true
-	}
-
-	return a.findClosestMatchingGlob(a.wildcardNodePools, pool)
-}
-
 // matchingHostVolumeCapabilitySet looks for a capabilitySet that matches the host volume name,
 // if no concrete definitions are found, then we return the closest matching
 // glob.
@@ -593,7 +464,7 @@ func (a *ACL) matchingHostVolumeCapabilitySet(name string) (capabilitySet, bool)
 	// Check for a concrete matching capability set
 	raw, ok := a.hostVolumes.Get([]byte(name))
 	if ok {
-		return raw, true
+		return raw.(capabilitySet), true
 	}
 
 	// We didn't find a concrete match, so lets try and evaluate globs.
@@ -611,9 +482,9 @@ var workloadVariablesCapabilitySet = capabilitySet{"read": struct{}{}, "list": s
 // difference between the namespace and the glob.
 func (a *ACL) matchingVariablesCapabilitySet(ns, path string, claim *ACLClaim) (capabilitySet, bool) {
 	// Check for a concrete matching capability set
-	capSet, ok := a.variables.Get([]byte(ns + "\x00" + path))
+	raw, ok := a.variables.Get([]byte(ns + "\x00" + path))
 	if ok {
-		return capSet, true
+		return raw.(capabilitySet), true
 	}
 	if claim != nil && ns == claim.Namespace {
 		switch path {
@@ -636,7 +507,7 @@ type matchingGlob struct {
 	capabilitySet capabilitySet
 }
 
-func (a *ACL) findClosestMatchingGlob(radix *iradix.Tree[capabilitySet], ns string) (capabilitySet, bool) {
+func (a *ACL) findClosestMatchingGlob(radix *iradix.Tree, ns string) (capabilitySet, bool) {
 	// First, find all globs that match.
 	matchingGlobs := findAllMatchingWildcards(radix, ns)
 
@@ -660,13 +531,14 @@ func (a *ACL) findClosestMatchingGlob(radix *iradix.Tree[capabilitySet], ns stri
 	return matchingGlobs[0].capabilitySet, true
 }
 
-func findAllMatchingWildcards(radix *iradix.Tree[capabilitySet], name string) []matchingGlob {
+func findAllMatchingWildcards(radix *iradix.Tree, name string) []matchingGlob {
 	var matches []matchingGlob
 
 	nsLen := len(name)
 
-	radix.Root().Walk(func(bk []byte, v capabilitySet) bool {
+	radix.Root().Walk(func(bk []byte, iv interface{}) bool {
 		k := string(bk)
+		v := iv.(capabilitySet)
 
 		isMatch := glob.Glob(k, name)
 		if isMatch {
@@ -714,9 +586,6 @@ func (a *ACL) AllowAgentWrite() bool {
 // AllowNodeRead checks if read operations are allowed for a node
 func (a *ACL) AllowNodeRead() bool {
 	switch {
-	// a is nil if ACLs are disabled.
-	case a == nil:
-		return true
 	case a.management:
 		return true
 	case a.node == PolicyWrite:

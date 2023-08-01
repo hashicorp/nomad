@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package executor
 
 import (
@@ -11,7 +8,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/resources"
-	"github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/shirou/gopsutil/v3/process"

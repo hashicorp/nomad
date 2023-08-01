@@ -13,76 +13,14 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
-## Nomad 1.6.0
-
-#### Enterprise License Validation with BuildDate
-
-Nomad Enterprise 1.6.0 now compares license `ExpirationTime` with the Nomad binary's `BuildDate`,
-rather than comparing the sometimes more lenient license `TerminationTime` with `time.Now()`.
-See the [licensing FAQ](/nomad/docs/v1.6.x/enterprise/license/faq) for more info,
-but most relevant here is that you should run the new
-[`nomad license inspect`](/nomad/docs/commands/license/inspect) command
-before trying to upgrade your Enterprise servers to v1.6.0 or higher.
-
-#### Job Evaluate API Endpoint Requires `submit-job` Instead of `read-job`
-
-Nomad 1.6.0 updated the ACL capability requirement for the job evaluate
-endpoint from `read-job` to `submit-job` to better reflect that this operation
-writes state to Nomad. This endpoint is used by the `nomad job eval` CLI
-command and so the ACL requirements changed for the command as well. Users that
-called this endpoint or used this command using tokens with just the `read-job`
-capability or the `read` policy must update their tokens to use the
-`submit-job` capability or the `write` policy.
-
-#### Exec Driver Requires New Capability for mlock
-
-Nomad 1.6.0 updated the `exec` task driver to maintain the max memory locked
-limit set by the host system. In earlier versions of Nomad this limit was
-*unset* unintentionally.
-
-In practice this means that `exec` tasks such as Vault which use the `mlock`
-system call will now need to explicitly add the `ipc_lock` capability.
-
-First [allow the `ipc_lock` capability in the Client
-configuration][allow_caps_exec]:
-
-```hcl
-plugin "exec" {
-  config {
-    allow_caps = ["audit_write", "chown", "dac_override", "fowner", "fsetid",
-      "kill", "mknod", "net_bind_service", "setfcap", "setgid", "setpcap",
-      "setuid", "sys_chroot", "ipc_lock"]
-  }
-}
-```
-
-Then [add the `ipc_lock` capability to the exec task][cap_add_exec] that uses
-`mlock`:
-
-```hcl
-task "vault" {
-  driver = "exec"
-
-  config {
-    cap_add = ["ipc_lock"]
-
-    # ... other task configuration
-  }
-
-# ... rest of jobspec
-```
-
-These additions are backward compatible with Nomad v1.5, so Clients and Jobs
-should be updated prior to upgrading to Nomad v1.6.
-
-See [#17780](https://github.com/hashicorp/nomad/issues/17780) for details.
+## Nomad 1.4.11
 
 #### Namespace ACL policies require a label
 
-Nomad 1.6.0 does not allow ACL policies for namespaces without a label. Prior
-to this version, ACL policies for namespaces were allowed to be defined
-without a label, and the documented behavior in this case was that the policy
-would be applied to the `default` namespace.
+Nomad 1.4.11 does not allow ACL policies for namespaces without a label. Prior
+to this version, ACL policies for namespaces were allowed to be defined without
+a label, and the documented behavior in this case was that the policy would be
+applied to the `default` namespace.
 
 A bug in this logic caused the policy to be incorrectly applied to a different
 namespace. For example, the policy below would be applied to a namespace called
@@ -103,217 +41,6 @@ before upgrading Nomad.
 
 After the policies are fixed, the existing tokens with those policies will
 continue to work and do not need to be regenerated.
-
-#### Command `nomad tls cert create` flag `-cluster-region` deprecated
-
-Nomad 1.6.0 will deprecate the command `nomad tls cert create` flag `-cluster-region`
-in favour of using the standard flag `-region`. The `-cluster-region` flag
-will be removed in Nomad 1.7.0
-
-#### 32-bit Intel Builds Deprecated
-
-Starting with Nomad 1.6.0, HashiCorp will no longer release 32-bit Intel builds
-of Nomad and Nomad Enterprise (the builds named `windows_386` and
-`linux_386`). Bug fixes will continue to be backported to the 1.5.x and 1.4.x
-versions so long as those major versions are still supported.
-
-The 32-bit ARM build (`linux_arm` for the armhf architecture) is deprecated and
-may be removed in a future major version of Nomad. The 32-bit ARM build is not
-tested and may include bugs around platform-specific integer sizes. Using 64-bit
-builds for small form-factor hosts such as the RaspberryPi is strongly
-recommended.
-
-## Nomad 1.5.7, 1.4.11
-
-#### Namespace ACL policies require a label
-
-Nomad 1.5.7 and 1.4.11 do not allow ACL policies for namespaces without a
-label. Prior to these versions, ACL policies for namespaces were allowed to be
-defined without a label, and the documented behavior in this case was that the
-policy would be applied to the `default` namespace.
-
-A bug in this logic caused the policy to be incorrectly applied to a different
-namespace. For example, the policy below would be applied to a namespace called
-`policy` instead of `default`.
-
-```hcl
-namespace {
-  policy = "read"
-}
-```
-
-To avoid further confusion and potential security incidents, this functionality
-was removed and now all namespace policies are required to have a label.
-
-Tokens currently attached to an invalid policy will stop working after the
-upgrade, so you should fix invalid policies to have an explicit namespace label
-before upgrading Nomad.
-
-After the policies are fixed, the existing tokens with those policies will
-continue to work and do not need to be regenerated.
-
-## Nomad 1.5.5
-
-Nomad 1.5.5 fixed a bug where allocations that are rescheduled for jobs
-registered before the upgrade would no longer collect allocation logs. The
-`logs.enabled` field introduced in 1.5.4 is now deprecated and has been replaced
-by a `logs.disabled` field that defaults to false. The `logs.enabled` field value
-will be ignored in 1.5.5 and will be removed in Nomad 1.6.0.
-
-## Nomad 1.5.4
-
-Nomad 1.5.4 included a bug where allocations that are rescheduled for jobs
-registered before the upgrade would no longer collect allocation logs. The
-client will emit debug-level logs like the following:
-
-```
-client.alloc_runner.task_runner.task_hook: log collection is disabled by task
-```
-
-You should avoid this version of Nomad and instead install the latest version of
-Nomad 1.5. If you have already upgraded to Nomad 1.5.4, upgrading to Nomad 1.5.5
-will restore logging collection when clients are restarted as part of the
-upgrade process.
-
-## Nomad 1.5.1
-
-#### Artifact Download Regression Fix
-
-Nomad 1.5.1 reverts a behavior of 1.5.0 where artifact downloads were executed
-as the `nobody` user on compatible Linux systems. This was done optimistically
-as defense against compromised artifact endpoints attempting to exploit the
-Nomad Client or tools it uses to perform downloads such as git or mercurial.
-Unfortunately running the child process as any user other than root is not
-compatible with the advice given in Nomad's [security hardening guide][hard_guide]
-which calls for a specific directory tree structure making such operation impossible.
-
-Other changes to artifact downloading remain - they are executed as a child
-process of the Nomad agent, and on modern Linux systems make use of the Kernel
-landlock feature to restrict filesystem access from that process.
-
-## Nomad 1.5.0
-
-#### Pause Container Reconciliation Regression
-
-Nomad 1.5.0 introduced a regression to the way the Docker driver reconciles
-dangling containers. This meant pause containers would be erroneously removed,
-even though the allocation was still running. This would not affect the running
-allocation, but does cause it to fail if it needs to restart. An immediate
-workaround is to disable
-[dangling container reconciliation][dangling_container_reconciliation].
-
-#### Artifact Download Sandboxing
-
-Nomad 1.5.0 changes the way [artifacts] are downloaded when specifying an `artifact`
-in a task configuration. Previously the Nomad Client would download artifacts
-in-process. External commands used to facilitate the download (e.g. `git`, `hg`)
-would be run as `root`, and the resulting payload would be owned as `root` in the
-allocation's task directory.
-
-In an effort to improve the resilience and security model of the Nomad Client,
-in 1.5.0 artifact downloads occur in a sub-process. Where possible, that
-sub-process is run as the `nobody` user, and on modern Linux systems will
-be isolated from the filesystem via the kernel's [landlock] capabilitiy.
-
-Operators are encouraged to ensure jobs making use of artifacts continue to work
-as expected. In particular, git-ssh users will need to make sure the system-wide
-`/etc/ssh/ssh_known_hosts` file is populated with any necessary remote hosts.
-Previously, Nomad's documentation suggested configuring
-`/root/.ssh/known_hosts` which would apply only to the `root` user.
-
-The artifact downloader no longer inherits all environment variables available
-to the Nomad Client. The downloader sub-process environment is set as follows on
-Linux / macOS:
-
-```
-PATH=/usr/local/bin:/usr/bin:/bin
-TMPDIR=<path to task dir>/tmp
-```
-
-and as follows on Windows:
-
-```
-TMP=<path to task dir>\tmp
-TEMP=<path to task dir>\tmp
-PATH=<inherit $PATH>
-HOMEPATH=<inherit $HOMEPATH>
-HOMEDRIVE=<inherit $HOMEDRIVE>
-USERPROFILE=<inherit $USERPROFILE>
-```
-
-Configuration of the artifact downloader should happen through the [`options`][artifact_params]
-and [`headers`][artifact_params] fields of the `artifact` block. For backwards
-compatibility, the sandbox can be configured to inherit specified environment variables
-from the Nomad client by setting [`set_environment_variables`][artifact_env].
-
-The use of filesystem isolation can be disabled in Client configuration by
-setting [`disable_filesystem_isolation`][artifact_fs_isolation].
-
-#### Artifact Decompression Limits
-
-Nomad 1.5.0 now sets default limits around artifact decompression. A single artifact
-payload is now limited to 100GB and 4096 files when decompressed. An artifact that
-exceeds these limits during decompression will cause the artifact downloader to
-fail. These limits can be adjusted or disabled in the client artifact configuration
-by setting [`decompression_size_limit`][decompression_size_limit] and
-[`decompression_file_count_limit`][decompression_file_count_limit].
-
-#### Datacenter Wildcards
-
-In Nomad 1.5.0, the
-[`datacenters`](/nomad/docs/job-specification/job#datacenters) field for a job
-accepts wildcards for multi-character matching. For example, `datacenters =
-["dc*"]` will match all datacenters that start with `"dc"`. The default value
-for `datacenters` is now `["*"]`, so the field can be omitted.
-
-The `*` character is no longer a legal character in the
-[`datacenter`](/nomad/docs/configuration#datacenter) field for an agent
-configuration. Before upgrading to Nomad 1.5.0, you should first ensure that
-you've updated any jobs that currently have a `*` in their datacenter name and
-then ensure that no agents have this character in their `datacenter` field name.
-
-#### Server `rejoin_after_leave` (default: `false`) now enforced
-
-All Nomad versions prior to v1.5.0 have incorrectly ignored the Server
-[`rejoin_after_leave`] configuration option. This bug has been fixed in Nomad
-version v1.5.0.
-
-Previous to v1.5.0 the behavior of Nomad `rejoin_after_leave` was always `true`,
-regardless of Nomad server configuration, while the documentation incorrectly
-indicated a default of `false`.
-
-Cluster operators should be aware that explicit `leave` events (such as `nomad
-server force-leave`) will now result in behavior which matches this
-configuration, and should review whether they were inadvertently relying on the
-buggy behavior.
-
-#### Changes to eval broker metrics
-
-The metric `nomad.nomad.broker.total_blocked` has been changed to
-`nomad.nomad.broker.total_pending`. This state refers to internal state of the
-leader's broker, and this is easily confused with the unrelated evaluation
-status `"blocked"` in the Nomad API.
-
-#### Deprecated gossip keyring commands removed
-
-The commands `nomad operator keyring`, `nomad keyring`, `nomad operator keygen`,
-and `nomad keygen` used to manage the gossip keyring were marked as deprecated
-in Nomad 1.4.0. In Nomad 1.5.0, these commands have been removed. Use the `nomad
-operator gossip keyring` commands to manage the gossip keyring.
-
-#### Garbage collection of evaluations and allocations for batch job
-
-Versions prior to 1.5.0 only delete evaluations and allocations of batch jobs
-that are explicitly stopped which can lead to unbounded memory growth of Nomad
-when the batch job is executed multiple times.
-
-Nomad 1.5.0 introduces a new server configuration
-[`batch_eval_gc_threshold`](/nomad/docs/configuration/server#batch_eval_gc_threshold)
-to control how allocations and evaluations for batch jobs are collected.
-
-The default threshold is `24h`. If you need to access completed allocations for
-batch jobs that are older than 24h you must increase this value when upgrading
-Nomad.
 
 ## Nomad 1.4.5, 1.3.10
 
@@ -1796,8 +1523,6 @@ state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
 [api_jobs_parse]: /nomad/api-docs/jobs#parse-job
-[artifacts]: /nomad/docs/job-specification/artifact
-[artifact_params]: /nomad/docs/job-specification/artifact#artifact-parameters
 [cgroups2]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
 [cgroup_parent]: /nomad/docs/configuration/client#cgroup_parent
 [client_artifact]: /nomad/docs/configuration/client#artifact-parameters
@@ -1826,7 +1551,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [`sidecar_task.config`]: /nomad/docs/job-specification/sidecar_task#config
 [`raft_protocol`]: /nomad/docs/configuration/server#raft_protocol
 [`raft protocol`]: /nomad/docs/configuration/server#raft_protocol
-[`rejoin_after_leave`]: /nomad/docs/configuration/server#rejoin_after_leave
 [reserved]: /nomad/docs/configuration/client#reserved-parameters
 [task-config]: /nomad/docs/job-specification/task#config
 [tls-guide]: /nomad/tutorials/transport-security/security-enable-tls
@@ -1863,10 +1587,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [gh_10446]: https://github.com/hashicorp/nomad/pull/10446#issuecomment-1224833906
 [gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
 [upgrade process]: /nomad/docs/upgrade#upgrade-process
-[landlock]: https://docs.kernel.org/userspace-api/landlock.html
-[artifact_fs_isolation]: /nomad/docs/configuration/client#disable_filesystem_isolation
-[decompression_file_count_limit]: /nomad/docs/configuration/client#decompression_file_count_limit
-[decompression_size_limit]: /nomad/docs/configuration/client#decompression_size_limit
-[artifact_env]: /nomad/docs/configuration/client#set_environment_variables
 [dangling_container_reconciliation]: /nomad/docs/drivers/docker#enabled
-[hard_guide]: /nomad/docs/install/production/requirements#hardening-nomad

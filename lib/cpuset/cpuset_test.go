@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package cpuset
 
 import (
@@ -48,7 +45,7 @@ func TestCPUSet_ToSlice(t *testing.T) {
 	}
 }
 
-func TestCPUSet_Equal(t *testing.T) {
+func TestCPUSet_Equals(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
@@ -69,7 +66,7 @@ func TestCPUSet_Equal(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		require.Equal(t, c.shouldEqual, c.a.Equal(c.b))
+		require.Equal(t, c.shouldEqual, c.a.Equals(c.b))
 	}
 }
 
@@ -204,7 +201,7 @@ func TestParse(t *testing.T) {
 	for _, c := range cases {
 		result, err := Parse(c.cpuset)
 		require.NoError(t, err)
-		require.True(t, result.Equal(c.expected))
+		require.True(t, result.Equals(c.expected))
 	}
 }
 
@@ -231,10 +228,10 @@ func TestCPUSet_Copy(t *testing.T) {
 
 	original := New(1, 2, 3, 4, 5)
 	copied := original.Copy()
-	require.True(t, original.Equal(copied))
+	require.True(t, original.Equals(copied))
 
 	delete(copied.cpus, 3)
-	require.False(t, original.Equal(copied))
-	require.True(t, original.Equal(New(1, 2, 3, 4, 5)))
-	require.True(t, copied.Equal(New(1, 2, 4, 5)))
+	require.False(t, original.Equals(copied))
+	require.True(t, original.Equals(New(1, 2, 3, 4, 5)))
+	require.True(t, copied.Equals(New(1, 2, 4, 5)))
 }

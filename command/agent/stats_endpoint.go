@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -12,14 +9,17 @@ import (
 )
 
 func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Get the requested Node ID
+	requestedNode := req.URL.Query().Get("node_id")
 
-	// Build the request and get the requested Node ID
-	args := structs.NodeSpecificRequest{}
+	// Build the request and parse the ACL token
+	args := structs.NodeSpecificRequest{
+		NodeID: requestedNode,
+	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
-	parseNode(req, &args.NodeID)
 
 	// Determine the handler to use
-	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(args.NodeID)
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(requestedNode)
 
 	// Make the RPC
 	var reply cstructs.ClientStatsResponse

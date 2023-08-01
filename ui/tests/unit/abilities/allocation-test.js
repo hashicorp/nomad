@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/avoid-leaking-state-in-ember-objects */
 import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';

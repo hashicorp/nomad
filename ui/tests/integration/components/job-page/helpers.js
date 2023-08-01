@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { click, find } from '@ember/test-helpers';
 
 export function jobURL(job, path = '') {
@@ -23,11 +18,6 @@ export async function stopJob() {
 export async function startJob() {
   await click('[data-test-start] [data-test-idle-button]');
   await click('[data-test-start] [data-test-confirm-button]');
-}
-
-export async function purgeJob() {
-  await click('[data-test-purge] [data-test-idle-button]');
-  await click('[data-test-purge] [data-test-confirm-button]');
 }
 
 export function expectStartRequest(assert, server, job) {
@@ -65,17 +55,6 @@ export async function expectError(assert, title) {
 
 export function expectDeleteRequest(assert, server, job) {
   const expectedURL = jobURL(job);
-
-  assert.ok(
-    server.pretender.handledRequests
-      .filterBy('method', 'DELETE')
-      .find((req) => req.url === expectedURL),
-    'DELETE URL was made correctly'
-  );
-}
-
-export function expectPurgeRequest(assert, server, job) {
-  const expectedURL = jobURL(job) + '?purge=true';
 
   assert.ok(
     server.pretender.handledRequests

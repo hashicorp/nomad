@@ -1,0 +1,3 @@
+```release-note:security
+artifact: Provide mitigations against unbounded artifact decompression
+```

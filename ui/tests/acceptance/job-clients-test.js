@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -43,7 +38,6 @@ module('Acceptance | job clients', function (hooks) {
       },
     });
 
-    server.createList('node-pool', 5);
     clients = server.createList('node', 12, {
       datacenter: 'dc1',
       status: 'ready',

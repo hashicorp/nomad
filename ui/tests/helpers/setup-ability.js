@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 export default (ability) => (hooks) => {
   hooks.beforeEach(function () {
     this.ability = this.owner.lookup(`ability:${ability}`);

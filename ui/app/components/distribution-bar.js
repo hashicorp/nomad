@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember/no-observers */
 import Component from '@ember/component';
 import { computed, set } from '@ember/object';

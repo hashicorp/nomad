@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # Unfortunately 'variable' interpolation isn't supported in volume spec
 # so, parameters has to be supplied again
 

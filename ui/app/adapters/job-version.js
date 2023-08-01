@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import ApplicationAdapter from './application';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import classic from 'ember-classic-decorator';

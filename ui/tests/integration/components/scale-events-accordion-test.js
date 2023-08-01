@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
@@ -20,7 +15,6 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     fragmentSerializerInitializer(this.owner);
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
-    this.server.create('node-pool');
     this.server.create('node');
     this.taskGroupWithEvents = async function (events) {
       const job = this.server.create('job', { createAllocations: false });

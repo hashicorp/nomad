@@ -17,17 +17,11 @@ ui {
   enabled =  true
 
   consul {
-    ui_url = "https://consul.example.com:8501/ui"
+    ui_url = "https://consul.example.com:8500/ui"
   }
 
   vault {
     ui_url = "https://vault.example.com:8200/ui"
-  }
-
-  label {
-    text             = "Staging Cluster"
-    background_color = "yellow"
-    text_color       = "#000000"
   }
 }
 ```
@@ -45,13 +39,10 @@ and the configuration is individual to each agent.
 - `vault` <code>([Vault]: nil)</code> - Configures integrations
   between the Nomad web UI and the Vault web UI.
 
-- `label` <code>([Label]: nil)</code> - Configures a user-defined
-  label to display in the Nomad Web UI header.
-
 ## `consul` Parameters
 
 - `ui_url` `(string: "")` - Specifies the full base URL to a Consul
-  web UI (for example: `https://consul.example.com:8501/ui`. This URL
+  web UI (for example: `https://consul.example.com:8500/ui`. This URL
   is used to build links from the Nomad web UI to a Consul web
   UI. Note that this URL will not typically be the same one used for
   the agent's [`consul.address`]; the `consul.address` is the URL used
@@ -70,21 +61,9 @@ and the configuration is individual to each agent.
   `ui.vault.ui_url` is the URL you'll visit in your browser. If
   this field is omitted, this integration will be disabled.
 
-## `label` Parameters
-
-- `text` `(string: "")` - Specifies the text of the label that will be
-  displayed in the header of the Web UI.
-- `background_color` `(string: "")` - The background color of the label to
-  be displayed. The Web UI will default to a black background. HEX values  
-  may be used.
-- `text_color` `(string: "")` - The text color of the label to be displayed.
-  The Web UI will default to white text. HEX values may be used.
-
-
 
 [web UI]: /nomad/tutorials/web-ui
 [Consul]: /nomad/docs/configuration/ui#consul-parameters
 [Vault]: /nomad/docs/configuration/ui#vault-parameters
-[Label]: /nomad/docs/configuration/ui#label-parameters
 [`consul.address`]: /nomad/docs/configuration/consul#address
 [`vault.address`]: /nomad/docs/configuration/vault#address

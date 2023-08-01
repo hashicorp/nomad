@@ -7,8 +7,8 @@
 
 - `-namespace=<namespace>`: The target namespace for queries and actions bound
   to a namespace. Overrides the `NOMAD_NAMESPACE` environment variable if set.
-  If set to `'*'`, subcommands which support this functionality query all
-  namespaces authorized to user. Defaults to the "default" namespace.
+  If set to `'*'`, job and alloc subcommands query all namespaces authorized to
+  user. Defaults to the "default" namespace.
 
 - `-no-color`: Disables colored command output. Alternatively,
   `NOMAD_CLI_NO_COLOR` may be set. This option takes precedence over

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: de-duplicate allocation client status updates and prevent allocation client status updates from being sent until clients have first synchronized with the server
-```

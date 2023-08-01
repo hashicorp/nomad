@@ -1,44 +1,165 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
+{{#if this.parseError}}
+  <div data-test-parse-error class="notification is-danger">
+    <h3 class="title is-4" data-test-parse-error-title>Parse Error</h3>
+    <p data-test-parse-error-message>{{this.parseError}}</p>
+  </div>
+{{/if}}
+{{#if this.planError}}
+  <div data-test-plan-error class="notification is-danger">
+    <h3 class="title is-4" data-test-plan-error-title>Plan Error</h3>
+    <p data-test-plan-error-message>{{this.planError}}</p>
+  </div>
+{{/if}}
+{{#if this.runError}}
+  <div data-test-run-error class="notification is-danger">
+    <h3 class="title is-4" data-test-run-error-title>Run Error</h3>
+    <p data-test-run-error-message>{{this.runError}}</p>
+  </div>
+{{/if}}
 
-<div>
-  <JobEditor::Alert 
-    @data={{merge (hash error=this.error stage=this.stage) this.data}}
-    @fns={{this.fns}}
-  />
+{{#if (eq this.stage "editor")}}
 
-    {{#if (eq @context "new")}}
-      <header class="run-job-header">
-        <h1 class="title is-3">Run a job</h1>
-        <p>
-          Paste or author HCL or JSON to submit to your cluster, or select from a list of templates. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.
-        </p>
+  <header class="run-job-header">
+    <h1 class="title is-3">Run a job</h1>
+    <p>Paste or author HCL or JSON to submit to your cluster. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.</p>
+    <label class="job-spec-upload">
+      <input type="file" onchange={{action this.uploadJobSpec}} accept=".hcl,.json,.nomad" />
+      <span class="button">Upload a job spec file</span>
+    </label>
+  </header>
 
-        {{#if (can "write variable" path="*" namespace="*")}}
-          <Hds::ButtonSet>
-            <label
-              class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium"
-            >
-              <div class="hds-button__text">Upload file</div>
-              <input
-                type="file"
-                onchange={{action this.uploadJobSpec}}
-                accept=".hcl,.json,.nomad"
-              />
-            </label>
-            <Hds::Button
-              @text="Choose from template"
-              @color="secondary"
-              @route="jobs.run.templates"
-              data-test-choose-template
-            />
-          </Hds::ButtonSet>
-        {{/if}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Job Definition
+      {{#if this.cancelable}}
+        <button
+          class="button is-light is-compact pull-right"
+          onclick={{action this.onCancel}}
+          data-test-cancel-editing
+          type="button"
+        >Cancel</button>
+      {{/if}}
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <div
+        data-test-editor
+        {{code-mirror
+          screenReaderLabel="Job definition"
+          content=this.job._newDefinition
+          theme="hashi"
+          onUpdate=this.updateCode
+          mode="javascript"
+        }}
+      />
+    </div>
+  </div>
 
-      </header>
-    {{/if}}
-    {{did-update this.setDefinitionOnModel this.definition}}
-    {{component (concat 'job-editor/' this.stage) data=this.data fns=this.fns}}
-</div>
+  <div class="content is-associative">
+    <button
+      class="button is-primary {{if this.plan.isRunning 'is-loading'}}"
+      type="button"
+      onclick={{perform this.plan}}
+      disabled={{or this.plan.isRunning (not this.job._newDefinition)}}
+      data-test-plan
+    >Plan</button>
+  </div>
+{{/if}}
+
+{{#if (eq this.stage "plan")}}
+  {{#if this.showPlanMessage}}
+    <div class="notification is-info">
+      <div class="columns">
+        <div class="column">
+          <h3 class="title is-4" data-test-plan-help-title>Job Plan</h3>
+          <p data-test-plan-help-message>This is the impact running this job
+            will have on your cluster.</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button
+            class="button is-info"
+            onclick={{toggle-action "showPlanMessage" this}}
+            data-test-plan-help-dismiss
+            type="button"
+          >Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">Job Plan</div>
+    <div class="boxed-section-body is-dark">
+      <JobDiff
+        data-test-plan-output
+        @diff={{this.planOutput.diff}}
+        @verbose={{false}}
+      />
+    </div>
+  </div>
+  <div
+    class="boxed-section
+      {{if this.planOutput.failedTGAllocs 'is-warning' 'is-primary'}}"
+    data-test-dry-run-message
+  >
+    <div class="boxed-section-head" data-test-dry-run-title>Scheduler dry-run</div>
+    <div class="boxed-section-body" data-test-dry-run-body>
+      {{#if this.planOutput.failedTGAllocs}}
+        {{#each this.planOutput.failedTGAllocs as |placementFailure|}}
+          <PlacementFailure @failedTGAlloc={{placementFailure}} />
+        {{/each}}
+      {{else}}
+        All tasks successfully allocated.
+      {{/if}}
+    </div>
+  </div>
+  {{#if
+    (and
+      this.planOutput.preemptions.isFulfilled this.planOutput.preemptions.length
+    )
+  }}
+    <div class="boxed-section is-warning" data-test-preemptions>
+      <div class="boxed-section-head" data-test-preemptions-title>
+        Preemptions (if you choose to run this job, these allocations will be
+        stopped)
+      </div>
+      <div class="boxed-section-body" data-test-preemptions-body>
+        <ListTable
+          @source={{this.planOutput.preemptions}}
+          @class="allocations is-isolated"
+          as |t|
+        >
+          <t.head>
+            <th class="is-narrow"></th>
+            <th>ID</th>
+            <th>Task Group</th>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Status</th>
+            <th>Version</th>
+            <th>Node</th>
+            <th>Volume</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow @allocation={{row.model}} @context="job" />
+          </t.body>
+        </ListTable>
+      </div>
+    </div>
+  {{/if}}
+  <div class="content is-associative">
+    <button
+      class="button is-primary {{if this.submit.isRunning 'is-loading'}}"
+      type="button"
+      onclick={{perform this.submit}}
+      disabled={{this.submit.isRunning}}
+      data-test-run
+    >Run</button>
+    <button
+      class="button is-light"
+      type="button"
+      onclick={{action this.reset}}
+      data-test-cancel
+    >Cancel</button>
+  </div>
+{{/if}}

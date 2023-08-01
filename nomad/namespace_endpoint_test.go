@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -502,7 +499,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	// Create a job in one
 	j := mock.Job()
 	j.Namespace = ns1.Name
-	assert.Nil(s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
+	assert.Nil(s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, j))
 
 	// Lookup the namespaces
 	req := &structs.NamespaceDeleteRequest{
@@ -553,7 +550,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing
 	// Create a job in the namespace on the non-authority
 	j := mock.Job()
 	j.Namespace = ns1.Name
-	assert.Nil(s2.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
+	assert.Nil(s2.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, j))
 
 	// Delete the namespaces without the correct permissions
 	req := &structs.NamespaceDeleteRequest{
@@ -741,24 +738,6 @@ func TestNamespaceEndpoint_UpsertNamespaces_ACL(t *testing.T) {
 
 	// Try with an invalid token
 	req.AuthToken = invalidToken.SecretID
-	{
-		var resp structs.GenericResponse
-		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-
-		// Check we did not create the namespaces
-		out, err := s1.fsm.State().NamespaceByName(nil, ns1.Name)
-		assert.Nil(err)
-		assert.Nil(out)
-
-		out, err = s1.fsm.State().NamespaceByName(nil, ns2.Name)
-		assert.Nil(err)
-		assert.Nil(out)
-	}
-
-	// Try with a bogus token
-	req.AuthToken = uuid.Generate()
 	{
 		var resp structs.GenericResponse
 		err := msgpackrpc.CallWithCodec(codec, "Namespace.UpsertNamespaces", req, &resp)

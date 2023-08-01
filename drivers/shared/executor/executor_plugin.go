@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package executor
 
 import (
@@ -15,16 +12,15 @@ import (
 type ExecutorPlugin struct {
 	// TODO: support backwards compatibility with pre 0.9 NetRPC plugin
 	plugin.NetRPCUnsupportedPlugin
-	logger        hclog.Logger
-	fsIsolation   bool
-	cpuTotalTicks uint64
+	logger      hclog.Logger
+	fsIsolation bool
 }
 
 func (p *ExecutorPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	if p.fsIsolation {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger, p.cpuTotalTicks)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger)})
 	} else {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger, p.cpuTotalTicks)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger)})
 	}
 	return nil
 }

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package main
 
 import (
@@ -22,3 +19,4 @@ func Test_isCoveredOne(t *testing.T) {
 	try("foo/...", true)
 	try("abc/...", false)
 }
+

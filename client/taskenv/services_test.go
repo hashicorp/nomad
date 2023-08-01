@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskenv
 
 import (
@@ -231,7 +228,6 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 					Datacenter:       "${datacenter1}",
 					LocalBindPort:    10001,
 					LocalBindAddress: "${localbindaddress1}",
-					Config:           map[string]any{"${config1}": 1},
 				}},
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{
@@ -341,7 +337,6 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 					Datacenter:       "_datacenter1",
 					LocalBindPort:    10001,
 					LocalBindAddress: "127.0.0.2",
-					Config:           map[string]any{"_config1": 1},
 				}},
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{

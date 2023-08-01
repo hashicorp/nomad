@@ -128,10 +128,10 @@ that volume.
 
 ## Examples
 
-Schedule the job contained in the file `example.nomad.hcl`, monitoring placement and deployment:
+Schedule the job contained in the file `job1.nomad`, monitoring placement and deployment:
 
 ```shell-session
-$ nomad job run example.nomad.hcl
+$ nomad job run job1.nomad
 ==> 2021-06-09T15:22:58-07:00: Monitoring evaluation "52dee78a"
     2021-06-09T15:22:58-07:00: Evaluation triggered by job "example"
     2021-06-09T15:22:58-07:00: Allocation "5e0b39f0" created: node "3e84d3d2", group "group1"
@@ -159,11 +159,11 @@ $ nomad job run example.nomad.hcl
 <a id="check-index"></a> Update the job using `check-index`:
 
 ```shell-session
-$ nomad job run -check-index 5 example.nomad.hcl
+$ nomad job run -check-index 5 example.nomad
 Enforcing job modify index 5: job exists with conflicting job modify index: 6
 Job not updated
 
-$ nomad job run -check-index 6 example.nomad.hcl
+$ nomad job run -check-index 6 example.nomad
 ==> 2021-06-09T16:57:29-07:00: Monitoring evaluation "5ef16dff"
     2021-06-09T16:57:29-07:00: Evaluation triggered by job "example"
     2021-06-09T16:57:29-07:00: Allocation "6ec7d16f" modified: node "6e1f9bf6", group "cache"
@@ -186,10 +186,10 @@ $ nomad job run -check-index 6 example.nomad.hcl
     cache       1        1       1        0          2021-06-09T17:07:00-07:00
 ```
 
-Schedule the job contained in `example.nomad.hcl` and return immediately:
+Schedule the job contained in `job1.nomad` and return immediately:
 
 ```shell-session
-$ nomad job run -detach example.nomad.hcl
+$ nomad job run -detach job1.nomad
 Job registration successful
 Evaluation ID: e18819c1-b83d-dc17-5e7b-b6f264990283
 ```
@@ -198,7 +198,7 @@ Schedule a job which cannot be successfully placed. This results in a scheduling
 failure and the specifics of the placement are printed:
 
 ```shell-session
-$ nomad job run failing.nomad.hcl
+$ nomad job run failing.nomad
 ==> 2021-06-09T16:49:00-07:00: Monitoring evaluation "2ae0e6a5"
     2021-06-09T16:49:00-07:00: Evaluation triggered by job "example"
 ==> 2021-06-09T16:49:01-07:00: Monitoring evaluation "2ae0e6a5"
@@ -227,7 +227,7 @@ $ nomad job run failing.nomad.hcl
 Sample output when scheduling a system job, which doesn't create a deployment:
 
 ```shell-session
-$ nomad job run example.nomad.hcl
+$ nomad job run example.nomad
 ==> 2021-06-14T09:25:08-07:00: Monitoring evaluation "88a91284"
     2021-06-14T09:25:08-07:00: Evaluation triggered by job "example"
     2021-06-14T09:25:08-07:00: Allocation "03501797" created: node "7849439f", group "cache"

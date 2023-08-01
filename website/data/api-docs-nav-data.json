@@ -15,10 +15,6 @@
     "path": "json-jobs"
   },
   {
-    "title": "Task API",
-    "path": "task-api"
-  },
-  {
     "divider": true
   },
   {
@@ -27,22 +23,6 @@
       {
         "title": "Overview",
         "path": "acl"
-      },
-      {
-        "title": "Auth Methods",
-        "path": "acl/auth-methods"
-      },
-      {
-        "title": "Binding Rules",
-        "path": "acl/binding-rules"
-      },
-      {
-        "title": "Login",
-        "path": "acl/login"
-      },
-      {
-        "title": "OIDC",
-        "path": "acl/oidc"
       },
       {
         "title": "Policies",
@@ -93,10 +73,6 @@
   {
     "title": "Nodes",
     "path": "nodes"
-  },
-  {
-    "title": "Node Pools",
-    "path": "node-pools"
   },
   {
     "title": "Metrics",

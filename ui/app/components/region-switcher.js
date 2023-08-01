@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -22,19 +17,6 @@ export default class RegionSwitcher extends Component {
   gotoRegion(region) {
     this.router.transitionTo('jobs', {
       queryParams: { region },
-    });
-  }
-
-  get keyCommands() {
-    if (this.sortedRegions.length <= 1) {
-      return [];
-    }
-    return this.sortedRegions.map((region, iter) => {
-      return {
-        label: `Switch to ${region} region`,
-        pattern: ['r', `${iter + 1}`],
-        action: () => this.gotoRegion(region),
-      };
     });
   }
 }

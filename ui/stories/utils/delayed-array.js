@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { A } from '@ember/array';
 import ArrayProxy from '@ember/array/proxy';
 import { next } from '@ember/runloop';

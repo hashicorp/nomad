@@ -1,3 +1,0 @@
-```release-note:improvement
-deploymentwatcher: Allow deployments to fail early when running out of reschedule attempts
-```

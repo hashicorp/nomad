@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import EmberObject, { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import RollingArray from 'nomad-ui/utils/classes/rolling-array';

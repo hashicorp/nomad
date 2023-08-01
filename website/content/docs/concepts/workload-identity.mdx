@@ -6,11 +6,10 @@ description: Learn about Nomad's workload identity feature
 
 # Workload Identity
 
-Every workload running in Nomad is given an identity. When an [allocation][] is
-accepted by the [plan applier][], the leader generates a Workload Identity for
-each task in the allocation. This workload identity is a [JSON Web Token
-(JWT)][] that has been signed by the leader's keyring. The workload identity
-includes the following identity claims:
+When an [allocation][] is accepted by the [plan applier][], the leader generates
+a Workload Identity for each task in the allocation. This workload identity is a
+[JSON Web Token (JWT)][] that has been signed by the leader's keyring. The
+workload identity includes the following identity claims:
 
 ```json
 {
@@ -18,28 +17,6 @@ includes the following identity claims:
   "nomad_job_id": "example",
   "nomad_allocation_id": "5c6328f7-48c5-4d03-bada-91ef2e904d0d",
   "nomad_task": "web"
-}
-```
-
-## Using Workload Identity
-
-While Nomad always creates and uses workload identities internally, the JWT is
-not exposed to tasks by default.
-
-To expose Workload Identity to tasks, add an [`identity`][identity-block] block
-to your jobspec:
-
-```hcl
-task "example" {
-
-  identity {
-    # Expose Workload Identity in NOMAD_TOKEN env var
-    env = true
-
-    # Expose Workload Identity in ${NOMAD_SECRETS_DIR}/nomad_token file
-    file = true
-  }
-
 }
 ```
 
@@ -98,17 +75,15 @@ nomad acl policy apply \
    redis-policy ./policy.hcl
 ```
 
-## Task API
+## Using Workload Identity
 
-It can be convenient to combine workload identity with Nomad's [Task API]
-[taskapi] for  enabling tasks to access the Nomad API.
+In Nomad 1.4.0 the workload identity is used only for `template`
+access to [Variables][] and not exposed outside of Nomad.
 
 [allocation]: /nomad/docs/concepts/architecture#allocation
-[identity-block]: /nomad/docs/job-specification/identity
 [plan applier]: /nomad/docs/concepts/scheduling/scheduling
+[Variables]: /nomad/docs/concepts/variables
 [JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
 [Task Access to Variables]: /nomad/docs/concepts/variables#task-access-to-variables
 [List Services API]: /nomad/api-docs/services#list-services
 [Read Service API]: /nomad/api-docs/services#read-service
-[windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
-[taskapi]: /nomad/api-docs/task-api

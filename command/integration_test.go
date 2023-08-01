@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -30,11 +27,11 @@ func TestIntegration_Command_NomadInit(t *testing.T) {
 	}
 
 	{
-		cmd := exec.Command("nomad", "job", "validate", "example.nomad.hcl")
+		cmd := exec.Command("nomad", "job", "validate", "example.nomad")
 		cmd.Dir = tmpDir
 		cmd.Env = []string{`NOMAD_ADDR=http://127.0.0.1:0`}
 		if err := cmd.Run(); err != nil {
-			t.Fatalf("error validating example.nomad.hcl: %v", err)
+			t.Fatalf("error validating example.nomad: %v", err)
 		}
 	}
 }
@@ -57,12 +54,12 @@ func TestIntegration_Command_RoundTripJob(t *testing.T) {
 	}
 
 	{
-		cmd := exec.Command("nomad", "job", "run", "example.nomad.hcl")
+		cmd := exec.Command("nomad", "job", "run", "example.nomad")
 		cmd.Dir = tmpDir
 		cmd.Env = []string{fmt.Sprintf("NOMAD_ADDR=%s", url)}
 		err := cmd.Run()
 		if err != nil && !strings.Contains(err.Error(), "exit status 2") {
-			t.Fatalf("error running example.nomad.hcl: %v", err)
+			t.Fatalf("error running example.nomad: %v", err)
 		}
 	}
 

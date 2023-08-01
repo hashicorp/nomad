@@ -11,11 +11,8 @@ description: >
 The `namespace status` command is used to view the status of a particular
 namespace.
 
-<Tip>
-  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
-    Nomad Namespaces tutorial
-  </a> for more information.
-</Tip>
+~> Namespaces are open source in Nomad 1.0. Namespaces were Enterprise-only
+when introduced in Nomad 0.7.
 
 ## Usage
 
@@ -30,11 +27,6 @@ that has a capability associated with the namespace.
 
 @include 'general_options_no_namespace.mdx'
 
-## Status Options
-
-- `-json` : Output the namespace status in its JSON format.
-- `-t` : Format and display the namespace status using a Go template.
-
 ## Examples
 
 View the status of a namespace:
@@ -46,32 +38,11 @@ Description     = Prod API servers
 Quota           = prod
 EnabledDrivers  = docker,exec
 DisabledDrivers = raw_exec
-
+ 
 Metadata
 contact = platform-eng@example.com
 
 Quota Limits
 Region  CPU Usage   Memory Usage
 global  500 / 2500  256 / 2000
-```
-
-The `-json` flag can be used to get the namespace status in json format:
-
-```shell-session
-$ nomad namespace status -json default
-{
-    "Capabilities": null,
-    "CreateIndex": 1,
-    "Description": "Default shared namespace",
-    "Meta": null,
-    "ModifyIndex": 1,
-    "Name": "default",
-    "Quota": ""
-}
-
-Or use the `-t` flag to format and display the status using a Go template:
-
-```shell-session
-$ nomad namespace status -t {{.Description}} default
-Default shared namespace
 ```

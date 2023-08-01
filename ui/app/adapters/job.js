@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
@@ -16,15 +11,6 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
-    return this.ajax(url, 'GET');
-  }
-
-  fetchRawSpecification(job) {
-    const url = addToPath(
-      this.urlForFindRecord(job.get('id'), 'job', null, 'submission'),
-      '',
-      'version=' + job.get('version')
-    );
     return this.ajax(url, 'GET');
   }
 
@@ -43,17 +29,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return this.ajax(url, 'DELETE');
   }
 
-  purge(job) {
-    const url = this.urlForFindRecord(job.get('id'), 'job') + '?purge=true';
-    return this.ajax(url, 'DELETE');
-  }
-
-  parse(spec, jobVars) {
+  parse(spec) {
     const url = addToPath(this.urlForFindAll('job'), '/parse?namespace=*');
     return this.ajax(url, 'POST', {
       data: {
         JobHCL: spec,
-        Variables: jobVars,
         Canonicalize: true,
       },
     });
@@ -79,51 +59,18 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   // Running a job doesn't follow REST create semantics so it's easier to
   // treat it as an action.
   run(job) {
-    let Submission;
-    try {
-      JSON.parse(job.get('_newDefinition'));
-      Submission = {
-        Source: job.get('_newDefinition'),
-        Format: 'json',
-      };
-    } catch {
-      Submission = {
-        Source: job.get('_newDefinition'),
-        Format: 'hcl2',
-        Variables: job.get('_newDefinitionVariables'),
-      };
-    }
-
     return this.ajax(this.urlForCreateRecord('job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
-        Submission,
       },
     });
   }
 
   update(job) {
     const jobId = job.get('id') || job.get('_idBeforeSaving');
-
-    let Submission;
-    try {
-      JSON.parse(job.get('_newDefinition'));
-      Submission = {
-        Source: job.get('_newDefinition'),
-        Format: 'json',
-      };
-    } catch {
-      Submission = {
-        Source: job.get('_newDefinition'),
-        Format: 'hcl2',
-        Variables: job.get('_newDefinitionVariables'),
-      };
-    }
-
     return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
         Job: job.get('_newDefinitionJSON'),
-        Submission,
       },
     });
   }

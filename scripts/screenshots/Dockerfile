@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 FROM buildkite/puppeteer:v1.15.0
 
 COPY src .

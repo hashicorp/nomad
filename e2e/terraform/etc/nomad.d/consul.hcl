@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 consul {
   address             = "127.0.0.1:8500"
   token               = "${token}"

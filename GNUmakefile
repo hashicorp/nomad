@@ -3,17 +3,10 @@ PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
 THIS_ARCH := $(shell uname -m)
 
-GO_MODULE = github.com/hashicorp/nomad
-
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
-GIT_COMMIT_FLAG = $(GO_MODULE)/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
 
-# build date is based on most recent commit, in RFC3339 format
-BUILD_DATE ?= $(shell TZ=UTC0 git show -s --format=%cd --date=format-local:'%Y-%m-%dT%H:%M:%SZ' HEAD)
-BUILD_DATE_FLAG = $(GO_MODULE)/version.BuildDate=$(BUILD_DATE)
-
-GO_LDFLAGS = -X $(GIT_COMMIT_FLAG) -X $(BUILD_DATE_FLAG)
+GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 
 GOPATH := $(shell go env GOPATH)
 
@@ -34,17 +27,12 @@ ifndef NOMAD_NO_UI
 GO_TAGS := ui $(GO_TAGS)
 endif
 
-#GOTEST_GROUP is set in CI pipelines. We have to set it for local run.
-ifndef GOTEST_GROUP
-GOTEST_GROUP := nomad client command drivers quick
-endif
-
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.6.1
+LAST_RELEASE ?= v1.4.12
 
 default: help
 
@@ -53,7 +41,6 @@ ALL_TARGETS = linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
-	linux_s390x \
 	windows_386 \
 	windows_amd64
 endif
@@ -94,7 +81,7 @@ endif
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
-		go build -trimpath -ldflags "$(GO_LDFLAGS)" -tags "$(GO_TAGS)" -o $(GO_OUT)
+		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
 ifneq (armv7l,$(THIS_ARCH))
 pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
@@ -131,7 +118,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v1.10.0
+	go install gotest.tools/gotestsum@v1.8.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
@@ -142,8 +129,9 @@ deps:  ## Install build and development dependencies
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
+## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.6
 
@@ -208,7 +196,7 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto ## Generate structs, protobufs
+generate-all: generate-structs proto generate-examples ## Generate structs, protobufs, examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
@@ -220,6 +208,12 @@ generate-structs: ## Update generated code
 proto: ## Generate protobuf bindings
 	@echo "==> Generating proto bindings..."
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
+
+.PHONY: generate-examples
+generate-examples: command/job_init.bindata_assetfs.go
+
+command/job_init.bindata_assetfs.go: command/assets/*
+	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
 changelog: ## Generate changelog from entries
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
@@ -278,7 +272,7 @@ release: clean $(foreach t,$(ALL_TARGETS),pkg/$(t).zip) ## Build all release pac
 	@tree --dirsfirst $(PROJECT_ROOT)/pkg
 
 .PHONY: test-nomad
-test-nomad: GOTEST_PKGS=$(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
+test-nomad: GOTEST_PKGS=$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(GOTEST_GROUP))
 test-nomad: # dev ## Run Nomad unit tests
 	@echo "==> Running Nomad unit tests $(GOTEST_GROUP)"
 	@echo "==> with packages $(GOTEST_PKGS)"
@@ -411,19 +405,3 @@ missing: ## Check for packages not being tested
 ec2info: ## Generate AWS EC2 CPU specification table
 	@echo "==> Generating AWS EC2 specifications ..."
 	@go run -modfile tools/go.mod tools/ec2info/main.go
-
-.PHONY: cl
-cl: ## Create a new Changelog entry
-	@go run -modfile tools/go.mod tools/cl-entry/main.go
-
-.PHONY: test
-test: GOTEST_PKGS := $(foreach g,$(GOTEST_GROUP),$(shell go run -modfile=tools/go.mod tools/missing/main.go ci/test-core.json $(g)))
-test: ## Use this target as a smoke test
-	@echo "==> Running Nomad smoke tests on groups: $(GOTEST_GROUP)"
-	@echo "==> with packages: $(GOTEST_PKGS)"
-	gotestsum --format=testname --packages="$(GOTEST_PKGS)" -- \
-		-cover \
-		-timeout=20m \
-		-count=1 \
-		-tags "$(GO_TAGS)" \
-		$(GOTEST_PKGS)

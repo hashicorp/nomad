@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { copy } from 'ember-copy';
 import { get } from '@ember/object';
 import { makeArray } from '@ember/array';

@@ -40,20 +40,13 @@ See [Learn: Getting Started](https://learn.hashicorp.com/collections/nomad/get-s
 Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
 
 #### Production
-See [Learn: Nomad Reference Architecture](https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul) for recommended practices and a reference architecture for production deployments.
+See [Learn: Nomad Reference Architecture](https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul?in=nomad/production) for recommended practices and a reference architecture for production deployments.
 
 Documentation
 ---
 Full, comprehensive documentation is available on the Nomad website: https://www.nomadproject.io/docs
 
 Guides are available on [HashiCorp Learn](https://learn.hashicorp.com/nomad).
-
-Roadmap
----
-
-A timeline of major features expected for the next release or two can be found in the [Public Roadmap](https://github.com/orgs/hashicorp/projects/202/views/1).
-
-This roadmap is a best guess at any given point, and both release dates and projects in each release are subject to change. Do not take any of these items as commitments, especially ones later than one major release away.
 
 Contributing
 --------------------

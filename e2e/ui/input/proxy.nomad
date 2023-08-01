@@ -1,14 +1,6 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "nomad-proxy" {
   datacenters = ["dc1", "dc2"]
   namespace   = "proxy"
-
-  constraint {
-    attribute = "${attr.kernel.name}"
-    value     = "linux"
-  }
 
   group "proxy" {
 

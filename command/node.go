@@ -1,14 +1,8 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
-	"fmt"
-	"sort"
 	"strings"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 )
 
@@ -52,48 +46,4 @@ func (f *NodeCommand) Name() string { return "node" }
 
 func (f *NodeCommand) Run(args []string) int {
 	return cli.RunResultHelp
-}
-
-// formatNodeMeta is used to format node metadata in columns.
-func formatNodeMeta(meta map[string]string) string {
-	// Print the meta
-	keys := make([]string, 0, len(meta))
-	for k := range meta {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var rows []string
-	for _, k := range keys {
-		if k != "" {
-			rows = append(rows, fmt.Sprintf("%s|%s", k, meta[k]))
-		}
-	}
-
-	return formatKV(rows)
-}
-
-// lookupNodeID looks up a nodeID prefix and returns the full ID or an error.
-// The error will always be suitable for displaying to users.
-func lookupNodeID(client *api.Nodes, nodeID string) (string, error) {
-	if len(nodeID) == 1 {
-		return "", fmt.Errorf("Node ID must contain at least two characters.")
-	}
-
-	nodeID = sanitizeUUIDPrefix(nodeID)
-	nodes, _, err := client.PrefixList(nodeID)
-	if err != nil {
-		return "", fmt.Errorf("Error querying node: %w", err)
-	}
-
-	if len(nodes) == 0 {
-		return "", fmt.Errorf("No node(s) with prefix or id %q found", nodeID)
-	}
-
-	if len(nodes) > 1 {
-		return "", fmt.Errorf("Prefix matched multiple nodes\n\n%s",
-			formatNodeStubList(nodes, true))
-	}
-
-	return nodes[0].ID, nil
 }

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import a11yAudit from 'ember-a11y-testing/test-support/audit';
 
 function appendRuleOverrides(overriddenRules) {

@@ -1,12 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
 	"time"
-
-	"golang.org/x/exp/maps"
 )
 
 // Consul represents configuration related to consul.
@@ -64,11 +59,10 @@ func (cc *ConsulConnect) Canonicalize() {
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // block.
 type ConsulSidecarService struct {
-	Tags                   []string          `hcl:"tags,optional"`
-	Port                   string            `hcl:"port,optional"`
-	Proxy                  *ConsulProxy      `hcl:"proxy,block"`
-	DisableDefaultTCPCheck bool              `mapstructure:"disable_default_tcp_check" hcl:"disable_default_tcp_check,optional"`
-	Meta                   map[string]string `hcl:"meta,block"`
+	Tags                   []string     `hcl:"tags,optional"`
+	Port                   string       `hcl:"port,optional"`
+	Proxy                  *ConsulProxy `hcl:"proxy,block"`
+	DisableDefaultTCPCheck bool         `mapstructure:"disable_default_tcp_check" hcl:"disable_default_tcp_check,optional"`
 }
 
 func (css *ConsulSidecarService) Canonicalize() {
@@ -78,10 +72,6 @@ func (css *ConsulSidecarService) Canonicalize() {
 
 	if len(css.Tags) == 0 {
 		css.Tags = nil
-	}
-
-	if len(css.Meta) == 0 {
-		css.Meta = nil
 	}
 
 	css.Proxy.Canonicalize()
@@ -214,7 +204,6 @@ type ConsulUpstream struct {
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
 	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
 	MeshGateway          *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
-	Config               map[string]any     `mapstructure:"config" hcl:"config,block"`
 }
 
 func (cu *ConsulUpstream) Copy() *ConsulUpstream {
@@ -228,7 +217,6 @@ func (cu *ConsulUpstream) Copy() *ConsulUpstream {
 		Datacenter:           cu.Datacenter,
 		LocalBindAddress:     cu.LocalBindAddress,
 		MeshGateway:          cu.MeshGateway.Copy(),
-		Config:               maps.Clone(cu.Config),
 	}
 }
 
@@ -237,9 +225,6 @@ func (cu *ConsulUpstream) Canonicalize() {
 		return
 	}
 	cu.MeshGateway.Canonicalize()
-	if len(cu.Config) == 0 {
-		cu.Config = nil
-	}
 }
 
 type ConsulExposeConfig struct {

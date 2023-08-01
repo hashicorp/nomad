@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <section class="section is-closer {{if this.isFile "is-full-width"}}">
   {{#if this.isFile}}
     <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.path}} @stat={{this.stat}} @class="fs-explorer">

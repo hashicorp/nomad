@@ -1,3 +1,0 @@
-```release-note:bug
-client: Remove setting attributes when spawning the getter child
-```

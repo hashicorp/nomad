@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import RSVP from 'rsvp';
@@ -23,7 +18,6 @@ export default class ClientsRoute extends Route.extend(WithForbiddenState) {
     return RSVP.hash({
       nodes: this.store.findAll('node'),
       agents: this.store.findAll('agent'),
-      nodePools: this.store.findAll('node-pool'),
     }).catch(notifyForbidden(this));
   }
 }

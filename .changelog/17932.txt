@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: adds a keyboard shortcut for Create Variable
-```

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // @ts-check
 // Catches errors with conflicts (409)
 // and allow the route to handle them.

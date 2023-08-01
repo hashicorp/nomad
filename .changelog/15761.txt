@@ -1,3 +1,0 @@
-```release-note:improvement
-consul/connect: Adds support for proxy upstream opaque config
-```

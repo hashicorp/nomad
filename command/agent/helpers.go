@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 // rpcHandlerForAlloc is a helper that given an allocation ID returns whether to

@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: support wildcard namespaces in alloc subcommands when the `-job` flag is used
-```

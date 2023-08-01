@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package allocrunner
 
 import (
@@ -178,14 +175,12 @@ func (h *networkHook) Prerun() error {
 }
 
 func (h *networkHook) Postrun() error {
-
-	// we need the spec for network teardown
-	if h.spec != nil {
-		if err := h.networkConfigurator.Teardown(context.TODO(), h.alloc, h.spec); err != nil {
-			h.logger.Error("failed to cleanup network for allocation, resources may have leaked", "alloc", h.alloc.ID, "error", err)
-		}
+	if h.spec == nil {
+		return nil
 	}
 
-	// issue driver destroy regardless if we have a spec (e.g. cleanup pause container)
+	if err := h.networkConfigurator.Teardown(context.TODO(), h.alloc, h.spec); err != nil {
+		h.logger.Error("failed to cleanup network for allocation, resources may have leaked", "alloc", h.alloc.ID, "error", err)
+	}
 	return h.manager.DestroyNetwork(h.alloc.ID, h.spec)
 }

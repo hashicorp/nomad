@@ -1,8 +1,5 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "overlap" {
-  datacenters = ["dc1", "dc2"]
+  datacenters = ["dc1"]
   type        = "service"
 
   constraint {
@@ -10,22 +7,19 @@ job "overlap" {
     value     = "linux"
   }
 
+  constraint {
+    attribute = "${node.unique.id}"
+    value     = "<<Must be filled in by test>>"
+  }
+
   group "overlap" {
     count = 1
-
-    network {
-      # Reserve a static port so that the subsequent job run is blocked until
-      # the port is freed
-      port "hack" {
-        static = 7234
-      }
-    }
 
     task "test" {
       driver = "raw_exec"
 
       # Delay shutdown to delay next placement
-      shutdown_delay = "8s"
+      shutdown_delay = "10s"
 
       config {
         command = "bash"
@@ -33,8 +27,9 @@ job "overlap" {
       }
 
       resources {
-        cpu    = "500"
-        memory = "100"
+        # Must be filled in by test
+        cpu    = "0"
+        memory = "50"
       }
     }
   }

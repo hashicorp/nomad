@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -188,17 +185,7 @@ FieldsLoop:
 	ObjectsLoop:
 		for _, oDiff := range diff.Objects {
 			switch oDiff.Name {
-			case "Service", "Constraint":
-				continue
-			case "LogConfig":
-				for _, fDiff := range oDiff.Fields {
-					switch fDiff.Name {
-					// force a destructive update if logger was enabled or disabled
-					case "Disabled":
-						destructive = true
-						break ObjectsLoop
-					}
-				}
+			case "LogConfig", "Service", "Constraint":
 				continue
 			default:
 				destructive = true

@@ -19,9 +19,8 @@ nomad job allocs [options] <job>
 The `job allocs` command requires a single argument, the job ID or an ID
 prefix of a job to display the list of allocations for.
 
-When ACLs are enabled, this command requires a token with the `read-job`
-capability for the job's namespace. The `list-jobs` capability is required to
-run the command with a job prefix instead of the exact job ID.
+When ACLs are enabled, this command requires a token with the `read-job` and
+`list-jobs` capabilities for the job's namespace.
 
 ## General Options
 

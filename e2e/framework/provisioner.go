@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package framework
 
 import (
@@ -10,15 +7,12 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	vapi "github.com/hashicorp/vault/api"
 )
 
 // ClusterInfo is a handle to a provisioned cluster, along with clients
 // a test run can use to connect to the cluster.
-//
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type ClusterInfo struct {
 	ID           string
 	Name         string
@@ -29,8 +23,6 @@ type ClusterInfo struct {
 
 // SetupOptions defines options to be given to the Provisioner when
 // calling Setup* methods.
-//
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type SetupOptions struct {
 	Name         string
 	ExpectConsul bool // If true, fails if a Consul client can't be configured
@@ -47,8 +39,6 @@ type SetupOptions struct {
 //
 // The TearDown* methods are hooks to clean up provisioned cluster state
 // that isn't covered by the test case's implementation of AfterEachTest.
-//
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 type Provisioner interface {
 	// SetupTestRun is called at the start of the entire test run.
 	SetupTestRun(t *testing.T, opts SetupOptions) (*ClusterInfo, error)
@@ -79,8 +69,6 @@ type Provisioner interface {
 // DefaultProvisioner is a Provisioner that doesn't deploy a Nomad cluster
 // (because that's handled by Terraform elsewhere), but build clients from
 // environment variables.
-//
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
 var DefaultProvisioner Provisioner = new(singleClusterProvisioner)
 
 type singleClusterProvisioner struct{}
@@ -127,7 +115,6 @@ func (p *singleClusterProvisioner) SetupTestCase(t *testing.T, opts SetupOptions
 		if err != nil && opts.ExpectVault {
 			return nil, err
 		}
-		useragent.SetHeaders(vaultClient)
 		info.VaultClient = vaultClient
 	} else if opts.ExpectVault {
 		return nil, fmt.Errorf("vault client expected but environment variable %s not set",
@@ -139,11 +126,6 @@ func (p *singleClusterProvisioner) SetupTestCase(t *testing.T, opts SetupOptions
 
 // all TearDown* methods of the default provisioner leave the test environment in place
 
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
-func (p *singleClusterProvisioner) TearDownTestCase(_ *testing.T, _ string) error { return nil }
-
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
+func (p *singleClusterProvisioner) TearDownTestCase(_ *testing.T, _ string) error  { return nil }
 func (p *singleClusterProvisioner) TearDownTestSuite(_ *testing.T, _ string) error { return nil }
-
-// Deprecated: no longer use e2e/framework for new tests; see TestExample for new e2e test structure.
-func (p *singleClusterProvisioner) TearDownTestRun(_ *testing.T, _ string) error { return nil }
+func (p *singleClusterProvisioner) TearDownTestRun(_ *testing.T, _ string) error   { return nil }

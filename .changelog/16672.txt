@@ -1,3 +1,0 @@
-```release-note:improvement
-fingerprint/cpu: correctly fingerprint P/E cores of Apple Silicon chips
-```

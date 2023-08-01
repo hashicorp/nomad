@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # This script hardens TLS configuration by disabling weak and broken protocols
 # and enabling useful protocols like TLS 1.1 and 1.2.
 

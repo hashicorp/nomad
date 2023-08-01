@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { equal } from '@ember/object/computed';
 import Component from '@ember/component';
 import { classNames, classNameBindings } from '@ember-decorators/component';

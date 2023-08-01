@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -99,12 +96,30 @@ func (c *MonitorCommand) Run(args []string) int {
 	}
 
 	// Query the node info and lookup prefix
+	if len(nodeID) == 1 {
+		c.Ui.Error("Node identifier must contain at least two characters.")
+		return 1
+	}
+
 	if nodeID != "" {
-		nodeID, err = lookupNodeID(client.Nodes(), nodeID)
+		nodeID = sanitizeUUIDPrefix(nodeID)
+		nodes, _, err := client.Nodes().PrefixList(nodeID)
 		if err != nil {
-			c.Ui.Error(err.Error())
+			c.Ui.Error(fmt.Sprintf("Error querying node: %v", err))
 			return 1
 		}
+
+		if len(nodes) == 0 {
+			c.Ui.Error(fmt.Sprintf("No node(s) with prefix or id %q found", nodeID))
+			return 1
+		}
+
+		if len(nodes) > 1 {
+			out := formatNodeStubList(nodes, false)
+			c.Ui.Output(fmt.Sprintf("Prefix matched multiple nodes\n\n%s", out))
+			return 1
+		}
+		nodeID = nodes[0].ID
 	}
 
 	params := map[string]string{

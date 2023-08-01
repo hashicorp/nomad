@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -104,7 +101,7 @@ func TestVariables_SimpleCRUD(t *testing.T) {
 		_, err := nsv.Delete(sv1.Path, nil)
 		must.NoError(t, err)
 		_, _, err = nsv.Read(sv1.Path, nil)
-		must.ErrorIs(t, err, ErrVariablePathNotFound)
+		must.ErrorContains(t, err, ErrVariableNotFound)
 	})
 
 	t.Run("7 list vars after delete", func(t *testing.T) {
@@ -190,14 +187,14 @@ func TestVariables_Read(t *testing.T) {
 	testCases := []struct {
 		name          string
 		path          string
-		expectedError error
+		expectedError string
 		checkValue    bool
 		expectedValue *Variable
 	}{
 		{
 			name:          "not found",
 			path:          tID + "/not/found",
-			expectedError: ErrVariablePathNotFound,
+			expectedError: ErrVariableNotFound,
 			checkValue:    true,
 			expectedValue: nil,
 		},
@@ -211,67 +208,8 @@ func TestVariables_Read(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			get, _, err := nsv.Read(tc.path, nil)
-			if tc.expectedError != nil {
-				must.ErrorIs(t, err, tc.expectedError)
-			} else {
-				must.NoError(t, err)
-			}
-			if tc.checkValue {
-				if tc.expectedValue != nil {
-					must.NotNil(t, get)
-					must.Eq(t, tc.expectedValue, get)
-				} else {
-					must.Nil(t, get)
-				}
-			}
-		})
-	}
-}
-
-func TestVariables_GetVariableItems(t *testing.T) {
-	testutil.Parallel(t)
-
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-
-	nsv := c.Variables()
-	tID := fmt.Sprint(time.Now().UTC().UnixNano())
-	sv1 := Variable{
-		Namespace: "default",
-		Path:      tID + "/sv1",
-		Items: map[string]string{
-			"kv1": "val1",
-			"kv2": "val2",
-		},
-	}
-	writeTestVariable(t, c, &sv1)
-
-	testCases := []struct {
-		name          string
-		path          string
-		expectedError error
-		checkValue    bool
-		expectedValue VariableItems
-	}{
-		{
-			name:          "not found",
-			path:          tID + "/not/found",
-			expectedError: ErrVariablePathNotFound,
-			checkValue:    true,
-			expectedValue: nil,
-		},
-		{
-			name:          "found",
-			path:          sv1.Path,
-			checkValue:    true,
-			expectedValue: sv1.Items,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			get, _, err := nsv.GetVariableItems(tc.path, nil)
-			if tc.expectedError != nil {
-				must.ErrorIs(t, err, tc.expectedError)
+			if tc.expectedError != "" {
+				must.EqError(t, err, tc.expectedError)
 			} else {
 				must.NoError(t, err)
 			}
@@ -288,7 +226,7 @@ func TestVariables_GetVariableItems(t *testing.T) {
 }
 
 func writeTestVariable(t *testing.T, c *Client, sv *Variable) {
-	_, err := c.put("/v1/var/"+sv.Path, sv, sv, nil)
+	_, err := c.write("/v1/var/"+sv.Path, sv, sv, nil)
 	must.NoError(t, err, must.Sprint("failed writing test variable"))
 	must.NoError(t, err, must.Sprint("failed writing test variable"))
 }

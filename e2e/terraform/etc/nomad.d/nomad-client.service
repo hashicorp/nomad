@@ -1,12 +1,11 @@
 [Unit]
-Description=Nomad Client Agent
+Description=Nomad Agent
 Requires=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0
 StartLimitBurst=3
 
 [Service]
-User=root
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
 EnvironmentFile=-/etc/nomad.d/.environment

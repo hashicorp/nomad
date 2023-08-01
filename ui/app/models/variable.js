@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // @ts-check
 import Model from '@ember-data/model';
 import { computed } from '@ember/object';

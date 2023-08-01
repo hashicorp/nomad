@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable ember-a11y-testing/a11y-audit-called */
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
@@ -19,7 +14,6 @@ module('Acceptance | search', function (hooks) {
   setupMirage(hooks);
 
   test('search exposes and navigates to results from the fuzzy search endpoint', async function (assert) {
-    server.create('node-pool');
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
@@ -185,7 +179,6 @@ module('Acceptance | search', function (hooks) {
   });
 
   test('results are truncated at 10 per group', async function (assert) {
-    server.create('node-pool');
     server.create('node', { name: 'xyz' });
 
     for (let i = 0; i < 11; i++) {
@@ -205,7 +198,6 @@ module('Acceptance | search', function (hooks) {
   });
 
   test('server-side truncation is indicated in the group label', async function (assert) {
-    server.create('node-pool');
     server.create('node', { name: 'xyz' });
 
     for (let i = 0; i < 21; i++) {
@@ -244,7 +236,6 @@ module('Acceptance | search', function (hooks) {
   });
 
   test('pressing slash when an input element is focused does not start a search', async function (assert) {
-    server.create('node-pool');
     server.create('node');
     server.create('job');
 

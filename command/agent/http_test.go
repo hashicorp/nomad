@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -555,7 +552,7 @@ func TestParseToken(t *testing.T) {
 		{
 			Name:          "Parses token from X-Nomad-Token",
 			HeaderKey:     "X-Nomad-Token",
-			HeaderValue:   " foobar",
+			HeaderValue:   "foobar",
 			ExpectedToken: "foobar",
 		},
 		{
@@ -727,85 +724,17 @@ func TestParsePagination(t *testing.T) {
 	}
 }
 
-func TestParseNodeListStubFields(t *testing.T) {
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name        string
-		req         string
-		expected    *structs.NodeStubFields
-		expectedErr string
-	}{
-		{
-			name: "parse resources",
-			req:  "/v1/nodes?resources=true",
-			expected: &structs.NodeStubFields{
-				Resources: true,
-			},
-		},
-		{
-			name: "parse os",
-			req:  "/v1/nodes?os=true",
-			expected: &structs.NodeStubFields{
-				OS: true,
-			},
-		},
-		{
-			name: "no resources but with os",
-			req:  "/v1/nodes?resources=false&os=true",
-			expected: &structs.NodeStubFields{
-				OS: true,
-			},
-		},
-		{
-			name:        "invalid resources value",
-			req:         "/v1/nodes?resources=invalid",
-			expectedErr: `Failed to parse value of "resources"`,
-		},
-		{
-			name:        "invalid os value",
-			req:         "/v1/nodes?os=invalid",
-			expectedErr: `Failed to parse value of "os"`,
-		},
-		{
-			name:     "invalid key is ignored",
-			req:      "/v1/nodes?key=invalid",
-			expected: &structs.NodeStubFields{},
-		},
-		{
-			name:     "no field",
-			req:      "/v1/nodes",
-			expected: &structs.NodeStubFields{},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodGet, tc.req, nil)
-			must.NoError(t, err)
-
-			got, err := parseNodeListStubFields(req)
-			if tc.expectedErr != "" {
-				must.ErrorContains(t, err, tc.expectedErr)
-			} else {
-				must.NoError(t, err)
-				must.Eq(t, tc.expected, got)
-			}
-		})
-	}
-}
-
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	ci.Parallel(t)
 	const (
-		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert = "../../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
-		fookey  = "../../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 	s := makeHTTPServer(t, func(c *Config) {
-		c.Region = "regionFoo" // match the region on foocert
+		c.Region = "foo" // match the region on foocert
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
@@ -817,29 +746,10 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	})
 	defer s.Shutdown()
 
-	tlConf := &tls.Config{
-		ServerName: "client.regionFoo.nomad",
-	}
-	cacert, err := os.ReadFile(cafile)
-	if err != nil {
-		t.Fatalf("error reading cacert: %v", err)
-	}
-	tlConf.RootCAs, err = x509.SystemCertPool()
-	if err != nil {
-		t.Fatalf("error reading SystemPool: %v", err)
-	}
-	tlConf.RootCAs.AppendCertsFromPEM(cacert)
-	tr := &http.Transport{TLSClientConfig: tlConf}
-	clnt := &http.Client{Transport: tr}
-
 	reqURL := fmt.Sprintf("https://%s/v1/agent/self", s.Agent.config.AdvertiseAddrs.HTTP)
 
-	request, err := http.NewRequest(http.MethodGet, reqURL, nil)
-	must.NoError(t, err, must.Sprintf("error creating request: %v", err))
-
-	resp, err := clnt.Do(request)
-
 	// FAIL: Requests that expect 127.0.0.1 as the name should fail
+	resp, err := http.Get(reqURL)
 	if err == nil {
 		resp.Body.Close()
 		t.Fatalf("expected non-nil error but received: %v", resp.StatusCode)
@@ -854,16 +764,14 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a x509.HostnameError but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
-	if expected := "client.regionFoo.nomad"; hostErr.Host != expected {
+	if expected := "127.0.0.1"; hostErr.Host != expected {
 		t.Fatalf("expected hostname on error to be %q but found %q", expected, hostErr.Host)
 	}
 
 	// FAIL: Requests that specify a valid hostname but not the CA should
 	// fail
-	pool := x509.NewCertPool()
 	tlsConf := &tls.Config{
-		RootCAs:    pool,
-		ServerName: "server.regionFoo.nomad",
+		ServerName: "client.regionFoo.nomad",
 	}
 	transport := &http.Transport{TLSClientConfig: tlsConf}
 	client := &http.Client{Transport: transport}
@@ -949,11 +857,11 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		badcert = "../../helper/tlsutil/testdata/badRegion-client-bad.pem"
-		badkey  = "../../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
-		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-bad.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-bad-key.pem"
+		foocert2 = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey2  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
 
 	agentConfig := &Config{
@@ -961,8 +869,8 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
 			CAFile:            cafile,
-			CertFile:          badcert,
-			KeyFile:           badkey,
+			CertFile:          foocert,
+			KeyFile:           fookey,
 		},
 	}
 
@@ -971,8 +879,8 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 			EnableHTTP:        true,
 			VerifyHTTPSClient: true,
 			CAFile:            cafile,
-			CertFile:          foocert,
-			KeyFile:           fookey,
+			CertFile:          foocert2,
+			KeyFile:           fookey2,
 		},
 	}
 
@@ -1022,7 +930,7 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 		ServerName: "client.regionFoo.nomad",
 		RootCAs:    x509.NewCertPool(),
 		GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
-			c, err := tls.LoadX509KeyPair(foocert, fookey)
+			c, err := tls.LoadX509KeyPair(foocert2, fookey2)
 			if err != nil {
 				return nil, err
 			}
@@ -1142,9 +1050,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile   = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
-		foocert  = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
-		fookey   = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 		maxConns = 10 // limit must be < this for testing
 		bufSize  = 1  // enough to know if something was written
 	)
@@ -1407,7 +1315,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 				c.Limits.HTTPMaxConnsPerClient = tc.limit
 				c.LogLevel = "ERROR"
 			})
-			defer s.Shutdown()
+			defer func() {
+				require.NoError(t, s.Shutdown())
+			}()
 
 			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
 

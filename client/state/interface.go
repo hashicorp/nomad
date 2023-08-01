@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package state
 
 import (
@@ -10,7 +7,6 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -45,14 +41,6 @@ type StateDB interface {
 
 	// PutNetworkStatus puts the allocation's network status. It may be nil.
 	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error
-
-	// PutAcknowledgedState stores an allocation's last acknowledged state or
-	// returns an error if it could not be stored.
-	PutAcknowledgedState(string, *arstate.State, ...WriteOption) error
-
-	// GetAcknowledgedState retrieves an allocation's last acknowledged
-	// state. It may be nil even if there's no error
-	GetAcknowledgedState(string) (*arstate.State, error)
 
 	// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so
 	// they can be restored.
@@ -116,19 +104,6 @@ type StateDB interface {
 
 	// GetCheckResults is used to restore the set of check results on this Client.
 	GetCheckResults() (checks.ClientResults, error)
-
-	// PutNodeMeta sets dynamic node metadata for merging with the copy from the
-	// Client's config.
-	//
-	// This overwrites existing dynamic node metadata entirely.
-	PutNodeMeta(map[string]*string) error
-
-	// GetNodeMeta retrieves node metadata for merging with the copy from
-	// the Client's config.
-	GetNodeMeta() (map[string]*string, error)
-
-	PutNodeRegistration(*cstructs.NodeRegistration) error
-	GetNodeRegistration() (*cstructs.NodeRegistration, error)
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

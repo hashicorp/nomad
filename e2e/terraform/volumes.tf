@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 resource "aws_efs_file_system" "csi" {
   count          = var.volumes ? 1 : 0
   creation_token = "${local.random_name}-CSI"

@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "oversubscription-docker" {
   datacenters = ["dc1"]
 
@@ -10,12 +7,6 @@ job "oversubscription-docker" {
     value     = "darwin,linux"
   }
 
-  constraint {
-    attribute = "${attr.unique.cgroup.version}"
-    operator  = "="
-    value     = "v2"
-  }
-
   group "group" {
     task "task" {
       driver = "docker"
@@ -23,7 +14,7 @@ job "oversubscription-docker" {
       config {
         image   = "busybox:1.29.2"
         command = "/bin/sh"
-        args    = ["-c", "cat /sys/fs/cgroup/memory.max; sleep 1000"]
+        args    = ["-c", "cat /sys/fs/cgroup/memory/memory.limit_in_bytes; sleep 1000"]
       }
 
       resources {

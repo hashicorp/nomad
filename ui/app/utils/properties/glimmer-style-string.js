@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { htmlSafe } from '@ember/template';
 
 // A decorator for transforming an object into an html

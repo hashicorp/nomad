@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -10,13 +7,9 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
-	"github.com/shoenig/test/must"
 )
 
 func TestJobScaleCommand_SingleGroup(t *testing.T) {
@@ -127,155 +120,5 @@ func TestJobScaleCommand_MultiGroup(t *testing.T) {
 	}
 	if out := ui.OutputWriter.String(); !strings.Contains(out, "Evaluation ID:") {
 		t.Fatalf("Expected Evaluation ID within output: %v", out)
-	}
-}
-
-func TestJobScaleCommand_ACL(t *testing.T) {
-	ci.Parallel(t)
-
-	// Start server with ACL enabled.
-	srv, client, url := testServer(t, true, func(c *agent.Config) {
-		c.ACL.Enabled = true
-	})
-	defer srv.Shutdown()
-
-	testCases := []struct {
-		name        string
-		jobPrefix   bool
-		aclPolicy   string
-		expectedErr string
-	}{
-		{
-			name:        "no token",
-			aclPolicy:   "",
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "missing scale-job or job-submit",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job-scaling"]
-}
-`,
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "missing read-job-scaling",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["scale-job"]
-}
-`,
-			expectedErr: api.PermissionDeniedErrorContent,
-		},
-		{
-			name: "read-job-scaling and scale-job allowed but can't monitor eval without read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job-scaling", "scale-job"]
-}
-`,
-			expectedErr: "No evaluation with id",
-		},
-		{
-			name: "read-job-scaling and submit-job allowed but can't monitor eval without read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job-scaling", "submit-job"]
-}
-`,
-			expectedErr: "No evaluation with id",
-		},
-		{
-			name: "read-job-scaling and scale-job allowed and can monitor eval with read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job", "read-job-scaling", "scale-job"]
-}
-`,
-		},
-		{
-			name: "read-job-scaling and submit-job allowed and can monitor eval with read-job",
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job", "read-job-scaling", "submit-job"]
-}
-`,
-		},
-		{
-			name:      "job prefix requires list-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job-scaling", "scale-job"]
-}
-`,
-			expectedErr: "job not found",
-		},
-		{
-			name:      "job prefix works with list-job but can't monitor eval without read-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job-scaling", "scale-job", "list-jobs"]
-}
-`,
-			expectedErr: "No evaluation with id",
-		},
-		{
-			name:      "job prefix works with list-job and can monitor eval with read-job",
-			jobPrefix: true,
-			aclPolicy: `
-namespace "default" {
-	capabilities = ["read-job", "read-job-scaling", "scale-job", "list-jobs"]
-}
-`,
-		},
-	}
-
-	for i, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ui := cli.NewMockUi()
-			cmd := &JobScaleCommand{Meta: Meta{Ui: ui}}
-			args := []string{
-				"-address", url,
-			}
-
-			// Create a job.
-			job := mock.MinJob()
-			state := srv.Agent.Server().State()
-			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), nil, job)
-			must.NoError(t, err)
-			defer func() {
-				client.Jobs().Deregister(job.ID, true, &api.WriteOptions{
-					AuthToken: srv.RootToken.SecretID,
-				})
-			}()
-
-			if tc.aclPolicy != "" {
-				// Create ACL token with test case policy and add it to the
-				// command.
-				policyName := nonAlphaNum.ReplaceAllString(tc.name, "-")
-				token := mock.CreatePolicyAndToken(t, state, uint64(302+i), policyName, tc.aclPolicy)
-				args = append(args, "-token", token.SecretID)
-			}
-
-			// Add job ID or job ID prefix to the command.
-			if tc.jobPrefix {
-				args = append(args, job.ID[:3])
-			} else {
-				args = append(args, job.ID)
-			}
-
-			// Run command scaling job to 2.
-			args = append(args, "2")
-			code := cmd.Run(args)
-			if tc.expectedErr == "" {
-				must.Zero(t, code)
-			} else {
-				must.One(t, code)
-				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
-			}
-		})
 	}
 }

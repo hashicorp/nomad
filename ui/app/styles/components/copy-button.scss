@@ -1,15 +1,6 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 .copy-button {
   padding-left: 0.5rem;
   margin-bottom: 2px;
-
-  &.inset {
-    display: inline-block;
-  }
 
   .button {
     color: inherit;

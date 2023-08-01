@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !windows
 
 package rawexec
@@ -8,6 +5,7 @@ package rawexec
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -97,7 +95,7 @@ while true; do
     sleep 1
 done
 	`)
-	require.NoError(os.WriteFile(testFile, testData, 0777))
+	require.NoError(ioutil.WriteFile(testFile, testData, 0777))
 
 	_, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -122,7 +120,7 @@ done
 	outputFile := filepath.Join(task.TaskDir().LogDir, "signal.stdout.0")
 	exp := "Terminated."
 	testutil.WaitForResult(func() (bool, error) {
-		act, err := os.ReadFile(outputFile)
+		act, err := ioutil.ReadFile(outputFile)
 		if err != nil {
 			return false, fmt.Errorf("Couldn't read expected output: %v", err)
 		}
@@ -247,7 +245,7 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 	// Ensure that the task is marked as dead, but account
 	// for WaitTask() closing channel before internal state is updated
 	testutil.WaitForResult(func() (bool, error) {
-		stdout, err := os.ReadFile(filepath.Join(task.TaskDir().LogDir, "test.stdout.0"))
+		stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "test.stdout.0"))
 		if err != nil {
 			return false, fmt.Errorf("failed to output pid file: %v", err)
 		}
@@ -391,7 +389,7 @@ func TestRawExecDriver_NoCgroup(t *testing.T) {
 	ci.Parallel(t)
 	clienttestutil.RequireLinux(t)
 
-	expectedBytes, err := os.ReadFile("/proc/self/cgroup")
+	expectedBytes, err := ioutil.ReadFile("/proc/self/cgroup")
 	require.NoError(t, err)
 	expected := strings.TrimSpace(string(expectedBytes))
 
@@ -432,7 +430,7 @@ func TestRawExecDriver_NoCgroup(t *testing.T) {
 	// Check the log file to see it exited because of the signal
 	outputFile := filepath.Join(task.TaskDir().LogDir, "nocgroup.stdout.0")
 	testutil.WaitForResult(func() (bool, error) {
-		act, err := os.ReadFile(outputFile)
+		act, err := ioutil.ReadFile(outputFile)
 		if err != nil {
 			return false, fmt.Errorf("Couldn't read expected output: %v", err)
 		}

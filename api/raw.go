@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import "io"
@@ -31,7 +28,7 @@ func (raw *Raw) Response(endpoint string, q *QueryOptions) (io.ReadCloser, error
 // Write is used to do a PUT request against an endpoint
 // and serialize/deserialized using the standard Nomad conventions.
 func (raw *Raw) Write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
-	return raw.c.put(endpoint, in, out, q)
+	return raw.c.write(endpoint, in, out, q)
 }
 
 // Delete is used to do a DELETE request against an endpoint

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 // Package noxssrw (No XSS ResponseWriter) behaves like the Go standard
 // library's ResponseWriter by detecting the Content-Type of a response if it
 // has not been explicitly set. However, unlike the standard library's

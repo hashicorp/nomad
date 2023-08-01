@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package executor
 
 import (
@@ -13,7 +10,6 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
-	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
@@ -32,7 +28,6 @@ const (
 func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 	executorConfig *ExecutorConfig) (Executor, *plugin.Client, error) {
 
-	executorConfig.CpuTotalTicks = stats.CpuTotalTicks()
 	c, err := json.Marshal(executorConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create executor config: %v", err)
@@ -43,9 +38,8 @@ func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
 	}
 
 	p := &ExecutorPlugin{
-		logger:        logger,
-		fsIsolation:   executorConfig.FSIsolation,
-		cpuTotalTicks: executorConfig.CpuTotalTicks,
+		logger:      logger,
+		fsIsolation: executorConfig.FSIsolation,
 	}
 
 	config := &plugin.ClientConfig{
@@ -78,7 +72,7 @@ func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logg
 	config := &plugin.ClientConfig{
 		HandshakeConfig:  base.Handshake,
 		Reattach:         reattachConfig,
-		Plugins:          GetPluginMap(logger, false, stats.CpuTotalTicks()),
+		Plugins:          GetPluginMap(logger, false),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           logger.Named("executor"),
 	}

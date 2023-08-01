@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package consul
 
 import (
@@ -972,7 +969,6 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 		PortLabel:     "label",
 		GRPCService:   "foo.Bar",
 		GRPCUseTLS:    true,
-		TLSServerName: "localhost",
 		TLSSkipVerify: true,
 		Timeout:       time.Second,
 		Interval:      time.Minute,
@@ -989,14 +985,13 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 		AgentServiceCheck: api.AgentServiceCheck{
 			Timeout:       "1s",
 			Interval:      "1m0s",
-			GRPC:          "127.0.0.1:8080/foo.Bar",
+			GRPC:          "localhost:8080/foo.Bar",
 			GRPCUseTLS:    true,
-			TLSServerName: "localhost",
 			TLSSkipVerify: true,
 		},
 	}
 
-	actual, err := createCheckReg(serviceID, checkID, check, "127.0.0.1", 8080, "default")
+	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080, "default")
 	must.NoError(t, err)
 	must.Eq(t, expected, actual)
 }

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package benchmarks
 
 import (
@@ -127,7 +124,7 @@ func BenchmarkServiceScheduler(b *testing.B) {
 }
 
 func upsertJob(h *scheduler.Harness, job *structs.Job) *structs.Evaluation {
-	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job)
+	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job)
 	if err != nil {
 		panic(err)
 	}

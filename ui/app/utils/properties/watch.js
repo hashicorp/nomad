@@ -1,10 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
-// @ts-check
-
 import Ember from 'ember';
 import { get } from '@ember/object';
 import { assert } from '@ember/debug';
@@ -17,16 +10,7 @@ import config from 'nomad-ui/config/environment';
 
 const isEnabled = config.APP.blockingQueries !== false;
 
-/**
- * @typedef watchRecordOptions
- * @property {boolean} [shouldSurfaceErrors=false] - If true, the task will throw errors instead of yielding them.
- */
-
-/**
- * @param {string} modelName - The name of the model to watch.
- * @param {watchRecordOptions} [options]
- */
-export function watchRecord(modelName, { shouldSurfaceErrors = false } = {}) {
+export function watchRecord(modelName) {
   return task(function* (id, throttle = 2000) {
     assert(
       'To watch a record, the record adapter MUST extend Watchable',
@@ -46,9 +30,6 @@ export function watchRecord(modelName, { shouldSurfaceErrors = false } = {}) {
           wait(throttle),
         ]);
       } catch (e) {
-        if (shouldSurfaceErrors) {
-          throw e;
-        }
         yield e;
         break;
       } finally {

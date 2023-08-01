@@ -1,7 +1,4 @@
 #!/bin/sh
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 
 # Create the tarball used in TestDockerDriver_StopSignal
 cat <<'EOF' | docker build -t busybox:1.29.3-stopsignal -

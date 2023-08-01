@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 variable "project" {
   type        = string
   description = "The Google Cloud Platform project to deploy the Nomad cluster in."

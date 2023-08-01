@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "namespace_default" {
 
   datacenters = ["dc1", "dc2"]

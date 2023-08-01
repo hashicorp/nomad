@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 "advertise" = {
   "http" = "host.example.com"
   "rpc"  = "host.example.com"

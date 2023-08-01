@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -106,9 +103,8 @@ func TestHostVolumeChecker(t *testing.T) {
 	}
 	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
 	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
-		"foo":              {},
-		"bar":              {},
-		"unique-volume[0]": {},
+		"foo": {},
+		"bar": {},
 	}
 	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"foo": {},
@@ -133,11 +129,6 @@ func TestHostVolumeChecker(t *testing.T) {
 		"baz": {
 			Type:   "nothost",
 			Source: "baz",
-		},
-		"unique": {
-			Type:     "host",
-			Source:   "unique-volume[0]",
-			PerAlloc: true,
 		},
 	}
 
@@ -174,11 +165,8 @@ func TestHostVolumeChecker(t *testing.T) {
 		},
 	}
 
-	alloc := mock.Alloc()
-	alloc.NodeID = nodes[2].ID
-
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -247,12 +235,8 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
-
-	alloc := mock.Alloc()
-	alloc.NodeID = nodes[1].ID
-
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -400,7 +384,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 			Source: vid2,
 		},
 	}
-	err = state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job)
+	err = state.UpsertJob(structs.MsgTypeTestSetup, index, alloc.Job)
 	require.NoError(t, err)
 	index++
 	summary := mock.JobSummary(alloc.JobID)
@@ -875,14 +859,12 @@ func TestConstraintChecker(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 		mock.Node(),
-		mock.Node(),
 	}
 
 	nodes[0].Attributes["kernel.name"] = "freebsd"
 	nodes[1].Datacenter = "dc2"
 	nodes[2].NodeClass = "large"
 	nodes[2].Attributes["foo"] = "bar"
-	nodes[3].NodePool = "prod"
 
 	constraints := []*structs.Constraint{
 		{
@@ -899,11 +881,6 @@ func TestConstraintChecker(t *testing.T) {
 			Operand: "!=",
 			LTarget: "${node.class}",
 			RTarget: "linux-medium-pci",
-		},
-		{
-			Operand: "!=",
-			LTarget: "${node.pool}",
-			RTarget: "prod",
 		},
 		{
 			Operand: "is_set",
@@ -926,10 +903,6 @@ func TestConstraintChecker(t *testing.T) {
 		{
 			Node:   nodes[2],
 			Result: true,
-		},
-		{
-			Node:   nodes[3],
-			Result: false,
 		},
 	}
 

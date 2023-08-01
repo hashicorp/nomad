@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # lifecycle hook test job for service jobs. touches, removes, and tests
 # for the existence of files to assert the order of running tasks.
 # after stopping, the alloc dir should contain the following files:

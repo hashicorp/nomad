@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Route from '@ember/routing/route';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';

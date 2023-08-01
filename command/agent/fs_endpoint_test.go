@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -66,7 +63,7 @@ func addAllocToClient(agent *TestAgent, alloc *structs.Allocation, wait clientAl
 
 	// Upsert the allocation
 	state := agent.server.State()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc}))
 
 	if wait == noWaitClientAlloc {

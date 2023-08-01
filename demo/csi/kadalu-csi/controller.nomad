@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 variable "cn_network" {
   default     = "dc1"
   description = "Data Ceneter that the job needs to be run in"

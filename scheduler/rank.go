@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package scheduler
 
 import (
@@ -164,18 +161,24 @@ type BinPackIterator struct {
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
 // potentially evicting other tasks based on a given priority.
-func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int) *BinPackIterator {
-	return &BinPackIterator{
-		ctx:      ctx,
-		source:   source,
-		evict:    evict,
-		priority: priority,
+func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, schedConfig *structs.SchedulerConfiguration) *BinPackIterator {
 
-		// These are default values that may be overwritten by
-		// SetSchedulerConfiguration.
-		memoryOversubscription: false,
-		scoreFit:               structs.ScoreFitBinPack,
+	algorithm := schedConfig.EffectiveSchedulerAlgorithm()
+	scoreFn := structs.ScoreFitBinPack
+	if algorithm == structs.SchedulerAlgorithmSpread {
+		scoreFn = structs.ScoreFitSpread
 	}
+
+	iter := &BinPackIterator{
+		ctx:                    ctx,
+		source:                 source,
+		evict:                  evict,
+		priority:               priority,
+		memoryOversubscription: schedConfig != nil && schedConfig.MemoryOversubscriptionEnabled,
+		scoreFit:               scoreFn,
+	}
+	iter.ctx.Logger().Named("binpack").Trace("NewBinPackIterator created", "algorithm", algorithm)
+	return iter
 }
 
 func (iter *BinPackIterator) SetJob(job *structs.Job) {
@@ -185,19 +188,6 @@ func (iter *BinPackIterator) SetJob(job *structs.Job) {
 
 func (iter *BinPackIterator) SetTaskGroup(taskGroup *structs.TaskGroup) {
 	iter.taskGroup = taskGroup
-}
-
-func (iter *BinPackIterator) SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration) {
-	// Set scoring function.
-	algorithm := schedConfig.EffectiveSchedulerAlgorithm()
-	scoreFn := structs.ScoreFitBinPack
-	if algorithm == structs.SchedulerAlgorithmSpread {
-		scoreFn = structs.ScoreFitSpread
-	}
-	iter.scoreFit = scoreFn
-
-	// Set memory oversubscription.
-	iter.memoryOversubscription = schedConfig != nil && schedConfig.MemoryOversubscriptionEnabled
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {

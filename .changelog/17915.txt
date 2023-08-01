@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: if a job is remotely purged while you're actively on it, it will let you know and re-route you to the index page
-```

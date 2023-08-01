@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package taskrunner
 
 import (
@@ -45,9 +42,6 @@ type templateHookConfig struct {
 
 	// nomadNamespace is the job's Nomad namespace
 	nomadNamespace string
-
-	// renderOnTaskRestart is flag to explicitly render templates on task restart
-	renderOnTaskRestart bool
 }
 
 type templateHook struct {
@@ -100,12 +94,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 	// If we have already run prerun before exit early.
 	if h.templateManager != nil {
-		if !h.config.renderOnTaskRestart {
-			return nil
-		}
-		h.logger.Info("re-rendering templates on task restart")
-		h.templateManager.Stop()
-		h.templateManager = nil
+		return nil
 	}
 
 	// Store the current Vault token and the task directory

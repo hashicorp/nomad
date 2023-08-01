@@ -59,13 +59,13 @@ server {
 - `encrypt` `(string: "")` - Specifies the secret key to use for encryption of
   Nomad server's gossip network traffic. This key must be 32 bytes that are
   [RFC4648] "URL and filename safe" base64-encoded. You can generate an
-  appropriately-formatted key with the [`nomad operator gossip keyring
-  generate`] command. The provided key is automatically persisted to the data
-  directory and loaded automatically whenever the agent is restarted. This means
-  that to encrypt Nomad server's gossip protocol, this option only needs to be
-  provided once on each agent's initial startup sequence. If it is provided
-  after Nomad has been initialized with an encryption key, then the provided key
-  is ignored and a warning will be displayed. See the [encryption
+  appropriately-formatted key with the [`nomad operator keygen`] command. The
+  provided key is automatically persisted to the data directory and loaded
+  automatically whenever the agent is restarted. This means that to encrypt
+  Nomad server's gossip protocol, this option only needs to be provided once
+  on each agent's initial startup sequence. If it is provided after Nomad has
+  been initialized with an encryption key, then the provided key is ignored
+  and a warning will be displayed. See the [encryption
   documentation][encryption] for more details on this option and its impact on
   the cluster.
 
@@ -107,9 +107,6 @@ server {
   deployment must be in the terminal state before it is eligible for garbage
   collection. This is specified using a label suffix like "30s" or "1h".
 
-- `csi_volume_claim_gc_interval` `(string: "5m")` - Specifies the interval
-  between CSI volume claim garbage collections.
-
 - `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
   a CSI volume before it is eligible to have its claims garbage collected.
   This is specified using a label suffix like "30s" or "1h".
@@ -146,8 +143,8 @@ server {
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
-  increased to meet the target rate. See [Client Heartbeats](#client-heartbeats)
-  below for details.
+  increased to meet the target rate. See [Client
+  Heartbeats](#client-heartbeats) below for details.
 
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
@@ -194,31 +191,12 @@ server {
   to setting this to a value of 1. Increasing the timings makes leader election
   less likely during periods of networking issues or resource starvation. Since
   leader elections pause Nomad's normal work, it may be beneficial for slow or
-  unreliable networks to wait longer before electing a new leader. The trade-off
+  unreliable networks to wait longer before electing a new leader. The tradeoff
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
   a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
   `nomad.raft.leader.lastContact` metrics](/nomad/docs/operations/metrics-reference) are a good
-  indicator of how often leader elections occur and Raft latency.
-
-- `raft_snapshot_threshold` `(int: "8192")` - Specifies the minimum number of
-  Raft logs to be written to disk before the node is allowed to take a snapshot.
-  This reduces the frequency and impact of creating snapshots. During node
-  startup, Raft restores the latest snapshot and then applies the individual
-  logs to catch the node up to the last known state. This can be tuned during
-  operation by a hot configuration reload.
-
-- `raft_snapshot_interval` `(string: "120s")` - Specifies the minimum time between
-  checks if Raft should perform a snapshot. The Raft library randomly staggers
-  between this value and twice this value to avoid the entire cluster performing
-  a snapshot at once. Nodes are eligible to snapshot once they have exceeded the
-  `raft_snapshot_threshold`. This value can be tuned during operation by a hot
-  configuration reload.
-
-- `raft_trailing_logs` `(int: "10240")` - Specifies how many logs are retained
-  after a snapshot. These logs are used so that Raft can quickly replay logs on
-  a follower instead of being forced to send an entire snapshot. This value can
-  be tuned during operation by a hot configuration reload.
+  indicator of how often leader elections occur and raft latency.
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
@@ -252,17 +230,6 @@ server {
 
 - `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
   for the Nomad search API.
-
-- `job_max_priority` `(int: 100)` - Specifies the maximum priority that can be assigned to a job.
-   A valid value must be between `100` and `32766`.
-
-- `job_default_priority` `(int: 50)` - Specifies the default priority assigned to a job.
-   A valid value must be between `50` and `job_max_priority`.
-
-- `job_max_source_size` `(string: "1M")` - Specifies the size limit of the associated
-  job source content when registering a job. Note this is not a limit on the actual
-  size of a job. If the limit is exceeded, the original source is simply discarded
-  and no error is returned from the job API.
 
 ### Deprecated Parameters
 
@@ -483,7 +450,7 @@ told to heartbeat after the maximum interval.
 The actual value used should take into consideration how much tolerance your
 system has for a delay in noticing crashed Clients. For example a
 `failover_heartbeat_ttl` of 30 minutes may give even the slowest clients in the
-largest clusters ample time to heartbeat after an election. However if the
+largest clusters ample time to heartbeat after an election.  However if the
 election was due to a datacenter-wide failure affecting Clients, it will be 30
 minutes before Nomad recognizes that they are `down` and reschedules their
 work.
@@ -494,7 +461,7 @@ work.
 [bootstrapping a cluster]: /nomad/docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
 [monitoring_nomad_progress]: /nomad/docs/operations/monitoring-nomad#progress
-[`nomad operator gossip keyring generate`]: /nomad/docs/commands/operator/gossip/keyring-generate
+[`nomad operator keygen`]: /nomad/docs/commands/operator/keygen
 [search]: /nomad/docs/configuration/search
 [encryption key]: /nomad/docs/operations/key-management
 [max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect

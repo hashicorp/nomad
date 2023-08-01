@@ -1,3 +1,0 @@
-```release-note:improvement
-cpustats: Use config "cpu_total_compute" (if set) for all CPU statistics
-```

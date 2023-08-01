@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -666,7 +663,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 	}{
 		{"root", root.SecretID, 0, nil},
 		{"no_permission_token", deniedToken.SecretID, 403, structs.ErrPermissionDenied},
-		{"invalid token", uuid.Generate(), 403, structs.ErrPermissionDenied},
+		{"invalid token", uuid.Generate(), 400, structs.ErrTokenNotFound},
 		{"unauthenticated", "", 403, structs.ErrPermissionDenied},
 	}
 
@@ -759,7 +756,7 @@ func generateSnapshot(t *testing.T) (*snapshot.Snapshot, *structs.Job) {
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", jobReq, &jobResp)
 	require.NoError(t, err)
 
-	err = s.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	err = s.State().UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	require.NoError(t, err)
 
 	snapshot, err := snapshot.New(s.logger, s.raft)
@@ -888,7 +885,7 @@ func TestOperator_SnapshotRestore_ACL(t *testing.T) {
 	}{
 		{"root", 0, nil},
 		{"no_permission_token", 403, structs.ErrPermissionDenied},
-		{"invalid token", 403, structs.ErrPermissionDenied},
+		{"invalid token", 400, structs.ErrTokenNotFound},
 		{"unauthenticated", 403, structs.ErrPermissionDenied},
 	}
 

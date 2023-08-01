@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build !linux
 
 package executor
@@ -13,10 +10,10 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 	logger = logger.Named("executor")
 	logger.Error("isolation executor is not supported on this platform, using default")
-	return NewExecutor(logger, cpuTotalTicks)
+	return NewExecutor(logger)
 }
 
 func (e *UniversalExecutor) configureResourceContainer(_ int) error { return nil }

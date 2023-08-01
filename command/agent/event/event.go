@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package event
 
 import (
@@ -9,10 +6,10 @@ import (
 
 // Auditor describes the interface that must be implemented by an eventer.
 type Auditor interface {
-	// Event emits an event to the auditor.
+	// Emit an event to the auditor
 	Event(ctx context.Context, eventType string, payload interface{}) error
 
-	// Enabled details if the auditor is enabled or not.
+	// Specifies if the auditor is enabled or not
 	Enabled() bool
 
 	// Reopen signals to auditor to reopen any files they have open.

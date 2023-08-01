@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package spread
 
 import (
@@ -49,7 +46,8 @@ func testSpreadEven(t *testing.T) {
 	for _, allocStub := range allocs {
 		alloc, _, err := nomadClient.Allocations().Info(allocStub.ID, nil)
 		must.NoError(t, err)
-		must.Greater(t, 0, len(alloc.Metrics.ScoreMetaData))
+		must.Greater(t, len(alloc.Metrics.ScoreMetaData), 0)
+
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)
 		must.NoError(t, err)
 		dcToAllocs[node.Datacenter]++
@@ -78,7 +76,7 @@ func testSpreadMultiple(t *testing.T) {
 	for _, allocStub := range allocs {
 		alloc, _, err := nomadClient.Allocations().Info(allocStub.ID, nil)
 		must.NoError(t, err)
-		must.Greater(t, 0, len(alloc.Metrics.ScoreMetaData))
+		must.Greater(t, len(alloc.Metrics.ScoreMetaData), 0)
 		allocMetrics[allocStub.ID] = alloc.Metrics
 
 		node, _, err := nomadClient.Nodes().Info(alloc.NodeID, nil)
@@ -123,7 +121,7 @@ func cleanupJob(t *testing.T, nomadClient *api.Client, jobID string, allocs []*a
 	}, 10*time.Second, 200*time.Millisecond)
 }
 
-func report(metrics map[string]*api.AllocationMetric) must.Setting {
+func report(metrics map[string]*api.AllocationMetric) must.PostScript {
 	var s strings.Builder
 	for allocID, m := range metrics {
 		s.WriteString("Alloc ID: " + allocID + "\n")

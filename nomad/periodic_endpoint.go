@@ -1,15 +1,12 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
+	metrics "github.com/armon/go-metrics"
+	log "github.com/hashicorp/go-hclog"
+	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -18,29 +15,18 @@ import (
 // Periodic endpoint is used for periodic job interactions
 type Periodic struct {
 	srv    *Server
-	ctx    *RPCContext
-	logger hclog.Logger
-}
-
-func NewPeriodicEndpoint(srv *Server, ctx *RPCContext) *Periodic {
-	return &Periodic{srv: srv, ctx: ctx, logger: srv.logger.Named("periodic")}
+	logger log.Logger
 }
 
 // Force is used to force a new instance of a periodic job
 func (p *Periodic) Force(args *structs.PeriodicForceRequest, reply *structs.PeriodicForceResponse) error {
-
-	authErr := p.srv.Authenticate(p.ctx, args)
 	if done, err := p.srv.forward("Periodic.Force", args, args, reply); done {
 		return err
-	}
-	p.srv.MeasureRPCRate("periodic", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "periodic", "force"}, time.Now())
 
 	// Check for write-job permissions
-	if aclObj, err := p.srv.ResolveACL(args); err != nil {
+	if aclObj, err := p.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityDispatchJob) && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied

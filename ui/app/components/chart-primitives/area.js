@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Component from '@glimmer/component';
 import { assert } from '@ember/debug';
 import { default as d3Shape, area, line } from 'd3-shape';

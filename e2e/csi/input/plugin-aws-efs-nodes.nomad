@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # jobspec for running CSI plugin for AWS EFS, derived from
 # the kubernetes manifests found at
 # https://github.com/kubernetes-sigs/aws-efs-csi-driver/tree/master/deploy/kubernetes

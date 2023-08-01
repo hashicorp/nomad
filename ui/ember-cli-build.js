@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-env node */
 const EmberApp = require('ember-cli/lib/broccoli/ember-app');
 
@@ -22,7 +17,7 @@ module.exports = function (defaults) {
       },
     },
     codemirror: {
-      modes: ['javascript', 'ruby'],
+      modes: ['javascript'],
     },
     babel: {
       include: ['proposal-optional-chaining'],
@@ -36,12 +31,6 @@ module.exports = function (defaults) {
     },
     hinting: isTest,
     tests: isTest,
-    sassOptions: {
-      precision: 4,
-      includePaths: [
-        './node_modules/@hashicorp/design-system-tokens/dist/products/css',
-      ],
-    },
   });
 
   // Use `app.import` to add additional libraries to the generated

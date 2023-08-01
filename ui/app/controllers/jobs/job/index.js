@@ -1,16 +1,9 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
-// @ts-check
 import Controller from '@ember/controller';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import classic from 'ember-classic-decorator';
 import { action } from '@ember/object';
-import { tracked } from '@glimmer/tracking';
 @classic
 export default class IndexController extends Controller.extend(
   WithNamespaceResetting
@@ -28,7 +21,6 @@ export default class IndexController extends Controller.extend(
       sortDescending: 'desc',
     },
     'activeTask',
-    'statusMode',
   ];
 
   currentPage = 1;
@@ -37,29 +29,14 @@ export default class IndexController extends Controller.extend(
 
   sortProperty = 'name';
   sortDescending = false;
-
-  @tracked activeTask = null;
-
-  /**
-   * @type {('current'|'historical')}
-   */
-  @tracked
-  statusMode = 'current';
+  activeTask = null;
 
   @action
   setActiveTaskQueryParam(task) {
     if (task) {
-      this.activeTask = `${task.allocation.id}-${task.name}`;
+      this.set('activeTask', `${task.allocation.id}-${task.name}`);
     } else {
-      this.activeTask = null;
+      this.set('activeTask', null);
     }
-  }
-
-  /**
-   * @param {('current'|'historical')} mode
-   */
-  @action
-  setStatusMode(mode) {
-    this.statusMode = mode;
   }
 }

@@ -1,17 +1,9 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller, { inject as controller } from '@ember/controller';
-import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
 export default class VariablesPathController extends Controller {
-  @service router;
-
   get absolutePath() {
     return this.model?.absolutePath || '';
   }
@@ -29,12 +21,6 @@ export default class VariablesPathController extends Controller {
     } else {
       return [];
     }
-  }
-
-  @action goToNewVariable() {
-    this.router.transitionTo('variables.new', {
-      queryParams: { path: `${this.absolutePath}/` },
-    });
   }
 
   @controller variables;

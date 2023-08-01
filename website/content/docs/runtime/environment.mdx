@@ -35,7 +35,7 @@ tell you which resources have been allocated after evaluation and placement.
 
 Nomad will pass CPU and memory limits to your job as `NOMAD_CPU_LIMIT`,
 `NOMAD_MEMORY_LIMIT`, and `NOMAD_MEMORY_MAX_LIMIT`. Your task should use these
-values to adapt its behavior to fit inside the resource allocation that Nomad
+values to adapt its behavior to fit inside the resource allocation that nomad
 provides. For example, you can use the memory limit to inform how large your
 in-process cache should be, or to decide when to flush buffers to disk.
 
@@ -45,12 +45,12 @@ Both CPU and memory are presented as integers. The unit for CPU limit is
 Writing your applications to adjust to these values at runtime provides greater
 scheduling flexibility since you can adjust the resource allocations in your
 job specification without needing to change your code. You can also schedule workloads
-that accept dynamic resource allocations so they can scale up or down as your
+that accept dynamic resource allocations so they can scale down/up as your
 cluster gets more or less busy.
 
 ### Networking
 
-Nomad assigns IP addresses and ports to your jobs and exposes them via environment
+Nomad assigns IPs and ports to your jobs and exposes them via environment
 variables. See the [Networking](/nomad/docs/job-specification/network) page for more
 details.
 
@@ -109,5 +109,6 @@ passed to the tasks can be controlled using the client configuration
 [`env.denylist`][].
 
 [jobspec]: /nomad/docs/job-specification 'Nomad Job Specification'
+[vault]: /nomad/docs/integrations/vault-integration 'Nomad Vault Integration'
 [filesystem internals]: /nomad/docs/concepts/filesystem
 [`env.denylist`]: /nomad/docs/configuration/client#env-denylist

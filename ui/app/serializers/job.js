@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'query-string';

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 export const BYTES_UNITS = ['Bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
 export const HERTZ_UNITS = ['Hz', 'KHz', 'MHz', 'GHz', 'THz', 'PHz'];
 

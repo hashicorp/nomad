@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package fingerprint
 
 import (
@@ -37,7 +34,6 @@ var (
 		"cni":         NewCNIFingerprint, // networks
 		"cpu":         NewCPUFingerprint,
 		"host":        NewHostFingerprint,
-		"landlock":    NewLandlockFingerprint,
 		"memory":      NewMemoryFingerprint,
 		"network":     NewNetworkFingerprint,
 		"nomad":       NewNomadFingerprint,

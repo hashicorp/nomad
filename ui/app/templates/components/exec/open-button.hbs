@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#let (cannot "exec allocation" namespace=this.job.namespace) as |cannotExec|}}
   <button
     data-test-exec-button
@@ -10,12 +5,7 @@
     class="button exec-button is-outline is-small {{if cannotExec "tooltip"}}"
     disabled={{if cannotExec 'disabled'}}
     aria-label={{if cannotExec "You don’t have permission to exec"}}
-    {{action "open"}}
-    {{keyboard-shortcut 
-      label="Exec"
-      pattern=(array "e" "x" "e" "c")
-      action=(action "open")
-    }}>
+    {{action "open"}}>
     {{x-icon "console"}}
     <span>Exec</span>
   </button>

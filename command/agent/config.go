@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package agent
 
 import (
@@ -204,14 +201,6 @@ type ClientConfig struct {
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
-	// NodePool defines the node pool in which the client is registered.
-	//
-	// If the node pool does not exist, it will be created automatically if the
-	// node registers in the authoritative region. In non-authoritative
-	// regions, the node is kept in the 'initializing' status until the node
-	// pool is created and replicated.
-	NodePool string `hcl:"node_pool"`
-
 	// Options is used for configuration of nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
@@ -237,12 +226,6 @@ type ClientConfig struct {
 
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
-
-	// DiskTotalMB is used to override any detected or default total disk space.
-	DiskTotalMB int `hcl:"disk_total_mb"`
-
-	// DiskFreeMB is used to override any detected or default free disk space.
-	DiskFreeMB int `hcl:"disk_free_mb"`
 
 	// ReservableCores is used to override detected reservable cpu cores.
 	ReserveableCores string `hcl:"reservable_cores"`
@@ -326,10 +309,6 @@ type ClientConfig struct {
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
 
-	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
-	// internal bridge network
-	BridgeNetworkHairpinMode bool `hcl:"bridge_network_hairpin_mode"`
-
 	// HostNetworks describes the different host networks available to the host
 	// if the host uses multiple interfaces
 	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
@@ -351,9 +330,6 @@ type ClientConfig struct {
 
 	// Artifact contains the configuration for artifacts.
 	Artifact *config.ArtifactConfig `hcl:"artifact"`
-
-	// Drain specifies whether to drain the client on shutdown; ignored in dev mode.
-	Drain *config.DrainConfig `hcl:"drain_on_shutdown"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -377,7 +353,6 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.HostNetworks = helper.CopySlice(c.HostNetworks)
 	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
-	nc.Drain = c.Drain.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -505,10 +480,6 @@ type ServerConfig struct {
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
 
-	// CSIVolumeClaimGCInterval is how often we dispatch a job to GC
-	// volume claims.
-	CSIVolumeClaimGCInterval string `hcl:"csi_volume_claim_gc_interval"`
-
 	// CSIVolumeClaimGCThreshold controls how "old" a CSI volume must be to
 	// have its claims collected by GC.	Age is not the only requirement for
 	// a volume to be GCed but the threshold can be used to filter by age.
@@ -581,7 +552,7 @@ type ServerConfig struct {
 	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
 
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
-	// When set to false (default), a leave causes Nomad to not rejoin
+	// When set to false (default), a leave causes Consul to not rejoin
 	// the cluster until an explicit join is received. If this is set to
 	// true, we ignore the leave, and rejoin the cluster on start.
 	RejoinAfterLeave bool `hcl:"rejoin_after_leave"`
@@ -644,36 +615,6 @@ type ServerConfig struct {
 
 	// RaftBoltConfig configures boltdb as used by raft.
 	RaftBoltConfig *RaftBoltConfig `hcl:"raft_boltdb"`
-
-	// RaftSnapshotThreshold controls how many outstanding logs there must be
-	// before we perform a snapshot. This is to prevent excessive snapshotting by
-	// replaying a small set of logs instead. The value passed here is the initial
-	// setting used. This can be tuned during operation with a hot reload.
-	RaftSnapshotThreshold *int `hcl:"raft_snapshot_threshold"`
-
-	// RaftSnapshotInterval controls how often we check if we should perform a
-	// snapshot. We randomly stagger between this value and 2x this value to avoid
-	// the entire cluster from performing a snapshot at once. The value passed
-	// here is the initial setting used. This can be tuned during operation with a
-	// hot reload.
-	RaftSnapshotInterval *string `hcl:"raft_snapshot_interval"`
-
-	// RaftTrailingLogs controls how many logs are left after a snapshot. This is
-	// used so that we can quickly replay logs on a follower instead of being
-	// forced to send an entire snapshot. The value passed here is the initial
-	// setting used. This can be tuned during operation using a hot reload.
-	RaftTrailingLogs *int `hcl:"raft_trailing_logs"`
-
-	// JobDefaultPriority is the default Job priority if not specified.
-	JobDefaultPriority *int `hcl:"job_default_priority"`
-
-	// JobMaxPriority is an upper bound on the Job priority.
-	JobMaxPriority *int `hcl:"job_max_priority"`
-
-	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
-	// before being discarded automatically. If unset, the maximum size defaults
-	// to 1 MB. If the value is zero, no job sources will be stored.
-	JobMaxSourceSize *string `hcl:"job_max_source_size"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -692,16 +633,10 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
 	ns.EnableEventBroker = pointer.Copy(s.EnableEventBroker)
 	ns.EventBufferSize = pointer.Copy(s.EventBufferSize)
-	ns.JobMaxSourceSize = pointer.Copy(s.JobMaxSourceSize)
 	ns.licenseAdditionalPublicKeys = slices.Clone(s.licenseAdditionalPublicKeys)
 	ns.ExtraKeysHCL = slices.Clone(s.ExtraKeysHCL)
 	ns.Search = s.Search.Copy()
 	ns.RaftBoltConfig = s.RaftBoltConfig.Copy()
-	ns.RaftSnapshotInterval = pointer.Copy(s.RaftSnapshotInterval)
-	ns.RaftSnapshotThreshold = pointer.Copy(s.RaftSnapshotThreshold)
-	ns.RaftTrailingLogs = pointer.Copy(s.RaftTrailingLogs)
-	ns.JobDefaultPriority = pointer.Copy(s.JobDefaultPriority)
-	ns.JobMaxPriority = pointer.Copy(s.JobMaxPriority)
 	return &ns
 }
 
@@ -926,12 +861,6 @@ type Telemetry struct {
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `hcl:"disable_dispatched_job_summary_metrics"`
 
-	// DisableRPCRateMetricsLabels drops the label for the identity of the
-	// requester when publishing metrics on RPC rate on the server. This may be
-	// useful to control metrics collection costs in environments where request
-	// rate is well-controlled but cardinality of requesters is high.
-	DisableRPCRateMetricsLabels bool `hcl:"disable_rpc_rate_metrics_labels"`
-
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
 	// Valid configuration combinations:
@@ -1078,7 +1007,7 @@ func (a *Addresses) Copy() *Addresses {
 	return &na
 }
 
-// NormalizedAddrs is used to control the addresses we advertise out for
+// AdvertiseAddrs is used to control the addresses we advertise out for
 // different network services. All are optional and default to BindAddr and
 // their default Port.
 type NormalizedAddrs struct {
@@ -1277,7 +1206,6 @@ func DefaultConfig() *Config {
 		UI:             config.DefaultUIConfig(),
 		Client: &ClientConfig{
 			Enabled:               false,
-			NodePool:              structs.NodePoolDefault,
 			MaxKillTimeout:        "30s",
 			ClientMinPort:         14000,
 			ClientMaxPort:         14512,
@@ -1305,7 +1233,6 @@ func DefaultConfig() *Config {
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
-			Drain:                          nil,
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1329,7 +1256,6 @@ func DefaultConfig() *Config {
 				LimitResults:  100,
 				MinTermLength: 2,
 			},
-			JobMaxSourceSize: pointer.Of("1M"),
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -1903,12 +1829,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.JobGCThreshold != "" {
 		result.JobGCThreshold = b.JobGCThreshold
 	}
-	if b.JobDefaultPriority != nil {
-		result.JobDefaultPriority = pointer.Of(*b.JobDefaultPriority)
-	}
-	if b.JobMaxPriority != nil {
-		result.JobMaxPriority = pointer.Of(*b.JobMaxPriority)
-	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
 	}
@@ -1917,9 +1837,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
-	}
-	if b.CSIVolumeClaimGCInterval != "" {
-		result.CSIVolumeClaimGCInterval = b.CSIVolumeClaimGCInterval
 	}
 	if b.CSIVolumeClaimGCThreshold != "" {
 		result.CSIVolumeClaimGCThreshold = b.CSIVolumeClaimGCThreshold
@@ -1999,8 +1916,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.EventBufferSize = b.EventBufferSize
 	}
 
-	result.JobMaxSourceSize = pointer.Merge(s.JobMaxSourceSize, b.JobMaxSourceSize)
-
 	if b.PlanRejectionTracker != nil {
 		result.PlanRejectionTracker = result.PlanRejectionTracker.Merge(b.PlanRejectionTracker)
 	}
@@ -2065,9 +1980,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
 	}
-	if b.NodePool != "" {
-		result.NodePool = b.NodePool
-	}
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
 	}
@@ -2079,12 +1991,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.MemoryMB != 0 {
 		result.MemoryMB = b.MemoryMB
-	}
-	if b.DiskTotalMB != 0 {
-		result.DiskTotalMB = b.DiskTotalMB
-	}
-	if b.DiskFreeMB != 0 {
-		result.DiskFreeMB = b.DiskFreeMB
 	}
 	if b.MaxKillTimeout != "" {
 		result.MaxKillTimeout = b.MaxKillTimeout
@@ -2191,10 +2097,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
 	}
 
-	if b.BridgeNetworkHairpinMode {
-		result.BridgeNetworkHairpinMode = true
-	}
-
 	result.HostNetworks = a.HostNetworks
 
 	if len(b.HostNetworks) != 0 {
@@ -2216,7 +2118,6 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)
-	result.Drain = a.Drain.Merge(b.Drain)
 
 	return &result
 }
@@ -2309,9 +2210,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 
 	if b.DisableDispatchedJobSummaryMetrics {
 		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
-	}
-	if b.DisableRPCRateMetricsLabels {
-		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels
 	}
 
 	return &result

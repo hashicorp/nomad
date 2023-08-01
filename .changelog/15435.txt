@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: The web UI now provides a Token Management interface for management users on policy pages
-```

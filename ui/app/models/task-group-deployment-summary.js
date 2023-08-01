@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { gt, alias } from '@ember/object/computed';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { attr } from '@ember-data/model';
@@ -14,7 +9,6 @@ export default class TaskGroupDeploymentSummary extends Fragment {
   @attr('string') name;
 
   @attr('boolean') autoRevert;
-  @attr('boolean') autoPromote;
   @attr('boolean') promoted;
   @gt('desiredCanaries', 0) requiresPromotion;
 

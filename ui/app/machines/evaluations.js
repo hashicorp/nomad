@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { assign, createMachine, send } from 'xstate';
 
 // Docs on using statecharts:  https://xstate.js.org/docs/packages/xstate-fsm/#api

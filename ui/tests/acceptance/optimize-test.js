@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
@@ -40,7 +35,6 @@ module('Acceptance | optimize', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 
-    server.create('node-pool');
     server.create('node');
 
     server.createList('namespace', 2);
@@ -441,7 +435,6 @@ module('Acceptance | optimize search and facets', function (hooks) {
   hooks.beforeEach(async function () {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 
-    server.create('node-pool');
     server.create('node');
 
     server.createList('namespace', 2);

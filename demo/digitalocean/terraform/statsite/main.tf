@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 variable "size" { default = "1gb" }
 variable "region" {}
 variable "ssh_keys" {}

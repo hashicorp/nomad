@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import Controller from '@ember/controller';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';

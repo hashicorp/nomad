@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
@@ -32,7 +27,6 @@ module('Acceptance | volumes list', function (hooks) {
 
   hooks.beforeEach(function () {
     faker.seed(1);
-    server.create('node-pool');
     server.create('node');
     server.create('csi-plugin', { createVolumes: false });
     window.localStorage.clear();

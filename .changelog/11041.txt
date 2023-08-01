@@ -1,4 +1,0 @@
-```release-note:feature
-**Node Pools**: Allow cluster operators to partition Nomad clients and control which jobs are allowed to run in each pool.
-```
-

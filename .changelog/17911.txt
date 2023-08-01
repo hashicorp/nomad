@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: Display volume namespace on `nomad volume status` and `nomad node status` output
-```

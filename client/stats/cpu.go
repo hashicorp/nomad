@@ -1,118 +1,64 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package stats
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"sync"
+	"runtime"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/stats"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shoenig/go-m1cpu"
 )
 
-const (
-	// cpuInfoTimeout is the timeout used when gathering CPU info. This is used
-	// to override the default timeout in gopsutil which has a tendency to
-	// timeout on Windows.
-	cpuInfoTimeout = 60 * time.Second
-)
+// CpuStats calculates cpu usage percentage
+type CpuStats struct {
+	prevCpuTime float64
+	prevTime    time.Time
 
-var (
-	cpuPowerCoreCount      int
-	cpuPowerCoreMHz        uint64
-	cpuEfficiencyCoreCount int
-	cpuEfficiencyCoreMHz   uint64
-	cpuModelName           string
-)
+	totalCpus int
+}
 
-var (
-	detectedCpuTotalTicks uint64
-	initErr               error
-	onceLer               sync.Once
-)
+// NewCpuStats returns a cpu stats calculator
+func NewCpuStats() *CpuStats {
+	numCpus := runtime.NumCPU()
+	cpuStats := &CpuStats{
+		totalCpus: numCpus,
+	}
+	return cpuStats
+}
 
-func Init(configCpuTotalCompute uint64) error {
-	onceLer.Do(func() {
-		switch {
-		case m1cpu.IsAppleSilicon():
-			cpuModelName = m1cpu.ModelName()
-			cpuPowerCoreCount = m1cpu.PCoreCount()
-			cpuPowerCoreMHz = m1cpu.PCoreHz() / 1_000_000
-			cpuEfficiencyCoreCount = m1cpu.ECoreCount()
-			cpuEfficiencyCoreMHz = m1cpu.ECoreHz() / 1_000_000
-			bigTicks := uint64(cpuPowerCoreCount) * cpuPowerCoreMHz
-			littleTicks := uint64(cpuEfficiencyCoreCount) * cpuEfficiencyCoreMHz
-			detectedCpuTotalTicks = bigTicks + littleTicks
-		default:
-			// for now, all other cpu types assume only power cores
-			// todo: this is already not true for Intel 13th generation
+// Percent calculates the cpu usage percentage based on the current cpu usage
+// and the previous cpu usage where usage is given as time in nanoseconds spend
+// in the cpu
+func (c *CpuStats) Percent(cpuTime float64) float64 {
+	now := time.Now()
 
-			var err error
-			if cpuPowerCoreCount, err = cpu.Counts(true); err != nil {
-				initErr = errors.Join(initErr, fmt.Errorf("failed to detect number of CPU cores: %w", err))
-			}
-
-			ctx, cancel := context.WithTimeout(context.Background(), cpuInfoTimeout)
-			defer cancel()
-
-			var cpuInfoStats []cpu.InfoStat
-			if cpuInfoStats, err = cpu.InfoWithContext(ctx); err != nil {
-				initErr = errors.Join(initErr, fmt.Errorf("Unable to obtain CPU information: %w", err))
-			}
-
-			for _, infoStat := range cpuInfoStats {
-				cpuModelName = infoStat.ModelName
-				if uint64(infoStat.Mhz) > cpuPowerCoreMHz {
-					cpuPowerCoreMHz = uint64(infoStat.Mhz)
-				}
-			}
-
-			// compute ticks using only power core, until we add support for
-			// detecting little cores on non-apple platforms
-			detectedCpuTotalTicks = uint64(cpuPowerCoreCount) * cpuPowerCoreMHz
-
-			initErr = err
-		}
-
-		stats.SetCpuTotalTicks(detectedCpuTotalTicks)
-	})
-
-	// override the computed value with the config value if it is set
-	if configCpuTotalCompute > 0 {
-		stats.SetCpuTotalTicks(configCpuTotalCompute)
+	if c.prevCpuTime == 0.0 {
+		// invoked first time
+		c.prevCpuTime = cpuTime
+		c.prevTime = now
+		return 0.0
 	}
 
-	return initErr
+	timeDelta := now.Sub(c.prevTime).Nanoseconds()
+	ret := c.calculatePercent(c.prevCpuTime, cpuTime, timeDelta)
+	c.prevCpuTime = cpuTime
+	c.prevTime = now
+	return ret
 }
 
-// CPUNumCores returns the number of CPU cores available.
-//
-// This is represented with two values - (Power (P), Efficiency (E)) so we can
-// correctly compute total compute for processors with asymetric cores such as
-// Apple Silicon.
-//
-// For platforms with symetric cores (or where we do not correcly detect asymetric
-// cores), all cores are presented as P cores.
-func CPUNumCores() (int, int) {
-	return cpuPowerCoreCount, cpuEfficiencyCoreCount
+// TicksConsumed calculates the total ticks consumes by the process across all
+// cpu cores
+func (c *CpuStats) TicksConsumed(percent float64) float64 {
+	return (percent / 100) * shelpers.TotalTicksAvailable() / float64(c.totalCpus)
 }
 
-// CPUMHzPerCore returns the MHz per CPU (P, E) core type.
-//
-// As with CPUNumCores, asymetric core detection currently only works with
-// Apple Silicon CPUs.
-func CPUMHzPerCore() (uint64, uint64) {
-	return cpuPowerCoreMHz, cpuEfficiencyCoreMHz
-}
+func (c *CpuStats) calculatePercent(t1, t2 float64, timeDelta int64) float64 {
+	vDelta := t2 - t1
+	if timeDelta <= 0 || vDelta <= 0.0 {
+		return 0.0
+	}
 
-// CPUModelName returns the model name of the CPU.
-func CPUModelName() string {
-	return cpuModelName
+	overall_percent := (vDelta / float64(timeDelta)) * 100.0
+	return overall_percent
 }
 
 func (h *HostStatsCollector) collectCPUStats() (cpus []*CPUStats, totalTicks float64, err error) {
@@ -130,16 +76,14 @@ func (h *HostStatsCollector) collectCPUStats() (cpus []*CPUStats, totalTicks flo
 			h.statsCalculator[cpuStat.CPU] = percentCalculator
 		}
 		idle, user, system, total := percentCalculator.Calculate(cpuStat)
-		ticks := (total / 100.0) * (float64(stats.CpuTotalTicks()) / float64(len(cpuStats)))
 		cs[idx] = &CPUStats{
-			CPU:          cpuStat.CPU,
-			User:         user,
-			System:       system,
-			Idle:         idle,
-			TotalPercent: total,
-			TotalTicks:   ticks,
+			CPU:    cpuStat.CPU,
+			User:   user,
+			System: system,
+			Idle:   idle,
+			Total:  total,
 		}
-		ticksConsumed += ticks
+		ticksConsumed += (total / 100.0) * (shelpers.TotalTicksAvailable() / float64(len(cpuStats)))
 	}
 
 	return cs, ticksConsumed, nil

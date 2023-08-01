@@ -1,3 +1,0 @@
-```release-note:improvement
-vault: configure Nomad User-Agent on vault clients
-```

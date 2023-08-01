@@ -37,9 +37,6 @@ The `raw_exec` driver supports the following configuration in the job spec:
   variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
-~> The `task.user` field cannot be set on a Task using the `raw_exec` driver if
-the Nomad client has been hardened according to the [production][hardening] guide.
-
 ## Examples
 
 To run a binary present on the Node:
@@ -156,6 +153,5 @@ the process tree. Cgroups are used on Linux when Nomad is being run with
 appropriate privileges, the cgroup system is mounted and the operator hasn't
 disabled cgroups for the driver.
 
-[hardening]: /nomad/docs/install/production/requirements#user-permissions
 [plugin-options]: #plugin-options
 [plugin-block]: /nomad/docs/configuration/plugin

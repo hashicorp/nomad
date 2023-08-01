@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package nomad
 
 import (
@@ -9,12 +6,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,68 +54,6 @@ func TestJobEndpointConnect_isSidecarForService(t *testing.T) {
 	}
 }
 
-func TestJobEndpointConnect_groupConnectGuessTaskDriver(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name    string
-		drivers []string
-		exp     string
-	}{
-		{
-			name:    "none",
-			drivers: nil,
-			exp:     "docker",
-		},
-		{
-			name:    "neither",
-			drivers: []string{"exec", "raw_exec", "rkt"},
-			exp:     "docker",
-		},
-		{
-			name:    "docker only",
-			drivers: []string{"docker"},
-			exp:     "docker",
-		},
-		{
-			name:    "podman only",
-			drivers: []string{"podman"},
-			exp:     "podman",
-		},
-		{
-			name:    "mix with docker",
-			drivers: []string{"podman", "docker", "exec"},
-			exp:     "docker",
-		},
-		{
-			name:    "mix without docker",
-			drivers: []string{"exec", "podman", "raw_exec"},
-			exp:     "podman",
-		},
-	}
-
-	for _, tc := range cases {
-		tasks := helper.ConvertSlice(tc.drivers, func(driver string) *structs.Task {
-			return &structs.Task{Driver: driver}
-		})
-		tg := &structs.TaskGroup{Tasks: tasks}
-		result := groupConnectGuessTaskDriver(tg)
-		must.Eq(t, tc.exp, result)
-	}
-}
-
-func TestJobEndpointConnect_newConnectSidecarTask(t *testing.T) {
-	ci.Parallel(t)
-
-	task := newConnectSidecarTask("redis", "podman")
-	must.Eq(t, "connect-proxy-redis", task.Name)
-	must.Eq(t, "podman", task.Driver)
-
-	task2 := newConnectSidecarTask("db", "docker")
-	must.Eq(t, "connect-proxy-db", task2.Name)
-	must.Eq(t, "docker", task2.Driver)
-}
-
 func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 	ci.Parallel(t)
 
@@ -154,8 +87,8 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 	// Expected tasks
 	tgExp := job.TaskGroups[0].Copy()
 	tgExp.Tasks = []*structs.Task{
-		newConnectSidecarTask("backend", "docker"),
-		newConnectSidecarTask("admin", "docker"),
+		newConnectSidecarTask("backend"),
+		newConnectSidecarTask("admin"),
 	}
 	tgExp.Services[0].Name = "backend"
 	tgExp.Services[1].Name = "admin"
@@ -408,7 +341,7 @@ func TestJobEndpointConnect_ConnectInterpolation(t *testing.T) {
 	ci.Parallel(t)
 
 	server := &Server{logger: testlog.HCLogger(t)}
-	jobEndpoint := NewJobEndpoints(server, nil)
+	jobEndpoint := NewJobEndpoints(server)
 
 	j := mock.ConnectJob()
 	j.TaskGroups[0].Services[0].Name = "${JOB}-api"

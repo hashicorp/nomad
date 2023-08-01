@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { module, skip, test } from 'qunit';
 import { currentURL, settled } from '@ember/test-helpers';
@@ -26,7 +21,6 @@ module('Acceptance | exec', function (hooks) {
     faker.seed(1);
 
     server.create('agent');
-    server.create('node-pool');
     server.create('node');
 
     this.job = server.create('job', {
@@ -73,7 +67,7 @@ module('Acceptance | exec', function (hooks) {
       region: 'region-2',
     });
 
-    assert.ok(document.title.includes('Exec - region-2'));
+    assert.equal(document.title, 'Exec - region-2 - Nomad');
 
     assert.equal(Exec.header.region.text, this.job.region);
     assert.equal(Exec.header.namespace.text, this.job.namespace);

@@ -1,3 +1,0 @@
-```release-note:improvement
-client: Log task events at INFO log level
-```

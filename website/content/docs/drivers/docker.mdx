@@ -128,9 +128,6 @@ config {
   are mutable. If image's tag is `latest` or omitted, the image will always be pulled
   regardless of this setting.
 
-- `group_add` - (Optional) A list of supplementary groups to be applied
-  to the container user.
-
 - `healthchecks` - (Optional) A configuration block for controlling how the
   docker driver manages HEALTHCHECK directives built into the container. Set
   `healthchecks.disable` to disable any built-in healthcheck.
@@ -159,9 +156,6 @@ config {
 
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
-
-- `isolation` - (Optional) One of `"hyper-v"`, `"process"`, or `"default"`
-  (which is the same as `process`). Enables [Windows isolation][] modes.
 
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
@@ -1138,16 +1132,11 @@ Nomad limits containers' CPU based on CPU shares. CPU shares allow containers
 to burst past their CPU limits. CPU limits will only be imposed when there is
 contention for resources. When the host is under load your process may be
 throttled to stabilize QoS depending on how many shares it has. You can see how
-many CPU shares are available to your process by reading [`NOMAD_CPU_LIMIT`][runtime_env].
+many CPU shares are available to your process by reading `NOMAD_CPU_LIMIT`.
 1000 shares are approximately equal to 1 GHz.
 
 Please keep the implications of CPU shares in mind when you load test workloads
 on Nomad.
-
-If resources [`cores`][cores] is set, the task is given an isolated reserved set of
-CPU cores to make use of. The total set of cores the task may run on is the private
-set combined with the variable set of unreserved cores. The private set of CPU cores
-is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 
 ### Memory
 
@@ -1159,7 +1148,7 @@ host.
 Since memory is not an elastic resource, you will need to make sure your
 container does not exceed the amount of memory allocated to it, or it will be
 terminated or crash when it tries to malloc. A process can inspect its memory
-limit by reading [`NOMAD_MEMORY_LIMIT`][runtime_env], but will need to track its own memory
+limit by reading `NOMAD_MEMORY_LIMIT`, but will need to track its own memory
 usage. Memory limit is expressed in megabytes so 1024 = 1 GB.
 
 ### IO

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -11,11 +8,8 @@ import (
 	"testing"
 
 	"github.com/creack/pty"
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/cli"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -156,98 +150,6 @@ func TestMeta_Colorize(t *testing.T) {
 			}
 
 			require.Equal(t, !tc.ExpectColor, m.Colorize().Disable)
-		})
-	}
-}
-
-func TestMeta_JobByPrefix(t *testing.T) {
-	ci.Parallel(t)
-
-	srv, client, _ := testServer(t, true, nil)
-	defer srv.Shutdown()
-
-	// Wait for a node to be ready
-	waitForNodes(t, client)
-
-	ui := cli.NewMockUi()
-	meta := &Meta{Ui: ui, namespace: api.AllNamespacesNamespace}
-	client.SetNamespace(api.AllNamespacesNamespace)
-
-	jobs := []struct {
-		namespace string
-		id        string
-	}{
-		{namespace: "default", id: "example"},
-		{namespace: "default", id: "job"},
-		{namespace: "default", id: "job-1"},
-		{namespace: "default", id: "job-2"},
-		{namespace: "prod", id: "job-1"},
-	}
-	for _, j := range jobs {
-		job := testJob(j.id)
-		job.Namespace = pointer.Of(j.namespace)
-
-		_, err := client.Namespaces().Register(&api.Namespace{Name: j.namespace}, nil)
-		must.NoError(t, err)
-
-		w := &api.WriteOptions{Namespace: j.namespace}
-		resp, _, err := client.Jobs().Register(job, w)
-		must.NoError(t, err)
-
-		code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
-		must.Zero(t, code)
-	}
-
-	testCases := []struct {
-		name          string
-		prefix        string
-		filterFunc    JobByPrefixFilterFunc
-		expectedError string
-	}{
-		{
-			name:   "exact match",
-			prefix: "job",
-		},
-		{
-			name:   "partial match",
-			prefix: "exam",
-		},
-		{
-			name:   "match with filter",
-			prefix: "job-",
-			filterFunc: func(j *api.JobListStub) bool {
-				// Filter out jobs with "job-" so that only "job-2" matches.
-				return j.ID == "job-2"
-			},
-		},
-		{
-			name:          "multiple matches",
-			prefix:        "job-",
-			expectedError: "matched multiple jobs",
-		},
-		{
-			name:          "no match",
-			prefix:        "not-found",
-			expectedError: "No job(s) with prefix or ID",
-		},
-		{
-			name:          "multiple matches across namespaces",
-			prefix:        "job-1",
-			expectedError: "matched multiple jobs",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			job, err := meta.JobByPrefix(client, tc.prefix, tc.filterFunc)
-			if tc.expectedError != "" {
-				must.Nil(t, job)
-				must.ErrorContains(t, err, tc.expectedError)
-			} else {
-				must.NoError(t, err)
-				must.NotNil(t, job)
-				must.StrContains(t, *job.ID, tc.prefix)
-			}
 		})
 	}
 }

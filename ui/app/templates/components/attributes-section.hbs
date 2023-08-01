@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{#each-in this.attributes as |key value|}}
   {{#if (is-object value)}}
     <tr data-test-attributes-section>
@@ -10,10 +5,14 @@
         {{#if this.prefix}}<span class="is-faded" data-test-prefix>{{this.prefix}}.</span>{{/if}}{{key}}
       </td>
     </tr>
-    <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}}
-    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} @copyable={{@copyable}} />
+    <AttributesSection @prefix={{if this.prefix (concat this.prefix "." key) key}} @attributes={{value}} />
   {{else}}
-    <MetadataKv @prefix={{this.prefix}}
-    @key={{key}} @value={{value}} @editable={{@editable}} @onKVSave={{@onKVSave}} @copyable={{@copyable}} />
+    <tr data-test-attributes-section>
+      <td data-test-key>
+        {{#if this.prefix}}<span class="is-faded" data-test-prefix>{{this.prefix}}.</span>{{/if}}
+        {{~key}}
+      </td>
+      <td data-test-value title="{{value}}">{{value}}</td>
+    </tr>
   {{/if}}
 {{/each-in}}

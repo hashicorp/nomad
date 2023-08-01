@@ -45,10 +45,7 @@ exhaustion, etc), then the exit code will be 2. Any other errors, including
 client connection issues or internal errors, are indicated by exit code 1.
 
 When ACLs are enabled, this command requires a token with the `dispatch-job`
-capability for the job's namespace. The `list-jobs` capability is required to
-run the command with a job prefix instead of the exact job ID. The `read-job`
-capability is required to monitor the resulting evaluation when `-detach` is
-not used.
+capability for the job's namespace.
 
 See the [multiregion] documentation for additional considerations when
 dispatching parameterized jobs.

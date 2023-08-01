@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package drivers
 
 import (
@@ -174,10 +171,6 @@ type Capabilities struct {
 	// adjust behavior such as propogating task handles between allocations
 	// to avoid downtime when a client is lost.
 	RemoteTasks bool
-
-	// DisableLogCollection indicates this driver has disabled log collection
-	// and the client should not start a logmon process.
-	DisableLogCollection bool
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
@@ -274,7 +267,6 @@ type TaskConfig struct {
 	JobName          string
 	JobID            string
 	TaskGroupName    string
-	ParentJobID      string
 	Name             string // task.Name
 	Namespace        string
 	NodeName         string

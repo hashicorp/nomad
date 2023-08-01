@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -84,7 +81,7 @@ func (q *Quotas) Usage(name string, qo *QueryOptions) (*QuotaUsage, *QueryMeta, 
 
 // Register is used to register a quota spec.
 func (q *Quotas) Register(spec *QuotaSpec, qo *WriteOptions) (*WriteMeta, error) {
-	wm, err := q.client.put("/v1/quota", spec, nil, qo)
+	wm, err := q.client.write("/v1/quota", spec, nil, qo)
 	if err != nil {
 		return nil, err
 	}

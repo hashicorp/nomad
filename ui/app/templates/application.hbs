@@ -1,38 +1,25 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{page-title
   (if this.system.shouldShowRegions (concat this.system.activeRegion " - "))
-  (if this.system.agent.config.UI.Label.Text (concat this.system.agent.config.UI.Label.Text " - "))
   "Nomad"
   separator=" - "
 }}
 <SvgPatterns />
 
 <section class="notifications">
-  {{#each this.notifications.queue as |flash|}}
+  {{#each this.flashMessages.queue as |flash|}}
   <FlashMessage @flash={{flash}} as |component flash close|>
-    <Hds::Toast
-      @color={{or flash.color "neutral"}}
-      @onDismiss={{
-        queue
-          (action close)
-          (action (optional flash.customCloseAction))
-        
-      }}
-    as |T|>
-      {{#if flash.title}}
-        <T.Title>{{flash.title}}</T.Title>
-      {{/if}}
-      {{#if flash.message}}
-        <T.Description>{{flash.message}}</T.Description>
-      {{/if}}
-      {{#if flash.customAction}}
-        <T.Button @text={{flash.customAction.label}} @color="secondary" {{on "click" (action flash.customAction.action)}} />
-      {{/if}}
-    </Hds::Toast>
+    <span class="close-button" role="button" {{on "click" (action close)}}>&times;</span>
+    {{#if flash.title}}
+    <h3>{{flash.title}}</h3>
+    {{/if}}
+    {{#if flash.message}}
+      <p>{{flash.message}}</p>
+    {{/if}}
+    {{#if component.showProgressBar}}
+      <div class="alert-progress">
+        <div class="alert-progressBar" style={{component.progressDuration}}></div>
+      </div>
+    {{/if}}
   </FlashMessage>
   {{/each}}
 </section>
@@ -48,7 +35,7 @@
         <h1 data-test-error-title class="title is-spaced">No Cluster Leader</h1>
         <p data-test-error-message class="subtitle">
           The cluster has no leader.
-          <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery">
+          <a href="https://www.nomadproject.io/guides/outage.html">
             Read about Outage Recovery.</a>
         </p>
       {{else if this.isOTTExchange}}
@@ -93,11 +80,6 @@
         data-test-error-clients-link
         class="button is-white"
       >Go to Clients</LinkTo>
-      <LinkTo
-        @route="settings.tokens"
-        data-test-error-signin-link
-        class="button is-white"
-      >Go to Sign In</LinkTo>
     </div>
   </div>
 {{else}}

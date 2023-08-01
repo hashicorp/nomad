@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -245,7 +242,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	sub, job, err := c.JobGetter.Get(args[0])
+	job, err := c.JobGetter.Get(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
@@ -329,7 +326,6 @@ func (c *JobRunCommand) Run(args []string) int {
 		PolicyOverride: override,
 		PreserveCounts: preserveCounts,
 		EvalPriority:   evalPriority,
-		Submission:     sub,
 	}
 	if enforce {
 		opts.EnforceIndex = true

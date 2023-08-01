@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 //go:build linux
 
 package cgutil
@@ -139,7 +136,7 @@ func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 	require.NoError(t, err)
 	reservedCpus, err := cpuset.Parse(string(reservedCpusRaw))
 	require.NoError(t, err)
-	require.True(t, reservedCpus.Equal(alloc1Cpuset.Union(alloc2Cpuset)))
+	require.True(t, reservedCpus.Equals(alloc1Cpuset.Union(alloc2Cpuset)))
 
 	// remove first allocation
 	alloc1TaskPath := manager.cgroupInfo[alloc1.ID]["web"].CgroupPath
@@ -162,6 +159,6 @@ func TestCpusetManager_V1_RemoveAlloc(t *testing.T) {
 	require.NoError(t, err)
 	reservedCpus, err = cpuset.Parse(string(reservedCpusRaw))
 	require.NoError(t, err)
-	require.True(t, reservedCpus.Equal(alloc2Cpuset))
+	require.True(t, reservedCpus.Equals(alloc2Cpuset))
 
 }

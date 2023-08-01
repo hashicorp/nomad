@@ -1,10 +1,5 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 <BasicDropdown
-  @horizontalPosition="auto"
+  @horizontalPosition="left"
   @onOpen={{action
     (queue (action (mut this.isOpen) true) (action this.capture))
   }}

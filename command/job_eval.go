@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package command
 
 import (
@@ -27,10 +24,7 @@ Usage: nomad job eval [options] <job_id>
   scenarios.
 
   When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. The 'list-jobs' capability is required to
-  run the command with a job prefix instead of the exact job ID. The 'read-job'
-  capability is required to monitor the resulting evaluation when -detach is
-  not used.
+  capability for the job's namespace.
 
 General Options:
 
@@ -116,23 +110,13 @@ func (c *JobEvalCommand) Run(args []string) int {
 	if verbose {
 		length = fullId
 	}
-
-	// Check if the job exists
-	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-
 	// Call eval endpoint
+	jobID := args[0]
+
 	opts := api.EvalOptions{
 		ForceReschedule: c.forceRescheduling,
 	}
-	w := &api.WriteOptions{
-		Namespace: namespace,
-	}
-	evalId, _, err := client.Jobs().EvaluateWithOpts(jobID, opts, w)
+	evalId, _, err := client.Jobs().EvaluateWithOpts(jobID, opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error evaluating job: %s", err))
 		return 1

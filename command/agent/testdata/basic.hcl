@@ -1,6 +1,3 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 # This file was used to generate basic.json from https://www.hcl2json.com/
 region = "foobar"
 
@@ -117,7 +114,6 @@ server {
   job_gc_threshold              = "12h"
   eval_gc_threshold             = "12h"
   deployment_gc_threshold       = "12h"
-  csi_volume_claim_gc_interval  = "3m"
   csi_volume_claim_gc_threshold = "12h"
   csi_plugin_gc_threshold       = "12h"
   acl_token_gc_threshold        = "12h"
@@ -137,8 +133,6 @@ server {
   raft_multiplier               = 4
   enable_event_broker           = false
   event_buffer_size             = 200
-  job_default_priority          = 100
-  job_max_priority              = 200
 
   plan_rejection_tracker {
     enabled        = true

@@ -1,8 +1,3 @@
-{{!
-  Copyright (c) HashiCorp, Inc.
-  SPDX-License-Identifier: MPL-2.0
-~}}
-
 {{page-title "Job " this.model.name}}
 {{component
   (concat "job-page/" this.model.templateType)
@@ -12,6 +7,4 @@
   currentPage=this.currentPage
   activeTask=this.activeTask
   setActiveTaskQueryParam=this.setActiveTaskQueryParam
-  statusMode=this.statusMode
-  setStatusMode=this.setStatusMode
 }}

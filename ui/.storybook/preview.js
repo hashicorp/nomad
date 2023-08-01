@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 import { addDecorator, addParameters } from '@storybook/ember';
 import { INITIAL_VIEWPORTS } from '@storybook/addon-viewport';
 import theme from './theme.js';

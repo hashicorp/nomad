@@ -1,3 +1,0 @@
-```release-note:bug
-service: Fixed a bug where attaching a policy to a job would prevent workload identities for the job from reading the service registration API
-```

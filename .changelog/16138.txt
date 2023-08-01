@@ -1,3 +1,0 @@
-```release-note:bug
-cli: Fix unbolded header `Device Group Attributes`
-```

@@ -1,8 +1,6 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 job "chroot_docker" {
-  type = "batch"
+  datacenters = ["dc1"]
+  type        = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -22,7 +20,7 @@ job "chroot_docker" {
       }
       resources {
         cpu    = 50
-        memory = 50
+        memory = 32
       }
     }
   }

@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 // playwright.config.js
 // @ts-check
 const { devices } = require('@playwright/test');

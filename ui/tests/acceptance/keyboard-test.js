@@ -1,8 +1,3 @@
-/**
- * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: MPL-2.0
- */
-
 /* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -248,7 +243,6 @@ module('Acceptance | keyboard', function (hooks) {
 
   module('Dynamic Nav', function (dynamicHooks) {
     dynamicHooks.beforeEach(async function () {
-      server.create('node-pool');
       server.create('node');
     });
     test('Dynamic Table Nav', async function (assert) {
@@ -305,9 +299,6 @@ module('Acceptance | keyboard', function (hooks) {
     });
 
     test('Dynamic nav arrows and looping', async function (assert) {
-      // Make sure user is a management token so Variables appears, etc.
-      let token = server.create('token', { type: 'management' });
-      window.localStorage.nomadTokenSecret = token.secretId;
       server.createList('job', 3, { createAllocations: true, type: 'system' });
       const jobID = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
       await visit(`/jobs/${jobID}@default`);
@@ -315,8 +306,9 @@ module('Acceptance | keyboard', function (hooks) {
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
         shiftKey: true,
       });
-      assert.ok(
-        currentURL().startsWith(`/jobs/${jobID}@default/definition`),
+      assert.equal(
+        currentURL(),
+        `/jobs/${jobID}@default/definition`,
         'Shift+ArrowRight takes you to the next tab (Definition)'
       );
 
@@ -352,15 +344,6 @@ module('Acceptance | keyboard', function (hooks) {
       });
       assert.equal(
         currentURL(),
-        `/jobs/${jobID}@default/clients`,
-        'Shift+ArrowRight takes you to the next tab (Clients)'
-      );
-
-      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
-        shiftKey: true,
-      });
-      assert.equal(
-        currentURL(),
         `/jobs/${jobID}@default/services`,
         'Shift+ArrowRight takes you to the next tab (Services)'
       );
@@ -370,54 +353,8 @@ module('Acceptance | keyboard', function (hooks) {
       });
       assert.equal(
         currentURL(),
-        `/jobs/${jobID}@default/variables`,
-        'Shift+ArrowRight takes you to the next tab (Variables)'
-      );
-
-      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
-        shiftKey: true,
-      });
-      assert.equal(
-        currentURL(),
         `/jobs/${jobID}@default`,
         'Shift+ArrowRight takes you to the first tab in the loop'
-      );
-      window.localStorage.nomadTokenSecret = null; // Reset Token
-    });
-
-    test('Region switching', async function (assert) {
-      ['Detroit', 'Halifax', 'Phoenix', 'Toronto', 'Windsor'].forEach((id) => {
-        server.create('region', { id });
-      });
-
-      await visit('/jobs');
-
-      // Regions are in the keynav modal
-      await triggerEvent('.page-layout', 'keydown', { key: '?' });
-      await triggerEvent('.page-layout', 'keydown', { key: '?' });
-      assert.ok(Layout.keyboard.modalShown);
-      assert
-        .dom('[data-test-command-label="Switch to Detroit region"]')
-        .exists('First created region is in the modal');
-
-      assert
-        .dom('[data-test-command-label="Switch to Windsor region"]')
-        .exists('Last created region is in the modal');
-
-      // Triggers a region switch to Halifax
-      triggerEvent('.page-layout', 'keydown', { key: 'r' });
-      await triggerEvent('.page-layout', 'keydown', { key: '2' });
-      assert.ok(
-        currentURL().includes('region=Halifax'),
-        'r 2 command takes you to the second region'
-      );
-
-      // Triggers a region switch to Phoenix
-      triggerEvent('.page-layout', 'keydown', { key: 'r' });
-      await triggerEvent('.page-layout', 'keydown', { key: '3' });
-      assert.ok(
-        currentURL().includes('region=Phoenix'),
-        'r 3 command takes you to the third region'
       );
     });
   });

@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package api
 
 import (
@@ -52,7 +49,7 @@ func (n *Namespaces) Info(name string, q *QueryOptions) (*Namespace, *QueryMeta,
 
 // Register is used to register a namespace.
 func (n *Namespaces) Register(namespace *Namespace, q *WriteOptions) (*WriteMeta, error) {
-	wm, err := n.client.put("/v1/namespace", namespace, nil, q)
+	wm, err := n.client.write("/v1/namespace", namespace, nil, q)
 	if err != nil {
 		return nil, err
 	}
@@ -70,29 +67,18 @@ func (n *Namespaces) Delete(namespace string, q *WriteOptions) (*WriteMeta, erro
 
 // Namespace is used to serialize a namespace.
 type Namespace struct {
-	Name                  string
-	Description           string
-	Quota                 string
-	Capabilities          *NamespaceCapabilities          `hcl:"capabilities,block"`
-	NodePoolConfiguration *NamespaceNodePoolConfiguration `hcl:"node_pool_config,block"`
-	Meta                  map[string]string
-	CreateIndex           uint64
-	ModifyIndex           uint64
+	Name         string
+	Description  string
+	Quota        string
+	Capabilities *NamespaceCapabilities `hcl:"capabilities,block"`
+	Meta         map[string]string
+	CreateIndex  uint64
+	ModifyIndex  uint64
 }
 
-// NamespaceCapabilities represents a set of capabilities allowed for this
-// namespace, to be checked at job submission time.
 type NamespaceCapabilities struct {
 	EnabledTaskDrivers  []string `hcl:"enabled_task_drivers"`
 	DisabledTaskDrivers []string `hcl:"disabled_task_drivers"`
-}
-
-// NamespaceNodePoolConfiguration stores configuration about node pools for a
-// namespace.
-type NamespaceNodePoolConfiguration struct {
-	Default string
-	Allowed []string
-	Denied  []string
 }
 
 // NamespaceIndexSort is a wrapper to sort Namespaces by CreateIndex. We
