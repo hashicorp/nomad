@@ -264,8 +264,22 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 			return false, fmt.Errorf("expected 2 allocs but found %d:\n%v", n, allocResp.Allocations)
 		}
 
-		slices.SortFunc(allocResp.Allocations, func(a, b *structs.AllocListStub) bool {
-			return a.CreateIndex < b.CreateIndex
+		slices.SortFunc(allocResp.Allocations, func(a, b *structs.AllocListStub) int {
+			var result int
+			// cmp(a, b) should return
+			//   a positive number when a > b
+			if a.CreateIndex > b.CreateIndex {
+				result = 1
+			}
+			//   a negative number when a < b,
+			if a.CreateIndex < b.CreateIndex {
+				result = -1
+			}
+			//   zero when a == b.
+			result = 0
+
+			// invert the comparison to sort descending.
+			return result * -1
 		})
 
 		if alloc.ID != allocResp.Allocations[0].ID {
