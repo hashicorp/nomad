@@ -110,6 +110,9 @@ oversubscription in isolation, or adjusting the scheduler algorithm between
 `spread` or `binpacking` depending on the types of workload being deployed in a
 given set of clients.
 
+When using the built-in `all` node pool the global scheduler configuration is
+applied.
+
 Refer to the [`scheduler_config`][np_spec_scheduler_config] parameter in the
 node pool specification for more information.
 
@@ -262,6 +265,31 @@ job "maintenance" {
   type      = "batch"
   namespace = "infra"
   node_pool = "all"
+
+  periodic { /* ... */ }
+  # ...
+}
+```
+
+Use positive and negative constraints to fine-tune placements when targeting
+the built-in `all` node pool.
+
+```hcl
+job "maintenance-linux" {
+  type      = "batch"
+  namespace = "infra"
+  node_pool = "all"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
+  constraint {
+    attribute = "${node.pool}"
+    operator  = "!="
+    value     = "ingress"
+  }
 
   periodic { /* ... */ }
   # ...
