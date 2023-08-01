@@ -25,7 +25,6 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slices"
 )
 
 func TestJobEndpoint_Register(t *testing.T) {
@@ -267,21 +266,18 @@ func TestJobEndpoint_Register_NonOverlapping(t *testing.T) {
 			return false, fmt.Errorf("expected 2 allocs but found %d:\n%v", n, allocResp.Allocations)
 		}
 
-		slices.SortFunc(allocResp.Allocations, func(a, b *structs.AllocListStub) bool {
-			return a.CreateIndex < b.CreateIndex
-		})
-
-		if alloc.ID != allocResp.Allocations[0].ID {
-			return false, fmt.Errorf("unexpected change in alloc: %#v", *allocResp.Allocations[0])
+		for _, a := range allocResp.Allocations {
+			if a.ID == alloc.ID {
+				if cs := a.ClientStatus; cs != structs.AllocClientStatusComplete {
+					return false, fmt.Errorf("expected old alloc to be complete but found: %s", cs)
+				}
+			} else {
+				if cs := a.ClientStatus; cs != structs.AllocClientStatusPending {
+					return false, fmt.Errorf("expected new alloc to be pending but found: %s", cs)
+				}
+			}
 		}
 
-		if cs := allocResp.Allocations[0].ClientStatus; cs != structs.AllocClientStatusComplete {
-			return false, fmt.Errorf("expected old alloc to be complete but found: %s", cs)
-		}
-
-		if cs := allocResp.Allocations[1].ClientStatus; cs != structs.AllocClientStatusPending {
-			return false, fmt.Errorf("expected new alloc to be pending but found: %s", cs)
-		}
 		return true, nil
 	})
 }

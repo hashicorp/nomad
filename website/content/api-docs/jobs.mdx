@@ -559,7 +559,7 @@ $ curl \
 - `Type`: The type of job in terms of scheduling. It can have one of the following values:
   - `service`: Allocations are intended to remain alive.
   - `batch`: Allocations are intended to exit.
-  - `system`: Each client gets an allocation.
+  - `system`: Each client in the datacenter and node pool gets an allocation.
 
 ## Read Job Submission
 
@@ -1762,9 +1762,12 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified
   in the job file during submission). This is specified as part of the path.
 
-- `idempotency_token` `(string: "")` - Optional identifier used to prevent more
+- `IdempotencyToken` `(string: "")` - Optional identifier used to prevent more
   than one instance of the job from being dispatched. This is specified as a
   URL query parameter.
+
+- `IdPrefixTemplate` `(string: "")` - Optional prefix added to dispatched job
+  IDs.
 
 - `Payload` `(string: "")` - Specifies a base64 encoded string containing the
   payload. This is limited to 65536 bytes (64KiB).

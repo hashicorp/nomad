@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
@@ -99,6 +100,9 @@ type StateStoreConfig struct {
 
 	// EventBufferSize configures the amount of events to hold in memory
 	EventBufferSize int64
+
+	// JobTrackedVersions is the number of historic job versions that are kept.
+	JobTrackedVersions int
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -251,8 +255,9 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 
 	const backoffBase = 20 * time.Millisecond
 	const backoffLimit = 1 * time.Second
-	var retries uint
+	var retries uint64
 	var retryTimer *time.Timer
+	var deadline time.Duration
 
 	// XXX: Potential optimization is to set up a watch on the state
 	// store's index table and only unblock via a trigger rather than
@@ -270,16 +275,13 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 		}
 
 		// Exponential back off
-		retries++
 		if retryTimer == nil {
 			// First retry, start at baseline
 			retryTimer = time.NewTimer(backoffBase)
 		} else {
 			// Subsequent retry, reset timer
-			deadline := 1 << (2 * retries) * backoffBase
-			if deadline > backoffLimit {
-				deadline = backoffLimit
-			}
+			deadline = helper.Backoff(backoffBase, backoffLimit, retries)
+			retries++
 			retryTimer.Reset(deadline)
 		}
 
@@ -1956,7 +1958,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
 	// find submissions associated with job
-	remove := *set.NewHashSet[*structs.JobSubmission, string](structs.JobTrackedVersions)
+	remove := *set.NewHashSet[*structs.JobSubmission, string](s.config.JobTrackedVersions)
 
 	iter, err := txn.Get("job_submission", "id_prefix", job.Namespace, job.ID)
 	if err != nil {
@@ -2045,7 +2047,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	}
 
 	// If we are below the limit there is no GCing to be done
-	if len(all) <= structs.JobTrackedVersions {
+	if len(all) <= s.config.JobTrackedVersions {
 		return nil
 	}
 
@@ -2061,7 +2063,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 
 	// If the stable job is the oldest version, do a swap to bring it into the
 	// keep set.
-	max := structs.JobTrackedVersions
+	max := s.config.JobTrackedVersions
 	if stableIdx == max {
 		all[max-1], all[max] = all[max], all[max-1]
 	}
@@ -5498,7 +5500,7 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	// although the number of tracked submissions is the same as the number of
 	// tracked job versions, do not assume a 1:1 correlation, as there could be
 	// holes in the submissions (or none at all)
-	limit := structs.JobTrackedVersions
+	limit := s.config.JobTrackedVersions
 
 	// iterate through all stored submissions
 	iter, err := txn.Get("job_submission", "id_prefix", namespace, jobID)
@@ -5521,8 +5523,18 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	}
 
 	// sort by job modify index descending so we can just keep the first N
-	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) bool {
-		return a.First > b.First
+	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) int {
+		var cmp int = 0
+		if a.First < b.First {
+			cmp = -1
+		}
+		if a.First > b.First {
+			cmp = +1
+		}
+
+		// Convert the sort into a descending sort by inverting the sign
+		cmp = cmp * -1
+		return cmp
 	})
 
 	// remove the outdated submission versions

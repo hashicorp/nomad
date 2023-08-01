@@ -343,6 +343,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobMaxPriority = jobMaxPriority
 	conf.JobDefaultPriority = jobDefaultPriority
 
+	if agentConfig.Server.JobTrackedVersions != nil {
+		if *agentConfig.Server.JobTrackedVersions <= 0 {
+			return nil, fmt.Errorf("job_tracked_versions must be greater than 0")
+		}
+		conf.JobTrackedVersions = *agentConfig.Server.JobTrackedVersions
+	}
+
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
 	if err != nil {

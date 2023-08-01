@@ -740,7 +740,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if len(d.config.PullActivityTimeout) > 0 {
 		dur, err := time.ParseDuration(d.config.PullActivityTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'pull_activity_timeout' duration: %v", err)
+			return fmt.Errorf("failed to parse 'pull_activity_timeout' duaration: %v", err)
 		}
 		if dur < pullActivityTimeoutMinimum {
 			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
@@ -751,7 +751,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	if d.config.InfraImagePullTimeout != "" {
 		dur, err := time.ParseDuration(d.config.InfraImagePullTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duration: %v", err)
+			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duaration: %v", err)
 		}
 		d.config.infraImagePullTimeoutDuration = dur
 	}

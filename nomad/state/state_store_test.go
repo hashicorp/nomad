@@ -2523,7 +2523,7 @@ func TestStateStore_UpsertJob_submission(t *testing.T) {
 	must.Eq(t, index, sub.JobModifyIndex)
 
 	// insert 6 more, going over the limit
-	for i := 1; i <= structs.JobTrackedVersions; i++ {
+	for i := 1; i <= structs.JobDefaultTrackedVersions; i++ {
 		index++
 		job2 := job.Copy()
 		job2.Meta["version"] = strconv.Itoa(i)
@@ -2624,8 +2624,8 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(allVersions) != structs.JobTrackedVersions {
-		t.Fatalf("got %d; want %d", len(allVersions), structs.JobTrackedVersions)
+	if len(allVersions) != structs.JobDefaultTrackedVersions {
+		t.Fatalf("got %d; want %d", len(allVersions), structs.JobDefaultTrackedVersions)
 	}
 
 	if a := allVersions[0]; a.ID != job.ID || a.Version != 299 || a.Name != "299" {
@@ -2636,7 +2636,7 @@ func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	}
 
 	// Ensure we didn't delete the stable job
-	if a := allVersions[structs.JobTrackedVersions-1]; a.ID != job.ID ||
+	if a := allVersions[structs.JobDefaultTrackedVersions-1]; a.ID != job.ID ||
 		a.Version != 0 || a.Name != "0" || !a.Stable {
 		t.Fatalf("bad: %+v", a)
 	}
