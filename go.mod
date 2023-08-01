@@ -71,7 +71,7 @@ require (
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/hashicorp/hcl v1.0.1-vault-3
-	github.com/hashicorp/hcl/v2 v2.9.2-0.20220525143345-ab3cae0737bc
+	github.com/hashicorp/hcl/v2 v2.17.1-0.20230725002108-58caf00be5aa
 	github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.5.0
@@ -117,7 +117,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
-	github.com/zclconf/go-cty v1.12.1
+	github.com/zclconf/go-cty v1.13.0
 	github.com/zclconf/go-cty-yaml v1.0.3
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/goleak v1.2.1
@@ -131,6 +131,11 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
 	oss.indeed.com/go/libtime v1.6.0
+)
+
+require (
+	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 )
 
 require (
@@ -264,8 +269,6 @@ require (
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	github.com/vmihailenco/msgpack/v4 v4.3.12 // indirect
-	github.com/vmihailenco/tagparser v0.1.1 // indirect
 	github.com/vmware/govmomi v0.18.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
