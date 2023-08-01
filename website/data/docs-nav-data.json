@@ -148,6 +148,10 @@
         "path": "concepts/gossip"
       },
       {
+        "title": "Node Pools",
+        "path": "concepts/node-pools"
+      },
+      {
         "title": "Security Model",
         "path": "concepts/security"
       },
