@@ -5521,8 +5521,18 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	}
 
 	// sort by job modify index descending so we can just keep the first N
-	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) bool {
-		return a.First > b.First
+	slices.SortFunc(stored, func(a, b lang.Pair[uint64, uint64]) int {
+		var cmp int = 0
+		if a.First < b.First {
+			cmp = -1
+		}
+		if a.First > b.First {
+			cmp = +1
+		}
+
+		// Convert the sort into a descending sort by inverting the sign
+		cmp = cmp * -1
+		return cmp
 	})
 
 	// remove the outdated submission versions
