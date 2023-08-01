@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 )
 
+// New creates a Wranglers factory for creating ProcessWrangler's appropriate
+// for the given system (i.e. cgroups v1 or cgroups v2).
 func New(configs *Configs) *Wranglers {
 	w := &Wranglers{
 		configs: configs,

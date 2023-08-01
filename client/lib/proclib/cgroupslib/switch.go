@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	// NomadCgroupParent is a global variable because trust me, setting this
+	// NomadCgroupParent is a global variable because setting this value
 	// from the Nomad client initalization is much less painful than trying to
 	// plumb it through in every place we need to reference it. This value will
 	// be written to only once, during init, and after that it's only reads.
@@ -23,6 +23,8 @@ func defaultParent() string {
 	}
 }
 
+// Mode indicates whether the Client node is configured with cgroups v1 or v2,
+// or is not configured with cgroups enabled.
 type Mode byte
 
 const (
@@ -36,7 +38,7 @@ var (
 	detection sync.Once
 )
 
-// GetMode returns the cgroups mode of operation.
+// GetMode returns the cgroups Mode of operation.
 func GetMode() Mode {
 	detection.Do(func() {
 		mode = detect()

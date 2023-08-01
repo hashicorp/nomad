@@ -30,16 +30,16 @@ func newCG2(c *Configs) create {
 }
 
 func (w LinuxWranglerCG2) Initialize() error {
-	w.log.Info("Initialize()", "task", w.task)
+	w.log.Trace("initialize cgroup", "task", w.task)
 	return w.cg.Setup()
 }
 
 func (w *LinuxWranglerCG2) Kill() error {
-	w.log.Info("Kill()", "task", w.task)
+	w.log.Trace("force kill processes in cgroup", "task", w.task)
 	return w.cg.Kill()
 }
 
 func (w *LinuxWranglerCG2) Cleanup() error {
-	w.log.Info("Cleanup()", "task", w.task)
+	w.log.Trace("remove cgroup", "task", w.task)
 	return w.cg.Teardown()
 }

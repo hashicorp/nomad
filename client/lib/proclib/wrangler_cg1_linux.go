@@ -33,17 +33,17 @@ func newCG1(c *Configs) create {
 }
 
 func (w *LinuxWranglerCG1) Initialize() error {
-	w.log.Info("Initialize()", "task", w.task)
+	w.log.Trace("initialize cgroups", "task", w.task)
 	return w.cg.Setup()
 }
 
 func (w *LinuxWranglerCG1) Kill() error {
-	w.log.Info("Kill()", "task", w.task)
+	w.log.Trace("force kill processes in cgroup", "task", w.task)
 	return w.cg.Kill()
 }
 
 func (w *LinuxWranglerCG1) Cleanup() error {
-	w.log.Info("Cleanup()", "task", w.task)
+	w.log.Trace("remove cgroups", "task", w.task)
 
 	// need to give the kernel an opportunity to cleanup procs; which could
 	// take some time while the procs wake from being thawed only to find they
@@ -62,7 +62,7 @@ func (w *LinuxWranglerCG1) Cleanup() error {
 			MaxSleepTime:   30 * time.Second,
 			InitialGapSize: 1 * time.Second,
 		}); err != nil {
-			w.log.Warn("failed to cleanup cgroups", "alloc", w.task.AllocID, "task", w.task.Task, "error", err)
+			w.log.Debug("failed to cleanup cgroups", "alloc", w.task.AllocID, "task", w.task.Task, "error", err)
 		}
 	}()
 

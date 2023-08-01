@@ -4,8 +4,6 @@
 package taskrunner
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"errors"
 	"fmt"
@@ -402,11 +400,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		wranglers:             config.Wranglers,
 	}
 
-	fmt.Println("HI3", config.Wranglers)
-
 	// Create the logger based on the allocation ID
-	// tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
-	tr.logger = netlog.New("TR", netlog.WithGreen())
+	tr.logger = config.Logger.Named("task_runner").With("task", config.Task.Name)
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources

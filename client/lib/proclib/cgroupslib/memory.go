@@ -12,6 +12,7 @@ func MaybeDisableMemorySwappiness() *uint64 {
 	case CG2:
 		return pointer.Of[uint64](0)
 	default:
+		// SETH TODO
 		panic("todo")
 
 		// cgroups v1 detect if swappiness is supported by attempting to write to

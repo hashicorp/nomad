@@ -4,8 +4,6 @@
 package executor
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"fmt"
 	"io"
@@ -274,7 +272,7 @@ type UniversalExecutor struct {
 
 // NewExecutor returns an Executor
 func NewExecutor(logger hclog.Logger) Executor {
-	top := numalib.Scan(numalib.PlatformScanners()) // todo: grpc
+	top := numalib.Scan(numalib.PlatformScanners()) // TODO(shoenig) grpc plumbing
 	ue := &UniversalExecutor{
 		logger:         logger.Named("executor"),
 		top:            top,
@@ -283,7 +281,6 @@ func NewExecutor(logger hclog.Logger) Executor {
 		userCpuStats:   cpustats.New(top),
 		systemCpuStats: cpustats.New(top),
 	}
-	ue.logger = netlog.New("raw.executor")
 	ue.processStats = procstats.New(top, ue)
 	return ue
 }
@@ -357,8 +354,6 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
-
-	// SETH collect pids in the background (?)
 
 	go e.wait()
 	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
@@ -634,7 +629,6 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 		}
 
 		stats := e.processStats.StatProcesses()
-		// e.logger.Info("handleStats", "stats", stats)
 
 		select {
 		case <-ctx.Done():
