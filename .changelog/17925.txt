@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug that prevented CSI volumes in namespaces other than `default` from being displayed in the `nomad node status -verbose` output
+```
