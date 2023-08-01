@@ -72,6 +72,14 @@ func ReadNomadCG2(filename string) (string, error) {
 	return string(bytes.TrimSpace(b)), err
 }
 
+// ReadNomadCG1 reads an interface file under the /nomad cgroup of the given
+// cgroup interface.
+func ReadNomadCG1(iface, filename string) (string, error) {
+	p := filepath.Join(root, iface, NomadCgroupParent, filename)
+	b, err := os.ReadFile(p)
+	return string(bytes.TrimSpace(b)), err
+}
+
 func WriteNomadCG1(iface, filename, content string) error {
 	p := filepath.Join(root, iface, NomadCgroupParent, filename)
 	return os.WriteFile(p, []byte(content), 0644)
