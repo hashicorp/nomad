@@ -32,6 +32,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node-pool');
+    this.server.create('node');
   });
 
   hooks.afterEach(function () {
@@ -137,7 +138,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-
     await expectError(assert, 'Could Not Start Job');
   });
 
