@@ -1,8 +1,6 @@
 package taskrunner
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 
 	"github.com/hashicorp/go-hclog"
@@ -15,6 +13,10 @@ const (
 	wranglerHookName = "wrangler"
 )
 
+// A wranglerHook provides a mechanism through which the Client can be sure any
+// processes spawned by a task forcefully get killed when the task is stopped.
+//
+// Currently only does anything on Linux with cgroups.
 type wranglerHook struct {
 	wranglers cifs.ProcessWranglers
 	task      proclib.Task
@@ -22,12 +24,9 @@ type wranglerHook struct {
 }
 
 func newWranglerHook(wranglers cifs.ProcessWranglers, task, allocID string, log hclog.Logger) *wranglerHook {
-
-	netlog.Cyan("whook", "task", task, "allocID", allocID)
-
 	return &wranglerHook{
-		wranglers: wranglers,
 		log:       log.Named(wranglerHookName),
+		wranglers: wranglers,
 		task: proclib.Task{
 			AllocID: allocID,
 			Task:    task,
@@ -40,11 +39,11 @@ func (*wranglerHook) Name() string {
 }
 
 func (wh *wranglerHook) Prestart(_ context.Context, request *ifs.TaskPrestartRequest, _ *ifs.TaskPrestartResponse) error {
-	wh.log.Info("setting up process management", "task", wh.task)
+	wh.log.Trace("setting up client process management", "task", wh.task)
 	return wh.wranglers.Setup(wh.task)
 }
 
 func (wh *wranglerHook) Stop(_ context.Context, request *ifs.TaskStopRequest, _ *ifs.TaskStopResponse) error {
-	wh.log.Info("stopping process mangagement", "task", wh.task)
+	wh.log.Trace("stopping client process mangagement", "task", wh.task)
 	return wh.wranglers.Destroy(wh.task)
 }

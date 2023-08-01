@@ -6,8 +6,6 @@
 package executor
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"errors"
 	"fmt"
@@ -76,7 +74,7 @@ type LibcontainerExecutor struct {
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-	top := numalib.Scan(numalib.PlatformScanners()) // todo: grpc
+	top := numalib.Scan(numalib.PlatformScanners()) // TODO(shoenig) grpc plumbing
 	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger.Named("isolated_executor"),
@@ -85,7 +83,6 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		systemCpuStats: cpustats.New(top),
 		top:            top,
 	}
-	le.logger = netlog.New("lc.executor")
 	le.processStats = procstats.New(top, le)
 	return le
 }
@@ -244,25 +241,18 @@ func (l *LibcontainerExecutor) wait() {
 // Shutdown stops all processes started and cleans up any resources
 // created (such as mountpoints, devices, etc).
 func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) error {
-	l.logger = netlog.New("LW")
-
-	l.logger.Info("LE.Shutdown() ^^^")
-
 	if l.container == nil {
-		l.logger.Info("$$$ container is nil")
 		return nil
 	}
 
 	status, err := l.container.Status()
 	if err != nil {
-		l.logger.Info("$$$ err", "error", err)
 		return err
 	}
 
 	defer l.container.Destroy()
 
 	if status == libcontainer.Stopped {
-		l.logger.Info("$$$ is stopped")
 		return nil
 	}
 
@@ -273,7 +263,6 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 
 		sig, ok := signals.SignalLookup[signal]
 		if !ok {
-			l.logger.Info("$$$ bad signal")
 			return fmt.Errorf("error unknown signal given for shutdown: %s", signal)
 		}
 
@@ -281,16 +270,13 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		// shutdown; hence `false` arg.
 		err = l.container.Signal(sig, false)
 		if err != nil {
-			l.logger.Info("$$$ error on signal", "error", err)
 			return err
 		}
 
 		select {
 		case <-l.userProcExited:
-			l.logger.Info("grace PROC EXIT")
 			return nil
 		case <-time.After(grace):
-			l.logger.Info("grace TIMEOUT")
 			// Force kill all container processes after grace period,
 			// hence `true` argument.
 			if err := l.container.Signal(os.Kill, true); err != nil {
@@ -298,7 +284,6 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			}
 		}
 	} else {
-		l.logger.Info("Signal no grace")
 		err := l.container.Signal(os.Kill, true)
 		if err != nil {
 			l.logger.Info("no grace fail", "error", err)
@@ -308,10 +293,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 
 	select {
 	case <-l.userProcExited:
-		l.logger.Info("no grace PROC EXIT")
 		return nil
 	case <-time.After(time.Second * 15):
-		l.logger.Info("no grace TIMEOUT")
 		return fmt.Errorf("process failed to exit after 15 seconds")
 	}
 }
@@ -665,16 +648,6 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 
 func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	// note: an alloc TR hook pre-creates the cgroup(s) in both v1 and v2
-
-	// SETH
-	// this is configuring libcontainer to our needs
-	// - create cgroup if necessary (?)
-	// - set cgroup path (cfg.Cgroups.Path)
-	// - set amound of memory to consume
-	// - set cpu shares, cpu weight
-	// - set memory swappiness
-	// - set cpu
-	// If resources are not limited then manually create cgroups needed
 
 	if !command.ResourceLimits {
 		return nil

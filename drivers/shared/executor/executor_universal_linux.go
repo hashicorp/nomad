@@ -4,8 +4,6 @@
 package executor
 
 import (
-	"github.com/shoenig/netlog"
-
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -214,8 +212,5 @@ func withNetworkIsolation(f func() error, spec *drivers.NetworkIsolationSpec) er
 			return f()
 		})
 	}
-
-	nlog := netlog.New("wNI")
-	nlog.Info("no netowrk isolation")
 	return f()
 }
