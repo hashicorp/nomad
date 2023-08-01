@@ -167,6 +167,10 @@ type lifeCG2 struct {
 	dpath string
 }
 
+func (l *lifeCG2) edit() *editor {
+	return &editor{dpath: l.dpath}
+}
+
 func (l *lifeCG2) Setup() error {
 	return os.MkdirAll(l.dpath, 0755)
 }
@@ -176,7 +180,8 @@ func (l *lifeCG2) Teardown() error {
 }
 
 func (l *lifeCG2) Kill() error {
-	panic("todo")
+	ed := l.edit()
+	return ed.Write("cgroup.kill", "1")
 }
 
 /// -------- helpers
