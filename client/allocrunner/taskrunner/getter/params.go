@@ -109,11 +109,17 @@ func (p *parameters) Equal(o *parameters) bool {
 		return false
 	case p.TaskDir != o.TaskDir:
 		return false
-	case !maps.EqualFunc(p.Headers, o.Headers, slices.Equal[string]):
+	case !maps.EqualFunc(p.Headers, o.Headers, headersCompareFn):
 		return false
 	}
 
 	return true
+}
+
+func headersCompareFn(a []string, b []string) bool {
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(a, b)
 }
 
 const (
