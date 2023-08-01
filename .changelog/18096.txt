@@ -1,0 +1,3 @@
+```release-note:bug
+fix: 'default' alias not added to interface specified by network_interface
+```
