@@ -135,7 +135,7 @@ type ClientStatsReporter interface {
 	GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error)
 
 	// LatestHostStats returns the latest resource usage stats for the host
-	LatestHostStats() *stats.HostStats
+	LatestHostStats() *hoststats.HostStats
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -243,7 +243,7 @@ type Client struct {
 	consulCatalog consul.CatalogAPI
 
 	// HostStatsCollector collects host resource usage stats
-	hostStatsCollector *stats.HostStatsCollector
+	hostStatsCollector *hoststats.HostStatsCollector
 
 	// shutdown is true when the Client has been shutdown. Must hold
 	// shutdownLock to access.
@@ -459,7 +459,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		Logger: c.logger.Named("proclib"),
 	})
 	c.wranglers = wranglers
-	fmt.Println("HI7", c.wranglers)
 
 	// Build the allow/denylists of drivers.
 	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
@@ -524,7 +523,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	go c.heartbeatStop.watch()
 
 	// Add the stats collector
-	statsCollector := stats.NewHostStatsCollector(c.logger, c.topology, c.GetConfig().AllocDir, c.devicemanager.AllStats)
+	statsCollector := hoststats.NewHostStatsCollector(c.logger, c.topology, c.GetConfig().AllocDir, c.devicemanager.AllStats)
 	c.hostStatsCollector = statsCollector
 
 	// Add the garbage collector
@@ -1008,7 +1007,7 @@ func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, e
 }
 
 // LatestHostStats returns all the stats related to a Nomad client.
-func (c *Client) LatestHostStats() *stats.HostStats {
+func (c *Client) LatestHostStats() *hoststats.HostStats {
 	return c.hostStatsCollector.Stats()
 }
 
@@ -3117,7 +3116,7 @@ func (c *Client) emitStats() {
 }
 
 // setGaugeForMemoryStats proxies metrics for memory specific statistics
-func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
@@ -3125,7 +3124,7 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats, 
 }
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
-func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3148,7 +3147,7 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, bas
 }
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
-func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForDiskStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3216,7 +3215,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 }
 
 // No labels are required so we emit with only a key/value syntax
-func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForUptime(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 	metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), baseLabels)
 }
 

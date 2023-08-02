@@ -27,7 +27,7 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
+	_, err := fm.Run()
 	require.Nil(err)
 
 	node := testClient.config.Node
@@ -58,7 +58,7 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
+	_, err := fm.Run()
 	require.Nil(err)
 
 	node := testClient.config.Node
@@ -87,7 +87,7 @@ func TestFingerprintManager_Run_InDenylist(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
+	_, err := fm.Run()
 	require.Nil(err)
 
 	node := testClient.config.Node
@@ -117,7 +117,7 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
+	_, err := fm.Run()
 	require.Nil(err)
 
 	node := testClient.config.Node
@@ -149,7 +149,7 @@ func TestFingerprintManager_Run_CombinationLegacyNames(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
+	_, err := fm.Run()
 	require.Nil(err)
 
 	node := testClient.config.Node

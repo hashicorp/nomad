@@ -33,7 +33,7 @@ func (r *RpcError) Error() string {
 
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
-	HostStats *stats.HostStats
+	HostStats *hoststats.HostStats
 	structs.QueryMeta
 }
 
