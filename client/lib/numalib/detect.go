@@ -10,19 +10,6 @@ type SystemScanner interface {
 	ScanSystem(*Topology)
 }
 
-// PlatformScanners is the set of scanners unique to each operating system.
-//
-// todo: move into os files
-func PlatformScanners() []SystemScanner {
-	return []SystemScanner{
-		new(Sysfs),
-		new(Smbios),
-		new(Cgroups1),
-		new(Cgroups2),
-		// more
-	}
-}
-
 // Scan each of the given scanners in order and accumulate the results into
 // a single Topology, which can then be used to answer questions about the CPU
 // topology of the system.

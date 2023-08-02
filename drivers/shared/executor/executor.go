@@ -255,8 +255,8 @@ func (v *ExecutorVersion) GoString() string {
 // supervises processes. In addition to process supervision it provides resource
 // and file system isolation
 type UniversalExecutor struct {
-	childCmd   exec.Cmd
-	commandCfg *ExecCommand
+	childCmd exec.Cmd
+	command  *ExecCommand
 
 	exitState     *ProcessState
 	processExited chan interface{}
@@ -295,7 +295,7 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
 	e.logger.Trace("preparing to launch command", "command", command.Cmd, "args", strings.Join(command.Args, " "))
 
-	e.commandCfg = command
+	e.command = command
 
 	// setting the user of the process
 	if command.User != "" {
@@ -306,7 +306,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// set the task dir as the working directory for the command
-	e.childCmd.Dir = e.commandCfg.TaskDir
+	e.childCmd.Dir = e.command.TaskDir
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
@@ -321,11 +321,11 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		defer cleanup()
 	}
 
-	stdout, err := e.commandCfg.Stdout()
+	stdout, err := e.command.Stdout()
 	if err != nil {
 		return nil, err
 	}
-	stderr, err := e.commandCfg.Stderr()
+	stderr, err := e.command.Stderr()
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// Set the commands arguments
 	e.childCmd.Path = path
 	e.childCmd.Args = append([]string{e.childCmd.Path}, command.Args...)
-	e.childCmd.Env = e.commandCfg.Env
+	e.childCmd.Env = e.command.Env
 
 	// Start the process
 	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
@@ -363,7 +363,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, e.commandCfg.NetworkIsolation, name, args)
+	return ExecScript(ctx, e.childCmd.Dir, e.command.Env, e.childCmd.SysProcAttr, e.command.NetworkIsolation, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
@@ -442,13 +442,13 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
-			if u := e.commandCfg.User; u != "" {
+			if u := e.command.User; u != "" {
 				if err := setCmdUser(cmd, u); err != nil {
 					return err
 				}
 			}
 
-			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
+			return withNetworkIsolation(cmd.Start, e.command.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {
 			err := cmd.Wait()
@@ -475,7 +475,7 @@ func (e *UniversalExecutor) UpdateResources(resources *drivers.Resources) error 
 
 func (e *UniversalExecutor) wait() {
 	defer close(e.processExited)
-	defer e.commandCfg.Close()
+	defer e.command.Close()
 	pid := e.childCmd.Process.Pid
 	err := e.childCmd.Wait()
 	if err == nil {
@@ -525,7 +525,7 @@ func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	var merr multierror.Error
 
 	// If the executor did not launch a process, return.
-	if e.commandCfg == nil {
+	if e.command == nil {
 		return nil
 	}
 

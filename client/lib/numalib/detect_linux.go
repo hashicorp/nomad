@@ -12,6 +12,17 @@ import (
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 )
 
+// PlatformScanners is the set of scanners unique to each operating system.
+func PlatformScanners() []SystemScanner {
+	return []SystemScanner{
+		new(Sysfs),
+		new(Smbios),
+		new(Cgroups1),
+		new(Cgroups2),
+		// more?
+	}
+}
+
 const (
 	sysRoot        = "/sys/devices/system"
 	nodeOnline     = sysRoot + "/node/online"
