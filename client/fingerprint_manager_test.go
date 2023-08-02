@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,7 +69,6 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 
 func TestFingerprintManager_Run_InDenylist(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -88,12 +88,12 @@ func TestFingerprintManager_Run_InDenylist(t *testing.T) {
 	)
 
 	_, err := fm.Run()
-	require.Nil(err)
+	must.NoError(t, err)
 
 	node := testClient.config.Node
 
-	require.NotContains(node.Attributes, "cpu.frequency")
-	require.NotEqual(node.Attributes["memory.totalbytes"], "")
+	must.MapNotContainsKey(t, node.Attributes, "cpu.frequency")
+	must.NotEq(t, node.Attributes["memory.totalbytes"], "")
 }
 
 func TestFingerprintManager_Run_Combination(t *testing.T) {
