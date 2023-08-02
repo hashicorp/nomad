@@ -15,9 +15,6 @@ const (
 )
 
 var (
-	dmiCoresRe    = regexp.MustCompile(`Thread Count:\s+(\d+)`)
-	dmiSocketsRe  = regexp.MustCompile(`Socket Designation:`)
-	dmiMaxSpeedRe = regexp.MustCompile(`MaxSpeed:\s+(\d+)\s+MHz`)
 	dmiCurSpeedRe = regexp.MustCompile(`Current Speed:\s+(\d+)\s+MHz`)
 )
 
