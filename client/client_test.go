@@ -636,6 +636,9 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 	})
 }
 
+// TODO YOU ARE HERE
+// why does this panic
+
 // TestClient_SaveRestoreState exercises the allocrunner restore code paths
 // after a client restart. It runs several jobs in different states and asserts
 // the expected final state and server updates.
