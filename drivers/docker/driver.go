@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -1034,9 +1035,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = memory
 
 		// disable swap explicitly in non-Windows environments
-		var swapiness int64 = 0
-		hostConfig.MemorySwappiness = &swapiness
-
+		swappiness := int64(*(cgroupslib.MaybeDisableMemorySwappiness()))
+		hostConfig.MemorySwappiness = &swappiness
 	}
 
 	loggingDriver := driverConfig.Logging.Type

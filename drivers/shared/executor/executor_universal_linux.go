@@ -151,7 +151,15 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memSoft, 10))
 	}
 
-	// write cpu cgroup files YOU ARE HERE (shares)
+	// set memory swappiness
+	swappiness := cgroupslib.MaybeDisableMemorySwappiness()
+	if swappiness != nil {
+		ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+		value := int64(*swappiness)
+		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
+	}
+
+	// write cpu shares file
 	cpuShares := strconv.FormatInt(command.Resources.LinuxResources.CPUShares, 10)
 	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu")
 	_ = ed.Write("cpu.shares", cpuShares)
@@ -168,6 +176,14 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	if memSoft > 0 {
 		ed = cgroupslib.OpenPath(cgroup)
 		_ = ed.Write("memory.low", strconv.FormatInt(memSoft, 10))
+	}
+
+	// set memory swappiness
+	swappiness := cgroupslib.MaybeDisableMemorySwappiness()
+	if swappiness != nil {
+		ed := cgroupslib.OpenPath(cgroup)
+		value := int64(*swappiness)
+		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
 	}
 
 	// write cpu cgroup files
