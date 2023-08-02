@@ -1,3 +1,5 @@
+//go:build linux
+
 package cgroupslib
 
 import (
@@ -9,19 +11,13 @@ import (
 // very old kernels with cgroups v1.
 func MaybeDisableMemorySwappiness() *uint64 {
 	switch GetMode() {
-	case CG2:
-		return pointer.Of[uint64](0)
+	case CG1:
+		err := WriteNomadCG1("memory", "memory.swappiness", "0")
+		if err == nil {
+			return pointer.Of[uint64](0)
+		}
+		return nil
 	default:
-		// SETH TODO
-		panic("todo")
-
-		// cgroups v1 detect if swappiness is supported by attempting to write to
-		// the nomad parent cgroup swappiness interface
-		// e := &editor{fromRoot: "memory/nomad"}
-		// err := e.write("memory.swappiness", "0")
-		// if err != nil {
-		// 	return bypass
-		// }
-		// return zero
+		return pointer.Of[uint64](0)
 	}
 }
