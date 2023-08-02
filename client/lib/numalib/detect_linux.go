@@ -28,23 +28,27 @@ type Sysfs struct{}
 
 func (s *Sysfs) ScanSystem(top *Topology) {
 	// detect the online numa nodes
-	discoverOnline(top)
+	s.discoverOnline(top)
 
 	// detect cross numa node latency costs
-	discoverCosts(top)
+	s.discoverCosts(top)
 
 	// detect core performance data
-	discoverCores(top)
+	s.discoverCores(top)
 }
 
-func discoverOnline(st *Topology) {
+func (*Sysfs) available() bool {
+	return true
+}
+
+func (*Sysfs) discoverOnline(st *Topology) {
 	ids, err := getIDSet[NodeID](nodeOnline)
 	if err == nil {
 		st.NodeIDs = ids
 	}
 }
 
-func discoverCosts(st *Topology) {
+func (*Sysfs) discoverCosts(st *Topology) {
 	dimension := st.NodeIDs.Size()
 	st.Distances = make(Distances, st.NodeIDs.Size())
 	for i := 0; i < dimension; i++ {
@@ -65,7 +69,7 @@ func discoverCosts(st *Topology) {
 	})
 }
 
-func discoverCores(st *Topology) {
+func (*Sysfs) discoverCores(st *Topology) {
 	onlineCores, err := getIDSet[CoreID](cpuOnline)
 	if err != nil {
 		return

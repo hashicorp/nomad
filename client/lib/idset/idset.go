@@ -139,3 +139,10 @@ func (s *Set[T]) ForEach(f func(id T) error) error {
 func (s *Set[T]) Size() int {
 	return s.items.Size()
 }
+
+func (s *Set[T]) Empty() bool {
+	if s == nil {
+		return true
+	}
+	return s.items.Empty()
+}

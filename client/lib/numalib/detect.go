@@ -16,6 +16,7 @@ type SystemScanner interface {
 func PlatformScanners() []SystemScanner {
 	return []SystemScanner{
 		new(Sysfs),
+		new(Smbios),
 		new(Cgroups1),
 		new(Cgroups2),
 		// more
