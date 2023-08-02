@@ -402,6 +402,12 @@ func TestAllocations_Signal(t *testing.T) {
 	a := mock.Alloc()
 	require.Nil(t, client.addAlloc(a, ""))
 
+	// setup process wrangler for web task
+	client.wranglers.Setup(proclib.Task{
+		AllocID: a.ID,
+		Task:    "web",
+	})
+
 	// Try with bad alloc
 	req := &nstructs.AllocSignalRequest{}
 	var resp nstructs.GenericResponse
