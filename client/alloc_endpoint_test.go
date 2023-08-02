@@ -507,6 +507,12 @@ func TestAllocations_Stats(t *testing.T) {
 	a := mock.Alloc()
 	require.Nil(client.addAlloc(a, ""))
 
+	// setup process wrangler for web task
+	client.wranglers.Setup(proclib.Task{
+		AllocID: a.ID,
+		Task:    "web",
+	})
+
 	// Try with bad alloc
 	req := &cstructs.AllocStatsRequest{}
 	var resp cstructs.AllocStatsResponse
@@ -647,6 +653,12 @@ func TestAlloc_Checks(t *testing.T) {
 		alloc := mock.Alloc()
 		must.NoError(t, client.addAlloc(alloc, ""))
 
+		// setup process wrangler for web task in alloc
+		client.wranglers.Setup(proclib.Task{
+			AllocID: alloc.ID,
+			Task:    "web",
+		})
+
 		request := cstructs.AllocChecksRequest{AllocID: alloc.ID}
 		var response cstructs.AllocChecksResponse
 		err := client.ClientRPC("Allocations.Checks", &request, &response)
@@ -659,6 +671,12 @@ func TestAlloc_Checks(t *testing.T) {
 		must.NoError(t, client.addAlloc(alloc, ""))
 		must.NoError(t, client.checkStore.Set(alloc.ID, qr1))
 		must.NoError(t, client.checkStore.Set(alloc.ID, qr2))
+
+		// setup process wrangler for web task in alloc
+		client.wranglers.Setup(proclib.Task{
+			AllocID: alloc.ID,
+			Task:    "web",
+		})
 
 		request := cstructs.AllocChecksRequest{AllocID: alloc.ID}
 		var response cstructs.AllocChecksResponse
@@ -674,10 +692,22 @@ func TestAlloc_Checks(t *testing.T) {
 		alloc1 := mock.Alloc()
 		must.NoError(t, client.addAlloc(alloc1, ""))
 
+		// setup process wrangler for web task in alloc1
+		client.wranglers.Setup(proclib.Task{
+			AllocID: alloc1.ID,
+			Task:    "web",
+		})
+
 		alloc2 := mock.Alloc()
 		must.NoError(t, client.addAlloc(alloc2, ""))
 		must.NoError(t, client.checkStore.Set(alloc1.ID, qr1))
 		must.NoError(t, client.checkStore.Set(alloc2.ID, qr2))
+
+		// setup process wrangler for web task in alloc2
+		client.wranglers.Setup(proclib.Task{
+			AllocID: alloc2.ID,
+			Task:    "web",
+		})
 
 		request := cstructs.AllocChecksRequest{AllocID: alloc1.ID}
 		var response cstructs.AllocChecksResponse
