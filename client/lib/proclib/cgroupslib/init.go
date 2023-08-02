@@ -15,6 +15,15 @@ import (
 func Init(log hclog.Logger) {
 	switch GetMode() {
 	case CG1:
+		// create the /nomad cgroup (or whatever the name is configured to be)
+		// for each cgroup controller we are going to use
+		controllers := []string{"freezer", "memory", "cpu", "cpuset"}
+		for _, ctrl := range controllers {
+			p := filepath.Join(root, ctrl, NomadCgroupParent)
+			if err := os.MkdirAll(p, 0755); err != nil {
+				log.Error("failed to create nomad cgroup", "controller", ctrl, "error", err)
+			}
+		}
 	case CG2:
 		// minimum controllers must be set first
 		s, err := readRootCG2("cgroup.subtree_control")
