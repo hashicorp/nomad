@@ -1224,6 +1224,14 @@ func (c *Client) restoreState() error {
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
 		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
+		// restore process wrangler for each task
+		for task := range alloc.TaskStates {
+			c.wranglers.Setup(proclib.Task{
+				AllocID: alloc.ID,
+				Task:    task,
+			})
+		}
+
 		arConf := &config.AllocRunnerConfig{
 			Alloc:               alloc,
 			Logger:              c.logger,
@@ -1248,8 +1256,6 @@ func (c *Client) restoreState() error {
 			Getter:              c.getter,
 			Wranglers:           c.wranglers,
 		}
-
-		fmt.Println("HI6", c.wranglers)
 
 		ar, err := c.allocrunnerFactory(arConf)
 		if err != nil {

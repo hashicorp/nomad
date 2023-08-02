@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -80,6 +81,30 @@ func TestAllocations_RestartAllTasks(t *testing.T) {
 
 	alloc := mock.LifecycleAlloc()
 	require.Nil(client.addAlloc(alloc, ""))
+
+	// setup wrangler for web task
+	client.wranglers.Setup(proclib.Task{
+		AllocID: alloc.ID,
+		Task:    "web",
+	})
+
+	// setup wrangler for init task
+	client.wranglers.Setup(proclib.Task{
+		AllocID: alloc.ID,
+		Task:    "init",
+	})
+
+	// setup wrangler for side task
+	client.wranglers.Setup(proclib.Task{
+		AllocID: alloc.ID,
+		Task:    "side",
+	})
+
+	// setup wrangler for poststart task
+	client.wranglers.Setup(proclib.Task{
+		AllocID: alloc.ID,
+		Task:    "poststart",
+	})
 
 	// Can't restart all tasks while specifying a task name.
 	req := &nstructs.AllocRestartRequest{
