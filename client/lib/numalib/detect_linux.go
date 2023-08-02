@@ -136,12 +136,7 @@ func getString(path string, args ...any) (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-// SETH TODO:
-// fallbacks (e.g. dmi decode)
-// better error handling?
-
-// cgroups
-
+// Cgroups1 reads effective cores information from cgroups v1
 type Cgroups1 struct{}
 
 func (s *Cgroups1) ScanSystem(top *Topology) {
@@ -151,16 +146,15 @@ func (s *Cgroups1) ScanSystem(top *Topology) {
 
 	// detect effective cores in the cpuset/nomad cgroup
 	content, err := cgroupslib.ReadNomadCG1("cpuset", "cpuset.effective_cpus")
-	if err == nil {
-		ids := idset.Parse[CoreID](content)
-		for _, cpu := range top.Cores {
-			if !ids.Contains(cpu.ID) {
-				cpu.Disable = true
-			}
-		}
+	if err != nil {
+		return
 	}
+
+	// extract IDs from file of ids
+	scanIDs(top, content)
 }
 
+// Cgroups2 reads effective cores information from cgroups v2
 type Cgroups2 struct{}
 
 func (s *Cgroups2) ScanSystem(top *Topology) {
@@ -170,14 +164,20 @@ func (s *Cgroups2) ScanSystem(top *Topology) {
 
 	// detect effective cores in the nomad.slice cgroup
 	content, err := cgroupslib.ReadNomadCG2("cpuset.cpus.effective")
-	if err == nil {
-		ids := idset.Parse[CoreID](content)
-		for _, cpu := range top.Cores {
-			if !ids.Contains(cpu.ID) {
-				cpu.Disable = true
-			}
-		}
+	if err != nil {
+		return
 	}
+
+	// extract IDs from file of ids
+	scanIDs(top, content)
 }
 
 // combine scanCgroups
+func scanIDs(top *Topology, content string) {
+	ids := idset.Parse[CoreID](content)
+	for _, cpu := range top.Cores {
+		if !ids.Contains(cpu.ID) {
+			cpu.Disable = true
+		}
+	}
+}

@@ -1,15 +1,16 @@
 package numalib
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/shoenig/test/must"
 )
 
-func TestScanSysfs(t *testing.T) {
-	top := ScanSysfs()
-
-	fmt.Println("top", top)
-
-	fmt.Println("cores", top.NumCores(), "pcores", top.NumPCores(), "ecores", top.NumECores())
-	fmt.Println("total_compute", top.TotalCompute())
+// TestScanTopology is going to be different on every machine; even the CI
+// systems change sometimes so it's hard to make good assertions here.
+func TestScanTopology(t *testing.T) {
+	top := Scan(PlatformScanners())
+	must.Positive(t, top.UsableCompute())
+	must.Positive(t, top.TotalCompute())
+	must.Positive(t, top.NumCores())
 }
