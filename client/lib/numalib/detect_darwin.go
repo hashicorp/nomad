@@ -5,6 +5,7 @@ package numalib
 import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/shoenig/go-m1cpu"
+	"golang.org/x/sys/unix"
 )
 
 func PlatformScanners() []SystemScanner {
@@ -13,9 +14,20 @@ func PlatformScanners() []SystemScanner {
 	}
 }
 
+const (
+	nodeID   = NodeID(0)
+	socketID = SocketID(0)
+	maxSpeed = KHz(0)
+)
+
 type MacOS struct{}
 
 func (m *MacOS) ScanSystem(top *Topology) {
+	// all apple hardware is non-numa; just assume it is so
+	top.NodeIDs = idset.Empty[NodeID]()
+	top.NodeIDs.Insert(nodeID)
+
+	// arch specific detection
 	switch m1cpu.IsAppleSilicon() {
 	case true:
 		m.scanAppleSilicon(top)
@@ -25,16 +37,6 @@ func (m *MacOS) ScanSystem(top *Topology) {
 }
 
 func (m *MacOS) scanAppleSilicon(top *Topology) {
-	const (
-		nodeID   = NodeID(0)
-		socketID = SocketID(0)
-		maxSpeed = KHz(0)
-	)
-
-	// all apple hardware is non-numa; just assume it is so
-	top.NodeIDs = idset.Empty[NodeID]()
-	top.NodeIDs.Insert(nodeID)
-
 	pCoreCount := m1cpu.PCoreCount()
 	pCoreSpeed := KHz(m1cpu.PCoreHz() / 1000)
 
@@ -56,5 +58,12 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 }
 
 func (m *MacOS) scanLegacyX86(top *Topology) {
-	// hello
+	coreCount, _ := unix.SysctlUint32("machdep.cpu.core_count")
+	hz, _ := unix.SysctlUint64("hw.cpufrequency")
+	coreSpeed := KHz(hz / 1_000_000)
+
+	top.Cores = make([]Core, coreCount)
+	for i := 0; i < int(coreCount); i++ {
+		top.insert(nodeID, socketID, CoreID(i), performance, maxSpeed, coreSpeed)
+	}
 }
