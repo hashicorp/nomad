@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -161,13 +162,16 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 	nvidia1 := n.NodeResources.Devices[1]
 
 	cases := []struct {
-		Name           string
-		Constraints    []*structs.Constraint
-		ExpectedDevice *structs.NodeDeviceResource
-		NoPlacement    bool
+		Name              string
+		Note              string
+		Constraints       []*structs.Constraint
+		ExpectedDevice    *structs.NodeDeviceResource
+		ExpectedDeviceIDs []string
+		NoPlacement       bool
 	}{
 		{
 			Name: "gpu",
+			Note: "-gt",
 			Constraints: []*structs.Constraint{
 				{
 					LTarget: "${device.attr.cuda_cores}",
@@ -175,10 +179,12 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 					RTarget: "4000",
 				},
 			},
-			ExpectedDevice: nvidia1,
+			ExpectedDevice:    nvidia1,
+			ExpectedDeviceIDs: collectInstanceIDs(nvidia1),
 		},
 		{
 			Name: "gpu",
+			Note: "-lt",
 			Constraints: []*structs.Constraint{
 				{
 					LTarget: "${device.attr.cuda_cores}",
@@ -186,7 +192,8 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 					RTarget: "4000",
 				},
 			},
-			ExpectedDevice: nvidia0,
+			ExpectedDevice:    nvidia0,
+			ExpectedDeviceIDs: collectInstanceIDs(nvidia0),
 		},
 		{
 			Name: "nvidia/gpu",
@@ -208,7 +215,8 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 					RTarget: "1.4 GHz",
 				},
 			},
-			ExpectedDevice: nvidia0,
+			ExpectedDevice:    nvidia0,
+			ExpectedDeviceIDs: collectInstanceIDs(nvidia0),
 		},
 		{
 			Name:        "intel/gpu",
@@ -216,6 +224,7 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 		},
 		{
 			Name: "nvidia/gpu",
+			Note: "-no-placement",
 			Constraints: []*structs.Constraint{
 				{
 					LTarget: "${device.attr.memory_bandwidth}",
@@ -236,29 +245,43 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			},
 			NoPlacement: true,
 		},
+		{
+			Name: "nvidia/gpu",
+			Note: "-contains-id",
+			Constraints: []*structs.Constraint{
+				{
+					LTarget: "${device.ids}",
+					Operand: "set_contains",
+					RTarget: nvidia0.Instances[1].ID,
+				},
+			},
+			ExpectedDevice:    nvidia0,
+			ExpectedDeviceIDs: []string{nvidia0.Instances[1].ID},
+		},
 	}
 
 	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
+		t.Run(c.Name+c.Note, func(t *testing.T) {
 			_, ctx := testContext(t)
 			d := newDeviceAllocator(ctx, n)
-			require.NotNil(d)
+			must.NotNil(t, d)
 
 			// Build the request
 			ask := deviceRequest(c.Name, 1, c.Constraints, nil)
 
 			out, score, err := d.AssignDevice(ask)
 			if c.NoPlacement {
-				require.Nil(out)
+				require.Nil(t, out)
 			} else {
-				require.NotNil(out)
-				require.Zero(score)
-				require.NoError(err)
+				must.NotNil(t, out)
+				must.Zero(t, score)
+				must.NoError(t, err)
 
-				// Check that we got the nvidia device
-				require.Len(out.DeviceIDs, 1)
-				require.Contains(collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+				// Check that we got the right nvidia device instance, and
+				// specific device instance IDs if required
+				must.Len(t, 1, out.DeviceIDs)
+				must.SliceContains(t, collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+				must.SliceContainsSubset(t, c.ExpectedDeviceIDs, out.DeviceIDs)
 			}
 		})
 	}
