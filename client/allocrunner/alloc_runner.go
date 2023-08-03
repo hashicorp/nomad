@@ -243,8 +243,6 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		hookResources:            cstructs.NewAllocHookResources(),
 	}
 
-	fmt.Println("HI5", config.Wranglers)
-
 	// Create the logger based on the allocation ID
 	ar.logger = config.Logger.Named("alloc_runner").With("alloc_id", alloc.ID)
 
@@ -301,8 +299,6 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
 		}
-
-		fmt.Println("HI4", ar.wranglers)
 
 		// Create, but do not Run, the task runner
 		tr, err := taskrunner.NewTaskRunner(trConfig)
