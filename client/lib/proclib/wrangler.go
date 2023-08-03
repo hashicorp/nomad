@@ -55,16 +55,19 @@ func (w *Wranglers) Setup(task Task) error {
 // Destroy any processes still running that were spanwed by task. Ideally the
 // task driver should be implemented well enough for this to not be necessary,
 // but we protect the Client as best we can regardless.
+//
+// Note that this is called from a TR.Stop which must be idempotent.
 func (w *Wranglers) Destroy(task Task) error {
 	w.configs.Logger.Trace("destroy and cleanup remnant task processes", "task", task)
 
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	w.m[task].Kill()
-	w.m[task].Cleanup()
-
-	delete(w.m, task)
+	if pw, exists := w.m[task]; exists {
+		pw.Kill()
+		pw.Cleanup()
+		delete(w.m, task)
+	}
 
 	return nil
 }

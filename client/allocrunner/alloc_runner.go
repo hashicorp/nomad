@@ -11,8 +11,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"golang.org/x/exp/maps"
-
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
@@ -23,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -35,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"golang.org/x/exp/maps"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
@@ -446,6 +446,9 @@ func (ar *allocRunner) Restore() error {
 			return err
 		}
 		states[tr.Task().Name] = tr.TaskState()
+
+		// restore process wrangler for task
+		ar.wranglers.Setup(proclib.Task{AllocID: tr.Alloc().ID, Task: tr.Task().Name})
 	}
 
 	ar.taskCoordinator.Restore(states)
