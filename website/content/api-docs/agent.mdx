@@ -711,13 +711,13 @@ $ go tool pprof goroutine
 
 $ curl -O -J \
     --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
-    https://localhost:4646/v1/agent/profile?seconds=5&node_id=a57b2adb-1a30-2dda-8df0-25abb0881952
+    https://localhost:4646/v1/agent/pprof/profile?seconds=5&node_id=a57b2adb-1a30-2dda-8df0-25abb0881952
 
 $ go tool pprof profile
 
 $ curl -O -J \
     --header "X-Nomad-Token: 8176afd3-772d-0b71-8f85-7fa5d903e9d4" \
-    https://localhost:4646/v1/agent/trace?&seconds=5&server_id=server1.global
+    https://localhost:4646/v1/agent/pprof/trace?&seconds=5&server_id=server1.global
 
 go tool trace trace
 ```
