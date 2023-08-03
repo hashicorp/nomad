@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// PlatformScanners returns the set of SystemScanner for macOS.
 func PlatformScanners() []SystemScanner {
 	return []SystemScanner{
 		new(MacOS),
@@ -20,6 +21,7 @@ const (
 	maxSpeed = KHz(0)
 )
 
+// MacOS implements SystemScanner for macOS systems (both arm64 and x86).
 type MacOS struct{}
 
 func (m *MacOS) ScanSystem(top *Topology) {

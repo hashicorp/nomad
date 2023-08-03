@@ -12,14 +12,13 @@ import (
 	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
 )
 
-// PlatformScanners is the set of scanners unique to each operating system.
+// PlatformScanners returns the set of SystemScanner for Linux.
 func PlatformScanners() []SystemScanner {
 	return []SystemScanner{
 		new(Sysfs),
 		new(Smbios),
 		new(Cgroups1),
 		new(Cgroups2),
-		// more?
 	}
 }
 
@@ -35,6 +34,10 @@ const (
 	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
 )
 
+// Sysfs implements SystemScanner for Linux by reading system topology data
+// from /sys/devices/system. This is the best source of truth on Linux and
+// should always be used first - additional scanners can provide more context
+// on top of what is initiallly detected here.
 type Sysfs struct{}
 
 func (s *Sysfs) ScanSystem(top *Topology) {
@@ -61,9 +64,9 @@ func (*Sysfs) discoverOnline(st *Topology) {
 
 func (*Sysfs) discoverCosts(st *Topology) {
 	dimension := st.NodeIDs.Size()
-	st.Distances = make(Distances, st.NodeIDs.Size())
+	st.Distances = make(SLIT, st.NodeIDs.Size())
 	for i := 0; i < dimension; i++ {
-		st.Distances[i] = make([]Latency, dimension)
+		st.Distances[i] = make([]Cost, dimension)
 	}
 
 	_ = st.NodeIDs.ForEach(func(id NodeID) error {
@@ -74,7 +77,7 @@ func (*Sysfs) discoverCosts(st *Topology) {
 
 		for i, c := range strings.Fields(string(s)) {
 			cost, _ := strconv.Atoi(c)
-			st.Distances[id][i] = Latency(cost)
+			st.Distances[id][i] = Cost(cost)
 		}
 		return nil
 	})

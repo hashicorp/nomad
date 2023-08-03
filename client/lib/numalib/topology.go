@@ -13,6 +13,9 @@ import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 )
 
+// CoreGrade describes whether a specific core is a performance or efficiency
+// core type. A performance core generally has a higher clockspeed and can do
+// more than an efficiency core.
 type CoreGrade bool
 
 const (
@@ -45,7 +48,7 @@ type (
 	KHz      uint64
 	MHz      uint64
 	GHz      float64
-	Latency  uint8
+	Cost     uint8
 )
 
 func (hz KHz) MHz() MHz {
@@ -57,9 +60,12 @@ func (hz KHz) String() string {
 }
 
 // A Topology provides a bird-eye view of the system NUMA topology.
+//
+// The JSON encoding is not used yet but my be part of the gRPC plumbing
+// in the future.
 type Topology struct {
 	NodeIDs   *idset.Set[NodeID] `json:"node_ids"`
-	Distances Distances          `json:"distances"`
+	Distances SLIT               `json:"distances"`
 	Cores     []Core             `json:"cores"`
 
 	// explicit overrides from client configuration
@@ -67,6 +73,8 @@ type Topology struct {
 	OverrideWitholdCompute MHz `json:"override_withhold_compute"`
 }
 
+// A Core represents one logical (vCPU) core on a processor. Basically the slice
+// of cores detected should match up with the vCPU description in cloud providers.
 type Core struct {
 	NodeID     NodeID    `json:"node_id"`
 	SocketID   SocketID  `json:"socket_id"`
@@ -95,12 +103,16 @@ func (c Core) MHz() MHz {
 	return c.GuessSpeed
 }
 
-type Distances [][]Latency
+// SLIT (system locality information table) describes the relative cost for
+// accessing memory across each combination of NUMA boundary.
+type SLIT [][]Cost
 
-func (d Distances) cost(a, b NodeID) Latency {
+func (d SLIT) cost(a, b NodeID) Cost {
 	return d[a][b]
 }
 
+// SupportsNUMA returns whether Nomad supports NUMA detection on the client's
+// operating system. Currently only supported on Linux.
 func (st *Topology) SupportsNUMA() bool {
 	switch runtime.GOOS {
 	case "linux":
@@ -110,6 +122,7 @@ func (st *Topology) SupportsNUMA() bool {
 	}
 }
 
+// Nodes returns the set of NUMA Node IDs.
 func (st *Topology) Nodes() *idset.Set[NodeID] {
 	if !st.SupportsNUMA() {
 		return nil
@@ -117,6 +130,7 @@ func (st *Topology) Nodes() *idset.Set[NodeID] {
 	return st.NodeIDs
 }
 
+// NodeCores returns the set of Core IDs for the given NUMA Node ID.
 func (st *Topology) NodeCores(node NodeID) *idset.Set[CoreID] {
 	result := idset.Empty[CoreID]()
 	for _, cpu := range st.Cores {
@@ -146,6 +160,9 @@ func (st *Topology) String() string {
 	return sb.String()
 }
 
+// TotalCompute returns the amount of compute in MHz the detected hardware is
+// ultimately capable of delivering. The UsableCompute will be equal to or
+// less than this value.
 func (st *Topology) TotalCompute() MHz {
 	var total MHz
 	for _, cpu := range st.Cores {
@@ -154,6 +171,10 @@ func (st *Topology) TotalCompute() MHz {
 	return total
 }
 
+// UsableCompute returns the amount of compute in MHz the Nomad client is able
+// to make use of for running tasks. This value will be less than or equal to
+// the TotalCompute of the system. Nomad must subtract off any reserved compute
+// (reserved.cpu or reserved.cores) from the total hardware compute.
 func (st *Topology) UsableCompute() MHz {
 	var total MHz
 	for _, cpu := range st.Cores {
@@ -164,10 +185,13 @@ func (st *Topology) UsableCompute() MHz {
 	return total
 }
 
+// NumCores returns the number of logical cores detected. This includes both
+// power and efficiency cores.
 func (st *Topology) NumCores() int {
 	return len(st.Cores)
 }
 
+// NumPCores returns the number of logical performance cores detected.
 func (st *Topology) NumPCores() int {
 	var total int
 	for _, cpu := range st.Cores {
@@ -178,6 +202,7 @@ func (st *Topology) NumPCores() int {
 	return total
 }
 
+// NumECores returns the number of logical efficiency cores detected.
 func (st *Topology) NumECores() int {
 	var total int
 	for _, cpu := range st.Cores {
@@ -188,6 +213,9 @@ func (st *Topology) NumECores() int {
 	return total
 }
 
+// UsableCores returns the number of logical cores usable by the Nomad client
+// for running tasks. Nomad must subtract off any reserved cores (reserved.cores)
+// and/or must mask the cpuset to the one set in config (config.reservable_cores).
 func (st *Topology) UsableCores() *idset.Set[CoreID] {
 	result := idset.Empty[CoreID]()
 	for _, cpu := range st.Cores {
@@ -198,6 +226,8 @@ func (st *Topology) UsableCores() *idset.Set[CoreID] {
 	return result
 }
 
+// CoreSpeeds returns the frequency in MHz of the performance and efficiency
+// core types. If the CPU does not have effiency cores that value will be zero.
 func (st *Topology) CoreSpeeds() (MHz, MHz) {
 	var pCore, eCore MHz
 	for _, cpu := range st.Cores {

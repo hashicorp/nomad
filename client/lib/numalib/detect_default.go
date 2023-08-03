@@ -10,6 +10,8 @@ import (
 	"github.com/shirou/gopsutil/v3/cpu"
 )
 
+// PlatformScanners returns the set of SystemScanner for systems without a
+// specific implementation.
 func PlatformScanners() []SystemScanner {
 	return []SystemScanner{
 		new(Generic),
@@ -22,6 +24,8 @@ const (
 	maxSpeed = KHz(0)
 )
 
+// Generic implements SystemScanner as a fallback for operating systems without
+// a specific implementation.
 type Generic struct{}
 
 func (g *Generic) ScanSystem(top *Topology) {
