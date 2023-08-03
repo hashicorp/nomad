@@ -75,7 +75,7 @@ func (*Sysfs) discoverCosts(st *Topology) {
 			return err
 		}
 
-		for i, c := range strings.Fields(string(s)) {
+		for i, c := range strings.Fields(s) {
 			cost, _ := strconv.Atoi(c)
 			st.Distances[id][i] = Cost(cost)
 		}

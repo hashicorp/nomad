@@ -45,12 +45,12 @@ type ConfigScanner struct {
 
 	// ReservedCores comes from client.reserved.cores.
 	//
-	// Used to withold a set of cores from being used by Nomad for scheduling.
+	// Used to withhold a set of cores from being used by Nomad for scheduling.
 	ReservedCores *idset.Set[CoreID]
 
 	// ReservedCompute comes from client.reserved.cpu.
 	//
-	// Used to withold an amount of MHz of CPU bandwidth from being used by
+	// Used to withhold an amount of MHz of CPU bandwidth from being used by
 	// Nomad for scheduling.
 	ReservedCompute MHz
 }

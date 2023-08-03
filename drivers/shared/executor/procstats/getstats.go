@@ -122,7 +122,7 @@ func (lps *linuxProcStats) StatProcesses() ProcUsages {
 			return cs
 		}
 
-		spid := strconv.Itoa(int(pid))
+		spid := strconv.Itoa(pid)
 		result[spid] = &drivers.ResourceUsage{
 			MemoryStats: getMemory(),
 			CpuStats:    getCPU(),

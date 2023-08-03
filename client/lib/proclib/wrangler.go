@@ -32,7 +32,7 @@ type Wranglers struct {
 	m    map[Task]ProcessWrangler
 }
 
-// Setup any process management technique relavent to the operating system and
+// Setup any process management technique relevant to the operating system and
 // its particular configuration.
 func (w *Wranglers) Setup(task Task) error {
 	w.configs.Logger.Trace("setup client process management", "task", task)

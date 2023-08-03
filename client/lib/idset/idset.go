@@ -66,7 +66,7 @@ func Parse[T ID](list string) *Set[T] {
 			values := spanRe.FindStringSubmatch(s)
 			low, high := order(atoi[T](values[1]), atoi[T](values[2]))
 			for i := low; i <= high; i++ {
-				result.items.Insert(T(i))
+				result.items.Insert(i)
 			}
 		}
 	}

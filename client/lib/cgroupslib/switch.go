@@ -8,7 +8,7 @@ import (
 
 var (
 	// NomadCgroupParent is a global variable because setting this value
-	// from the Nomad client initalization is much less painful than trying to
+	// from the Nomad client initialization is much less painful than trying to
 	// plumb it through in every place we need to reference it. This value will
 	// be written to only once, during init, and after that it's only reads.
 	NomadCgroupParent = defaultParent()
