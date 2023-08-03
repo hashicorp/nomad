@@ -1,3 +1,5 @@
+// Package idset provides a Set implementation for keeping track of various
+// types of numeric IDs (e.g. CoreID, ProcessID, etc.).
 package idset
 
 import (
@@ -49,6 +51,9 @@ func order[T ID](a, b T) (T, T) {
 	return b, a
 }
 
+// Parse the given cpuset into a set.
+//
+// The input is assumed to be valid.
 func Parse[T ID](list string) *Set[T] {
 	result := Empty[T]()
 
@@ -74,6 +79,7 @@ func Parse[T ID](list string) *Set[T] {
 	return result
 }
 
+// From returns Set created from the given slice.
 func From[T, U ID](slice []U) *Set[T] {
 	result := Empty[T]()
 	for _, item := range slice {
@@ -82,20 +88,24 @@ func From[T, U ID](slice []U) *Set[T] {
 	return result
 }
 
+// Contains returns whether the Set contains item.
 func (s *Set[T]) Contains(item T) bool {
 	return s.items.Contains(item)
 }
 
+// Insert item into the Set.
 func (s *Set[T]) Insert(item T) {
 	s.items.Insert(item)
 }
 
+// Slice returns a slice copy of the Set.
 func (s *Set[T]) Slice() []T {
 	items := s.items.Slice()
 	slices.Sort(items)
 	return items
 }
 
+// String creates a well-formed cpuset string representation of the Set.
 func (s *Set[T]) String() string {
 	if s.items.Empty() {
 		return ""
@@ -127,6 +137,8 @@ func (s *Set[T]) String() string {
 	return strings.Join(parts, ",")
 }
 
+// ForEach iterates the elements in the set and applies f. Iteration stops
+// if the result of f is a non-nil error.
 func (s *Set[T]) ForEach(f func(id T) error) error {
 	for _, id := range s.items.Slice() {
 		if err := f(id); err != nil {
@@ -136,10 +148,12 @@ func (s *Set[T]) ForEach(f func(id T) error) error {
 	return nil
 }
 
+// Size returns the number of elements in the Set.
 func (s *Set[T]) Size() int {
 	return s.items.Size()
 }
 
+// Empty returns whether the set is empty.
 func (s *Set[T]) Empty() bool {
 	if s == nil {
 		return true

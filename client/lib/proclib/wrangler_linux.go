@@ -17,10 +17,8 @@ func New(configs *Configs) *Wranglers {
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
 		w.create = newCG1(configs)
-	case cgroupslib.CG2:
+	default:
 		w.create = newCG2(configs)
-	case cgroupslib.OFF:
-		panic("must enable cgroups v1 or v2")
 	}
 
 	return w

@@ -2,6 +2,8 @@
 
 package proclib
 
+// New creates a Wranglers backed by the DefaultWrangler implementation, which
+// does not do anything.
 func New(configs *Configs) *Wranglers {
 	w := &Wranglers{
 		configs: configs,

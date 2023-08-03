@@ -1,3 +1,4 @@
+// Package cpustats provides utilities for tracking CPU usage statistics.
 package cpustats
 
 import (
@@ -14,6 +15,8 @@ type Topology interface {
 	NumCores() int
 }
 
+// A Tracker keeps track of one aspect of CPU utilization (i.e. one of system,
+// user, or total time).
 type Tracker struct {
 	prevCPUTime float64
 	prevTime    time.Time
@@ -24,6 +27,7 @@ type Tracker struct {
 	clock libtime.Clock
 }
 
+// New creates a fresh Tracker with no data.
 func New(top Topology) *Tracker {
 	return &Tracker{
 		totalCompute: top.TotalCompute(),

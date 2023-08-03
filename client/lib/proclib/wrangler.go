@@ -18,6 +18,12 @@ func (task Task) String() string {
 
 type create func(Task) ProcessWrangler
 
+// Wranglers keeps track of the ProcessWrangler created for each task. Some
+// operating systems may implement ProcessWranglers to ensure that all of the
+// processes created by a Task are killed, going a step beyond trusting the
+// task drivers to properly clean things up. (Well, on Linux anyway.)
+//
+// This state must be restored on Client agent startup.
 type Wranglers struct {
 	configs *Configs
 	create  create
