@@ -21,11 +21,17 @@ type retryClient struct {
 
 // LockOptions is used to parameterize the Lock behavior.
 type retryOptions struct {
-	MaxRetries      uint64        // Optional, defaults to 3
+	MaxRetries uint64 // Optional, defaults to 3
+	// MaxBetweenCalls sets a capping value for the delay between calls, to avoid it growing infinitely
 	MaxBetweenCalls time.Duration // Optional, defaults to 0, meaning no time cap
-	MaxToLastCall   time.Duration // Optional, defaults to 0, meaning no time cap
-	FixedDelay      time.Duration // Optional, defaults to 0, meaning Delay is exponential, starting at 1sec
-	DelayBase       time.Duration // Optional, defaults to 1sec
+	// MaxToLastCall sets a capping value for all the retry process, in case there is a deadline to make the call.
+	MaxToLastCall time.Duration // Optional, defaults to 0, meaning no time cap
+	// FixedDelay is used in case an uniform distribution of the calls is preferred.
+	FixedDelay time.Duration // Optional, defaults to 0, meaning Delay is exponential, starting at 1sec
+	// DelayBase is used to calculate the starting value at which the delay starts to grow,
+	// When left empty, a value of 1 sec will be used as base and then the delays will
+	// grow exponentially with every attempt: starting at 1s, then 2s, 4s, 8s...
+	DelayBase time.Duration // Optional, defaults to 1sec
 }
 
 func newRetryClient(c client, opts retryOptions) *retryClient {
@@ -64,17 +70,25 @@ func (rc *retryClient) retryPut(ctx context.Context, endpoint string, in, out an
 	var err error
 	var wm *WriteMeta
 
-	iDelay := time.Duration(0)
+	attDelay := time.Duration(0)
 	startTime := time.Now()
 
-	for attempt := uint64(0); attempt < rc.MaxRetries; attempt++ {
-		iDelay = rc.calculateDelay(attempt)
+	t := time.NewTimer(attDelay)
+	defer t.Stop()
 
-		t := time.NewTimer(iDelay)
+	for attempt := uint64(0); attempt < rc.MaxRetries; attempt++ {
+		attDelay = rc.calculateDelay(attempt)
+
+		if !t.Stop() {
+			<-t.C
+		}
+		t.Reset(attDelay)
+
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-t.C:
+
 		}
 
 		wm, err = rc.c.put(endpoint, in, out, q)
@@ -111,6 +125,10 @@ func (rc *retryClient) retryPut(ctx context.Context, endpoint string, in, out an
 	return wm, err
 }
 
+// According to the HTTP protocol, it only makes sense to retry calls
+// when the error is caused by a temporary situation, like a server being down
+// (500s+) or the call being rate limited (429), this function checks if the
+// statusCode is between the errors worth retrying.
 func isCallRetriable(statusCode int) bool {
 	return statusCode > http.StatusInternalServerError &&
 		statusCode < http.StatusNetworkAuthenticationRequired ||
@@ -126,11 +144,11 @@ func (rc *retryClient) calculateDelay(attempt uint64) time.Duration {
 		return 0
 	}
 
-	new := rc.DelayBase << (attempt - 1)
+	newDelay := rc.DelayBase << (attempt - 1)
 
-	if rc.MaxBetweenCalls != 0 && new > rc.MaxBetweenCalls {
+	if rc.MaxBetweenCalls != 0 && newDelay > rc.MaxBetweenCalls {
 		return rc.MaxBetweenCalls
 	}
 
-	return new
+	return newDelay
 }
