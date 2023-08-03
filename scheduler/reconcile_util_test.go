@@ -8,35 +8,8 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
-
-// Test that we properly create the bitmap even when the alloc set includes an
-// allocation with a higher count than the current min count and it is byte
-// aligned.
-// Ensure no regression from: https://github.com/hashicorp/nomad/issues/3008
-func TestBitmapFrom(t *testing.T) {
-	ci.Parallel(t)
-
-	input := map[string]*structs.Allocation{
-		"8": {
-			JobID:     "foo",
-			TaskGroup: "bar",
-			Name:      "foo.bar[8]",
-		},
-	}
-	b := bitmapFrom(input, 1)
-	exp := uint(16)
-	if act := b.Size(); act != exp {
-		t.Fatalf("got %d; want %d", act, exp)
-	}
-
-	b = bitmapFrom(input, 8)
-	if act := b.Size(); act != exp {
-		t.Fatalf("got %d; want %d", act, exp)
-	}
-}
 
 func TestAllocSet_filterByTainted(t *testing.T) {
 	ci.Parallel(t)
@@ -828,12 +801,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// With tainted nodes
 			untainted, migrate, lost, disconnecting, reconnecting, ignore := tc.all.filterByTainted(tc.taintedNodes, tc.supportsDisconnectedClients, tc.now)
-			assert.Equal(t, tc.untainted, untainted, "with-nodes: %s", "untainted")
-			assert.Equal(t, tc.migrate, migrate, "with-nodes: %s", "migrate")
-			assert.Equal(t, tc.lost, lost, "with-nodes: %s", "lost")
-			assert.Equal(t, tc.disconnecting, disconnecting, "with-nodes: %s", "disconnecting")
-			assert.Equal(t, tc.reconnecting, reconnecting, "with-nodes: %s", "reconnecting")
-			assert.Equal(t, tc.ignore, ignore, "with-nodes: %s", "ignore")
+			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
+			must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
+			must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
+			must.Eq(t, tc.disconnecting, disconnecting, must.Sprintf("with-nodes: disconnecting"))
+			must.Eq(t, tc.reconnecting, reconnecting, must.Sprintf("with-nodes: reconnecting"))
+			must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: ignore"))
 
 			if tc.skipNilNodeTest {
 				return
@@ -841,12 +814,12 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 
 			// Now again with nodes nil
 			untainted, migrate, lost, disconnecting, reconnecting, ignore = tc.all.filterByTainted(nil, tc.supportsDisconnectedClients, tc.now)
-			assert.Equal(t, tc.untainted, untainted, "nodes-nil: %s", "untainted")
-			assert.Equal(t, tc.migrate, migrate, "nodes-nil: %s", "migrate")
-			assert.Equal(t, tc.lost, lost, "nodes-nil: %s", "lost")
-			assert.Equal(t, tc.disconnecting, disconnecting, "nodes-nil: %s", "disconnecting")
-			assert.Equal(t, tc.reconnecting, reconnecting, "nodes-nil: %s", "reconnecting")
-			assert.Equal(t, tc.ignore, ignore, "nodes-nil: %s", "ignore")
+			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
+			must.Eq(t, tc.migrate, migrate, must.Sprintf("with-nodes: migrate"))
+			must.Eq(t, tc.lost, lost, must.Sprintf("with-nodes: lost"))
+			must.Eq(t, tc.disconnecting, disconnecting, must.Sprintf("with-nodes: disconnecting"))
+			must.Eq(t, tc.reconnecting, reconnecting, must.Sprintf("with-nodes: reconnecting"))
+			must.Eq(t, tc.ignore, ignore, must.Sprintf("with-nodes: ignore"))
 		})
 	}
 }
@@ -952,8 +925,242 @@ func TestReconcile_shouldFilter(t *testing.T) {
 			}
 
 			untainted, ignore := shouldFilter(alloc, tc.batch)
-			require.Equal(t, tc.untainted, untainted)
-			require.Equal(t, tc.ignore, ignore)
+			must.Eq(t, tc.untainted, untainted)
+			must.Eq(t, tc.ignore, ignore)
+		})
+	}
+}
+
+// Test that we properly create the bitmap even when the alloc set includes an
+// allocation with a higher count than the current min count and it is byte
+// aligned.
+// Ensure no regression from: https://github.com/hashicorp/nomad/issues/3008
+func TestBitmapFrom(t *testing.T) {
+	ci.Parallel(t)
+
+	input := map[string]*structs.Allocation{
+		"8": {
+			JobID:     "foo",
+			TaskGroup: "bar",
+			Name:      "foo.bar[8]",
+		},
+	}
+	b := bitmapFrom(input, 1)
+	must.Eq(t, 16, b.Size())
+
+	b = bitmapFrom(input, 8)
+	must.Eq(t, 16, b.Size())
+}
+
+func Test_allocNameIndex_Highest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputAllocNameIndex *allocNameIndex
+		inputN              uint
+		expectedOutput      map[string]struct{}
+	}{
+		{
+			name: "select 1",
+			inputAllocNameIndex: newAllocNameIndex(
+				"example", "cache", 3, map[string]*structs.Allocation{
+					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+						Name:      "example.cache[0]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"e24771e6-8900-5d2d-ec93-e7076284774a": {
+						Name:      "example.cache[1]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+						Name:      "example.cache[2]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+				}),
+			inputN: 1,
+			expectedOutput: map[string]struct{}{
+				"example.cache[2]": {},
+			},
+		},
+		{
+			name: "select all",
+			inputAllocNameIndex: newAllocNameIndex(
+				"example", "cache", 3, map[string]*structs.Allocation{
+					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+						Name:      "example.cache[0]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"e24771e6-8900-5d2d-ec93-e7076284774a": {
+						Name:      "example.cache[1]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+						Name:      "example.cache[2]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+				}),
+			inputN: 3,
+			expectedOutput: map[string]struct{}{
+				"example.cache[2]": {},
+				"example.cache[1]": {},
+				"example.cache[0]": {},
+			},
+		},
+		{
+			name: "select too many",
+			inputAllocNameIndex: newAllocNameIndex(
+				"example", "cache", 3, map[string]*structs.Allocation{
+					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+						Name:      "example.cache[0]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"e24771e6-8900-5d2d-ec93-e7076284774a": {
+						Name:      "example.cache[1]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+						Name:      "example.cache[2]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+				}),
+			inputN: 13,
+			expectedOutput: map[string]struct{}{
+				"example.cache[2]": {},
+				"example.cache[1]": {},
+				"example.cache[0]": {},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expectedOutput, tc.inputAllocNameIndex.Highest(tc.inputN))
+		})
+	}
+}
+
+func Test_allocNameIndex_NextCanaries(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputAllocNameIndex *allocNameIndex
+		inputN              uint
+		inputExisting       allocSet
+		inputDestructive    allocSet
+		expectedOutput      []string
+	}{
+		{
+			name: "single canary",
+			inputAllocNameIndex: newAllocNameIndex(
+				"example", "cache", 3, map[string]*structs.Allocation{
+					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+						Name:      "example.cache[0]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"e24771e6-8900-5d2d-ec93-e7076284774a": {
+						Name:      "example.cache[1]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+						Name:      "example.cache[2]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+				}),
+			inputN:        1,
+			inputExisting: nil,
+			inputDestructive: map[string]*structs.Allocation{
+				"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+					Name:      "example.cache[0]",
+					JobID:     "example",
+					TaskGroup: "cache",
+				},
+				"e24771e6-8900-5d2d-ec93-e7076284774a": {
+					Name:      "example.cache[1]",
+					JobID:     "example",
+					TaskGroup: "cache",
+				},
+				"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+					Name:      "example.cache[2]",
+					JobID:     "example",
+					TaskGroup: "cache",
+				},
+			},
+			expectedOutput: []string{
+				"example.cache[0]",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.SliceContainsAll(
+				t, tc.expectedOutput,
+				tc.inputAllocNameIndex.NextCanaries(tc.inputN, tc.inputExisting, tc.inputDestructive))
+		})
+	}
+}
+
+func Test_allocNameIndex_Next(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputAllocNameIndex *allocNameIndex
+		inputN              uint
+		expectedOutput      []string
+	}{
+		{
+			name:                "empty existing bitmap",
+			inputAllocNameIndex: newAllocNameIndex("example", "cache", 3, nil),
+			inputN:              3,
+			expectedOutput: []string{
+				"example.cache[0]", "example.cache[1]", "example.cache[2]",
+			},
+		},
+		{
+			name: "non-empty existing bitmap simple",
+			inputAllocNameIndex: newAllocNameIndex(
+				"example", "cache", 3, map[string]*structs.Allocation{
+					"6b255fa3-c2cb-94de-5ddd-41aac25a6851": {
+						Name:      "example.cache[0]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"e24771e6-8900-5d2d-ec93-e7076284774a": {
+						Name:      "example.cache[1]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+					"d7842822-32c4-1a1c-bac8-66c3f20dfb0f": {
+						Name:      "example.cache[2]",
+						JobID:     "example",
+						TaskGroup: "cache",
+					},
+				}),
+			inputN: 3,
+			expectedOutput: []string{
+				"example.cache[0]", "example.cache[1]", "example.cache[2]",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.SliceContainsAll(t, tc.expectedOutput, tc.inputAllocNameIndex.Next(tc.inputN))
 		})
 	}
 }
