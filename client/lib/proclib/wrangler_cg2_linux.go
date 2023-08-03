@@ -4,7 +4,7 @@ package proclib
 
 import (
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 )
 
 // LinuxWranglerCG2 is an implementation of ProcessWrangler that leverages

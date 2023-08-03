@@ -11,7 +11,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/go-set"
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -68,7 +68,7 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 }
 
 func (e *UniversalExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
-	return procstats.List(e.commandCfg)
+	return procstats.List(e.command)
 }
 
 func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {

@@ -3,7 +3,7 @@
 package proclib
 
 import (
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 )
 
 // New creates a Wranglers factory for creating ProcessWrangler's appropriate

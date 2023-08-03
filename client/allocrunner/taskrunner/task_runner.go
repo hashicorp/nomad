@@ -24,7 +24,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"

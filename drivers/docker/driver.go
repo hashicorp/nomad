@@ -25,7 +25,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"

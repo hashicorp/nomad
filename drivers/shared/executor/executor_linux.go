@@ -25,7 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"

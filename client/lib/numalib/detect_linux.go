@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/proclib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 )
 
 // PlatformScanners returns the set of SystemScanner for Linux.
