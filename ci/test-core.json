@@ -23,7 +23,7 @@
     "client/servers/...",
     "client/serviceregistration/...",
     "client/state/...",
-    "client/stats/...",
+    "client/hoststats/...",
     "client/structs/...",
     "client/taskenv/...",
     "command/agent/...",

@@ -8,12 +8,11 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, nil)
 	defer cleanup()
@@ -27,19 +26,18 @@ func TestFingerprintManager_Run_ResourcesFingerprint(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
-	require.Nil(err)
+	_, err := fm.Run()
+	must.NoError(t, err)
 
 	node := testClient.config.Node
 
-	require.NotEqual(0, node.Resources.CPU)
-	require.NotEqual(0, node.Resources.MemoryMB)
-	require.NotZero(node.Resources.DiskMB)
+	must.Positive(t, node.Resources.CPU)
+	must.Positive(t, node.Resources.MemoryMB)
+	must.Positive(t, node.Resources.DiskMB)
 }
 
 func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -58,17 +56,15 @@ func TestFimgerprintManager_Run_InWhitelist(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
-	require.Nil(err)
+	_, err := fm.Run()
+	must.NoError(t, err)
 
 	node := testClient.config.Node
-
-	require.NotEqual(node.Attributes["cpu.frequency"], "")
+	must.NotEq(t, "", node.Attributes["cpu.numcores"])
 }
 
 func TestFingerprintManager_Run_InDenylist(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -87,18 +83,17 @@ func TestFingerprintManager_Run_InDenylist(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
-	require.Nil(err)
+	_, err := fm.Run()
+	must.NoError(t, err)
 
 	node := testClient.config.Node
 
-	require.NotContains(node.Attributes, "cpu.frequency")
-	require.NotEqual(node.Attributes["memory.totalbytes"], "")
+	must.MapNotContainsKey(t, node.Attributes, "cpu.frequency")
+	must.NotEq(t, node.Attributes["memory.totalbytes"], "")
 }
 
 func TestFingerprintManager_Run_Combination(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -117,20 +112,19 @@ func TestFingerprintManager_Run_Combination(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
-	require.Nil(err)
+	_, err := fm.Run()
+	must.NoError(t, err)
 
 	node := testClient.config.Node
 
-	require.NotEqual(node.Attributes["cpu.frequency"], "")
-	require.NotEqual(node.Attributes["cpu.arch"], "")
-	require.NotContains(node.Attributes, "memory.totalbytes")
-	require.NotContains(node.Attributes, "os.name")
+	must.NotEq(t, "", node.Attributes["cpu.numcores"])
+	must.NotEq(t, "", node.Attributes["cpu.arch"])
+	must.MapNotContainsKey(t, node.Attributes, "memory.totalbytes")
+	must.MapNotContainsKey(t, node.Attributes, "os.name")
 }
 
 func TestFingerprintManager_Run_CombinationLegacyNames(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	testClient, cleanup := TestClient(t, func(c *config.Config) {
 		c.Options = map[string]string{
@@ -149,13 +143,12 @@ func TestFingerprintManager_Run_CombinationLegacyNames(t *testing.T) {
 		testClient.logger,
 	)
 
-	err := fm.Run()
-	require.Nil(err)
+	_, err := fm.Run()
+	must.NoError(t, err)
 
 	node := testClient.config.Node
-
-	require.NotEqual(node.Attributes["cpu.frequency"], "")
-	require.NotEqual(node.Attributes["cpu.arch"], "")
-	require.NotContains(node.Attributes, "memory.totalbytes")
-	require.NotContains(node.Attributes, "os.name")
+	must.NotEq(t, "", node.Attributes["cpu.numcores"])
+	must.NotEq(t, "", node.Attributes["cpu.arch"])
+	must.MapNotContainsKey(t, node.Attributes, "memory.totalbytes")
+	must.MapNotContainsKey(t, node.Attributes, "os.name")
 }

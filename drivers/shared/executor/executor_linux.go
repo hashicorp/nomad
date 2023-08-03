@@ -21,12 +21,14 @@ import (
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/client/lib/resources"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-	"github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -59,10 +61,11 @@ type LibcontainerExecutor struct {
 
 	logger hclog.Logger
 
-	totalCpuStats  *stats.CpuStats
-	userCpuStats   *stats.CpuStats
-	systemCpuStats *stats.CpuStats
-	pidCollector   *pidCollector
+	top            cpustats.Topology
+	totalCpuStats  *cpustats.Tracker
+	userCpuStats   *cpustats.Tracker
+	systemCpuStats *cpustats.Tracker
+	processStats   procstats.ProcessStats
 
 	container      libcontainer.Container
 	userProc       *libcontainer.Process
@@ -70,18 +73,22 @@ type LibcontainerExecutor struct {
 	exitState      *ProcessState
 }
 
-func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executor {
-	logger = logger.Named("isolated_executor")
-	stats.SetCpuTotalTicks(cpuTotalTicks)
-
-	return &LibcontainerExecutor{
+func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+	top := numalib.Scan(numalib.PlatformScanners()) // TODO(shoenig) grpc plumbing
+	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
-		logger:         logger,
-		totalCpuStats:  stats.NewCpuStats(),
-		userCpuStats:   stats.NewCpuStats(),
-		systemCpuStats: stats.NewCpuStats(),
-		pidCollector:   newPidCollector(logger),
+		logger:         logger.Named("isolated_executor"),
+		totalCpuStats:  cpustats.New(top),
+		userCpuStats:   cpustats.New(top),
+		systemCpuStats: cpustats.New(top),
+		top:            top,
 	}
+	le.processStats = procstats.New(top, le)
+	return le
+}
+
+func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
+	return procstats.List(l.command)
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
@@ -109,7 +116,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	// A container groups processes under the same isolation enforcement
-	containerCfg, err := newLibcontainerConfig(command)
+	containerCfg, err := l.newLibcontainerConfig(command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
@@ -155,9 +162,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 	l.userProc = process
 
-	l.totalCpuStats = stats.NewCpuStats()
-	l.userCpuStats = stats.NewCpuStats()
-	l.systemCpuStats = stats.NewCpuStats()
+	l.totalCpuStats = cpustats.New(l.top)
+	l.userCpuStats = cpustats.New(l.top)
+	l.systemCpuStats = cpustats.New(l.top)
 
 	// Starts the task
 	if err := container.Run(process); err != nil {
@@ -174,7 +181,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
-	go l.pidCollector.collectPids(l.userProcExited, l.getAllPids)
+
 	go l.wait()
 
 	return &ProcessState{
@@ -182,18 +189,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		ExitCode: -1,
 		Time:     time.Now(),
 	}, nil
-}
-
-func (l *LibcontainerExecutor) getAllPids() (resources.PIDs, error) {
-	pids, err := l.container.Processes()
-	if err != nil {
-		return nil, err
-	}
-	m := make(resources.PIDs, 1)
-	for _, pid := range pids {
-		m[pid] = resources.NewPID(pid)
-	}
-	return m, nil
 }
 
 // Wait waits until a process has exited and returns it's exitcode and errors
@@ -291,6 +286,7 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 	} else {
 		err := l.container.Signal(os.Kill, true)
 		if err != nil {
+			l.logger.Info("no grace fail", "error", err)
 			return err
 		}
 	}
@@ -325,9 +321,12 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 	defer close(ch)
 	timer := time.NewTimer(0)
 
-	measuredMemStats := ExecutorCgroupV1MeasuredMemStats
-	if cgroups.IsCgroup2UnifiedMode() {
-		measuredMemStats = ExecutorCgroupV2MeasuredMemStats
+	var measurableMemStats []string
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		measurableMemStats = ExecutorCgroupV1MeasuredMemStats
+	case cgroupslib.CG2:
+		measurableMemStats = ExecutorCgroupV2MeasuredMemStats
 	}
 
 	for {
@@ -339,20 +338,19 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			timer.Reset(interval)
 		}
 
+		// the moment we collect this round of stats
+		ts := time.Now()
+
+		// get actual stats from the container
 		lstats, err := l.container.Stats()
 		if err != nil {
 			l.logger.Warn("error collecting stats", "error", err)
 			return
 		}
-
-		pidStats, err := l.pidCollector.pidStats()
-		if err != nil {
-			l.logger.Warn("error collecting stats", "error", err)
-			return
-		}
-
-		ts := time.Now()
 		stats := lstats.CgroupStats
+
+		// get the map of process pids in this container
+		pstats := l.processStats.StatProcesses()
 
 		// Memory Related Stats
 		swap := stats.MemoryStats.SwapUsage
@@ -369,7 +367,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-			Measured:       measuredMemStats,
+			Measured:       measurableMemStats,
 		}
 
 		// CPU Related Stats
@@ -393,7 +391,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 				CpuStats:    cs,
 			},
 			Timestamp: ts.UTC().UnixNano(),
-			Pids:      pidStats,
+			Pids:      pstats,
 		}
 
 		select {
@@ -648,33 +646,42 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	return nil
 }
 
-func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
-	// If resources are not limited then manually create cgroups needed
+func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
+	// note: an alloc TR hook pre-creates the cgroup(s) in both v1 and v2
+
 	if !command.ResourceLimits {
-		return cgutil.ConfigureBasicCgroups(cfg)
-	}
-
-	// set cgroups path
-	if cgutil.UseV2 {
-		// in v2, the cgroup must have been created by the client already,
-		// which breaks a lot of existing tests that run drivers without a client
-		if command.Resources == nil || command.Resources.LinuxResources == nil || command.Resources.LinuxResources.CpusetCgroupPath == "" {
-			return errors.New("cgroup path must be set")
-		}
-		parent, cgroup := cgutil.SplitPath(command.Resources.LinuxResources.CpusetCgroupPath)
-		cfg.Cgroups.Path = filepath.Join("/", parent, cgroup)
-	} else {
-		// in v1, the cgroup is created using /nomad, which is a bug because it
-		// does not respect the cgroup_parent client configuration
-		// (but makes testing easy)
-		id := uuid.Generate()
-		cfg.Cgroups.Path = filepath.Join("/", cgutil.DefaultCgroupV1Parent, id)
-	}
-
-	if command.Resources == nil || command.Resources.NomadResources == nil {
 		return nil
 	}
 
+	cg := command.Cgroup()
+	if cg == "" {
+		return errors.New("cgroup must be set")
+	}
+
+	// set the libcontainer hook for writing the PID to cgroup.procs file
+	l.configureCgroupHook(cfg, command)
+
+	// set the libcontainer memory limits
+	l.configureCgroupMemory(cfg, command)
+
+	// set cgroup v1/v2 specific attributes (cpu, path)
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		return l.configureCG1(cfg, command, cg)
+	default:
+		return l.configureCG2(cfg, command, cg)
+	}
+}
+
+func (*LibcontainerExecutor) configureCgroupHook(cfg *lconfigs.Config, command *ExecCommand) {
+	cfg.Hooks = lconfigs.Hooks{
+		lconfigs.CreateRuntime: lconfigs.HookList{
+			newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
+		},
+	}
+}
+
+func (l *LibcontainerExecutor) configureCgroupMemory(cfg *lconfigs.Config, command *ExecCommand) {
 	// Total amount of memory allowed to consume
 	res := command.Resources.NomadResources
 	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
@@ -683,35 +690,41 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 		memSoft = 0
 	}
 
-	if memHard > 0 {
-		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
-		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
+	cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
+	cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
 
-		// Disable swap if possible, to avoid issues on the machine
-		cfg.Cgroups.Resources.MemorySwappiness = cgutil.MaybeDisableMemorySwappiness()
-	}
+	// Disable swap if possible, to avoid issues on the machine
+	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
+}
 
-	cpuShares := res.Cpu.CpuShares
-	if cpuShares < 2 {
-		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
-	}
+func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+	// Set the v1 parent relative path (i.e. /nomad/<scope>)
+	scope := filepath.Base(cg)
+	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
 
-	// Set the relative CPU shares for this cgroup, and convert for cgroupv2
-	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
-	cfg.Cgroups.Resources.CpuWeight = cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
-
-	if command.Resources.LinuxResources != nil && command.Resources.LinuxResources.CpusetCgroupPath != "" {
-		cfg.Hooks = lconfigs.Hooks{
-			lconfigs.CreateRuntime: lconfigs.HookList{
-				newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
-			},
-		}
-	}
-
+	// set cpu.shares
+	res := command.Resources.NomadResources
+	cfg.Cgroups.CpuShares = uint64(res.Cpu.CpuShares)
 	return nil
 }
 
-func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
+func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+	// Set the v2 specific unified path
+	scope := filepath.Base(cg)
+	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
+
+	res := command.Resources.NomadResources
+	cpuShares := res.Cpu.CpuShares // a cgroups v1 concept
+	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
+	// sets cpu.weight, which the kernel also translates to cpu.weight.nice
+	// despite what the libcontainer docs say, this sets priority not bandwidth
+	cfg.Cgroups.Resources.CpuWeight = cpuWeight
+
+	// todo: we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
+	return nil
+}
+
+func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
@@ -735,7 +748,7 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		return nil, err
 	}
 
-	if err := configureCgroups(cfg, command); err != nil {
+	if err := l.configureCgroups(cfg, command); err != nil {
 		return nil, err
 	}
 

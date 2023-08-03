@@ -11,7 +11,8 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -21,10 +22,6 @@ func TestCPUFingerprint_Classic(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
-
-	// create cpuset manager so we can ensure cgroup tree is correct
-	mgr := cgutil.CreateCPUSetManager("", nil, logger)
-	mgr.Init()
 
 	// create the fingerprinter
 	f := NewCPUFingerprint(logger)
@@ -42,29 +39,31 @@ func TestCPUFingerprint_Classic(t *testing.T) {
 	must.NotNil(t, attributes)
 	must.MapContainsKey(t, attributes, "cpu.numcores")
 	must.MapContainsKey(t, attributes, "cpu.modelname")
-	must.MapContainsKey(t, attributes, "cpu.frequency")
 	must.MapContainsKey(t, attributes, "cpu.totalcompute")
 	must.Positive(t, response.Resources.CPU)
 	must.Positive(t, response.NodeResources.Cpu.CpuShares)
 	must.Positive(t, response.NodeResources.Cpu.SharesPerCore())
 	must.SliceNotEmpty(t, response.NodeResources.Cpu.ReservableCpuCores)
 
-	// asymetric core detection currently only works with apple silicon
-	must.MapNotContainsKey(t, attributes, "cpu.numcores.power")
-	must.MapNotContainsKey(t, attributes, "cpu.numcores.efficiency")
+	_, frequencyPresent := attributes["cpu.frequency"]
+	_, performancePresent := attributes["cpu.frequency.performance"]
+	_, efficiencyPresent := attributes["cpu.frequency.efficiency"]
+	ok := frequencyPresent || (performancePresent && efficiencyPresent)
+	must.True(t, ok, must.Sprint("expected cpu.frequency or cpu.frequency.performance and cpu.frequency.efficiency"))
 }
 
 // TestCPUFingerprint_OverrideCompute asserts that setting cpu_total_compute in
 // the client config overrides the detected CPU freq (if any).
 func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 	ci.Parallel(t)
+	testutil.MinimumCores(t, 4)
 
 	f := NewCPUFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{
-		ReservableCores: []uint16{0, 1, 2},
+		ReservableCores: []numalib.CoreID{0, 1, 2},
 	}
 	var originalCPU int
 
@@ -72,22 +71,11 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		request := &FingerprintRequest{Config: cfg, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
-		if !response.Detected {
-			t.Fatalf("expected response to be applicable")
-		}
-
-		if attr := response.Attributes["cpu.reservablecores"]; attr != "3" {
-			t.Fatalf("expected cpu.reservablecores == 3 but found %s", attr)
-		}
-
-		if response.Resources.CPU == 0 {
-			t.Fatalf("expected fingerprint of cpu of but found 0")
-		}
-
+		must.True(t, response.Detected)
+		must.Eq(t, "3", response.Attributes["cpu.reservablecores"], must.Sprint("override of cpu.reservablecores is incorrect"))
+		must.Positive(t, response.Resources.CPU)
 		originalCPU = response.Resources.CPU
 	}
 
@@ -99,23 +87,12 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		request := &FingerprintRequest{Config: cfg, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
 		// COMPAT(0.10): Remove in 0.10
-		if response.Resources.CPU != cfg.CpuCompute {
-			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.Resources.CPU)
-		}
-		if response.NodeResources.Cpu.CpuShares != int64(cfg.CpuCompute) {
-			t.Fatalf("expected override cpu of %d but found %d", cfg.CpuCompute, response.NodeResources.Cpu.CpuShares)
-		}
-		if response.Attributes["cpu.totalcompute"] != strconv.Itoa(cfg.CpuCompute) {
-			t.Fatalf("expected override cpu.totalcompute of %d but found %s", cfg.CpuCompute, response.Attributes["cpu.totalcompute"])
-		}
-
-		if attr := response.Attributes["cpu.reservablecores"]; attr != "3" {
-			t.Fatalf("expected cpu.reservablecores == 3 but found %s", attr)
-		}
+		must.Eq(t, cfg.CpuCompute, response.Resources.CPU, must.Sprint("cpu override did not take affect"))
+		must.Eq(t, int64(cfg.CpuCompute), response.NodeResources.Cpu.CpuShares, must.Sprint("cpu override did not take affect"))
+		must.Eq(t, strconv.Itoa(cfg.CpuCompute), response.Attributes["cpu.totalcompute"], must.Sprint("cpu override did not take affect"))
+		must.Eq(t, "3", response.Attributes["cpu.reservablecores"], must.Sprint("cpu override did not take affect"))
 	}
 }

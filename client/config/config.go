@@ -15,11 +15,8 @@ import (
 
 	"github.com/hashicorp/consul-template/config"
 	log "github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
@@ -29,6 +26,8 @@ import (
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/version"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -299,7 +298,7 @@ type Config struct {
 	CgroupParent string
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
-	ReservableCores []uint16
+	ReservableCores []numalib.CoreID
 
 	// NomadServiceDiscovery determines whether the Nomad native service
 	// discovery client functionality is enabled.
@@ -795,7 +794,7 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       cgutil.GetCgroupParent(""),
+		CgroupParent:       "nomad.slice", // SETH todo
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}

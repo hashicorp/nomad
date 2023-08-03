@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -106,7 +106,7 @@ func (m *MockStatsCollector) Collect() error {
 	return nil
 }
 
-func (m *MockStatsCollector) Stats() *stats.HostStats {
+func (m *MockStatsCollector) Stats() *hoststats.HostStats {
 	if len(m.availableValues) == 0 {
 		return nil
 	}
@@ -118,8 +118,8 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 	if m.index < len(m.availableValues)-1 {
 		m.index = m.index + 1
 	}
-	return &stats.HostStats{
-		AllocDirStats: &stats.DiskStats{
+	return &hoststats.HostStats{
+		AllocDirStats: &hoststats.DiskStats{
 			Available:         available,
 			UsedPercent:       usedPercent,
 			InodesUsedPercent: inodePercent,
