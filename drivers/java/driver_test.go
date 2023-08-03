@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-
 	"github.com/hashicorp/nomad/ci"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -302,10 +300,6 @@ func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskC
 				CPUShares:        100,
 			},
 		},
-	}
-
-	if cgutil.UseV2 {
-		task.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(allocID, name))
 	}
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))

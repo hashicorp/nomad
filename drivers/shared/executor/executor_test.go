@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -94,9 +93,7 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 		},
 	}
 
-	if cgutil.UseV2 {
-		cmd.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.scope", cgutil.CgroupScope(alloc.ID, task.Name))
-	}
+	// todo: need cpuset path?
 
 	testCmd := &testExecCmd{
 		command:  cmd,

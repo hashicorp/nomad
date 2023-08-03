@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -33,12 +32,6 @@ import (
 // defaultEnv creates the default environment for raw exec tasks
 func defaultEnv() map[string]string {
 	m := make(map[string]string)
-	if cgutil.UseV2 {
-		// normally the taskenv.Builder will set this automatically from the
-		// Node object which gets created via Client configuration, but none of
-		// that exists in the test harness so just set it here.
-		m["NOMAD_PARENT_CGROUP"] = "nomad.slice"
-	}
 	return m
 }
 

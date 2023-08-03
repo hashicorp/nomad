@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -106,12 +105,6 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 		Name: "sleep",
 	}
 
-	if cgutil.UseV2 {
-		allocID := uuid.Generate()
-		task.AllocID = allocID
-		task.Resources = testResources(allocID, "sleep")
-	}
-
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
@@ -171,11 +164,6 @@ func TestExec_dnsConfig(t *testing.T) {
 			DNS:  c.cfg,
 		}
 
-		if cgutil.UseV2 {
-			allocID := uuid.Generate()
-			task.Resources = testResources(allocID, "sleep")
-		}
-
 		cleanup := harness.MkAllocDir(task, false)
 		defer cleanup()
 
@@ -200,12 +188,6 @@ func TestExecDriver_Capabilities(t *testing.T) {
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
 		Name: "sleep",
-	}
-
-	if cgutil.UseV2 {
-		allocID := uuid.Generate()
-		task.AllocID = allocID
-		task.Resources = testResources(allocID, "sleep")
 	}
 
 	for _, tc := range []struct {

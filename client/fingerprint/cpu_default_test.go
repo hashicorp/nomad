@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -21,10 +21,6 @@ func TestCPUFingerprint_Classic(t *testing.T) {
 	ci.Parallel(t)
 
 	logger := testlog.HCLogger(t)
-
-	// create cpuset manager so we can ensure cgroup tree is correct
-	mgr := cgutil.CreateCPUSetManager("", nil, logger)
-	mgr.Init()
 
 	// create the fingerprinter
 	f := NewCPUFingerprint(logger)
@@ -64,7 +60,7 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{
-		ReservableCores: []uint16{0, 1, 2},
+		ReservableCores: []numalib.CoreID{0, 1, 2},
 	}
 	var originalCPU int
 
