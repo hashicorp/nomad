@@ -6,7 +6,6 @@ package api
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 )
@@ -70,7 +69,7 @@ func (rc *retryClient) retryPut(ctx context.Context, endpoint string, in, out an
 
 	for attempt := uint64(0); attempt < rc.MaxRetries; attempt++ {
 		iDelay = rc.calculateDelay(attempt)
-		fmt.Println(iDelay.String())
+
 		t := time.NewTimer(iDelay)
 		select {
 		case <-ctx.Done():
