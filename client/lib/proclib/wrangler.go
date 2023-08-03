@@ -52,7 +52,7 @@ func (w *Wranglers) Setup(task Task) error {
 	return nil
 }
 
-// Destroy any processes still running that were spanwed by task. Ideally the
+// Destroy any processes still running that were spawned by task. Ideally the
 // task driver should be implemented well enough for this to not be necessary,
 // but we protect the Client as best we can regardless.
 //
