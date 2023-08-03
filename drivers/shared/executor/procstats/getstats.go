@@ -117,6 +117,7 @@ func (lps *linuxProcStats) StatProcesses() ProcUsages {
 				cs.SystemMode = s.SystemCPU.Percent(cpuInfo.System * second)
 				cs.UserMode = s.UserCPU.Percent(cpuInfo.User * second)
 				cs.Percent = s.TotalCPU.Percent(cpuInfo.Total() * second)
+				cs.Measured = ExecutorBasicMeasuredCpuStats
 			}
 			return cs
 		}

@@ -36,17 +36,18 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 	top.NodeIDs.Insert(nodeID)
 
 	pCoreCount := m1cpu.PCoreCount()
-	pCoreSpeed := KHz(m1cpu.PCoreHz() / 1024)
+	pCoreSpeed := KHz(m1cpu.PCoreHz() / 1000)
 
+	eCoreCount := m1cpu.ECoreCount()
+	eCoreSpeed := KHz(m1cpu.ECoreHz() / 1000)
+
+	top.Cores = make([]Core, pCoreCount+eCoreCount)
 	nthCore := CoreID(0)
 
 	for i := 0; i < pCoreCount; i++ {
 		top.insert(nodeID, socketID, nthCore, performance, maxSpeed, pCoreSpeed)
 		nthCore++
 	}
-
-	eCoreCount := m1cpu.ECoreCount()
-	eCoreSpeed := KHz(m1cpu.ECoreHz() / 1024)
 
 	for i := 0; i < eCoreCount; i++ {
 		top.insert(nodeID, socketID, nthCore, efficiency, maxSpeed, eCoreSpeed)

@@ -6,3 +6,8 @@ package cgroupslib
 func LinuxResourcesPath(string, string) string {
 	return ""
 }
+
+// MaybeDisableMemorySwappiness does nothing on non-Linux systems
+func MaybeDisableMemorySwappiness() *int {
+	return nil
+}
