@@ -133,7 +133,7 @@ require (
 	oss.indeed.com/go/libtime v1.6.0
 )
 
-require github.com/klauspost/cpuid/v2 v2.2.5 // indirect
+require github.com/klauspost/cpuid/v2 v2.2.5
 
 require (
 	cloud.google.com/go v0.107.0 // indirect
