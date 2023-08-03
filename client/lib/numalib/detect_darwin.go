@@ -23,7 +23,7 @@ const (
 type MacOS struct{}
 
 func (m *MacOS) ScanSystem(top *Topology) {
-	// all apple hardware is non-numa; just assume it is so
+	// all apple hardware is non-numa; just assume as much
 	top.NodeIDs = idset.Empty[NodeID]()
 	top.NodeIDs.Insert(nodeID)
 

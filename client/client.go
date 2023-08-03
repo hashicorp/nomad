@@ -451,7 +451,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	if ir, err := c.fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
 	} else {
-		c.topology = numalib.Fallback(ir.Topology)
+		c.topology = numalib.NoImpl(ir.Topology)
 	}
 
 	// Create the process wranglers
