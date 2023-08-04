@@ -11,8 +11,8 @@ type UIConfig struct {
 	// Enabled is used to enable the web UI
 	Enabled bool `hcl:"enabled"`
 
-	// Disable frame-ancestors CSP header
-	DisableFrameAncestors bool `hcl:"disable_frame_ancestors"`
+	// ContentSecurityPolicy is used to configure the CSP header
+	ContentSecurityPolicy *ContentSecurityPolicy `hcl:"content_security_policy"`
 
 	// Consul configures deep links for Consul UI
 	Consul *ConsulUIConfig `hcl:"consul"`
@@ -22,6 +22,30 @@ type UIConfig struct {
 
 	// Label configures UI label styles
 	Label *LabelUIConfig `hcl:"label"`
+}
+
+// only covers the elements of
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP we need or care about
+type ContentSecurityPolicy struct {
+	ConnectSrc     []string `hcl:"connect_src"`
+	DefaultSrc     []string `hcl:"default_src"`
+	FormAction     []string `hcl:"form_action"`
+	FrameAncestors []string `hcl:"frame_ancestors"`
+	ImgSrc         []string `hcl:"img_src"`
+	ScriptSrc      []string `hcl:"script_src"`
+	StyleSrc       []string `hcl:"style_src"`
+}
+
+func DefaultCSPConfig() *ContentSecurityPolicy {
+	return &ContentSecurityPolicy{
+		ConnectSrc:     []string{"*"},
+		DefaultSrc:     []string{"none"},
+		FormAction:     []string{"none"},
+		FrameAncestors: []string{"none"},
+		ImgSrc:         []string{"self", "data:"},
+		ScriptSrc:      []string{"self"},
+		StyleSrc:       []string{"self", "unsafe-inline"},
+	}
 }
 
 // ConsulUIConfig configures deep links to this cluster's Consul

@@ -33,10 +33,12 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/command/agent/event"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -650,12 +652,18 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
 		agentConfig := s.agent.GetConfig()
-		uiDisableFrameAncestorsEnabled := agentConfig.UI != nil && agentConfig.UI.DisableFrameAncestors
-		if uiDisableFrameAncestorsEnabled {
-			header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'")
-		} else {
-			header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
+		defaultConfig := config.DefaultCSPConfig()
+		config := config.ContentSecurityPolicy{
+			ConnectSrc:     helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.ConnectSrc, defaultConfig.ConnectSrc),
+			DefaultSrc:     helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.DefaultSrc, defaultConfig.DefaultSrc),
+			FormAction:     helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.FormAction, defaultConfig.FormAction),
+			FrameAncestors: helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.FrameAncestors, defaultConfig.FrameAncestors),
+			ImgSrc:         helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.ImgSrc, defaultConfig.ImgSrc),
+			ScriptSrc:      helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.ScriptSrc, defaultConfig.ScriptSrc),
+			StyleSrc:       helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.StyleSrc, defaultConfig.StyleSrc),
 		}
+
+		header.Add("Content-Security-Policy", fmt.Sprintf("default-src %s; connect-src %s; img-src %s; script-src %s; style-src %s; form-action %s; frame-ancestors %s", config.DefaultSrc, config.ConnectSrc, config.ImgSrc, config.ScriptSrc, config.StyleSrc, config.FormAction, config.FrameAncestors))
 		h.ServeHTTP(w, req)
 	})
 }
