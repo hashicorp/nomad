@@ -663,7 +663,7 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 			StyleSrc:       helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.StyleSrc, defaultConfig.StyleSrc),
 		}
 
-		header.Add("Content-Security-Policy", fmt.Sprintf("default-src %s; connect-src %s; img-src %s; script-src %s; style-src %s; form-action %s; frame-ancestors %s", config.DefaultSrc, config.ConnectSrc, config.ImgSrc, config.ScriptSrc, config.StyleSrc, config.FormAction, config.FrameAncestors))
+		header.Add("Content-Security-Policy", config.String())
 		h.ServeHTTP(w, req)
 	})
 }

@@ -3,6 +3,11 @@
 
 package config
 
+import (
+	"fmt"
+	"strings"
+)
+
 // UIConfig contains the operator configuration of the web UI
 // Note:
 // before extending this configuration, consider reviewing NMD-125
@@ -36,15 +41,19 @@ type ContentSecurityPolicy struct {
 	StyleSrc       []string `hcl:"style_src"`
 }
 
+func (csp *ContentSecurityPolicy) String() string {
+	return fmt.Sprintf("default-src %s; connect-src %s; img-src %s; script-src %s; style-src %s; form-action %s; frame-ancestors %s", strings.Join(csp.DefaultSrc, " "), strings.Join(csp.ConnectSrc, " "), strings.Join(csp.ImgSrc, " "), strings.Join(csp.ScriptSrc, " "), strings.Join(csp.StyleSrc, " "), strings.Join(csp.FormAction, " "), strings.Join(csp.FrameAncestors, " "))
+}
+
 func DefaultCSPConfig() *ContentSecurityPolicy {
 	return &ContentSecurityPolicy{
 		ConnectSrc:     []string{"*"},
-		DefaultSrc:     []string{"none"},
-		FormAction:     []string{"none"},
-		FrameAncestors: []string{"none"},
-		ImgSrc:         []string{"self", "data:"},
-		ScriptSrc:      []string{"self"},
-		StyleSrc:       []string{"self", "unsafe-inline"},
+		DefaultSrc:     []string{"'none'"},
+		FormAction:     []string{"'none'"},
+		FrameAncestors: []string{"'none'"},
+		ImgSrc:         []string{"'self'", "data:"},
+		ScriptSrc:      []string{"'self'"},
+		StyleSrc:       []string{"'self'", "'unsafe-inline'"},
 	}
 }
 
