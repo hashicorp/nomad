@@ -33,12 +33,10 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/command/agent/event"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -652,18 +650,7 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
 		agentConfig := s.agent.GetConfig()
-		defaultConfig := config.DefaultCSPConfig()
-		config := config.ContentSecurityPolicy{
-			ConnectSrc:     helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.ConnectSrc, defaultConfig.ConnectSrc),
-			DefaultSrc:     helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.DefaultSrc, defaultConfig.DefaultSrc),
-			FormAction:     helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.FormAction, defaultConfig.FormAction),
-			FrameAncestors: helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.FrameAncestors, defaultConfig.FrameAncestors),
-			ImgSrc:         helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.ImgSrc, defaultConfig.ImgSrc),
-			ScriptSrc:      helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.ScriptSrc, defaultConfig.ScriptSrc),
-			StyleSrc:       helper.MergeListWithDefaults(agentConfig.UI.ContentSecurityPolicy.StyleSrc, defaultConfig.StyleSrc),
-		}
-
-		header.Add("Content-Security-Policy", config.String())
+		header.Add("Content-Security-Policy", agentConfig.UI.ContentSecurityPolicy.String())
 		h.ServeHTTP(w, req)
 	})
 }
