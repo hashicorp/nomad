@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -505,7 +506,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	uiConfigEnabled := agentConfig.UI != nil && agentConfig.UI.Enabled
 
 	if uiEnabled && uiConfigEnabled {
-		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(agentConfig.UI.ContentSecurityPolicy, http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
 		s.logger.Debug("UI is enabled")
 	} else {
 		// Write the stubHTML
@@ -646,11 +647,10 @@ func (e *codedError) Code() int {
 	return e.code
 }
 
-func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
+func (s *HTTPServer) handleUI(policy *config.ContentSecurityPolicy, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
-		agentConfig := s.agent.GetConfig()
-		header.Add("Content-Security-Policy", agentConfig.UI.ContentSecurityPolicy.String())
+		header.Add("Content-Security-Policy", policy.String())
 		h.ServeHTTP(w, req)
 	})
 }
