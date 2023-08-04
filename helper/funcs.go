@@ -509,10 +509,3 @@ func Merge[T comparable](a, b T) T {
 	}
 	return a
 }
-
-func MergeListWithDefaults(list []string, defaults []string) []string {
-	if len(list) == 0 {
-		return defaults
-	}
-	return list
-}
