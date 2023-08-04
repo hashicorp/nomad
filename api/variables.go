@@ -183,6 +183,9 @@ func (vars *Variables) GetVariableItems(path string, qo *QueryOptions) (Variable
 	return v.Items, qm, nil
 }
 
+// RenewLock renews the lease for the lock on the given variable. It has to be called
+// before the lock's TTL expires or the lock will be automatically released after the
+// delay period.
 func (vars *Variables) RenewLock(v *Variable, qo *WriteOptions) (*VariableMetadata, *WriteMeta, error) {
 	v.Path = cleanPathString(v.Path)
 	var out VariableMetadata
@@ -194,11 +197,15 @@ func (vars *Variables) RenewLock(v *Variable, qo *WriteOptions) (*VariableMetada
 	return &out, wm, nil
 }
 
-// Release lock removes the lock on the given variable.
+// ReleaseLock removes the lock on the given variable.
 func (vars *Variables) ReleaseLock(v *Variable, qo *WriteOptions) (*Variable, *WriteMeta, error) {
 	return vars.lockOperation(v, qo, "lock-release")
 }
 
+// AcquireLock adds a lock on the given variable and starts a lease on it. In order
+// to make any update on the locked variable, the lock ID has to be included in the
+// request. In order to maintain ownership of the lock, the lease needs to be
+// periodically renewed before the lock's TTL expires.
 func (vars *Variables) AcquireLock(v *Variable, qo *WriteOptions) (*Variable, *WriteMeta, error) {
 	return vars.lockOperation(v, qo, "lock-acquire")
 }
