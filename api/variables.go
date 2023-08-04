@@ -441,10 +441,6 @@ type VariableLock struct {
 	LockDelay string
 }
 
-func (vl VariableLock) Empty() bool {
-	return len(vl.ID) == 0
-}
-
 // VariableItems are the key/value pairs of a Variable.
 type VariableItems map[string]string
 
