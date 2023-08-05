@@ -93,6 +93,18 @@ Nomad models infrastructure as regions and datacenters. A region will contain
 one or more datacenters. A set of servers joined together will represent a
 single region. Servers federate across regions to make Nomad globally aware.
 
+In federated clusters one of the regions must be defined as the [authoritative
+region](#authoritative-and-non-authoritative-regions).
+
+#### Authoritative and Non-Authoritative Regions
+
+The authoritative region is the region in a federated multi-region cluster that
+holds the source of true for entities replicated across regions, such as ACL
+tokens, policies, and roles, namespaces, and node pools.
+
+All other regions are considered non-authoritative regions and replicate these
+entities by pulling them from the authoritative region.
+
 #### Datacenters
 
 Nomad models a datacenter as an abstract grouping of clients within a
