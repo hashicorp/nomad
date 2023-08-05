@@ -264,6 +264,9 @@ server {
   size of a job. If the limit is exceeded, the original source is simply discarded
   and no error is returned from the job API.
 
+- `job_tracked_versions` `(int: 6)` - Specifies the number of historic job versions that
+  are kept.
+
 ### Deprecated Parameters
 
 - `retry_join` `(array<string>: [])` - Specifies a list of server addresses to

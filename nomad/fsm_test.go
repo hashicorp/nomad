@@ -59,13 +59,14 @@ func testFSM(t *testing.T) *nomadFSM {
 	dispatcher, _ := testPeriodicDispatcher(t)
 	logger := testlog.HCLogger(t)
 	fsmConfig := &FSMConfig{
-		EvalBroker:        broker,
-		Periodic:          dispatcher,
-		Blocked:           NewBlockedEvals(broker, logger),
-		Logger:            logger,
-		Region:            "global",
-		EnableEventBroker: true,
-		EventBufferSize:   100,
+		EvalBroker:         broker,
+		Periodic:           dispatcher,
+		Blocked:            NewBlockedEvals(broker, logger),
+		Logger:             logger,
+		Region:             "global",
+		EnableEventBroker:  true,
+		EventBufferSize:    100,
+		JobTrackedVersions: structs.JobTrackedVersions,
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
