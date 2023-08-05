@@ -1,0 +1,122 @@
+---
+layout: docs
+page_title: Placement
+description: Learn about how placements are computed in Nomad.
+---
+
+# Placement
+
+When the Nomad scheduler receives a job registration request, it needs to
+determine which clients will run allocations for the job.
+
+This process is called allocation placement and can be important to understand
+it to help achieve important goals for your applications, such as high
+availability and resilience.
+
+By default, all nodes are considered for placements but this process can be
+adjusted via agent and job configuration.
+
+There are several options that can be used depending on the desired outcome.
+
+### Affinities and Constraints
+
+Affinities and constraints allow users to define soft or hard requirements for
+their jobs. The [`affinity`][job_affinity] block specifies a soft requirement
+on certain node properties, meaning allocations for the job have a preference
+for some nodes, but may be placed elsewhere if the rules can't be matched,
+while the [`constraint`][job_constraint] block creates hard requirements and
+allocations can only be placed in nodes that match these rules. Job placement
+fails if a constraint cannot be satisfied.
+
+These rules can reference intrinsic node characteristics, which are called
+[node attributes][] and are automatically detected by Nomad, static values
+defined in the agent configuration file by cluster administrators, or dynamic
+values defined after the agent starts.
+
+One restriction of using affinities and constraints is that they only express
+relationships from jobs to nodes, so it is not possible to use them to restrict
+a node to only receive allocations for specific jobs.
+
+Use affinities and constraints when some jobs have certain node preferences or
+requirements but it is acceptable to have other jobs sharing the same nodes.
+
+The sections below describe the node values that can be configured and used in
+job affinity and constraint rules.
+
+#### Node Class
+
+Node class is an arbitrary value that can be used to group nodes based on some
+characteristics, like the instance size or the presence of fast hard drives,
+and is specified in the client configuration file using the
+[`node_class`][config_client_node_class] parameter.
+
+#### Dynamic and Static Node Metadata
+
+Node metadata are arbitrary key-value mappings specified either in the client
+configuration file using the [`meta`][config_client_meta] parameter or
+dynamically via the [`nomad node meta`][cli_node_meta] command and the
+[`/v1/client/metadata`][api_client_metadata] API endpoint.
+
+There are no preconceived use cases for metadata values, and each team may
+choose to use them in different ways. Some examples of static metadata include
+resource ownership, such as `owner = "team-qa"`, or fine-grained locality,
+`rack = "3"`. Dynamic metadata may be used to track runtime information, such
+as jobs running in a given client.
+
+### Datacenter
+
+Datacenters represent a geographical location in a region that can be used for
+fault tolerance and infrastructure isolation.
+
+It is defined in the agent configuration file using the
+[`datacenter`][config_datacenter] parameter and, unlike affinities and
+constraints, datacenters are opt-in at the job level, meaning that a job only
+places allocations in the datacenters it uses, and, more importantly, only jobs
+in a given datacenter are allowed to place allocations in those nodes.
+
+Given the strong connotation of a geographical location, use datacenters to
+represent where a node resides rather than its intended use. The
+[`spread`][job_spread] block can help achieve fault tolerance across
+datacenters.
+
+### Node Pool
+
+Node pools allow grouping nodes that can be targeted by jobs to achieve
+workload isolation.
+
+Similarly to datacenters, node pools are configured in an agent configuration
+file using the [`node_pool`][config_client_node_pool] attribute, and are opt-in
+on jobs, allowing restricted use of certain nodes by specific jobs without
+extra configuration.
+
+But unlike datacenters, node pools don't have a preconceived notion and can be
+used for several use cases, such as segmenting infrastructure per environment
+(development, staging, production), by department (engineering, finance,
+support), or by functionality (databases, ingress proxy, applications).
+
+Node pools are also a first-class concept and can hold additional [metadata and
+configuration][spec_node_pool].
+
+Use node pools when there is a need to restrict and reserve certain nodes for
+specific workloads, or when you need to adjust specific [scheduler
+configuration][spec_node_pool_sched_config] values.
+
+Nomad Enterprise also allows associating a node pool to a namespace to
+facilitate managing the relationships between jobs, namespaces, and node pools.
+
+Refer to the [Node Pools][concept_np] concept page for more information.
+
+
+[api_client_metadata]: /nomad/api-docs/client#update-node-metadata
+[cli_node_meta]: /nomad/docs/commands/node/meta
+[concept_np]: /nomad/docs/concepts/node-pools
+[config_client_meta]: /nomad/docs/configuration/client#meta
+[config_client_node_class]: /nomad/docs/configuration/client#node_class
+[config_client_node_pool]: /nomad/docs/configuration/client#node_pool
+[config_datacenter]: /nomad/docs/configuration#datacenter
+[job_affinity]: /nomad/docs/job-specification/affinity
+[job_constraint]: /nomad/docs/job-specification/constraint
+[job_spread]: /nomad/docs/job-specification/spread
+[node attributes]: /nomad/docs/runtime/interpolation#node-attributes
+[spec_node_pool]: /nomad/docs/other-specifications/node-pool
+[spec_node_pool_sched_config]: /nomad/docs/other-specifications/node-pool#scheduler_config-parameters
