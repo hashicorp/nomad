@@ -4,7 +4,7 @@
 package resources
 
 import (
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/helper/stats"
 )
 
 // PIDs holds all of a task's pids and their cpu percentage calculators

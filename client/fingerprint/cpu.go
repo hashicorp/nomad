@@ -10,7 +10,8 @@ import (
 	"github.com/hashicorp/nomad/lib/cpuset"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/client/stats"
+	shelpers "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -42,7 +43,7 @@ func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
 }
 
 func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
-	f.initialize()
+	f.initialize(request)
 
 	f.setModelName(response)
 
@@ -61,8 +62,8 @@ func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *Fing
 	return nil
 }
 
-func (f *CPUFingerprint) initialize() {
-	if err := stats.Init(); err != nil {
+func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
+	if err := stats.Init(uint64(request.Config.CpuCompute)); err != nil {
 		f.logger.Warn("failed initializing stats collector", "error", err)
 	}
 }
@@ -134,10 +135,8 @@ func (f *CPUFingerprint) setReservableCores(request *FingerprintRequest, respons
 func (f *CPUFingerprint) setTotalCompute(request *FingerprintRequest, response *FingerprintResponse) {
 	var ticks uint64
 	switch {
-	case request.Config.CpuCompute > 0:
-		ticks = uint64(request.Config.CpuCompute)
-	case stats.TotalTicksAvailable() > 0:
-		ticks = stats.TotalTicksAvailable()
+	case shelpers.CpuTotalTicks() > 0:
+		ticks = shelpers.CpuTotalTicks()
 	default:
 		ticks = defaultCPUTicks
 	}

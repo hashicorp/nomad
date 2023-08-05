@@ -49,6 +49,7 @@ func init() {
 			Plugins: GetPluginMap(
 				logger,
 				executorConfig.FSIsolation,
+				executorConfig.CpuTotalTicks,
 			),
 			GRPCServer: plugin.DefaultGRPCServer,
 			Logger:     logger,

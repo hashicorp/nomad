@@ -1,0 +1,3 @@
+```release-note:bug
+fingerprint: fix 'default' alias not being added to interface specified by network_interface
+```

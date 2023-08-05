@@ -19,6 +19,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -185,6 +186,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		if ticks := specs.Ticks(); request.Config.CpuCompute <= 0 {
 			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", ticks))
 			f.logger.Debug("setting ec2 cpu", "ticks", ticks)
+			stats.SetCpuTotalTicks(uint64(ticks))
 			resources = new(structs.Resources)
 			resources.CPU = ticks
 			if nodeResources == nil {

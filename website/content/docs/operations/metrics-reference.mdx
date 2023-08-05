@@ -205,6 +205,7 @@ task driver; not all task drivers can provide all metrics.
 | `nomad.client.allocs.memory.cache`            | Amount of memory cached by the task                               | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.memory.kernel_max_usage` | Maximum amount of memory ever used by the kernel for this task    | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.memory.kernel_usage`     | Amount of memory used by the kernel for this task                 | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
+| `nomad.client.allocs.memory.max_allocated`    | Maximum amount of oversubscription memory allocated by the task   | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.memory.max_usage`        | Maximum amount of memory ever used by the task                    | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.memory.rss`              | Amount of RSS memory consumed by the task                         | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.memory.swap`             | Amount of memory swapped by the task                              | Bytes       | Gauge   | alloc_id, host, job, namespace, task, task_group |

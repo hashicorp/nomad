@@ -687,7 +687,9 @@ func (c *NodeStatusCommand) outputNodeCSIVolumeInfo(client *api.Client, node *ap
 	// Fetch the volume objects with current status
 	// Ignore an error, all we're going to do is omit the volumes
 	volumes := map[string]*api.CSIVolumeListStub{}
-	vs, _ := client.Nodes().CSIVolumes(node.ID, nil)
+	vs, _ := client.Nodes().CSIVolumes(node.ID, &api.QueryOptions{
+		Namespace: "*",
+	})
 	for _, v := range vs {
 		n, ok := requests[v.ID]
 		if ok {

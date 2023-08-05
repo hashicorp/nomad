@@ -56,6 +56,8 @@ func (u *UsageOptions) ToFS() string {
 type VolumeMounter interface {
 	MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *UsageOptions, publishContext map[string]string) (*MountInfo, error)
 	UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usageOpts *UsageOptions) error
+	HasMount(ctx context.Context, mountInfo *MountInfo) (bool, error)
+	ExternalID() string
 }
 
 type Manager interface {

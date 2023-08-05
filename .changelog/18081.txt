@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Add missing help message for the `-consul-namespace` flag in the `nomad job run` command
+```

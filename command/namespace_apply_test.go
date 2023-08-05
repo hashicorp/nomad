@@ -120,6 +120,24 @@ meta {
 			input:    "",
 			expected: &api.Namespace{},
 		},
+		{
+			name: "lists in node pool config are nil if not provided",
+			input: `
+name = "nil-lists"
+
+node_pool_config {
+  default = "default"
+}
+`,
+			expected: &api.Namespace{
+				Name: "nil-lists",
+				NodePoolConfiguration: &api.NamespaceNodePoolConfiguration{
+					Default: "default",
+					Allowed: nil,
+					Denied:  nil,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

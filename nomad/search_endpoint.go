@@ -659,8 +659,11 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 	return s.srv.blockingRPC(&opts)
 }
 
-// sufficientSearchPerms returns true if the provided ACL has access to any
-// capabilities required for prefix searching.
+// sufficientSearchPerms returns true if the provided ACL has access to *any*
+// capabilities required for prefix searching. This is intended as a performance
+// improvement so that we don't do expensive queries and then filter the results
+// if the user will never get any results. The caller still needs to filter
+// anything it gets from the state store.
 //
 // Returns true if aclObj is nil or is for a management token
 func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
@@ -668,32 +671,23 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 		return true
 	}
 
-	nodeRead := aclObj.AllowNodeRead()
-	allowNodePool := aclObj.AllowNodePoolSearch()
-	allowNS := aclObj.AllowNamespace(namespace)
-	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
-	allowEnt := sufficientSearchPermsEnt(aclObj)
-
-	if !nodeRead && !allowNodePool && !allowNS && !allowEnt && !jobRead {
-		return false
-	}
-
 	// Reject requests that explicitly specify a disallowed context. This
 	// should give the user better feedback than simply filtering out all
 	// results and returning an empty list.
 	switch context {
 	case structs.Nodes:
-		return nodeRead
+		return aclObj.AllowNodeRead()
 	case structs.NodePools:
 		// The search term alone is not enough to determine if the token is
 		// allowed to access the given prefix since it may not match node pool
 		// label in the policy. Node pools will be filtered when iterating over
 		// the results.
-		return allowNodePool
+		return aclObj.AllowNodePoolSearch()
 	case structs.Namespaces:
-		return allowNS
-	case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs:
-		return jobRead
+		return aclObj.AllowNamespace(namespace)
+	case structs.Allocs, structs.Deployments, structs.Evals, structs.Jobs,
+		structs.ScalingPolicies, structs.Recommendations:
+		return aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
 	case structs.Volumes:
 		return acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
 			acl.NamespaceCapabilityCSIReadVolume,
@@ -701,6 +695,10 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 			acl.NamespaceCapabilityReadJob)(aclObj, namespace)
 	case structs.Variables:
 		return aclObj.AllowVariableSearch(namespace)
+	case structs.Plugins:
+		return aclObj.AllowPluginList()
+	case structs.Quotas:
+		return aclObj.AllowQuotaRead()
 	}
 
 	return true
@@ -716,7 +714,7 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 //
 // These types are available for fuzzy searching:
 //
-//	Nodes, Node Pools, Namespaces, Jobs, Allocs, Plugins
+//	Nodes, Node Pools, Namespaces, Jobs, Allocs, Plugins, Variables
 //
 // Jobs are a special case that expand into multiple types, and whose return
 // values include Scope which is a descending list of IDs of parent objects,
@@ -927,7 +925,7 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 				available = append(available, c)
 			}
 		case structs.Variables:
-			if jobRead {
+			if aclObj.AllowVariableSearch(namespace) {
 				available = append(available, c)
 			}
 		case structs.Nodes:
@@ -940,6 +938,10 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 			}
 		case structs.Volumes:
 			if volRead {
+				available = append(available, c)
+			}
+		case structs.Plugins:
+			if aclObj.AllowPluginList() {
 				available = append(available, c)
 			}
 		default:

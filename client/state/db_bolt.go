@@ -35,6 +35,7 @@ allocations/
 	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
 	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
+	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
@@ -91,6 +92,8 @@ var (
 
 	// acknowledgedStateKey is the key *arstate.State is stored under
 	acknowledgedStateKey = []byte("acknowledged_state")
+
+	allocVolumeKey = []byte("alloc_volume")
 
 	// checkResultsBucket is the bucket name in which check query results are stored
 	checkResultsBucket = []byte("check_results")
@@ -441,6 +444,59 @@ func (s *BoltStateDB) GetAcknowledgedState(allocID string) (*arstate.State, erro
 		}
 
 		return allocBkt.Get(acknowledgedStateKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.State, nil
+}
+
+type allocVolumeStatesEntry struct {
+	State *arstate.AllocVolumes
+}
+
+// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so they
+// can be restored.
+func (s *BoltStateDB) PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		allocBkt, err := getAllocationBucket(tx, allocID)
+		if err != nil {
+			return err
+		}
+
+		entry := allocVolumeStatesEntry{
+			State: state,
+		}
+		return allocBkt.Put(allocVolumeKey, &entry)
+	})
+}
+
+// GetAllocVolumes retrieves stubs of an allocation's dynamic volume mounts so
+// they can be restored.
+func (s *BoltStateDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) {
+	var entry allocVolumeStatesEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(allocVolumeKey, &entry)
 	})
 
 	// It's valid for this field to be nil/missing

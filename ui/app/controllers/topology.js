@@ -170,8 +170,13 @@ export default class TopologyControllers extends Controller.extend(Searchable) {
         selectionClass,
         selectionNodePool,
       } = this;
+      const matchState =
+        selectionState.includes(node.status) ||
+        (selectionState.includes('ineligible') && !node.isEligible) ||
+        (selectionState.includes('draining') && node.isDraining);
+
       return (
-        (selectionState.length ? selectionState.includes(node.status) : true) &&
+        (selectionState.length ? matchState : true) &&
         (selectionVersion.length
           ? selectionVersion.includes(node.version)
           : true) &&

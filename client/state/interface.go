@@ -54,6 +54,14 @@ type StateDB interface {
 	// state. It may be nil even if there's no error
 	GetAcknowledgedState(string) (*arstate.State, error)
 
+	// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so
+	// they can be restored.
+	PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error
+
+	// GetAllocVolumes retrieves stubs of an allocation's dynamic volume mounts
+	// so they can be restored.
+	GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error)
+
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an
 	// error is encountered only the error will be non-nil.

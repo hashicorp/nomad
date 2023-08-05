@@ -355,8 +355,21 @@ export default class Job extends Model {
   // that will be submitted to the create job endpoint, another prop is necessary.
   @attr('string') _newDefinitionJSON;
 
-  @computed('variables', 'parent', 'plainId')
+  @computed('variables.[]', 'parent', 'plainId')
   get pathLinkedVariable() {
+    if (this.parent.get('id')) {
+      return this.variables?.findBy(
+        'path',
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`
+      );
+    } else {
+      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
+    }
+  }
+
+  // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
+  async getPathLinkedVariable() {
+    await this.variables;
     if (this.parent.get('id')) {
       return this.variables?.findBy(
         'path',

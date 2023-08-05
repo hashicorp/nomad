@@ -205,6 +205,8 @@ func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents)
 
 // NamespaceRestore is used to restore a namespace
 func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
+	// Handle upgrade path.
+	ns.Canonicalize()
 	if err := r.txn.Insert(TableNamespaces, ns); err != nil {
 		return fmt.Errorf("namespace insert failed: %v", err)
 	}

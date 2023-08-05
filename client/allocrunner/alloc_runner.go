@@ -734,6 +734,19 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	}
 	wg.Wait()
 
+	// Perform no action on post stop tasks, but retain their states if they exist. This
+	// commonly happens at the time of alloc GC from the client node.
+	for name, tr := range ar.tasks {
+		if !tr.IsPoststopTask() {
+			continue
+		}
+
+		state := tr.TaskState()
+		if state != nil {
+			states[name] = state
+		}
+	}
+
 	return states
 }
 
@@ -1459,4 +1472,21 @@ func (ar *allocRunner) GetUpdatePriority(a *structs.Allocation) cstructs.AllocUp
 	}
 
 	return cstructs.AllocUpdatePriorityNone
+}
+
+func (ar *allocRunner) SetCSIVolumes(vols map[string]*state.CSIVolumeStub) error {
+	return ar.stateDB.PutAllocVolumes(ar.id, &state.AllocVolumes{
+		CSIVolumes: vols,
+	})
+}
+
+func (ar *allocRunner) GetCSIVolumes() (map[string]*state.CSIVolumeStub, error) {
+	allocVols, err := ar.stateDB.GetAllocVolumes(ar.id)
+	if err != nil {
+		return nil, err
+	}
+	if allocVols == nil {
+		return nil, nil
+	}
+	return allocVols.CSIVolumes, nil
 }

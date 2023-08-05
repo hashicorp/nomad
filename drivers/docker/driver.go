@@ -74,6 +74,7 @@ const (
 	dockerLabelNamespace     = "com.hashicorp.nomad.namespace"
 	dockerLabelNodeName      = "com.hashicorp.nomad.node_name"
 	dockerLabelNodeID        = "com.hashicorp.nomad.node_id"
+	dockerLabelParentJobID   = "com.hashicorp.nomad.parent_job_id"
 )
 
 type pauseContainerStore struct {
@@ -1323,6 +1324,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 		if glob.Glob(configurationExtraLabel, "job_id") {
 			labels[dockerLabelJobID] = task.JobID
+		}
+		if glob.Glob(configurationExtraLabel, "parent_job_id") && len(task.ParentJobID) > 0 {
+			labels[dockerLabelParentJobID] = task.ParentJobID
 		}
 		if glob.Glob(configurationExtraLabel, "task_group_name") {
 			labels[dockerLabelTaskGroupName] = task.TaskGroupName

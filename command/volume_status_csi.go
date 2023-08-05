@@ -212,6 +212,7 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 	output := []string{
 		fmt.Sprintf("ID|%s", vol.ID),
 		fmt.Sprintf("Name|%s", vol.Name),
+		fmt.Sprintf("Namespace|%s", vol.Namespace),
 		fmt.Sprintf("External ID|%s", vol.ExternalID),
 		fmt.Sprintf("Plugin ID|%s", vol.PluginID),
 		fmt.Sprintf("Provider|%s", vol.Provider),

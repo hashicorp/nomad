@@ -22,6 +22,10 @@
             "path": "drivers/community/containerd"
           },
           {
+            "title": "Pledge",
+            "path": "drivers/community/pledge"
+          },
+          {
             "title": "Firecracker driver",
             "path": "drivers/community/firecracker-task-driver"
           },

@@ -105,7 +105,7 @@ function smallCluster(server) {
     createAllocations: true,
     groupTaskCount: activelyDeployingTasksPerGroup,
     shallow: true,
-    resourceSpec: Array(activelyDeployingJobGroups).fill(['M: 257, C: 500']),
+    resourceSpec: Array(activelyDeployingJobGroups).fill('M: 257, C: 500'),
     noDeployments: true, // manually created below
     activeDeployment: true,
     allocStatusDistribution: {
@@ -204,6 +204,7 @@ function smallCluster(server) {
     'just some arbitrary file',
     'another arbitrary file',
     'another arbitrary file again',
+    'nomad/jobs',
   ].forEach((path) => server.create('variable', { id: path }));
 
   server.create('variable', {
@@ -359,6 +360,11 @@ function mediumCluster(server) {
 function variableTestCluster(server) {
   faker.seed(1);
   createTokens(server);
+  server.create('token', {
+    name: 'Novars Murphy',
+    id: 'n0-v4r5-4cc355',
+    type: 'client',
+  });
   createNamespaces(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node-pool', 3);

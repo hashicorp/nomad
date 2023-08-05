@@ -4,10 +4,12 @@
 package acl
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 
 	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
 )
 
 const (
@@ -477,5 +479,73 @@ func hclDecode(p *Policy, rules string) (err error) {
 		}
 	}()
 
-	return hcl.Decode(p, rules)
+	if err = hcl.Decode(p, rules); err != nil {
+		return err
+	}
+
+	// Manually parse the policy to fix blocks without labels.
+	//
+	// Due to a bug in the way HCL decodes files, a block without a label may
+	// return an incorrect key value and make it impossible to determine if the
+	// key was set by the user or incorrectly set by the decoder.
+	//
+	// By manually parsing the file we are able to determine if the label is
+	// missing in the file and set them to an empty string so the policy
+	// validation can return the appropriate errors.
+	root, err := hcl.Parse(rules)
+	if err != nil {
+		return fmt.Errorf("failed to parse policy: %w", err)
+	}
+
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return errors.New("error parsing: root should be an object")
+	}
+
+	nsList := list.Filter("namespace")
+	for i, nsObj := range nsList.Items {
+		// Fix missing namespace key.
+		if len(nsObj.Keys) == 0 {
+			p.Namespaces[i].Name = ""
+		}
+
+		// Fix missing variable paths.
+		nsOT, ok := nsObj.Val.(*ast.ObjectType)
+		if !ok {
+			continue
+		}
+		varsList := nsOT.List.Filter("variables")
+		if varsList == nil || len(varsList.Items) == 0 {
+			continue
+		}
+
+		varsObj, ok := varsList.Items[0].Val.(*ast.ObjectType)
+		if !ok {
+			continue
+		}
+		paths := varsObj.List.Filter("path")
+		for j, path := range paths.Items {
+			if len(path.Keys) == 0 {
+				p.Namespaces[i].Variables.Paths[j].PathSpec = ""
+			}
+		}
+	}
+
+	npList := list.Filter("node_pool")
+	for i, npObj := range npList.Items {
+		// Fix missing node pool key.
+		if len(npObj.Keys) == 0 {
+			p.NodePools[i].Name = ""
+		}
+	}
+
+	hvList := list.Filter("host_volume")
+	for i, hvObj := range hvList.Items {
+		// Fix missing host volume key.
+		if len(hvObj.Keys) == 0 {
+			p.HostVolumes[i].Name = ""
+		}
+	}
+
+	return nil
 }

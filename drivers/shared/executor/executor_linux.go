@@ -24,10 +24,9 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/lib/resources"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -71,11 +70,10 @@ type LibcontainerExecutor struct {
 	exitState      *ProcessState
 }
 
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executor {
 	logger = logger.Named("isolated_executor")
-	if err := shelpers.Init(); err != nil {
-		logger.Error("unable to initialize stats", "error", err)
-	}
+	stats.SetCpuTotalTicks(cpuTotalTicks)
+
 	return &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger,

@@ -203,7 +203,7 @@ RETRY:
 		})
 	} else {
 		testutil.WaitForResult(func() (bool, error) {
-			req, _ := http.NewRequest("GET", "/v1/agent/self", nil)
+			req, _ := http.NewRequest(http.MethodGet, "/v1/agent/self", nil)
 			resp := httptest.NewRecorder()
 			_, err := a.Server.AgentSelfRequest(resp, req)
 			return err == nil && resp.Code == 200, err

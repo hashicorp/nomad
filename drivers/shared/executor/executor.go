@@ -23,9 +23,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/lib/resources"
-	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	shelpers "github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -259,11 +258,9 @@ type UniversalExecutor struct {
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(logger hclog.Logger) Executor {
+func NewExecutor(logger hclog.Logger, cpuTotalTicks uint64) Executor {
 	logger = logger.Named("executor")
-	if err := shelpers.Init(); err != nil {
-		logger.Error("unable to initialize stats", "error", err)
-	}
+	stats.SetCpuTotalTicks(cpuTotalTicks)
 
 	return &UniversalExecutor{
 		logger:         logger,

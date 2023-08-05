@@ -1,0 +1,3 @@
+```release-note:improvement
+jobspec: Add new parameter `render_templates` for `restart` block to allow explicit re-render of templates on task restart. The default value is `false` and is fully backward compatible
+```

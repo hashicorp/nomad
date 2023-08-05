@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -525,19 +526,20 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		return fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, alloc.NodeID)
 	}
 
-	// get the the storage provider's ID for the client node (not
-	// Nomad's ID for the node)
-	targetCSIInfo, ok := targetNode.CSINodePlugins[plug.ID]
-	if !ok {
-		return fmt.Errorf("failed to find storage provider info for client %q, node plugin %q is not running or has not fingerprinted on this client", targetNode.ID, plug.ID)
+	// if the RPC is sent by a client node, it may not know the claim's
+	// external node ID.
+	if req.ExternalNodeID == "" {
+		externalNodeID, err := v.lookupExternalNodeID(vol, req.ToClaim())
+		if err != nil {
+			return fmt.Errorf("missing external node ID: %v", err)
+		}
+		req.ExternalNodeID = externalNodeID
 	}
-	externalNodeID := targetCSIInfo.NodeInfo.ID
-	req.ExternalNodeID = externalNodeID // update with the target info
 
 	method := "ClientCSI.ControllerAttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		VolumeID:        vol.RemoteID(),
-		ClientCSINodeID: externalNodeID,
+		ClientCSINodeID: req.ExternalNodeID,
 		AttachmentMode:  req.AttachmentMode,
 		AccessMode:      req.AccessMode,
 		MountOptions:    csiVolumeMountOptions(vol.MountOptions),
@@ -548,7 +550,9 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 	cReq.PluginID = plug.ID
 	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}
 
-	err = v.srv.RPC(method, cReq, cResp)
+	err = v.serializedControllerRPC(plug.ID, func() error {
+		return v.srv.RPC(method, cReq, cResp)
+	})
 	if err != nil {
 		if strings.Contains(err.Error(), "FailedPrecondition") {
 			return fmt.Errorf("%v: %v", structs.ErrCSIClientRPCRetryable, err)
@@ -583,6 +587,57 @@ func (v *CSIVolume) volAndPluginLookup(namespace, volID string) (*structs.CSIPlu
 		return nil, nil, fmt.Errorf("plugin not found: %s", vol.PluginID)
 	}
 	return plug, vol, nil
+}
+
+// serializedControllerRPC ensures we're only sending a single controller RPC to
+// a given plugin if the RPC can cause conflicting state changes.
+//
+// The CSI specification says that we SHOULD send no more than one in-flight
+// request per *volume* at a time, with an allowance for losing state
+// (ex. leadership transitions) which the plugins SHOULD handle gracefully.
+//
+// In practice many CSI plugins rely on k8s-specific sidecars for serializing
+// storage provider API calls globally (ex. concurrently attaching EBS volumes
+// to an EC2 instance results in a race for device names). So we have to be much
+// more conservative about concurrency in Nomad than the spec allows.
+func (v *CSIVolume) serializedControllerRPC(pluginID string, fn func() error) error {
+
+	for {
+		v.srv.volumeControllerLock.Lock()
+		future := v.srv.volumeControllerFutures[pluginID]
+		if future == nil {
+			future, futureDone := context.WithCancel(v.srv.shutdownCtx)
+			v.srv.volumeControllerFutures[pluginID] = future
+			v.srv.volumeControllerLock.Unlock()
+
+			err := fn()
+
+			// close the future while holding the lock and not in a defer so
+			// that we can ensure we've cleared it from the map before allowing
+			// anyone else to take the lock and write a new one
+			v.srv.volumeControllerLock.Lock()
+			futureDone()
+			delete(v.srv.volumeControllerFutures, pluginID)
+			v.srv.volumeControllerLock.Unlock()
+
+			return err
+		} else {
+			v.srv.volumeControllerLock.Unlock()
+
+			select {
+			case <-future.Done():
+				continue
+			case <-v.srv.shutdownCh:
+				// The csi_hook publish workflow on the client will retry if it
+				// gets this error. On unpublish, we don't want to block client
+				// shutdown so we give up on error. The new leader's
+				// volumewatcher will iterate all the claims at startup to
+				// detect this and mop up any claims in the NodeDetached state
+				// (volume GC will run periodically as well)
+				return structs.ErrNoLeader
+			}
+		}
+	}
 }
 
 // allowCSIMount is called on Job register to check mount permission
@@ -846,7 +901,7 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 		}
 	}
 
-	// if the RPC is sent by a client node, it doesn't know the claim's
+	// if the RPC is sent by a client node, it may not know the claim's
 	// external node ID.
 	if claim.ExternalNodeID == "" {
 		externalNodeID, err := v.lookupExternalNodeID(vol, claim)
@@ -862,8 +917,11 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 		Secrets:         vol.Secrets,
 	}
 	req.PluginID = vol.PluginID
-	err = v.srv.RPC("ClientCSI.ControllerDetachVolume", req,
-		&cstructs.ClientCSIControllerDetachVolumeResponse{})
+
+	err = v.serializedControllerRPC(vol.PluginID, func() error {
+		return v.srv.RPC("ClientCSI.ControllerDetachVolume", req,
+			&cstructs.ClientCSIControllerDetachVolumeResponse{})
+	})
 	if err != nil {
 		return fmt.Errorf("could not detach from controller: %v", err)
 	}
@@ -1138,7 +1196,9 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
 
-	return v.srv.RPC(method, cReq, cResp)
+	return v.serializedControllerRPC(plugin.ID, func() error {
+		return v.srv.RPC(method, cReq, cResp)
+	})
 }
 
 func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
@@ -1285,7 +1345,9 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 		}
 		cReq.PluginID = pluginID
 		cResp := &cstructs.ClientCSIControllerCreateSnapshotResponse{}
-		err = v.srv.RPC(method, cReq, cResp)
+		err = v.serializedControllerRPC(pluginID, func() error {
+			return v.srv.RPC(method, cReq, cResp)
+		})
 		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("could not create snapshot: %v", err))
 			continue
@@ -1359,7 +1421,9 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{ID: snap.ID}
 		cReq.PluginID = plugin.ID
 		cResp := &cstructs.ClientCSIControllerDeleteSnapshotResponse{}
-		err = v.srv.RPC(method, cReq, cResp)
+		err = v.serializedControllerRPC(plugin.ID, func() error {
+			return v.srv.RPC(method, cReq, cResp)
+		})
 		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("could not delete %q: %v", snap.ID, err))
 		}

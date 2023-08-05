@@ -62,6 +62,14 @@ func (m *ErrDB) GetAcknowledgedState(allocID string) (*arstate.State, error) {
 	return nil, fmt.Errorf("Error!")
 }
 
+func (m *ErrDB) PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
 func (m *ErrDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	return nil, nil, fmt.Errorf("Error!")
 }

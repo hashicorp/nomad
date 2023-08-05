@@ -77,7 +77,7 @@ func TestFingerprint_DigitalOcean(t *testing.T) {
 		}
 
 		if !found {
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
 	defer ts.Close()

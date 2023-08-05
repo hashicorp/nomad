@@ -15,15 +15,16 @@ import (
 type ExecutorPlugin struct {
 	// TODO: support backwards compatibility with pre 0.9 NetRPC plugin
 	plugin.NetRPCUnsupportedPlugin
-	logger      hclog.Logger
-	fsIsolation bool
+	logger        hclog.Logger
+	fsIsolation   bool
+	cpuTotalTicks uint64
 }
 
 func (p *ExecutorPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	if p.fsIsolation {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger, p.cpuTotalTicks)})
 	} else {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger, p.cpuTotalTicks)})
 	}
 	return nil
 }

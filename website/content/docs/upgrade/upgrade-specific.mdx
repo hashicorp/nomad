@@ -34,6 +34,76 @@ called this endpoint or used this command using tokens with just the `read-job`
 capability or the `read` policy must update their tokens to use the
 `submit-job` capability or the `write` policy.
 
+#### Exec Driver Requires New Capability for mlock
+
+Nomad 1.6.0 updated the `exec` task driver to maintain the max memory locked
+limit set by the host system. In earlier versions of Nomad this limit was
+*unset* unintentionally.
+
+In practice this means that `exec` tasks such as Vault which use the `mlock`
+system call will now need to explicitly add the `ipc_lock` capability.
+
+First [allow the `ipc_lock` capability in the Client
+configuration][allow_caps_exec]:
+
+```hcl
+plugin "exec" {
+  config {
+    allow_caps = ["audit_write", "chown", "dac_override", "fowner", "fsetid",
+      "kill", "mknod", "net_bind_service", "setfcap", "setgid", "setpcap",
+      "setuid", "sys_chroot", "ipc_lock"]
+  }
+}
+```
+
+Then [add the `ipc_lock` capability to the exec task][cap_add_exec] that uses
+`mlock`:
+
+```hcl
+task "vault" {
+  driver = "exec"
+
+  config {
+    cap_add = ["ipc_lock"]
+
+    # ... other task configuration
+  }
+
+# ... rest of jobspec
+```
+
+These additions are backward compatible with Nomad v1.5, so Clients and Jobs
+should be updated prior to upgrading to Nomad v1.6.
+
+See [#17780](https://github.com/hashicorp/nomad/issues/17780) for details.
+
+#### Namespace ACL policies require a label
+
+Nomad 1.6.0 does not allow ACL policies for namespaces without a label. Prior
+to this version, ACL policies for namespaces were allowed to be defined
+without a label, and the documented behavior in this case was that the policy
+would be applied to the `default` namespace.
+
+A bug in this logic caused the policy to be incorrectly applied to a different
+namespace. For example, the policy below would be applied to a namespace called
+`policy` instead of `default`.
+
+```hcl
+namespace {
+  policy = "read"
+}
+```
+
+To avoid further confusion and potential security incidents, this functionality
+was removed and now all namespace policies are required to have a label.
+
+Tokens currently attached to an invalid policy will stop working after the
+upgrade, so you should fix invalid policies to have an explicit namespace label
+before upgrading Nomad.
+
+After the policies are fixed, the existing tokens with those policies will
+continue to work and do not need to be regenerated.
+
 #### Command `nomad tls cert create` flag `-cluster-region` deprecated
 
 Nomad 1.6.0 will deprecate the command `nomad tls cert create` flag `-cluster-region`
@@ -52,6 +122,35 @@ may be removed in a future major version of Nomad. The 32-bit ARM build is not
 tested and may include bugs around platform-specific integer sizes. Using 64-bit
 builds for small form-factor hosts such as the RaspberryPi is strongly
 recommended.
+
+## Nomad 1.5.7, 1.4.11
+
+#### Namespace ACL policies require a label
+
+Nomad 1.5.7 and 1.4.11 do not allow ACL policies for namespaces without a
+label. Prior to these versions, ACL policies for namespaces were allowed to be
+defined without a label, and the documented behavior in this case was that the
+policy would be applied to the `default` namespace.
+
+A bug in this logic caused the policy to be incorrectly applied to a different
+namespace. For example, the policy below would be applied to a namespace called
+`policy` instead of `default`.
+
+```hcl
+namespace {
+  policy = "read"
+}
+```
+
+To avoid further confusion and potential security incidents, this functionality
+was removed and now all namespace policies are required to have a label.
+
+Tokens currently attached to an invalid policy will stop working after the
+upgrade, so you should fix invalid policies to have an explicit namespace label
+before upgrading Nomad.
+
+After the policies are fixed, the existing tokens with those policies will
+continue to work and do not need to be regenerated.
 
 ## Nomad 1.5.5
 
