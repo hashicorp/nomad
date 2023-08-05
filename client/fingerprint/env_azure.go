@@ -82,7 +82,7 @@ func (f *EnvAzureFingerprint) Get(attribute string, format string) (string, erro
 	}
 
 	req := &http.Request{
-		Method: http.MethodGet,
+		Method: "GET",
 		URL:    parsedURL,
 		Header: http.Header{
 			"Metadata":   []string{"true"},

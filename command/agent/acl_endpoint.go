@@ -12,7 +12,7 @@ import (
 )
 
 func (s *HTTPServer) ACLPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -39,11 +39,11 @@ func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *htt
 		return nil, CodedError(400, "Missing Policy Name")
 	}
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		return s.aclPolicyQuery(resp, req, name)
-	case http.MethodPut, http.MethodPost:
+	case "PUT", "POST":
 		return s.aclPolicyUpdate(resp, req, name)
-	case http.MethodDelete:
+	case "DELETE":
 		return s.aclPolicyDelete(resp, req, name)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -115,7 +115,7 @@ func (s *HTTPServer) aclPolicyDelete(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -187,11 +187,11 @@ func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,
 	}
 
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		return s.aclTokenQuery(resp, req, tokenAccessor)
-	case http.MethodPut, http.MethodPost:
+	case "PUT", "POST":
 		return s.aclTokenUpdate(resp, req, tokenAccessor)
-	case http.MethodDelete:
+	case "DELETE":
 		return s.aclTokenDelete(resp, req, tokenAccessor)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -220,7 +220,7 @@ func (s *HTTPServer) aclTokenQuery(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.ResolveACLTokenRequest{}

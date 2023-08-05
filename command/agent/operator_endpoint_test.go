@@ -32,7 +32,7 @@ func TestHTTP_OperatorRaftConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, err := http.NewRequest(http.MethodGet, "/v1/operator/raft/configuration", body)
+		req, err := http.NewRequest("GET", "/v1/operator/raft/configuration", body)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -62,7 +62,7 @@ func TestHTTP_OperatorRaftPeer(t *testing.T) {
 	assert := assert.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, err := http.NewRequest(http.MethodDelete, "/v1/operator/raft/peer?address=nope", body)
+		req, err := http.NewRequest("DELETE", "/v1/operator/raft/peer?address=nope", body)
 		assert.Nil(err)
 
 		// If we get this error, it proves we sent the address all the
@@ -77,7 +77,7 @@ func TestHTTP_OperatorRaftPeer(t *testing.T) {
 
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, err := http.NewRequest(http.MethodDelete, "/v1/operator/raft/peer?id=nope", body)
+		req, err := http.NewRequest("DELETE", "/v1/operator/raft/peer?id=nope", body)
 		assert.Nil(err)
 
 		// If we get this error, it proves we sent the address all the
@@ -95,13 +95,13 @@ func TestOperator_AutopilotGetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest(http.MethodGet, "/v1/operator/autopilot/configuration", body)
+		req, _ := http.NewRequest("GET", "/v1/operator/autopilot/configuration", body)
 		resp := httptest.NewRecorder()
 		obj, err := s.Server.OperatorAutopilotConfiguration(resp, req)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if resp.Code != http.StatusOK {
+		if resp.Code != 200 {
 			t.Fatalf("bad code: %d", resp.Code)
 		}
 		out, ok := obj.(api.AutopilotConfiguration)
@@ -118,7 +118,7 @@ func TestOperator_AutopilotSetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer([]byte(`{"CleanupDeadServers": false}`))
-		req, _ := http.NewRequest(http.MethodPut, "/v1/operator/autopilot/configuration", body)
+		req, _ := http.NewRequest("PUT", "/v1/operator/autopilot/configuration", body)
 		resp := httptest.NewRecorder()
 		if _, err := s.Server.OperatorAutopilotConfiguration(resp, req); err != nil {
 			t.Fatalf("err: %v", err)
@@ -147,7 +147,7 @@ func TestOperator_AutopilotCASConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer([]byte(`{"CleanupDeadServers": false}`))
-		req, _ := http.NewRequest(http.MethodPut, "/v1/operator/autopilot/configuration", body)
+		req, _ := http.NewRequest("PUT", "/v1/operator/autopilot/configuration", body)
 		resp := httptest.NewRecorder()
 		if _, err := s.Server.OperatorAutopilotConfiguration(resp, req); err != nil {
 			t.Fatalf("err: %v", err)
@@ -174,7 +174,7 @@ func TestOperator_AutopilotCASConfiguration(t *testing.T) {
 		// Create a CAS request, bad index
 		{
 			buf := bytes.NewBuffer([]byte(`{"CleanupDeadServers": true}`))
-			req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/v1/operator/autopilot/configuration?cas=%d", reply.ModifyIndex-1), buf)
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/autopilot/configuration?cas=%d", reply.ModifyIndex-1), buf)
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorAutopilotConfiguration(resp, req)
 			if err != nil {
@@ -189,7 +189,7 @@ func TestOperator_AutopilotCASConfiguration(t *testing.T) {
 		// Create a CAS request, good index
 		{
 			buf := bytes.NewBuffer([]byte(`{"CleanupDeadServers": true}`))
-			req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/v1/operator/autopilot/configuration?cas=%d", reply.ModifyIndex), buf)
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/autopilot/configuration?cas=%d", reply.ModifyIndex), buf)
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorAutopilotConfiguration(resp, req)
 			if err != nil {
@@ -218,7 +218,7 @@ func TestOperator_ServerHealth(t *testing.T) {
 		c.Server.RaftProtocol = 3
 	}, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest(http.MethodGet, "/v1/operator/autopilot/health", body)
+		req, _ := http.NewRequest("GET", "/v1/operator/autopilot/health", body)
 		f := func() error {
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorServerHealth(resp, req)
@@ -259,7 +259,7 @@ func TestOperator_ServerHealth_Unhealthy(t *testing.T) {
 		c.Autopilot.LastContactThreshold = -1 * time.Second
 	}, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest(http.MethodGet, "/v1/operator/autopilot/health", body)
+		req, _ := http.NewRequest("GET", "/v1/operator/autopilot/health", body)
 		f := func() error {
 			resp := httptest.NewRecorder()
 			obj, err := s.Server.OperatorServerHealth(resp, req)
@@ -294,7 +294,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest(http.MethodGet, "/v1/operator/scheduler/configuration", body)
+		req, _ := http.NewRequest("GET", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(t, err)
@@ -324,7 +324,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
     "ServiceSchedulerEnabled": true
   }
 }`))
-		req, _ := http.NewRequest(http.MethodPut, "/v1/operator/scheduler/configuration", body)
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(t, err)
@@ -360,7 +360,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
                      "SysBatchSchedulerEnabled":true,
                      "BatchSchedulerEnabled":true
         }}`))
-		req, _ := http.NewRequest(http.MethodPut, "/v1/operator/scheduler/configuration", body)
+		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(err)
@@ -390,7 +390,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
                      "SystemSchedulerEnabled": false,
                      "BatchSchedulerEnabled":true
         }}`))
-			req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index-1), buf)
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index-1), buf)
 			resp := httptest.NewRecorder()
 			setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 			require.Nil(err)
@@ -407,7 +407,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
                      "SystemSchedulerEnabled": false,
                      "BatchSchedulerEnabled":false
         }}`))
-			req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index), buf)
+			req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/operator/scheduler/configuration?cas=%d", reply.QueryMeta.Index), buf)
 			resp := httptest.NewRecorder()
 			setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 			require.Nil(err)
@@ -462,7 +462,7 @@ func TestOperator_SnapshotRequests(t *testing.T) {
 		require.NoError(t, err)
 
 		// now actually snapshot
-		req, _ := http.NewRequest(http.MethodGet, "/v1/operator/snapshot", nil)
+		req, _ := http.NewRequest("GET", "/v1/operator/snapshot", nil)
 		resp := httptest.NewRecorder()
 		_, err = s.Server.SnapshotRequest(resp, req)
 		require.NoError(t, err)
@@ -498,7 +498,7 @@ func TestOperator_SnapshotRequests(t *testing.T) {
 	}, func(s *TestAgent) {
 		jobExists := func() bool {
 			// check job isn't present
-			req, _ := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID, nil)
+			req, _ := http.NewRequest("GET", "/v1/job/"+job.ID, nil)
 			resp := httptest.NewRecorder()
 			j, _ := s.Server.jobCRUD(resp, req, job.ID)
 			return j != nil
@@ -512,7 +512,7 @@ func TestOperator_SnapshotRequests(t *testing.T) {
 		require.NoError(t, err)
 		defer f.Close()
 
-		req, _ := http.NewRequest(http.MethodPut, "/v1/operator/snapshot", f)
+		req, _ := http.NewRequest("PUT", "/v1/operator/snapshot", f)
 		resp := httptest.NewRecorder()
 		_, err = s.Server.SnapshotRequest(resp, req)
 		require.NoError(t, err)

@@ -28,7 +28,7 @@ jobs:
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Determine Go version
@@ -43,7 +43,7 @@ jobs:
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: get product version
@@ -58,7 +58,7 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
       - name: "Checkout directory"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Generate metadata file
@@ -86,11 +86,11 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -98,7 +98,7 @@ jobs:
         run: make deps
 
       - name: Setup node and yarn
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
@@ -138,11 +138,11 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -150,7 +150,7 @@ jobs:
         run: make deps
 
       - name: Setup node and yarn
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
@@ -243,7 +243,7 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
 
@@ -256,7 +256,7 @@ jobs:
         run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
 
       - name: Setup go
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -264,7 +264,7 @@ jobs:
         run: make deps
 
       - name: Setup node and yarn
-        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
           node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
@@ -305,7 +305,7 @@ jobs:
       version: ${{needs.get-product-version.outputs.product-version}}
       revision: ${{github.sha}}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - name: Set revision
         if: "${{ github.event.inputs.build-ref != '' }}"
         run: |
@@ -347,7 +347,7 @@ jobs:
         goos: [linux]
         goarch: [amd64]
     steps:
-      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
           go-version: ${{needs.get-go-version.outputs.go-version}}
       - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2

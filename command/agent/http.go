@@ -501,9 +501,6 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.VariablesListRequest)))
 	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
-	// JWKS Handler
-	s.mux.HandleFunc("/.well-known/jwks.json", s.wrap(s.JWKSRequest))
-
 	agentConfig := s.agent.GetConfig()
 	uiConfigEnabled := agentConfig.UI != nil && agentConfig.UI.Enabled
 
@@ -664,7 +661,7 @@ func (s *HTTPServer) handleRootFallthrough() http.Handler {
 			if req.URL.RawQuery != "" {
 				url = url + "?" + req.URL.RawQuery
 			}
-			http.Redirect(w, req, url, http.StatusTemporaryRedirect)
+			http.Redirect(w, req, url, 307)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -880,7 +877,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if wait := query.Get("wait"); wait != "" {
 		dur, err := time.ParseDuration(wait)
 		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
+			resp.WriteHeader(400)
 			resp.Write([]byte("Invalid wait time"))
 			return true
 		}
@@ -889,7 +886,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if idx := query.Get("index"); idx != "" {
 		index, err := strconv.ParseUint(idx, 10, 64)
 		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
+			resp.WriteHeader(400)
 			resp.Write([]byte("Invalid index"))
 			return true
 		}
@@ -908,7 +905,7 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 		}
 		staleQuery, err := strconv.ParseBool(staleVal[0])
 		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
+			resp.WriteHeader(400)
 			_, _ = resp.Write([]byte(fmt.Sprintf("Expect `true` or `false` for `stale` query string parameter, got %s", staleVal[0])))
 			return
 		}
@@ -1166,7 +1163,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 		}
 
 		a.srv.logger.Error("error authenticating built API request", "error", err, "url", req.URL, "method", req.Method)
-		resp.WriteHeader(http.StatusInternalServerError)
+		resp.WriteHeader(500)
 		resp.Write([]byte("Server error authenticating request\n"))
 		return
 	}

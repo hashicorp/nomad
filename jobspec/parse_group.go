@@ -321,7 +321,6 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 		"interval",
 		"delay",
 		"mode",
-		"render_templates",
 	}
 	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err

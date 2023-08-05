@@ -88,7 +88,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		}
 
 		if !found {
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(404)
 		}
 	}))
 	defer ts.Close()

@@ -203,11 +203,11 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 	qr.StatusCode = result.StatusCode
 
 	switch {
-	case result.StatusCode == http.StatusOK:
+	case result.StatusCode == 200:
 		qr.Status = structs.CheckSuccess
 		qr.Output = "nomad: http ok"
 		return qr
-	case result.StatusCode < http.StatusBadRequest:
+	case result.StatusCode < 400:
 		qr.Status = structs.CheckSuccess
 	default:
 		qr.Status = structs.CheckFailure

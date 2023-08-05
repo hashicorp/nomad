@@ -21,7 +21,7 @@ case $(arch) in
 esac
 
 function install_go() {
-	local go_version="1.20.6"
+	local go_version="1.20.5"
 	local download="https://storage.googleapis.com/golang/go${go_version}.linux-${ARCH}.tar.gz"
 
 	if go version 2>&1 | grep -q "${go_version}"; then

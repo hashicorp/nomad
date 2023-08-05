@@ -38,7 +38,7 @@ func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request
 // OperatorRaftConfiguration is used to inspect the current Raft configuration.
 // This supports the stale query mode in case the cluster doesn't have a leader.
 func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return nil, nil
 	}
@@ -59,7 +59,7 @@ func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *ht
 // OperatorRaftPeer supports actions on Raft peers. Currently we only support
 // removing peers by address.
 func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodDelete {
+	if req.Method != "DELETE" {
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
 
@@ -102,7 +102,7 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Switch on the method
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		var args structs.GenericRequest
 		if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
 			return nil, nil
@@ -128,7 +128,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 
 		return out, nil
 
-	case http.MethodPut:
+	case "PUT":
 		var args structs.AutopilotSetConfigRequest
 		s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -177,7 +177,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 
 // OperatorServerHealth is used to get the health of the servers in the given Region.
 func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
 
@@ -225,10 +225,10 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Switch on the method
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		return s.schedulerGetConfig(resp, req)
 
-	case http.MethodPut, http.MethodPost:
+	case "PUT", "POST":
 		return s.schedulerUpdateConfig(resp, req)
 
 	default:
@@ -297,9 +297,9 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 
 func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		return s.snapshotSaveRequest(resp, req)
-	case http.MethodPut, http.MethodPost:
+	case "PUT", "POST":
 		return s.snapshotRestoreRequest(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)

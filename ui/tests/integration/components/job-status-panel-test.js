@@ -71,7 +71,7 @@ module(
         activeDeployment: true,
         groupTaskCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: Array(NUMBER_OF_GROUPS).fill('M: 257, C: 500'), // length of this array determines number of groups
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
         allocStatusDistribution,
       });
 
@@ -406,7 +406,7 @@ module(
         activeDeployment: true,
         groupTaskCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: Array(NUMBER_OF_GROUPS).fill('M: 257, C: 500'), // length of this array determines number of groups
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
         allocStatusDistribution,
       });
 
@@ -488,7 +488,7 @@ module(
         activeDeployment: true,
         groupTaskCount: ALLOCS_PER_GROUP,
         shallow: true,
-        resourceSpec: Array(NUMBER_OF_GROUPS).fill('M: 257, C: 500'), // length of this array determines number of groups
+        resourceSpec: Array(NUMBER_OF_GROUPS).fill(['M: 257, C: 500']), // length of this array determines number of groups
         allocStatusDistribution,
       });
 

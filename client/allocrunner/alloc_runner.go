@@ -734,19 +734,6 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	}
 	wg.Wait()
 
-	// Perform no action on post stop tasks, but retain their states if they exist. This
-	// commonly happens at the time of alloc GC from the client node.
-	for name, tr := range ar.tasks {
-		if !tr.IsPoststopTask() {
-			continue
-		}
-
-		state := tr.TaskState()
-		if state != nil {
-			states[name] = state
-		}
-	}
-
 	return states
 }
 

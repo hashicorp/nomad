@@ -305,9 +305,6 @@ module('Acceptance | keyboard', function (hooks) {
     });
 
     test('Dynamic nav arrows and looping', async function (assert) {
-      // Make sure user is a management token so Variables appears, etc.
-      let token = server.create('token', { type: 'management' });
-      window.localStorage.nomadTokenSecret = token.secretId;
       server.createList('job', 3, { createAllocations: true, type: 'system' });
       const jobID = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
       await visit(`/jobs/${jobID}@default`);
@@ -352,26 +349,8 @@ module('Acceptance | keyboard', function (hooks) {
       });
       assert.equal(
         currentURL(),
-        `/jobs/${jobID}@default/clients`,
-        'Shift+ArrowRight takes you to the next tab (Clients)'
-      );
-
-      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
-        shiftKey: true,
-      });
-      assert.equal(
-        currentURL(),
         `/jobs/${jobID}@default/services`,
         'Shift+ArrowRight takes you to the next tab (Services)'
-      );
-
-      await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
-        shiftKey: true,
-      });
-      assert.equal(
-        currentURL(),
-        `/jobs/${jobID}@default/variables`,
-        'Shift+ArrowRight takes you to the next tab (Variables)'
       );
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {
@@ -382,7 +361,6 @@ module('Acceptance | keyboard', function (hooks) {
         `/jobs/${jobID}@default`,
         'Shift+ArrowRight takes you to the first tab in the loop'
       );
-      window.localStorage.nomadTokenSecret = null; // Reset Token
     });
 
     test('Region switching', async function (assert) {

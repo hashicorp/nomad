@@ -5865,18 +5865,16 @@ var (
 	// Canonicalize in api/tasks.go
 
 	DefaultServiceJobRestartPolicy = RestartPolicy{
-		Delay:           15 * time.Second,
-		Attempts:        2,
-		Interval:        30 * time.Minute,
-		Mode:            RestartPolicyModeFail,
-		RenderTemplates: false,
+		Delay:    15 * time.Second,
+		Attempts: 2,
+		Interval: 30 * time.Minute,
+		Mode:     RestartPolicyModeFail,
 	}
 	DefaultBatchJobRestartPolicy = RestartPolicy{
-		Delay:           15 * time.Second,
-		Attempts:        3,
-		Interval:        24 * time.Hour,
-		Mode:            RestartPolicyModeFail,
-		RenderTemplates: false,
+		Delay:    15 * time.Second,
+		Attempts: 3,
+		Interval: 24 * time.Hour,
+		Mode:     RestartPolicyModeFail,
 	}
 )
 
@@ -6209,9 +6207,6 @@ type RestartPolicy struct {
 	// Mode controls what happens when the task restarts more than attempt times
 	// in an interval.
 	Mode string
-
-	// RenderTemplates is flag to explicitly render all templates on task restart
-	RenderTemplates bool
 }
 
 func (r *RestartPolicy) Copy() *RestartPolicy {

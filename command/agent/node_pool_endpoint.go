@@ -13,9 +13,9 @@ import (
 
 func (s *HTTPServer) NodePoolsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		return s.nodePoolList(resp, req)
-	case http.MethodPut, http.MethodPost:
+	case "PUT", "POST":
 		return s.nodePoolUpsert(resp, req, "")
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
@@ -38,11 +38,11 @@ func (s *HTTPServer) NodePoolSpecificRequest(resp http.ResponseWriter, req *http
 
 func (s *HTTPServer) nodePoolCRUD(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		return s.nodePoolQuery(resp, req, poolName)
-	case http.MethodPut, http.MethodPost:
+	case "PUT", "POST":
 		return s.nodePoolUpsert(resp, req, poolName)
-	case http.MethodDelete:
+	case "DELETE":
 		return s.nodePoolDelete(resp, req, poolName)
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)

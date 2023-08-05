@@ -57,11 +57,11 @@ Logs Specific Options:
     Show full information.
 
   -task <task-name>
-    Sets the task to view the logs. If task name is given with both an argument
+    Sets the task to view the logs. If task name is given with both an argument 
 	and the '-task' option, preference is given to the '-task' option.
 
   -job <job-id>
-    Use a random allocation from the specified job ID or prefix.
+    Use a random allocation from the specified job ID.
 
   -f
     Causes the output to not stop when the end of the logs are reached, but
@@ -167,13 +167,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if l.job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], nil)
-		if err != nil {
-			l.Ui.Error(err.Error())
-			return 1
-		}
-
-		allocID, err = getRandomJobAllocID(client, jobID, ns)
+		allocID, err = getRandomJobAllocID(client, args[0])
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -403,15 +397,11 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 		case stdoutErr := <-stdoutErrCh:
 			return fmt.Errorf("received an error from stdout log stream: %v", stdoutErr)
 		case stdoutFrame := <-stdoutFrames:
-			if stdoutFrame != nil {
-				logUI.Output(string(stdoutFrame.Data))
-			}
+			logUI.Output(string(stdoutFrame.Data))
 		case stderrErr := <-stderrErrCh:
 			return fmt.Errorf("received an error from stderr log stream: %v", stderrErr)
 		case stderrFrame := <-stderrFrames:
-			if stderrFrame != nil {
-				logUI.Warn(string(stderrFrame.Data))
-			}
+			logUI.Warn(string(stderrFrame.Data))
 		}
 	}
 }

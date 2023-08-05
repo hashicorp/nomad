@@ -189,7 +189,6 @@ require (
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
 	github.com/fatih/color v1.15.0
 	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/go-jose/go-jose/v3 v3.0.0
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect

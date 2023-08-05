@@ -103,6 +103,5 @@ linters:
     # - errchkjson (todo)
     # - errorlint (todo)
     - exportloopref
-    - usestdlibvars
   fast: false
 

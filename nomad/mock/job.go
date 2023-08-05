@@ -44,11 +44,10 @@ func Job() *structs.Job {
 					SizeMB: 150,
 				},
 				RestartPolicy: &structs.RestartPolicy{
-					Attempts:        3,
-					Interval:        10 * time.Minute,
-					Delay:           1 * time.Minute,
-					Mode:            structs.RestartPolicyModeDelay,
-					RenderTemplates: false,
+					Attempts: 3,
+					Interval: 10 * time.Minute,
+					Delay:    1 * time.Minute,
+					Mode:     structs.RestartPolicyModeDelay,
 				},
 				ReschedulePolicy: &structs.ReschedulePolicy{
 					Attempts:      2,

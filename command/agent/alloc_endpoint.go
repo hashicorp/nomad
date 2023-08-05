@@ -27,7 +27,7 @@ const (
 )
 
 func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -99,7 +99,7 @@ func (s *HTTPServer) AllocSpecificRequest(resp http.ResponseWriter, req *http.Re
 }
 
 func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != http.MethodGet {
+	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 

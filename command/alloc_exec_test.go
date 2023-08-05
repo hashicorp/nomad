@@ -60,7 +60,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 		{
 			"job not found",
 			[]string{"-address=" + url, "-job", "example", "/bin/bash"},
-			`No job(s) with prefix or ID "example" found`,
+			`job "example" doesn't exist`,
 		},
 		{
 			"command missing",

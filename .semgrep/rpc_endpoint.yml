@@ -108,7 +108,6 @@ rules:
             - pattern-not: '"Status.Leader"'
             - pattern-not: '"Status.Peers"'
             - pattern-not: '"Status.Version"'
-            - pattern-not: '"Keyring.ListPublic"'
     message: "RPC method $METHOD appears to be unauthenticated"
     languages:
       - "go"

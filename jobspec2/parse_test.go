@@ -1086,21 +1086,3 @@ func TestErrMissingKey(t *testing.T) {
 	require.NotNil(t, tmpl.ErrMissingKey)
 	require.True(t, *tmpl.ErrMissingKey)
 }
-
-func TestRestartRenderTemplates(t *testing.T) {
-	ci.Parallel(t)
-	hclBytes, err := os.ReadFile("test-fixtures/restart-render-templates.hcl")
-	require.NoError(t, err)
-	job, err := ParseWithConfig(&ParseConfig{
-		Path:    "test-fixtures/restart-render-templates.hcl",
-		Body:    hclBytes,
-		AllowFS: false,
-	})
-	require.NoError(t, err)
-	tg := job.TaskGroups[0]
-	require.NotNil(t, tg.RestartPolicy)
-	require.True(t, *tg.RestartPolicy.RenderTemplates)
-
-	require.Nil(t, tg.Tasks[0].RestartPolicy)
-	require.False(t, *tg.Tasks[1].RestartPolicy.RenderTemplates)
-}

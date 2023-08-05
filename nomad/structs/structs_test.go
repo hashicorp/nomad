@@ -4307,10 +4307,9 @@ func TestRestartPolicy_Validate(t *testing.T) {
 
 	// Policy with acceptable restart options passes
 	p := &RestartPolicy{
-		Mode:            RestartPolicyModeFail,
-		Attempts:        0,
-		Interval:        5 * time.Second,
-		RenderTemplates: true,
+		Mode:     RestartPolicyModeFail,
+		Attempts: 0,
+		Interval: 5 * time.Second,
 	}
 	if err := p.Validate(); err != nil {
 		t.Fatalf("err: %v", err)

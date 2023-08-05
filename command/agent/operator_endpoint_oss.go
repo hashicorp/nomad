@@ -12,10 +12,10 @@ import (
 
 func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case http.MethodGet:
+	case "GET":
 		resp.WriteHeader(http.StatusNoContent)
 		return nil, nil
-	case http.MethodPut:
+	case "PUT":
 		return nil, CodedError(501, ErrEntOnly)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)

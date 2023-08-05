@@ -960,11 +960,7 @@ export default function () {
   });
 
   this.get('/var/:id', function ({ variables }, { params }) {
-    let variable = variables.find(params.id);
-    if (!variable) {
-      return new Response(404, {}, {});
-    }
-    return variable;
+    return variables.find(params.id);
   });
 
   this.put('/var/:id', function (schema, request) {

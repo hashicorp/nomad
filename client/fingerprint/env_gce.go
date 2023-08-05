@@ -97,7 +97,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 	}
 
 	req := &http.Request{
-		Method: http.MethodGet,
+		Method: "GET",
 		URL:    parsedUrl,
 		Header: http.Header{
 			"Metadata-Flavor": []string{"Google"},

@@ -1407,19 +1407,3 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	expected = []string{}
 	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
 }
-
-func TestTaskGroupUpdated_Restart(t *testing.T) {
-	ci.Parallel(t)
-
-	j1 := mock.Job()
-	name := j1.TaskGroups[0].Name
-	j2 := j1.Copy()
-	j3 := j1.Copy()
-
-	must.False(t, tasksUpdated(j1, j2, name).modified)
-	j2.TaskGroups[0].RestartPolicy.RenderTemplates = true
-	must.True(t, tasksUpdated(j1, j2, name).modified)
-
-	j3.TaskGroups[0].Tasks[0].RestartPolicy.RenderTemplates = true
-	must.True(t, tasksUpdated(j1, j3, name).modified)
-}

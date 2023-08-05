@@ -28,6 +28,7 @@ job "sleep" {
     }
 
     task "task" {
+      user   = "nobody"
       driver = "raw_exec"
 
       config {

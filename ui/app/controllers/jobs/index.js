@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: MPL-2.0
  */
 
-//@ts-check
-
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
@@ -19,9 +17,6 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
-
-const DEFAULT_SORT_PROPERTY = 'modifyIndex';
-const DEFAULT_SORT_DESCENDING = true;
 
 @classic
 export default class IndexController extends Controller.extend(
@@ -70,8 +65,8 @@ export default class IndexController extends Controller.extend(
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;
 
-  sortProperty = DEFAULT_SORT_PROPERTY;
-  sortDescending = DEFAULT_SORT_DESCENDING;
+  sortProperty = 'modifyIndex';
+  sortDescending = true;
 
   @computed
   get searchProps() {
@@ -297,47 +292,9 @@ export default class IndexController extends Controller.extend(
     });
   }
 
-  // eslint-disable-next-line ember/require-computed-property-dependencies
-  @computed('searchTerm')
-  get sortAtLastSearch() {
-    return {
-      sortProperty: this.sortProperty,
-      sortDescending: this.sortDescending,
-      searchTerm: this.searchTerm,
-    };
-  }
-
-  @computed(
-    'searchTerm',
-    'sortAtLastSearch.{sortDescending,sortProperty}',
-    'sortDescending',
-    'sortProperty'
-  )
-  get prioritizeSearchOrder() {
-    let shouldPrioritizeSearchOrder =
-      !!this.searchTerm &&
-      this.sortAtLastSearch.sortProperty === this.sortProperty &&
-      this.sortAtLastSearch.sortDescending === this.sortDescending;
-    if (shouldPrioritizeSearchOrder) {
-      /* eslint-disable ember/no-side-effects */
-      this.set('sortDescending', DEFAULT_SORT_DESCENDING);
-      this.set('sortProperty', DEFAULT_SORT_PROPERTY);
-      this.set('sortAtLastSearch.sortProperty', DEFAULT_SORT_PROPERTY);
-      this.set('sortAtLastSearch.sortDescending', DEFAULT_SORT_DESCENDING);
-    }
-    /* eslint-enable ember/no-side-effects */
-    return shouldPrioritizeSearchOrder;
-  }
-
   @alias('filteredJobs') listToSearch;
   @alias('listSearched') listToSort;
-
-  // sortedJobs is what we use to populate the table;
-  // If the user has searched but not sorted, we return the (fuzzy) searched list verbatim
-  // If the user has sorted, we allow the fuzzy search to filter down the list, but return it in a sorted order.
-  get sortedJobs() {
-    return this.prioritizeSearchOrder ? this.listSearched : this.listSorted;
-  }
+  @alias('listSorted') sortedJobs;
 
   isShowingDeploymentDetails = false;
 

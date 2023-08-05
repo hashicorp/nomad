@@ -1219,7 +1219,7 @@ func (c *OperatorDebugCommand) collectConsulAPI(client *http.Client, urlPath str
 func (c *OperatorDebugCommand) collectConsulAPIRequest(client *http.Client, urlPath string, dir string, file string) error {
 	url := c.consul.addrVal + urlPath
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request for Consul API URL=%q: %w", url, err)
 	}
@@ -1253,7 +1253,7 @@ func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
 		}
 	}
 
-	req, err := http.NewRequest(http.MethodGet, vaultAddr+"/v1/sys/health", nil)
+	req, err := http.NewRequest("GET", vaultAddr+"/v1/sys/health", nil)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request for Vault API URL=%q: %w", vaultAddr, err)
 	}

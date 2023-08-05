@@ -224,10 +224,9 @@ const (
       resources {}
     }
     restart {
-      attempts         = 10
-      mode             = "delay"
-      interval         = "15s"
-      render_templates = false
+      attempts = 10
+      mode     = "delay"
+      interval = "15s"
     }
   }
 }`
@@ -244,10 +243,9 @@ var (
 				Name:  pointer.Of("group1"),
 				Count: pointer.Of(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts:        pointer.Of(10),
-					Interval:        pointer.Of(15 * time.Second),
-					Mode:            pointer.Of("delay"),
-					RenderTemplates: pointer.Of(false),
+					Attempts: pointer.Of(10),
+					Interval: pointer.Of(15 * time.Second),
+					Mode:     pointer.Of("delay"),
 				},
 
 				Tasks: []*api.Task{

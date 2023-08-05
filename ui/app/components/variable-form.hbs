@@ -22,7 +22,7 @@
         @job={{@model.pathLinkedEntities.job}}
         @group={{@model.pathLinkedEntities.group}}
         @task={{@model.pathLinkedEntities.task}}
-        @namespace={{or this.variableNamespace "default"}}
+        @namespace={{this.variableNamespace}}
       />
     {{/if}}
 
@@ -73,7 +73,7 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{concat this.duplicatePathWarning.path "@" (or this.variableNamespace "default")}}
+            @model={{this.duplicatePathWarning.path}}
           >
             edit the existing variable
           </LinkTo>

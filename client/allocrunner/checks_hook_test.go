@@ -130,13 +130,13 @@ func allocWithDifferentNomadChecks(id, addr, port string) *structs.Allocation {
 var checkHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/fail":
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(500)
 		_, _ = io.WriteString(w, "500 problem")
 	case "/hang":
 		time.Sleep(2 * time.Second)
 		_, _ = io.WriteString(w, "too slow")
 	default:
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(200)
 		_, _ = io.WriteString(w, "200 ok")
 	}
 })

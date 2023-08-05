@@ -212,24 +212,6 @@ table.variable-items {
   }
 }
 
-.job-variables-intro {
-  margin-bottom: 1rem;
-  ul li {
-    list-style-type: disc;
-    margin-left: 2rem;
-    code {
-      white-space-collapse: preserve-breaks;
-      display: inline-flex;
-    }
-  }
-}
-
-.job-variables-message {
-  p {
-    margin-bottom: 1rem;
-  }
-}
-
 @keyframes slide-in {
   0% {
     top: 10px;

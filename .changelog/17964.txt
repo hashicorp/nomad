@@ -1,3 +1,0 @@
-```release-note:improvement
-ui: adds a new Variables page to all job pages
-```

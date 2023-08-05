@@ -88,9 +88,9 @@ type CertOpts struct {
 	ExtKeyUsage []x509.ExtKeyUsage
 }
 
-// IsNotCustom checks whether any of CAOpts parameters have been populated with
+// IsCustom checks whether any of CAOpts parameters have been populated with
 // non-default values.
-func (c *CAOpts) IsNotCustom() bool {
+func (c *CAOpts) IsCustom() bool {
 	return c.Country == "" &&
 		c.PostalCode == "" &&
 		c.Province == "" &&
@@ -131,7 +131,7 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		}
 	}
 
-	if opts.IsNotCustom() {
+	if opts.IsCustom() {
 		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
 		if opts.Days == 0 {
 			opts.Days = 1825

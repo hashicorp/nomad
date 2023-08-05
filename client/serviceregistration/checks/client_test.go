@@ -54,19 +54,19 @@ func TestChecker_Do_HTTP(t *testing.T) {
 
 		switch r.URL.Path {
 		case "/fail":
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(500)
 			_, _ = io.WriteString(w, "500 problem")
 		case "/hang":
 			time.Sleep(1 * time.Second)
 			_, _ = io.WriteString(w, "too slow")
 		case "/long-fail":
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(500)
 			_, _ = io.WriteString(w, tooLong)
 		case "/long-not-fail":
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(201)
 			_, _ = io.WriteString(w, tooLong)
 		default:
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(200)
 			_, _ = io.WriteString(w, "200 ok")
 		}
 	}))
