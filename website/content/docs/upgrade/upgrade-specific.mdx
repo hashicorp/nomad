@@ -699,6 +699,16 @@ timestamp appended.
 
 ## Nomad 1.0.10 and 1.1.4
 
+#### Strict mTLS certificate check
+
+Raft requests were not being verified for their certificate common alternative
+name. A check was introduced to make sure only servers in the same region are
+able to make Raft requests. This additional check results in a breaking change
+where wildcard values in the certificate alternative name list are not
+accepted.
+
+This breaking change will be fixed in a future version of Nomad.
+
 #### Log file names
 
 The [`log_file`] configuration option was not being fully respected, as the

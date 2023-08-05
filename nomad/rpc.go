@@ -132,12 +132,42 @@ func (ctx *RPCContext) ValidateCertificateForName(name string) error {
 	validNames := []string{cert.Subject.CommonName}
 	validNames = append(validNames, cert.DNSNames...)
 	for _, valid := range validNames {
-		if name == valid {
+		if matchHostnames(valid, name) {
 			return nil
 		}
 	}
 
 	return fmt.Errorf("invalid certificate, %s not in %s", name, strings.Join(validNames, ","))
+}
+
+// matchHostnames returns true if the given host is valid for pattern, Checking
+// for equal match or wildcard prefix.
+// Based on Go's x509.matchHostnames to also check the CommonName field:
+// https://cs.opensource.google/go/go/+/refs/tags/go1.17.7:src/crypto/x509/verify.go;l=940;drc=refs%2Ftags%2Fgo1.17.7
+func matchHostnames(pattern, host string) bool {
+	host = strings.TrimSuffix(host, ".")
+
+	if len(pattern) == 0 || len(host) == 0 {
+		return false
+	}
+
+	patternParts := strings.Split(pattern, ".")
+	hostParts := strings.Split(host, ".")
+
+	if len(patternParts) != len(hostParts) {
+		return false
+	}
+
+	for i, patternPart := range patternParts {
+		if i == 0 && patternPart == "*" {
+			continue
+		}
+		if patternPart != hostParts[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // listen is used to listen for incoming RPC connections

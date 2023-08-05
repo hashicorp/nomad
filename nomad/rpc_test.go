@@ -1073,9 +1073,10 @@ func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
 	// When VerifyServerHostname is enabled:
 	// Only local servers can connect to the Raft layer
 	cases := []struct {
-		name    string
-		cn      string
-		canRaft bool
+		name     string
+		cn       string
+		dnsNames []string
+		canRaft  bool
 	}{
 		{
 			name:    "local server",
@@ -1102,8 +1103,15 @@ func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
 			cn:      "nomad.example.com",
 			canRaft: false,
 		},
+		// Support wildcard DNS names for backwards compatibility.
 		{
-			name:    "globs",
+			name:     "dns name globs",
+			cn:       "server.other.nomad",
+			dnsNames: []string{"*.global.nomad"},
+			canRaft:  true,
+		},
+		{
+			name:    "globs without role",
 			cn:      "*.global.nomad",
 			canRaft: false,
 		},
@@ -1111,7 +1119,7 @@ func TestRPC_TLS_Enforcement_Raft(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			certPath := tlsHelper.newCert(t, tc.cn)
+			certPath := tlsHelper.newCert(t, tc.cn, tc.dnsNames)
 
 			cfg := &config.TLSConfig{
 				EnableRPC:            true,
@@ -1208,10 +1216,11 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 	// Some endpoints can only be called server -> server
 	// Some endpoints can only be called client -> server
 	cases := []struct {
-		name   string
-		cn     string
-		rpcs   map[string]interface{}
-		canRPC bool
+		name     string
+		cn       string
+		dnsNames []string
+		rpcs     map[string]interface{}
+		canRPC   bool
 	}{
 		// Local server.
 		{
@@ -1289,6 +1298,14 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 			rpcs:   localClientsOnlyRPCs,
 			canRPC: false,
 		},
+		// Support wildcard DNS names for backwards compatibility.
+		{
+			name:     "globs",
+			cn:       "server.other.nomad",
+			dnsNames: []string{"*.global.nomad"},
+			rpcs:     standardRPCs,
+			canRPC:   true,
+		},
 		// Wrong certs.
 		{
 			name:   "irrelevant cert",
@@ -1297,17 +1314,16 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 			canRPC: false,
 		},
 		{
-			name:   "globs",
+			name:   "globs without role",
 			cn:     "*.global.nomad",
 			rpcs:   standardRPCs,
 			canRPC: false,
 		},
-		{},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			certPath := tlsHelper.newCert(t, tc.cn)
+			certPath := tlsHelper.newCert(t, tc.cn, tc.dnsNames)
 
 			cfg := &config.TLSConfig{
 				EnableRPC:            true,
@@ -1383,7 +1399,7 @@ func newTLSTestHelper(t *testing.T) tlsTestHelper {
 	must.NoError(t, err)
 
 	// Generate servers and their certificate.
-	h.serverCert = h.newCert(t, "server.global.nomad")
+	h.serverCert = h.newCert(t, "server.global.nomad", nil)
 
 	makeServer := func(bootstrapExpect int, verifyServerHostname bool) (*Server, func()) {
 		return TestServer(t, func(c *Config) {
@@ -1414,7 +1430,7 @@ func (h tlsTestHelper) cleanup() {
 	h.nonVerifyServerCleanup()
 }
 
-func (h tlsTestHelper) newCert(t *testing.T, name string) string {
+func (h tlsTestHelper) newCert(t *testing.T, name string, dnsNames []string) string {
 	t.Helper()
 
 	node := fmt.Sprintf("node%d", h.nodeID)
@@ -1427,7 +1443,7 @@ func (h tlsTestHelper) newCert(t *testing.T, name string) string {
 		CA:          h.caPEM,
 		Name:        name,
 		Days:        5,
-		DNSNames:    []string{node + "." + name, name, "localhost"},
+		DNSNames:    append([]string{node + "." + name, name, "localhost"}, dnsNames...),
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	})
 	require.NoError(t, err)

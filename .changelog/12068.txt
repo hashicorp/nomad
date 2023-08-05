@@ -1,0 +1,3 @@
+```release-note:bug
+server: allow wildcard domains in mTLS certificates
+```
