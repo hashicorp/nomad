@@ -51,6 +51,12 @@ To help streamline this process, nodes can create node pools on demand. If a
 client configuration references a node pool that does not exist yet, Nomad
 creates the node pool automatically on client registration.
 
+<Note>
+  This behavior does not apply to clients in non-authoritative regions. Refer
+  to <a href="#multi-region-clusters">Multi-region Clusters</a> for more
+  information.
+</Note>
+
 Jobs can then reference node pools using the [`node_pool`][job_np] attribute.
 
 ```hcl
@@ -122,13 +128,13 @@ Node pools and namespaces share some similarities, with both providing a way to
 group resources in isolated logical units. Jobs are grouped into namespaces and
 clients into node pools.
 
-With the Node Pool Governance feature of Nomad Enterprise it is possible to
-automatically link a node pool to a namespace, and so a job is able to simply
-specify a namespace and the node pool is inferred from the namespace
-configuration.
+Node Pool Governance allows assigning a default node pool to a namespace that
+is automatically used by every job registered to the namespace. This feature
+simplifies job management as the node pool is inferred from the namespace
+configuration instead of being specified in every job.
 
-This connection is done using the [`node_pool_config ->
-default`][ns_spec_np_default] attribute in the namespace specification.
+This connection is done using the [`default`][ns_spec_np_default] attribute in
+the namespace `node_pool_config  block.
 
 ```hcl
 namespace "dev" {
@@ -153,7 +159,7 @@ job "app-dev" {
 }
 ```
 
-Jobs are able o override the namespace default node pool by specifying a
+Jobs are able to override the namespace default node pool by specifying a
 different `node_pool` value.
 
 The namespace can enforce if this behavior is allowed or limit which node pools
@@ -216,7 +222,11 @@ specific goals.
 
 ### Infrastructure and System Jobs
 
-It is a common for a Nomad cluster to have certain jobs that are focused on
+This pattern illustrates an example where node pools are used to reserve nodes
+for a specific set of jobs while also allowing system jobs to cross node pools
+boundaries.
+
+It is common for Nomad clusters to have certain jobs that are focused on
 providing the underlying infrastructure for more business focused applications.
 Some examples include reverse proxies for traffic ingress, CSI plugins, and
 periodic maintenance jobs.
@@ -313,7 +323,10 @@ namespace "infra" {
 
 ### Mixed Scheduling Algorithms
 
-The different scheduling algorithms provided by Nomad are best suited for
+This pattern illustrate an example where different scheduling algorithms are
+per node pool.
+
+Each of the scheduling algorithms provided by Nomad are best suited for
 different types of environments and workloads.
 
 The `binpack` algorithm aims to maximize resource usage and pack as much
@@ -326,7 +339,7 @@ is necessary.
 The `spread` algorithm behaves in the opposite direction, making use of every
 client available to reduce density and potential noisy neighbors and resource
 contention. This makes it ideal for environments where clients are
-pre-provisioned and scale more slowly, such as on-premise deployments.
+pre-provisioned and scale more slowly, such as on-premises deployments.
 
 Clusters in a mixed environment can use node pools to adjust the scheduler
 algorithm per node type. Cloud instances may be placed in a node pool that uses

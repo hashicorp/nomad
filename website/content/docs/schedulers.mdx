@@ -60,8 +60,8 @@ Systems jobs are intended to run until explicitly stopped either by an operator
 or [preemption]. If a system task exits it is considered a failure and handled
 according to the job's [restart] block; system jobs do not have rescheduling.
 
-When used with node pools, system jobs run in all nodes of the pool used by the
-job. The built-in node pool `all` allows placing allocations in all clients in
+When used with node pools, system jobs run on all nodes of the pool used by the
+job. The built-in node pool `all` allows placing allocations on all clients in
 the cluster.
 
 ## System Batch
