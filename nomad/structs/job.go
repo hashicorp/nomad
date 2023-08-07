@@ -107,6 +107,25 @@ func (j *Job) RequiredConsulServiceDiscovery() map[string]bool {
 	return groups
 }
 
+// RequiredContainerPlatform identifies which task groups, if any, within
+// the job are utilising OCI containers.
+func (j *Job) RequiredContainerPlatform() map[string]bool {
+	groups := make(map[string]bool)
+
+	for _, tg := range j.TaskGroups {
+		// Iterate the tasks within the task group to check whether
+		// any of them use drivers that have container images.
+		for _, task := range tg.Tasks {
+			if task.Driver == "docker" || task.Driver == "podman" {
+				groups[tg.Name] = true
+				break
+			}
+		}
+	}
+
+	return groups
+}
+
 // requiresConsulServiceDiscovery identifies whether any of the services passed
 // to the function are utilising Consul service discovery.
 func requiresConsulServiceDiscovery(services []*Service) bool {

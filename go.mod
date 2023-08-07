@@ -17,7 +17,7 @@ replace github.com/hashicorp/nomad/api => ./api
 
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
-	github.com/Microsoft/go-winio v0.6.0
+	github.com/Microsoft/go-winio v0.6.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.184
@@ -27,17 +27,18 @@ require (
 	github.com/containernetworking/plugins v1.2.0
 	github.com/coreos/go-iptables v0.6.0
 	github.com/creack/pty v1.1.18
-	github.com/docker/cli v23.0.1+incompatible
+	github.com/docker/cli v23.0.5+incompatible
 	github.com/docker/distribution v2.8.2+incompatible
-	github.com/docker/docker v23.0.3+incompatible
+	github.com/docker/docker v23.0.5+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/fsouza/go-dockerclient v1.7.9
 	github.com/golang-jwt/jwt/v5 v5.0.0
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.3
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.5.9
+	github.com/google/go-containerregistry v0.15.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/gosuri/uilive v0.0.4
@@ -101,7 +102,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.6.2
-	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
+	github.com/moby/term v0.0.0-20221205130635-1aeaba878587
 	github.com/opencontainers/runc v1.1.8
 	github.com/opencontainers/runtime-spec v1.1.0-rc.3
 	github.com/posener/complete v1.2.3
@@ -126,7 +127,7 @@ require (
 	golang.org/x/sync v0.2.0
 	golang.org/x/sys v0.10.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.53.0
+	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
@@ -134,11 +135,16 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.107.0 // indirect
-	cloud.google.com/go/compute v1.15.1 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
+	github.com/vbatts/tar-split v0.11.3 // indirect
+)
+
+require (
+	cloud.google.com/go v0.110.0 // indirect
+	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
-	cloud.google.com/go/iam v0.8.0 // indirect
-	cloud.google.com/go/storage v1.27.0 // indirect
+	cloud.google.com/go/iam v0.13.0 // indirect
+	cloud.google.com/go/storage v1.28.1 // indirect
 	github.com/Azure/azure-sdk-for-go v56.3.0+incompatible // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -183,7 +189,7 @@ require (
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect
 	github.com/digitalocean/godo v1.10.0 // indirect
 	github.com/dimchansky/utfbom v1.1.0 // indirect
-	github.com/docker/docker-credential-helpers v0.6.4 // indirect
+	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
@@ -199,8 +205,8 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
+	github.com/googleapis/gax-go/v2 v2.7.1 // indirect
 	github.com/gookit/color v1.3.1 // indirect
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
@@ -222,7 +228,7 @@ require (
 	github.com/jefferai/isbadcipher v0.0.0-20190226160619-51d2077c035f // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joyent/triton-go v0.0.0-20190112182421-51ffac552869 // indirect
-	github.com/klauspost/compress v1.15.11 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/linode/linodego v0.7.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
@@ -238,7 +244,7 @@ require (
 	github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc3 // indirect
 	github.com/opencontainers/selinux v1.10.1 // indirect
 	github.com/packethost/packngo v0.1.1-0.20180711074735-b9cb5096f54c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -271,14 +277,14 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/oauth2 v0.4.0 // indirect
+	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/tools v0.8.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/api v0.103.0 // indirect
+	google.golang.org/api v0.114.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
+	google.golang.org/genproto v0.0.0-20230323212658-478b75c54725 // indirect
 	gopkg.in/fsnotify.v1 v1.4.7 // indirect
 	gopkg.in/resty.v1 v1.12.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect

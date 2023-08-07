@@ -4,12 +4,18 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 const (
@@ -17,6 +23,8 @@ const (
 	attrConsulVersion     = `${attr.consul.version}`
 	attrNomadVersion      = `${attr.nomad.version}`
 	attrNomadServiceDisco = `${attr.nomad.service_discovery}`
+	attrCPUArch           = `${attr.cpu.arch}`
+	attrKernelName        = `${attr.kernel.name}`
 )
 
 var (
@@ -59,6 +67,11 @@ var (
 		RTarget: ">= 1.4.0",
 		Operand: structs.ConstraintSemver,
 	}
+)
+
+var (
+	ErrInvalidRef = errors.New("cannot determine platforms supported by image (not an index or image)")
+	ErrNoImage    = errors.New("config block does not contain an image field")
 )
 
 type admissionController interface {
@@ -170,9 +183,13 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilising Consul service discovery.
 	consulServiceDisco := j.RequiredConsulServiceDiscovery()
 
+	// Identify which task groups are utilising container images
+	containerPlatform := j.RequiredContainerPlatform()
+
 	// Hot path
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
-		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 {
+		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
+		len(containerPlatform) == 0 {
 		return j, nil, nil
 	}
 
@@ -209,9 +226,116 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		if ok := consulServiceDisco[tg.Name]; ok {
 			mutateConstraint(constraintMatcherLeft, tg, consulServiceDiscoveryConstraint)
 		}
+
+		// If the task group uses containers, iterate through its tasks
+		if ok := containerPlatform[tg.Name]; ok {
+			// Iterate through all the tasks within the task group and add any required
+			// constraints.
+			for _, t := range tg.Tasks {
+				// If the task uses the docker or podman drivers, figure out its image's
+				// supported architecutres and run the mutator
+				if t.Driver == "docker" || t.Driver == "podman" {
+					refStr, ok := t.Config["image"].(string)
+					if !ok {
+						return nil, nil, ErrNoImage
+					}
+
+					os, arch, err := containerPlatformConstraints(refStr)
+					if err != nil {
+						return nil, nil, err
+					}
+
+					mutateConstraintTask(constraintMatcherLeft, t, os)
+					mutateConstraintTask(constraintMatcherLeft, t, arch)
+				}
+			}
+		}
 	}
 
 	return j, nil, nil
+}
+
+// containerPlatformConstrainsts uses the OCI registry API to detect which platforms
+// are supported by an image or index pointed to by refStr and returns constraints to
+// match those platforms.
+func containerPlatformConstraints(refStr string) (os, arch *structs.Constraint, err error) {
+	ref, err := name.ParseReference(refStr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get a descriptor for the referenced item
+	desc, err := remote.Head(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if desc.MediaType.IsIndex() {
+		index, err := remote.Index(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+		if err != nil {
+			return nil, nil, err
+		}
+
+		im, err := index.IndexManifest()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Create lists of unique OSes and Architectures
+		oses := map[string]struct{}{}
+		arches := map[string]struct{}{}
+		for _, m := range im.Manifests {
+			oses[m.Platform.OS] = struct{}{}
+			arches[m.Platform.Architecture] = struct{}{}
+		}
+
+		os = &structs.Constraint{
+			LTarget: attrKernelName,
+			Operand: "set_contains_any",
+			RTarget: strings.Join(mapKeys(oses), ","),
+		}
+
+		arch = &structs.Constraint{
+			LTarget: attrCPUArch,
+			Operand: "set_contains_any",
+			RTarget: strings.Join(mapKeys(arches), ","),
+		}
+	} else if desc.MediaType.IsImage() {
+		img, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+		if err != nil {
+			return nil, nil, err
+		}
+
+		cf, err := img.ConfigFile()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		os = &structs.Constraint{
+			LTarget: attrKernelName,
+			Operand: "=",
+			RTarget: cf.OS,
+		}
+
+		arch = &structs.Constraint{
+			LTarget: attrCPUArch,
+			Operand: "=",
+			RTarget: cf.Architecture,
+		}
+	} else {
+		return nil, nil, ErrInvalidRef
+	}
+
+	return os, arch, nil
+}
+
+// mapKeys returns the keys of a map[string]struct{}
+func mapKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for key := range m {
+		out = append(out, key)
+	}
+	return out
 }
 
 // constraintMatcher is a custom type which helps control how constraints are
@@ -259,6 +383,38 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	// If we didn't find a suitable constraint match, add one.
 	if !found {
 		taskGroup.Constraints = append(taskGroup.Constraints, constraint)
+	}
+}
+
+// mutateConstraint is a generic mutator used to set implicit constraints
+// within the task if they are needed.
+func mutateConstraintTask(matcher constraintMatcher, task *structs.Task, constraint *structs.Constraint) {
+
+	var found bool
+
+	// It's possible to switch on the matcher within the constraint loop to
+	// reduce repetition. This, however, means switching per constraint,
+	// therefore we do it here.
+	switch matcher {
+	case constraintMatcherFull:
+		for _, c := range task.Constraints {
+			if c.Equal(constraint) {
+				found = true
+				break
+			}
+		}
+	case constraintMatcherLeft:
+		for _, c := range task.Constraints {
+			if c.LTarget == constraint.LTarget {
+				found = true
+				break
+			}
+		}
+	}
+
+	// If we didn't find a suitable constraint match, add one.
+	if !found {
+		task.Constraints = append(task.Constraints, constraint)
 	}
 }
 

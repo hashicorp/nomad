@@ -709,6 +709,75 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			expectedOutputError:    nil,
 			name:                   "task group with empty provider",
 		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Driver: "docker",
+								Config: map[string]interface{}{
+									"image": "hashicorp/nomad",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Driver: "docker",
+								Config: map[string]interface{}{
+									"image": "hashicorp/nomad",
+								},
+								Constraints: []*structs.Constraint{
+									{
+										LTarget: attrKernelName,
+										Operand: "set_contains_any",
+										RTarget: "linux",
+									},
+									{
+										LTarget: attrCPUArch,
+										Operand: "set_contains_any",
+										RTarget: "amd64,arm64",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+			name:                   "task with docker image",
+		},
+		{
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Tasks: []*structs.Task{
+							{
+								Driver: "docker",
+								Config: map[string]interface{}{},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob:      nil,
+			expectedOutputWarnings: nil,
+			expectedOutputError:    ErrNoImage,
+			name:                   "task with docker driver and no image in config",
+		},
 	}
 
 	for _, tc := range testCases {
