@@ -14,6 +14,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/drivers/docker"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/plugins"
@@ -51,5 +52,6 @@ func main() {
 
 // factory returns a new instance of the docker driver plugin
 func factory(ctx context.Context, log log.Logger) interface{} {
-	return docker.NewDockerDriver(ctx, log)
+	top := numalib.Scan(numalib.PlatformScanners())
+	return docker.NewDockerDriver(ctx, top, log)
 }

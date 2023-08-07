@@ -6,19 +6,17 @@ package executor
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/client/lib/resources"
-	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/specconv"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"golang.org/x/sys/unix"
 )
 
 // setCmdUser takes a user id as a string and looks up the user, and sets the command
@@ -69,74 +67,177 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 	return nil
 }
 
-// configureResourceContainer configured the cgroups to be used to track pids
-// created by the executor
-func (e *UniversalExecutor) configureResourceContainer(pid int) error {
-	cfg := &configs.Config{
-		Cgroups: &configs.Cgroup{
-			Resources: &configs.Resources{},
-		},
+// setSubCmdCgroup sets the cgroup for non-Task child processes of the
+// executor.Executor (since in cg2 it lives outside the task's cgroup)
+func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
+	if cgroup == "" {
+		panic("cgroup must be set")
 	}
 
-	// note: this was always here, but not used until cgroups v2 support
-	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
+	// make sure attrs struct has been set
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = new(syscall.SysProcAttr)
 	}
 
-	lookup := func(env []string, name string) (result string) {
-		for _, s := range env {
-			if strings.HasPrefix(s, name+"=") {
-				result = strings.TrimLeft(s, name+"=")
-				return
-			}
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG2:
+		fd, cleanup, err := e.statCG(cgroup)
+		if err != nil {
+			return nil, err
 		}
-		return
-	}
-
-	if cgutil.UseV2 {
-		// in v2 we have the definitive cgroup; create and enter it
-
-		// use the task environment variables for determining the cgroup path -
-		// not ideal but plumbing the values directly requires grpc protobuf changes
-		parent := lookup(e.commandCfg.Env, taskenv.CgroupParent)
-		allocID := lookup(e.commandCfg.Env, taskenv.AllocID)
-		task := lookup(e.commandCfg.Env, taskenv.TaskName)
-		if parent == "" || allocID == "" || task == "" {
-			return fmt.Errorf(
-				"environment variables %s must be set",
-				strings.Join([]string{taskenv.CgroupParent, taskenv.AllocID, taskenv.TaskName}, ","),
-			)
-		}
-		scope := cgutil.CgroupScope(allocID, task)
-		path := filepath.Join("/", cgutil.GetCgroupParent(parent), scope)
-		cfg.Cgroups.Path = path
-		e.containment = resources.Contain(e.logger, cfg.Cgroups)
-		return e.containment.Apply(pid)
-
-	} else {
-		// in v1 create a freezer cgroup for use by containment
-
-		if err := cgutil.ConfigureBasicCgroups(cfg); err != nil {
-			// Log this error to help diagnose cases where nomad is run with too few
-			// permissions, but don't return an error. There is no separate check for
-			// cgroup creation permissions, so this may be the happy path.
-			e.logger.Warn("failed to create cgroup",
-				"docs", "https://www.nomadproject.io/docs/drivers/raw_exec.html#no_cgroups",
-				"error", err)
-			return nil
-		}
-		path := cfg.Cgroups.Path
-		e.logger.Trace("cgroup created, now need to apply", "path", path)
-		e.containment = resources.Contain(e.logger, cfg.Cgroups)
-		return e.containment.Apply(pid)
+		cmd.SysProcAttr.UseCgroupFD = true
+		cmd.SysProcAttr.CgroupFD = fd
+		return cleanup, nil
+	default:
+		return func() {}, nil
 	}
 }
 
-func (e *UniversalExecutor) getAllPids() (resources.PIDs, error) {
-	if e.containment == nil {
-		return getAllPidsByScanning()
+func (e *UniversalExecutor) ListProcesses() *set.Set[procstats.ProcessID] {
+	return procstats.List(e.command)
+}
+
+func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
+	fd, err := unix.Open(cgroup, unix.O_PATH, 0)
+	cleanup := func() {
+		_ = unix.Close(fd)
 	}
-	return e.containment.GetPIDs(), nil
+	return fd, cleanup, err
+}
+
+// configureResourceContainer on Linux configures the cgroups to be used to track
+// pids created by the executor
+func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
+
+	// get our cgroup reference (cpuset in v1)
+	cgroup := command.Cgroup()
+
+	// cgCleanup will be called after the task has been launched
+	// v1: remove the executor process from the task's cgroups
+	// v2: let go of the file descriptor of the task's cgroup
+	var cgCleanup func()
+
+	// manually configure cgroup for cpu / memory constraints
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		e.configureCG1(cgroup, command)
+		cgCleanup = e.enterCG1(cgroup)
+	default:
+		e.configureCG2(cgroup, command)
+		// configure child process to spawn in the cgroup
+		// get file descriptor of the cgroup made for this task
+		fd, cleanup, err := e.statCG(cgroup)
+		if err != nil {
+			return nil, err
+		}
+		e.childCmd.SysProcAttr.UseCgroupFD = true
+		e.childCmd.SysProcAttr.CgroupFD = fd
+		cgCleanup = cleanup
+	}
+
+	e.logger.Info("configured cgroup for executor", "pid", pid)
+
+	return cgCleanup, nil
+}
+
+// enterCG1 will write the executor PID (i.e. itself) into the cgroups we
+// created for the task - so that the task and its children will spawn in
+// those cgroups. The cleanup function moves the executor out of the task's
+// cgroups and into the nomad/ parent cgroups.
+func (e *UniversalExecutor) enterCG1(cgroup string) func() {
+	pid := strconv.Itoa(unix.Getpid())
+
+	// write pid to all the groups
+	ifaces := []string{"freezer", "cpu", "memory"} // todo: cpuset
+	for _, iface := range ifaces {
+		ed := cgroupslib.OpenFromCpusetCG1(cgroup, iface)
+		err := ed.Write("cgroup.procs", pid)
+		if err != nil {
+			e.logger.Warn("failed to write cgroup", "interface", iface, "error", err)
+		}
+	}
+
+	// cleanup func that moves executor back up to nomad cgroup
+	return func() {
+		for _, iface := range ifaces {
+			err := cgroupslib.WriteNomadCG1(iface, "cgroup.procs", pid)
+			if err != nil {
+				e.logger.Warn("failed to move executor cgroup", "interface", iface, "error", err)
+			}
+		}
+	}
+}
+
+func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
+	memHard, memSoft := e.computeMemory(command)
+	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+	_ = ed.Write("memory.limit_in_bytes", strconv.FormatInt(memHard, 10))
+	if memSoft > 0 {
+		ed = cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memSoft, 10))
+	}
+
+	// set memory swappiness
+	swappiness := cgroupslib.MaybeDisableMemorySwappiness()
+	if swappiness != nil {
+		ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+		value := int64(*swappiness)
+		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
+	}
+
+	// write cpu shares file
+	cpuShares := strconv.FormatInt(command.Resources.LinuxResources.CPUShares, 10)
+	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu")
+	_ = ed.Write("cpu.shares", cpuShares)
+
+	// TODO(shoenig) manage cpuset
+	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
+}
+
+func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
+	// write memory cgroup files
+	memHard, memSoft := e.computeMemory(command)
+	ed := cgroupslib.OpenPath(cgroup)
+	_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
+	if memSoft > 0 {
+		ed = cgroupslib.OpenPath(cgroup)
+		_ = ed.Write("memory.low", strconv.FormatInt(memSoft, 10))
+	}
+
+	// set memory swappiness
+	swappiness := cgroupslib.MaybeDisableMemorySwappiness()
+	if swappiness != nil {
+		ed := cgroupslib.OpenPath(cgroup)
+		value := int64(*swappiness)
+		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
+	}
+
+	// write cpu cgroup files
+	cpuWeight := e.computeCPU(command)
+	ed = cgroupslib.OpenPath(cgroup)
+	_ = ed.Write("cpu.weight", strconv.FormatUint(cpuWeight, 10))
+
+	// TODO(shoenig) manage cpuset
+	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
+}
+
+func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
+	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
+	return cpuWeight
+}
+
+// computeMemory returns the hard and soft memory limits for the task
+func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
+	mem := command.Resources.NomadResources.Memory
+	memHard, memSoft := mem.MemoryMaxMB, mem.MemoryMB
+	if memHard <= 0 {
+		memHard = mem.MemoryMB
+		memSoft = 0
+	}
+	memHardBytes := memHard * 1024 * 1024
+	memSoftBytes := memSoft * 1024 * 1024
+	return memHardBytes, memSoftBytes
 }
 
 // withNetworkIsolation calls the passed function the network namespace `spec`

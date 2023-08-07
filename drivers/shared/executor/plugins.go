@@ -22,18 +22,13 @@ type ExecutorConfig struct {
 	// FSIsolation if set will use an executor implementation that support
 	// filesystem isolation
 	FSIsolation bool
-
-	// cpuTotalTicks is the total CPU compute. It should be given as Cores * MHz
-	// (2 Cores * 2 Ghz = 4000)
-	CpuTotalTicks uint64
 }
 
-func GetPluginMap(logger hclog.Logger, fsIsolation bool, cpuTotalTicks uint64) map[string]plugin.Plugin {
+func GetPluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
 		"executor": &ExecutorPlugin{
-			logger:        logger,
-			fsIsolation:   fsIsolation,
-			cpuTotalTicks: cpuTotalTicks,
+			logger:      logger,
+			fsIsolation: fsIsolation,
 		},
 	}
 }

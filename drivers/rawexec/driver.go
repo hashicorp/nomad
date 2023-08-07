@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -131,6 +132,9 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	// topology contains cpu / memory info
+	topology *numalib.Topology
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
@@ -163,11 +167,12 @@ type TaskState struct {
 func NewRawExecDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer: eventer.NewEventer(ctx, logger),
-		config:  &Config{},
-		tasks:   newTaskStore(),
-		ctx:     ctx,
-		logger:  logger,
+		eventer:  eventer.NewEventer(ctx, logger),
+		config:   &Config{},
+		tasks:    newTaskStore(),
+		ctx:      ctx,
+		logger:   logger,
+		topology: numalib.Scan(numalib.PlatformScanners()),
 	}
 }
 
@@ -341,6 +346,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		StdoutPath:         cfg.StdoutPath,
 		StderrPath:         cfg.StderrPath,
 		NetworkIsolation:   cfg.NetworkIsolation,
+		Resources:          cfg.Resources.Copy(),
 	}
 
 	ps, err := exec.Launch(execCmd)

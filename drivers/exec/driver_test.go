@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -32,10 +32,6 @@ import (
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	cgroupParent = "testing.slice"
 )
 
 func TestMain(m *testing.M) {
@@ -61,11 +57,8 @@ func testResources(allocID, task string) *drivers.Resources {
 		LinuxResources: &drivers.LinuxResources{
 			MemoryLimitBytes: 134217728,
 			CPUShares:        100,
+			CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, task),
 		},
-	}
-
-	if cgutil.UseV2 {
-		r.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, cgroupParent, cgutil.CgroupScope(allocID, task))
 	}
 
 	return r
@@ -319,14 +312,12 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 	require.NoError(t, harness.SetConfig(baseConfig))
 
 	allocID := uuid.Generate()
+	taskName := "test"
 	task := &drivers.TaskConfig{
-		AllocID: allocID,
-		ID:      uuid.Generate(),
-		Name:    "test",
-	}
-
-	if cgutil.UseV2 {
-		task.Resources = testResources(allocID, "test")
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Resources: testResources(allocID, taskName),
 	}
 
 	cleanup := harness.MkAllocDir(task, true)
@@ -590,7 +581,8 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, res.ExitResult.Successful())
 	stdout := strings.TrimSpace(string(res.Stdout))
-	if !cgutil.UseV2 {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
 		for _, line := range strings.Split(stdout, "\n") {
 			// skip empty lines
 			if line == "" {
@@ -605,7 +597,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 				t.Fatalf("not a member of the allocs nomad cgroup: %q", line)
 			}
 		}
-	} else {
+	default:
 		require.True(t, strings.HasSuffix(stdout, ".scope"), "actual stdout %q", stdout)
 	}
 
