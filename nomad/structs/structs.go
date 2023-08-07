@@ -4304,9 +4304,9 @@ const (
 	// for the system to remain healthy.
 	CoreJobPriority = math.MaxInt16
 
-	// JobTrackedVersions is the number of historic job versions that are
+	// JobDefaultTrackedVersions is the number of historic job versions that are
 	// kept.
-	JobTrackedVersions = 6
+	JobDefaultTrackedVersions = 6
 
 	// JobTrackedScalingEvents is the number of scaling events that are
 	// kept for a single task group.

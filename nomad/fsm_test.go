@@ -66,7 +66,7 @@ func testFSM(t *testing.T) *nomadFSM {
 		Region:             "global",
 		EnableEventBroker:  true,
 		EventBufferSize:    100,
-		JobTrackedVersions: structs.JobTrackedVersions,
+		JobTrackedVersions: structs.JobDefaultTrackedVersions,
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
