@@ -1,15 +1,15 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package stats
+package hoststats
 
 import (
 	"math"
-	"runtime"
 	"sync"
 	"time"
 
-	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
@@ -73,7 +73,7 @@ type NodeStatsCollector interface {
 
 // HostStatsCollector collects host resource usage stats
 type HostStatsCollector struct {
-	numCores             int
+	top                  *numalib.Topology
 	statsCalculator      map[string]*HostCpuStatsCalculator
 	hostStats            *HostStats
 	hostStatsLock        sync.RWMutex
@@ -90,19 +90,15 @@ type HostStatsCollector struct {
 // NewHostStatsCollector returns a HostStatsCollector. The allocDir is passed in
 // so that we can present the disk related statistics for the mountpoint where
 // the allocation directory lives
-func NewHostStatsCollector(logger hclog.Logger, allocDir string, deviceStatsCollector DeviceStatsCollector) *HostStatsCollector {
-	logger = logger.Named("host_stats")
-	numCores := runtime.NumCPU()
-	statsCalculator := make(map[string]*HostCpuStatsCalculator)
-	collector := &HostStatsCollector{
-		statsCalculator:      statsCalculator,
-		numCores:             numCores,
-		logger:               logger,
+func NewHostStatsCollector(logger hclog.Logger, top *numalib.Topology, allocDir string, deviceStatsCollector DeviceStatsCollector) *HostStatsCollector {
+	return &HostStatsCollector{
+		logger:               logger.Named("host_stats"),
+		top:                  top,
+		statsCalculator:      make(map[string]*HostCpuStatsCalculator),
 		allocDir:             allocDir,
 		badParts:             make(map[string]struct{}),
 		deviceStatsCollector: deviceStatsCollector,
 	}
-	return collector
 }
 
 // Collect collects stats related to resource usage of a host
@@ -307,4 +303,34 @@ func (h *HostCpuStatsCalculator) Calculate(times cpu.TimesStat) (idle float64, u
 	h.prevTotal = currentTotal
 	h.prevBusy = currentBusy
 	return
+}
+
+func (h *HostStatsCollector) collectCPUStats() (cpus []*CPUStats, totalTicks float64, err error) {
+	ticksConsumed := 0.0
+	cpuStats, err := cpu.Times(true)
+	if err != nil {
+		return nil, 0.0, err
+	}
+	cs := make([]*CPUStats, len(cpuStats))
+	for idx, cpuStat := range cpuStats {
+		percentCalculator, ok := h.statsCalculator[cpuStat.CPU]
+		if !ok {
+			percentCalculator = NewHostCpuStatsCalculator()
+			h.statsCalculator[cpuStat.CPU] = percentCalculator
+		}
+		idle, user, system, total := percentCalculator.Calculate(cpuStat)
+		totalCompute := h.top.TotalCompute()
+		ticks := (total / 100.0) * (float64(totalCompute) / float64(len(cpuStats)))
+		cs[idx] = &CPUStats{
+			CPU:          cpuStat.CPU,
+			User:         user,
+			System:       system,
+			Idle:         idle,
+			TotalPercent: total,
+			TotalTicks:   ticks,
+		}
+		ticksConsumed += ticks
+	}
+
+	return cs, ticksConsumed, nil
 }
