@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/testutil"
@@ -193,13 +193,14 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		// we always run in a cgroup - testing freezer cgroup
 		r = execTask(t, driver, taskID,
 			"cat /proc/self/cgroup",
-			false, "")
+			false, "",
+		)
 		require.Zero(t, r.exitCode)
 
-		if !cgutil.UseV2 {
-			acceptable := []string{
-				":freezer:/nomad", ":freezer:/docker",
-			}
+		switch cgroupslib.GetMode() {
+
+		case cgroupslib.CG1:
+			acceptable := []string{":freezer:/nomad", ":freezer:/docker"}
 			if testutil.IsCI() {
 				// github actions freezer cgroup
 				acceptable = append(acceptable, ":freezer:/actions_job")
@@ -215,7 +216,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 			if !ok {
 				require.Fail(t, "unexpected freezer cgroup", "expected freezer to be /nomad/ or /docker/, but found:\n%s", r.stdout)
 			}
-		} else {
+		case cgroupslib.CG2:
 			info, _ := driver.PluginInfo()
 			if info.Name == "docker" {
 				// Note: docker on cgroups v2 now returns nothing
