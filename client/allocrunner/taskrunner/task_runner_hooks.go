@@ -73,6 +73,7 @@ func (tr *TaskRunner) initHooks() {
 		newDeviceHook(tr.devicemanager, hookLogger),
 		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
 		newWranglerHook(tr.wranglers, task.Name, alloc.ID, hookLogger),
+		newTimeoutHook(tr, hookLogger),
 	}
 
 	// If the task has a CSI block, add the hook.

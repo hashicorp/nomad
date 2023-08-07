@@ -506,6 +506,8 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		} else {
 			desc = "Sent interrupt"
 		}
+	case api.TaskTimedout:
+		desc = event.Message
 	case api.TaskKilled:
 		if event.KillError != "" {
 			desc = event.KillError

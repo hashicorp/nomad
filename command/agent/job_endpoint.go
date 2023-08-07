@@ -1105,6 +1105,14 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		tg.Scaling = ApiScalingPolicyToStructs(tg.Count, taskGroup.Scaling).TargetTaskGroup(job, tg)
 	}
 
+	if taskGroup.Timeout != nil {
+		tg.Timeout = &structs.TaskGroupTimeout{
+			TTL: taskGroup.Timeout.TTL,
+			Time: taskGroup.Timeout.Time,
+			StartFrom: taskGroup.Timeout.StartFrom,
+		}
+	}
+
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
@@ -1299,6 +1307,15 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			DisableFile:  *apiTask.Vault.DisableFile,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
+		}
+	}
+
+	if apiTask.Timeout != nil {
+		structsTask.Timeout = &structs.TaskTimeout{
+			TTL:     apiTask.Timeout.TTL,
+			Time:     apiTask.Timeout.Time,
+			TimeZone:     apiTask.Timeout.TimeZone,
+			FailOnTimeout: apiTask.Timeout.FailOnTimeout,
 		}
 	}
 
