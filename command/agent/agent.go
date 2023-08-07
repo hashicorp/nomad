@@ -344,8 +344,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobDefaultPriority = jobDefaultPriority
 
 	if agentConfig.Server.JobTrackedVersions != nil {
-		if *agentConfig.Server.JobTrackedVersions < 0 {
-			return nil, fmt.Errorf("invalid Config, job_tracked_versions must be non-negative")
+		if *agentConfig.Server.JobTrackedVersions <= 0 {
+			return nil, fmt.Errorf("job_tracked_versions must be greater than 0")
 		}
 		conf.JobTrackedVersions = *agentConfig.Server.JobTrackedVersions
 	}
