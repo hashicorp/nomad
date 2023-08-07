@@ -407,11 +407,6 @@ missing: ## Check for packages not being tested
 	@echo "==> Checking for packages not being tested ..."
 	@go run -modfile tools/go.mod tools/missing/main.go ci/test-core.json
 
-.PHONY: ec2info
-ec2info: ## Generate AWS EC2 CPU specification table
-	@echo "==> Generating AWS EC2 specifications ..."
-	@go run -modfile tools/go.mod tools/ec2info/main.go
-
 .PHONY: cl
 cl: ## Create a new Changelog entry
 	@go run -modfile tools/go.mod tools/cl-entry/main.go
