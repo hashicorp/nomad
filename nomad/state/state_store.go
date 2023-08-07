@@ -99,6 +99,9 @@ type StateStoreConfig struct {
 
 	// EventBufferSize configures the amount of events to hold in memory
 	EventBufferSize int64
+
+	// JobTrackedVersions is the number of historic job versions that are kept.
+	JobTrackedVersions int
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -1956,7 +1959,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 
 func (s *StateStore) deleteJobSubmission(job *structs.Job, txn *txn) error {
 	// find submissions associated with job
-	remove := *set.NewHashSet[*structs.JobSubmission, string](structs.JobTrackedVersions)
+	remove := *set.NewHashSet[*structs.JobSubmission, string](s.config.JobTrackedVersions)
 
 	iter, err := txn.Get("job_submission", "id_prefix", job.Namespace, job.ID)
 	if err != nil {
@@ -2045,7 +2048,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 	}
 
 	// If we are below the limit there is no GCing to be done
-	if len(all) <= structs.JobTrackedVersions {
+	if len(all) <= s.config.JobTrackedVersions {
 		return nil
 	}
 
@@ -2061,7 +2064,7 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 
 	// If the stable job is the oldest version, do a swap to bring it into the
 	// keep set.
-	max := structs.JobTrackedVersions
+	max := s.config.JobTrackedVersions
 	if stableIdx == max {
 		all[max-1], all[max] = all[max], all[max-1]
 	}
@@ -5498,7 +5501,7 @@ func (s *StateStore) pruneJobSubmissions(namespace, jobID string, txn *txn) erro
 	// although the number of tracked submissions is the same as the number of
 	// tracked job versions, do not assume a 1:1 correlation, as there could be
 	// holes in the submissions (or none at all)
-	limit := structs.JobTrackedVersions
+	limit := s.config.JobTrackedVersions
 
 	// iterate through all stored submissions
 	iter, err := txn.Get("job_submission", "id_prefix", namespace, jobID)

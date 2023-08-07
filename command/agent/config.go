@@ -674,6 +674,9 @@ type ServerConfig struct {
 	// before being discarded automatically. If unset, the maximum size defaults
 	// to 1 MB. If the value is zero, no job sources will be stored.
 	JobMaxSourceSize *string `hcl:"job_max_source_size"`
+
+	// JobTrackedVersions is the number of historic job versions that are kept.
+	JobTrackedVersions *int `hcl:"job_tracked_versions"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -702,6 +705,7 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.RaftTrailingLogs = pointer.Copy(s.RaftTrailingLogs)
 	ns.JobDefaultPriority = pointer.Copy(s.JobDefaultPriority)
 	ns.JobMaxPriority = pointer.Copy(s.JobMaxPriority)
+	ns.JobTrackedVersions = pointer.Copy(s.JobTrackedVersions)
 	return &ns
 }
 
@@ -1329,7 +1333,8 @@ func DefaultConfig() *Config {
 				LimitResults:  100,
 				MinTermLength: 2,
 			},
-			JobMaxSourceSize: pointer.Of("1M"),
+			JobMaxSourceSize:   pointer.Of("1M"),
+			JobTrackedVersions: pointer.Of(structs.JobDefaultTrackedVersions),
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -2031,6 +2036,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.RaftBoltConfig = &RaftBoltConfig{
 			NoFreelistSync: b.RaftBoltConfig.NoFreelistSync,
 		}
+	}
+
+	if b.JobTrackedVersions != nil {
+		result.JobTrackedVersions = b.JobTrackedVersions
 	}
 
 	// Add the schedulers

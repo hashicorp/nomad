@@ -1,0 +1,3 @@
+```release-note:improvement
+config: Added an option to configure how many historic versions of jobs are retained in the state store
+```
