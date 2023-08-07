@@ -538,7 +538,7 @@ func DefaultConfig() *Config {
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
-		JobTrackedVersions:       structs.JobTrackedVersions,
+		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
 
 	// Enable all known schedulers by default
