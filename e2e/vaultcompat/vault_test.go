@@ -29,7 +29,7 @@ import (
 
 var (
 	integration = flag.Bool("integration", false, "run integration tests")
-	minVaultVer = version.Must(version.NewVersion("0.6.2"))
+	minVaultVer = version.Must(version.NewVersion("0.14.1"))
 )
 
 // syncVault discovers available versions of Vault, downloads the binaries,
