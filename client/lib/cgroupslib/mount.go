@@ -15,6 +15,11 @@ import (
 )
 
 func detect() Mode {
+	// only usable if Nomad is running as root
+	if os.Geteuid() != 0 {
+		return OFF
+	}
+
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return OFF

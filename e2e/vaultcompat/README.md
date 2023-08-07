@@ -8,7 +8,7 @@ only when `-integration` is set.
 Run with:
 
 ```
-cd e2e/vault/
+cd e2e/vaultcompat/
 go test -integration
 ```
 

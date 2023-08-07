@@ -122,17 +122,19 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	case cgroupslib.CG1:
 		e.configureCG1(cgroup, command)
 		cgCleanup = e.enterCG1(cgroup)
-	default:
+	case cgroupslib.CG2:
 		e.configureCG2(cgroup, command)
 		// configure child process to spawn in the cgroup
 		// get file descriptor of the cgroup made for this task
 		fd, cleanup, err := e.statCG(cgroup)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to stat cgroup %s: %w", cgroup, err)
 		}
 		e.childCmd.SysProcAttr.UseCgroupFD = true
 		e.childCmd.SysProcAttr.CgroupFD = fd
 		cgCleanup = cleanup
+	default:
+		return func() {}, nil
 	}
 
 	e.logger.Info("configured cgroup for executor", "pid", pid)
