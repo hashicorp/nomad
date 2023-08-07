@@ -416,6 +416,9 @@ type Config struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority int
+
+	// JobTrackedVersions is the number of historic Job versions that are kept.
+	JobTrackedVersions int
 }
 
 func (c *Config) Copy() *Config {
@@ -535,6 +538,7 @@ func DefaultConfig() *Config {
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
+		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
 
 	// Enable all known schedulers by default

@@ -148,16 +148,20 @@ type FSMConfig struct {
 
 	// EventBufferSize is the amount of messages to hold in memory
 	EventBufferSize int64
+
+	// JobTrackedVersions is the number of historic job versions that are kept.
+	JobTrackedVersions int
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{
-		Logger:          config.Logger,
-		Region:          config.Region,
-		EnablePublisher: config.EnableEventBroker,
-		EventBufferSize: config.EventBufferSize,
+		Logger:             config.Logger,
+		Region:             config.Region,
+		EnablePublisher:    config.EnableEventBroker,
+		EventBufferSize:    config.EventBufferSize,
+		JobTrackedVersions: config.JobTrackedVersions,
 	}
 	state, err := state.NewStateStore(sconfig)
 	if err != nil {
