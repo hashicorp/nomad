@@ -16,12 +16,6 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/kr/pretty"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -29,7 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -47,6 +41,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockTaskStateUpdater struct {
@@ -98,26 +97,10 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 	taskDir := allocDir.NewTaskDir(taskName)
 
-	// Compute the name of the v2 cgroup in case we need it in creation, configuration, and cleanup
-	cgroup := filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(alloc.ID, taskName))
-
-	// Create the cgroup if we are in v2 mode
-	if cgutil.UseV2 {
-		if err := os.MkdirAll(cgroup, 0755); err != nil {
-			t.Fatalf("failed to setup v2 cgroup for test: %v:", err)
-		}
-	}
-
 	trCleanup := func() {
 		if err := allocDir.Destroy(); err != nil {
 			t.Logf("error destroying alloc dir: %v", err)
 		}
-
-		// Cleanup the cgroup if we are in v2 mode
-		if cgutil.UseV2 {
-			_ = os.RemoveAll(cgroup)
-		}
-
 		cleanup()
 	}
 
@@ -152,13 +135,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
-	}
-
-	// Set the cgroup path getter if we are in v2 mode
-	if cgutil.UseV2 {
-		conf.CpusetCgroupPathGetter = func(context.Context) (string, error) {
-			return filepath.Join(cgutil.CgroupRoot, "testing.slice", alloc.ID, thisTask.Name), nil
-		}
+		Wranglers:             proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
 	}
 
 	return conf, trCleanup
