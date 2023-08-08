@@ -647,7 +647,8 @@ fields:
 
 This endpoint is the equivalent of Go's /debug/pprof endpoint but is protected
 by ACLs and supports remote forwarding to a client node or server. See the
-[Golang documentation](https://golang.org/pkg/runtime/pprof/#Profile) for a list of available profiles.
+[Golang documentation](https://golang.org/pkg/runtime/pprof/#Profile) for a list
+of available profiles.
 
 | Method | Path                           | Produces                   |
 | ------ | ------------------------------ | -------------------------- |
@@ -669,7 +670,7 @@ The table below shows this endpoint's support for
 This endpoint is enabled whenever ACLs are enabled. Due to the potentially
 sensitive nature of data contained in profiles, as well as their significant
 performance impact, the agent/pprof endpoint is protected by a high level ACL:
-`agent:write`. For these reasons its recommended to leave [`enable_debug`](/nomad/docs/configuration#enable_debug)
+`agent:write`. For these reasons its recommended to leave [`enable_debug`][]
 unset and only use the ACL-protected endpoints.
 
 The following table explains when each endpoint is available:
@@ -686,19 +687,21 @@ The following table explains when each endpoint is available:
 
 ### Parameters
 
-- `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a text
-  string containing a Node ID to target for profiling.
+- `node_id` `(string: "a57b2adb-1a30-2dda-8df0-25abb0881952")` - Specifies a
+  text string containing a Node ID to target for profiling.
 
-- `server_id` `(string: "server1.global")` - Specifies a text
-  string containing a Server ID, name, or `leader` to target a specific remote
-  server or leader for profiling.
+- `server_id` `(string: "server1.global")` - Specifies a text string containing
+  a Server ID, name, or `leader` to target a specific remote server or leader
+  for profiling.
 
 - `seconds` `(int: 3)` - Specifies the amount of time to run a profile or trace
   request for.
 
-- `debug` `(int: 1)` - Specifies if a given pprof profile should be returned as
+- `debug` `(int: 0)` - Specifies if a given pprof profile should be returned as
   human readable plain text instead of the pprof binary format. Defaults to 0,
-  setting to 1 enables human readable plain text.
+  setting to 1 enables human readable plain text. For goroutine profiles,
+  setting to 2 extends the plain text format with additional information helpful
+  for debugging stalled goroutines.
 
 ### Sample Request
 
@@ -921,3 +924,4 @@ $ curl \
 
 [`enabled_schedulers`]: /nomad/docs/configuration/server#enabled_schedulers
 [`num_schedulers`]: /nomad/docs/configuration/server#num_schedulers
+[`enable_debug`]: /nomad/docs/configuration#enable_debug
