@@ -32,6 +32,13 @@ export async function purgeJob() {
 
 export function expectStartRequest(assert, server, job) {
   const expectedURL = jobURL(job);
+  // TODO: Tuesday, this is the part of the service test that's failing
+  console.log(
+    'expectStartRequest',
+    expectedURL,
+    job,
+    server.pretender.handledRequests
+  );
   const request = server.pretender.handledRequests
     .filterBy('method', 'POST')
     .find((req) => req.url === expectedURL);
