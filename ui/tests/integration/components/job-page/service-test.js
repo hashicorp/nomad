@@ -122,6 +122,8 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await startJob();
     expectStartRequest(assert, this.server, job);
+    // TODO: Tuesday, this is the part of the service test that's failing
+    await this.pauseTest();
   });
 
   test('Starting a job without proper permissions shows an error message', async function (assert) {
