@@ -392,26 +392,6 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	}, nil
 }
 
-// GetPublicKey returns the public signing key for the requested key id or an
-// error if the key could not be found.
-func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	ks, err := e.keysetByIDLocked(keyID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &structs.KeyringPublicKey{
-		KeyID:      ks.rootKey.Meta.KeyID,
-		PublicKey:  ks.privateKey.Public().(ed25519.PublicKey),
-		Algorithm:  structs.PubKeyAlgEdDSA,
-		Use:        structs.PubKeyUseSig,
-		CreateTime: ks.rootKey.Meta.CreateTime,
-	}, nil
-}
-
 // newKMSWrapper returns a go-kms-wrapping interface the caller can use to
 // encrypt the RootKey with a key encryption key (KEK). This is a bit of
 // security theatre for local on-disk key material, but gives us a shim for

@@ -501,9 +501,6 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/v1/vars", wrapCORS(s.wrap(s.VariablesListRequest)))
 	s.mux.Handle("/v1/var/", wrapCORSWithAllowedMethods(s.wrap(s.VariableSpecificRequest), "HEAD", "GET", "PUT", "DELETE"))
 
-	// JWKS Handler
-	s.mux.HandleFunc("/.well-known/jwks.json", s.wrap(s.JWKSRequest))
-
 	agentConfig := s.agent.GetConfig()
 	uiConfigEnabled := agentConfig.UI != nil && agentConfig.UI.Enabled
 

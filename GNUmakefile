@@ -53,7 +53,6 @@ ALL_TARGETS = linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
-	linux_s390x \
 	windows_386 \
 	windows_amd64
 endif
