@@ -64,7 +64,7 @@ require (
 	github.com/hashicorp/go-plugin v1.4.10
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.4
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
-	github.com/hashicorp/go-set v0.1.9
+	github.com/hashicorp/go-set v0.1.13
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.3
@@ -113,7 +113,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.4
 	github.com/shoenig/go-landlock v0.1.5
 	github.com/shoenig/go-m1cpu v0.1.6
-	github.com/shoenig/test v0.6.6
+	github.com/shoenig/test v0.6.7
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/testify v1.8.4
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
