@@ -311,13 +311,12 @@ e2e-test: dev ## Run the Nomad e2e test suite
 .PHONY: integration-test
 integration-test: dev ## Run Nomad integration tests
 	@echo "==> Running Nomad integration test suites:"
-	go test \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
-		-cover \
+	NOMAD_E2E_VAULTCOMPAT=1 go test \
+		-v \
 		-timeout=900s \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/vaultcompat/ \
-		-integration
+		github.com/hashicorp/nomad/e2e/vaultcompat
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
