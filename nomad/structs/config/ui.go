@@ -49,6 +49,13 @@ func (old *ContentSecurityPolicy) Copy() *ContentSecurityPolicy {
 
 	nc := new(ContentSecurityPolicy)
 	*nc = *old
+	nc.ConnectSrc = slices.Clone(old.ConnectSrc)
+	nc.DefaultSrc = slices.Clone(old.DefaultSrc)
+	nc.FormAction = slices.Clone(old.FormAction)
+	nc.FrameAncestors = slices.Clone(old.FrameAncestors)
+	nc.ImgSrc = slices.Clone(old.ImgSrc)
+	nc.ScriptSrc = slices.Clone(old.ScriptSrc)
+	nc.StyleSrc = slices.Clone(old.StyleSrc)	
 	return nc
 }
 
