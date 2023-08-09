@@ -6,6 +6,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 // UIConfig contains the operator configuration of the web UI
@@ -55,7 +57,7 @@ func (old *ContentSecurityPolicy) Copy() *ContentSecurityPolicy {
 	nc.FrameAncestors = slices.Clone(old.FrameAncestors)
 	nc.ImgSrc = slices.Clone(old.ImgSrc)
 	nc.ScriptSrc = slices.Clone(old.ScriptSrc)
-	nc.StyleSrc = slices.Clone(old.StyleSrc)	
+	nc.StyleSrc = slices.Clone(old.StyleSrc)
 	return nc
 }
 
