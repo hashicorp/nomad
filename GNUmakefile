@@ -313,6 +313,7 @@ integration-test: dev ## Run Nomad integration tests
 	@echo "==> Running Nomad integration test suites:"
 	NOMAD_E2E_VAULTCOMPAT=1 go test \
 		-v \
+		-race \
 		-timeout=900s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
