@@ -3005,7 +3005,7 @@ func (c *Client) consulDiscoveryImpl() error {
 		// datacenterQueryLimit, the next heartbeat will pick
 		// a new set of servers so it's okay.
 		shuffleStrings(dcs[1:])
-		dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
+		dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 	}
 
 	serviceName := c.GetConfig().ConsulConfig.ServerServiceName

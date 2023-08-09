@@ -816,8 +816,8 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		a.markStop(failed, "", allocRescheduled)
 		desiredChanges.Stop += uint64(len(failed))
 
-		min := helper.Min(len(place), underProvisionedBy)
-		underProvisionedBy -= min
+		minimum := min(len(place), underProvisionedBy)
+		underProvisionedBy -= minimum
 		return underProvisionedBy
 	}
 
@@ -828,7 +828,7 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	// If allocs have been lost, determine the number of replacements that are needed
 	// and add placements to the result for the lost allocs.
 	if len(lost) != 0 {
-		allowed := helper.Min(len(lost), len(place))
+		allowed := min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
 		a.result.place = append(a.result.place, place[:allowed]...)
 	}
@@ -869,10 +869,10 @@ func (a *allocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	desiredChanges *structs.DesiredUpdates, tg *structs.TaskGroup) {
 
 	// Do all destructive updates
-	min := helper.Min(len(destructive), underProvisionedBy)
-	desiredChanges.DestructiveUpdate += uint64(min)
-	desiredChanges.Ignore += uint64(len(destructive) - min)
-	for _, alloc := range destructive.nameOrder()[:min] {
+	minimum := min(len(destructive), underProvisionedBy)
+	desiredChanges.DestructiveUpdate += uint64(minimum)
+	desiredChanges.Ignore += uint64(len(destructive) - minimum)
+	for _, alloc := range destructive.nameOrder()[:minimum] {
 		a.result.destructiveUpdate = append(a.result.destructiveUpdate, allocDestructiveResult{
 			placeName:             alloc.Name,
 			placeTaskGroup:        tg,
@@ -948,7 +948,7 @@ func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, in
 
 	// Final check to see if the deployment is complete is to ensure everything is healthy
 	if dstate, ok := a.deployment.TaskGroups[groupName]; ok {
-		if dstate.HealthyAllocs < helper.Max(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
+		if dstate.HealthyAllocs < max(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 			complete = false
 		}
