@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 job "cat" {
+  datacenters = ["dc1"]
   type = "batch"
   group "testcase" {
     task "cat" {
