@@ -292,7 +292,7 @@ func (s *TestServer) waitForAPI() {
 			wait.Timeout(10*time.Second),
 			wait.Gap(1*time.Second),
 		),
-		must.Sprint("failed to wait for api"),
+		test.Sprint("failed to wait for api"),
 	)
 }
 
@@ -319,7 +319,7 @@ func (s *TestServer) waitForLeader() {
 			wait.Timeout(10*time.Second),
 			wait.Gap(1*time.Second),
 		),
-		must.Sprint("failed to wait for leader"),
+		test.Sprint("failed to wait for leader"),
 	)
 }
 
@@ -353,7 +353,7 @@ func (s *TestServer) waitForClient() {
 			wait.Timeout(10*time.Second),
 			wait.Gap(1*time.Second),
 		),
-		must.Sprint("failed to wait for client (node)"),
+		test.Sprint("failed to wait for client (node)"),
 	)
 }
 
