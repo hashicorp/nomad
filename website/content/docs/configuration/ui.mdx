@@ -60,27 +60,24 @@ and the configuration is individual to each agent.
 
 ## `content_security_policy` Parameters
 
-- `connect_src` `(array<string>: [])` - Specifies the valid sources for
-  `connect-src` in the Content Security Policy header. The default
-  value is `["*"]`.
-- `default_src` `(array<string>: [])` - Specifies the valid sources for
-  `default-src` in the Content Security Policy header. The default
-  value is `["none"]`.
-- `form_action` `(array<string>: [])` - Specifies the valid sources for
-  `form-action` in the Content Security Policy header. The default
-  value is `["none"]`.
-- `frame_ancestors` `(array<string>: [])` - Specifies the valid sources
-  for `frame-ancestors` in the Content Security Policy header. The
-  default value is `["none"]`.
-- `img_src` `(array<string>: [])` - Specifies the valid sources
-  for `img-src` in the Content Security Policy header. The default
-  value is `["'self'","data:"]`.
-- `script_src` `(array<string>: [])` - Specifies the valid sources for
-  `script-src` in the Content Security Policy header. The default
-  value is `["'self'"]`.
-- `style_src` `(array<string>: [])` - Specifies the
-  valid sources for `style-src` in the Content Security Policy
-  header. The default value is `["'self'","'unsafe-inline'"]`.
+The `content_security_policy` block configures the HTTP
+[Content-Security-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+header sent with the web UI response.
+
+- `connect_src` `(array<string>: ["*"])` - Specifies the valid sources for
+  `connect-src` in the Content Security Policy header.
+- `default_src` `(array<string>: ["'none'"])` - Specifies the valid sources for
+  `default-src` in the Content Security Policy header.
+- `form_action` `(array<string>: ["'none'"])` - Specifies the valid sources for
+  `form-action` in the Content Security Policy header.
+- `frame_ancestors` `(array<string>: ["'none'"])` - Specifies the valid sources
+  for `frame-ancestors` in the Content Security Policy header.
+- `img_src` `(array<string>: ["'self'", "data:"])` - Specifies the valid sources
+  for `img-src` in the Content Security Policy header.
+- `script_src` `(array<string>: ["'self'"])` - Specifies the valid sources for
+  `script-src` in the Content Security Policy header.
+- `style_src` `(array<string>: ["'self'","'unsafe-inline'"])` - Specifies the
+  valid sources for `style-src` in the Content Security Policy header.
 
 ## `consul` Parameters
 
