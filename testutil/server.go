@@ -87,6 +87,7 @@ type VaultConfig struct {
 	Address              string `json:"address"`
 	AllowUnauthenticated bool   `json:"allow_unauthenticated"`
 	Token                string `json:"token"`
+	Role                 string `json:"role"`
 }
 
 // ACLConfig is used to configure ACLs
