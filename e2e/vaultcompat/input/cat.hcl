@@ -3,7 +3,7 @@
 
 job "cat" {
   datacenters = ["dc1"]
-  type = "batch"
+  type        = "batch"
   group "testcase" {
     task "cat" {
       driver = "raw_exec"
