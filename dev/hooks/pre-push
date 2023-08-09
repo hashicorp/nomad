@@ -11,9 +11,20 @@ fail () {
 # only push to oss when the enterprise version is absent
 # ====================
 oss="git@github.com:hashicorp/nomad.git"
-ent="git@github.com:hashicorp/nomad-enterprise.git"
-if [ "$2" != "$ent" -a -f version/version_ent.go ]; then
-    fail "found enterprise version file version/version_ent.go while pushing to oss remote"
+ent="hashicorp/nomad-enterprise"
+
+# isEnterprise exits with a 0 when the first parameter matches the
+# nomad-enterprise repo, regardless of additional optional and variable
+# components of the remote URL, like the terminal ".git" extension
+isEnterprise () {
+  local arg="${1}"
+  return (echo "${arg}" | grep -q -E "^(https://github.com/|git@github.com:)?${ent}(.git)?$")
+}
+
+isEnterprise "${2}"
+
+if [ $? -ne 0 -a -f version/version_ent.go ]; then
+    fail "found enterprise version file version/version_ent.go pushing to non-enterprise remote \"${2}\""
 fi
 
 # do not push directly to main, stable-*, release/*
