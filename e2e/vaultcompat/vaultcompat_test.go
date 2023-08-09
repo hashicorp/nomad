@@ -213,14 +213,21 @@ func keep(b build) bool {
 	}
 }
 
+// A tracker keeps track of the set of patch versions for each minor version.
+// The patch versions are stored in a treeset so we can grab the highest  patch
+// version of each minor version at the end.
 type tracker map[int]*set.TreeSet[build, set.Compare[build]]
 
 func (t tracker) add(v *version.Version, b build) {
-	y := v.Segments()[1]
+	y := v.Segments()[1] // minor version
+
+	// create the treeset for this minor version if needed
 	if _, exists := t[y]; !exists {
 		cmp := func(g, h build) int { return g.compare(h) }
 		t[y] = set.NewTreeSet[build, set.Compare[build]](cmp)
 	}
+
+	// insert the patch version into the set of patch versions for this minor version
 	t[y].Insert(b)
 }
 
@@ -250,7 +257,7 @@ func scanVaultVersions(t *testing.T, minimum *version.Version) *set.Set[build] {
 		}
 	}
 
-	// take the latest patch version for each X.Y
+	// take the latest patch version for each minor version
 	result := set.New[build](len(track))
 	for _, tree := range track {
 		max := tree.Max()
