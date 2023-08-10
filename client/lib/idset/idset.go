@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 // Package idset provides a Set implementation for keeping track of various
 // types of numeric IDs (e.g. CoreID, ProcessID, etc.).

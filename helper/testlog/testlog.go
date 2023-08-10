@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 // Package testlog creates a *log.Logger backed by *testing.T to ease logging
 // in tests. This allows logs from components being tested to only be printed
