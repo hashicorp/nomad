@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
  Copyright (c) HashiCorp, Inc.
- SPDX-License-Identifier: MPL-2.0
+ SPDX-License-Identifier: BUSL-1.1
 -->
 
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>

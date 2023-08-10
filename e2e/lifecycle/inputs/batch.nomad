@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # lifecycle hook test job for batch jobs. touches, removes, and tests
 # for the existence of files to assert the order of running tasks.

@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # Nomad ECS Remote Task Driver E2E
 resource "aws_ecs_cluster" "nomad_rtd_e2e" {

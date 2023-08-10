@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # This job runs after the private registry is up and running, when we know
 # address and port provided by the bridge network. It is a sysbatch job

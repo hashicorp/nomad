@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 
 # Create the tarball used in TestDockerDriver_StopSignal

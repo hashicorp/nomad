@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 resource "aws_efs_file_system" "csi" {
   count          = var.volumes ? 1 : 0

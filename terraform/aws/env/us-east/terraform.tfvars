@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # `name` (required) is used to override the default decorator for elements in
 # the stack.  This allows for more than one environment per account.
