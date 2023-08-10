@@ -1,6 +1,6 @@
 #!/usr/bin/env ash
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 
 case "$1" in
