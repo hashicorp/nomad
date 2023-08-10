@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # This is a comma-separated list of SSH key ID's or fingerprints
 # available in your DigitalOcean account. These keys will be granted

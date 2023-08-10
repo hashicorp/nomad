@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # Allow creating tokens under "nomad-cluster" role. The role name should be
 # updated if "nomad-cluster" is not used.

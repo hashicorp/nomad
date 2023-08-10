@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 // This package exists to wrap our e2e provisioning and test framework so that it
 // can be run via 'go test ./e2e'. See './framework/framework.go'

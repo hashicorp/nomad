@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # This job stands up a private container registry for use in e2e tests.
 # In a post start task we then upload some default images for convenience.

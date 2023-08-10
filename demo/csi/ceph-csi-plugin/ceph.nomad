@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # This job deploys Ceph as a Docker container in "demo mode"; it runs all its
 # processes in a single task and doesn't will not persist data after a restart

@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # This "sleep" job simply invokes 'sleep infinity' using raw_exec. It is great
 # for demonstrating features of the Nomad e2e suite with a trivial job spec.

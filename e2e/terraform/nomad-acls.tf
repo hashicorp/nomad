@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
+# SPDX-License-Identifier: BUSL-1.1
 
 # Bootstrapping Nomad ACLs:
 # We can't both bootstrap the ACLs and use the Nomad TF provider's
