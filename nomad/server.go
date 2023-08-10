@@ -35,8 +35,8 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
+	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -1958,7 +1958,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
-		"runtime": stats.RuntimeStats(),
+		"runtime": goruntime.RuntimeStats(),
 		"vault":   s.vault.Stats(),
 	}
 

@@ -12,10 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -24,6 +20,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAgent_RPC_Ping(t *testing.T) {
@@ -743,19 +742,6 @@ func TestAgent_ClientConfig_JobMaxSourceSize(t *testing.T) {
 	serverConf, err := agent.serverConfig()
 	must.NoError(t, err)
 	must.Eq(t, 1e6, serverConf.JobMaxSourceSize)
-}
-
-func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
-	ci.Parallel(t)
-	conf := DefaultConfig()
-	conf.Client.Enabled = true
-	conf.Client.ReserveableCores = "0-7"
-	conf.Client.Reserved.Cores = "0,2-3"
-	a := &Agent{config: conf}
-	c, err := a.clientConfig()
-	must.NoError(t, err)
-	must.Eq(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
-	must.Eq(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
 }
 
 // Clients should inherit telemetry configuration

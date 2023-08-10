@@ -14,10 +14,6 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -25,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
@@ -33,6 +30,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/require"
 )
 
 // destroy does a blocking destroy on an alloc runner
@@ -1220,6 +1220,10 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	ar, err := NewAllocRunner(conf)
 	must.NoError(t, err)
 
+	// setup process wranglers for these tasks
+	ar.(*allocRunner).wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: task.Name})
+	ar.(*allocRunner).wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: task2.Name})
+
 	// Mimic Nomad exiting before the leader stopping is able to stop other tasks.
 	ar.(*allocRunner).tasks["leader"].UpdateState(structs.TaskStateDead, structs.NewTaskEvent(structs.TaskKilled))
 	ar.(*allocRunner).tasks["follower1"].UpdateState(structs.TaskStateRunning, structs.NewTaskEvent(structs.TaskStarted))
@@ -1273,6 +1277,13 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	arIface, err := NewAllocRunner(conf)
 	must.NoError(t, err)
 	ar := arIface.(*allocRunner)
+
+	// Setup the process wranglers for the initial alloc runner, these should
+	// be recovered by the second alloc runner.
+	ar.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "init"})
+	ar.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "side"})
+	ar.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "web"})
+	ar.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "poststart"})
 
 	go ar.Run()
 	defer destroy(ar)

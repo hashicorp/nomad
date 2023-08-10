@@ -6,8 +6,8 @@ package executor
 import (
 	"context"
 
-	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"google.golang.org/grpc"
 )
@@ -15,16 +15,15 @@ import (
 type ExecutorPlugin struct {
 	// TODO: support backwards compatibility with pre 0.9 NetRPC plugin
 	plugin.NetRPCUnsupportedPlugin
-	logger        hclog.Logger
-	fsIsolation   bool
-	cpuTotalTicks uint64
+	logger      hclog.Logger
+	fsIsolation bool
 }
 
 func (p *ExecutorPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	if p.fsIsolation {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger, p.cpuTotalTicks)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger)})
 	} else {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger, p.cpuTotalTicks)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger)})
 	}
 	return nil
 }
