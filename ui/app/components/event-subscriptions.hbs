@@ -1,0 +1,59 @@
+{{#if this.events.sidebarIsActive}}
+  <Hds::Flyout id="basic-flyout"
+    @onClose={{action this.deactivateFlyout}} as |M|>
+    <M.Header @tagline="Event Stream Notifications" @icon="info">
+      Current Event Subscriptions
+    </M.Header>
+    <M.Description>
+      Add, remove or modify notifications for events in the <a href="https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream" target="_blank" rel="noopener noreferrer">event stream</a>.
+    </M.Description>
+    <M.Body>
+
+      <ul>
+      {{#each this.events.subscriptions as |sub|}}
+      <li>
+        {{#if (eq sub.Topic "Allocation")}}
+      <p>
+        Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Task Event
+        {{#each sub.conditions as |cond index|}}
+          <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+          {{concat "for tasks [" cond.tasks "] in jobs [" cond.jobs "]"}}
+          {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+        {{/each}}
+      </p>
+
+        {{else}}
+          (TODO: Subsciprion description)
+        {{/if}}
+      <hr />
+      </li>
+      {{/each}}
+      </ul>
+
+      TODO: TEMP
+      {{#each this.events.stream as |event|}}
+  <hr />
+    <dl class="realtime-event" onclick={{action this.logEvent event}}>
+      <dt>Index:</dt>
+      <dd>{{event.streamEventIndex}}</dd>
+      <dt>Topic:</dt>
+      <dd>{{event.streamEventTopic}}</dd>
+      <dt>Type:</dt>
+      <dd>{{event.streamEventType}}</dd>
+      <dt>Event Type:</dt>
+      <dd>{{event.Type}}</dd>
+      <dt>Event DisplayMessage:</dt>
+      <dd>{{event.DisplayMessage}}</dd>
+      <dt>Event Message:</dt>
+      <dd>{{event.Message}}</dd>
+    </dl>
+      {{/each}}
+        
+      <p class="hds-typography-body-300 hds-foreground-primary">
+        Aliquam ac enim iaculis, faucibus enim id, dapibus quam.
+        Nunc nibh mi, vehicula sed enim eget, lacinia venenatis tortor.
+        Quisque vitae accumsan est, eu vehicula arcu.
+      </p>
+    </M.Body>
+  </Hds::Flyout>
+{{/if}}

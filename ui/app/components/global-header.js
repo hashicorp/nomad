@@ -14,6 +14,7 @@ import { htmlSafe } from '@ember/template';
 export default class GlobalHeader extends Component {
   @service config;
   @service system;
+  @service events;
 
   'data-test-global-header' = true;
   onHamburgerClick() {}
@@ -27,6 +28,16 @@ export default class GlobalHeader extends Component {
       !this.system.agent?.get('config') ||
       this.system.agent?.get('config.ACL.Enabled') === true
     );
+  }
+
+  // User needs Event Stream access generally if they want this icon
+  get shouldShowNotificationsIcon() {
+    console.log('shouldshow', this.events);
+    return true; // TODO: implement
+  }
+
+  toggleNotifications() {
+    this.events.sidebarIsActive = true;
   }
 
   get labelStyles() {

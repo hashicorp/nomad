@@ -6,6 +6,14 @@
 $topNavOffset: 112px;
 $subNavOffset: 49px;
 
+.hds-flyout__overlay {
+  z-index: $z-modal !important;
+}
+
+.hds-flyout {
+  animation: flyout-slide-in 0.3s ease-in-out;
+}
+
 .sidebar {
   position: fixed;
   background: #ffffff;
@@ -171,5 +179,14 @@ $subNavOffset: 49px;
 
   .cli-window {
     height: 100%;
+  }
+}
+
+@keyframes flyout-slide-in {
+  from {
+    left: 100vw;
+  }
+  to {
+    left: 0;
   }
 }

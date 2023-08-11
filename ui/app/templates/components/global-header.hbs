@@ -73,6 +73,12 @@
     {{#if this.shouldShowProfileNav}}
       <ProfileNavbarItem />
     {{/if}}
+    {{#if this.shouldShowNotificationsIcon}}
+      <Hds::Button @text="Notifications" @icon="bell" @isIconOnly={{true}} @color="tertiary" class="notification-button"
+        {{keyboard-shortcut menuLevel=true pattern=(array "g" "n") action=(action this.toggleNotifications)}}
+        {{on "click" (action this.toggleNotifications)}}
+      />
+    {{/if}}
   </div>
 </nav>
 <div class="navbar is-secondary">

@@ -29,7 +29,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     controller.set('watchers', {
       summary: this.watchSummary.perform(model.get('summary')),
       allocations: this.watchAllocations.perform(model),
-      evaluations: this.watchEvaluations.perform(model),
+      // evaluations: this.watchEvaluations.perform(model),
       latestDeployment:
         model.get('supportsDeployments') &&
         this.watchLatestDeployment.perform(model),
@@ -62,14 +62,14 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
-  @watchRelationship('evaluations') watchEvaluations;
+  // @watchRelationship('evaluations') watchEvaluations;
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
   @collect(
     'watchAllJobs',
     'watchSummary',
     'watchAllocations',
-    'watchEvaluations',
+    // 'watchEvaluations',
     'watchLatestDeployment',
     'watchNodes'
   )

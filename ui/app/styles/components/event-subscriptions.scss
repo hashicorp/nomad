@@ -1,0 +1,10 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: MPL-2.0
+ */
+@import '~@hashicorp/design-system-tokens/dist/products/css/helpers/colors.css';
+
+.hds-button.notification-button {
+  color: var(--token-color-foreground-high-contrast);
+  margin-left: 0.5rem;
+}
