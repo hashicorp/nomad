@@ -21,8 +21,8 @@ require (
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.184
-	github.com/container-storage-interface/spec v1.4.0
-	github.com/containerd/go-cni v1.1.7
+	github.com/container-storage-interface/spec v1.7.0
+	github.com/containerd/go-cni v1.1.9
 	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.2.0
 	github.com/coreos/go-iptables v0.6.0
