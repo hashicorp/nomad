@@ -9,7 +9,6 @@ import { tracked } from '@glimmer/tracking';
  * @type {Object}
  * @property {number} Index
  * @property {string} Topic
- * @property {string} Type
  * @property {Object} Payload
  */
 
@@ -18,7 +17,6 @@ import { tracked } from '@glimmer/tracking';
  * @type {Object}
  * @property {number} streamEventIndex
  * @property {string} streamEventTopic
- * @property {string} streamEventType
  * @property {string} jobName
  * @property {string} taskName
  *
@@ -194,7 +192,6 @@ export default class EventsService extends Service {
                              * @type {Event}
                              */
                             const newEvent = {
-                              streamEventType: event.Type,
                               streamEventTopic: event.Topic,
                               streamEventIndex: event.Index,
                               jobName: event.Payload.Allocation.JobID,
@@ -226,7 +223,6 @@ export default class EventsService extends Service {
                        * @type {Event}
                        */
                       const newEvent = {
-                        streamEventType: event.Type,
                         streamEventTopic: event.Topic,
                         streamEventIndex: event.Index,
                         nodeName: event.Payload.Node.Name,
@@ -257,7 +253,7 @@ export default class EventsService extends Service {
    */
   createKey(event, taskEvent) {
     // Combine relevant fields to create a unique key for the event
-    return `${event.Topic}-${event.Type}-${taskEvent.Time}-${taskEvent.Type}`;
+    return `${event.Topic}-${taskEvent.Time}-${taskEvent.Type}`;
   }
 
   /**
@@ -265,13 +261,13 @@ export default class EventsService extends Service {
    * @param {NodeEvent} nodeEvent
    */
   createNodeEventKey(event, nodeEvent) {
-    return `${event.Topic}-${event.Type}-${nodeEvent.Timestamp}-${nodeEvent.Message}`;
+    return `${event.Topic}-${nodeEvent.Timestamp}-${nodeEvent.Message}`;
   }
 
   /**
    * The time before which we don't care about event notifications
    */
-  @tracked observationStartIndex = 1; // TODO: make null
+  @tracked observationStartIndex = null; // TODO: make null
 
   /**
    * @typedef AllocationEventSubscriptionCondition
@@ -333,13 +329,34 @@ export default class EventsService extends Service {
     // }
     {
       Topic: 'Node',
-      Type: 'AllocationUpdated',
       playSound: true,
       conditions: [
         {
           stringKey: 'Message',
           matchType: 'equals',
           value: 'Node heartbeat missed',
+        },
+      ],
+    },
+    {
+      Topic: 'Node',
+      playSound: true,
+      conditions: [
+        {
+          stringKey: 'Message',
+          matchType: 'contains',
+          value: 'Node registered',
+        },
+      ],
+    },
+    {
+      Topic: 'Node',
+      playSound: true,
+      conditions: [
+        {
+          stringKey: 'Message',
+          matchType: 'contains',
+          value: 'Node reregistered',
         },
       ],
     },
@@ -378,10 +395,7 @@ export default class EventsService extends Service {
             //   (event) => {
             context.subscriptions.forEach((subscription) => {
               // console.log('forEachsub', subscription.Topic, chunk.streamEventTopic)
-              if (
-                subscription.Topic === chunk.streamEventTopic &&
-                subscription.Type === chunk.streamEventType
-              ) {
+              if (subscription.Topic === chunk.streamEventTopic) {
                 let matches = subscription.conditions.every((condition) => {
                   return context.eventMatchesCondition(
                     chunk,
@@ -393,12 +407,10 @@ export default class EventsService extends Service {
                 if (matches) {
                   console.log('=+=+=+=+=+=Subscription match found:', chunk);
                   context.notifications.add({
-                    title: `${chunk.streamEventType} Notification`,
+                    title: `${chunk.streamEventTopic} Notification`,
                     message: `Subscription match found: ${
                       chunk.streamEventTopic
-                    } ${chunk.streamEventType} ${
-                      chunk.DisplayMessage || chunk.Message
-                    }`,
+                    } ${chunk.DisplayMessage || chunk.Message}`,
                     color: 'neutral',
                     sticky: true,
                     customAction: {
