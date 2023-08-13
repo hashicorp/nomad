@@ -45,6 +45,7 @@ import { tracked } from '@glimmer/tracking';
  * @property {string} Type
  * @property {EventSubscriptionCondition[]} conditions
  * @property {boolean} playSound
+ * @property {string} notificationType
  */
 
 /**
@@ -267,7 +268,7 @@ export default class EventsService extends Service {
   /**
    * The time before which we don't care about event notifications
    */
-  @tracked observationStartIndex = null; // TODO: make null
+  @tracked observationStartIndex = 1; // TODO: make null
 
   /**
    * @typedef AllocationEventSubscriptionCondition
@@ -313,23 +314,40 @@ export default class EventsService extends Service {
     //     }
     //   ]
     // },
-    // {
-    //   Topic: "Allocation",
-    //   Type: "AllocationUpdated",
-    //   playSound: true,
-    //   conditions: [
-    //     {
-    //       stringKey: "Type",
-    //       tasks: ["*"], // ["*"] etc.
-    //       jobs: ["*"], // ["*"] etc.
-    //       matchType: "equals", // "equals", "contains"
-    //       value: "Not Restarting",
-    //     },
-    //   ]
-    // }
+    {
+      Topic: 'Allocation',
+      Type: 'AllocationUpdated',
+      playSound: true,
+      notificationType: 'critical',
+      conditions: [
+        {
+          stringKey: 'Type',
+          tasks: ['*'], // ["*"] etc.
+          jobs: ['*'], // ["*"] etc.
+          matchType: 'equals', // "equals", "contains"
+          value: 'Not Restarting',
+        },
+      ],
+    },
+    {
+      Topic: 'Allocation',
+      Type: 'AllocationUpdated',
+      playSound: true,
+      notificationType: 'warning',
+      conditions: [
+        {
+          stringKey: 'Type',
+          tasks: ['*'], // ["*"] etc.
+          jobs: ['*'], // ["*"] etc.
+          matchType: 'equals', // "equals", "contains"
+          value: 'Restarting',
+        },
+      ],
+    },
     {
       Topic: 'Node',
       playSound: true,
+      notificationType: 'critical',
       conditions: [
         {
           stringKey: 'Message',
@@ -341,6 +359,7 @@ export default class EventsService extends Service {
     {
       Topic: 'Node',
       playSound: true,
+      notificationType: 'success',
       conditions: [
         {
           stringKey: 'Message',
@@ -352,6 +371,7 @@ export default class EventsService extends Service {
     {
       Topic: 'Node',
       playSound: true,
+      notificationType: 'success',
       conditions: [
         {
           stringKey: 'Message',
@@ -411,7 +431,7 @@ export default class EventsService extends Service {
                     message: `Subscription match found: ${
                       chunk.streamEventTopic
                     } ${chunk.DisplayMessage || chunk.Message}`,
-                    color: 'neutral',
+                    color: subscription.notificationType || 'highlight',
                     sticky: true,
                     customAction: {
                       label: 'Log Event',
