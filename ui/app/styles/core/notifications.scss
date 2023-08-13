@@ -15,5 +15,8 @@ section.notifications {
     &:not(:last-child) {
       margin-bottom: 1rem;
     }
+    .hds-toast {
+      width: min(500px, 80vw);
+    }
   }
 }

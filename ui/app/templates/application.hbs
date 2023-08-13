@@ -35,6 +35,11 @@
     </Hds::Toast>
   </FlashMessage>
   {{/each}}
+  {{#if (gt this.notifications.queue.length 2)}}
+    <FlashMessage @flash={{this.notifications.queue.lastObject}} as |component flash close|>
+      <Hds::Button @text="Clear All Notifications" @color="critical" @icon="x" @iconPosition="leading" {{on "click" (action this.notifications.clearAll)}} />
+    </FlashMessage>
+  {{/if}}
 </section>
 
 <EventSubscriptions />
