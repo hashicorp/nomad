@@ -268,7 +268,7 @@ export default class EventsService extends Service {
   /**
    * The time before which we don't care about event notifications
    */
-  @tracked observationStartIndex = 1; // TODO: make null
+  @tracked observationStartIndex = null; // TODO: make null
 
   /**
    * @typedef AllocationEventSubscriptionCondition
@@ -430,12 +430,39 @@ export default class EventsService extends Service {
                   });
 
                   if (matches) {
+                    const humanEventType =
+                      chunk.streamEventTopic === 'Allocation'
+                        ? 'Task Event'
+                        : `${chunk.streamEventTopic} Event`;
+
+                    let humanEntityName;
+                    switch (chunk.streamEventTopic) {
+                      case 'Allocation':
+                        humanEntityName = `Task ${chunk.taskName} in Job ${chunk.jobName}`;
+                        break;
+                      case 'Node':
+                        humanEntityName = `Node ${chunk.nodeName}`;
+                        break;
+                      default:
+                        humanEntityName = chunk.streamEventTopic;
+                        break;
+                    }
+
+                    let humanConditionMatch;
+                    if (subscription.conditions.length === 1) {
+                      humanConditionMatch = `condition "${subscription.conditions[0].stringKey}" ${subscription.conditions[0].matchType} "${subscription.conditions[0].value}"`;
+                    } else {
+                      humanConditionMatch = `conditions ${subscription.conditions
+                        .map((condition) => {
+                          return `"${condition.stringKey}" ${condition.matchType} "${condition.value}"`;
+                        })
+                        .join(' and ')}`;
+                    }
+
                     console.log('=+=+=+=+=+=Subscription match found:', chunk);
                     context.notifications.add({
-                      title: `${chunk.streamEventTopic} Notification`,
-                      message: `Subscription match found: ${
-                        chunk.streamEventTopic
-                      } ${chunk.DisplayMessage || chunk.Message}`,
+                      title: `${humanEventType} Notification`,
+                      message: `Event for ${humanEntityName} matched ${humanConditionMatch}`,
                       color: subscription.notificationType || 'highlight',
                       sticky: true,
                       customAction: {
