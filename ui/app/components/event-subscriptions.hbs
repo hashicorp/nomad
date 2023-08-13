@@ -9,33 +9,86 @@
     </M.Description>
     <M.Body>
       {{#if this.events.subscriptionBeingEdited}}
-      <strong>Edit {{this.events.subscriptionBeingEdited.notificationType}} Notification Subscription</strong>
-      <Hds::Button @text="Cancel" @color="secondary" {{on "click" (action (mut this.events.subscriptionBeingEdited) null)}} />
-      <form class="edit-notification">
-        <Hds::Form::Select::Field
-          {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "notificationType")}}
-        as |F|>
-          <F.Label>Notification Type</F.Label>
-          <F.Options>
-            {{#each this.events.notificationTypes as |type|}}
-              <option value={{type}} selected={{eq this.events.subscriptionBeingEdited.notificationType type}}>{{capitalize type}}</option>
+        <section class="subscription-editor">
+          <header>
+            <Hds::Button @text="Back" @color="tertiary" @icon="chevron-left" @isIconOnly={{true}} {{on "click" (action (mut this.events.subscriptionBeingEdited) null)}} />
+            <strong>
+              Edit Notification Subscription
+            </strong>
+          </header>
+
+          <form class="edit-notification">
+            <Hds::Form::Select::Field
+              {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "notificationType")}}
+            as |F|>
+              <F.Label>Notification Type</F.Label>
+              <F.Options>
+                {{#each this.events.notificationTypes as |type|}}
+                  <option value={{type}} selected={{eq this.events.subscriptionBeingEdited.notificationType type}}>{{capitalize type}}</option>
+                {{/each}}
+              </F.Options>
+            </Hds::Form::Select::Field>
+
+            <Hds::Form::Toggle::Field
+              checked={{this.events.subscriptionBeingEdited.playSound}}
+              {{on "change" (action
+                this.events.setSubscriptionPropertyWithValue
+                this.events.subscriptionBeingEdited
+                "playSound"
+                (if this.events.subscriptionBeingEdited.playSound false true)
+              )}}
+            as |F|>
+              <F.Label>Play a Sound</F.Label>
+            </Hds::Form::Toggle::Field>
+
+            {{#each this.events.subscriptionBeingEdited.conditions as |condition|}}
+            <p>
+              Triggers whenever
+              <Hds::Form::Select::Base
+              {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
+              as |F|>
+                <F.Options>
+                  {{#if (eq this.events.subscriptionBeingEdited.Topic "Allocation")}}
+                    {{#each this.events.allocationStringKeys as |key|}}
+                      <option value={{key}} selected={{eq condition.stringKey key}}>{{humanize (dasherize key)}}</option>
+                    {{/each}}
+                  {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
+                    {{#each this.events.nodeStringKeys as |key|}}
+                      <option value={{key}} selected={{eq condition.stringKey key}}>{{humanize (dasherize key)}}</option>
+                    {{/each}}
+                  {{/if}}
+                </F.Options>
+              </Hds::Form::Select::Base>
+
+              <Hds::Form::Select::Base
+                {{on "change" (action this.events.setConditionProperty condition "matchType" )}}
+              as |F|>
+                <F.Options>
+                  {{#each this.events.matchTypes as |key|}}
+                    <option value={{key}} selected={{eq condition.matchType key}}>{{key}}</option>
+                  {{/each}}
+                </F.Options>
+              </Hds::Form::Select::Base>
+
+              <Hds::Form::TextInput::Base
+                @type="text"
+                @value={{condition.value}}
+                placeholder="eg. Node registered"
+                {{on "blur" (action this.events.setConditionProperty condition "value")}}
+              />
+
+
+
+
+              </p>
+
+              {{#if (gt this.events.subscriptionBeingEdited.conditions.length 1)}}
+                <Hds::Button @text="Remove Condition" @color="critical" {{on "click" (action this.events.removeSubscriptionCondition this.events.subscriptionBeingEdited condition)}} />
+              {{/if}}
             {{/each}}
-          </F.Options>
-        </Hds::Form::Select::Field>
 
-        <Hds::Form::Toggle::Field
-          checked={{this.events.subscriptionBeingEdited.playSound}}
-          {{on "change" (action
-            this.events.setSubscriptionProperty
-            this.events.subscriptionBeingEdited
-            "playSound"
-            (if this.events.subscriptionBeingEdited.playSound false true)
-          )}}
-        as |F|>
-          <F.Label>Play a Sound</F.Label>
-        </Hds::Form::Toggle::Field>
-
-      </form>
+          </form>
+        </section>
       {{else}}
         <ul class="event-subscriptions-list">
         {{#each this.events.subscriptions as |sub|}}

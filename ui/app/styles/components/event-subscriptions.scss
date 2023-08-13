@@ -14,3 +14,25 @@
     opacity: 0.5;
   }
 }
+
+.subscription-editor {
+  header {
+    display: flex;
+    gap: 0.5rem;
+    line-height: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  form {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    p {
+      select,
+      input {
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+    }
+  }
+}

@@ -294,27 +294,27 @@ export default class EventsService extends Service {
    */
   // @tracked subscriptions = [];
   @tracked subscriptions = [
-    // {
-    //   Topic: "Allocation",
-    //   Type: "AllocationUpdated",
-    //   playSound: false,
-    //   conditions: [
-    //     // {
-    //     //   stringKey: "DisplayMessage",
-    //     //   tasks: ["roll dice"], // ["*"] etc.
-    //     //   jobs: ["fails_every_10"], // ["*"] etc.
-    //     //   matchType: "contains", // "equals", "contains"
-    //     //   value: "Task started by client",
-    //     // }
-    //     {
-    //       stringKey: "DisplayMessage",
-    //       tasks: ["*"], // ["*"] etc.
-    //       jobs: ["*"], // ["*"] etc.
-    //       matchType: "contains", // "equals", "contains"
-    //       value: "Building Task Directory",
-    //     }
-    //   ]
-    // },
+    {
+      Topic: 'Allocation',
+      playSound: false,
+      notificationType: 'neutral',
+      conditions: [
+        {
+          stringKey: 'DisplayMessage',
+          tasks: ['roll dice'], // ["*"] etc.
+          jobs: ['fails_every_10'], // ["*"] etc.
+          matchType: 'equals', // "equals", "contains"
+          value: 'Task started by client',
+        },
+        {
+          stringKey: 'Type',
+          tasks: ['roll dice'], // ["*"] etc.
+          jobs: ['fails_every_10'], // ["*"] etc.
+          matchType: 'equals', // "equals", "contains"
+          value: 'Started',
+        },
+      ],
+    },
     {
       Topic: 'Allocation',
       playSound: true,
@@ -549,7 +549,17 @@ export default class EventsService extends Service {
     this.subscriptionBeingEdited = subscription;
   }
 
+  /**
+   * @param {EventSubscription} subscription
+   * @param {EventSubscriptionCondition} condition
+   */
+  @action removeSubscriptionCondition(subscription, condition) {
+    subscription.conditions.removeObject(condition);
+  }
+
   @tracked subscriptionBeingEdited = null;
+
+  // #region constants
 
   notificationTypes = [
     'critical',
@@ -559,18 +569,54 @@ export default class EventsService extends Service {
     'neutral',
   ];
 
+  nodeStringKeys = ['Message'];
+  allocationStringKeys = ['DisplayMessage', 'Type'];
+
+  matchTypes = ['contains', 'equals'];
+
+  // #endregion constants
+
   /**
    * @param {EventSubscription} subscription
    * @param {string} propertyName
    * @param {InputEvent} event // TODO: close enough for a hackathon
    */
-  @action setSubscriptionProperty(
+  @action setSubscriptionProperty(subscription, propertyName, event) {
+    subscription[propertyName] = event.target.value;
+  }
+
+  @action setSubscriptionPropertyWithValue(
     subscription,
     propertyName,
     value = null,
     event
   ) {
     subscription[propertyName] = value !== null ? value : event.target.value;
+  }
+
+  /**
+   * @param {EventSubscriptionCondition} condition
+   * @param {string} propertyName
+   * @param {InputEvent} event // TODO: close enough for a hackathon
+   */
+  @action setConditionProperty(condition, propertyName, event) {
+    condition[propertyName] = event.target.value;
+  }
+
+  @action setConditionPropertyWithValue(
+    condition,
+    propertyName,
+    value = null,
+    event
+  ) {
+    console.log(
+      'setting condition',
+      condition,
+      condition[propertyName],
+      value,
+      event.target.value
+    );
+    condition[propertyName] = value !== null ? value : event.target.value;
   }
 
   //#endregion Subscriptions

@@ -36,7 +36,7 @@ export default class GlobalHeader extends Component {
     return true; // TODO: implement
   }
 
-  toggleNotifications() {
+  toggleSubscriptions() {
     this.events.sidebarIsActive = true;
   }
 
