@@ -535,7 +535,43 @@ export default class EventsService extends Service {
     snd.play();
   }
 
-  // The total list of all task events among
+  /**
+   * @param {EventSubscription} subscription
+   */
+  @action removeSubscription(subscription) {
+    this.subscriptions.removeObject(subscription);
+  }
+
+  /**
+   * @param {EventSubscription} subscription
+   */
+  @action editSubscription(subscription) {
+    this.subscriptionBeingEdited = subscription;
+  }
+
+  @tracked subscriptionBeingEdited = null;
+
+  notificationTypes = [
+    'critical',
+    'warning',
+    'success',
+    'highlight',
+    'neutral',
+  ];
+
+  /**
+   * @param {EventSubscription} subscription
+   * @param {string} propertyName
+   * @param {InputEvent} event // TODO: close enough for a hackathon
+   */
+  @action setSubscriptionProperty(
+    subscription,
+    propertyName,
+    value = null,
+    event
+  ) {
+    subscription[propertyName] = value !== null ? value : event.target.value;
+  }
 
   //#endregion Subscriptions
 }

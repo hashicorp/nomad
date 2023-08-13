@@ -8,51 +8,85 @@
       Add, remove or modify notifications for events in the <a href="https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream" target="_blank" rel="noopener noreferrer">event stream</a>.
     </M.Description>
     <M.Body>
-      <ul class="event-subscriptions-list">
-      {{#each this.events.subscriptions as |sub|}}
-      <li class="{{if sub.muted "muted"}}">
-        {{#if (eq sub.Topic "Allocation")}}
-          <Hds::Toast
-          @color={{sub.notificationType}}
-          as |T|
-          >
+      {{#if this.events.subscriptionBeingEdited}}
+      <strong>Edit {{this.events.subscriptionBeingEdited.notificationType}} Notification Subscription</strong>
+      <Hds::Button @text="Cancel" @color="secondary" {{on "click" (action (mut this.events.subscriptionBeingEdited) null)}} />
+      <form class="edit-notification">
+        <Hds::Form::Select::Field
+          {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "notificationType")}}
+        as |F|>
+          <F.Label>Notification Type</F.Label>
+          <F.Options>
+            {{#each this.events.notificationTypes as |type|}}
+              <option value={{type}} selected={{eq this.events.subscriptionBeingEdited.notificationType type}}>{{capitalize type}}</option>
+            {{/each}}
+          </F.Options>
+        </Hds::Form::Select::Field>
 
-          <T.Title>{{sub.NotificationType}} Notification</T.Title>
-            <T.Description>
-              Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Task Event
-              {{#each sub.conditions as |cond index|}}
-                <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
-                {{concat "for tasks [" cond.tasks "] in jobs [" cond.jobs "]"}}
-                {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
-              {{/each}}
-            </T.Description>
-            <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
-          </Hds::Toast>
-        {{else if (eq sub.Topic "Node")}}
-          <Hds::Toast
-          @color={{sub.notificationType}}
-          as |T|
-          >
+        <Hds::Form::Toggle::Field
+          checked={{this.events.subscriptionBeingEdited.playSound}}
+          {{on "change" (action
+            this.events.setSubscriptionProperty
+            this.events.subscriptionBeingEdited
+            "playSound"
+            (if this.events.subscriptionBeingEdited.playSound false true)
+          )}}
+        as |F|>
+          <F.Label>Play a Sound</F.Label>
+        </Hds::Form::Toggle::Field>
 
-          <T.Title>{{sub.NotificationType}} Notification</T.Title>
-            <T.Description>
-              Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Node Event
-              {{#each sub.conditions as |cond index|}}
-                <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
-                {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
-              {{/each}}
-            </T.Description>
-            <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
-          </Hds::Toast>
-        {{else}}
-          (TODO: Subsciprion description)
-        {{/if}}
-      <hr />
-      </li>
-      {{/each}}
-      </ul>
+      </form>
+      {{else}}
+        <ul class="event-subscriptions-list">
+        {{#each this.events.subscriptions as |sub|}}
+        <li class="{{if sub.muted "muted"}}">
+          {{#if (eq sub.Topic "Allocation")}}
+            <Hds::Toast
+            @color={{sub.notificationType}}
+            as |T|
+            >
 
-      TODO: TEMP
+            <T.Title>Task Event {{capitalize sub.notificationType}} Notification</T.Title>
+              <T.Description>
+                Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Task Event
+                {{#each sub.conditions as |cond index|}}
+                  <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+                  {{concat "for tasks [" cond.tasks "] in jobs [" cond.jobs "]"}}
+                  {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+                {{/each}}
+              </T.Description>
+              <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
+              <T.Button @text="Remove Notification" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
+              <T.Button @text="Edit Notification" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
+            </Hds::Toast>
+          {{else if (eq sub.Topic "Node")}}
+            <Hds::Toast
+            @color={{sub.notificationType}}
+            as |T|
+            >
+
+            <T.Title>Node Event {{capitalize sub.notificationType}} Notification</T.Title>
+              <T.Description>
+                Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Node Event
+                {{#each sub.conditions as |cond index|}}
+                  <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+                  {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+                {{/each}}
+              </T.Description>
+              <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
+              <T.Button @text="Remove Notification" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
+              <T.Button @text="Edit Notification" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
+            </Hds::Toast>
+          {{else}}
+            (TODO: Subsciprion description)
+          {{/if}}
+        <hr />
+        </li>
+        {{/each}}
+        </ul>
+      {{/if}}
+
+      {{!-- TODO: TEMP
       {{#each this.events.stream as |event|}}
   <hr />
     <dl class="realtime-event" onclick={{action this.logEvent event}}>
@@ -70,12 +104,7 @@
       <dd>{{event.Message}}</dd>
     </dl>
       {{/each}}
-        
-      <p class="hds-typography-body-300 hds-foreground-primary">
-        Aliquam ac enim iaculis, faucibus enim id, dapibus quam.
-        Nunc nibh mi, vehicula sed enim eget, lacinia venenatis tortor.
-        Quisque vitae accumsan est, eu vehicula arcu.
-      </p>
+         --}}
     </M.Body>
   </Hds::Flyout>
 {{/if}}
