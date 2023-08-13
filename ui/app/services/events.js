@@ -42,10 +42,10 @@ import { tracked } from '@glimmer/tracking';
  * @typedef EventSubscription
  * @type {Object}
  * @property {"Allocation" | "Evaluation" |"Node"} Topic
- * @property {string} Type
  * @property {EventSubscriptionCondition[]} conditions
  * @property {boolean} playSound
  * @property {string} notificationType
+ * @property {boolean} [muted]
  */
 
 /**
@@ -286,6 +286,7 @@ export default class EventsService extends Service {
    * @property {"Message"} stringKey
    * @property {"equals" | "contains"} matchType
    * @property {string} value
+   * @property {string[]} nodes - The jobs to match on. ["*"] matches all jobs.
    */
 
   /**
@@ -316,9 +317,9 @@ export default class EventsService extends Service {
     // },
     {
       Topic: 'Allocation',
-      Type: 'AllocationUpdated',
       playSound: true,
       notificationType: 'critical',
+      muted: true,
       conditions: [
         {
           stringKey: 'Type',
@@ -331,7 +332,6 @@ export default class EventsService extends Service {
     },
     {
       Topic: 'Allocation',
-      Type: 'AllocationUpdated',
       playSound: true,
       notificationType: 'warning',
       conditions: [
@@ -353,6 +353,7 @@ export default class EventsService extends Service {
           stringKey: 'Message',
           matchType: 'equals',
           value: 'Node heartbeat missed',
+          nodes: ['*'],
         },
       ],
     },
@@ -365,6 +366,7 @@ export default class EventsService extends Service {
           stringKey: 'Message',
           matchType: 'contains',
           value: 'Node registered',
+          nodes: ['*'],
         },
       ],
     },
@@ -377,6 +379,7 @@ export default class EventsService extends Service {
           stringKey: 'Message',
           matchType: 'contains',
           value: 'Node reregistered',
+          nodes: ['*'],
         },
       ],
     },
@@ -413,43 +416,45 @@ export default class EventsService extends Service {
             //    * @param {Event} event
             //   **/
             //   (event) => {
-            context.subscriptions.forEach((subscription) => {
-              // console.log('forEachsub', subscription.Topic, chunk.streamEventTopic)
-              if (subscription.Topic === chunk.streamEventTopic) {
-                let matches = subscription.conditions.every((condition) => {
-                  return context.eventMatchesCondition(
-                    chunk,
-                    condition,
-                    subscription.Topic
-                  );
-                });
-
-                if (matches) {
-                  console.log('=+=+=+=+=+=Subscription match found:', chunk);
-                  context.notifications.add({
-                    title: `${chunk.streamEventTopic} Notification`,
-                    message: `Subscription match found: ${
-                      chunk.streamEventTopic
-                    } ${chunk.DisplayMessage || chunk.Message}`,
-                    color: subscription.notificationType || 'highlight',
-                    sticky: true,
-                    customAction: {
-                      label: 'Log Event',
-                      action: () => {
-                        console.log('event', chunk);
-                      },
-                    },
+            context.subscriptions
+              .filter((subscription) => !subscription.muted)
+              .forEach((subscription) => {
+                // console.log('forEachsub', subscription.Topic, chunk.streamEventTopic)
+                if (subscription.Topic === chunk.streamEventTopic) {
+                  let matches = subscription.conditions.every((condition) => {
+                    return context.eventMatchesCondition(
+                      chunk,
+                      condition,
+                      subscription.Topic
+                    );
                   });
 
-                  if (subscription.playSound) {
-                    context.beep();
+                  if (matches) {
+                    console.log('=+=+=+=+=+=Subscription match found:', chunk);
+                    context.notifications.add({
+                      title: `${chunk.streamEventTopic} Notification`,
+                      message: `Subscription match found: ${
+                        chunk.streamEventTopic
+                      } ${chunk.DisplayMessage || chunk.Message}`,
+                      color: subscription.notificationType || 'highlight',
+                      sticky: true,
+                      customAction: {
+                        label: 'Log Event',
+                        action: () => {
+                          console.log('event', chunk);
+                        },
+                      },
+                    });
+
+                    if (subscription.playSound) {
+                      context.beep();
+                    }
+                  } else {
+                    // console.log('no match for', chunk);
                   }
-                } else {
-                  // console.log('no match for', chunk);
                 }
-              }
-              // });
-            });
+                // });
+              });
           }
         }
         controller.enqueue(chunk); // Enqueue the chunk unchanged
@@ -479,7 +484,7 @@ export default class EventsService extends Service {
 
   /**
    * @param {Event} event
-   * @param {EventSubscriptionCondition} condition
+   * @param {AllocationEventSubscriptionCondition} condition
    */
   allocationEventMatchesCondition(event, condition) {
     // Eliminate events that don't match the task/job

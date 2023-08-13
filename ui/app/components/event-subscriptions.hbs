@@ -8,20 +8,42 @@
       Add, remove or modify notifications for events in the <a href="https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream" target="_blank" rel="noopener noreferrer">event stream</a>.
     </M.Description>
     <M.Body>
-
-      <ul>
+      <ul class="event-subscriptions-list">
       {{#each this.events.subscriptions as |sub|}}
-      <li>
+      <li class="{{if sub.muted "muted"}}">
         {{#if (eq sub.Topic "Allocation")}}
-      <p>
-        Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Task Event
-        {{#each sub.conditions as |cond index|}}
-          <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
-          {{concat "for tasks [" cond.tasks "] in jobs [" cond.jobs "]"}}
-          {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
-        {{/each}}
-      </p>
+          <Hds::Toast
+          @color={{sub.notificationType}}
+          as |T|
+          >
 
+          <T.Title>{{sub.NotificationType}} Notification</T.Title>
+            <T.Description>
+              Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Task Event
+              {{#each sub.conditions as |cond index|}}
+                <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+                {{concat "for tasks [" cond.tasks "] in jobs [" cond.jobs "]"}}
+                {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+              {{/each}}
+            </T.Description>
+            <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
+          </Hds::Toast>
+        {{else if (eq sub.Topic "Node")}}
+          <Hds::Toast
+          @color={{sub.notificationType}}
+          as |T|
+          >
+
+          <T.Title>{{sub.NotificationType}} Notification</T.Title>
+            <T.Description>
+              Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Node Event
+              {{#each sub.conditions as |cond index|}}
+                <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+                {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+              {{/each}}
+            </T.Description>
+            <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
+          </Hds::Toast>
         {{else}}
           (TODO: Subsciprion description)
         {{/if}}

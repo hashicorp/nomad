@@ -36,8 +36,15 @@
   </FlashMessage>
   {{/each}}
   {{#if (gt this.notifications.queue.length 2)}}
-    <FlashMessage @flash={{this.notifications.queue.lastObject}} as |component flash close|>
-      <Hds::Button @text="Clear All Notifications" @color="critical" @icon="x" @iconPosition="leading" {{on "click" (action this.notifications.clearAll)}} />
+    <FlashMessage @flash={{this.notifications.queue.lastObject}}>
+      <Hds::Button
+      {{keyboard-shortcut
+        label="Clear All Notifications"
+        menulevel=true
+        pattern=(array "c" "n")
+        action=(action this.notifications.clearAll)
+      }}
+      @text="Clear All Notifications" @color="critical" @icon="x" @iconPosition="leading" {{on "click" (action this.notifications.clearAll)}} />
     </FlashMessage>
   {{/if}}
 </section>

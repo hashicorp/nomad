@@ -8,3 +8,9 @@
   color: var(--token-color-foreground-high-contrast);
   margin-left: 0.5rem;
 }
+
+.event-subscriptions-list {
+  li.muted {
+    opacity: 0.5;
+  }
+}
