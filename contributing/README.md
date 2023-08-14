@@ -30,7 +30,7 @@ A development environment is supplied via Vagrant to make getting started easier
 
 Developing without Vagrant
 ---
-1. Install [Go 1.20.6+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Install [Go 1.21.0+](https://golang.org/) *(Note: `gcc-go` is not supported)*
 1. Clone this repo
    ```sh
    $ git clone https://github.com/hashicorp/nomad.git
