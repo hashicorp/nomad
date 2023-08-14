@@ -715,14 +715,14 @@ export default class EventsService extends Service {
   // #region Remote Subscriptions
 
   @action subscribeToEvent(event, mouseEvent) {
-    let eventType = event.message ? 'Node' : 'Allocation';
+    let eventType = event.subsystem ? 'Node' : 'Allocation';
 
     console.log('subscribeToEvent()', event, mouseEvent, eventType);
 
     // Open the sidebar
     this.sidebarIsActive = true;
     // Set a new subscription
-    this.addSubscription('chill');
+    this.addSubscription();
 
     // Immediately pull it back out of the array
     this.subscriptionBeingEdited = this.subscriptions.popObject();
@@ -734,6 +734,11 @@ export default class EventsService extends Service {
       condition.stringKey = 'Message';
       condition.matchKey = 'equals';
       condition.value = event.message;
+    } else if (eventType === 'Allocation') {
+      const condition = this.subscriptionBeingEdited.conditions[0];
+      condition.stringKey = 'DisplayMessage';
+      condition.matchKey = 'equals';
+      condition.value = event.DisplayMessage;
     }
 
     this.subscriptionBeingEdited = this.subscriptionBeingEdited;
