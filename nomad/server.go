@@ -974,7 +974,7 @@ func (s *Server) setupBootstrapHandler() error {
 			// walk all datacenter until it finds enough hosts to
 			// form a quorum.
 			shuffleStrings(dcs[1:])
-			dcs = dcs[0:helper.Min(len(dcs), datacenterQueryLimit)]
+			dcs = dcs[0:min(len(dcs), datacenterQueryLimit)]
 		}
 
 		nomadServerServiceName := s.config.ConsulConfig.ServerServiceName
@@ -2025,7 +2025,7 @@ func (s *Server) setReplyQueryMeta(stateStore *state.StateStore, table string, r
 	if err != nil {
 		return err
 	}
-	reply.Index = helper.Max(1, index)
+	reply.Index = max(1, index)
 
 	// Set the query response.
 	s.setQueryMeta(reply)
