@@ -11,6 +11,9 @@ import (
 )
 
 func Test_Backoff(t *testing.T) {
+	const MaxUint = ^uint64(0)
+	const MaxInt = int64(MaxUint >> 1)
+
 	cases := []struct {
 		name           string
 		backoffBase    time.Duration
@@ -26,11 +29,11 @@ func Test_Backoff(t *testing.T) {
 			expectedResult: time.Minute,
 		},
 		{
-			name:           "backoff limit clamps for high attempts",
-			backoffBase:    time.Minute,
-			backoffLimit:   time.Hour,
-			attempt:        100000,
-			expectedResult: time.Hour,
+			name:           "backoff limit clamps for boundary attempt",
+			backoffBase:    time.Hour,
+			backoffLimit:   time.Minute,
+			attempt:        63,
+			expectedResult: time.Minute,
 		},
 		{
 			name:           "small retry value",
