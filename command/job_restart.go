@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
 )
 
@@ -370,7 +369,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 				"[bold]==> %s: Restarting %s batch of %d allocations[reset]",
 				formatTime(time.Now()),
 				humanize.Ordinal(batchNumber),
-				helper.Min(c.batchSize, remaining),
+				min(c.batchSize, remaining),
 			)))
 		}
 

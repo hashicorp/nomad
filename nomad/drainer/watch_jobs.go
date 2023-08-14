@@ -414,7 +414,7 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 	// Determine how many we can drain
 	thresholdCount := tg.Count - tg.Migrate.MaxParallel
 	numToDrain := healthy - thresholdCount
-	numToDrain = helper.Min(len(drainable), numToDrain)
+	numToDrain = min(len(drainable), numToDrain)
 	if numToDrain <= 0 {
 		return nil
 	}
