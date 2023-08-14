@@ -12,13 +12,11 @@ export default class EventSubscribableModifier extends Modifier {
       },
     ];
 
-    console.log('arooo', element, action, label);
     element.addEventListener('click', action);
     element.classList.add('event-subscribable');
 
     // this.keyboard.addCommands(commands);
     registerDestructor(this, () => {
-      console.log('destroying');
       element.removeEventListener('click', action);
       element.classList.remove('event-subscribable');
       // this.keyboard.removeCommands(commands);

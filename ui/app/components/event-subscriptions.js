@@ -8,12 +8,10 @@ export default class EventSubscriptionsComponent extends Component {
 
   constructor() {
     super(...arguments);
-    console.log('event subscriptions', this.events);
     this.events.start();
   }
 
   deactivateFlyout() {
-    console.log('deactivate flyout', this.events);
     this.events.sidebarIsActive = false;
   }
 

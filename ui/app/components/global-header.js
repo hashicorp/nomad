@@ -32,7 +32,6 @@ export default class GlobalHeader extends Component {
 
   // User needs Event Stream access generally if they want this icon
   get shouldShowNotificationsIcon() {
-    console.log('shouldshow', this.events);
     return true; // TODO: implement
   }
 
