@@ -15,7 +15,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
-	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
@@ -77,22 +76,6 @@ func HashUUID(input string) (output string, hashed bool) {
 		buf[10:16])
 
 	return output, true
-}
-
-// Min returns the minimum of a and b.
-func Min[T constraints.Ordered](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// Max returns the maximum of a and b.
-func Max[T constraints.Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // UniqueMapSliceValues returns the union of values from each slice in a map[K][]V.
