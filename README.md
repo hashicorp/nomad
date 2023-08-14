@@ -1,5 +1,5 @@
 Nomad
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-brightgreen.svg)](LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-yellow.svg)](LICENSE)
 [![Discuss](https://img.shields.io/badge/discuss-nomad-00BC7F?style=flat)](https://discuss.hashicorp.com/c/nomad)
 ===
 
