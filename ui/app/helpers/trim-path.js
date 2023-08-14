@@ -19,7 +19,7 @@ export function trimPath([path]) {
   if (path?.endsWith('/')) {
     path = trimPath([path.slice(0, -1)]);
   }
-  return path;
+  return path.trim();
 }
 
 export default Helper.helper(trimPath);
