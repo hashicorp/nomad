@@ -274,13 +274,13 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 		}
 
 		// Exponential back off
-		retries++
 		if retryTimer == nil {
 			// First retry, start at baseline
 			retryTimer = time.NewTimer(backoffBase)
 		} else {
 			// Subsequent retry, reset timer
 			if deadline < backoffLimit {
+				retries++
 				deadline = 1 << (2 * retries) * backoffBase
 				if deadline > backoffLimit {
 					deadline = backoffLimit

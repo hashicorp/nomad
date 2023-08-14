@@ -884,6 +884,7 @@ func (w *Worker) backoffErr(base, limit time.Duration) bool {
 			backoff = limit
 		} else {
 			w.failures++
+			w.failureBackoff = backoff
 		}
 	}
 
