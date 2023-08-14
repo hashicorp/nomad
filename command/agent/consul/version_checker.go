@@ -27,6 +27,7 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 
 	timer, stop := helper.NewSafeTimer(limit)
 	defer stop()
+	backoff := time.Duration(0)
 
 	for {
 		self, err := client.Self()
@@ -40,11 +41,13 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 			return
 		}
 
-		backoff := (1 << (2 * i)) * baseline
-		if backoff > limit {
-			backoff = limit
-		} else {
-			i++
+		if backoff < limit {
+			backoff = (1 << (2 * i)) * baseline
+			if backoff > limit {
+				backoff = limit
+			} else {
+				i++
+			}
 		}
 
 		timer.Reset(backoff)

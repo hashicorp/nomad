@@ -470,6 +470,7 @@ START:
 
 	var sresp *device.StatsResponse
 	var ok bool
+	backoff := time.Duration(0)
 	for {
 		select {
 		case <-i.ctx.Done():
@@ -494,12 +495,14 @@ START:
 				goto START
 			}
 
-			// Retry with an exponential backoff
-			backoff := (1 << (2 * uint64(attempt))) * statsBackoffBaseline
-			if backoff > statsBackoffLimit {
-				backoff = statsBackoffLimit
+			// Retry with an exponential backoff, avoiding overflow
+			if backoff < statsBackoffLimit {
+				backoff = (1 << (2 * uint64(attempt))) * statsBackoffBaseline
+				if backoff > statsBackoffLimit {
+					backoff = statsBackoffLimit
+				}
+				attempt++
 			}
-			attempt++
 
 			i.logger.Error("stats returned an error", "error", err, "retry", backoff)
 

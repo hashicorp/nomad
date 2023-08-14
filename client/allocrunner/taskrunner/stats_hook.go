@@ -128,6 +128,8 @@ MAIN:
 // It logs the errors with appropriate log levels; don't log returned error
 func (h *statsHook) callStatsWithRetry(ctx context.Context, handle interfaces.DriverStats) (<-chan *cstructs.TaskResourceUsage, error) {
 	var retry int
+	backoff := time.Duration(0)
+	limit := time.Second * 5
 
 MAIN:
 	if ctx.Err() != nil {
@@ -162,10 +164,11 @@ MAIN:
 		h.logger.Error("failed to start stats collection for task", "error", err)
 	}
 
-	limit := time.Second * 5
-	backoff := 1 << (2 * uint64(retry)) * time.Second
-	if backoff > limit || retry > 5 {
-		backoff = limit
+	if backoff < limit {
+		backoff = 1 << (2 * uint64(retry)) * time.Second
+		if backoff > limit || retry > 5 {
+			backoff = limit
+		}
 	}
 
 	// Increment retry counter

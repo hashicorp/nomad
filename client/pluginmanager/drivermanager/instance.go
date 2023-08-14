@@ -329,12 +329,13 @@ func (i *instanceManager) fingerprint() {
 				i.handleFingerprintError()
 
 				// Calculate the new backoff
-				backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline
-				if backoff > driverFPBackoffLimit {
-					backoff = driverFPBackoffLimit
+				if backoff < driverFPBackoffLimit {
+					backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline
+					if backoff > driverFPBackoffLimit {
+						backoff = driverFPBackoffLimit
+					}
+					retry++
 				}
-				// Increment retry counter
-				retry++
 				continue
 			}
 			cancel()
@@ -453,11 +454,13 @@ func (i *instanceManager) handleEvents() {
 				i.logger.Warn("failed to receive task events, retrying", "error", err, "retry", retry)
 
 				// Calculate the new backoff
-				backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline
-				if backoff > driverFPBackoffLimit {
-					backoff = driverFPBackoffLimit
+				if backoff < driverFPBackoffLimit {
+					backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline
+					if backoff > driverFPBackoffLimit {
+						backoff = driverFPBackoffLimit
+					}
+					retry++
 				}
-				retry++
 				continue
 			}
 			cancel()

@@ -137,12 +137,13 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 			h.logger.Debug("error collecting stats from container", "error", err)
 
 			// Calculate the new backoff
-			backoff = (1 << (2 * uint64(retry))) * statsCollectorBackoffBaseline
-			if backoff > statsCollectorBackoffLimit {
-				backoff = statsCollectorBackoffLimit
+			if backoff < statsCollectorBackoffLimit {
+				backoff = (1 << (2 * uint64(retry))) * statsCollectorBackoffBaseline
+				if backoff > statsCollectorBackoffLimit {
+					backoff = statsCollectorBackoffLimit
+				}
+				retry++
 			}
-			// Increment retry counter
-			retry++
 			continue
 		}
 		// Stats finished either because context was canceled, doneCh was closed

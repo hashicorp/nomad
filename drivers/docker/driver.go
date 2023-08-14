@@ -572,7 +572,8 @@ START:
 	return recoverableErrTimeouts(startErr)
 }
 
-// nextBackoff returns appropriate docker backoff durations after attempted attempts.
+// nextBackoff returns appropriate docker backoff durations after attempted
+// attempts. Note that the caller must cap attempted so that it doesn't overflow
 func nextBackoff(attempted int) time.Duration {
 	// attempts in 200ms, 800ms, 3.2s, 12.8s, 51.2s
 	// TODO: add randomization factor and extract to a helper

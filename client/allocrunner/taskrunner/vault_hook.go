@@ -312,6 +312,7 @@ OUTER:
 // returns the Vault token and whether the manager should exit.
 func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 	attempts := 0
+	backoff := time.Duration(0)
 	for {
 		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
 		if err == nil {
@@ -339,13 +340,14 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		}
 
 		// Handle the retry case
-		backoff := (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
-		if backoff > vaultBackoffLimit {
-			backoff = vaultBackoffLimit
+		if backoff < vaultBackoffLimit {
+			backoff = (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
+			if backoff > vaultBackoffLimit {
+				backoff = vaultBackoffLimit
+			}
+			attempts++
 		}
 		h.logger.Error("failed to derive Vault token", "error", err, "recoverable", true, "backoff", backoff)
-
-		attempts++
 
 		// Wait till retrying
 		select {

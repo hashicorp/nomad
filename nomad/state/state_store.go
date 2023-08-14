@@ -256,6 +256,7 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 	const backoffLimit = 1 * time.Second
 	var retries uint
 	var retryTimer *time.Timer
+	deadline := time.Duration(0)
 
 	// XXX: Potential optimization is to set up a watch on the state
 	// store's index table and only unblock via a trigger rather than
@@ -279,9 +280,11 @@ func (s *StateStore) SnapshotMinIndex(ctx context.Context, index uint64) (*State
 			retryTimer = time.NewTimer(backoffBase)
 		} else {
 			// Subsequent retry, reset timer
-			deadline := 1 << (2 * retries) * backoffBase
-			if deadline > backoffLimit {
-				deadline = backoffLimit
+			if deadline < backoffLimit {
+				deadline = 1 << (2 * retries) * backoffBase
+				if deadline > backoffLimit {
+					deadline = backoffLimit
+				}
 			}
 			retryTimer.Reset(deadline)
 		}
