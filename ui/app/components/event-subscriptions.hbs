@@ -68,6 +68,8 @@
               {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
                 <Hds::Form::Select::Base
                 {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
+                {{on "blur" (action this.events.setConditionProperty condition "stringKey" )}}
+                {{!-- TODO: redundant blur --}}
                 as |F|>
                   <F.Options>
                     {{#each this.events.nodeStringKeys as |key|}}
@@ -128,7 +130,7 @@
               (action this.events.removeSubscription this.events.subscriptionBeingEdited)
               (action (mut this.events.subscriptionBeingEdited) null)
             )}} />
-            <Hds::Button @text="Save" @color="primary" @icon="check" {{on "click" (action (mut this.events.subscriptionBeingEdited) null)}} />
+            <Hds::Button @text="Save" @color="primary" @icon="check" {{on "click" (queue (action (mut this.events.subscriptionBeingEdited) null) (action this.events.saveSubscriptions))}} />
           </footer>
         </section>
       {{else}}
@@ -152,7 +154,7 @@
                   {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
                 {{/each}}
               </T.Description>
-              <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
+              <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (queue (action (mut sub.muted) (not sub.muted)) (action this.events.saveSubscriptions))}} />
               <T.Button @text="Remove Subscription" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
               <T.Button @text="Edit Subscription" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
             </Hds::Toast>

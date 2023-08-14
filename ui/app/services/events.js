@@ -3,6 +3,7 @@ import Service from '@ember/service';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 /**
  * @typedef StreamEvent
@@ -292,97 +293,99 @@ export default class EventsService extends Service {
    * @type {EventSubscription[]}
    */
   // @tracked subscriptions = [];
-  @tracked subscriptions = [
-    {
-      Topic: 'Allocation',
-      playSound: false,
-      notificationType: 'neutral',
-      conditions: [
-        {
-          stringKey: 'DisplayMessage',
-          tasks: ['roll dice'], // ["*"] etc.
-          jobs: ['fails_every_10'], // ["*"] etc.
-          matchType: 'equals', // "equals", "contains"
-          value: 'Task started by client',
-        },
-        {
-          stringKey: 'Type',
-          tasks: ['roll dice'], // ["*"] etc.
-          jobs: ['fails_every_10'], // ["*"] etc.
-          matchType: 'equals', // "equals", "contains"
-          value: 'Started',
-        },
-      ],
-    },
-    {
-      Topic: 'Allocation',
-      playSound: true,
-      notificationType: 'critical',
-      muted: true,
-      conditions: [
-        {
-          stringKey: 'Type',
-          tasks: ['*'], // ["*"] etc.
-          jobs: ['*'], // ["*"] etc.
-          matchType: 'equals', // "equals", "contains"
-          value: 'Not Restarting',
-        },
-      ],
-    },
-    {
-      Topic: 'Allocation',
-      playSound: true,
-      notificationType: 'warning',
-      conditions: [
-        {
-          stringKey: 'Type',
-          tasks: ['*'], // ["*"] etc.
-          jobs: ['*'], // ["*"] etc.
-          matchType: 'equals', // "equals", "contains"
-          value: 'Restarting',
-        },
-      ],
-    },
-    {
-      Topic: 'Node',
-      playSound: true,
-      notificationType: 'critical',
-      conditions: [
-        {
-          stringKey: 'Message',
-          matchType: 'equals',
-          value: 'Node heartbeat missed',
-          nodes: ['*'],
-        },
-      ],
-    },
-    {
-      Topic: 'Node',
-      playSound: true,
-      notificationType: 'success',
-      conditions: [
-        {
-          stringKey: 'Message',
-          matchType: 'contains',
-          value: 'Node registered',
-          nodes: ['*'],
-        },
-      ],
-    },
-    {
-      Topic: 'Node',
-      playSound: true,
-      notificationType: 'success',
-      conditions: [
-        {
-          stringKey: 'Message',
-          matchType: 'contains',
-          value: 'Node reregistered',
-          nodes: ['*'],
-        },
-      ],
-    },
-  ];
+  // @tracked subscriptions = [
+  //   {
+  //     Topic: 'Allocation',
+  //     playSound: false,
+  //     notificationType: 'neutral',
+  //     conditions: [
+  //       {
+  //         stringKey: 'DisplayMessage',
+  //         tasks: ['roll dice'], // ["*"] etc.
+  //         jobs: ['fails_every_10'], // ["*"] etc.
+  //         matchType: 'equals', // "equals", "contains"
+  //         value: 'Task started by client',
+  //       },
+  //       {
+  //         stringKey: 'Type',
+  //         tasks: ['roll dice'], // ["*"] etc.
+  //         jobs: ['fails_every_10'], // ["*"] etc.
+  //         matchType: 'equals', // "equals", "contains"
+  //         value: 'Started',
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     Topic: 'Allocation',
+  //     playSound: true,
+  //     notificationType: 'critical',
+  //     muted: true,
+  //     conditions: [
+  //       {
+  //         stringKey: 'Type',
+  //         tasks: ['*'], // ["*"] etc.
+  //         jobs: ['*'], // ["*"] etc.
+  //         matchType: 'equals', // "equals", "contains"
+  //         value: 'Not Restarting',
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     Topic: 'Allocation',
+  //     playSound: true,
+  //     notificationType: 'warning',
+  //     conditions: [
+  //       {
+  //         stringKey: 'Type',
+  //         tasks: ['*'], // ["*"] etc.
+  //         jobs: ['*'], // ["*"] etc.
+  //         matchType: 'equals', // "equals", "contains"
+  //         value: 'Restarting',
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     Topic: 'Node',
+  //     playSound: true,
+  //     notificationType: 'critical',
+  //     conditions: [
+  //       {
+  //         stringKey: 'Message',
+  //         matchType: 'equals',
+  //         value: 'Node heartbeat missed',
+  //         nodes: ['*'],
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     Topic: 'Node',
+  //     playSound: true,
+  //     notificationType: 'success',
+  //     conditions: [
+  //       {
+  //         stringKey: 'Message',
+  //         matchType: 'contains',
+  //         value: 'Node registered',
+  //         nodes: ['*'],
+  //       },
+  //     ],
+  //   },
+  //   {
+  //     Topic: 'Node',
+  //     playSound: true,
+  //     notificationType: 'success',
+  //     conditions: [
+  //       {
+  //         stringKey: 'Message',
+  //         matchType: 'contains',
+  //         value: 'Node reregistered',
+  //         nodes: ['*'],
+  //       },
+  //     ],
+  //   },
+  // ];
+
+  @localStorageProperty('nomadEventSubscriptions', []) subscriptions;
 
   /**
    * Checks stream events to see if they match subscription, and if so, fire a notification
@@ -566,6 +569,7 @@ export default class EventsService extends Service {
    */
   @action removeSubscription(subscription) {
     this.subscriptions.removeObject(subscription);
+    this.subscriptions = this.subscriptions;
   }
 
   /**
@@ -683,8 +687,30 @@ export default class EventsService extends Service {
 
     this.subscriptionBeingEdited = subscription;
     this.subscriptions.pushObject(subscription);
+    this.subscriptions = this.subscriptions;
   }
   // #endregion New Subscription
+
+  @action saveSubscriptions() {
+    // TODO: Completely ridiculous place to do this check, but hackathon
+    this.subscriptions.forEach((subscription) => {
+      if (subscription.Topic === 'Node') {
+        subscription.conditions.forEach((condition) => {
+          if (this.allocationStringKeys.includes(condition.stringKey)) {
+            condition.stringKey = 'Message';
+          }
+        });
+      } else if (subscription.Topic === 'Allocation') {
+        subscription.conditions.forEach((condition) => {
+          if (this.nodeStringKeys.includes(condition.stringKey)) {
+            condition.stringKey = 'DisplayMessage';
+          }
+        });
+      }
+    });
+
+    this.subscriptions = this.subscriptions;
+  }
 
   //#endregion Subscriptions
 }
