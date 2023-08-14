@@ -7,9 +7,7 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -145,7 +143,7 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 				if err != nil {
 					return err
 				}
-				reply.Index = helper.Max(1, index)
+				reply.Index = max(1, index)
 			}
 			return nil
 		}}
@@ -209,7 +207,7 @@ func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Max(1, index)
+			reply.Index = max(1, index)
 
 			// Set the query response
 			p.srv.setQueryMeta(&reply.QueryMeta)

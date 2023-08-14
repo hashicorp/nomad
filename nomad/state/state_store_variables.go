@@ -5,8 +5,6 @@ import (
 	"math"
 
 	"github.com/hashicorp/go-memdb"
-
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -248,7 +246,7 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 	if quotaChange > 0 {
 		quotaUsed.Size += quotaChange
 	} else if quotaChange < 0 {
-		quotaUsed.Size -= helper.Min(quotaUsed.Size, -quotaChange)
+		quotaUsed.Size -= min(quotaUsed.Size, -quotaChange)
 	}
 
 	err = s.enforceVariablesQuota(idx, tx, sv.Namespace, quotaChange)
@@ -389,7 +387,7 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.VarApplyS
 	if existingQuota != nil {
 		quotaUsed := existingQuota.(*structs.VariablesQuota)
 		quotaUsed = quotaUsed.Copy()
-		quotaUsed.Size -= helper.Min(quotaUsed.Size, int64(len(sv.Data)))
+		quotaUsed.Size -= min(quotaUsed.Size, int64(len(sv.Data)))
 		quotaUsed.ModifyIndex = idx
 		if err := tx.Insert(TableVariablesQuotas, quotaUsed); err != nil {
 			return req.ErrorResponse(idx, fmt.Errorf("variable quota insert failed: %v", err))
