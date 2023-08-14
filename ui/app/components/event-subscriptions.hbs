@@ -18,10 +18,21 @@
           </header>
 
           <form class="edit-notification">
+
+            <Hds::Form::Select::Field
+              {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "Topic")}}
+            as |F|>
+              <F.Label>Event Type ({{this.events.subscriptionBeingEdited.Topic}})</F.Label>
+              <F.Options>
+                <option value="Allocation" selected={{eq this.events.subscriptionBeingEdited.Topic "Allocation"}}>Task Event</option>
+                <option value="Node" selected={{eq this.events.subscriptionBeingEdited.Topic "Node"}}>Node Event</option>
+              </F.Options>
+            </Hds::Form::Select::Field>
+
             <Hds::Form::Select::Field
               {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "notificationType")}}
             as |F|>
-              <F.Label>Notification Type</F.Label>
+              <F.Label>Color</F.Label>
               <F.Options>
                 {{#each this.events.notificationTypes as |type|}}
                   <option value={{type}} selected={{eq this.events.subscriptionBeingEdited.notificationType type}}>{{capitalize type}}</option>
@@ -44,21 +55,27 @@
             {{#each this.events.subscriptionBeingEdited.conditions as |condition|}}
             <p>
               Triggers whenever
-              <Hds::Form::Select::Base
-              {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
-              as |F|>
-                <F.Options>
-                  {{#if (eq this.events.subscriptionBeingEdited.Topic "Allocation")}}
+              {{#if (eq this.events.subscriptionBeingEdited.Topic "Allocation")}}
+                <Hds::Form::Select::Base
+                {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
+                as |F|>
+                  <F.Options>
                     {{#each this.events.allocationStringKeys as |key|}}
                       <option value={{key}} selected={{eq condition.stringKey key}}>{{humanize (dasherize key)}}</option>
                     {{/each}}
-                  {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
+                  </F.Options>
+                </Hds::Form::Select::Base>
+              {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
+                <Hds::Form::Select::Base
+                {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
+                as |F|>
+                  <F.Options>
                     {{#each this.events.nodeStringKeys as |key|}}
                       <option value={{key}} selected={{eq condition.stringKey key}}>{{humanize (dasherize key)}}</option>
                     {{/each}}
-                  {{/if}}
-                </F.Options>
-              </Hds::Form::Select::Base>
+                  </F.Options>
+                </Hds::Form::Select::Base>
+              {{/if}}
 
               <Hds::Form::Select::Base
                 {{on "change" (action this.events.setConditionProperty condition "matchType" )}}
@@ -77,8 +94,27 @@
                 {{on "blur" (action this.events.setConditionProperty condition "value")}}
               />
 
-
-
+              {{#if (eq this.events.subscriptionBeingEdited.Topic "Allocation")}}
+                in tasks named
+                <Hds::Form::TextInput::Base
+                  @type="text"
+                  @value={{condition.tasks}}
+                  @placeholder="comma separated, * for all"
+                  {{on "change" (action this.events.arrayifyAndSetConditionProperty condition "tasks" )}} />
+                and in jobs named
+                <Hds::Form::TextInput::Base
+                  @type="text"
+                  @value={{condition.jobs}}
+                  @placeholder="comma separated, * for all"
+                  {{on "change" (action this.events.arrayifyAndSetConditionProperty condition "jobs" )}} />
+              {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
+                in nodes named
+                <Hds::Form::TextInput::Base
+                  @type="text"
+                  @value={{condition.nodes}}
+                  @placeholder="comma separated, * for all"
+                  {{on "change" (action this.events.arrayifyAndSetConditionProperty condition "nodes" )}} />
+              {{/if}}
 
               </p>
 
@@ -86,10 +122,18 @@
                 <Hds::Button @text="Remove Condition" @color="critical" {{on "click" (action this.events.removeSubscriptionCondition this.events.subscriptionBeingEdited condition)}} />
               {{/if}}
             {{/each}}
-
           </form>
+          <footer>
+            <Hds::Button @text="Delete" @color="critical" @icon="x" {{on "click" (queue
+              (action this.events.removeSubscription this.events.subscriptionBeingEdited)
+              (action (mut this.events.subscriptionBeingEdited) null)
+            )}} />
+            <Hds::Button @text="Save" @color="primary" @icon="check" {{on "click" (action (mut this.events.subscriptionBeingEdited) null)}} />
+          </footer>
         </section>
       {{else}}
+        <Hds::Button @text="New Event Notification" @color="primary" @isFullWidth={{true}} @icon="plus" {{on "click" (action this.events.addSubscription)}} />
+        <hr />
         <ul class="event-subscriptions-list">
         {{#each this.events.subscriptions as |sub|}}
         <li class="{{if sub.muted "muted"}}">
@@ -109,8 +153,8 @@
                 {{/each}}
               </T.Description>
               <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
-              <T.Button @text="Remove Notification" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
-              <T.Button @text="Edit Notification" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
+              <T.Button @text="Remove Subscription" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
+              <T.Button @text="Edit Subscription" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
             </Hds::Toast>
           {{else if (eq sub.Topic "Node")}}
             <Hds::Toast
@@ -127,8 +171,8 @@
                 {{/each}}
               </T.Description>
               <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
-              <T.Button @text="Remove Notification" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
-              <T.Button @text="Edit Notification" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
+              <T.Button @text="Remove Subscription" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
+              <T.Button @text="Edit Subscription" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
             </Hds::Toast>
           {{else}}
             (TODO: Subsciprion description)

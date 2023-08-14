@@ -215,7 +215,6 @@ export default class EventsService extends Service {
                   event.Payload.Node.Events.forEach((nodeEvent) => {
                     // Create a key for de-duplication
                     const key = context.createNodeEventKey(event, nodeEvent);
-                    console.log('key is', key);
 
                     // Check if this event has been seen before
                     if (!context.allEvents.has(key)) {
@@ -438,10 +437,10 @@ export default class EventsService extends Service {
                     let humanEntityName;
                     switch (chunk.streamEventTopic) {
                       case 'Allocation':
-                        humanEntityName = `Task ${chunk.taskName} in Job ${chunk.jobName}`;
+                        humanEntityName = `task "${chunk.taskName}" in job "${chunk.jobName}"`;
                         break;
                       case 'Node':
-                        humanEntityName = `Node ${chunk.nodeName}`;
+                        humanEntityName = `node "${chunk.nodeName}"`;
                         break;
                       default:
                         humanEntityName = chunk.streamEventTopic;
@@ -468,7 +467,7 @@ export default class EventsService extends Service {
                       customAction: {
                         label: 'Log Event',
                         action: () => {
-                          console.log('event', chunk);
+                          console.log(chunk);
                         },
                       },
                     });
@@ -603,6 +602,10 @@ export default class EventsService extends Service {
 
   // #endregion constants
 
+  // TODO: I'm doing a bunch of passing the subscription into methods, where
+  // I could maybe just be tracking against the main "subscriptionBeingEdited" tracked object
+  // and that's that.
+
   /**
    * @param {EventSubscription} subscription
    * @param {string} propertyName
@@ -610,6 +613,7 @@ export default class EventsService extends Service {
    */
   @action setSubscriptionProperty(subscription, propertyName, event) {
     subscription[propertyName] = event.target.value;
+    this.subscriptionBeingEdited = subscription;
   }
 
   @action setSubscriptionPropertyWithValue(
@@ -619,6 +623,7 @@ export default class EventsService extends Service {
     event
   ) {
     subscription[propertyName] = value !== null ? value : event.target.value;
+    this.subscriptionBeingEdited = subscription;
   }
 
   /**
@@ -630,21 +635,56 @@ export default class EventsService extends Service {
     condition[propertyName] = event.target.value;
   }
 
+  /**
+   * I've fully lost the plot here ¯\_(ツ)_/¯
+   * @param {EventSubscriptionCondition} condition
+   * @param {string} propertyName
+   * @param {InputEvent} event // TODO: close enough for a hackathon
+   */
+  @action arrayifyAndSetConditionProperty(condition, propertyName, event) {
+    condition[propertyName] = event.target.value
+      .split(',')
+      .map((s) => s.trim());
+  }
+
   @action setConditionPropertyWithValue(
     condition,
     propertyName,
     value = null,
     event
   ) {
-    console.log(
-      'setting condition',
-      condition,
-      condition[propertyName],
-      value,
-      event.target.value
-    );
     condition[propertyName] = value !== null ? value : event.target.value;
   }
+
+  // #region New Subscription
+
+  @action addSubscription() {
+    /**
+     * @type {EventSubscriptionCondition}
+     */
+    let condition = {
+      stringKey: 'DisplayMessage',
+      tasks: ['*'],
+      jobs: ['*'],
+      nodes: ['*'],
+      matchType: 'contains',
+      value: '',
+    };
+    /**
+     * @type {EventSubscription}
+     */
+    let subscription = {
+      Topic: 'Allocation',
+      conditions: [condition],
+      playSound: true,
+      notificationType: 'neutral',
+      muted: false,
+    };
+
+    this.subscriptionBeingEdited = subscription;
+    this.subscriptions.pushObject(subscription);
+  }
+  // #endregion New Subscription
 
   //#endregion Subscriptions
 }

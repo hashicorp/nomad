@@ -19,8 +19,14 @@
   header {
     display: flex;
     gap: 0.5rem;
-    line-height: 2rem;
+    line-height: 2.5rem;
     margin-bottom: 1rem;
+  }
+
+  footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
   }
 
   form {
