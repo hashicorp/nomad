@@ -16,6 +16,16 @@ The `ui` block configures the Nomad agent's [web UI].
 ui {
   enabled =  true
 
+  content_security_policy {
+    connect_src     = ["*"]
+    default_src     = ["'none'"]
+    form_action     = ["'none'"]
+    frame_ancestors = ["'none'"]
+    img_src         = ["'self'","data:"]
+    script_src      = ["'self'"]
+    style_src       = ["'self'","'unsafe-inline'"]
+  }
+
   consul {
     ui_url = "https://consul.example.com:8501/ui"
   }
@@ -47,6 +57,27 @@ and the configuration is individual to each agent.
 
 - `label` <code>([Label]: nil)</code> - Configures a user-defined
   label to display in the Nomad Web UI header.
+
+## `content_security_policy` Parameters
+
+The `content_security_policy` block configures the HTTP
+[Content-Security-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+header sent with the web UI response.
+
+- `connect_src` `(array<string>: ["*"])` - Specifies the valid sources for
+  `connect-src` in the Content Security Policy header.
+- `default_src` `(array<string>: ["'none'"])` - Specifies the valid sources for
+  `default-src` in the Content Security Policy header.
+- `form_action` `(array<string>: ["'none'"])` - Specifies the valid sources for
+  `form-action` in the Content Security Policy header.
+- `frame_ancestors` `(array<string>: ["'none'"])` - Specifies the valid sources
+  for `frame-ancestors` in the Content Security Policy header.
+- `img_src` `(array<string>: ["'self'", "data:"])` - Specifies the valid sources
+  for `img-src` in the Content Security Policy header.
+- `script_src` `(array<string>: ["'self'"])` - Specifies the valid sources for
+  `script-src` in the Content Security Policy header.
+- `style_src` `(array<string>: ["'self'","'unsafe-inline'"])` - Specifies the
+  valid sources for `style-src` in the Content Security Policy header.
 
 ## `consul` Parameters
 
