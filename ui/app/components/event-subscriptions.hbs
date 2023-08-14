@@ -130,7 +130,7 @@
               (action this.events.removeSubscription this.events.subscriptionBeingEdited)
               (action (mut this.events.subscriptionBeingEdited) null)
             )}} />
-            <Hds::Button @text="Save" @color="primary" @icon="check" {{on "click" (queue (action (mut this.events.subscriptionBeingEdited) null) (action this.events.saveSubscriptions))}} />
+            <Hds::Button @text="Save" @color="primary" @icon="check" {{on "click" (queue (action this.events.ensureEditedIsSaved) (action (mut this.events.subscriptionBeingEdited) null) (action this.events.saveSubscriptions))}} />
           </footer>
         </section>
       {{else}}

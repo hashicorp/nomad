@@ -42,3 +42,23 @@
     }
   }
 }
+
+.event-subscribable:hover {
+  cursor: pointer;
+  position: relative;
+  :first-child:before {
+    content: 'Click to subscribe to this event';
+    background: var(--token-color-border-highlight);
+    border: 1px solid var(--token-color-foreground-highlight);
+    display: inline;
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+    text-transform: lowercase;
+    color: black;
+    font-weight: 300;
+    z-index: $z-popover;
+  }
+}

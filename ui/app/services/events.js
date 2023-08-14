@@ -211,7 +211,6 @@ export default class EventsService extends Service {
                   );
                 }
               } else if (event.Payload.Node) {
-                console.log('no-devent', event);
                 if (event.Payload.Node.Events) {
                   event.Payload.Node.Events.forEach((nodeEvent) => {
                     // Create a key for de-duplication
@@ -686,6 +685,7 @@ export default class EventsService extends Service {
     };
 
     this.subscriptionBeingEdited = subscription;
+
     this.subscriptions.pushObject(subscription);
     this.subscriptions = this.subscriptions;
   }
@@ -711,6 +711,43 @@ export default class EventsService extends Service {
 
     this.subscriptions = this.subscriptions;
   }
+
+  // #region Remote Subscriptions
+
+  @action subscribeToEvent(event, mouseEvent) {
+    let eventType = event.message ? 'Node' : 'Allocation';
+
+    console.log('subscribeToEvent()', event, mouseEvent, eventType);
+
+    // Open the sidebar
+    this.sidebarIsActive = true;
+    // Set a new subscription
+    this.addSubscription('chill');
+
+    // Immediately pull it back out of the array
+    this.subscriptionBeingEdited = this.subscriptions.popObject();
+    // Set its inferred properties
+    this.subscriptionBeingEdited.Topic = eventType;
+
+    if (eventType === 'Node') {
+      const condition = this.subscriptionBeingEdited.conditions[0];
+      condition.stringKey = 'Message';
+      condition.matchKey = 'equals';
+      condition.value = event.message;
+    }
+
+    this.subscriptionBeingEdited = this.subscriptionBeingEdited;
+  }
+
+  // Because we pop it out of the array in subscribeToEvent to prevent false adds,
+  // we need to make sure it gets added back upon explicit save
+  @action ensureEditedIsSaved() {
+    if (this.subscriptionBeingEdited) {
+      this.subscriptions.pushObject(this.subscriptionBeingEdited);
+      this.subscriptions = this.subscriptions;
+    }
+  }
+  // #endregion Remote Subscriptions
 
   //#endregion Subscriptions
 }
