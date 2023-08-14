@@ -714,8 +714,13 @@ export default class EventsService extends Service {
 
   // #region Remote Subscriptions
 
+  /**
+   * A hook for our modifier to kick off the subscription process from a DOM element
+   * @param {Event} event
+   * @param {MouseEvent} mouseEvent
+   */
   @action subscribeToEvent(event, mouseEvent) {
-    let eventType = event.subsystem ? 'Node' : 'Allocation';
+    let eventType = event.subsystem ? 'Node' : 'Allocation'; // TODO: There's gotta be a better way.
 
     console.log('subscribeToEvent()', event, mouseEvent, eventType);
 
@@ -734,11 +739,13 @@ export default class EventsService extends Service {
       condition.stringKey = 'Message';
       condition.matchKey = 'equals';
       condition.value = event.message;
+      condition.nodes = [event.node.name];
     } else if (eventType === 'Allocation') {
       const condition = this.subscriptionBeingEdited.conditions[0];
       condition.stringKey = 'DisplayMessage';
       condition.matchKey = 'equals';
-      condition.value = event.DisplayMessage;
+      condition.value = event.message;
+      condition.tasks = [event.state.task.name];
     }
 
     this.subscriptionBeingEdited = this.subscriptionBeingEdited;
@@ -748,8 +755,10 @@ export default class EventsService extends Service {
   // we need to make sure it gets added back upon explicit save
   @action ensureEditedIsSaved() {
     if (this.subscriptionBeingEdited) {
-      this.subscriptions.pushObject(this.subscriptionBeingEdited);
-      this.subscriptions = this.subscriptions;
+      if (!this.subscriptions.includes(this.subscriptionBeingEdited)) {
+        this.subscriptions.pushObject(this.subscriptionBeingEdited);
+        this.subscriptions = this.subscriptions;
+      }
     }
   }
   // #endregion Remote Subscriptions
