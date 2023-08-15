@@ -46,6 +46,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
@@ -329,6 +330,9 @@ type Client struct {
 	// topology represents the system memory / cpu topology detected via
 	// fingerprinting
 	topology *numalib.Topology
+
+	// widmgr retrieves workload identities
+	widmgr *widmgr.WIDMgr
 }
 
 var (
@@ -436,6 +440,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	if err := c.setupNode(); err != nil {
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
+
+	// Add workload identity manager after node secret has been generated/loaded
+	c.widmgr = widmgr.New(widmgr.Config{
+		NodeSecret: c.secretNodeID(),
+		Region:     cfg.Region,
+		RPC:        c,
+	})
 
 	c.fingerprintManager = NewFingerprintManager(
 		cfg.PluginSingletonLoader,
@@ -2725,6 +2736,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		RPCClient:           c,
 		Getter:              c.getter,
 		Wranglers:           c.wranglers,
+		WIDMgr:              c.widmgr,
 	}
 
 	ar, err := c.allocrunnerFactory(arConf)

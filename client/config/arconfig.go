@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -108,6 +109,9 @@ type AllocRunnerConfig struct {
 
 	// Wranglers is an interface for managing unix/windows processes.
 	Wranglers interfaces.ProcessWranglers
+
+	// WIDMgr fetches workload identities
+	WIDMgr *widmgr.WIDMgr
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

@@ -90,12 +90,8 @@ func (tr *TaskRunner) setNomadToken(token string) {
 	defer tr.nomadTokenLock.Unlock()
 	tr.nomadToken = token
 
-	if id := tr.task.Identity; id != nil {
-		tr.envBuilder.SetWorkloadToken(token, id.Env)
-	} else {
-		// Default to *not* injecting the workload token into the task's
-		// environment.
-		tr.envBuilder.SetWorkloadToken(token, false)
+	if id := tr.Task().Identity; id != nil && id.Env {
+		tr.envBuilder.SetDefaultWorkloadToken(token)
 	}
 }
 

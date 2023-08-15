@@ -30,6 +30,7 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -199,6 +200,9 @@ type allocRunner struct {
 
 	// wranglers is an interface for managing unix/windows processes.
 	wranglers cinterfaces.ProcessWranglers
+
+	// widmgr fetches workload identities
+	widmgr *widmgr.WIDMgr
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -241,6 +245,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		getter:                   config.Getter,
 		wranglers:                config.Wranglers,
 		hookResources:            cstructs.NewAllocHookResources(),
+		widmgr:                   config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID
@@ -298,6 +303,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Getter:              ar.getter,
 			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
+			WIDMgr:              ar.widmgr,
 		}
 
 		// Create, but do not Run, the task runner

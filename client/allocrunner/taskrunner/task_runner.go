@@ -265,6 +265,9 @@ type TaskRunner struct {
 	// wranglers manage unix/windows processes leveraging operating
 	// system features like cgroups
 	wranglers cinterfaces.ProcessWranglers
+
+	// widmgr fetches workload identities
+	widmgr IdentitySigner
 }
 
 type Config struct {
@@ -337,6 +340,9 @@ type Config struct {
 	// AllocHookResources is how taskrunner hooks can get state written by
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
+
+	// WIDMgr fetches workload identities
+	WIDMgr IdentitySigner
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -398,6 +404,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		serviceRegWrapper:     config.ServiceRegWrapper,
 		getter:                config.Getter,
 		wranglers:             config.Wranglers,
+		widmgr:                config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID

@@ -4,7 +4,6 @@
 package agent
 
 import (
-	"crypto/ed25519"
 	"fmt"
 	"net/http"
 	"strings"
@@ -52,12 +51,13 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 			Algorithm: pubKey.Algorithm,
 			Use:       pubKey.Use,
 		}
-		switch alg := pubKey.Algorithm; alg {
-		case structs.PubKeyAlgEdDSA:
-			// Convert public key bytes to an ed25519 public key
-			jwk.Key = ed25519.PublicKey(pubKey.PublicKey)
-		default:
-			s.logger.Warn("unknown public key algorithm. server is likely newer than client", "alg", alg)
+
+		// Convert public key bytes to an ed25519 public key
+		if k, err := pubKey.GetPublicKey(); err == nil {
+			jwk.Key = k
+		} else {
+			s.logger.Warn("error getting public key. server is likely newer than client", "err", err)
+			continue
 		}
 
 		jwks = append(jwks, jwk)

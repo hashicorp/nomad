@@ -1201,10 +1201,31 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
 	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
 
-	if apiTask.Identity != nil {
+	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
+	// the Task.Identity field, so if it is non-nil use it.
+	if id := apiTask.Identity; id != nil {
 		structsTask.Identity = &structs.WorkloadIdentity{
-			Env:  apiTask.Identity.Env,
-			File: apiTask.Identity.File,
+			Name:     id.Name,
+			Audience: slices.Clone(id.Audience),
+			Env:      id.Env,
+			File:     id.File,
+		}
+	}
+
+	if ids := apiTask.Identities; len(ids) > 0 {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
+		for i, id := range ids {
+			if id == nil {
+				continue
+			}
+
+			structsTask.Identities[i] = &structs.WorkloadIdentity{
+				Name:     id.Name,
+				Audience: slices.Clone(id.Audience),
+				Env:      id.Env,
+				File:     id.File,
+			}
+
 		}
 	}
 
