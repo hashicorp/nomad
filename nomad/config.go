@@ -14,6 +14,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -310,8 +311,13 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
-	// VaultConfig is this Agent's Vault configuration
+	// VaultConfig is this Agent's default Vault configuration
 	VaultConfig *config.VaultConfig
+
+	// VaultConfigs is a map of Vault configurations, here to support features
+	// in Nomad Enterprise. The default Vault config pointer above will be found
+	// in this map under the name "default"
+	VaultConfigs map[string]*config.VaultConfig
 
 	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
 	// This is used to paper over a loss of leadership by instead holding RPCs,
@@ -442,6 +448,7 @@ func (c *Config) Copy() *Config {
 	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TLSConfig = c.TLSConfig.Copy()
 	nc.SentinelConfig = c.SentinelConfig.Copy()
 	nc.AutopilotConfig = c.AutopilotConfig.Copy()
@@ -540,6 +547,8 @@ func DefaultConfig() *Config {
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
+
+	c.VaultConfigs = map[string]*config.VaultConfig{"default": c.VaultConfig}
 
 	// Enable all known schedulers by default
 	c.EnabledSchedulers = make([]string, 0, len(scheduler.BuiltinSchedulers))

@@ -184,6 +184,7 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Origin": "*",
 		},
 		Vault: &config.VaultConfig{
+			Name:                 "default",
 			Token:                "1",
 			AllowUnauthenticated: &falseValue,
 			TaskTokenTTL:         "1",
@@ -194,6 +195,21 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "1",
 			TLSSkipVerify:        &falseValue,
 			TLSServerName:        "1",
+		},
+		Vaults: map[string]*config.VaultConfig{
+			"default": {
+				Name:                 "default",
+				Token:                "1",
+				AllowUnauthenticated: &falseValue,
+				TaskTokenTTL:         "1",
+				Addr:                 "1",
+				TLSCaFile:            "1",
+				TLSCaPath:            "1",
+				TLSCertFile:          "1",
+				TLSKeyFile:           "1",
+				TLSSkipVerify:        &falseValue,
+				TLSServerName:        "1",
+			},
 		},
 		Consul: &config.ConsulConfig{
 			ServerServiceName:    "1",
@@ -393,6 +409,7 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
 		Vault: &config.VaultConfig{
+			Name:                 "default",
 			Token:                "2",
 			AllowUnauthenticated: &trueValue,
 			TaskTokenTTL:         "2",
@@ -403,6 +420,21 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "2",
 			TLSSkipVerify:        &trueValue,
 			TLSServerName:        "2",
+		},
+		Vaults: map[string]*config.VaultConfig{
+			"default": {
+				Name:                 "default",
+				Token:                "2",
+				AllowUnauthenticated: &trueValue,
+				TaskTokenTTL:         "2",
+				Addr:                 "2",
+				TLSCaFile:            "2",
+				TLSCaPath:            "2",
+				TLSCertFile:          "2",
+				TLSKeyFile:           "2",
+				TLSSkipVerify:        &trueValue,
+				TLSServerName:        "2",
+			},
 		},
 		Consul: &config.ConsulConfig{
 			ServerServiceName:    "2",

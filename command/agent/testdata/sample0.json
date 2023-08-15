@@ -82,6 +82,7 @@
     "verify_server_hostname": true
   },
   "vault": {
+    "name": "default",
     "address": "http://host.example.com:8200",
     "create_from_role": "nomad-cluster",
     "enabled": true
