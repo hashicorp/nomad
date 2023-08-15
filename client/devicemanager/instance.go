@@ -510,9 +510,8 @@ START:
 			}
 		}
 
-		// Reset the backoff since we got statistics
+		// Reset the attempts since we got statistics
 		attempt = 0
-		backoff = 0
 
 		// Store the new stats
 		if sresp.Groups != nil {
