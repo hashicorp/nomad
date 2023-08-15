@@ -139,6 +139,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.12
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.5.0
+	go install github.com/shoenig/go-modtool@v0.1.1
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -247,6 +248,10 @@ tidy: ## Tidy up the go mod files
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
 	@echo "==> Tidy nomad module"
+	@go-modtool \
+		--replace-comment="Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826." \
+		--subs-comment="Nomad is built using the current source of the API module." \
+		-w fmt go.mod
 	@go mod tidy
 
 .PHONY: dev
