@@ -43,8 +43,10 @@ func (w *Wranglers) Setup(task Task) error {
 	// create process wrangler for task
 	pw := w.create(task)
 
-	// perform any initialization if necessary
-	pw.Initialize()
+	// perform any initialization if necessary (e.g. create cgroup)
+	// if this doesn't work just keep going; it's up to each task driver
+	// implementation to decide if this is a failure mode
+	_ = pw.Initialize()
 
 	w.lock.Lock()
 	defer w.lock.Unlock()
