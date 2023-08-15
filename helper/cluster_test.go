@@ -21,7 +21,7 @@ func TestCluster_RandomStagger(t *testing.T) {
 	}
 
 	abs := func(d time.Duration) time.Duration {
-		return Max(d, -d)
+		return max(d, -d)
 	}
 
 	for _, tc := range cases {
