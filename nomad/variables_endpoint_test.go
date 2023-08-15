@@ -385,7 +385,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		if err != nil {
 			return structs.ErrPermissionDenied
 		}
-		_, _, err = variablesRPC.handleMixedAuthEndpoint(
+		_, err = variablesRPC.handleMixedAuthEndpoint(
 			*args, cap, path)
 		return err
 	}

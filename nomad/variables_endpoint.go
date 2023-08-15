@@ -422,6 +422,7 @@ func (sv *Variables) List(
 						if !strings.HasPrefix(v.Path, args.Prefix) {
 							return false, nil
 						}
+						// Note: the authorize method modifies the aclObj parameter.
 						err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
 						return err == nil, nil
 					},
@@ -518,6 +519,8 @@ func (sv *Variables) listAllVariables(
 						if !strings.HasPrefix(v.Path, args.Prefix) {
 							return false, nil
 						}
+
+						// Note: the authorize method modifies the aclObj parameter.
 						err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
 						return err == nil, nil
 					},
@@ -604,6 +607,7 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, 
 	}
 	claims := args.GetIdentity().GetClaims()
 
+	// Note: the authorize method modifies the aclObj parameter.
 	err = sv.authorize(aclObj, claims, args.RequestNamespace(), policy, pathOrPrefix)
 	if err != nil {
 		return aclObj, err
@@ -612,6 +616,9 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, 
 	return aclObj, nil
 }
 
+// The authorize method modifies the aclObj parameter. In case the incoming request
+// uses identity workload claims, the aclObj is populated. This logic will be
+// updated when the work to eliminate nil ACLs is merged.
 func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, ns, policy, pathOrPrefix string) error {
 
 	if aclObj == nil && claims == nil {
@@ -630,8 +637,9 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 
 	// Check the workload-associated policies and automatic task access to
 	// variables.
+	var err error
 	if claims != nil {
-		aclObj, err := sv.srv.ResolveClaims(claims)
+		aclObj, err = sv.srv.ResolveClaims(claims)
 		if err != nil {
 			return err // returns internal errors only
 		}
