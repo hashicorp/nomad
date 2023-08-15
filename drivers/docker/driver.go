@@ -533,9 +533,6 @@ CREATE:
 			goto CREATE
 		}
 
-		if attempted < 5 {
-			attempted++
-		}
 	} else if strings.Contains(strings.ToLower(createErr.Error()), "no such image") {
 		// There is still a very small chance this is possible even with the
 		// coordinator so retry.
