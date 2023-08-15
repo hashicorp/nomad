@@ -11,6 +11,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -450,7 +451,8 @@ func (i *instanceManager) handleFingerprint(f *device.FingerprintResponse) error
 // collectStats is a long lived goroutine for collecting device statistics. It
 // handles errors by backing off exponentially and retrying.
 func (i *instanceManager) collectStats() {
-	attempt := 0
+	var attempt uint64
+	var backoff time.Duration
 
 START:
 	// Get a device plugin
@@ -470,7 +472,6 @@ START:
 
 	var sresp *device.StatsResponse
 	var ok bool
-	backoff := time.Duration(0)
 	for {
 		select {
 		case <-i.ctx.Done():
@@ -495,14 +496,9 @@ START:
 				goto START
 			}
 
-			// Retry with an exponential backoff, avoiding overflow
-			if backoff < statsBackoffLimit {
-				backoff = (1 << (2 * uint64(attempt))) * statsBackoffBaseline
-				if backoff > statsBackoffLimit {
-					backoff = statsBackoffLimit
-				}
-				attempt++
-			}
+			// Retry with an exponential backoff
+			backoff = helper.Backoff(statsBackoffBaseline, statsBackoffLimit, attempt)
+			attempt++
 
 			i.logger.Error("stats returned an error", "error", err, "retry", backoff)
 
@@ -514,8 +510,9 @@ START:
 			}
 		}
 
-		// Reset the attempt since we got statistics
+		// Reset the backoff since we got statistics
 		attempt = 0
+		backoff = 0
 
 		// Store the new stats
 		if sresp.Groups != nil {

@@ -96,8 +96,8 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 	defer destCh.close()
 
 	// backoff and retry used if the docker stats API returns an error
-	var backoff time.Duration = 0
-	var retry int
+	var backoff time.Duration
+	var retry uint64
 
 	// create an interval timer
 	timer, stop := helper.NewSafeTimer(backoff)
@@ -137,13 +137,8 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 			h.logger.Debug("error collecting stats from container", "error", err)
 
 			// Calculate the new backoff
-			if backoff < statsCollectorBackoffLimit {
-				backoff = (1 << (2 * uint64(retry))) * statsCollectorBackoffBaseline
-				if backoff > statsCollectorBackoffLimit {
-					backoff = statsCollectorBackoffLimit
-				}
-				retry++
-			}
+			backoff = helper.Backoff(statsCollectorBackoffBaseline, statsCollectorBackoffLimit, retry)
+			retry++
 			continue
 		}
 		// Stats finished either because context was canceled, doneCh was closed

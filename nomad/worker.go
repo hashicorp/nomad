@@ -16,6 +16,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -109,7 +110,7 @@ type Worker struct {
 
 	// failures is the count of errors encountered while dequeueing evaluations
 	// and is used to calculate backoff.
-	failures       uint
+	failures       uint64
 	failureBackoff time.Duration
 	evalToken      string
 
@@ -877,16 +878,8 @@ func (w *Worker) shouldResubmit(err error) bool {
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	w.setWorkloadStatus(WorkloadBackoff)
 
-	backoff := w.failureBackoff
-	if w.failureBackoff < limit {
-		backoff = (1 << (2 * w.failures)) * base
-		if backoff > limit {
-			backoff = limit
-		} else {
-			w.failures++
-			w.failureBackoff = backoff
-		}
-	}
+	backoff := helper.Backoff(base, limit, w.failures)
+	w.failures++
 
 	select {
 	case <-time.After(backoff):
