@@ -200,6 +200,10 @@ type Config struct {
 	TLSConfig *TLSConfig
 
 	Headers http.Header
+
+	// retryOptions holds the configuration necessary to perform retries
+	// on put calls.
+	retryOptions *retryOptions
 }
 
 // ClientConfig copies the configuration with a new client address, region, and
