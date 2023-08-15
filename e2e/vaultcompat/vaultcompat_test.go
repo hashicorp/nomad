@@ -134,7 +134,8 @@ func startNomad(t *testing.T, vc *vaultapi.Client) (func(), *nomadapi.Client) {
 		}
 		c.DevMode = true
 		c.Client = &testutil.ClientConfig{
-			Enabled: true,
+			Enabled:      true,
+			TotalCompute: 1000,
 		}
 		c.LogLevel = testlog.HCLoggerTestLevel().String()
 	})
