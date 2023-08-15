@@ -527,8 +527,8 @@ CREATE:
 		}
 
 		if attempted < 5 {
-			backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
 			attempted++
+			backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
 			time.Sleep(backoff)
 			goto CREATE
 		}
@@ -539,6 +539,7 @@ CREATE:
 		return nil, nstructs.NewRecoverableError(createErr, true)
 	} else if isDockerTransientError(createErr) && attempted < 5 {
 		attempted++
+		backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
 		time.Sleep(backoff)
 		goto CREATE
 	}
