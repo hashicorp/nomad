@@ -4,6 +4,9 @@
 package lang
 
 // A Stack is a simple LIFO datastructure.
+//
+// This datastructure is not concurrency-safe; any locking
+// required should be done by the caller!
 type Stack[T any] struct {
 	top *object[T]
 }
