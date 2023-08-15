@@ -190,7 +190,7 @@ func (vars *Variables) RenewLock(v *Variable, qo *WriteOptions) (*VariableMetada
 	v.Path = cleanPathString(v.Path)
 	var out VariableMetadata
 
-	wm, err := vars.client.put("/v1/var/"+v.Path+"?renew-lock", v, &out, qo)
+	wm, err := vars.client.put("/v1/var/"+v.Path+"?lock-renew", v, &out, qo)
 	if err != nil {
 		return nil, wm, err
 	}
