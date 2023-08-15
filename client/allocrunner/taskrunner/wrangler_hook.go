@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	wranglerHookName = "wrangler"
+	wranglerHookName = "procisolation"
 )
 
 // A wranglerHook provides a mechanism through which the Client can be sure any

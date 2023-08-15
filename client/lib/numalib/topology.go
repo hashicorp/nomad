@@ -54,12 +54,12 @@ type (
 	Cost     uint8
 )
 
-func (hz KHz) MHz() MHz {
-	return MHz(hz / 1000)
+func (khz KHz) MHz() MHz {
+	return MHz(khz / 1000)
 }
 
-func (hz KHz) String() string {
-	return strconv.FormatUint(uint64(hz.MHz()), 10)
+func (khz KHz) String() string {
+	return strconv.FormatUint(uint64(khz.MHz()), 10)
 }
 
 // A Topology provides a bird-eye view of the system NUMA topology.
