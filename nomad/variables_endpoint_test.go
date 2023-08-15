@@ -385,7 +385,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		if err != nil {
 			return structs.ErrPermissionDenied
 		}
-		_, _, err = variablesRPC.handleMixedAuthEndpoint(
+		_, err = variablesRPC.handleMixedAuthEndpoint(
 			*args, cap, path)
 		return err
 	}
@@ -1404,43 +1404,49 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 	listPol := mock.NamespacePolicyWithVariables(
 		structs.DefaultNamespace, "", []string{"list-jobs"},
 		map[string][]string{
-			"dropbox/*": {"list", "read", "write"},
+			"dropbox/*": {"list", "read"},
 		})
 	listToken := mock.CreatePolicyAndToken(t, state, 1003, "test-write-invalid", listPol)
 
 	sv := mock.Variable()
 	sv.Path = "dropbox/a"
 
-	sv.VariableMetadata.Lock = &structs.VariableLock{
-		ID:        "theLockID",
-		TTL:       24 * time.Hour,
-		LockDelay: 15 * time.Second,
-	}
+	latest := sv.Copy()
+	t.Run("successfully acquire lock on new variable", func(t *testing.T) {
+		sv := sv.Copy()
+		sv.VariableMetadata.Lock = &structs.VariableLock{
+			TTL:       24 * time.Hour,
+			LockDelay: 15 * time.Second,
+		}
 
-	bPlain, err := json.Marshal(sv.Items)
-	must.NoError(t, err)
-	bEnc, kID, err := srv.encrypter.Encrypt(bPlain)
+		applyReq := structs.VariablesApplyRequest{
+			Op:  structs.VarOpLockAcquire,
+			Var: &sv,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: rootToken.SecretID,
+			},
+		}
 
-	// Creating and locking the variable directly on the state store allows us to
-	// set up the lock ID and bypass the timers.
-	svEnc := structs.VariableEncrypted{
-		VariableMetadata: sv.VariableMetadata,
-		VariableData: structs.VariableData{
-			Data:  bEnc,
-			KeyID: kID,
-		},
-	}
+		runningTimers := srv.lockTTLTimer.TimerNum()
 
-	ssResp := state.VarLockAcquire(100, &structs.VarApplyStateRequest{
-		Op:  structs.VarOpLockAcquire,
-		Var: &svEnc,
+		applyResp := new(structs.VariablesApplyResponse)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+		must.NoError(t, err)
+		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
+		must.NotNil(t, applyResp.Output.VariableMetadata.Lock)
+		must.Eq(t, sv.Items, applyResp.Output.Items)
+
+		must.NotNil(t, srv.lockTTLTimer.Get(applyResp.Output.VariableMetadata.Lock.ID))
+		must.Eq(t, runningTimers+1, srv.lockTTLTimer.TimerNum())
+		latest = *applyResp.Output
+
 	})
-
-	must.NoError(t, ssResp.Error)
 
 	t.Run("successfully read the lock information with a management call", func(t *testing.T) {
 		req := &structs.VariablesReadRequest{
-			Path: svEnc.Path,
+			Path: sv.Path,
 			QueryOptions: structs.QueryOptions{
 				Namespace: structs.DefaultNamespace,
 				AuthToken: rootToken.SecretID,
@@ -1451,12 +1457,12 @@ func TestVariablesEndpoint_Read_Lock_ACL(t *testing.T) {
 		readResp := new(structs.VariablesReadResponse)
 		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &readResp))
 		must.NotNil(t, readResp.Data.VariableMetadata.Lock)
-		must.Eq(t, "theLockID", readResp.Data.LockID())
+		must.Eq(t, latest.LockID(), readResp.Data.LockID())
 	})
 
-	t.Run("try to read the lock information without a list token", func(t *testing.T) {
+	t.Run("try to read the lock information with a list token", func(t *testing.T) {
 		req := &structs.VariablesReadRequest{
-			Path: svEnc.Path,
+			Path: sv.Path,
 			QueryOptions: structs.QueryOptions{
 				Namespace: structs.DefaultNamespace,
 				AuthToken: listToken.SecretID,
