@@ -78,7 +78,8 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled      bool `json:"enabled"`
+	TotalCompute int  `json:"cpu_total_compute"`
 }
 
 // VaultConfig is used to configure Vault
