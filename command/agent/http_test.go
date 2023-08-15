@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -843,8 +844,10 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a *net.OpErr but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
-	const badCertificate = "tls: bad certificate" // from crypto/tls/alert.go:52 and RFC 5246 § A.3
-	if opErr.Err.Error() != badCertificate {
+
+	// from crypto/tls/alert.go:52 and RFC 5246 § A.3
+	possibleBadCertErr := []string{"tls: bad certificate", "tls: certificate required"}
+	if !slices.Contains(possibleBadCertErr, opErr.Err.Error()) {
 		t.Fatalf("expected tls.alert bad_certificate but received: %q", opErr.Err.Error())
 	}
 
