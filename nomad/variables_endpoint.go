@@ -262,7 +262,7 @@ func (sv *Variables) makeVariablesApplyResponse(
 			// Verify the caller is providing the correct lockID, meaning it is the
 			// lock holder and has access to the lock information or is a management call.
 			// If locked, remove the lock information from response.
-			if isCallerOwner(req, eResp.WrittenSVMeta) || !isManagement {
+			if !(isCallerOwner(req, eResp.WrittenSVMeta) || isManagement) {
 				out.Output.VariableMetadata.Lock = nil
 			}
 		}
@@ -321,7 +321,7 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 
 	defer metrics.MeasureSince([]string{"nomad", "variables", "read"}, time.Now())
 
-	aclObj, _, err := sv.handleMixedAuthEndpoint(args.QueryOptions,
+	aclObj, err := sv.handleMixedAuthEndpoint(args.QueryOptions,
 		acl.PolicyRead, args.Path)
 	if err != nil {
 		return err
@@ -422,6 +422,7 @@ func (sv *Variables) List(
 						if !strings.HasPrefix(v.Path, args.Prefix) {
 							return false, nil
 						}
+						// Note: the authorize method modifies the aclObj parameter.
 						err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
 						return err == nil, nil
 					},
@@ -518,6 +519,8 @@ func (sv *Variables) listAllVariables(
 						if !strings.HasPrefix(v.Path, args.Prefix) {
 							return false, nil
 						}
+
+						// Note: the authorize method modifies the aclObj parameter.
 						err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
 						return err == nil, nil
 					},
@@ -591,7 +594,7 @@ func (sv *Variables) decrypt(v *structs.VariableEncrypted) (*structs.VariableDec
 
 // handleMixedAuthEndpoint is a helper to handle auth on RPC endpoints that can
 // either be called by external clients or by workload identity
-func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, pathOrPrefix string) (*acl.ACL, *structs.IdentityClaims, error) {
+func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, pathOrPrefix string) (*acl.ACL, error) {
 
 	var aclObj *acl.ACL
 	var err error
@@ -599,19 +602,23 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, 
 	if aclToken != nil {
 		aclObj, err = sv.srv.ResolveACLForToken(aclToken)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	claims := args.GetIdentity().GetClaims()
 
+	// Note: the authorize method modifies the aclObj parameter.
 	err = sv.authorize(aclObj, claims, args.RequestNamespace(), policy, pathOrPrefix)
 	if err != nil {
-		return aclObj, claims, err
+		return aclObj, err
 	}
 
-	return aclObj, claims, nil
+	return aclObj, nil
 }
 
+// The authorize method modifies the aclObj parameter. In case the incoming request
+// uses identity workload claims, the aclObj is populated. This logic will be
+// updated when the work to eliminate nil ACLs is merged.
 func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, ns, policy, pathOrPrefix string) error {
 
 	if aclObj == nil && claims == nil {
@@ -630,8 +637,9 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 
 	// Check the workload-associated policies and automatic task access to
 	// variables.
+	var err error
 	if claims != nil {
-		aclObj, err := sv.srv.ResolveClaims(claims)
+		aclObj, err = sv.srv.ResolveClaims(claims)
 		if err != nil {
 			return err // returns internal errors only
 		}
@@ -749,5 +757,5 @@ func isCallerOwner(req *structs.VariablesApplyRequest, respVarMeta *structs.Vari
 
 	return reqLock != nil &&
 		savedLock != nil &&
-		reqLock.ID != savedLock.ID
+		reqLock.ID == savedLock.ID
 }
