@@ -9,6 +9,11 @@
     class={{this.class}}
     data-test-pager={{this.test}}
     aria-label={{this.label}}
+    {{keyboard-shortcut
+      label=(if (eq this.label 'Next page') 'Next Page' 'Previous Page')
+      action=(action "gotoRoute")
+      pattern=(if (eq this.label 'Next page') (array "]" "]") (array "[" "["))
+    }}
   >
     {{yield}}
   </LinkTo>
