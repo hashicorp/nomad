@@ -423,7 +423,7 @@ func (i *instanceManager) handleEvents() {
 	}
 
 	var backoff time.Duration
-	var retry int
+	var retry uint64
 	for {
 		if backoff > 0 {
 			select {
@@ -450,13 +450,8 @@ func (i *instanceManager) handleEvents() {
 				i.logger.Warn("failed to receive task events, retrying", "error", err, "retry", retry)
 
 				// Calculate the new backoff
-				if backoff < driverFPBackoffLimit {
-					backoff = (1 << (2 * uint64(retry))) * driverFPBackoffBaseline
-					if backoff > driverFPBackoffLimit {
-						backoff = driverFPBackoffLimit
-					}
-					retry++
-				}
+				backoff = helper.Backoff(driverFPBackoffBaseline, driverFPBackoffLimit, retry)
+				retry++
 				continue
 			}
 			cancel()
