@@ -7,6 +7,8 @@ project {
   header_ignore = [
     "command/asset/*.hcl",
     "command/agent/bindata_assetfs.go",
+    # licensed under MPL - ignoring for now until the copywrite tool can support
+    # multiple licenses per repo.
     "api/**",
     "drivers/shared/**",
     "plugins/**",
