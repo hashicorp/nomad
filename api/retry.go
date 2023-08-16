@@ -6,17 +6,38 @@ package api
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"time"
 )
 
+const (
+	defaultNumberOfRetries = 5
+	defaultDelayTimeBase   = time.Second
+)
+
+var (
+	// defaultMaxBackoffDelay is defined as a variable so it can be modified
+	// to speed up the testing process.
+	defaultMaxBackoffDelay = 5 * time.Minute
+)
+
+type client interface {
+	put(endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error)
+}
+
+type retryClient struct {
+	c client
+	retryOptions
+}
+
 // LockOptions is used to parameterize the Lock behavior.
 type retryOptions struct {
-	maxRetries uint64 // Optional, defaults to 3
-	// maxBetweenCalls sets a capping value for the delay between calls, to avoid it growing infinitely
-	maxBetweenCalls time.Duration // Optional, defaults to 0, meaning no time cap
+	maxRetries int64 // Optional, defaults to 5
+	// maxBackoffDelay  sets a capping value for the delay between calls, to avoid it growing infinitely
+	maxBackoffDelay time.Duration // Optional, defaults to 5 min
 	// maxToLastCall sets a capping value for all the retry process, in case there is a deadline to make the call.
-	maxToLastCall time.Duration // Optional, defaults to 0, meaning no time cap
+	maxToLastCall time.Duration // Optional, defaults to 5min, meaning no time cap
 	// fixedDelay is used in case an uniform distribution of the calls is preferred.
 	fixedDelay time.Duration // Optional, defaults to 0, meaning Delay is exponential, starting at 1sec
 	// delayBase is used to calculate the starting value at which the delay starts to grow,
@@ -35,7 +56,7 @@ func (c *Client) retryPut(ctx context.Context, endpoint string, in, out any, q *
 	t := time.NewTimer(attemptDelay)
 	defer t.Stop()
 
-	for attempt := uint64(0); attempt < c.config.retryOptions.maxRetries; attempt++ {
+	for attempt := int64(0); attempt < c.config.retryOptions.maxRetries; attempt++ {
 		attemptDelay = c.calculateDelay(attempt)
 
 		t.Reset(attemptDelay)
@@ -91,7 +112,7 @@ func isCallRetriable(statusCode int) bool {
 		statusCode == http.StatusTooManyRequests
 }
 
-func (c *Client) calculateDelay(attempt uint64) time.Duration {
+func (c *Client) calculateDelay(attempt int64) time.Duration {
 	if c.config.retryOptions.fixedDelay != 0 {
 		return c.config.retryOptions.fixedDelay
 	}
@@ -100,10 +121,17 @@ func (c *Client) calculateDelay(attempt uint64) time.Duration {
 		return 0
 	}
 
+	// Ensure that a big attempt number or a big delayBase number will not cause
+	// a negative delay by overflowing the delay increase.
+	if math.MaxInt64/c.config.retryOptions.delayBase.Nanoseconds() < (1 << attempt) {
+		return defaultMaxBackoffDelay
+	}
+
 	newDelay := c.config.retryOptions.delayBase << (attempt - 1)
 
-	if c.config.retryOptions.maxBetweenCalls != 0 && newDelay > c.config.retryOptions.maxBetweenCalls {
-		return c.config.retryOptions.maxBetweenCalls
+	if c.config.retryOptions.maxBackoffDelay != defaultMaxBackoffDelay &&
+		newDelay > c.config.retryOptions.maxBackoffDelay {
+		return c.config.retryOptions.maxBackoffDelay
 	}
 
 	return newDelay
