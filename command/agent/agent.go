@@ -23,15 +23,17 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -791,12 +793,26 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	res.Memory.MemoryMB = int64(agentConfig.Client.Reserved.MemoryMB)
 	res.Disk.DiskMB = int64(agentConfig.Client.Reserved.DiskMB)
 	res.Networks.ReservedHostPorts = agentConfig.Client.Reserved.ReservedPorts
-	if agentConfig.Client.Reserved.Cores != "" {
-		cores, err := cpuset.Parse(agentConfig.Client.Reserved.Cores)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse client > reserved > cores value %q: %v", agentConfig.Client.Reserved.Cores, err)
-		}
-		res.Cpu.ReservedCpuCores = cores.ToSlice()
+
+	// Operators may set one of
+	//
+	// - config.reservable_cores (highest precedence) for specifying which cpu cores
+	//   nomad tasks may run on
+	//
+	// - config.reserved.cores (lowest precedence) for specifying which cpu cores
+	//   nomad tasks may NOT run on
+	//
+	// In either case we will compute the partitioning and have it enforced by
+	// cgroups (on linux). In -dev mode we let nomad use 2 cores.
+	if agentConfig.Client.ReservableCores != "" {
+		cores := idset.Parse[hw.CoreID](agentConfig.Client.ReservableCores)
+		conf.ReservableCores = cores.Slice()
+	} else if agentConfig.Client.Reserved.Cores != "" {
+		cores := idset.Parse[hw.CoreID](agentConfig.Client.Reserved.Cores)
+		res.Cpu.ReservedCpuCores = helper.ConvertSlice(
+			cores.Slice(),
+			func(id hw.CoreID) uint16 { return uint16(id) },
+		)
 	}
 
 	conf.Version = agentConfig.Version

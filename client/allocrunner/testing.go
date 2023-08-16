@@ -18,6 +18,7 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
@@ -25,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -96,7 +96,8 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		ServiceRegWrapper:  wrapper.NewHandlerWrapper(clientConf.Logger, consulRegMock, nomadRegMock),
 		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
 		Getter:             getter.TestSandbox(t),
-		Wranglers:          proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
+		Wranglers:          proclib.MockWranglers(t),
+		Partitions:         cgroupslib.MockPartition(),
 	}
 
 	return conf, cleanup

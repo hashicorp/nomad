@@ -21,6 +21,8 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -201,6 +203,9 @@ type allocRunner struct {
 	// wranglers is an interface for managing unix/windows processes.
 	wranglers cinterfaces.ProcessWranglers
 
+	// partitions is an interface for managing cpuset partitions
+	partitions cinterfaces.CPUPartitions
+
 	// widmgr fetches workload identities
 	widmgr *widmgr.WIDMgr
 }
@@ -244,6 +249,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
 		wranglers:                config.Wranglers,
+		partitions:               config.Partitions,
 		hookResources:            cstructs.NewAllocHookResources(),
 		widmgr:                   config.WIDMgr,
 	}
@@ -455,11 +461,23 @@ func (ar *allocRunner) Restore() error {
 
 		// restore process wrangler for task
 		ar.wranglers.Setup(proclib.Task{AllocID: tr.Alloc().ID, Task: tr.Task().Name})
+
+		// restore cpuset partition state
+		ar.restoreCores(tr.Alloc().AllocatedResources)
 	}
 
 	ar.taskCoordinator.Restore(states)
 
 	return nil
+}
+
+// restoreCores will restore the cpuset partitions with the reserved core
+// data for each task in the alloc
+func (ar *allocRunner) restoreCores(res *structs.AllocatedResources) {
+	for _, taskRes := range res.Tasks {
+		s := idset.From[hw.CoreID](taskRes.Cpu.ReservedCores)
+		ar.partitions.Restore(s)
+	}
 }
 
 // persistDeploymentStatus stores AllocDeploymentStatus.

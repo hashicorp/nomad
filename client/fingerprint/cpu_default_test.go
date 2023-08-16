@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -63,7 +63,7 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 	cfg := &config.Config{
-		ReservableCores: []numalib.CoreID{0, 1, 2},
+		ReservableCores: []hw.CoreID{0, 1, 2},
 	}
 	var originalCPU int
 

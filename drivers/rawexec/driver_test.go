@@ -58,7 +58,7 @@ func testResources(allocID, task string) *drivers.Resources {
 		LinuxResources: &drivers.LinuxResources{
 			MemoryLimitBytes: 134217728,
 			CPUShares:        100,
-			CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, task),
+			CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, task, false),
 		},
 	}
 

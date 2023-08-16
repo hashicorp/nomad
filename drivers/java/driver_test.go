@@ -299,7 +299,7 @@ func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskC
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
 				CPUShares:        100,
-				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, name),
+				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, name, false),
 			},
 		},
 	}

@@ -22,12 +22,12 @@ type LinuxWranglerCG2 struct {
 
 func newCG2(c *Configs) create {
 	logger := c.Logger.Named("cg2")
-	cgroupslib.Init(logger)
+	cgroupslib.Init(logger, c.UsableCores.String())
 	return func(task Task) ProcessWrangler {
 		return &LinuxWranglerCG2{
 			task: task,
 			log:  c.Logger,
-			cg:   cgroupslib.Factory(task.AllocID, task.Task),
+			cg:   cgroupslib.Factory(task.AllocID, task.Task, task.Cores),
 		}
 	}
 }
