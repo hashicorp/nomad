@@ -104,16 +104,15 @@ func Test_RetryPut_capped_base_too_big(t *testing.T) {
 			callsCounter: []time.Time{},
 		}
 
-		defaultMaxBackoffDelay = 200 * time.Millisecond
-
 		server := httptest.NewServer(http.HandlerFunc(mh.Handle))
 		cm := &Client{
 			httpClient: server.Client(),
 			config: Config{
 				Address: server.URL,
 				retryOptions: &retryOptions{
-					delayBase:  math.MaxInt64 * time.Nanosecond,
-					maxRetries: 3,
+					delayBase:       math.MaxInt64 * time.Nanosecond,
+					maxRetries:      3,
+					maxBackoffDelay: 200 * time.Millisecond,
 				},
 			},
 		}
@@ -124,7 +123,7 @@ func Test_RetryPut_capped_base_too_big(t *testing.T) {
 		must.Len(t, 3, mh.callsCounter)
 
 		must.Nil(t, md)
-		must.Greater(t, defaultMaxBackoffDelay, mh.callsCounter[1].Sub(mh.callsCounter[0]))
-		must.Greater(t, defaultMaxBackoffDelay, mh.callsCounter[2].Sub(mh.callsCounter[1]))
+		must.Greater(t, cm.config.retryOptions.maxBackoffDelay, mh.callsCounter[1].Sub(mh.callsCounter[0]))
+		must.Greater(t, cm.config.retryOptions.maxBackoffDelay, mh.callsCounter[2].Sub(mh.callsCounter[1]))
 	})
 }

@@ -14,11 +14,6 @@ import (
 const (
 	defaultNumberOfRetries = 5
 	defaultDelayTimeBase   = time.Second
-)
-
-var (
-	// defaultMaxBackoffDelay is defined as a variable so it can be modified
-	// to speed up the testing process.
 	defaultMaxBackoffDelay = 5 * time.Minute
 )
 
@@ -123,12 +118,16 @@ func (c *Client) calculateDelay(attempt int64) time.Duration {
 
 	// Ensure that a big attempt number or a big delayBase number will not cause
 	// a negative delay by overflowing the delay increase.
-	if math.MaxInt64/c.config.retryOptions.delayBase.Nanoseconds() < (1 << attempt) {
-		return defaultMaxBackoffDelay
+	// TODO: This value should be calculated on configuration and set the
+	// to default if not provided.
+	maxValidAttempt := int64(math.Log2(float64(math.MaxInt64 /
+		c.config.retryOptions.delayBase.Nanoseconds())))
+
+	if attempt > maxValidAttempt {
+		return c.config.retryOptions.maxBackoffDelay
 	}
 
 	newDelay := c.config.retryOptions.delayBase << (attempt - 1)
-
 	if c.config.retryOptions.maxBackoffDelay != defaultMaxBackoffDelay &&
 		newDelay > c.config.retryOptions.maxBackoffDelay {
 		return c.config.retryOptions.maxBackoffDelay
