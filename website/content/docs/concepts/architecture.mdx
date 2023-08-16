@@ -93,6 +93,18 @@ Nomad models infrastructure as regions and datacenters. A region will contain
 one or more datacenters. A set of servers joined together will represent a
 single region. Servers federate across regions to make Nomad globally aware.
 
+In federated clusters one of the regions must be defined as the [authoritative
+region](#authoritative-and-non-authoritative-regions).
+
+#### Authoritative and Non-Authoritative Regions
+
+The authoritative region is the region in a federated multi-region cluster that
+holds the source of true for entities replicated across regions, such as ACL
+tokens, policies, and roles, namespaces, and node pools.
+
+All other regions are considered non-authoritative regions and replicate these
+entities by pulling them from the authoritative region.
+
 #### Datacenters
 
 Nomad models a datacenter as an abstract grouping of clients within a
@@ -100,6 +112,20 @@ region. Nomad clients are not required to be in the same datacenter as the
 servers they are joined with, but do need to be in the same
 region. Datacenters provide a way to express fault tolerance among jobs as
 well as isolation of infrastructure.
+
+#### Node
+
+A more generic term used to refer to machines running Nomad agents in client
+mode. Despite being different concepts, you may find "node" being used
+interchangeably with "client" in some materials and informal content.
+
+#### Node Pool
+
+Node pools are used to group [nodes](#node) and can be used to restrict which
+[jobs](#job) are able to place [allocations](#allocation) in a given set of
+nodes. Example use cases for node pools include segmenting nodes by environment
+(development, staging, production), by department (engineering, finance,
+support), or by functionality (databases, ingress proxy, applications).
 
 #### Bin Packing
 
@@ -169,7 +195,9 @@ are more details available for each of the sub-systems. The [consensus protocol]
 [gossip protocol](/nomad/docs/concepts/gossip), and [scheduler design](/nomad/docs/concepts/scheduling/scheduling)
 are all documented in more detail.
 
-For other details, either consult the code, ask in IRC or reach out to the mailing list.
-
+For other details, either consult the code, [open an issue on
+GitHub][gh_issue], or ask a question in the [community forum][forum].
 
 [`update`]: /nomad/docs/job-specification/update
+[gh_issue]: https://github.com/hashicorp/nomad/issues/new/choose
+[forum]: https://discuss.hashicorp.com/c/nomad

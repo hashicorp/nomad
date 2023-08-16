@@ -52,8 +52,9 @@ and existing allocations may need to be updated, migrated, or stopped.
 
 Placing allocations is split into two distinct phases, feasibility checking and
 ranking. In the first phase the scheduler finds nodes that are feasible by
-filtering unhealthy nodes, those missing necessary drivers, and those failing
-the specified constraints.
+filtering nodes in datacenters and node pools not used by the job, unhealthy
+nodes, those missing necessary drivers, and those failing the specified
+constraints.
 
 The second phase is ranking, where the scheduler scores feasible nodes to find
 the best fit. Scoring is primarily based on bin packing, which is used to

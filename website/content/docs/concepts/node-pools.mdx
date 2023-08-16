@@ -1,0 +1,379 @@
+---
+layout: docs
+page_title: Node Pools
+description: Learn about the internal architecture of Nomad.
+---
+
+# Node Pools
+
+Node pools are a way to group clients and segment infrastructure into logical
+units that can be targeted by jobs for a strong control over where allocations
+are placed.
+
+Without node pools, allocations for a job can be placed in any eligible client
+in the cluster. Affinities and constraints can help express preferences for
+certain nodes, but they do not easily prevent other jobs from placing
+allocations in a set of nodes.
+
+A node pool can be created using the [`nomad node pool apply`][cli_np_apply]
+command and passing a node pool [specification file][np_spec].
+
+```hcl
+# dev-pool.nomad.hcl
+node_pool "dev" {
+  description = "Nodes for the development environment."
+
+  meta {
+    environment = "dev"
+    owner       = "sre"
+  }
+}
+```
+
+```shell-session
+$ nomad node pool apply dev-pool.nomad.hcl
+Successfully applied node pool "dev"!
+```
+
+Clients can then be added to this node pool by setting the
+[`node_pool`][client_np] attribute in their configuration file, or using the
+equivalent [`-node-pool`][cli_agent_np] command line flag.
+
+```hcl
+client {
+  # ...
+  node_pool = "dev"
+  # ...
+}
+```
+
+To help streamline this process, nodes can create node pools on demand. If a
+client configuration references a node pool that does not exist yet, Nomad
+creates the node pool automatically on client registration.
+
+<Note>
+  This behavior does not apply to clients in non-authoritative regions. Refer
+  to <a href="#multi-region-clusters">Multi-region Clusters</a> for more
+  information.
+</Note>
+
+Jobs can then reference node pools using the [`node_pool`][job_np] attribute.
+
+```hcl
+job "app-dev" {
+  # ...
+  node_pool = "dev"
+  # ...
+}
+```
+
+Similarly to the `namespace` attribute, the node pool must exist beforehand,
+otherwise the job registration results in an error. Only nodes in the given
+node pool are considered for placement. If none are available the deployment
+is kept as pending until a client is added to the node pool.
+
+## Multi-region Clusters
+
+In federated multi-region clusters, node pools are automatically replicated
+from the authoritative region to all non-authoritative regions, and requests to
+create or modify a new node pool are forwarded from non-authoritative to the
+authoritative region.
+
+Since the replication data only flows in one direction, clients in
+non-authoritative regions are not able to create node pools on demand.
+
+A client in a non-authoritative region that references a node pool that does
+not exist yet is kept in the `initializing` status until the node pool is
+created and replicated to all regions.
+
+## Built-in Node Pools
+
+In addition to the user generated node pools Nomad automatically creates two
+built-in node pools that cannot be deleted nor modified.
+
+- `default`: Node pools are an optional feature of Nomad. The `node_pool`
+  attribute in both the client configuration and job files are optional. When
+  not specified, these values are set to use the `default` built-in node pool.
+
+- `all`: In some situations, it is useful to be able to run a job across all
+  clients in a cluster, regardless of their node pool configuration. For these
+  scenarios the job may use the built-in `all` node pool which always includes
+  all clients registered in the cluster. Unlike other node pools, the `all`
+  node pool can only be used in jobs and not in client configuration.
+
+## Nomad Enterprise <EnterpriseAlert inline />
+
+Nomad Enterprise provides additional features that make node pools more
+powerful and easier to manage.
+
+### Scheduler Configuration
+
+Node pools in Nomad Enterprise are able to customize some aspects of the Nomad
+scheduler and override certain global configuration per node pool.
+
+This allows experimenting with with functionalities such as memory
+oversubscription in isolation, or adjusting the scheduler algorithm between
+`spread` or `binpacking` depending on the types of workload being deployed in a
+given set of clients.
+
+When using the built-in `all` node pool the global scheduler configuration is
+applied.
+
+Refer to the [`scheduler_config`][np_spec_scheduler_config] parameter in the
+node pool specification for more information.
+
+### Node Pool Governance
+
+Node pools and namespaces share some similarities, with both providing a way to
+group resources in isolated logical units. Jobs are grouped into namespaces and
+clients into node pools.
+
+Node Pool Governance allows assigning a default node pool to a namespace that
+is automatically used by every job registered to the namespace. This feature
+simplifies job management as the node pool is inferred from the namespace
+configuration instead of having to be specified in every job.
+
+This connection is done using the [`default`][ns_spec_np_default] attribute in
+the namespace `node_pool_config  block.
+
+```hcl
+namespace "dev" {
+  description = "Jobs for the development environment."
+
+  node_pool_config {
+    default = "dev"
+  }
+}
+```
+
+Now any job in the `dev` namespace only places allocations in nodes in the
+`dev` node pool, and so the `node_pool` attribute may be omitted from the job
+specification.
+
+```hcl
+job "app-dev" {
+  # The "dev" node pool will be used because it is the
+  # namespace's default node pool.
+  namespace = "dev"
+  # ...
+}
+```
+
+Jobs are able to override the namespace default node pool by specifying a
+different `node_pool` value.
+
+The namespace can enforce if this behavior is allowed or limit which node pools
+can and cannot be used with the [`allowed`][ns_spec_np_allowed] and
+[`denied`][ns_spec_np_denied] parameters.
+
+```hcl
+namespace "dev" {
+  description = "Jobs for the development environment."
+
+  node_pool_config {
+    default = "dev"
+    denied  = ["prod", "qa"]
+  }
+}
+```
+
+```hcl
+job "app-dev" {
+  namespace = "dev"
+
+  # Jobs in the "dev" namespace are not allowed to use the
+  # "prod" node pool and so this job will fail to register.
+  node_pool = "prod"
+  # ...
+}
+```
+
+### Multi-region Jobs
+
+Multi-region jobs can specify different node pools to be used in each region by
+overriding the top-level `node_pool` job value, or the namespace `default` node
+pool, in each `region` block.
+
+```hcl
+job "multiregion" {
+  node_pool = "dev"
+
+  multiregion {
+    # This region will use the top-level "dev" node pool.
+    region "north" {}
+
+    # While the regions bellow will use their own specific node pool.
+    region "east" {
+      node_pool = "dev-east"
+    }
+
+    region "west" {
+      node_pool = "dev-west"
+    }
+  }
+  # ...
+}
+```
+
+## Node Pool Patterns
+
+The sections below describe some node pool patterns that can be used to achieve
+specific goals.
+
+### Infrastructure and System Jobs
+
+This pattern illustrates an example where node pools are used to reserve nodes
+for a specific set of jobs while also allowing system jobs to cross node pools
+boundaries.
+
+It is common for Nomad clusters to have certain jobs that are focused on
+providing the underlying infrastructure for more business focused applications.
+Some examples include reverse proxies for traffic ingress, CSI plugins, and
+periodic maintenance jobs.
+
+These jobs can be isolated in their own namespace but they may have different
+scheduling requirements.
+
+Reverse proxies, and only reverse proxies, may need to run in clients that are
+exposed to public traffic, and CSI controller plugins may require clients to
+have high-privileged access to cloud resources and APIs.
+
+Other jobs, like CSI node plugins and periodic maintenance jobs, may need to
+run as `system` jobs in all clients of the cluster.
+
+Node pools can be used to achieve the isolation required by the first set of
+jobs, and the built-in `all` node pool can be used for the jobs that must run
+in every client. To keep them organized, all jobs are registered in the same
+`infra` namespace.
+
+```hcl
+job "ingress-proxy" {
+  namespace = "infra"
+  node_pool = "ingress"
+  # ...
+}
+```
+
+```hcl
+job "csi-controller" {
+  namespace = "infra"
+  node_pool = "csi-controllers"
+  # ...
+}
+```
+
+```hcl
+job "csi-nodes" {
+  namespace = "infra"
+  node_pool = "all"
+  # ...
+}
+```
+
+```hcl
+job "maintenance" {
+  type      = "batch"
+  namespace = "infra"
+  node_pool = "all"
+
+  periodic { /* ... */ }
+  # ...
+}
+```
+
+Use positive and negative constraints to fine-tune placements when targeting
+the built-in `all` node pool.
+
+```hcl
+job "maintenance-linux" {
+  type      = "batch"
+  namespace = "infra"
+  node_pool = "all"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
+  constraint {
+    attribute = "${node.pool}"
+    operator  = "!="
+    value     = "ingress"
+  }
+
+  periodic { /* ... */ }
+  # ...
+}
+```
+
+With Nomad Enterprise and Node Pool Governance, the `infra` namespace can be
+configured to use a specific namespace by default and only allow the specific
+node pools required.
+
+```hcl
+namespace "infra" {
+  description = "Infrastructure jobs."
+
+  node_pool_config {
+    default = "infra"
+    allowed = ["ingress", "csi-controllers", "all"]
+  }
+}
+```
+
+### Mixed Scheduling Algorithms
+
+This pattern illustrate an example where different scheduling algorithms are
+per node pool.
+
+Each of the scheduling algorithms provided by Nomad are best suited for
+different types of environments and workloads.
+
+The `binpack` algorithm aims to maximize resource usage and pack as much
+workload as possible in the given set of of clients. This makes it ideal for
+cloud environments where infrastructure is billed by the hour and can be
+quickly scaled in and out. By maximizing workload density a cluster running in
+cloud instances can reduce the number of clients needed to run everything that
+is necessary.
+
+The `spread` algorithm behaves in the opposite direction, making use of every
+client available to reduce density and potential noisy neighbors and resource
+contention. This makes it ideal for environments where clients are
+pre-provisioned and scale more slowly, such as on-premises deployments.
+
+Clusters in a mixed environment can use node pools to adjust the scheduler
+algorithm per node type. Cloud instances may be placed in a node pool that uses
+the `binpack` algorithm while bare-metal nodes are placed in a node pool
+configured to use `spread`.
+
+```hcl
+node_pool "cloud" {
+  # ...
+  scheduler_config {
+    scheduler_algorithm = "binpack"
+  }
+}
+```
+
+```hcl
+node_pool "on-prem" {
+  # ...
+  scheduler_config {
+    scheduler_algorithm = "spread"
+  }
+}
+```
+
+Another scenario where mixing algorithms may be useful is to separate workloads
+that are more sensitive to noisy neighbors (and thus use the `spread`
+algorithm), from those that are able to be packed more tightly (`binpack`).
+
+[cli_np_apply]: /nomad/docs/commands/node-pool/apply
+[cli_agent_np]: /nomad/docs/commands/agent#node-pool
+[client_np]: /nomad/docs/configuration/client#node_pool
+[job_np]: /nomad/docs/job-specification/job#node_pool
+[np_spec]: /nomad/docs/other-specifications/node-pool
+[np_spec_scheduler_config]: /nomad/docs/other-specifications/node-pool#scheduler_config-parameters
+[ns_spec_np_allowed]: /nomad/docs/other-specifications/namespace#allowed
+[ns_spec_np_default]: /nomad/docs/other-specifications/namespace#default
+[ns_spec_np_denied]: /nomad/docs/other-specifications/namespace#denied
