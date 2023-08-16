@@ -17,12 +17,13 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
 	"golang.org/x/exp/slices"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // Detect characters that are not valid identifiers to emit a warning when they
@@ -101,6 +102,8 @@ Apply Options:
   -verbose
      Provides additional information via standard error to preserve standard
      output (stdout) for redirected output.
+
+  -lock
 
 `
 	return strings.TrimSpace(helpText)

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -637,6 +638,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						DiskMB:   tg.EphemeralDisk.SizeMB,
 						Networks: resources.Shared.Networks,
 					},
+					Locks: tg.Locks,
 				}
 
 				// If the new allocation is replacing an older allocation then we

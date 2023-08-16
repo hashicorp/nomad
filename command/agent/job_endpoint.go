@@ -10,13 +10,14 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
+
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string
@@ -1110,6 +1111,15 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		tg.Spreads = []*structs.Spread{}
 		for _, spread := range taskGroup.Spreads {
 			tg.Spreads = append(tg.Spreads, ApiSpreadToStructs(spread))
+		}
+	}
+
+	if len(taskGroup.Locks) > 0 {
+		tg.Locks = []*structs.VarLock{}
+		for _, lock := range taskGroup.Locks {
+			tg.Locks = append(tg.Locks, &structs.VarLock{
+				Path: lock.Path,
+			})
 		}
 	}
 

@@ -455,6 +455,11 @@ type TaskGroup struct {
 	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
+	Locks                     []*VarLock                `hcl:"lock,block"`
+}
+
+type VarLock struct {
+	Path string `hcl:"path,optional"`
 }
 
 // NewTaskGroup creates a new TaskGroup.

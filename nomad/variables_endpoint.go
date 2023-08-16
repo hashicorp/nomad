@@ -262,7 +262,7 @@ func (sv *Variables) makeVariablesApplyResponse(
 			// Verify the caller is providing the correct lockID, meaning it is the
 			// lock holder and has access to the lock information or is a management call.
 			// If locked, remove the lock information from response.
-			if isCallerOwner(req, eResp.WrittenSVMeta) || !isManagement {
+			if !(isCallerOwner(req, eResp.WrittenSVMeta) || isManagement) {
 				out.Output.VariableMetadata.Lock = nil
 			}
 		}
@@ -422,7 +422,7 @@ func (sv *Variables) List(
 						if !strings.HasPrefix(v.Path, args.Prefix) {
 							return false, nil
 						}
-						err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
+						_, err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
 						return err == nil, nil
 					},
 				},
@@ -518,7 +518,7 @@ func (sv *Variables) listAllVariables(
 						if !strings.HasPrefix(v.Path, args.Prefix) {
 							return false, nil
 						}
-						err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
+						_, err := sv.authorize(aclObj, claims, v.Namespace, acl.PolicyList, v.Path)
 						return err == nil, nil
 					},
 				},
@@ -604,18 +604,19 @@ func (sv *Variables) handleMixedAuthEndpoint(args structs.QueryOptions, policy, 
 	}
 	claims := args.GetIdentity().GetClaims()
 
-	err = sv.authorize(aclObj, claims, args.RequestNamespace(), policy, pathOrPrefix)
+	aclObj2, err := sv.authorize(aclObj, claims, args.RequestNamespace(), policy, pathOrPrefix)
 	if err != nil {
-		return aclObj, claims, err
+		return aclObj2, claims, err
 	}
 
 	return aclObj, claims, nil
 }
 
-func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, ns, policy, pathOrPrefix string) error {
+func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, ns, policy, pathOrPrefix string) (*acl.ACL, error) {
 
 	if aclObj == nil && claims == nil {
-		return nil // ACLs aren't enabled
+		return &acl.ACL{}, nil
+		//return nil, nil // ACLs aren't enabled TODO: BAD SAUCE (nil pointer AND nil error)
 	}
 
 	// Perform normal ACL validation. If the ACL object is nil, that means we're
@@ -623,9 +624,9 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 	if aclObj != nil {
 		allowed := aclObj.AllowVariableOperation(ns, pathOrPrefix, policy, nil)
 		if !allowed {
-			return structs.ErrPermissionDenied
+			return nil, structs.ErrPermissionDenied
 		}
-		return nil
+		return aclObj, nil
 	}
 
 	// Check the workload-associated policies and automatic task access to
@@ -633,14 +634,14 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 	if claims != nil {
 		aclObj, err := sv.srv.ResolveClaims(claims)
 		if err != nil {
-			return err // returns internal errors only
+			return nil, err // returns internal errors only
 		}
 		if aclObj != nil {
 			group, err := sv.groupForAlloc(claims)
 			if err != nil {
 				// returns ErrPermissionDenied for claims from terminal
 				// allocations, otherwise only internal errors
-				return err
+				return nil, err
 			}
 			allowed := aclObj.AllowVariableOperation(
 				ns, pathOrPrefix, policy, &acl.ACLClaim{
@@ -650,11 +651,11 @@ func (sv *Variables) authorize(aclObj *acl.ACL, claims *structs.IdentityClaims, 
 					Task:      claims.TaskName,
 				})
 			if allowed {
-				return nil
+				return aclObj, nil
 			}
 		}
 	}
-	return structs.ErrPermissionDenied
+	return nil, structs.ErrPermissionDenied
 }
 
 func (sv *Variables) groupForAlloc(claims *structs.IdentityClaims) (string, error) {
@@ -749,5 +750,5 @@ func isCallerOwner(req *structs.VariablesApplyRequest, respVarMeta *structs.Vari
 
 	return reqLock != nil &&
 		savedLock != nil &&
-		reqLock.ID != savedLock.ID
+		reqLock.ID == savedLock.ID
 }

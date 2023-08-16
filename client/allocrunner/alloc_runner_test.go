@@ -988,7 +988,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	alloc.AllocatedResources.Tasks[task.Name] = tr
 	alloc.AllocatedResources.Tasks[task2.Name] = tr
 
-	// Set a shutdown delay
+	// Set a shutdown ttl
 	shutdownDelay := 1 * time.Second
 	alloc.Job.TaskGroups[0].ShutdownDelay = &shutdownDelay
 

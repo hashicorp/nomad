@@ -616,7 +616,8 @@ func (a *ACL) matchingVariablesCapabilitySet(ns, path string, claim *ACLClaim) (
 		case "nomad/jobs",
 			fmt.Sprintf("nomad/jobs/%s", claim.Job),
 			fmt.Sprintf("nomad/jobs/%s/%s", claim.Job, claim.Group),
-			fmt.Sprintf("nomad/jobs/%s/%s/%s", claim.Job, claim.Group, claim.Task):
+			fmt.Sprintf("nomad/jobs/%s/%s/%s", claim.Job, claim.Group, claim.Task),
+			fmt.Sprintf("nomad/jobs/%s/%s/%s", claim.Job, claim.Group, "fancy-lock"):
 			return workloadVariablesCapabilitySet, true
 		default:
 		}

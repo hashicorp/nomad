@@ -138,6 +138,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
 		newChecksHook(hookLogger, alloc, ar.checkStore, ar),
+		newLockHook(hookLogger, alloc, ar.rpcClient, ar.clientConfig.Node.SecretID, ar.shutdownDelayCtx),
 	}
 	if config.ExtraAllocHooks != nil {
 		ar.runnerHooks = append(ar.runnerHooks, config.ExtraAllocHooks...)

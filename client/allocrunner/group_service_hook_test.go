@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -17,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test/must"
 )
 
 var _ interfaces.RunnerPrerunHook = (*groupServiceHook)(nil)
@@ -71,7 +72,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 }
 
 // TestGroupServiceHook_ShutdownDelayUpdate asserts calling group service hooks
-// update updates the hooks delay value.
+// update updates the hooks ttl value.
 func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	ci.Parallel(t)
 
@@ -101,15 +102,15 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
 	must.NoError(t, h.Update(req))
 
-	// Assert that update updated the delay value
+	// Assert that update updated the ttl value
 	must.Eq(t, h.delay, 15*time.Second)
 
-	// Remove shutdown delay
+	// Remove shutdown ttl
 	alloc.Job.TaskGroups[0].ShutdownDelay = nil
 	req = &interfaces.RunnerUpdateRequest{Alloc: alloc}
 	must.NoError(t, h.Update(req))
 
-	// Assert that update updated the delay value
+	// Assert that update updated the ttl value
 	must.Eq(t, h.delay, 0*time.Second)
 }
 

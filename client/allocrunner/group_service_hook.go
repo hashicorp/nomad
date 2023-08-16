@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -207,7 +208,7 @@ func (h *groupServiceHook) PreKill() {
 //
 // caller must hold h.mu
 func (h *groupServiceHook) preKillLocked() {
-	// If we have a shutdown delay deregister group services and then wait
+	// If we have a shutdown ttl deregister group services and then wait
 	// before continuing to kill tasks.
 	h.deregisterLocked()
 
@@ -215,7 +216,7 @@ func (h *groupServiceHook) preKillLocked() {
 		return
 	}
 
-	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
+	h.logger.Debug("ttl before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
 	timer, cancel := helper.NewSafeTimer(h.delay)
 	defer cancel()
