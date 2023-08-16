@@ -177,11 +177,20 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
-	alloc, err := f.c.GetAlloc(req.AllocID)
+
+	ar, err := f.c.getAllocRunner(req.AllocID)
 	if err != nil {
 		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(404)), encoder)
 		return
 	}
+	if ar.IsDestroyed() {
+		handleStreamResultError(
+			fmt.Errorf("allocation %s destroyed from client", req.AllocID),
+			pointer.Of(int64(404)),
+			encoder,
+		)
+	}
+	alloc := ar.Alloc()
 
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
@@ -352,11 +361,20 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(400)), encoder)
 		return
 	}
-	alloc, err := f.c.GetAlloc(req.AllocID)
+
+	ar, err := f.c.getAllocRunner(req.AllocID)
 	if err != nil {
 		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(404)), encoder)
 		return
 	}
+	if ar.IsDestroyed() {
+		handleStreamResultError(
+			fmt.Errorf("allocation %s destroyed from client", req.AllocID),
+			pointer.Of(int64(404)),
+			encoder,
+		)
+	}
+	alloc := ar.Alloc()
 
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
