@@ -9,10 +9,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
 )
 
 func Init(log hclog.Logger) {
@@ -28,40 +26,73 @@ func Init(log hclog.Logger) {
 			}
 		}
 	case CG2:
-		// minimum controllers must be set first
-		s, err := readRootCG2("cgroup.subtree_control")
-		if err != nil {
+		// the cgroup controllers we need to activate at the root and on the nomad slice
+		const activation = "+cpuset +cpu +io +memory +pids"
+
+		// the name of the subtree control interface file
+		const subtreeFile = "cgroup.subtree_control"
+
+		// the name of the partition control interface file
+		const partitionFile = "cpuset.cpus.partition"
+
+		//
+		// configuring root cgroup (/sys/fs/cgroup)
+		//
+
+		if err := writeCG2(activation, subtreeFile); err != nil {
 			log.Error("failed to create nomad cgroup", "error", err)
 			return
 		}
 
-		required := set.From([]string{"cpuset", "cpu", "io", "memory", "pids"})
-		enabled := set.From(strings.Fields(s))
-		needed := required.Difference(enabled)
+		//
+		// configuring nomad.slice
+		//
 
-		if needed.Size() == 0 {
-			log.Debug("top level nomad.slice cgroup already exists")
-			return // already setup
-		}
-
-		sb := new(strings.Builder)
-		for _, controller := range needed.List() {
-			sb.WriteString("+" + controller + " ")
-		}
-
-		activation := strings.TrimSpace(sb.String())
-		if err = writeRootCG2("cgroup.subtree_control", activation); err != nil {
+		if err := mkCG2(NomadCgroupParent); err != nil {
 			log.Error("failed to create nomad cgroup", "error", err)
 			return
 		}
 
-		nomadSlice := filepath.Join("/sys/fs/cgroup", NomadCgroupParent)
-		if err := os.MkdirAll(nomadSlice, 0755); err != nil {
-			log.Error("failed to create nomad cgroup", "error", err)
+		if err := writeCG2(activation, NomadCgroupParent, subtreeFile); err != nil {
+			log.Error("failed to set subtree control on nomad cgroup", "error", err)
 			return
 		}
 
-		log.Debug("top level nomad.slice cgroup initialized", "controllers", needed)
+		if err := writeCG2("root", NomadCgroupParent, partitionFile); err != nil {
+			log.Error("failed to set root partition mode", "error", err)
+			return
+		}
+
+		// todo: write cpuset.cpus
+
+		log.Debug("top level partition root nomad.slice cgroup initialized", "cpuset", "xxx")
+
+		//
+		// configuring nomad.slice/share
+		//
+
+		if err := mkCG2(NomadCgroupParent, "share"); err != nil {
+			log.Error("failed to create share cgroup", "error", err)
+			return
+		}
+
+		log.Debug("partition member nomad.slice/share cgroup initialized")
+
+		//
+		// configuring nomad.slice/reserve
+		//
+
+		if err := mkCG2(NomadCgroupParent, "reserve"); err != nil {
+			log.Error("failed to create share cgroup", "error", err)
+			return
+		}
+
+		if err := writeCG2("isolated", NomadCgroupParent, "reserve", "cpuset.cpus.partition"); err != nil {
+			log.Error("failed to set cpuset partition root", "error", err)
+			return
+		}
+
+		log.Debug("partition root nomad.slice/reserve cgroup initialized", "cpuset", "xxx")
 	}
 }
 
@@ -71,9 +102,21 @@ func readRootCG2(filename string) (string, error) {
 	return string(bytes.TrimSpace(b)), err
 }
 
-func writeRootCG2(filename, content string) error {
-	p := filepath.Join(root, filename)
+func filepathCG2(paths ...string) string {
+	base := []string{root}
+	base = append(base, paths...)
+	p := filepath.Join(base...)
+	return p
+}
+
+func writeCG2(content string, paths ...string) error {
+	p := filepathCG2(paths...)
 	return os.WriteFile(p, []byte(content), 0644)
+}
+
+func mkCG2(paths ...string) error {
+	p := filepathCG2(paths...)
+	return os.MkdirAll(p, 0755)
 }
 
 // ReadNomadCG2 reads an interface file under the nomad.slice parent cgroup
