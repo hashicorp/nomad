@@ -110,7 +110,7 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(2);
+    assert.expect(1);
 
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
     await this.store.findAll('job');
@@ -122,8 +122,6 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await startJob();
     expectStartRequest(assert, this.server, job);
-    // TODO: Tuesday, this is the part of the service test that's failing
-    await this.pauseTest();
   });
 
   test('Starting a job without proper permissions shows an error message', async function (assert) {

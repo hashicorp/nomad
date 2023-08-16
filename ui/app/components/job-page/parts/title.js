@@ -73,12 +73,6 @@ export default class Title extends Component {
     const job = this.job;
     const specification = yield job.fetchRawSpecification();
     job.set('_newDefinition', specification.Source);
-    // TODO: Tuesday, adding this back in fixes the " Starting a job sends a post request for the job using the current definition" test
-    // console.log("bout to fetch");
-    // const definition = yield job.fetchRawDefinition();
-    // console.log("fetch'd", definition);
-    // delete definition.Stop;
-    // job.set('_newDefinition', JSON.stringify(definition));
 
     try {
       yield job.parse();

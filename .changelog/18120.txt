@@ -1,0 +1,3 @@
+```release-note:bug
+ui: maintain HCL2 jobspec when using Start Job in the web ui
+```
