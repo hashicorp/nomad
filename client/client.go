@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/hoststats"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager"
@@ -331,6 +332,9 @@ type Client struct {
 	// fingerprinting
 	topology *numalib.Topology
 
+	// partitions is used for managing cpuset partitioning on linux systems
+	partitions cgroupslib.Partition
+
 	// widmgr retrieves workload identities
 	widmgr *widmgr.WIDMgr
 }
@@ -465,9 +469,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
 
+	// Create the cpu core partition manager
+	c.partitions = cgroupslib.GetPartition(
+		c.topology.UsableCores(),
+	)
+
 	// Create the process wranglers
 	wranglers := proclib.New(&proclib.Configs{
-		Logger: c.logger.Named("proclib"),
+		UsableCores: c.topology.UsableCores(),
+		Logger:      c.logger.Named("proclib"),
 	})
 	c.wranglers = wranglers
 
@@ -2754,6 +2764,7 @@ func (c *Client) newAllocRunnerConfig(
 		Vault:               c.vaultClient,
 		WIDMgr:              c.widmgr,
 		Wranglers:           c.wranglers,
+		Partitions:          c.partitions,
 	}
 }
 

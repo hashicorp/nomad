@@ -110,6 +110,9 @@ type AllocRunnerConfig struct {
 	// Wranglers is an interface for managing unix/windows processes.
 	Wranglers interfaces.ProcessWranglers
 
+	// Partitions is an interface for managing cpuset partitions.
+	Partitions interfaces.CPUPartitions
+
 	// WIDMgr fetches workload identities
 	WIDMgr *widmgr.WIDMgr
 }

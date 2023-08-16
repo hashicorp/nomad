@@ -4,6 +4,8 @@
 package interfaces
 
 import (
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -46,4 +48,11 @@ type ArtifactGetter interface {
 type ProcessWranglers interface {
 	Setup(proclib.Task) error
 	Destroy(proclib.Task) error
+}
+
+// CPUPartitions is an interface satisfied by the cgroupslib package.
+type CPUPartitions interface {
+	Restore(*idset.Set[hw.CoreID])
+	Reserve(*idset.Set[hw.CoreID]) error
+	Release(*idset.Set[hw.CoreID]) error
 }

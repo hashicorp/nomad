@@ -26,13 +26,19 @@ type wranglerHook struct {
 	log       hclog.Logger
 }
 
-func newWranglerHook(wranglers cifs.ProcessWranglers, task, allocID string, log hclog.Logger) *wranglerHook {
+func newWranglerHook(
+	wranglers cifs.ProcessWranglers,
+	task, allocID string,
+	cores bool,
+	log hclog.Logger,
+) *wranglerHook {
 	return &wranglerHook{
 		log:       log.Named(wranglerHookName),
 		wranglers: wranglers,
 		task: proclib.Task{
 			AllocID: allocID,
 			Task:    task,
+			Cores:   cores,
 		},
 	}
 }

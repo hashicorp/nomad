@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
 
 // CoreGrade describes whether a specific core is a performance or efficiency
@@ -26,7 +27,7 @@ const (
 	efficiency  CoreGrade = false
 )
 
-func gradeOf(siblings *idset.Set[CoreID]) CoreGrade {
+func gradeOf(siblings *idset.Set[hw.CoreID]) CoreGrade {
 	switch siblings.Size() {
 	case 0, 1:
 		return efficiency
@@ -45,13 +46,10 @@ func (g CoreGrade) String() string {
 }
 
 type (
-	NodeID   uint8
-	SocketID uint8
-	CoreID   uint16
-	KHz      uint64
-	MHz      uint64
-	GHz      float64
-	Cost     uint8
+	KHz  uint64
+	MHz  uint64
+	GHz  float64
+	Cost uint8
 )
 
 func (khz KHz) MHz() MHz {
@@ -67,9 +65,9 @@ func (khz KHz) String() string {
 // The JSON encoding is not used yet but my be part of the gRPC plumbing
 // in the future.
 type Topology struct {
-	NodeIDs   *idset.Set[NodeID] `json:"node_ids"`
-	Distances SLIT               `json:"distances"`
-	Cores     []Core             `json:"cores"`
+	NodeIDs   *idset.Set[hw.NodeID] `json:"node_ids"`
+	Distances SLIT                  `json:"distances"`
+	Cores     []Core                `json:"cores"`
 
 	// explicit overrides from client configuration
 	OverrideTotalCompute   MHz `json:"override_total_compute"`
@@ -79,14 +77,14 @@ type Topology struct {
 // A Core represents one logical (vCPU) core on a processor. Basically the slice
 // of cores detected should match up with the vCPU description in cloud providers.
 type Core struct {
-	NodeID     NodeID    `json:"node_id"`
-	SocketID   SocketID  `json:"socket_id"`
-	ID         CoreID    `json:"id"`
-	Grade      CoreGrade `json:"grade"`
-	Disable    bool      `json:"disable"`     // indicates whether Nomad must not use this core
-	BaseSpeed  MHz       `json:"base_speed"`  // cpuinfo_base_freq (primary choice)
-	MaxSpeed   MHz       `json:"max_speed"`   // cpuinfo_max_freq (second choice)
-	GuessSpeed MHz       `json:"guess_speed"` // best effort (fallback)
+	NodeID     hw.NodeID   `json:"node_id"`
+	SocketID   hw.SocketID `json:"socket_id"`
+	ID         hw.CoreID   `json:"id"`
+	Grade      CoreGrade   `json:"grade"`
+	Disable    bool        `json:"disable"`     // indicates whether Nomad must not use this core
+	BaseSpeed  MHz         `json:"base_speed"`  // cpuinfo_base_freq (primary choice)
+	MaxSpeed   MHz         `json:"max_speed"`   // cpuinfo_max_freq (second choice)
+	GuessSpeed MHz         `json:"guess_speed"` // best effort (fallback)
 }
 
 func (c Core) String() string {
@@ -110,7 +108,7 @@ func (c Core) MHz() MHz {
 // accessing memory across each combination of NUMA boundary.
 type SLIT [][]Cost
 
-func (d SLIT) cost(a, b NodeID) Cost {
+func (d SLIT) cost(a, b hw.NodeID) Cost {
 	return d[a][b]
 }
 
@@ -126,7 +124,7 @@ func (st *Topology) SupportsNUMA() bool {
 }
 
 // Nodes returns the set of NUMA Node IDs.
-func (st *Topology) Nodes() *idset.Set[NodeID] {
+func (st *Topology) Nodes() *idset.Set[hw.NodeID] {
 	if !st.SupportsNUMA() {
 		return nil
 	}
@@ -134,8 +132,8 @@ func (st *Topology) Nodes() *idset.Set[NodeID] {
 }
 
 // NodeCores returns the set of Core IDs for the given NUMA Node ID.
-func (st *Topology) NodeCores(node NodeID) *idset.Set[CoreID] {
-	result := idset.Empty[CoreID]()
+func (st *Topology) NodeCores(node hw.NodeID) *idset.Set[hw.CoreID] {
+	result := idset.Empty[hw.CoreID]()
 	for _, cpu := range st.Cores {
 		if cpu.NodeID == node {
 			result.Insert(cpu.ID)
@@ -144,7 +142,7 @@ func (st *Topology) NodeCores(node NodeID) *idset.Set[CoreID] {
 	return result
 }
 
-func (st *Topology) insert(node NodeID, socket SocketID, core CoreID, grade CoreGrade, max, base KHz) {
+func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base KHz) {
 	st.Cores[core] = Core{
 		NodeID:    node,
 		SocketID:  socket,
@@ -226,8 +224,8 @@ func (st *Topology) NumECores() int {
 // UsableCores returns the number of logical cores usable by the Nomad client
 // for running tasks. Nomad must subtract off any reserved cores (reserved.cores)
 // and/or must mask the cpuset to the one set in config (config.reservable_cores).
-func (st *Topology) UsableCores() *idset.Set[CoreID] {
-	result := idset.Empty[CoreID]()
+func (st *Topology) UsableCores() *idset.Set[hw.CoreID] {
+	result := idset.Empty[hw.CoreID]()
 	for _, cpu := range st.Cores {
 		if !cpu.Disable {
 			result.Insert(cpu.ID)

@@ -21,6 +21,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -158,19 +159,42 @@ type ExecCommand struct {
 	Capabilities []string
 }
 
-// Cgroup returns the path to the cgroup the Nomad client is managing for the
-// task that is about to be run.
+// CpusetCgroup returns the path to the cgroup in which the Nomad client will
+// write the PID of the task process for managing cpu core usage.
 //
 // On cgroups v1 systems this returns the path to the cpuset cgroup specifically.
+// Critical: is "/reserve/<id>" or "/share"; do not try to parse this!
 //
-// On cgroups v2 systems this returns the patah to the task's scope.
+// On cgroups v2 systems this just returns the unified cgroup.
 //
 // On non-Linux systems this returns the empty string and has no meaning.
-func (c *ExecCommand) Cgroup() string {
+func (c *ExecCommand) CpusetCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
 	return c.Resources.LinuxResources.CpusetCgroupPath
+}
+
+// StatsCgroup returns the path to the cgroup Nomad client will use to inspect
+// for spawned process IDs.
+//
+// On cgroups v1 systems this returns the path to the freezer cgroup.
+//
+// On cgroups v2 systems this just returns the unified cgroup.
+//
+// On non-Linux systems this returns the empty string and has no meaning.
+func (c *ExecCommand) StatsCgroup() string {
+	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
+		return ""
+	}
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		taskName := filepath.Base(c.TaskDir)
+		allocID := filepath.Base(filepath.Dir(c.TaskDir))
+		return cgroupslib.PathCG1(allocID, taskName, "freezer")
+	default:
+		return c.CpusetCgroup()
+	}
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -364,7 +388,7 @@ func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
-	if cleanup, err := e.setSubCmdCgroup(&e.childCmd, e.command.Cgroup()); err != nil {
+	if cleanup, err := e.setSubCmdCgroup(&e.childCmd, e.command.StatsCgroup()); err != nil {
 		return nil, 0, err
 	} else {
 		defer cleanup()
@@ -455,7 +479,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 					return err
 				}
 			}
-			cgroup := e.command.Cgroup()
+			cgroup := e.command.StatsCgroup()
 			if cleanup, err := e.setSubCmdCgroup(cmd, cgroup); err != nil {
 				return err
 			} else {

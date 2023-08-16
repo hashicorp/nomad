@@ -20,6 +20,7 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -214,7 +215,8 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 		PrevAllocMigrator: allocwatcher.NoopPrevAlloc{},
 		DeviceManager:     devicemanager.NoopMockManager(),
 		DriverManager:     drivermanager.TestDriverManager(t),
-		Wranglers:         proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
+		Wranglers:         proclib.MockWranglers(t),
+		Partitions:        cgroupslib.MockPartition(),
 	}
 	ar, err := allocrunner.NewAllocRunner(conf)
 	require.NoError(t, err)

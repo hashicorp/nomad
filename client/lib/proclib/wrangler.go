@@ -9,10 +9,12 @@ import (
 )
 
 // Task records the unique coordinates of a task from the perspective of a Nomad
-// client running the task, that is to say (alloc_id, task_name).
+// client running the task, that is to say (alloc_id, task_name). Also indicates
+// whether the task is making use of reserved cpu cores.
 type Task struct {
 	AllocID string
 	Task    string
+	Cores   bool
 }
 
 func (task Task) String() string {

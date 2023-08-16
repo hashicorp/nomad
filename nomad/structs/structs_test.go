@@ -4591,6 +4591,41 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 	}
 }
 
+func TestAllocation_ReservedCores(t *testing.T) {
+	ci.Parallel(t)
+
+	a := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"nil": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: nil,
+					},
+				},
+				"empty": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: make([]uint16, 0),
+					},
+				},
+				"one": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: []uint16{7},
+					},
+				},
+				"three": {
+					Cpu: AllocatedCpuResources{
+						ReservedCores: []uint16{1, 3, 4},
+					},
+				},
+			},
+		},
+	}
+
+	result := a.ReservedCores()
+	must.Eq(t, "1,3-4,7", result.String())
+
+}
+
 func TestAllocation_Index(t *testing.T) {
 	ci.Parallel(t)
 
