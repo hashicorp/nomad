@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 
 CONSUL_HTTP_ADDR=${CONSUL_HTTP_ADDR:-http://localhost:8500}
