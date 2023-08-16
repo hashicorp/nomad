@@ -9,7 +9,7 @@ description: >-
 
 Automated license utilization reporting sends license utilization data to HashiCorp without requiring you to manually collect and report them. It also lets you review your license usage with the monitoring solution you already use (for example Splunk, Datadog, or others) so you can optimize and manage your deployments. Use these reports to understand how much more you can deploy under your current contract, protect against overutilization, and budget for predicted consumption.  
 
-Automated reporting shares the minimum data required to validate license utilization as defined in our contracts. They consist of mostly computed metrics and will never contain Personal Identifiable Information (PII) or other sensitive information. Automated reporting shares the data with HashiCorp using a secure, unidirectional HTTPS API and makes an auditable record in the product logs each time it submits a report.
+Automated reporting shares the minimum data required to validate license utilization as defined in our contracts. They consist of mostly computed metrics and will never contain Personal Identifiable Information (PII) or other sensitive information. Automated reporting shares the data with HashiCorp using a secure, unidirectional HTTPS API and makes an auditable record in the product logs each time it submits a report. The reporting process is GDPR compliant and submits reports roughly once every 24 hours.
 
 ## Enable automated reporting
 
@@ -31,7 +31,7 @@ Upgrade to a release that supports license utilization reporting. These releases
 
 ### 3. Check logs
 
-Automatic license utilization reporting will start sending data within 24 hours. Check the product logs for records that the data sent successfully.
+Automatic license utilization reporting will start sending data within roughly 24 hours. Check the product logs for records that the data sent successfully.
 
 Instructions on how to check logs. 
 
@@ -94,7 +94,7 @@ $ export OPTOUT_LICENSE_REPORTING=true
 
 Now restart your system by following [these instructions](/nomad/docs/operations/nomad-agent). 
 
-Check your product logs 24 hours after opting out to make sure that the system isn’t trying to send reports. 
+Check your product logs roughly 24 hours after opting out to make sure that the system isn’t trying to send reports.
 
 If your configuration file and environment variable differ, the environment variable setting will take precedence.
 
