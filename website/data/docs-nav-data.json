@@ -130,6 +130,10 @@
             "path": "concepts/scheduling/scheduling"
           },
           {
+            "title": "Placement",
+            "path": "concepts/scheduling/placement"
+          },
+          {
             "title": "Preemption",
             "path": "concepts/scheduling/preemption"
           }
@@ -146,6 +150,10 @@
       {
         "title": "Gossip Protocol",
         "path": "concepts/gossip"
+      },
+      {
+        "title": "Node Pools",
+        "path": "concepts/node-pools"
       },
       {
         "title": "Security Model",

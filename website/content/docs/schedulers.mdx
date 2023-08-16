@@ -60,6 +60,10 @@ Systems jobs are intended to run until explicitly stopped either by an operator
 or [preemption]. If a system task exits it is considered a failure and handled
 according to the job's [restart] block; system jobs do not have rescheduling.
 
+When used with node pools, system jobs run on all nodes of the pool used by the
+job. The built-in node pool `all` allows placing allocations on all clients in
+the cluster.
+
 ## System Batch
 
 The `sysbatch` scheduler is used to register jobs that should be run to completion
@@ -80,7 +84,7 @@ Sysbatch jobs are intended to run until successful completion, explicitly stoppe
 by an operator, or evicted through [preemption]. Sysbatch tasks that exit with an
 error are handled according to the job's [restart] block.
 
- Like the `batch` scheduler, task groups in system batch jobs may have a `count` 
+ Like the `batch` scheduler, task groups in system batch jobs may have a `count`
  greater than 1 to control how many instances are run. Instances that cannot be
  immediately placed will be scheduled when resources become available,
  potentially on a node that has already run another instance of the same job.
