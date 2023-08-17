@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Backport changes to stable-website
         run: |
-          backport-assistant backport -merge-method=squash -automerge
+          backport-assistant backport -merge-method=squash
         env:
           BACKPORT_LABEL_REGEXP: "backport/(?P<target>website)"
           BACKPORT_TARGET_TEMPLATE: "stable-{{.target}}"
@@ -24,7 +24,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
       - name: Backport changes to targeted release branch
         run: |
-          backport-assistant backport -merge-method=squash -automerge
+          backport-assistant backport -merge-method=squash
         env:
           BACKPORT_LABEL_REGEXP: "backport/(?P<target>\\d+\\.\\d+\\.[+\\w]+)"
           BACKPORT_TARGET_TEMPLATE: "release/{{.target}}"
