@@ -27,6 +27,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	"github.com/rs/cors"
 	"golang.org/x/time/rate"
 
@@ -193,6 +194,58 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		srvs = append(srvs, srv)
 	}
+
+	// Initialize the API socket if configured
+	startAPISocket := func() {
+		if config.APISocket.Path == "" {
+			return
+		}
+
+		const (
+			MaxSocketPathLength = 104
+			msgPrefix           = "error starting api socket:"
+		)
+
+		if len(config.APISocket.Path) > MaxSocketPathLength {
+			serverInitializationErrors = multierror.Append(serverInitializationErrors,
+				fmt.Errorf("%s path must be %v characters or less", msgPrefix, MaxSocketPathLength))
+		}
+
+		sl, err := listenerutil.UnixSocketListener(config.APISocket.Path, config.APISocket.UnixSocketsConfig())
+		if err != nil {
+			serverInitializationErrors = multierror.Append(serverInitializationErrors,
+				fmt.Errorf("%s %v", msgPrefix, err))
+			return
+		}
+
+		// Create the server
+		srv := &HTTPServer{
+			agent:        agent,
+			eventAuditor: agent.auditor,
+			mux:          http.NewServeMux(),
+			listener:     sl,
+			listenerCh:   make(chan struct{}),
+			logger:       agent.httpLogger,
+			Addr:         sl.Addr().String(),
+			wsUpgrader:   wsUpgrader,
+		}
+		srv.registerHandlers(config.EnableDebug)
+
+		// Create HTTP server with timeouts
+		httpServer := http.Server{
+			Addr:      srv.Addr,
+			Handler:   handlers.CompressHandler(srv.mux),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, srv.logger),
+			ErrorLog:  newHTTPServerLogger(srv.logger),
+		}
+
+		go func() {
+			defer close(srv.listenerCh)
+			httpServer.Serve(sl)
+		}()
+		srvs = append(srvs, srv)
+	}
+	startAPISocket()
 
 	// Return early on errors
 	if serverInitializationErrors != nil {

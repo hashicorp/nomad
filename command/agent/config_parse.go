@@ -39,6 +39,7 @@ func ParseConfigFile(path string) (*Config, error) {
 
 	// parse
 	c := &Config{
+		APISocket: &SocketConfig{},
 		Client: &ClientConfig{
 			ServerJoin: &ServerJoin{},
 			TemplateConfig: &client.ClientTemplateConfig{

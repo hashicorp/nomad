@@ -39,6 +39,13 @@ advertise {
   serf = "127.0.0.4"
 }
 
+api_socket {
+  path  = "/var/run/nomad.sock"
+  user  = "nomad"
+  group = "nomad"
+  mode  = "0600"
+}
+
 client {
   enabled    = true
   state_dir  = "/tmp/client-state"

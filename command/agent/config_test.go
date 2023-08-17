@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,6 +45,7 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
+		APISocket:      &SocketConfig{},
 		Vault:          &config.VaultConfig{},
 		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
@@ -403,6 +405,12 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{
 			RPC:  "127.0.0.2",
 			Serf: "127.0.0.2",
+		},
+		APISocket: &SocketConfig{
+			Path:  "/tmp/run/nomad.sock",
+			User:  "nomad",
+			Group: "nomad",
+			Mode:  "0600",
 		},
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin":  "*",
@@ -1609,6 +1617,70 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 			out, err := parseMultipleIPTemplate(tc.tmpl)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedOut, out)
+		})
+	}
+}
+
+func TestConfig_SocketConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	a := &SocketConfig{
+		Path:  "/var/run/nomad.sock",
+		User:  "nomad",
+		Group: "wheel",
+		Mode:  "0660",
+	}
+	b := a.Copy()
+	must.Eq(t, a, b)
+}
+
+func TestConfig_SocketConfig_Merge(t *testing.T) {
+	ci.Parallel(t)
+
+	sc1 := &SocketConfig{
+		Path:  "/tmp/sc1.sock",
+		User:  "nomad",
+		Group: "wheel",
+		Mode:  "660",
+	}
+	tcs := []struct {
+		name   string
+		a      *SocketConfig
+		b      *SocketConfig
+		expect *SocketConfig
+	}{
+		{
+			name:   "nils",
+			expect: nil,
+		},
+		{
+			name:   "nil_b",
+			a:      sc1,
+			expect: sc1,
+		},
+		{
+			name:   "nil_a",
+			b:      sc1,
+			expect: sc1,
+		},
+		{
+			name: "overwrite_a.Path",
+			a:    sc1,
+			b:    &SocketConfig{Path: "/tc/sc2"},
+			expect: &SocketConfig{
+				Path:  "/tc/sc2",
+				User:  "nomad",
+				Group: "wheel",
+				Mode:  "660",
+			},
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			ci.Parallel(t)
+			c := tc.a.Merge(tc.b)
+			must.Eq(t, tc.expect, c)
 		})
 	}
 }

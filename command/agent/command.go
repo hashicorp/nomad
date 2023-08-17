@@ -67,9 +67,10 @@ func (c *Command) readConfig() *Config {
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Client: &ClientConfig{},
-		Consul: &config.ConsulConfig{},
-		Ports:  &Ports{},
+		APISocket: &SocketConfig{},
+		Client:    &ClientConfig{},
+		Consul:    &config.ConsulConfig{},
+		Ports:     &Ports{},
 		Server: &ServerConfig{
 			ServerJoin: &ServerJoin{},
 		},
@@ -123,6 +124,12 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+
+	// API Socket Config options
+	flags.StringVar(&cmdConfig.APISocket.Path, "api-socket-path", "", "")
+	flags.StringVar(&cmdConfig.APISocket.User, "api-socket-user", "", "")
+	flags.StringVar(&cmdConfig.APISocket.Group, "api-socket-group", "", "")
+	flags.StringVar(&cmdConfig.APISocket.Mode, "api-socket-mode", "", "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -351,10 +358,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":   config.DataDir,
-		"plugin-dir": config.PluginDir,
-		"alloc-dir":  config.Client.AllocDir,
-		"state-dir":  config.Client.StateDir,
+		"data-dir":        config.DataDir,
+		"plugin-dir":      config.PluginDir,
+		"alloc-dir":       config.Client.AllocDir,
+		"state-dir":       config.Client.StateDir,
+		"api-socket-path": config.APISocket.Path,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
