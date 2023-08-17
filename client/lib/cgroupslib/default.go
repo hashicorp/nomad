@@ -11,6 +11,6 @@ func LinuxResourcesPath(string, string) string {
 }
 
 // MaybeDisableMemorySwappiness does nothing on non-Linux systems
-func MaybeDisableMemorySwappiness() *int {
+func MaybeDisableMemorySwappiness() *uint64 {
 	return nil
 }
