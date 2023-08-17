@@ -11,7 +11,7 @@ job "csi-plugin" {
       driver = "docker"
 
       config {
-        image = "quay.io/k8scsi/hostpathplugin:v1.2.0"
+        image = "registry.k8s.io/sig-storage/hostpathplugin:v1.9.0"
 
         args = [
           "--drivername=csi-hostpath",
