@@ -23,9 +23,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-set"
-	"github.com/ryanuber/go-glob"
-	"golang.org/x/exp/slices"
-
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -41,6 +38,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
+	"golang.org/x/exp/slices"
 )
 
 var (
