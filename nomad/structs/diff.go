@@ -666,7 +666,7 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 	}
 
 	// Workload Identity diffs
-	if wiDiffs := identityDiffs(old.Identity, new.Identity, contextual); wiDiffs != nil {
+	if wiDiffs := idDiff(old.Identity, new.Identity, contextual); wiDiffs != nil {
 		diff.Objects = append(diff.Objects, wiDiffs)
 	}
 
@@ -888,38 +888,6 @@ func checkRestartDiff(old, new *CheckRestart, contextual bool) *ObjectDiff {
 	}
 
 	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
-	return diff
-}
-
-func identityDiffs(old, new *WorkloadIdentity, contextual bool) *ObjectDiff {
-	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Identity"}
-	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-
-	if reflect.DeepEqual(old, new) {
-		return nil
-	} else if old == nil {
-		old = &WorkloadIdentity{}
-		diff.Type = DiffTypeAdded
-		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
-	} else if new == nil {
-		new = &WorkloadIdentity{}
-		diff.Type = DiffTypeDeleted
-		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
-	} else {
-		diff.Type = DiffTypeEdited
-		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
-		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
-	}
-
-	audDiff := stringSetDiff(old.Audience, new.Audience, "Audience", contextual)
-	if audDiff != nil {
-		fmt.Println("this is happening")
-		diff.Objects = append(diff.Objects, audDiff)
-	}
-
-	// Diff the primitive fields.
-	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
-
 	return diff
 }
 
@@ -2427,15 +2395,22 @@ func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
 	if reflect.DeepEqual(oldWI, newWI) {
 		return nil
 	} else if oldWI == nil {
+		oldWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
 	} else if newWI == nil {
+		newWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
+	}
+
+	audDiff := stringSetDiff(oldWI.Audience, newWI.Audience, "Audience", contextual)
+	if audDiff != nil {
+		diff.Objects = append(diff.Objects, audDiff)
 	}
 
 	// Diff the primitive fields.

@@ -912,6 +912,7 @@ func hashIdentity(h hash.Hash, identity *WorkloadIdentity) {
 		hashAud(h, identity.Audience)
 		hashBool(h, identity.Env, "Env")
 		hashBool(h, identity.File, "File")
+		hashString(h, identity.NomadService)
 	}
 }
 
