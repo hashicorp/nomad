@@ -347,7 +347,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		get, _, err := nsv.RenewLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
-		must.NotEq(t, sv1.ModifyIndex, get.ModifyIndex)
+		must.Eq(t, sv1.ModifyIndex, get.ModifyIndex)
 		must.NotNil(t, get.Lock)
 		must.Eq(t, sv1.Lock.ID, get.Lock.ID)
 	})
