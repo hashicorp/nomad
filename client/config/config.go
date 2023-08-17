@@ -169,8 +169,13 @@ type Config struct {
 	// Version is the version of the Nomad client
 	Version *version.VersionInfo
 
-	// ConsulConfig is this Agent's Consul configuration
+	// ConsulConfig is this Agent's default Consul configuration
 	ConsulConfig *structsc.ConsulConfig
+
+	// ConsulConfigs is a map of Consul configurations, here to support features
+	// in Nomad Enterprise. The default Consul config pointer above will be
+	// found in this map under the name "default"
+	ConsulConfigs map[string]*structsc.ConsulConfig
 
 	// VaultConfig is this Agent's default Vault configuration
 	VaultConfig *structsc.VaultConfig
@@ -753,6 +758,7 @@ func (c *Config) Copy() *Config {
 	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
 	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
@@ -806,8 +812,11 @@ func DefaultConfig() *Config {
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
 
+	cfg.ConsulConfigs = map[string]*structsc.ConsulConfig{
+		"default": cfg.ConsulConfig}
 	cfg.VaultConfigs = map[string]*structsc.VaultConfig{
 		"default": cfg.VaultConfig}
+
 	return cfg
 }
 

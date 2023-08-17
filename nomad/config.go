@@ -311,6 +311,11 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
+	// ConsulConfigs is a map of Consul configurations, here to support features
+	// in Nomad Enterprise. The default Consul config pointer above will be
+	// found in this map under the name "default"
+	ConsulConfigs map[string]*config.ConsulConfig
+
 	// VaultConfig is this Agent's default Vault configuration
 	VaultConfig *config.VaultConfig
 
@@ -447,6 +452,7 @@ func (c *Config) Copy() *Config {
 	nc.SerfConfig = pointer.Copy(c.SerfConfig)
 	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
 	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TLSConfig = c.TLSConfig.Copy()
@@ -548,6 +554,7 @@ func DefaultConfig() *Config {
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
 
+	c.ConsulConfigs = map[string]*config.ConsulConfig{"default": c.ConsulConfig}
 	c.VaultConfigs = map[string]*config.VaultConfig{"default": c.VaultConfig}
 
 	// Enable all known schedulers by default
