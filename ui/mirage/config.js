@@ -117,7 +117,7 @@ export default function () {
       200,
       {},
       JSON.stringify({
-        Source: 'the job source v0',
+        Source: `job "${req.params.id}" {`,
         Format: 'hcl2',
         VariableFlags: { X: 'x', Y: '42', Z: 'true' },
         Variables: 'var file content',
