@@ -1155,6 +1155,9 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 				return err
 			}
 		}
+		if plugin == nil {
+			return fmt.Errorf("plugin %q for volume %q not found", vol.PluginID, volID)
+		}
 
 		// NOTE: deleting the volume in the external storage provider can't be
 		// made atomic with deregistration. We can't delete a volume that's
