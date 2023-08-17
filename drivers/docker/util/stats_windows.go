@@ -1,14 +1,14 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
-
-//go:build windows
+// SPDX-License-Identifier: MPL-2.0
 
 package util
 
 import (
+	"runtime"
+
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/stats"
 )
 
 var (
@@ -17,12 +17,7 @@ var (
 	DockerMeasuredMemStats = []string{"RSS", "Usage", "Max Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cstructs.TaskResourceUsage {
-	var (
-		totalCompute = top.TotalCompute()
-		totalCores   = top.NumCores()
-	)
-
+func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage {
 	ms := &cstructs.MemoryStats{
 		RSS:      s.MemoryStats.PrivateWorkingSet,
 		Usage:    s.MemoryStats.Commit,
@@ -50,7 +45,7 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cst
 		ThrottledPeriods: s.CPUStats.ThrottlingData.ThrottledPeriods,
 		ThrottledTime:    s.CPUStats.ThrottlingData.ThrottledTime,
 		Percent:          cpuPercent,
-		TotalTicks:       (cpuPercent / 100) * float64(totalCompute) / float64(totalCores),
+		TotalTicks:       (cpuPercent / 100) * float64(stats.CpuTotalTicks()) / float64(runtime.NumCPU()),
 		Measured:         DockerMeasuredCPUStats,
 	}
 

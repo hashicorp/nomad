@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -241,8 +241,7 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
-	now := time.Now().UTC()
-	unixNow := now.UnixNano()
+	now := time.Now().UTC().UnixNano()
 
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
@@ -253,7 +252,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 		DeploymentUpdates: result.DeploymentUpdates,
 		IneligibleNodes:   result.IneligibleNodes,
 		EvalID:            plan.EvalID,
-		UpdatedAt:         unixNow,
+		UpdatedAt:         now,
 	}
 
 	preemptedJobIDs := make(map[structs.NamespacedID]struct{})
@@ -268,7 +267,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, updateList := range result.NodeUpdate {
 			for _, stoppedAlloc := range updateList {
-				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, unixNow))
+				req.AllocsStopped = append(req.AllocsStopped, normalizeStoppedAlloc(stoppedAlloc, now))
 			}
 		}
 
@@ -278,16 +277,16 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		// Set the time the alloc was applied for the first time. This can be used
 		// to approximate the scheduling time.
-		updateAllocTimestamps(req.AllocsUpdated, unixNow)
+		updateAllocTimestamps(req.AllocsUpdated, now)
 
-		err := p.signAllocIdentities(plan.Job, req.AllocsUpdated, now)
+		err := p.signAllocIdentities(plan.Job, req.AllocsUpdated)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, preemptions := range result.NodePreemptions {
 			for _, preemptedAlloc := range preemptions {
-				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, unixNow))
+				req.AllocsPreempted = append(req.AllocsPreempted, normalizePreemptedAlloc(preemptedAlloc, now))
 
 				// Gather jobids to create follow up evals
 				appendNamespacedJobID(preemptedJobIDs, preemptedAlloc)
@@ -319,12 +318,12 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		// Set the time the alloc was applied for the first time. This can be used
 		// to approximate the scheduling time.
-		updateAllocTimestamps(req.Alloc, unixNow)
+		updateAllocTimestamps(req.Alloc, now)
 
 		// Set modify time for preempted allocs if any
 		// Also gather jobids to create follow up evals
 		for _, alloc := range req.NodePreemptions {
-			alloc.ModifyTime = unixNow
+			alloc.ModifyTime = now
 			appendNamespacedJobID(preemptedJobIDs, alloc)
 		}
 	}
@@ -341,8 +340,8 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 				Type:        job.Type,
 				Priority:    job.Priority,
 				Status:      structs.EvalStatusPending,
-				CreateTime:  unixNow,
-				ModifyTime:  unixNow,
+				CreateTime:  now,
+				ModifyTime:  now,
 			}
 			evals = append(evals, eval)
 		}
@@ -410,7 +409,7 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 	}
 }
 
-func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.Allocation, now time.Time) error {
+func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.Allocation) error {
 
 	encrypter := p.Server.encrypter
 
@@ -418,7 +417,7 @@ func (p *planner) signAllocIdentities(job *structs.Job, allocations []*structs.A
 		alloc.SignedIdentities = map[string]string{}
 		tg := job.LookupTaskGroup(alloc.TaskGroup)
 		for _, task := range tg.Tasks {
-			claims := structs.NewIdentityClaims(job, alloc, task.Name, task.Identity, now)
+			claims := alloc.ToTaskIdentityClaims(job, task.Name)
 			token, keyID, err := encrypter.SignClaims(claims)
 			if err != nil {
 				return err

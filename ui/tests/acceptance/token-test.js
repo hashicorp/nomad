@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: BUSL-1.1
+ * SPDX-License-Identifier: MPL-2.0
  */
 
 /* eslint-disable qunit/require-expect */
@@ -312,7 +312,7 @@ module('Acceptance | tokens', function (hooks) {
     assert.timeout(6000);
     const nearlyExpiringToken = server.create('token', {
       name: 'Not quite dead yet',
-      expirationTime: moment().add(10, 'm').add(3, 's').toDate(),
+      expirationTime: moment().add(10, 'm').add(5, 's').toDate(),
     });
 
     await Tokens.visit();

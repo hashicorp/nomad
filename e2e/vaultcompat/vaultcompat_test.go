@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package vaultcompat
 
@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/go-version"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shoenig/test/must"
@@ -134,10 +133,9 @@ func startNomad(t *testing.T, vc *vaultapi.Client) (func(), *nomadapi.Client) {
 		}
 		c.DevMode = true
 		c.Client = &testutil.ClientConfig{
-			Enabled:      true,
-			TotalCompute: 1000,
+			Enabled: true,
 		}
-		c.LogLevel = testlog.HCLoggerTestLevel().String()
+		c.LogLevel = "off"
 	})
 	nc, err := nomadapi.NewClient(&nomadapi.Config{
 		Address: "http://" + ts.HTTPAddr,

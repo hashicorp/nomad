@@ -1,14 +1,16 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 //go:build !windows
 
 package util
 
 import (
+	"runtime"
+
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/stats"
 )
 
 var (
@@ -19,12 +21,7 @@ var (
 	DockerCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cstructs.TaskResourceUsage {
-	var (
-		totalCompute = top.TotalCompute()
-		totalCores   = top.NumCores()
-	)
-
+func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage {
 	measuredMems := DockerCgroupV1MeasuredMemStats
 
 	// use a simple heuristic to check if cgroup-v2 is used.
@@ -52,15 +49,14 @@ func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cst
 	// Calculate percentage
 	cs.Percent = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage,
-		s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, totalCores)
+		s.CPUStats.SystemCPUUsage, s.PreCPUStats.SystemCPUUsage, runtime.NumCPU())
 	cs.SystemMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInKernelmode, s.PreCPUStats.CPUUsage.UsageInKernelmode,
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, totalCores)
+		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
 	cs.UserMode = CalculateCPUPercent(
 		s.CPUStats.CPUUsage.UsageInUsermode, s.PreCPUStats.CPUUsage.UsageInUsermode,
-		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, totalCores)
-
-	cs.TotalTicks = (cs.Percent / 100) * float64(totalCompute) / float64(totalCores)
+		s.CPUStats.CPUUsage.TotalUsage, s.PreCPUStats.CPUUsage.TotalUsage, runtime.NumCPU())
+	cs.TotalTicks = (cs.Percent / 100) * float64(stats.CpuTotalTicks()) / float64(runtime.NumCPU())
 
 	return &cstructs.TaskResourceUsage{
 		ResourceUsage: &cstructs.ResourceUsage{

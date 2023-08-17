@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package docker
 
@@ -20,8 +20,11 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -35,9 +38,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	tu "github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -55,10 +55,6 @@ var (
 			MemoryLimitBytes: 256 * 1024 * 1024,
 		},
 	}
-)
-
-var (
-	top = numalib.Scan(numalib.PlatformScanners())
 )
 
 func dockerIsRemote(t *testing.T) bool {
@@ -187,7 +183,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 	logger := testlog.HCLogger(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
-	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, top, logger))
+	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, logger))
 	if cfg == nil {
 		cfg = map[string]interface{}{
 			"gc": map[string]interface{}{
@@ -2090,7 +2086,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 		defer d.DestroyTask(task.ID, true)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		ch, err := handle.Stats(ctx, 1*time.Second, top)
+		ch, err := handle.Stats(ctx, 1*time.Second)
 		assert.NoError(t, err)
 		select {
 		case ru := <-ch:
@@ -2908,6 +2904,32 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 			require.Equal(t, c.expectedSoft, soft)
 		})
 	}
+}
+
+func TestDockerDriver_cgroupParent(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("v1", func(t *testing.T) {
+		testutil.CgroupsCompatibleV1(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/cpuset/nomad",
+			},
+		})
+		require.Equal(t, "", parent)
+	})
+
+	t.Run("v2", func(t *testing.T) {
+		testutil.CgroupsCompatibleV2(t)
+
+		parent := cgroupParent(&drivers.Resources{
+			LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: "/sys/fs/cgroup/nomad.slice",
+			},
+		})
+		require.Equal(t, "nomad.slice", parent)
+	})
 }
 
 func TestDockerDriver_parseSignal(t *testing.T) {

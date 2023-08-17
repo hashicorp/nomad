@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 // BufConnWrapper implements consul-template's TransportDialer using a
 // bufconn listener, to provide a way to Dial the in-memory listener

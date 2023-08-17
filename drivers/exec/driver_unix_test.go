@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -100,12 +101,15 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		ID:        allocID,
-		Name:      taskName,
-		Resources: testResources(allocID, taskName),
+		ID:   uuid.Generate(),
+		Name: "sleep",
+	}
+
+	if cgutil.UseV2 {
+		allocID := uuid.Generate()
+		task.AllocID = allocID
+		task.Resources = testResources(allocID, "sleep")
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -161,13 +165,15 @@ func TestExec_dnsConfig(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		allocID := uuid.Generate()
-		taskName := "sleep"
 		task := &drivers.TaskConfig{
-			ID:        allocID,
-			Name:      taskName,
-			DNS:       c.cfg,
-			Resources: testResources(allocID, taskName),
+			ID:   uuid.Generate(),
+			Name: "sleep",
+			DNS:  c.cfg,
+		}
+
+		if cgutil.UseV2 {
+			allocID := uuid.Generate()
+			task.Resources = testResources(allocID, "sleep")
 		}
 
 		cleanup := harness.MkAllocDir(task, false)
@@ -191,12 +197,15 @@ func TestExecDriver_Capabilities(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		ID:        allocID,
-		Name:      taskName,
-		Resources: testResources(allocID, taskName),
+		ID:   uuid.Generate(),
+		Name: "sleep",
+	}
+
+	if cgutil.UseV2 {
+		allocID := uuid.Generate()
+		task.AllocID = allocID
+		task.Resources = testResources(allocID, "sleep")
 	}
 
 	for _, tc := range []struct {

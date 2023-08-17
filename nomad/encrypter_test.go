@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -362,10 +362,10 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	testutil.WaitForLeader(t, srv.RPC)
 
 	alloc := mock.Alloc()
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, "web", alloc.LookupTask("web").Identity, time.Now())
+	claim := alloc.ToTaskIdentityClaims(nil, "web")
 	e := srv.encrypter
 
-	out, _, err := e.SignClaims(claims)
+	out, _, err := e.SignClaims(claim)
 	require.NoError(t, err)
 
 	got, err := e.VerifyClaim(out)

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -295,60 +294,4 @@ func TestKeyringEndpoint_Rotate(t *testing.T) {
 
 	gotKey := getResp.Key
 	require.Len(t, gotKey.Key, 32)
-}
-
-// TestKeyringEndpoint_ListPublic asserts the Keyring.ListPublic RPC returns
-// all keys which may be in use for active crytpographic material (variables,
-// valid JWTs).
-func TestKeyringEndpoint_ListPublic(t *testing.T) {
-
-	ci.Parallel(t)
-	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-	})
-	defer shutdown()
-	testutil.WaitForLeader(t, srv.RPC)
-	codec := rpcClient(t, srv)
-
-	// Assert 1 key exists and normal fields are set
-	req := structs.GenericRequest{
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			AuthToken: "ignored!",
-		},
-	}
-	var resp structs.KeyringListPublicResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.ListPublic", &req, &resp))
-	must.Eq(t, srv.config.RootKeyRotationThreshold, resp.RotationThreshold)
-	must.Len(t, 1, resp.PublicKeys)
-	must.NonZero(t, resp.Index)
-
-	// Rotate keys and assert there are now 2 keys
-	rotateReq := &structs.KeyringRotateRootKeyRequest{
-		WriteRequest: structs.WriteRequest{
-			Region:    "global",
-			AuthToken: rootToken.SecretID,
-		},
-	}
-	var rotateResp structs.KeyringRotateRootKeyResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp))
-	must.NotEq(t, resp.Index, rotateResp.Index)
-
-	// Verify we have a new key and the old one is inactive
-	var resp2 structs.KeyringListPublicResponse
-	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Keyring.ListPublic", &req, &resp2))
-	must.Eq(t, srv.config.RootKeyRotationThreshold, resp2.RotationThreshold)
-	must.Len(t, 2, resp2.PublicKeys)
-	must.NonZero(t, resp2.Index)
-
-	found := false
-	for _, pk := range resp2.PublicKeys {
-		if pk.KeyID == resp.PublicKeys[0].KeyID {
-			must.False(t, found, must.Sprint("found the original public key twice"))
-			found = true
-			must.Eq(t, resp.PublicKeys[0], pk)
-			break
-		}
-	}
-	must.True(t, found, must.Sprint("original public key missing after rotation"))
 }

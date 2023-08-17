@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package fingerprint
 
@@ -121,7 +121,7 @@ func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error
 		return "", err
 	}
 
-	if res.StatusCode >= http.StatusBadRequest {
+	if res.StatusCode >= 400 {
 		return "", ReqError{res.StatusCode}
 	}
 

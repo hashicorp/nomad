@@ -9,6 +9,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+
 	"github.com/hashicorp/nomad/plugins/base"
 )
 
@@ -48,6 +49,7 @@ func init() {
 			Plugins: GetPluginMap(
 				logger,
 				executorConfig.FSIsolation,
+				executorConfig.CpuTotalTicks,
 			),
 			GRPCServer: plugin.DefaultGRPCServer,
 			Logger:     logger,

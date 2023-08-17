@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package agent
 
@@ -23,6 +23,7 @@ import (
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
@@ -840,6 +841,15 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.HostNetworks[hn.Name] = hn
 	}
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
+
+	conf.CgroupParent = cgutil.GetCgroupParent(agentConfig.Client.CgroupParent)
+	if agentConfig.Client.ReserveableCores != "" {
+		cores, err := cpuset.Parse(agentConfig.Client.ReserveableCores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'reservable_cores': %v", err)
+		}
+		conf.ReservableCores = cores.ToSlice()
+	}
 
 	if agentConfig.Client.NomadServiceDiscovery != nil {
 		conf.NomadServiceDiscovery = *agentConfig.Client.NomadServiceDiscovery

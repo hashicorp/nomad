@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: BUSL-1.1
+ * SPDX-License-Identifier: MPL-2.0
  */
 
 // @ts-check
@@ -71,10 +71,8 @@ export default class Title extends Component {
    */
   @task(function* (withNotifications = false) {
     const job = this.job;
-    const definition = yield job.fetchRawDefinition();
-
-    delete definition.Stop;
-    job.set('_newDefinition', JSON.stringify(definition));
+    const specification = yield job.fetchRawSpecification();
+    job.set('_newDefinition', specification.Source);
 
     try {
       yield job.parse();

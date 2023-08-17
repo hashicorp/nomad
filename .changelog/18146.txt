@@ -1,3 +1,0 @@
-```release-note:improvement
-client: enable detection of numa topology
-```

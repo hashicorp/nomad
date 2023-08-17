@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package docker
 
@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
@@ -20,6 +21,7 @@ func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, 
 	// Start docker reconcilers when we start fingerprinting, a workaround for
 	// task drivers not having a kind of post-setup hook.
 	d.danglingReconciler.Start()
+	d.cpusetFixer.Start()
 
 	ch := make(chan *drivers.Fingerprint)
 	go d.handleFingerprint(ctx, ch)
@@ -88,8 +90,8 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		HealthDescription: drivers.DriverHealthy,
 	}
 
-	// disable if non-root on linux systems
-	if runtime.GOOS == "linux" && !utils.IsUnixRoot() {
+	// disable if cgv2 && non-root
+	if cgutil.UseV2 && !utils.IsUnixRoot() {
 		fp.Health = drivers.HealthStateUndetected
 		fp.HealthDescription = drivers.DriverRequiresRootMessage
 		d.setFingerprintFailure()

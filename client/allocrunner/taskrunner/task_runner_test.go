@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package taskrunner
 
@@ -16,6 +16,12 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/kr/pretty"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -23,7 +29,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	"github.com/hashicorp/nomad/client/lib/proclib"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -41,11 +47,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/kr/pretty"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type MockTaskStateUpdater struct {
@@ -63,22 +64,6 @@ func (m *MockTaskStateUpdater) TaskStateUpdated() {
 	case m.ch <- struct{}{}:
 	default:
 	}
-}
-
-// MockWIDMgr allows TaskRunner unit tests to avoid having to setup a Server,
-// Client, and Allocation.
-type MockWIDMgr struct{}
-
-func (m MockWIDMgr) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
-	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
-	for _, idReq := range req {
-		swids = append(swids, &structs.SignedWorkloadIdentity{
-			WorkloadIdentityRequest: *idReq,
-			// Just the sample jwt from jwt.io so it "looks" like a jwt
-			JWT: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-		})
-	}
-	return swids, nil
 }
 
 // testTaskRunnerConfig returns a taskrunner.Config for the given alloc+task
@@ -113,10 +98,26 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 	taskDir := allocDir.NewTaskDir(taskName)
 
+	// Compute the name of the v2 cgroup in case we need it in creation, configuration, and cleanup
+	cgroup := filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(alloc.ID, taskName))
+
+	// Create the cgroup if we are in v2 mode
+	if cgutil.UseV2 {
+		if err := os.MkdirAll(cgroup, 0755); err != nil {
+			t.Fatalf("failed to setup v2 cgroup for test: %v:", err)
+		}
+	}
+
 	trCleanup := func() {
 		if err := allocDir.Destroy(); err != nil {
 			t.Logf("error destroying alloc dir: %v", err)
 		}
+
+		// Cleanup the cgroup if we are in v2 mode
+		if cgutil.UseV2 {
+			_ = os.RemoveAll(cgroup)
+		}
+
 		cleanup()
 	}
 
@@ -151,8 +152,13 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
-		Wranglers:             proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
-		WIDMgr:                MockWIDMgr{},
+	}
+
+	// Set the cgroup path getter if we are in v2 mode
+	if cgutil.UseV2 {
+		conf.CpusetCgroupPathGetter = func(context.Context) (string, error) {
+			return filepath.Join(cgutil.CgroupRoot, "testing.slice", alloc.ID, thisTask.Name), nil
+		}
 	}
 
 	return conf, trCleanup
@@ -2660,40 +2666,20 @@ func TestTaskRunner_IdentityHook_Enabled(t *testing.T) {
 		Env:  true,
 		File: true,
 	}
-	task.Identities = []*structs.WorkloadIdentity{
-		{
-			Name:     "consul",
-			Audience: []string{"a", "b"},
-			Env:      true,
-		},
-		{
-			Name: "vault",
-			File: true,
-		},
-	}
 
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
 	testWaitForTaskToDie(t, tr)
 
-	// Assert tokens were written to the filesystem
+	// Assert the token was written to the filesystem
 	tokenBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_token"))
 	must.NoError(t, err)
 	must.Eq(t, "foo", string(tokenBytes))
 
-	tokenBytes, err = os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_consul.jwt"))
-	must.ErrorIs(t, err, os.ErrNotExist)
-
-	tokenBytes, err = os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_vault.jwt"))
-	must.NoError(t, err)
-	must.StrContains(t, string(tokenBytes), ".")
-
-	// Assert tokens are built into the task env
+	// Assert the token is built into the task env
 	taskEnv := tr.envBuilder.Build()
 	must.Eq(t, "foo", taskEnv.EnvMap["NOMAD_TOKEN"])
-	must.StrContains(t, taskEnv.EnvMap["NOMAD_TOKEN_consul"], ".")
-	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN_vault")
 }
 
 // TestTaskRunner_IdentityHook_Disabled asserts that the identity hook does not

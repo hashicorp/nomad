@@ -1,12 +1,10 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package rawexec
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,51 +16,30 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 )
 
 // defaultEnv creates the default environment for raw exec tasks
 func defaultEnv() map[string]string {
 	m := make(map[string]string)
+	if cgutil.UseV2 {
+		// normally the taskenv.Builder will set this automatically from the
+		// Node object which gets created via Client configuration, but none of
+		// that exists in the test harness so just set it here.
+		m["NOMAD_PARENT_CGROUP"] = "nomad.slice"
+	}
 	return m
-}
-
-func testResources(allocID, task string) *drivers.Resources {
-	if allocID == "" || task == "" {
-		panic("must be set")
-	}
-
-	r := &drivers.Resources{
-		NomadResources: &nstructs.AllocatedTaskResources{
-			Memory: nstructs.AllocatedMemoryResources{
-				MemoryMB: 128,
-			},
-			Cpu: nstructs.AllocatedCpuResources{
-				CpuShares: 100,
-			},
-		},
-		LinuxResources: &drivers.LinuxResources{
-			MemoryLimitBytes: 134217728,
-			CPUShares:        100,
-			CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, task),
-		},
-	}
-
-	return r
 }
 
 func TestMain(m *testing.M) {
@@ -194,15 +171,11 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
-
-	allocID := uuid.Generate()
-	taskName := "test"
 	task := &drivers.TaskConfig{
-		AllocID:   allocID,
-		ID:        uuid.Generate(),
-		Name:      taskName,
-		Env:       defaultEnv(),
-		Resources: testResources(allocID, taskName),
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "test",
+		Env:     defaultEnv(),
 	}
 
 	tc := &TaskConfig{
@@ -214,8 +187,6 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
-
-	harness.MakeTaskCgroup(allocID, taskName)
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -252,14 +223,11 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	bconfig := &basePlug.Config{PluginConfig: data}
 	require.NoError(harness.SetConfig(bconfig))
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		AllocID:   allocID,
-		ID:        uuid.Generate(),
-		Name:      taskName,
-		Env:       defaultEnv(),
-		Resources: testResources(allocID, taskName),
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "sleep",
+		Env:     defaultEnv(),
 	}
 	tc := &TaskConfig{
 		Command: testtask.Path(),
@@ -268,11 +236,8 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	testtask.SetTaskConfigEnv(task)
-
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
-
-	harness.MakeTaskCgroup(allocID, taskName)
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
@@ -336,20 +301,15 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		AllocID:   allocID,
-		ID:        uuid.Generate(),
-		Name:      taskName,
-		Env:       defaultEnv(),
-		Resources: testResources(allocID, taskName),
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "sleep",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
-
-	harness.MakeTaskCgroup(allocID, taskName)
 
 	exp := []byte("win")
 	file := "output.txt"
@@ -392,92 +352,98 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	ci.Parallel(t)
 	ctestutil.ExecCompatible(t)
 
+	require := require.New(t)
 	pidFile := "pid"
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		AllocID:   allocID,
-		ID:        uuid.Generate(),
-		Name:      taskName,
-		User:      "root",
-		Env:       defaultEnv(),
-		Resources: testResources(allocID, taskName),
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "sleep",
+		User:    "root",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	harness.MakeTaskCgroup(allocID, taskName)
-
 	tc := &TaskConfig{
 		Command: testtask.Path(),
-		Args:    []string{"fork/exec", pidFile, "pgrp", "0", "sleep", "7s"},
+		Args:    []string{"fork/exec", pidFile, "pgrp", "0", "sleep", "20s"},
 	}
-	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
-	must.NoError(t, err)
+	require.NoError(err)
 
 	// Find the process
 	var pidData []byte
+	testutil.WaitForResult(func() (bool, error) {
+		var err error
+		pidData, err = os.ReadFile(filepath.Join(task.TaskDir().Dir, pidFile))
+		if err != nil {
+			return false, err
+		}
 
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			data, err := os.ReadFile(filepath.Join(task.TaskDir().Dir, pidFile))
-			if err != nil {
-				return err
-			}
-			if len(bytes.TrimSpace(data)) == 0 {
-				return errors.New("pidFile empty")
-			}
-			pidData = data
-			return nil
-		}),
-		wait.Gap(1*time.Second),
-		wait.Timeout(3*time.Second),
-	))
+		if len(pidData) == 0 {
+			return false, fmt.Errorf("pidFile empty")
+		}
+
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 
 	pid, err := strconv.Atoi(string(pidData))
-	must.NoError(t, err)
+	require.NoError(err, "failed to read pidData: %s", string(pidData))
 
 	// Check the pid is up
 	process, err := os.FindProcess(pid)
-	must.NoError(t, err)
-	must.NoError(t, process.Signal(syscall.Signal(0)))
+	require.NoError(err)
+	require.NoError(process.Signal(syscall.Signal(0)))
 
-	// Stop the task
-	must.NoError(t, harness.StopTask(task.ID, 0, ""))
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(1 * time.Second)
+		err := harness.StopTask(task.ID, 0, "")
+
+		// Can't rely on the ordering between wait and kill on CI/travis...
+		if !testutil.IsCI() {
+			require.NoError(err)
+		}
+	}()
 
 	// Task should terminate quickly
 	waitCh, err := harness.WaitTask(context.Background(), task.ID)
-	must.NoError(t, err)
+	require.NoError(err)
 	select {
 	case res := <-waitCh:
-		must.False(t, res.Successful())
-	case <-time.After(10 * time.Second):
-		must.Unreachable(t, must.Sprint("exceeded wait timeout"))
+		require.False(res.Successful())
+	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
+		require.Fail("WaitTask timeout")
 	}
 
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			return process.Signal(syscall.Signal(0)) == nil
-		}),
-		wait.Gap(1*time.Second),
-		wait.Timeout(3*time.Second),
-	))
+	testutil.WaitForResult(func() (bool, error) {
+		if err := process.Signal(syscall.Signal(0)); err == nil {
+			return false, fmt.Errorf("process should not exist: %v", pid)
+		}
 
-	must.NoError(t, harness.DestroyTask(task.ID, true))
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	wg.Wait()
+	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
 func TestRawExecDriver_ParentCgroup(t *testing.T) {
-	t.Skip("TODO: seth will fix this during the cpuset partitioning work")
-
 	ci.Parallel(t)
 	ctestutil.ExecCompatible(t)
 	ctestutil.CgroupsCompatibleV2(t)
@@ -486,12 +452,10 @@ func TestRawExecDriver_ParentCgroup(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		AllocID: allocID,
+		AllocID: uuid.Generate(),
 		ID:      uuid.Generate(),
-		Name:    taskName,
+		Name:    "sleep",
 		Env: map[string]string{
 			"NOMAD_PARENT_CGROUP": "custom.slice",
 		},
@@ -499,8 +463,6 @@ func TestRawExecDriver_ParentCgroup(t *testing.T) {
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
-
-	harness.MakeTaskCgroup(allocID, taskName)
 
 	// run sleep task
 	tc := &TaskConfig{
@@ -538,20 +500,15 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	allocID := uuid.Generate()
-	taskName := "sleep"
 	task := &drivers.TaskConfig{
-		AllocID:   allocID,
-		ID:        uuid.Generate(),
-		Name:      taskName,
-		Env:       defaultEnv(),
-		Resources: testResources(allocID, taskName),
+		AllocID: uuid.Generate(),
+		ID:      uuid.Generate(),
+		Name:    "sleep",
+		Env:     defaultEnv(),
 	}
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
-
-	harness.MakeTaskCgroup(allocID, taskName)
 
 	tc := &TaskConfig{
 		Command: testtask.Path(),
@@ -621,13 +578,10 @@ func TestRawExecDriver_Disabled(t *testing.T) {
 
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
-
-	allocID := uuid.Generate()
-	taskName := "test"
 	task := &drivers.TaskConfig{
-		AllocID: allocID,
+		AllocID: uuid.Generate(),
 		ID:      uuid.Generate(),
-		Name:    taskName,
+		Name:    "test",
 		Env:     defaultEnv(),
 	}
 

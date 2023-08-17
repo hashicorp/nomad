@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -359,67 +359,4 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 
 	reply.Index = index
 	return nil
-}
-
-// ListPublic signing keys used for workload identities. This RPC is used to
-// back a JWKS endpoint.
-//
-// Unauthenticated because public keys are not sensitive.
-func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.KeyringListPublicResponse) error {
-
-	// JWKS is a public endpoint: intentionally ignore auth errors and only
-	// authenticate to measure rate metrics.
-	k.srv.Authenticate(k.ctx, args)
-	if done, err := k.srv.forward("Keyring.ListPublic", args, args, reply); done {
-		return err
-	}
-	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
-
-	defer metrics.MeasureSince([]string{"nomad", "keyring", "list_public"}, time.Now())
-
-	// Expose root_key_rotation_threshold so consumers can determine reasonable
-	// cache settings.
-	reply.RotationThreshold = k.srv.config.RootKeyRotationThreshold
-
-	// Setup the blocking query
-	opts := blockingOptions{
-		queryOpts: &args.QueryOptions,
-		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-
-			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
-			if err != nil {
-				return err
-			}
-			iter, err := snap.RootKeyMetas(ws)
-			if err != nil {
-				return err
-			}
-
-			pubKeys := []*structs.KeyringPublicKey{}
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-
-				keyMeta := raw.(*structs.RootKeyMeta)
-				if keyMeta.State == structs.RootKeyStateDeprecated {
-					// Only include valid keys
-					continue
-				}
-
-				pubKey, err := k.encrypter.GetPublicKey(keyMeta.KeyID)
-				if err != nil {
-					return err
-				}
-
-				pubKeys = append(pubKeys, pubKey)
-			}
-			reply.PublicKeys = pubKeys
-			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
-		},
-	}
-	return k.srv.blockingRPC(&opts)
 }

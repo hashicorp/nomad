@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 // Package servicediscovery provides end-to-end tests for Nomads service
 // discovery feature. It tests all supported discovery providers and ensures

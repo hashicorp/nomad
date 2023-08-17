@@ -8,21 +8,21 @@ package executor
 import (
 	"os/exec"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
-	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
+	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/resources"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger, cpuTotalTicks uint64) Executor {
 	logger = logger.Named("executor")
 	logger.Error("isolation executor is not supported on this platform, using default")
-	return NewExecutor(logger)
+	return NewExecutor(logger, cpuTotalTicks)
 }
 
-func (e *UniversalExecutor) configureResourceContainer(_ *ExecCommand, _ int) (func(), error) {
-	nothing := func() {}
-	return nothing, nil
+func (e *UniversalExecutor) configureResourceContainer(_ int) error { return nil }
+
+func (e *UniversalExecutor) getAllPids() (resources.PIDs, error) {
+	return getAllPidsByScanning()
 }
 
 func (e *UniversalExecutor) start(command *ExecCommand) error {
@@ -34,11 +34,3 @@ func withNetworkIsolation(f func() error, _ *drivers.NetworkIsolationSpec) error
 }
 
 func setCmdUser(*exec.Cmd, string) error { return nil }
-
-func (e *UniversalExecutor) ListProcesses() *set.Set[int] {
-	return procstats.List(e.childCmd.Process.Pid)
-}
-
-func (e *UniversalExecutor) setSubCmdCgroup(*exec.Cmd, string) (func(), error) {
-	return func() {}, nil
-}

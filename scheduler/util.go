@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package scheduler
 
@@ -315,13 +315,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 			return c
 		}
 
-		// Inspect Identities being exposed
+		// Inspect Identity being exposed
 		if !at.Identity.Equal(bt.Identity) {
 			return difference("task identity", at.Identity, bt.Identity)
-		}
-
-		if !slices.EqualFunc(at.Identities, bt.Identities, func(a, b *structs.WorkloadIdentity) bool { return a.Equal(b) }) {
-			return difference("task identity", at.Identities, bt.Identities)
 		}
 
 		// Most LogConfig updates are in-place but if we change Disabled we need

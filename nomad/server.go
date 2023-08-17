@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -35,8 +35,8 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
-	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -1958,7 +1958,7 @@ func (s *Server) Stats() map[string]map[string]string {
 		},
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
-		"runtime": goruntime.RuntimeStats(),
+		"runtime": stats.RuntimeStats(),
 		"vault":   s.vault.Stats(),
 	}
 

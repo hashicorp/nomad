@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 # Allow creating tokens under "nomad-tasks" role. The role name should be
 # updated if "nomad-tasks" is not used.

@@ -1,10 +1,9 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package interfaces
 
 import (
-	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -39,11 +38,5 @@ type EnvReplacer interface {
 // ArtifactGetter is an interface satisfied by the getter package.
 type ArtifactGetter interface {
 	// Get artifact and put it in the task directory.
-	Get(EnvReplacer, *structs.TaskArtifact) error
-}
-
-// ProcessWranglers is an interface satisfied by the proclib package.
-type ProcessWranglers interface {
-	Setup(proclib.Task) error
-	Destroy(proclib.Task) error
+	Get(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error
 }

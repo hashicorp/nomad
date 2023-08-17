@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 # This "env" job simply invokes 'env' using raw_exec.
 
@@ -23,6 +23,7 @@ job "env" {
     }
 
     task "task" {
+      user   = "nobody"
       driver = "raw_exec"
 
       config {

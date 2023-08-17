@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package consul_test
 
@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -170,7 +169,6 @@ func TestConsul_Integration(t *testing.T) {
 		DriverManager:       drivermanager.TestDriverManager(t),
 		StartConditionMetCh: closedCh,
 		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
-		Wranglers:           proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

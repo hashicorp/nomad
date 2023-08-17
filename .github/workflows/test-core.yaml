@@ -63,8 +63,8 @@ jobs:
       - uses: hashicorp/setup-golang@v1
       - name: Get Go modules
         run: |
-          make bootstrap
           make tidy
+          make bootstrap
   checks:
     uses: ./.github/workflows/checks.yaml
     needs: [mods]

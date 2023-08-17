@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package docker
 
@@ -38,7 +38,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 	stats.MemoryStats.CommitPeak = 321323
 	stats.MemoryStats.PrivateWorkingSet = 62222
 
-	go dockerStatsCollector(dst, src, time.Second, top)
+	go dockerStatsCollector(dst, src, time.Second)
 
 	select {
 	case src <- stats:

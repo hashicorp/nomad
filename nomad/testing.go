@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -111,9 +111,6 @@ func TestConfigForServer(t testing.T) *Config {
 
 	// max job submission source size
 	config.JobMaxSourceSize = 1e6
-
-	// Default to having concurrent schedulers
-	config.NumSchedulers = 2
 
 	return config
 }

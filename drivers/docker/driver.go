@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package docker
 
@@ -23,9 +23,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-set"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
-	"github.com/hashicorp/nomad/client/lib/cpustats"
-	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -140,9 +138,6 @@ type Driver struct {
 	// gpuRuntime indicates nvidia-docker runtime availability
 	gpuRuntime bool
 
-	// top contains information about the system topology
-	top cpustats.Topology
-
 	// A tri-state boolean to know if the fingerprinting has happened and
 	// whether it has been successful
 	fingerprintSuccess *bool
@@ -158,10 +153,11 @@ type Driver struct {
 	infinityClient   *docker.Client // for wait and stop calls (use getInfinityClient())
 
 	danglingReconciler *containerReconciler
+	cpusetFixer        CpusetFixer
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
-func NewDockerDriver(ctx context.Context, top cpustats.Topology, logger hclog.Logger) drivers.DriverPlugin {
+func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	driver := &Driver{
 		eventer:         eventer.NewEventer(ctx, logger),
@@ -170,8 +166,8 @@ func NewDockerDriver(ctx context.Context, top cpustats.Topology, logger hclog.Lo
 		pauseContainers: newPauseContainerStore(),
 		ctx:             ctx,
 		logger:          logger,
-		top:             numalib.Scan(numalib.PlatformScanners()), // TODO(shoenig) grpc plumbing
 	}
+
 	return driver
 }
 
@@ -405,6 +401,17 @@ CREATE:
 	} else {
 		d.logger.Debug("re-attaching to container", "container_id",
 			container.ID, "container_state", container.State.String())
+	}
+
+	if !cgutil.UseV2 {
+		// This does not apply to cgroups.v2, which only allows setting the PID
+		// into exactly 1 group. For cgroups.v2, we use the cpuset fixer to reconcile
+		// the cpuset value into the cgroups created by docker in the background.
+		if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
+			if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
+				return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
+			}
+		}
 	}
 
 	collectingLogs := loggingIsEnabled(d.config, cfg)
@@ -904,6 +911,15 @@ func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (
 	return hard * 1024 * 1024, softBytes
 }
 
+// Extract the cgroup parent from the nomad cgroup (only for linux/v2)
+func cgroupParent(resources *drivers.Resources) string {
+	var parent string
+	if cgutil.UseV2 && resources != nil && resources.LinuxResources != nil {
+		parent, _ = cgutil.SplitPath(resources.LinuxResources.CpusetCgroupPath)
+	}
+	return parent
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -976,7 +992,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &docker.HostConfig{
-		// TODO(shoenig) set cgroup parent when we do partitioning
+		CgroupParent: cgroupParent(task.Resources), // if applicable
 
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
@@ -1035,8 +1051,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = memory
 
 		// disable swap explicitly in non-Windows environments
-		swappiness := int64(*(cgroupslib.MaybeDisableMemorySwappiness()))
-		hostConfig.MemorySwappiness = &swappiness
+		var swapiness int64 = 0
+		hostConfig.MemorySwappiness = &swapiness
+
 	}
 
 	loggingDriver := driverConfig.Logging.Type
@@ -1666,7 +1683,7 @@ func (d *Driver) TaskStats(ctx context.Context, taskID string, interval time.Dur
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	return h.Stats(ctx, interval, d.top)
+	return h.Stats(ctx, interval)
 }
 
 func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {

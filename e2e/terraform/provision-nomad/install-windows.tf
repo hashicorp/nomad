@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 resource "null_resource" "install_nomad_binary_windows" {
   count    = var.platform == "windows" ? 1 : 0

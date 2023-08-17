@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -17,8 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 	log "github.com/hashicorp/go-hclog"
 	kms "github.com/hashicorp/go-kms-wrapping/v2"
 	"github.com/hashicorp/go-kms-wrapping/v2/aead"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
-	"github.com/hashicorp/nomad/helper/joseutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -181,59 +179,48 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, e
 		}
 	}
 
-	opts := (&jose.SignerOptions{}).WithHeader("kid", keyset.rootKey.Meta.KeyID).WithType("JWT")
-	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.privateKey}, opts)
-	if err != nil {
-		return "", "", err
-	}
-	raw, err := jwt.Signed(sig).Claims(claim).CompactSerialize()
+	token := jwt.NewWithClaims(&jwt.SigningMethodEd25519{}, claim)
+	token.Header[keyIDHeader] = keyset.rootKey.Meta.KeyID
+
+	tokenString, err := token.SignedString(keyset.privateKey)
 	if err != nil {
 		return "", "", err
 	}
 
-	return raw, keyset.rootKey.Meta.KeyID, nil
+	return tokenString, keyset.rootKey.Meta.KeyID, nil
 }
 
 // VerifyClaim accepts a previously-signed encoded claim and validates
 // it before returning the claim
 func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
 
-	token, err := jwt.ParseSigned(tokenString)
+	token, err := jwt.ParseWithClaims(tokenString, &structs.IdentityClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodEd25519); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Method.Alg())
+		}
+		raw := token.Header[keyIDHeader]
+		if raw == nil {
+			return nil, fmt.Errorf("missing key ID header")
+		}
+		keyID := raw.(string)
+
+		e.lock.RLock()
+		defer e.lock.RUnlock()
+		keyset, err := e.keysetByIDLocked(keyID)
+		if err != nil {
+			return nil, err
+		}
+		return keyset.privateKey.Public(), nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse signed token: %w", err)
+		return nil, fmt.Errorf("failed to verify token: %v", err)
 	}
 
-	// Find the Key ID
-	keyID, err := joseutil.KeyID(token)
-	if err != nil {
-		return nil, err
+	claims, ok := token.Claims.(*structs.IdentityClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("failed to verify token: invalid token")
 	}
-
-	// Find the Key
-	pubKey, err := e.GetPublicKey(keyID)
-	if err != nil {
-		return nil, err
-	}
-
-	typedPubKey, err := pubKey.GetPublicKey()
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate the claims.
-	claims := &structs.IdentityClaims{}
-	if err := token.Claims(typedPubKey, claims); err != nil {
-		return nil, fmt.Errorf("invalid signature: %w", err)
-	}
-
-	//COMPAT Until we can guarantee there are no pre-1.7 JWTs in use we can only
-	//       validate the signature and have no further expectations of the
-	//       claims.
-	expect := jwt.Expected{}
-	if err := claims.Validate(expect); err != nil {
-		return nil, fmt.Errorf("invalid claims: %w", err)
-	}
-
 	return claims, nil
 }
 
@@ -402,26 +389,6 @@ func (e *Encrypter) loadKeyFromStore(path string) (*structs.RootKey, error) {
 	return &structs.RootKey{
 		Meta: meta,
 		Key:  key,
-	}, nil
-}
-
-// GetPublicKey returns the public signing key for the requested key id or an
-// error if the key could not be found.
-func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	ks, err := e.keysetByIDLocked(keyID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &structs.KeyringPublicKey{
-		KeyID:      ks.rootKey.Meta.KeyID,
-		PublicKey:  ks.privateKey.Public().(ed25519.PublicKey),
-		Algorithm:  structs.PubKeyAlgEdDSA,
-		Use:        structs.PubKeyUseSig,
-		CreateTime: ks.rootKey.Meta.CreateTime,
 	}, nil
 }
 

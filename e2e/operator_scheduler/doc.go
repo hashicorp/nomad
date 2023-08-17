@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 // Package operator_scheduler provides end-to-end tests for the Nomad operator
 // scheduler functionality and configuration options.

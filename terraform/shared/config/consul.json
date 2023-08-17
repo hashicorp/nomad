@@ -10,11 +10,5 @@
   "service": {
     "name": "consul"
   },
-  "retry_join": ["RETRY_JOIN"],
-  "ports": {
-    "grpc": 8502
-  },
-  "connect": {
-    "enabled": true
-  }
+  "retry_join": ["RETRY_JOIN"]
 }

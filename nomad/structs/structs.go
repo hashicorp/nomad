@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package structs
 
@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/go-jose/go-jose/v3/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -1680,14 +1680,9 @@ type SingleAllocResponse struct {
 	QueryMeta
 }
 
-// AllocsGetResponse is used to return a set of allocations and their workload
-// identities.
+// AllocsGetResponse is used to return a set of allocations
 type AllocsGetResponse struct {
 	Allocs []*Allocation
-
-	// SignedIdentities are the alternate workload identities for the Allocs.
-	SignedIdentities []SignedWorkloadIdentity
-
 	QueryMeta
 }
 
@@ -7495,12 +7490,9 @@ type Task struct {
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
 
-	// Identity is the default Nomad Workload Identity.
+	// Identity controls if and how the workload identity is exposed to
+	// tasks similar to the Vault block.
 	Identity *WorkloadIdentity
-
-	// Identities are the alternate workload identities for use with 3rd party
-	// endpoints.
-	Identities []*WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7562,7 +7554,6 @@ func (t *Task) Copy() *Task {
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
-	nt.Identities = helper.CopySlice(nt.Identities)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -7630,30 +7621,6 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	for _, template := range t.Templates {
 		template.Canonicalize()
 	}
-
-	// Initialize default Nomad workload identity
-	defaultIdx := -1
-	for i, wid := range t.Identities {
-		wid.Canonicalize()
-
-		// For backward compatibility put the default identity in Task.Identity.
-		if wid.Name == WorkloadIdentityDefaultName {
-			t.Identity = wid
-			defaultIdx = i
-		}
-	}
-
-	// If the default identity was found in Identities above, remove it from the
-	// slice.
-	if defaultIdx >= 0 {
-		t.Identities = slices.Delete(t.Identities, defaultIdx, defaultIdx+1)
-	}
-
-	// If there was no default identity, always create one.
-	if t.Identity == nil {
-		t.Identity = &WorkloadIdentity{}
-	}
-	t.Identity.Canonicalize()
 }
 
 func (t *Task) GoString() string {
@@ -7833,19 +7800,6 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
 	}
 
-	// Validate Identity/Identities
-	for _, wid := range t.Identities {
-		// Task.Canonicalize should move the default identity out of the Identities
-		// slice, so if one is found that means it is a duplicate.
-		if wid.Name == WorkloadIdentityDefaultName {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate default identities found"))
-		}
-
-		if err := wid.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", wid.Name, err))
-		}
-	}
-
 	return mErr.ErrorOrNil()
 }
 
@@ -8016,13 +7970,6 @@ func (t *Task) Warnings() error {
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Warnings(); err != nil {
 			err = multierror.Prefix(err, fmt.Sprintf("Template[%d]", idx))
-			mErr.Errors = append(mErr.Errors, err)
-		}
-	}
-
-	for _, wid := range t.Identities {
-		if err := wid.Warnings(); err != nil {
-			err = multierror.Prefix(err, fmt.Sprintf("Identity[%s]", wid.Name))
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -11153,6 +11100,35 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
+func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
+	now := jwt.NewNumericDate(time.Now().UTC())
+	claims := &IdentityClaims{
+		Namespace:    a.Namespace,
+		JobID:        a.JobID,
+		AllocationID: a.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			// TODO: implement a refresh loop to prevent allocation identities from
+			// expiring before the allocation is terminal. Once that's implemented,
+			// add an ExpiresAt here ExpiresAt: &jwt.NumericDate{}
+			// https://github.com/hashicorp/nomad/issues/16258
+			NotBefore: now,
+			IssuedAt:  now,
+		},
+	}
+	if job != nil && job.ParentID != "" {
+		claims.JobID = job.ParentID
+	}
+	return claims
+}
+
+func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string) *IdentityClaims {
+	claims := a.ToIdentityClaims(job)
+	if claims != nil {
+		claims.TaskName = taskName
+	}
+	return claims
+}
+
 // IdentityClaims are the input to a JWT identifying a workload. It
 // should never be serialized to msgpack unsigned.
 type IdentityClaims struct {
@@ -11161,56 +11137,7 @@ type IdentityClaims struct {
 	AllocationID string `json:"nomad_allocation_id"`
 	TaskName     string `json:"nomad_task"`
 
-	jwt.Claims
-}
-
-// NewIdentityClaims returns new workload identity claims. Since it may be
-// called with a denormalized Allocation, the Job must be passed in distinctly.
-//
-// ID claim is random (nondeterministic) so multiple calls with the same values
-// will not return equal claims by design. JWT IDs should never collide.
-func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
-
-	tg := job.LookupTaskGroup(alloc.TaskGroup)
-	if tg == nil {
-		return nil
-	}
-
-	jwtnow := jwt.NewNumericDate(now.UTC())
-	claims := &IdentityClaims{
-		Namespace:    alloc.Namespace,
-		JobID:        alloc.JobID,
-		AllocationID: alloc.ID,
-		Claims: jwt.Claims{
-			NotBefore: jwtnow,
-			IssuedAt:  jwtnow,
-		},
-	}
-
-	// If this is a child job, use the parent's ID
-	if job.ParentID != "" {
-		claims.JobID = job.ParentID
-	}
-
-	claims.TaskName = taskName
-	claims.Audience = wid.Audience
-	claims.SetSubject(job, alloc.TaskGroup, taskName, wid.Name)
-
-	claims.ID = uuid.Generate()
-
-	return claims
-}
-
-// SetSubject creates the standard subject claim for workload identities.
-func (claims *IdentityClaims) SetSubject(job *Job, group, task, id string) {
-	claims.Subject = strings.Join([]string{
-		job.Region,
-		job.Namespace,
-		job.ID,
-		group,
-		task,
-		id,
-	}, ":")
+	jwt.RegisteredClaims
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),

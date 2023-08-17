@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package nomad
 
@@ -64,15 +64,15 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
 
-	claims1 := structs.NewIdentityClaims(alloc1.Job, alloc1, "web", alloc1.LookupTask("web").Identity, time.Now())
+	claims1 := alloc1.ToTaskIdentityClaims(nil, "web")
 	idToken, _, err := srv.encrypter.SignClaims(claims1)
 	must.NoError(t, err)
 
-	claims2 := structs.NewIdentityClaims(alloc2.Job, alloc2, "web", alloc2.LookupTask("web").Identity, time.Now())
+	claims2 := alloc2.ToTaskIdentityClaims(nil, "web")
 	noPermissionsToken, _, err := srv.encrypter.SignClaims(claims2)
 	must.NoError(t, err)
 
-	claims3 := structs.NewIdentityClaims(alloc3.Job, alloc3, "web", alloc3.LookupTask("web").Identity, time.Now())
+	claims3 := alloc3.ToTaskIdentityClaims(alloc3.Job, "web")
 	idDispatchToken, _, err := srv.encrypter.SignClaims(claims3)
 	must.NoError(t, err)
 
@@ -86,7 +86,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	idTokenParts[2] = strings.Join(sig, "")
 	invalidIDToken := strings.Join(idTokenParts, ".")
 
-	claims4 := structs.NewIdentityClaims(alloc4.Job, alloc4, "web", alloc4.LookupTask("web").Identity, time.Now())
+	claims4 := alloc4.ToTaskIdentityClaims(alloc4.Job, "web")
 	wiOnlyToken, _, err := srv.encrypter.SignClaims(claims4)
 	must.NoError(t, err)
 
@@ -605,7 +605,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
 
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, "web", alloc.LookupTask("web").Identity, time.Now())
+	claims := alloc.ToTaskIdentityClaims(alloc.Job, "web")
 	token, _, err := srv.encrypter.SignClaims(claims)
 	must.NoError(t, err)
 

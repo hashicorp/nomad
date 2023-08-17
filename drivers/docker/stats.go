@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package docker
 
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
 	"github.com/hashicorp/nomad/helper"
@@ -79,7 +78,7 @@ func (u *usageSender) close() {
 
 // Stats starts collecting stats from the docker daemon and sends them on the
 // returned channel.
-func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, top cpustats.Topology) (<-chan *cstructs.TaskResourceUsage, error) {
+func (h *taskHandle) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
 	select {
 	case <-h.doneCh:
 		return nil, nstructs.NewRecoverableError(fmt.Errorf("container stopped"), false)
@@ -87,12 +86,12 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, top cpus
 	}
 
 	destCh, recvCh := newStatsChanPipe()
-	go h.collectStats(ctx, destCh, interval, top)
+	go h.collectStats(ctx, destCh, interval)
 	return recvCh, nil
 }
 
 // collectStats starts collecting resource usage stats of a docker container
-func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration, top cpustats.Topology) {
+func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration) {
 	defer destCh.close()
 
 	// backoff and retry used if the docker stats API returns an error
@@ -121,7 +120,7 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		// receive stats from docker and emit nomad stats
 		// statsCh will always be closed by docker client.
 		statsCh := make(chan *docker.Stats)
-		go dockerStatsCollector(destCh, statsCh, interval, top)
+		go dockerStatsCollector(destCh, statsCh, interval)
 
 		statsOpts := docker.StatsOptions{
 			ID:      h.containerID,
@@ -147,7 +146,7 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 	}
 }
 
-func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, interval time.Duration, top cpustats.Topology) {
+func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, interval time.Duration) {
 	var resourceUsage *cstructs.TaskResourceUsage
 
 	// hasSentInitialStats is used so as to emit the first stats received from
@@ -177,7 +176,7 @@ func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, int
 			}
 			// s should always be set, but check and skip just in case
 			if s != nil {
-				resourceUsage = util.DockerStatsToTaskResourceUsage(s, top)
+				resourceUsage = util.DockerStatsToTaskResourceUsage(s)
 				// send stats next interation if this is the first time received
 				// from docker
 				if !hasSentInitialStats {

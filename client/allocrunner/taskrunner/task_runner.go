@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package taskrunner
 
@@ -11,10 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/slices"
+
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -24,7 +27,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -40,7 +43,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -229,6 +231,9 @@ type TaskRunner struct {
 	// statistics
 	devicemanager devicemanager.Manager
 
+	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
+	cpusetCgroupPathGetter cgutil.CgroupPathGetter
+
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
@@ -261,13 +266,6 @@ type TaskRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
-
-	// wranglers manage unix/windows processes leveraging operating
-	// system features like cgroups
-	wranglers cinterfaces.ProcessWranglers
-
-	// widmgr fetches workload identities
-	widmgr IdentitySigner
 }
 
 type Config struct {
@@ -305,6 +303,9 @@ type Config struct {
 	// CSIManager is used to manage the mounting of CSI volumes into tasks
 	CSIManager csimanager.Manager
 
+	// CpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
+	CpusetCgroupPathGetter cgutil.CgroupPathGetter
+
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -334,15 +335,9 @@ type Config struct {
 	// Getter is an interface for retrieving artifacts.
 	Getter cinterfaces.ArtifactGetter
 
-	// Wranglers is an interface for managing OS processes.
-	Wranglers cinterfaces.ProcessWranglers
-
 	// AllocHookResources is how taskrunner hooks can get state written by
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
-
-	// WIDMgr fetches workload identities
-	WIDMgr IdentitySigner
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -367,44 +362,43 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                 config.Alloc,
-		allocID:               config.Alloc.ID,
-		clientConfig:          config.ClientConfig,
-		task:                  config.Task,
-		taskDir:               config.TaskDir,
-		taskName:              config.Task.Name,
-		taskLeader:            config.Task.Leader,
-		envBuilder:            envBuilder,
-		dynamicRegistry:       config.DynamicRegistry,
-		consulServiceClient:   config.Consul,
-		consulProxiesClient:   config.ConsulProxies,
-		siClient:              config.ConsulSI,
-		vaultClient:           config.Vault,
-		state:                 tstate,
-		localState:            state.NewLocalState(),
-		allocHookResources:    config.AllocHookResources,
-		stateDB:               config.StateDB,
-		stateUpdater:          config.StateUpdater,
-		deviceStatsReporter:   config.DeviceStatsReporter,
-		killCtx:               killCtx,
-		killCtxCancel:         killCancel,
-		shutdownCtx:           trCtx,
-		shutdownCtxCancel:     trCancel,
-		triggerUpdateCh:       make(chan struct{}, triggerUpdateChCap),
-		restartCh:             make(chan struct{}, restartChCap),
-		waitCh:                make(chan struct{}),
-		csiManager:            config.CSIManager,
-		devicemanager:         config.DeviceManager,
-		driverManager:         config.DriverManager,
-		maxEvents:             defaultMaxEvents,
-		serversContactedCh:    config.ServersContactedCh,
-		startConditionMetCh:   config.StartConditionMetCh,
-		shutdownDelayCtx:      config.ShutdownDelayCtx,
-		shutdownDelayCancelFn: config.ShutdownDelayCancelFn,
-		serviceRegWrapper:     config.ServiceRegWrapper,
-		getter:                config.Getter,
-		wranglers:             config.Wranglers,
-		widmgr:                config.WIDMgr,
+		alloc:                  config.Alloc,
+		allocID:                config.Alloc.ID,
+		clientConfig:           config.ClientConfig,
+		task:                   config.Task,
+		taskDir:                config.TaskDir,
+		taskName:               config.Task.Name,
+		taskLeader:             config.Task.Leader,
+		envBuilder:             envBuilder,
+		dynamicRegistry:        config.DynamicRegistry,
+		consulServiceClient:    config.Consul,
+		consulProxiesClient:    config.ConsulProxies,
+		siClient:               config.ConsulSI,
+		vaultClient:            config.Vault,
+		state:                  tstate,
+		localState:             state.NewLocalState(),
+		allocHookResources:     config.AllocHookResources,
+		stateDB:                config.StateDB,
+		stateUpdater:           config.StateUpdater,
+		deviceStatsReporter:    config.DeviceStatsReporter,
+		killCtx:                killCtx,
+		killCtxCancel:          killCancel,
+		shutdownCtx:            trCtx,
+		shutdownCtxCancel:      trCancel,
+		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
+		restartCh:              make(chan struct{}, restartChCap),
+		waitCh:                 make(chan struct{}),
+		csiManager:             config.CSIManager,
+		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
+		devicemanager:          config.DeviceManager,
+		driverManager:          config.DriverManager,
+		maxEvents:              defaultMaxEvents,
+		serversContactedCh:     config.ServersContactedCh,
+		startConditionMetCh:    config.StartConditionMetCh,
+		shutdownDelayCtx:       config.ShutdownDelayCtx,
+		shutdownDelayCancelFn:  config.ShutdownDelayCancelFn,
+		serviceRegWrapper:      config.ServiceRegWrapper,
+		getter:                 config.Getter,
 	}
 
 	// Create the logger based on the allocation ID
@@ -847,16 +841,19 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	}
 }
 
-func (tr *TaskRunner) assignCgroup(taskConfig *drivers.TaskConfig) {
-	p := cgroupslib.LinuxResourcesPath(taskConfig.AllocID, taskConfig.Name)
-	taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
-}
-
 // runDriver runs the driver and waits for it to exit
 // runDriver emits an appropriate task event on success/failure
 func (tr *TaskRunner) runDriver() error {
+
 	taskConfig := tr.buildTaskConfig()
-	tr.assignCgroup(taskConfig)
+	if tr.cpusetCgroupPathGetter != nil {
+		tr.logger.Trace("waiting for cgroup to exist for", "allocID", tr.allocID, "task", tr.task)
+		cpusetCgroupPath, err := tr.cpusetCgroupPathGetter(tr.killCtx)
+		if err != nil {
+			return err
+		}
+		taskConfig.Resources.LinuxResources.CpusetCgroupPath = cpusetCgroupPath
+	}
 
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()

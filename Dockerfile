@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 # docker.io/library/busybox:1.36.0
 # When pinning use the multi-arch manifest list, `docker buildx imagetools inspect ...`

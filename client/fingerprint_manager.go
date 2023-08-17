@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package client
 
@@ -29,10 +29,6 @@ type FingerprintManager struct {
 
 	reloadableFps map[string]fingerprint.ReloadableFingerprint
 
-	// initialResult is used to pass information detected during the first pass
-	// of fingerprinting back to the client
-	initialResult *fingerprint.InitialResult
-
 	logger log.Logger
 }
 
@@ -54,7 +50,6 @@ func NewFingerprintManager(
 		shutdownCh:           shutdownCh,
 		logger:               logger.Named("fingerprint_mgr"),
 		reloadableFps:        make(map[string]fingerprint.ReloadableFingerprint),
-		initialResult:        new(fingerprint.InitialResult),
 	}
 }
 
@@ -76,7 +71,7 @@ func (fm *FingerprintManager) getNode() *structs.Node {
 // identifying allowlisted and denylisted fingerprints/drivers. Then, for
 // those which require periotic checking, it starts a periodic process for
 // each.
-func (fm *FingerprintManager) Run() (*fingerprint.InitialResult, error) {
+func (fm *FingerprintManager) Run() error {
 	// First, set up all fingerprints
 	cfg := fm.getConfig()
 	// COMPAT(1.0) using inclusive language, whitelist is kept for backward compatibility.
@@ -105,7 +100,7 @@ func (fm *FingerprintManager) Run() (*fingerprint.InitialResult, error) {
 	}
 
 	if err := fm.setupFingerprinters(availableFingerprints); err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(skippedFingerprints) != 0 {
@@ -113,7 +108,7 @@ func (fm *FingerprintManager) Run() (*fingerprint.InitialResult, error) {
 			"skipped_fingerprinters", skippedFingerprints)
 	}
 
-	return fm.initialResult, nil
+	return nil
 }
 
 // Reload will reload any registered ReloadableFingerprinters and immediately call Fingerprint
@@ -206,10 +201,6 @@ func (fm *FingerprintManager) fingerprint(name string, f fingerprint.Fingerprint
 
 	if node := fm.updateNodeAttributes(&response); node != nil {
 		fm.setNode(node)
-	}
-
-	if response.UpdateInitialResult != nil {
-		response.UpdateInitialResult(fm.initialResult)
 	}
 
 	return response.Detected, nil

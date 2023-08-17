@@ -1,6 +1,6 @@
 /**
  * Copyright (c) HashiCorp, Inc.
- * SPDX-License-Identifier: BUSL-1.1
+ * SPDX-License-Identifier: MPL-2.0
  */
 
 import Ember from 'ember';
@@ -117,7 +117,7 @@ export default function () {
       200,
       {},
       JSON.stringify({
-        Source: 'the job source v0',
+        Source: `job "${req.params.id}" {`,
         Format: 'hcl2',
         VariableFlags: { X: 'x', Y: '42', Z: 'true' },
         Variables: 'var file content',

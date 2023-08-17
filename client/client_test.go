@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package client
 
@@ -26,6 +26,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
@@ -1007,13 +1008,18 @@ func TestClient_Init(t *testing.T) {
 	config.Node = mock.Node()
 
 	client := &Client{
-		config: config,
-		logger: testlog.HCLogger(t),
+		config:        config,
+		logger:        testlog.HCLogger(t),
+		cpusetManager: new(cgutil.NoopCpusetManager),
 	}
 
-	must.NoError(t, client.init())
-	_, err := os.Stat(allocDir)
-	must.NoError(t, err)
+	if err := client.init(); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if _, err := os.Stat(allocDir); err != nil {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 func TestClient_BlockedAllocations(t *testing.T) {

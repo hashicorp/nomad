@@ -1,9 +1,9 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package fingerprint
 
 func initPlatformFingerprints(fps map[string]Factory) {
-	fps["cgroup"] = NewCgroupFingerprint
+	fps["cgroup"] = NewCGroupFingerprint
 	fps["bridge"] = NewBridgeFingerprint
 }

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package fingerprint
 
@@ -16,8 +16,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	log "github.com/hashicorp/go-hclog"
+
+	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -133,11 +135,13 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	}
 
 	// accumulate resource information, then assign to response
-	nodeResources := new(structs.NodeResources)
+	var resources *structs.Resources
+	var nodeResources *structs.NodeResources
 
 	// copy over network specific information
 	if val, ok := response.Attributes["unique.platform.aws.local-ipv4"]; ok && val != "" {
 		response.AddAttribute("unique.network.ip-address", val)
+		nodeResources = new(structs.NodeResources)
 		nodeResources.Networks = []*structs.NetworkResource{
 			{
 				Mode:   "host",
@@ -173,6 +177,30 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		}
 	}
 
+	// copy over CPU speed information
+	if specs := f.lookupCPU(ec2meta); specs != nil {
+		response.AddAttribute("cpu.frequency", fmt.Sprintf("%d", specs.MHz))
+		response.AddAttribute("cpu.numcores", fmt.Sprintf("%d", specs.Cores))
+		f.logger.Debug("lookup ec2 cpu", "cores", specs.Cores, "ghz", log.Fmt("%.1f", specs.GHz()))
+
+		if ticks := specs.Ticks(); request.Config.CpuCompute <= 0 {
+			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", ticks))
+			f.logger.Debug("setting ec2 cpu", "ticks", ticks)
+			stats.SetCpuTotalTicks(uint64(ticks))
+			resources = new(structs.Resources)
+			resources.CPU = ticks
+			if nodeResources == nil {
+				nodeResources = new(structs.NodeResources)
+			}
+			nodeResources.Cpu = structs.NodeCpuResources{CpuShares: int64(ticks)}
+		} else {
+			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", request.Config.CpuCompute))
+		}
+	} else {
+		f.logger.Warn("failed to find the cpu specification for this instance type")
+	}
+
+	response.Resources = resources
 	response.NodeResources = nodeResources
 
 	// populate Links
@@ -190,6 +218,15 @@ func (f *EnvAWSFingerprint) instanceType(ec2meta *ec2metadata.EC2Metadata) (stri
 		return "", err
 	}
 	return strings.TrimSpace(response), nil
+}
+
+func (f *EnvAWSFingerprint) lookupCPU(ec2meta *ec2metadata.EC2Metadata) *CPU {
+	instanceType, err := f.instanceType(ec2meta)
+	if err != nil {
+		f.logger.Warn("failed to read EC2 metadata instance-type", "error", err)
+		return nil
+	}
+	return LookupEC2CPU(instanceType)
 }
 
 func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, ec2meta *ec2metadata.EC2Metadata, ip string) int {

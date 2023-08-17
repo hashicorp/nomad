@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package testutil
 
@@ -78,8 +78,7 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
-	Enabled      bool `json:"enabled"`
-	TotalCompute int  `json:"cpu_total_compute"`
+	Enabled bool `json:"enabled"`
 }
 
 // VaultConfig is used to configure Vault

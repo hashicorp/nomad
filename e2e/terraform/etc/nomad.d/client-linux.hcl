@@ -1,5 +1,5 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 plugin_dir = "/opt/nomad/plugins"
 
@@ -14,10 +14,6 @@ plugin "nomad-driver-podman" {
   config {
     volumes {
       enabled = true
-    }
-    auth {
-      helper = "test.sh"
-      config = "/etc/auth.json"
     }
   }
 }
@@ -43,11 +39,5 @@ plugin "docker" {
     volumes {
       enabled = true
     }
-  }
-}
-
-plugin "nomad-pledge-driver" {
-  config {
-    pledge_executable = "/usr/local/bin/pledge"
   }
 }

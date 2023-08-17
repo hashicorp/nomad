@@ -49,7 +49,10 @@ jobs:
       - uses: hashicorp/setup-golang@v1
       - run: make deps
       - name: Vault Compatability
-        run: make integration-test
+        run: |
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make integration-test
+          sudo -E env "PATH=$PATH" make clean
       - run: make e2e-test
 permissions:
   contents: read

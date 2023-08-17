@@ -1,6 +1,6 @@
 #!/usr/local/bin/dumb-init /bin/sh
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 # Script created following HashiCorp's model for Consul: 
 # https://github.com/hashicorp/docker-consul/blob/master/0.X/docker-entrypoint.sh

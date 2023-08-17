@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package client
 
@@ -31,10 +31,8 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/hoststats"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/proclib"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -44,15 +42,15 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/nsd"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
-	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
+	hstats "github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -136,7 +134,7 @@ type ClientStatsReporter interface {
 	GetAllocStats(allocID string) (interfaces.AllocStatsReporter, error)
 
 	// LatestHostStats returns the latest resource usage stats for the host
-	LatestHostStats() *hoststats.HostStats
+	LatestHostStats() *stats.HostStats
 }
 
 // Client is used to implement the client interaction with Nomad. Clients
@@ -244,7 +242,7 @@ type Client struct {
 	consulCatalog consul.CatalogAPI
 
 	// HostStatsCollector collects host resource usage stats
-	hostStatsCollector *hoststats.HostStatsCollector
+	hostStatsCollector *stats.HostStatsCollector
 
 	// shutdown is true when the Client has been shutdown. Must hold
 	// shutdownLock to access.
@@ -317,22 +315,14 @@ type Client struct {
 	// with a nomad client. Currently only used for CSI.
 	dynamicRegistry dynamicplugins.Registry
 
+	// cpusetManager configures cpusets on supported platforms
+	cpusetManager cgutil.CpusetManager
+
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
-
-	// wranglers is used to keep track of processes and manage their interaction
-	// with drivers and stuff
-	wranglers *proclib.Wranglers
-
-	// topology represents the system memory / cpu topology detected via
-	// fingerprinting
-	topology *numalib.Topology
-
-	// widmgr retrieves workload identities
-	widmgr *widmgr.WIDMgr
 }
 
 var (
@@ -392,6 +382,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		serversContactedOnce: sync.Once{},
 		registeredCh:         make(chan struct{}),
 		registeredOnce:       sync.Once{},
+		cpusetManager:        cgutil.CreateCPUSetManager(cfg.CgroupParent, cfg.ReservableCores, logger),
 		getter:               getter.New(cfg.Artifact, logger),
 		EnterpriseClient:     newEnterpriseClient(logger),
 		allocrunnerFactory:   cfg.AllocRunnerFactory,
@@ -441,35 +432,16 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	// Add workload identity manager after node secret has been generated/loaded
-	c.widmgr = widmgr.New(widmgr.Config{
-		NodeSecret: c.secretNodeID(),
-		Region:     cfg.Region,
-		RPC:        c,
-	})
-
 	c.fingerprintManager = NewFingerprintManager(
-		cfg.PluginSingletonLoader,
-		c.GetConfig,
-		cfg.Node,
-		c.shutdownCh,
-		c.updateNodeFromFingerprint,
-		c.logger,
-	)
+		cfg.PluginSingletonLoader, c.GetConfig, cfg.Node,
+		c.shutdownCh, c.updateNodeFromFingerprint, c.logger)
+
 	c.pluginManagers = pluginmanager.New(c.logger)
 
 	// Fingerprint the node and scan for drivers
-	if ir, err := c.fingerprintManager.Run(); err != nil {
+	if err := c.fingerprintManager.Run(); err != nil {
 		return nil, fmt.Errorf("fingerprinting failed: %v", err)
-	} else {
-		c.topology = numalib.NoImpl(ir.Topology)
 	}
-
-	// Create the process wranglers
-	wranglers := proclib.New(&proclib.Configs{
-		Logger: c.logger.Named("proclib"),
-	})
-	c.wranglers = wranglers
 
 	// Build the allow/denylists of drivers.
 	// COMPAT(1.0) uses inclusive language. white/blacklist are there for backward compatible reasons only.
@@ -534,7 +506,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	go c.heartbeatStop.watch()
 
 	// Add the stats collector
-	statsCollector := hoststats.NewHostStatsCollector(c.logger, c.topology, c.GetConfig().AllocDir, c.devicemanager.AllStats)
+	statsCollector := stats.NewHostStatsCollector(c.logger, c.GetConfig().AllocDir, c.devicemanager.AllStats)
 	c.hostStatsCollector = statsCollector
 
 	// Add the garbage collector
@@ -707,6 +679,9 @@ func (c *Client) init() error {
 		"max", conf.MaxDynamicPort,
 		"reserved", reserved,
 	)
+
+	// startup the CPUSet manager
+	c.cpusetManager.Init()
 
 	// setup the nsd check store
 	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
@@ -918,7 +893,7 @@ func (c *Client) Stats() map[string]map[string]string {
 			"last_heartbeat":  fmt.Sprintf("%v", time.Since(c.lastHeartbeat())),
 			"heartbeat_ttl":   fmt.Sprintf("%v", c.heartbeatTTL),
 		},
-		"runtime": goruntime.RuntimeStats(),
+		"runtime": hstats.RuntimeStats(),
 	}
 	return stats
 }
@@ -1018,7 +993,7 @@ func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, e
 }
 
 // LatestHostStats returns all the stats related to a Nomad client.
-func (c *Client) LatestHostStats() *hoststats.HostStats {
+func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
 }
 
@@ -1250,6 +1225,7 @@ func (c *Client) restoreState() error {
 			PrevAllocMigrator:   prevAllocMigrator,
 			DynamicRegistry:     c.dynamicRegistry,
 			CSIManager:          c.csimanager,
+			CpusetManager:       c.cpusetManager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
@@ -1257,7 +1233,6 @@ func (c *Client) restoreState() error {
 			CheckStore:          c.checkStore,
 			RPCClient:           c,
 			Getter:              c.getter,
-			Wranglers:           c.wranglers,
 		}
 
 		ar, err := c.allocrunnerFactory(arConf)
@@ -1513,7 +1488,6 @@ func (c *Client) setupNode() error {
 		node.NodeResources = &structs.NodeResources{}
 		node.NodeResources.MinDynamicPort = newConfig.MinDynamicPort
 		node.NodeResources.MaxDynamicPort = newConfig.MaxDynamicPort
-		node.NodeResources.Cpu = newConfig.Node.NodeResources.Cpu
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1666,7 +1640,9 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 	// update the response networks with the config
 	// if we still have node changes, merge them
 	if response.NodeResources != nil {
-		response.NodeResources.Networks = updateNetworks(response.NodeResources.Networks, newConfig)
+		response.NodeResources.Networks = updateNetworks(
+			response.NodeResources.Networks,
+			newConfig)
 		if !newConfig.Node.NodeResources.Equal(response.NodeResources) {
 			newConfig.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
@@ -1679,10 +1655,6 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 			nodeHasChanged = true
 		}
 
-		// update config with total cpu compute if it was detected
-		if cpu := int(response.NodeResources.Cpu.CpuShares); cpu > 0 {
-			newConfig.CpuCompute = cpu
-		}
 	}
 
 	if nodeHasChanged {
@@ -2729,14 +2701,13 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		PrevAllocMigrator:   prevAllocMigrator,
 		DynamicRegistry:     c.dynamicRegistry,
 		CSIManager:          c.csimanager,
+		CpusetManager:       c.cpusetManager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 		ServiceRegWrapper:   c.serviceRegWrapper,
 		CheckStore:          c.checkStore,
 		RPCClient:           c,
 		Getter:              c.getter,
-		Wranglers:           c.wranglers,
-		WIDMgr:              c.widmgr,
 	}
 
 	ar, err := c.allocrunnerFactory(arConf)
@@ -3124,7 +3095,7 @@ func (c *Client) emitStats() {
 }
 
 // setGaugeForMemoryStats proxies metrics for memory specific statistics
-func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
@@ -3132,7 +3103,7 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostSta
 }
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
-func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3155,7 +3126,7 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats,
 }
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
-func (c *Client) setGaugeForDiskStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3223,7 +3194,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 }
 
 // No labels are required so we emit with only a key/value syntax
-func (c *Client) setGaugeForUptime(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForUptime(hStats *stats.HostStats, baseLabels []metrics.Label) {
 	metrics.SetGaugeWithLabels([]string{"client", "uptime"}, float32(hStats.Uptime), baseLabels)
 }
 

@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package client
 
@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
+	hclog "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/hoststats"
+	"github.com/hashicorp/nomad/client/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -46,7 +47,7 @@ type AllocGarbageCollector struct {
 	allocRunners *IndexedGCAllocPQ
 
 	// statsCollector for node based thresholds (eg disk)
-	statsCollector hoststats.NodeStatsCollector
+	statsCollector stats.NodeStatsCollector
 
 	// allocCounter return the number of un-GC'd allocs on this node
 	allocCounter AllocCounter
@@ -67,7 +68,7 @@ type AllocGarbageCollector struct {
 // NewAllocGarbageCollector returns a garbage collector for terminated
 // allocations on a node. Must call Run() in a goroutine enable periodic
 // garbage collection.
-func NewAllocGarbageCollector(logger hclog.Logger, statsCollector hoststats.NodeStatsCollector, ac AllocCounter, config *GCConfig) *AllocGarbageCollector {
+func NewAllocGarbageCollector(logger hclog.Logger, statsCollector stats.NodeStatsCollector, ac AllocCounter, config *GCConfig) *AllocGarbageCollector {
 	logger = logger.Named("gc")
 	// Require at least 1 to make progress
 	if config.ParallelDestroys <= 0 {
@@ -295,7 +296,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 
 		// Collect host stats and see if we still need to remove older
 		// allocations
-		var allocDirStats *hoststats.DiskStats
+		var allocDirStats *stats.DiskStats
 		if err := a.statsCollector.Collect(); err == nil {
 			if hostStats := a.statsCollector.Stats(); hostStats != nil {
 				allocDirStats = hostStats.AllocDirStats
