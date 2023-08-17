@@ -23,6 +23,9 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-set"
+	"github.com/ryanuber/go-glob"
+	"golang.org/x/exp/slices"
+
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -33,12 +36,11 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/pointer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/ryanuber/go-glob"
-	"golang.org/x/exp/slices"
 )
 
 var (
@@ -1035,8 +1037,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.MemorySwap = memory
 
 		// disable swap explicitly in non-Windows environments
-		swappiness := int64(*(cgroupslib.MaybeDisableMemorySwappiness()))
-		hostConfig.MemorySwappiness = &swappiness
+		if cgroupslib.MaybeDisableMemorySwappiness() != nil {
+			hostConfig.MemorySwappiness = pointer.Of(int64(*(cgroupslib.MaybeDisableMemorySwappiness())))
+		} else {
+			hostConfig.MemorySwappiness = nil
+		}
 	}
 
 	loggingDriver := driverConfig.Logging.Type
