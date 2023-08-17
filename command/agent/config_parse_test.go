@@ -959,6 +959,7 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 	must.MapLen(t, 1, cfg.Vaults)
 	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
+	must.True(t, cfg.Vault == cfg.Vaults["default"]) // must be same pointer
 
 	// merge in the user's configuration
 	fc, err := LoadConfig("testdata/basic.hcl")

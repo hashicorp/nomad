@@ -1,9 +1,8 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# this default config should merge cleanly onto the basic config
+# this unnamed (default) config should merge cleanly onto the basic config
 vault {
-  name    = "default"
   enabled = true
   token   = "abracadabra"
 }

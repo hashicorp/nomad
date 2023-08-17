@@ -73,11 +73,11 @@ func (c *Command) readConfig() *Config {
 		Server: &ServerConfig{
 			ServerJoin: &ServerJoin{},
 		},
-		Vault:  &config.VaultConfig{},
-		Vaults: map[string]*config.VaultConfig{},
-		ACL:    &ACLConfig{},
-		Audit:  &config.AuditConfig{},
+		Vault: &config.VaultConfig{},
+		ACL:   &ACLConfig{},
+		Audit: &config.AuditConfig{},
 	}
+	cmdConfig.Vaults = map[string]*config.VaultConfig{"default": cmdConfig.Vault}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
