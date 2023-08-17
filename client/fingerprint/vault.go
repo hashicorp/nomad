@@ -12,6 +12,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/useragent"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 )
 
@@ -22,71 +23,90 @@ const (
 
 // VaultFingerprint is used to fingerprint for Vault
 type VaultFingerprint struct {
-	logger    log.Logger
-	client    *vapi.Client
-	lastState string
+	logger     log.Logger
+	clients    map[string]*vapi.Client
+	lastStates map[string]string
 }
 
 // NewVaultFingerprint is used to create a Vault fingerprint
 func NewVaultFingerprint(logger log.Logger) Fingerprint {
-	return &VaultFingerprint{logger: logger.Named("vault"), lastState: vaultUnavailable}
+	return &VaultFingerprint{
+		logger:     logger.Named("vault"),
+		clients:    map[string]*vapi.Client{},
+		lastStates: map[string]string{"default": vaultUnavailable},
+	}
 }
 
 func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
-	config := req.Config
-
-	if config.VaultConfig == nil || !config.VaultConfig.IsEnabled() {
-		return nil
+	for _, cfg := range f.vaultConfigs(req) {
+		err := f.fingerprintImpl(cfg, resp)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+// fingerprintImpl fingerprints for a single Vault cluster
+func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *FingerprintResponse) error {
 
 	// Only create the client once to avoid creating too many connections to Vault
-	if f.client == nil {
-		vaultConfig, err := config.VaultConfig.ApiConfig()
+	client := f.clients[cfg.Name]
+	if client == nil {
+		vaultConfig, err := cfg.ApiConfig()
 		if err != nil {
-			return fmt.Errorf("Failed to initialize the Vault client config: %v", err)
+			return fmt.Errorf("Failed to initialize the Vault client config for %s: %v", cfg.Name, err)
 		}
-		f.client, err = vapi.NewClient(vaultConfig)
+		client, err = vapi.NewClient(vaultConfig)
 		if err != nil {
-			return fmt.Errorf("Failed to initialize Vault client: %s", err)
+			return fmt.Errorf("Failed to initialize Vault client for %s: %s", cfg.Name, err)
 		}
-		useragent.SetHeaders(f.client)
+		f.clients[cfg.Name] = client
+		useragent.SetHeaders(client)
 	}
 
 	// Connect to vault and parse its information
-	status, err := f.client.Sys().SealStatus()
+	status, err := client.Sys().SealStatus()
 	if err != nil {
-
 		// Print a message indicating that Vault is not available anymore
-		if f.lastState == vaultAvailable {
-			f.logger.Info("Vault is unavailable")
+		if lastState, ok := f.lastStates[cfg.Name]; !ok || lastState == vaultAvailable {
+			f.logger.Info("Vault is unavailable", "cluster", cfg.Name)
 		}
-		f.lastState = vaultUnavailable
+		f.lastStates[cfg.Name] = vaultUnavailable
 		return nil
 	}
 
-	resp.AddAttribute("vault.accessible", strconv.FormatBool(true))
-	// We strip the Vault prefix because < 0.6.2 the version looks like:
-	// status.Version = "Vault v0.6.1"
-	resp.AddAttribute("vault.version", strings.TrimPrefix(status.Version, "Vault "))
-	resp.AddAttribute("vault.cluster_id", status.ClusterID)
-	resp.AddAttribute("vault.cluster_name", status.ClusterName)
+	if cfg.Name == "default" {
+		resp.AddAttribute("vault.accessible", strconv.FormatBool(true))
+		resp.AddAttribute("vault.version", strings.TrimPrefix(status.Version, "Vault "))
+		resp.AddAttribute("vault.cluster_id", status.ClusterID)
+		resp.AddAttribute("vault.cluster_name", status.ClusterName)
+	} else {
+		resp.AddAttribute(fmt.Sprintf("vault.%s.accessible", cfg.Name), strconv.FormatBool(true))
+		resp.AddAttribute(fmt.Sprintf("vault.%s.version", cfg.Name), strings.TrimPrefix(status.Version, "Vault "))
+		resp.AddAttribute(fmt.Sprintf("vault.%s.cluster_id", cfg.Name), status.ClusterID)
+		resp.AddAttribute(fmt.Sprintf("vault.%s.cluster_name", cfg.Name), status.ClusterName)
+	}
 
 	// If Vault was previously unavailable print a message to indicate the Agent
 	// is available now
-	if f.lastState == vaultUnavailable {
-		f.logger.Info("Vault is available")
+	if lastState, ok := f.lastStates[cfg.Name]; !ok || lastState == vaultUnavailable {
+		f.logger.Info("Vault is available", "cluster", cfg.Name)
 	}
-	f.lastState = vaultAvailable
+	f.lastStates[cfg.Name] = vaultAvailable
 	resp.Detected = true
 	return nil
 }
 
 func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
-	if f.lastState == vaultAvailable {
-		// Fingerprint infrequently once Vault is initially discovered with wide
-		// jitter to avoid thundering herds of fingerprints against central Vault
-		// servers.
-		return true, (30 * time.Second) + helper.RandomStagger(90*time.Second)
+	for _, lastState := range f.lastStates {
+		if lastState != vaultAvailable {
+			return true, 15 * time.Second
+		}
 	}
-	return true, 15 * time.Second
+
+	// Fingerprint infrequently once Vault is initially discovered with wide
+	// jitter to avoid thundering herds of fingerprints against central Vault
+	// servers.
+	return true, (30 * time.Second) + helper.RandomStagger(90*time.Second)
 }
