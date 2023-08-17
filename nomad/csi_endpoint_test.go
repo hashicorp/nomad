@@ -1198,7 +1198,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	}
 	var resp0 structs.NodeUpdateResponse
 	err = client.RPC("Node.Register", req0, &resp0)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := srv.connectedNodes()
@@ -1233,18 +1233,27 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 		}
 	}).Node
 	index++
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	volID := uuid.Generate()
-	vols := []*structs.CSIVolume{{
-		ID:        volID,
-		Namespace: structs.DefaultNamespace,
-		PluginID:  "minnie",
-		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
-	}}
+	noPluginVolID := uuid.Generate()
+	vols := []*structs.CSIVolume{
+		{
+			ID:        volID,
+			Namespace: structs.DefaultNamespace,
+			PluginID:  "minnie",
+			Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		},
+		{
+			ID:        noPluginVolID,
+			Namespace: structs.DefaultNamespace,
+			PluginID:  "doesnt-exist",
+			Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		},
+	}
 	index++
 	err = state.UpsertCSIVolume(index, vols)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Delete volumes
 
@@ -1261,7 +1270,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	}
 	resp1 := &structs.CSIVolumeCreateResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)
-	require.EqualError(t, err, "volume not found: bad")
+	must.EqError(t, err, "volume not found: bad")
 
 	// Make sure the valid volume wasn't deleted
 	req2 := &structs.CSIVolumeGetRequest{
@@ -1272,19 +1281,34 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	}
 	resp2 := &structs.CSIVolumeGetResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	require.NoError(t, err)
-	require.NotNil(t, resp2.Volume)
+	must.NoError(t, err)
+	must.NotNil(t, resp2.Volume)
 
 	// Fix the delete request
 	fake.NextDeleteError = nil
 	req1.VolumeIDs = []string{volID}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Make sure it was deregistered
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	require.NoError(t, err)
-	require.Nil(t, resp2.Volume)
+	must.NoError(t, err)
+	must.Nil(t, resp2.Volume)
+
+	// Create a delete request for a volume without plugin.
+	req3 := &structs.CSIVolumeDeleteRequest{
+		VolumeIDs: []string{noPluginVolID},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: ns,
+		},
+		Secrets: structs.CSISecrets{
+			"secret-key-1": "secret-val-1",
+		},
+	}
+	resp3 := &structs.CSIVolumeCreateResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req3, resp3)
+	must.EqError(t, err, fmt.Sprintf(`plugin "doesnt-exist" for volume "%s" not found`, noPluginVolID))
 }
 
 func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
