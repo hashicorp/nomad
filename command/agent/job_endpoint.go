@@ -1539,9 +1539,25 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			out[i].Connect = ApiConsulConnectToStructs(s.Connect)
 		}
 
+		if s.Identity != nil {
+			out[i].Identity = apiWorkloadIdentityToStructs(s.Identity)
+		}
+
 	}
 
 	return out
+}
+
+func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIdentity {
+	if in == nil {
+		return nil
+	}
+	return &structs.WorkloadIdentity{
+		Name:     in.Name,
+		Audience: in.Audience,
+		Env:      in.Env,
+		File:     in.File,
+	}
 }
 
 func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
