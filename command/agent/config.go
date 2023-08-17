@@ -136,9 +136,17 @@ type Config struct {
 	// discover the current Nomad servers.
 	Consul *config.ConsulConfig `hcl:"consul"`
 
-	// Vault contains the configuration for the Vault Agent and
+	// Vault contains the configuration for the default Vault Agent and
 	// parameters necessary to derive tokens.
-	Vault *config.VaultConfig `hcl:"vault"`
+	//
+	// TODO(tgross): we'll probably want to remove this field once we've added a
+	// selector so that we don't have to maintain it
+	Vault *config.VaultConfig
+
+	// Vaults is a map derived from multiple `vault` blocks, here to support
+	// features in Nomad Enterprise. The default Vault config pointer above will
+	// be found in this map under the name "default"
+	Vaults map[string]*config.VaultConfig
 
 	// UI is used to configure the web UI
 	UI *config.UIConfig `hcl:"ui"`
@@ -1264,7 +1272,7 @@ func DevConfig(mode *devModeConfig) *Config {
 
 // DefaultConfig is the baseline configuration for Nomad.
 func DefaultConfig() *Config {
-	return &Config{
+	cfg := &Config{
 		LogLevel:   "INFO",
 		Region:     "global",
 		Datacenter: "dc1",
@@ -1355,6 +1363,9 @@ func DefaultConfig() *Config {
 		DisableUpdateCheck: pointer.Of(false),
 		Limits:             config.DefaultLimits(),
 	}
+
+	cfg.Vaults = map[string]*config.VaultConfig{"default": cfg.Vault}
+	return cfg
 }
 
 // Listener can be used to get a new listener using a custom bind address.
@@ -1522,13 +1533,9 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Consul = result.Consul.Merge(b.Consul)
 	}
 
-	// Apply the Vault Configuration
-	if result.Vault == nil && b.Vault != nil {
-		vaultConfig := *b.Vault
-		result.Vault = &vaultConfig
-	} else if b.Vault != nil {
-		result.Vault = result.Vault.Merge(b.Vault)
-	}
+	// Apply the Vault Configurations and overwrite the default Vault config
+	result.Vaults = mergeVaultConfigs(result.Vaults, b.Vaults)
+	result.Vault = result.Vaults["default"]
 
 	// Apply the UI Configuration
 	if result.UI == nil && b.UI != nil {
@@ -1579,6 +1586,21 @@ func (c *Config) Merge(b *Config) *Config {
 	return &result
 }
 
+func mergeVaultConfigs(left, right map[string]*config.VaultConfig) map[string]*config.VaultConfig {
+	merged := helper.DeepCopyMap(left)
+	if left == nil {
+		merged = map[string]*config.VaultConfig{}
+	}
+	for name, rConfig := range right {
+		if lConfig, ok := left[name]; ok {
+			merged[name] = lConfig.Merge(rConfig)
+		} else {
+			merged[name] = rConfig.Copy()
+		}
+	}
+	return merged
+}
+
 // Copy returns a deep copy safe for mutation.
 func (c *Config) Copy() *Config {
 	if c == nil {
@@ -1597,6 +1619,7 @@ func (c *Config) Copy() *Config {
 	nc.DisableUpdateCheck = pointer.Copy(c.DisableUpdateCheck)
 	nc.Consul = c.Consul.Copy()
 	nc.Vault = c.Vault.Copy()
+	nc.Vaults = helper.DeepCopyMap(c.Vaults)
 	nc.UI = c.UI.Copy()
 
 	nc.NomadConfig = c.NomadConfig.Copy()

@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/mitchellh/mapstructure"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.
@@ -57,6 +59,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
 		Vault:     &config.VaultConfig{},
+		Vaults:    map[string]*config.VaultConfig{},
 	}
 
 	err = hcl.Decode(c, buf.String())
@@ -154,6 +157,23 @@ func ParseConfigFile(path string) (*Config, error) {
 	err = convertDurations(tds)
 	if err != nil {
 		return nil, err
+	}
+
+	// Re-parse the file to extract the multiple Vault configurations, which we
+	// need to parse by hand because we don't have a label on the block
+	root, err := hcl.Parse(buf.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HCL file %s: %w", path, err)
+	}
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return nil, fmt.Errorf("error parsing: root should be an object")
+	}
+	matches := list.Filter("vault")
+	if len(matches.Items) > 0 {
+		if err := parseVaults(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'vault': %w", err)
+		}
 	}
 
 	// report unexpected keys
@@ -261,6 +281,10 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
+	// The `vault` blocks are parsed separately from the Decode method, so it
+	// will incorrectly report them as extra keys
+	helper.RemoveEqualFold(&c.ExtraKeysHCL, "vault")
+
 	return helper.UnusedKeys(c)
 }
 
@@ -292,4 +316,36 @@ func finalizeClientTemplateConfig(config *Config) {
 	if config.Client.TemplateConfig.IsEmpty() {
 		config.Client.TemplateConfig = nil
 	}
+}
+
+// parseVaults decodes the `vault` blocks. The hcl.Decode method can't parse
+// these correctly as HCL1 because they don't have labels, which would result in
+// all the blocks getting merged regardless of name.
+func parseVaults(c *Config, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	for _, obj := range list.Items {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+		v := &config.VaultConfig{}
+		err := mapstructure.WeakDecode(m, v)
+		if err != nil {
+			return err
+		}
+		if v.Name == "" {
+			v.Name = "default"
+		}
+		if exist, ok := c.Vaults[v.Name]; ok {
+			c.Vaults[v.Name] = exist.Merge(v)
+		} else {
+			c.Vaults[v.Name] = v
+		}
+	}
+
+	c.Vault = c.Vaults["default"]
+	return nil
 }

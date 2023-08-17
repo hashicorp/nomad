@@ -507,7 +507,11 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Add the Consul and Vault configs
 	conf.ConsulConfig = agentConfig.Consul
+
 	conf.VaultConfig = agentConfig.Vault
+	for _, vaultConfig := range agentConfig.Vaults {
+		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
+	}
 
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
@@ -799,7 +803,11 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.ConsulConfig = agentConfig.Consul
+
 	conf.VaultConfig = agentConfig.Vault
+	for _, vaultConfig := range agentConfig.Vaults {
+		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
+	}
 
 	// Set up Telemetry configuration
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval

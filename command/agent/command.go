@@ -77,6 +77,7 @@ func (c *Command) readConfig() *Config {
 		ACL:   &ACLConfig{},
 		Audit: &config.AuditConfig{},
 	}
+	cmdConfig.Vaults = map[string]*config.VaultConfig{"default": cmdConfig.Vault}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }

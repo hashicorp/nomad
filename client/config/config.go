@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -171,8 +172,13 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *structsc.ConsulConfig
 
-	// VaultConfig is this Agent's Vault configuration
+	// VaultConfig is this Agent's default Vault configuration
 	VaultConfig *structsc.VaultConfig
+
+	// VaultConfigs is a map of Vault configurations, here to support features
+	// in Nomad Enterprise. The default Vault config pointer above will be found
+	// in this map under the name "default"
+	VaultConfigs map[string]*structsc.VaultConfig
 
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
@@ -748,6 +754,7 @@ func (c *Config) Copy() *Config {
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
@@ -756,7 +763,7 @@ func (c *Config) Copy() *Config {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
-	return &Config{
+	cfg := &Config{
 		Version:                 version.GetVersion(),
 		VaultConfig:             structsc.DefaultVaultConfig(),
 		ConsulConfig:            structsc.DefaultConsulConfig(),
@@ -798,6 +805,10 @@ func DefaultConfig() *Config {
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
+
+	cfg.VaultConfigs = map[string]*structsc.VaultConfig{
+		"default": cfg.VaultConfig}
+	return cfg
 }
 
 // Read returns the specified configuration value or "".
