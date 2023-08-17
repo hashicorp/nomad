@@ -665,6 +665,11 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, conDiffs)
 	}
 
+	// Workload Identity diffs
+	if wiDiffs := identityDiffs(old.Identity, new.Identity, contextual); wiDiffs != nil {
+		diff.Objects = append(diff.Objects, wiDiffs)
+	}
+
 	return diff
 }
 
@@ -883,6 +888,38 @@ func checkRestartDiff(old, new *CheckRestart, contextual bool) *ObjectDiff {
 	}
 
 	diff.Fields = fieldDiffs(oldFlat, newFlat, contextual)
+	return diff
+}
+
+func identityDiffs(old, new *WorkloadIdentity, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Identity"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &WorkloadIdentity{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &WorkloadIdentity{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	audDiff := stringSetDiff(old.Audience, new.Audience, "Audience", contextual)
+	if audDiff != nil {
+		fmt.Println("this is happening")
+		diff.Objects = append(diff.Objects, audDiff)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
 	return diff
 }
 
