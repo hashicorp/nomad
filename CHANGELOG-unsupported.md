@@ -2,6 +2,12 @@
 
 The versions of Nomad listed here are no longer supported by HashiCorp.
 
+## 1.3.16 (August 18, 2023)
+
+BUG FIXES:
+
+* core: fixed a bug that caused job validation to fail when a task with `kill_timeout` was placed inside a group with `update.progress_deadline` set to 0 [[GH-17342](https://github.com/hashicorp/nomad/issues/17342)]
+
 ## 1.3.15 (May 19, 2023)
 
 BUG FIXES:
