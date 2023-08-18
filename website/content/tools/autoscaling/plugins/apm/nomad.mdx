@@ -8,8 +8,14 @@ description: The "nomad-apm" APM plugin queries the Nomad API for metrics.
 
 The Nomad APM plugin allows querying the Nomad API for metric data. This provides
 an immediate starting point without addition applications but comes at the price
-of efficiency. When using this APM, it is advised to monitor Nomad carefully
-ensuring it is not put under excessive load pressure.
+of efficiency and flexibility. When using this APM, it is advised to monitor
+Nomad carefully ensuring it is not put under excessive load pressure.
+
+Since Nomad does not store historical metric data and only reports instant
+metrics values, the Nomad APM plugin does not support the [`query_window`][]
+policy option and is not able to aggregate metrics over time, such as computing
+averages or percentiles. An external APM is required to support uses cases like
+these.
 
 ~> The Nomad APM plugin should only be used when scaling based on CPU and
 memory usage. For more advanced scenarios, such as scaling a cluster to
@@ -129,3 +135,4 @@ The metric value can be:
   the total allocated by the scheduler.
 
 [nomad_telemetry_block]: /nomad/docs/configuration/telemetry#inlinecode-publish_allocation_metrics
+[`query_window`]: /nomad/tools/autoscaling/policy#query_window
