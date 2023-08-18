@@ -929,6 +929,7 @@ func (tmpl *Template) Canonicalize() {
 
 type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
+	Role         string   `hcl:"role,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
 	Env          *bool    `hcl:"env,optional"`
 	DisableFile  *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`

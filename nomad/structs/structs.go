@@ -9808,6 +9808,12 @@ const (
 
 // Vault stores the set of permissions a task needs access to from Vault.
 type Vault struct {
+	// Role is the Vault role used to login to Vault using a JWT.
+	//
+	// If empty, defaults to the server's create_from_role value or the Vault
+	// cluster default role.
+	Role string
+
 	// Policies is the set of policies that the task needs access to
 	Policies []string
 
@@ -9836,6 +9842,8 @@ func (v *Vault) Equal(o *Vault) bool {
 		return v == o
 	}
 	switch {
+	case v.Role != o.Role:
+		return false
 	case !slices.Equal(v.Policies, o.Policies):
 		return false
 	case v.Namespace != o.Namespace:
