@@ -83,7 +83,6 @@ with Vault as well.
     </a> isolation.
   </Warning>
 
-
 - `namespace` `(string: "")` <EnterpriseAlert inline/> - Specifies the Vault Namespace
   to use for the task. The Nomad client will retrieve a Vault token that is scoped to
   this particular namespace.
@@ -91,6 +90,10 @@ with Vault as well.
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is
   limited to those policies.
+
+- `role` `(string: "")` - Specifies the Vault role used when retrieving a token
+  from Vault using JWT and workload identity. If not specified the client's
+  [`create_from_role`][] value is used.
 
 ## `vault` Examples
 
@@ -191,6 +194,7 @@ vault {
 }
 ```
 
+[`create_from_role`]: /nomad/docs/configuration/vault#create_from_role
 [docker]: /nomad/docs/drivers/docker "Docker Driver"
 [restart]: /nomad/docs/job-specification/restart "Nomad restart Job Specification"
 [template]: /nomad/docs/job-specification/template "Nomad template Job Specification"

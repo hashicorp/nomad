@@ -1285,6 +1285,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
+			Role:         apiTask.Vault.Role,
 			Policies:     apiTask.Vault.Policies,
 			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,

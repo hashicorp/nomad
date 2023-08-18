@@ -6912,6 +6912,7 @@ func TestTaskDiff(t *testing.T) {
 			Old:  &Task{},
 			New: &Task{
 				Vault: &Vault{
+					Role:         "nomad-task",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
 					DisableFile:  true,
@@ -6949,6 +6950,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Env",
 								Old:  "",
 								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Role",
+								Old:  "",
+								New:  "nomad-task",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -7047,6 +7054,7 @@ func TestTaskDiff(t *testing.T) {
 			Name: "Vault edited",
 			Old: &Task{
 				Vault: &Vault{
+					Role:         "nomad-task",
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
@@ -7057,6 +7065,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 			New: &Task{
 				Vault: &Vault{
+					Role:         "nomad-task-2",
 					Namespace:    "ns2",
 					Policies:     []string{"bar", "baz"},
 					Env:          false,
@@ -7102,6 +7111,12 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "ns1",
 								New:  "ns2",
 							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Role",
+								Old:  "nomad-task",
+								New:  "nomad-task-2",
+							},
 						},
 						Objects: []*ObjectDiff{
 							{
@@ -7132,6 +7147,7 @@ func TestTaskDiff(t *testing.T) {
 			Contextual: true,
 			Old: &Task{
 				Vault: &Vault{
+					Role:         "nomad-task",
 					Namespace:    "ns1",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
@@ -7142,6 +7158,7 @@ func TestTaskDiff(t *testing.T) {
 			},
 			New: &Task{
 				Vault: &Vault{
+					Role:         "nomad-task",
 					Namespace:    "ns1",
 					Policies:     []string{"bar", "baz"},
 					Env:          true,
@@ -7186,6 +7203,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Namespace",
 								Old:  "ns1",
 								New:  "ns1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Role",
+								Old:  "nomad-task",
+								New:  "nomad-task",
 							},
 						},
 						Objects: []*ObjectDiff{

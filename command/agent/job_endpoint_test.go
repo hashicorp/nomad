@@ -2784,6 +2784,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &api.Vault{
+							Role:         "nomad-task",
 							Namespace:    pointer.Of("ns1"),
 							Policies:     []string{"a", "b", "c"},
 							Env:          pointer.Of(true),
@@ -3206,6 +3207,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &structs.Vault{
+							Role:         "nomad-task",
 							Namespace:    "ns1",
 							Policies:     []string{"a", "b", "c"},
 							Env:          true,

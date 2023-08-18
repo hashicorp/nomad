@@ -7668,12 +7668,16 @@ func TestVault_Equal(t *testing.T) {
 	must.NotEqual[*Vault](t, nil, new(Vault))
 
 	must.StructEqual(t, &Vault{
+		Role:         "nomad-task",
 		Policies:     []string{"one"},
 		Namespace:    "global",
 		Env:          true,
 		ChangeMode:   "signal",
 		ChangeSignal: "SIGILL",
 	}, []must.Tweak[*Vault]{{
+		Field: "Role",
+		Apply: func(v *Vault) { v.Role = "nomad-task-2" },
+	}, {
 		Field: "Policies",
 		Apply: func(v *Vault) { v.Policies = []string{"two"} },
 	}, {
