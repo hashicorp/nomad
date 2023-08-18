@@ -479,7 +479,7 @@ func TestFS_Stream_GC(t *testing.T) {
 			t.Fatal(err)
 		case msg := <-streamMsg:
 			must.Error(t, msg.Error)
-			must.ErrorContains(t, msg.Error, "destroyed from client")
+			must.ErrorContains(t, msg.Error, "not found on client")
 			must.Eq(t, http.StatusNotFound, *msg.Error.Code)
 			return
 		}
@@ -1198,7 +1198,7 @@ func TestFS_Logs_GC(t *testing.T) {
 			t.Fatalf("unexpected stream error: %v", err)
 		case msg := <-streamMsg:
 			must.Error(t, msg.Error)
-			must.ErrorContains(t, msg.Error, "destroyed from client")
+			must.ErrorContains(t, msg.Error, "not found on client")
 			must.Eq(t, http.StatusNotFound, *msg.Error.Code)
 			return
 		}
