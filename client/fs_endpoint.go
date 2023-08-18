@@ -185,8 +185,8 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	}
 	if ar.IsDestroyed() {
 		handleStreamResultError(
-			fmt.Errorf("allocation %s destroyed from client", req.AllocID),
-			pointer.Of(int64(404)),
+			fmt.Errorf("state for allocation %s not found on client", req.AllocID),
+			pointer.Of(int64(http.StatusNotFound)),
 			encoder,
 		)
 	}
@@ -369,8 +369,8 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 	if ar.IsDestroyed() {
 		handleStreamResultError(
-			fmt.Errorf("allocation %s destroyed from client", req.AllocID),
-			pointer.Of(int64(404)),
+			fmt.Errorf("state for allocation %s not found on client", req.AllocID),
+			pointer.Of(int64(http.StatusNotFound)),
 			encoder,
 		)
 	}
