@@ -22,7 +22,7 @@ const (
 	vaultUnavailable = "unavailable"
 )
 
-var vaultBaseFingerprintInterval = time.Duration(15 * time.Second)
+var vaultBaseFingerprintInterval = 15 * time.Second
 
 // VaultFingerprint is used to fingerprint for Vault
 type VaultFingerprint struct {
