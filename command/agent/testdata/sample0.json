@@ -40,6 +40,7 @@
   },
   "bind_addr": "0.0.0.0",
   "consul": {
+    "name": "default",
     "server_auto_join": false,
     "client_auto_join": false,
     "token": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"

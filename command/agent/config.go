@@ -131,22 +131,30 @@ type Config struct {
 	// for security bulletins
 	DisableAnonymousSignature bool `hcl:"disable_anonymous_signature"`
 
-	// Consul contains the configuration for the Consul Agent and
+	// Consul contains the configuration for the default Consul Agent and
 	// parameters necessary to register services, their checks, and
 	// discover the current Nomad servers.
-	Consul *config.ConsulConfig `hcl:"consul"`
+	//
+	// TODO(tgross): we'll probably want to remove this field once we've added a
+	// selector so that we don't have to maintain it
+	Consul *config.ConsulConfig `hcl:"-"`
+
+	// Consuls is a map derived from multiple `consul` blocks, here to support
+	// features in Nomad Enterprise. The default Consul config pointer above will
+	// be found in this map under the name "default"
+	Consuls map[string]*config.ConsulConfig `hcl:"-"`
 
 	// Vault contains the configuration for the default Vault Agent and
 	// parameters necessary to derive tokens.
 	//
 	// TODO(tgross): we'll probably want to remove this field once we've added a
 	// selector so that we don't have to maintain it
-	Vault *config.VaultConfig
+	Vault *config.VaultConfig `hcl:"-"`
 
 	// Vaults is a map derived from multiple `vault` blocks, here to support
 	// features in Nomad Enterprise. The default Vault config pointer above will
 	// be found in this map under the name "default"
-	Vaults map[string]*config.VaultConfig
+	Vaults map[string]*config.VaultConfig `hcl:"-"`
 
 	// UI is used to configure the web UI
 	UI *config.UIConfig `hcl:"ui"`
@@ -1364,6 +1372,7 @@ func DefaultConfig() *Config {
 		Limits:             config.DefaultLimits(),
 	}
 
+	cfg.Consuls = map[string]*config.ConsulConfig{"default": cfg.Consul}
 	cfg.Vaults = map[string]*config.VaultConfig{"default": cfg.Vault}
 	return cfg
 }
@@ -1526,12 +1535,9 @@ func (c *Config) Merge(b *Config) *Config {
 		result.AdvertiseAddrs = result.AdvertiseAddrs.Merge(b.AdvertiseAddrs)
 	}
 
-	// Apply the Consul Configuration
-	if result.Consul == nil && b.Consul != nil {
-		result.Consul = b.Consul.Copy()
-	} else if b.Consul != nil {
-		result.Consul = result.Consul.Merge(b.Consul)
-	}
+	// Apply the Consul Configurations and overwrite the default Consul config
+	result.Consuls = mergeConsulConfigs(result.Consuls, b.Consuls)
+	result.Consul = result.Consuls["default"]
 
 	// Apply the Vault Configurations and overwrite the default Vault config
 	result.Vaults = mergeVaultConfigs(result.Vaults, b.Vaults)
@@ -1601,6 +1607,21 @@ func mergeVaultConfigs(left, right map[string]*config.VaultConfig) map[string]*c
 	return merged
 }
 
+func mergeConsulConfigs(left, right map[string]*config.ConsulConfig) map[string]*config.ConsulConfig {
+	merged := helper.DeepCopyMap(left)
+	if left == nil {
+		merged = map[string]*config.ConsulConfig{}
+	}
+	for name, rConfig := range right {
+		if lConfig, ok := left[name]; ok {
+			merged[name] = lConfig.Merge(rConfig)
+		} else {
+			merged[name] = rConfig.Copy()
+		}
+	}
+	return merged
+}
+
 // Copy returns a deep copy safe for mutation.
 func (c *Config) Copy() *Config {
 	if c == nil {
@@ -1618,6 +1639,7 @@ func (c *Config) Copy() *Config {
 	nc.Telemetry = c.Telemetry.Copy()
 	nc.DisableUpdateCheck = pointer.Copy(c.DisableUpdateCheck)
 	nc.Consul = c.Consul.Copy()
+	nc.Consuls = helper.DeepCopyMap(c.Consuls)
 	nc.Vault = c.Vault.Copy()
 	nc.Vaults = helper.DeepCopyMap(c.Vaults)
 	nc.UI = c.UI.Copy()

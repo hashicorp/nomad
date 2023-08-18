@@ -102,6 +102,11 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	if self.Config != nil && self.Config.Consul != nil && self.Config.Consul.Token != "" {
 		self.Config.Consul.Token = "<redacted>"
 	}
+	for _, consulConfig := range self.Config.Consuls {
+		if consulConfig.Token != "" {
+			consulConfig.Token = "<redacted>"
+		}
+	}
 
 	if self.Config != nil && self.Config.Telemetry != nil && self.Config.Telemetry.CirconusAPIToken != "" {
 		self.Config.Telemetry.CirconusAPIToken = "<redacted>"

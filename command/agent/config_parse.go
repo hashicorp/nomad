@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
+	"golang.org/x/exp/slices"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.
@@ -56,6 +57,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Consul:    &config.ConsulConfig{},
+		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
 		Vault:     &config.VaultConfig{},
@@ -175,7 +177,12 @@ func ParseConfigFile(path string) (*Config, error) {
 			return nil, fmt.Errorf("error parsing 'vault': %w", err)
 		}
 	}
-
+	matches = list.Filter("consul")
+	if len(matches.Items) > 0 {
+		if err := parseConsuls(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'consul': %w", err)
+		}
+	}
 	// report unexpected keys
 	err = extraKeys(c)
 	if err != nil {
@@ -281,9 +288,13 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
-	// The `vault` blocks are parsed separately from the Decode method, so it
-	// will incorrectly report them as extra keys
-	helper.RemoveEqualFold(&c.ExtraKeysHCL, "vault")
+	// The `vault` and `consul` blocks are parsed separately from the Decode method, so it
+	// will incorrectly report them as extra keys, of which there may be multiple
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+	if len(c.ExtraKeysHCL) == 0 {
+		c.ExtraKeysHCL = nil
+	}
 
 	return helper.UnusedKeys(c)
 }
@@ -347,5 +358,46 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 	}
 
 	c.Vault = c.Vaults["default"]
+	return nil
+}
+
+// parseConsuls decodes the `consul` blocks. The hcl.Decode method can't parse
+// these correctly as HCL1 because they don't have labels, which would result in
+// all the blocks getting merged regardless of name.
+func parseConsuls(c *Config, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	for _, obj := range list.Items {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+
+		cc := &config.ConsulConfig{}
+		err := mapstructure.WeakDecode(m, cc)
+		if err != nil {
+			return err
+		}
+		if cc.Name == "" {
+			cc.Name = "default"
+		}
+		if cc.TimeoutHCL != "" {
+			d, err := time.ParseDuration(cc.TimeoutHCL)
+			if err != nil {
+				return err
+			}
+			cc.Timeout = d
+		}
+
+		if exist, ok := c.Consuls[cc.Name]; ok {
+			c.Consuls[cc.Name] = exist.Merge(cc)
+		} else {
+			c.Consuls[cc.Name] = cc
+		}
+	}
+
+	c.Consul = c.Consuls["default"]
 	return nil
 }
