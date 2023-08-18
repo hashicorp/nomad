@@ -189,6 +189,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 			pointer.Of(int64(http.StatusNotFound)),
 			encoder,
 		)
+		return
 	}
 	alloc := ar.Alloc()
 
@@ -373,6 +374,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 			pointer.Of(int64(http.StatusNotFound)),
 			encoder,
 		)
+		return
 	}
 	alloc := ar.Alloc()
 
