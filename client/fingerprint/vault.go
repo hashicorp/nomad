@@ -88,7 +88,7 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 	if err != nil {
 		// Print a message indicating that Vault is not available anymore
 		if state.isAvailable {
-			logger.Info("Vault is unavailable", "cluster", cfg.Name)
+			logger.Info("Vault is unavailable")
 		}
 		state.isAvailable = false
 		state.nextCheck = time.Time{} // always check on next interval
@@ -110,14 +110,14 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 	// If Vault was previously unavailable print a message to indicate the Agent
 	// is available now
 	if !state.isAvailable {
-		logger.Info("Vault is available", "cluster", cfg.Name)
+		logger.Info("Vault is available")
 	}
 
 	// Widen the minimum window to the next check so that if one out of a set of
 	// Vaults is unhealthy we don't greatly increase requests to the healthy
 	// ones. This is less than the minimum window if all Vaults are healthy so
 	// that we don't desync from the larger window provided by Periodic
-	state.nextCheck = time.Now().Add(30 * time.Second)
+	state.nextCheck = time.Now().Add(29 * time.Second)
 	state.isAvailable = true
 
 	resp.Detected = true
