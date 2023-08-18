@@ -25,7 +25,7 @@ type LinuxWranglerCG1 struct {
 
 func newCG1(c *Configs) create {
 	logger := c.Logger.Named("cg1")
-	cgroupslib.Init(logger)
+	cgroupslib.Init(logger, c.UsableCores.String())
 	return func(task Task) ProcessWrangler {
 		return &LinuxWranglerCG1{
 			task: task,

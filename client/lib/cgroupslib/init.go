@@ -13,7 +13,11 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
-func Init(log hclog.Logger) {
+// Init will initialize the cgroup tree that the Nomad client will use for
+// isolating resources of tasks. cores is the cpuset granted for use by Nomad.
+func Init(log hclog.Logger, cores string) {
+	log.Info("INIT INIT", "cores", cores)
+
 	switch GetMode() {
 	case CG1:
 		// create the /nomad cgroup (or whatever the name is configured to be)
@@ -29,11 +33,14 @@ func Init(log hclog.Logger) {
 		// the cgroup controllers we need to activate at the root and on the nomad slice
 		const activation = "+cpuset +cpu +io +memory +pids"
 
-		// the name of the subtree control interface file
+		// the name of the cgroup subtree interface file
 		const subtreeFile = "cgroup.subtree_control"
 
-		// the name of the partition control interface file
+		// the name of the cpuset partition interface file
 		const partitionFile = "cpuset.cpus.partition"
+
+		// the name of the cpuset interface file
+		const cpusetFile = "cpuset.cpus"
 
 		//
 		// configuring root cgroup (/sys/fs/cgroup)
@@ -55,6 +62,11 @@ func Init(log hclog.Logger) {
 
 		if err := writeCG2(activation, NomadCgroupParent, subtreeFile); err != nil {
 			log.Error("failed to set subtree control on nomad cgroup", "error", err)
+			return
+		}
+
+		if err := writeCG2(cores, NomadCgroupParent, cpusetFile); err != nil {
+			log.Error("failed to write root partition cpuset", "error", err)
 			return
 		}
 
