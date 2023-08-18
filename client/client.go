@@ -4,6 +4,8 @@
 package client
 
 import (
+	"github.com/shoenig/netlog"
+
 	"errors"
 	"fmt"
 	"net"
@@ -465,9 +467,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
 
+	// TODO what to do about default usable cores?
+
 	// Create the process wranglers
 	wranglers := proclib.New(&proclib.Configs{
-		Logger: c.logger.Named("proclib"),
+		Partitioning: nil,
+		UsableCores:  c.topology.UsableCores(),
+		Logger:       c.logger.Named("proclib"),
 	})
 	c.wranglers = wranglers
 

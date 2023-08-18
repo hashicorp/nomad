@@ -4,6 +4,8 @@
 package agent
 
 import (
+	"github.com/shoenig/netlog"
+
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -23,6 +25,9 @@ import (
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
@@ -261,7 +266,7 @@ type ClientConfig struct {
 	DiskFreeMB int `hcl:"disk_free_mb"`
 
 	// ReservableCores is used to override detected reservable cpu cores.
-	ReserveableCores string `hcl:"reservable_cores"`
+	ReservableCores string `hcl:"reservable_cores"`
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `hcl:"max_kill_timeout"`
@@ -1271,11 +1276,23 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = pointer.Of(true)
+	conf.Client.ReservableCores = devCores().String()
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
 
+	netlog.Cyan("DevConfig", "rc", conf.Client.ReservableCores)
+
 	return conf
+}
+
+// devCores will set aside 2 cpu cores for nomad to make use of when running
+// in -dev mode.
+func devCores() *idset.Set[numalib.CoreID] {
+	if cgroupslib.GetMode() == cgroupslib.OFF {
+		return nil
+	}
+	return idset.From[numalib.CoreID]([]numalib.CoreID{0, 1})
 }
 
 // DefaultConfig is the baseline configuration for Nomad.
@@ -2161,8 +2178,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	} else if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
-	if b.ReserveableCores != "" {
-		result.ReserveableCores = b.ReserveableCores
+	if b.ReservableCores != "" {
+		result.ReservableCores = b.ReservableCores
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval
