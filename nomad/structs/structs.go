@@ -11201,16 +11201,17 @@ func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *Worklo
 	}
 
 	claims.TaskName = taskName
-	claims.Audience = wid.Audience
-	claims.SetSubject(job, alloc.TaskGroup, taskName, wid.Name)
+	claims.Audience = slices.Clone(wid.Audience)
+	claims.setSubject(job, alloc.TaskGroup, taskName, wid.Name)
+	claims.setExp(now, wid)
 
 	claims.ID = uuid.Generate()
 
 	return claims
 }
 
-// SetSubject creates the standard subject claim for workload identities.
-func (claims *IdentityClaims) SetSubject(job *Job, group, task, id string) {
+// setSubject creates the standard subject claim for workload identities.
+func (claims *IdentityClaims) setSubject(job *Job, group, task, id string) {
 	claims.Subject = strings.Join([]string{
 		job.Region,
 		job.Namespace,
@@ -11219,6 +11220,16 @@ func (claims *IdentityClaims) SetSubject(job *Job, group, task, id string) {
 		task,
 		id,
 	}, ":")
+}
+
+// setExp sets the absolute time at which these identity claims expire.
+func (claims *IdentityClaims) setExp(now time.Time, wid *WorkloadIdentity) {
+	if wid.TTL == 0 {
+		// No expiry
+		return
+	}
+
+	claims.Expiry = jwt.NewNumericDate(now.Add(wid.TTL))
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),

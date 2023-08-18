@@ -5,6 +5,7 @@ package structs
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/exp/slices"
@@ -59,6 +60,10 @@ type WorkloadIdentity struct {
 
 	// ServiceName is used to bind the identity to a correct Consul service.
 	ServiceName string
+
+	// TTL is used to determine the expiration of the credentials created for
+	// this identity (eg the JWT "exp" claim).
+	TTL time.Duration
 }
 
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
@@ -71,6 +76,7 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		Env:         wi.Env,
 		File:        wi.File,
 		ServiceName: wi.ServiceName,
+		TTL:         wi.TTL,
 	}
 }
 
@@ -96,6 +102,10 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 	}
 
 	if wi.ServiceName != other.ServiceName {
+		return false
+	}
+
+	if wi.TTL != other.TTL {
 		return false
 	}
 
@@ -135,6 +145,14 @@ func (wi *WorkloadIdentity) Validate() error {
 		}
 	}
 
+	if wi.TTL > 0 && (wi.Name == "" || wi.Name == WorkloadIdentityDefaultName) {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("ttl for default token not yet supported"))
+	}
+
+	if wi.TTL < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("ttl must be >= 0"))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -143,13 +161,21 @@ func (wi *WorkloadIdentity) Warnings() error {
 		return fmt.Errorf("must not be nil")
 	}
 
+	var mErr multierror.Error
+
 	if n := len(wi.Audience); n == 0 {
-		return fmt.Errorf("identities without an audience are insecure")
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("identities without an audience are insecure"))
 	} else if n > 1 {
-		return fmt.Errorf("while multiple audiences is allowed, it is more secure to use 1 audience per identity")
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("while multiple audiences is allowed, it is more secure to use 1 audience per identity"))
 	}
 
-	return nil
+	if wi.Name != "" || wi.Name != WorkloadIdentityDefaultName {
+		if wi.TTL == 0 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("identities without an expiration are insecure"))
+		}
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // WorkloadIdentityRequest encapsulates the 3 parameters used to generated a
@@ -164,7 +190,8 @@ type WorkloadIdentityRequest struct {
 // includes the JWT for the requested workload identity.
 type SignedWorkloadIdentity struct {
 	WorkloadIdentityRequest
-	JWT string
+	JWT        string
+	Expiration time.Time
 }
 
 // WorkloadIdentityRejection is the response to a WorkloadIdentityRequest that

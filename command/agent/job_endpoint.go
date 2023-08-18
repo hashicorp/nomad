@@ -1209,6 +1209,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Audience: slices.Clone(id.Audience),
 			Env:      id.Env,
 			File:     id.File,
+			TTL:      id.TTL,
 		}
 	}
 
@@ -1224,6 +1225,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 				Audience: slices.Clone(id.Audience),
 				Env:      id.Env,
 				File:     id.File,
+				TTL:      id.TTL,
 			}
 
 		}

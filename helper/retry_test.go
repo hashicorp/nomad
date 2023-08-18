@@ -74,3 +74,18 @@ func TestExpiryToRenewTime_Expired(t *testing.T) {
 	must.Greater(t, min, renew)
 	must.Less(t, min*2, renew)
 }
+
+// TestExpiryToRenewTime_Zero asserts that ExpiryToRenewTime handles the zero
+// value for renewal time and returns the minimum.
+func TestExpiryToRenewTime_Zero(t *testing.T) {
+	exp := time.Time{}
+	now := func() time.Time {
+		return time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)
+	}
+	min := time.Hour
+
+	renew := ExpiryToRenewTime(exp, now, min)
+
+	must.Greater(t, min, renew)
+	must.Less(t, min*2, renew)
+}
