@@ -65,7 +65,9 @@ horizontal application scaling or horizontal cluster scaling.
   can be found on the [APM Plugins][apm_plugin_docs] page.
 
 - `query_window` - Defines how far back to query the APM for metrics. It should
-  be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`.
+  be provided as a duration (e.g.: `"5s"`, `"1m"`). Defaults to `1m`. This
+  value may not be supported by all APM plugins. Refer to the documentation of
+  the specific APM plugin being used for more information.
 
 - `group` - Specifies which checks should treated as correlated when the policy
   is evaluated. Refer to [Check Grouping][concepts_grouping] for more
