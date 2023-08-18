@@ -449,7 +449,7 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 
 	cf := newConsulFingerPrint(t)
 
-	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self_oss.json"))
+	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self_ce.json"))
 	defer ts.Close()
 
 	node := &structs.Node{Attributes: make(map[string]string)}
