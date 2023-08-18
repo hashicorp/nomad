@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -479,7 +480,7 @@ func TestFS_Stream_GC(t *testing.T) {
 		case msg := <-streamMsg:
 			must.Error(t, msg.Error)
 			must.ErrorContains(t, msg.Error, "destroyed from client")
-			must.Eq(t, 404, *msg.Error.Code)
+			must.Eq(t, http.StatusNotFound, *msg.Error.Code)
 			return
 		}
 	}
@@ -1106,7 +1107,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 		case msg := <-streamMsg:
 			require.NotNil(msg.Error)
 			require.NotNil(msg.Error.Code)
-			require.EqualValues(404, *msg.Error.Code)
+			require.EqualValues(http.StatusNotFound, *msg.Error.Code)
 			require.Contains(msg.Error.Message, "not started")
 			return
 		}
@@ -1198,7 +1199,7 @@ func TestFS_Logs_GC(t *testing.T) {
 		case msg := <-streamMsg:
 			must.Error(t, msg.Error)
 			must.ErrorContains(t, msg.Error, "destroyed from client")
-			must.Eq(t, 404, *msg.Error.Code)
+			must.Eq(t, http.StatusNotFound, *msg.Error.Code)
 			return
 		}
 	}
