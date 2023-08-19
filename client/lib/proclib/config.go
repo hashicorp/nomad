@@ -6,7 +6,6 @@ package proclib
 import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib"
 )
 
 // Configs is used to pass along values from client configuration that are
@@ -14,5 +13,5 @@ import (
 // was set in agent configuration.
 type Configs struct {
 	Logger      hclog.Logger
-	UsableCores *idset.Set[numalib.CoreID]
+	UsableCores *idset.Set[idset.CoreID]
 }

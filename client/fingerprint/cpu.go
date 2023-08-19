@@ -77,14 +77,14 @@ func (*CPUFingerprint) reservedCompute(request *FingerprintRequest) structs.Node
 
 func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
 	var (
-		reservableCores *idset.Set[numalib.CoreID]
+		reservableCores *idset.Set[idset.CoreID]
 		totalCompute    = request.Config.CpuCompute
 		reservedCompute = f.reservedCompute(request)
-		reservedCores   = idset.From[numalib.CoreID](reservedCompute.ReservedCpuCores)
+		reservedCores   = idset.From[idset.CoreID](reservedCompute.ReservedCpuCores)
 	)
 
 	if rc := request.Config.ReservableCores; rc != nil {
-		reservableCores = idset.From[numalib.CoreID](rc)
+		reservableCores = idset.From[idset.CoreID](rc)
 	}
 
 	f.top = numalib.Scan(append(
@@ -157,7 +157,7 @@ func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse) {
 		usable := f.top.UsableCores()
 		response.AddAttribute("cpu.reservablecores", f.cores(usable.Size()))
 		f.nodeResources.Cpu.ReservableCpuCores = helper.ConvertSlice(
-			usable.Slice(), func(id numalib.CoreID) uint16 {
+			usable.Slice(), func(id idset.CoreID) uint16 {
 				return uint16(id)
 			})
 	default:

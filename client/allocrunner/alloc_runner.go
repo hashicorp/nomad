@@ -201,6 +201,9 @@ type allocRunner struct {
 	// wranglers is an interface for managing unix/windows processes.
 	wranglers cinterfaces.ProcessWranglers
 
+	// partitions is an interface for managing cpuset partitions
+	partitions cinterfaces.CPUPartitions
+
 	// widmgr fetches workload identities
 	widmgr *widmgr.WIDMgr
 }
@@ -244,6 +247,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
 		wranglers:                config.Wranglers,
+		partitions:               config.Partitions,
 		hookResources:            cstructs.NewAllocHookResources(),
 		widmgr:                   config.WIDMgr,
 	}

@@ -21,6 +21,9 @@ type ID interface {
 	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uint
 }
 
+// A CoreID represents one vcpu core.
+type CoreID uint16
+
 // A Set contains some IDs.
 //
 // See the List Format section of

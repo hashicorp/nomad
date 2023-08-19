@@ -80,7 +80,7 @@ func Init(log hclog.Logger, cores string) {
 		log.Debug("top level partition root nomad.slice cgroup initialized", "cpuset", "xxx")
 
 		//
-		// configuring nomad.slice/share
+		// configuring nomad.slice/share (member)
 		//
 
 		if err := mkCG2(NomadCgroupParent, "share"); err != nil {
@@ -91,7 +91,7 @@ func Init(log hclog.Logger, cores string) {
 		log.Debug("partition member nomad.slice/share cgroup initialized")
 
 		//
-		// configuring nomad.slice/reserve
+		// configuring nomad.slice/reserve (member)
 		//
 
 		if err := mkCG2(NomadCgroupParent, "reserve"); err != nil {
@@ -99,12 +99,13 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG2("isolated", NomadCgroupParent, "reserve", "cpuset.cpus.partition"); err != nil {
-			log.Error("failed to set cpuset partition root", "error", err)
-			return
-		}
+		// root? isolated? member?
+		// if err := writeCG2("isolated", NomadCgroupParent, "reserve", "cpuset.cpus.partition"); err != nil {
+		// 	log.Error("failed to set cpuset partition root", "error", err)
+		// 	return
+		// }
 
-		log.Debug("partition root nomad.slice/reserve cgroup initialized", "cpuset", "xxx")
+		log.Debug("partition member nomad.slice/reserve cgroup initialized")
 	}
 }
 

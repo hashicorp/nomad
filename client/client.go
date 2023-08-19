@@ -4,7 +4,7 @@
 package client
 
 import (
-	"github.com/shoenig/netlog"
+	// "github.com/shoenig/netlog"
 
 	"errors"
 	"fmt"
@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/hoststats"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager"
@@ -333,6 +334,9 @@ type Client struct {
 	// fingerprinting
 	topology *numalib.Topology
 
+	// partitions is used for managing cpuset partitioning on linux systems
+	partitions cgroupslib.Partition
+
 	// widmgr retrieves workload identities
 	widmgr *widmgr.WIDMgr
 }
@@ -468,12 +472,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// TODO what to do about default usable cores?
+	c.partitions = cgroupslib.NewPartition(
+		c.topology.UsableCores(),
+	)
 
 	// Create the process wranglers
 	wranglers := proclib.New(&proclib.Configs{
-		Partitioning: nil,
-		UsableCores:  c.topology.UsableCores(),
-		Logger:       c.logger.Named("proclib"),
+		// Partitioning: nil,
+		UsableCores: c.topology.UsableCores(),
+		Logger:      c.logger.Named("proclib"),
 	})
 	c.wranglers = wranglers
 
@@ -1264,6 +1271,7 @@ func (c *Client) restoreState() error {
 			RPCClient:           c,
 			Getter:              c.getter,
 			Wranglers:           c.wranglers,
+			Partitions:          c.partitions,
 		}
 
 		ar, err := c.allocrunnerFactory(arConf)
@@ -2754,6 +2762,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		RPCClient:           c,
 		Getter:              c.getter,
 		Wranglers:           c.wranglers,
+		Partitions:          c.partitions,
 		WIDMgr:              c.widmgr,
 	}
 

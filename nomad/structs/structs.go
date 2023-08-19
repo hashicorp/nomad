@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -10589,6 +10590,17 @@ func (a *Allocation) GetCreateIndex() uint64 {
 		return 0
 	}
 	return a.CreateIndex
+}
+
+// ReservedCores returns the union reserved cores across all tasks in this alloc.
+func (a *Allocation) ReservedCores() *idset.Set[idset.CoreID] {
+	s := idset.Empty[idset.CoreID]()
+	for _, taskResources := range a.AllocatedResources.Tasks {
+		for _, core := range taskResources.Cpu.ReservedCores {
+			s.Insert(idset.CoreID(core))
+		}
+	}
+	return s
 }
 
 // ConsulNamespace returns the Consul namespace of the task group associated
