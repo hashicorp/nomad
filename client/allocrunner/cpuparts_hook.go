@@ -48,8 +48,8 @@ func (h *cpuPartsHook) Prerun() error {
 	return nil
 }
 
-func (h *cpuPartsHook) Destroy() error {
-	netlog.Cyan("cpuPartsHook.Destroy()")
+func (h *cpuPartsHook) Postrun() error {
+	netlog.Cyan("cpuPartsHook.Postrun()")
 	h.partitions.Release(h.reservations)
 	return nil
 }
