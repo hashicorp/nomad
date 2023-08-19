@@ -4,6 +4,7 @@
 package interfaces
 
 import (
+	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -46,4 +47,9 @@ type ArtifactGetter interface {
 type ProcessWranglers interface {
 	Setup(proclib.Task) error
 	Destroy(proclib.Task) error
+}
+
+type CPUPartitions interface {
+	Reserve(*idset.Set[idset.CoreID])
+	Release(*idset.Set[idset.CoreID])
 }

@@ -35,7 +35,7 @@ type ConfigScanner struct {
 	// Only meaningful on Linux, this value can be used to override the set of
 	// CPU core IDs we may make use of. Normally these are detected by reading
 	// Nomad parent cgroup cpuset interface file.
-	ReservableCores *idset.Set[CoreID]
+	ReservableCores *idset.Set[idset.CoreID]
 
 	// TotalCompute comes from client.cpu_total_compute.
 	//
@@ -49,7 +49,7 @@ type ConfigScanner struct {
 	// ReservedCores comes from client.reserved.cores.
 	//
 	// Used to withhold a set of cores from being used by Nomad for scheduling.
-	ReservedCores *idset.Set[CoreID]
+	ReservedCores *idset.Set[idset.CoreID]
 
 	// ReservedCompute comes from client.reserved.cpu.
 	//

@@ -87,7 +87,7 @@ func (*Sysfs) discoverCosts(st *Topology) {
 }
 
 func (*Sysfs) discoverCores(st *Topology) {
-	onlineCores, err := getIDSet[CoreID](cpuOnline)
+	onlineCores, err := getIDSet[idset.CoreID](cpuOnline)
 	if err != nil {
 		return
 	}
@@ -99,13 +99,13 @@ func (*Sysfs) discoverCores(st *Topology) {
 			return err
 		}
 
-		cores := idset.Parse[CoreID](string(s))
-		_ = cores.ForEach(func(core CoreID) error {
+		cores := idset.Parse[idset.CoreID](string(s))
+		_ = cores.ForEach(func(core idset.CoreID) error {
 			// best effort, zero values are defaults
 			socket, _ := getNumeric[SocketID](cpuSocketFile, core)
 			max, _ := getNumeric[KHz](cpuMaxFile, core)
 			base, _ := getNumeric[KHz](cpuBaseFile, core)
-			siblings, _ := getIDSet[CoreID](cpuSiblingFile, core)
+			siblings, _ := getIDSet[idset.CoreID](cpuSiblingFile, core)
 			st.insert(node, socket, core, gradeOf(siblings), max, base)
 			return nil
 		})
@@ -182,7 +182,7 @@ func (s *Cgroups2) ScanSystem(top *Topology) {
 
 // combine scanCgroups
 func scanIDs(top *Topology, content string) {
-	ids := idset.Parse[CoreID](content)
+	ids := idset.Parse[idset.CoreID](content)
 	for _, cpu := range top.Cores {
 		if !ids.Contains(cpu.ID) {
 			cpu.Disable = true

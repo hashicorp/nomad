@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
@@ -1288,11 +1287,11 @@ func DevConfig(mode *devModeConfig) *Config {
 
 // devCores will set aside 2 cpu cores for nomad to make use of when running
 // in -dev mode.
-func devCores() *idset.Set[numalib.CoreID] {
+func devCores() *idset.Set[idset.CoreID] {
 	if cgroupslib.GetMode() == cgroupslib.OFF {
 		return nil
 	}
-	return idset.From[numalib.CoreID]([]numalib.CoreID{0, 1})
+	return idset.From[idset.CoreID]([]idset.CoreID{0, 1, 2, 3, 4})
 }
 
 // DefaultConfig is the baseline configuration for Nomad.
