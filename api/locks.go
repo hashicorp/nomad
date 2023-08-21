@@ -124,6 +124,7 @@ type LockLeaser struct {
 	locker
 }
 
+// Should we add the possibility to pass a variable?
 func (c *Client) NewLockLeaser(lease time.Duration, wo WriteOptions) *LockLeaser {
 	ID := uuid.Generate()
 
