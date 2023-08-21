@@ -6,6 +6,8 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"context"
 	"errors"
 	"fmt"
@@ -709,16 +711,29 @@ func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCom
 }
 
 func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+
+	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuCores := command.Resources.LinuxResources.CpusetCpus
+
+	// reserved cpuset cores, if any
+	nlog := netlog.New("LibEx")
+	nlog.Info("configureCG2", "cpuCores", cpuCores, "cpuShares", cpuShares)
+
 	// Set the v2 specific unified path
 	scope := filepath.Base(cg)
-	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
+	partition := "share"
+	if cpuCores != "" {
+		partition = "reserve"
+		cfg.Cgroups.Resources.CpusetCpus = cpuCores
+	}
 
-	res := command.Resources.NomadResources
-	cpuShares := res.Cpu.CpuShares // a cgroups v1 concept
-	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
 	// sets cpu.weight, which the kernel also translates to cpu.weight.nice
 	// despite what the libcontainer docs say, this sets priority not bandwidth
+	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
 	cfg.Cgroups.Resources.CpuWeight = cpuWeight
+
+	// finally set the path of the cgroup in which to run the task
+	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
 
 	// todo: we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
 	return nil
