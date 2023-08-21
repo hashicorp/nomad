@@ -30,7 +30,7 @@ func newCG1(c *Configs) create {
 		return &LinuxWranglerCG1{
 			task: task,
 			log:  logger,
-			cg:   cgroupslib.Factory(task.AllocID, task.Task),
+			cg:   cgroupslib.Factory(task.AllocID, task.Task, task.Cores),
 		}
 	}
 }
