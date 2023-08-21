@@ -17,6 +17,28 @@ var (
 	NomadCgroupParent = defaultParent()
 )
 
+// ReserveGroup returns the name of the cgroup in which nomad tasks making use
+// of reserved cpu cores will be placed.
+func ReserveGroup() string {
+	switch GetMode() {
+	case CG1:
+		return "reserve"
+	default:
+		return "nomad-reserve.slice"
+	}
+}
+
+// ShareGroup returns the name of the cgroup in which nomad tasks NOT making
+// use of reserved cpu cores will be placed.
+func ShareGroup() string {
+	switch GetMode() {
+	case CG1:
+		return "share"
+	default:
+		return "nomad-share.slice"
+	}
+}
+
 func defaultParent() string {
 	switch GetMode() {
 	case CG1:

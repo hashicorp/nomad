@@ -4,6 +4,8 @@
 package docker
 
 import (
+	"github.com/shoenig/netlog"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -976,13 +978,20 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		pidsLimit = driverConfig.PidsLimit
 	}
 
+	nlog := netlog.New("docker")
+	nlog.Info("hostConfig", "mode", cgroupslib.GetMode())
+
 	hostConfig := &docker.HostConfig{
+		// YOU ARE HERE
 		// TODO(shoenig) set cgroup parent when we do partitioning
+		CgroupParent: "nomad-reserve.slice", // uh
 
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
 
 		CPUShares: task.Resources.LinuxResources.CPUShares,
+
+		CPUSetCPUs: task.Resources.LinuxResources.CpusetCpus,
 
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
@@ -999,12 +1008,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		GroupAdd: driverConfig.GroupAdd,
 	}
 
-	// This translates to docker create/run --cpuset-cpus option.
-	// --cpuset-cpus limit the specific CPUs or cores a container can use.
-	// Nomad natively manages cpusets, setting this option will override
-	// Nomad managed cpusets.
+	// setting cpuset_cpus was broken, and now the config option does nothing
+	// doing so is not compatible with the resource isolation nomad asserts
 	if driverConfig.CPUSetCPUs != "" {
-		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
+		d.logger.Warn("setting cpuset_cpus is no longer supported")
 	}
 
 	// Enable tini (docker-init) init system.

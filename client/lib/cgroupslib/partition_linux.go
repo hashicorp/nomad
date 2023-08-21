@@ -22,8 +22,8 @@ func NewPartition(cores *idset.Set[idset.CoreID]) Partition {
 	// todo: how to restore this?
 
 	return &partition{
-		sharePath:   filepath.Join(root, NomadCgroupParent, "share", "cpuset.cpus"),
-		reservePath: filepath.Join(root, NomadCgroupParent, "reserve", "cpuset.cpus"),
+		sharePath:   filepath.Join(root, NomadCgroupParent, ShareGroup(), "cpuset.cpus"),
+		reservePath: filepath.Join(root, NomadCgroupParent, ReserveGroup(), "cpuset.cpus"),
 		share:       cores.Copy(),
 		reserve:     idset.Empty[idset.CoreID](),
 	}

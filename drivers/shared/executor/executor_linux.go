@@ -721,9 +721,9 @@ func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecC
 
 	// Set the v2 specific unified path
 	scope := filepath.Base(cg)
-	partition := "share"
+	partition := cgroupslib.ShareGroup()
 	if cpuCores != "" {
-		partition = "reserve"
+		partition = cgroupslib.ReserveGroup()
 		cfg.Cgroups.Resources.CpusetCpus = cpuCores
 	}
 

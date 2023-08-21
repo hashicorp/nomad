@@ -70,39 +70,39 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG2("root", NomadCgroupParent, partitionFile); err != nil {
-			log.Error("failed to set root partition mode", "error", err)
-			return
-		}
+		// if err := writeCG2("root", NomadCgroupParent, partitionFile); err != nil {
+		// 	log.Error("failed to set root partition mode", "error", err)
+		// 	return
+		// }
 
 		log.Debug("top level partition root nomad.slice cgroup initialized", "cpuset", "xxx")
 
 		//
-		// configuring nomad.slice/share (member)
+		// configuring nomad.slice/nomad-share.slice (member)
 		//
 
-		if err := mkCG2(NomadCgroupParent, "share"); err != nil {
+		if err := mkCG2(NomadCgroupParent, ShareGroup()); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, "share", subtreeFile); err != nil {
+		if err := writeCG2(activation, NomadCgroupParent, ShareGroup(), subtreeFile); err != nil {
 			log.Error("failed to set subtree control on cpuset share partition", "error", err)
 			return
 		}
 
-		log.Debug("partition member nomad.slice/share cgroup initialized")
+		log.Debug("partition member nomad.slice/nomad-share.slice cgroup initialized")
 
 		//
 		// configuring nomad.slice/reserve (member)
 		//
 
-		if err := mkCG2(NomadCgroupParent, "reserve"); err != nil {
+		if err := mkCG2(NomadCgroupParent, ReserveGroup()); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, "reserve", subtreeFile); err != nil {
+		if err := writeCG2(activation, NomadCgroupParent, ReserveGroup(), subtreeFile); err != nil {
 			log.Error("failed to set subtree control on cpuset reserve partition", "error", err)
 			return
 		}
@@ -158,9 +158,9 @@ func WriteNomadCG1(iface, filename, content string) error {
 // LinuxResourcesPath returns the filepath to the directory that the field
 // x.Resources.LinuxResources.CpusetCgroupPath is expected to hold on to
 func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
-	cpuGroup := "share"
+	cpuGroup := ShareGroup()
 	if reserveCores {
-		cpuGroup = "reserve"
+		cpuGroup = ReserveGroup()
 	}
 
 	switch GetMode() {
