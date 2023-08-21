@@ -49,7 +49,8 @@ type ProcessWranglers interface {
 	Destroy(proclib.Task) error
 }
 
+// CPUPartitions is an interface satisfied by the cgroupslib package.
 type CPUPartitions interface {
-	Reserve(*idset.Set[idset.CoreID])
-	Release(*idset.Set[idset.CoreID])
+	Reserve(*idset.Set[idset.CoreID]) error
+	Release(*idset.Set[idset.CoreID]) error
 }
