@@ -41,18 +41,29 @@ type puter interface {
 }
 
 // Variables returns a new handle on the variables.
-func (c *Client) Locks(v *Variable, wo WriteOptions) *Locks {
-
+func (c *Client) Locks(v *Variable, wo WriteOptions) (*Locks, error) {
 	l := &Locks{
 		p:            c,
 		WriteOptions: wo,
 	}
+
 	// Fill var if empty
 	if v != nil {
 		l.Variable = *v
 	}
 
-	return l
+	d, err := time.ParseDuration(l.Variable.Lock.TTL)
+	if err != nil {
+		return nil, err
+	}
+
+	c.configureRetries(&retryOptions{
+		maxToLastCall: d,
+	})
+
+	l.p = c
+
+	return l, nil
 }
 
 type Locks struct {
