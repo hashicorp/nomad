@@ -57,8 +57,8 @@ type WorkloadIdentity struct {
 	// if set.
 	File bool
 
-	// NomadService is used to bind the identity to a correct Consul service.
-	NomadService string
+	// ServiceName is used to bind the identity to a correct Consul service.
+	ServiceName string
 }
 
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
@@ -66,11 +66,11 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		return nil
 	}
 	return &WorkloadIdentity{
-		Name:         wi.Name,
-		Audience:     slices.Clone(wi.Audience),
-		Env:          wi.Env,
-		File:         wi.File,
-		NomadService: wi.NomadService,
+		Name:        wi.Name,
+		Audience:    slices.Clone(wi.Audience),
+		Env:         wi.Env,
+		File:        wi.File,
+		ServiceName: wi.ServiceName,
 	}
 }
 
@@ -95,7 +95,7 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 		return false
 	}
 
-	if wi.NomadService != other.NomadService {
+	if wi.ServiceName != other.ServiceName {
 		return false
 	}
 

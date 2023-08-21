@@ -1553,11 +1553,11 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		return nil
 	}
 	return &structs.WorkloadIdentity{
-		Name:         in.Name,
-		Audience:     in.Audience,
-		Env:          in.Env,
-		File:         in.File,
-		NomadService: in.NomadService,
+		Name:        in.Name,
+		Audience:    in.Audience,
+		Env:         in.Env,
+		File:        in.File,
+		ServiceName: in.ServiceName,
 	}
 }
 
