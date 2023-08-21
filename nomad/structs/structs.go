@@ -7542,6 +7542,10 @@ type Task struct {
 	Identities []*WorkloadIdentity
 }
 
+func (t *Task) UsesCores() bool {
+	return t.Resources.Cores > 0
+}
+
 // UsesConnect is for conveniently detecting if the Task is able to make use
 // of Consul Connect features. This will be indicated in the TaskKind of the
 // Task, which exports known types of Tasks. UsesConnect will be true if the

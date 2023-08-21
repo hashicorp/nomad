@@ -190,8 +190,10 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu")
 	_ = ed.Write("cpu.shares", cpuShares)
 
-	// TODO(shoenig) manage cpuset
-	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
+	// write cpuset file
+	// cpuSet := command.Resources.LinuxResources.CpusetCpus
+	// need different ed
+	// _ = ed.Write("cpuset.cpus", cpuSet)
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
@@ -212,13 +214,14 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
 	}
 
-	// write cpu cgroup files
+	// write cpu weight cgroup file
 	cpuWeight := e.computeCPU(command)
 	ed = cgroupslib.OpenPath(cgroup)
 	_ = ed.Write("cpu.weight", strconv.FormatUint(cpuWeight, 10))
 
-	// TODO(shoenig) manage cpuset
-	e.logger.Info("TODO CORES", "cpuset", command.Resources.LinuxResources.CpusetCpus)
+	// write cpuset cgroup file
+	cpusetCpus := command.Resources.LinuxResources.CpusetCpus
+	_ = ed.Write("cpuset.cpus", cpusetCpus)
 }
 
 func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {

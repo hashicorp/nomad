@@ -75,8 +75,6 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		// todo: write cpuset.cpus
-
 		log.Debug("top level partition root nomad.slice cgroup initialized", "cpuset", "xxx")
 
 		//
@@ -85,6 +83,11 @@ func Init(log hclog.Logger, cores string) {
 
 		if err := mkCG2(NomadCgroupParent, "share"); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
+			return
+		}
+
+		if err := writeCG2(activation, NomadCgroupParent, "share", subtreeFile); err != nil {
+			log.Error("failed to set subtree control on cpuset share partition", "error", err)
 			return
 		}
 
@@ -99,11 +102,10 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		// root? isolated? member?
-		// if err := writeCG2("isolated", NomadCgroupParent, "reserve", "cpuset.cpus.partition"); err != nil {
-		// 	log.Error("failed to set cpuset partition root", "error", err)
-		// 	return
-		// }
+		if err := writeCG2(activation, NomadCgroupParent, "reserve", subtreeFile); err != nil {
+			log.Error("failed to set subtree control on cpuset reserve partition", "error", err)
+			return
+		}
 
 		log.Debug("partition member nomad.slice/reserve cgroup initialized")
 	}
@@ -155,11 +157,17 @@ func WriteNomadCG1(iface, filename, content string) error {
 
 // LinuxResourcesPath returns the filepath to the directory that the field
 // x.Resources.LinuxResources.CpusetCgroupPath is expected to hold on to
-func LinuxResourcesPath(allocID, task string) string {
+func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
+	cpuGroup := "share"
+	if reserveCores {
+		cpuGroup = "reserve"
+	}
+
 	switch GetMode() {
 	case CG1:
+		// SETH TODO:  incorporate share/reserve
 		return filepath.Join(root, "cpuset", NomadCgroupParent, scopeCG1(allocID, task))
 	default:
-		return filepath.Join(root, NomadCgroupParent, scopeCG2(allocID, task))
+		return filepath.Join(root, NomadCgroupParent, cpuGroup, scopeCG2(allocID, task))
 	}
 }

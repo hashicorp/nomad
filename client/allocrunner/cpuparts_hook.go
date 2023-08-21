@@ -29,6 +29,7 @@ func newCPUPartsHook(
 	partitions cgroupslib.Partition,
 	alloc *structs.Allocation,
 ) *cpuPartsHook {
+
 	return &cpuPartsHook{
 		// logger:     logger,
 		logger:       netlog.New("CPUPARTS"),

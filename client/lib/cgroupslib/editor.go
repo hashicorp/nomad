@@ -89,7 +89,7 @@ func (e *editor) Write(filename, content string) error {
 // A Factory creates a Lifecycle which is an abstraction over the setup and
 // teardown routines used for creating and destroying cgroups used for
 // constraining Nomad tasks.
-func Factory(allocID, task string) Lifecycle {
+func Factory(allocID, task string, cores bool) Lifecycle {
 	switch GetMode() {
 	case CG1:
 		return &lifeCG1{
@@ -98,7 +98,7 @@ func Factory(allocID, task string) Lifecycle {
 		}
 	default:
 		return &lifeCG2{
-			dpath: pathCG2(allocID, task),
+			dpath: pathCG2(allocID, task, cores),
 		}
 	}
 }
@@ -243,6 +243,10 @@ func scopeCG2(allocID, task string) string {
 	return fmt.Sprintf("%s.%s.scope", allocID, task)
 }
 
-func pathCG2(allocID, task string) string {
-	return filepath.Join(root, NomadCgroupParent, scopeCG2(allocID, task))
+func pathCG2(allocID, task string, cores bool) string {
+	partition := "share"
+	if cores {
+		partition = "reserve"
+	}
+	return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 }
