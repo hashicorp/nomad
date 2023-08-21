@@ -169,32 +169,42 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&req); err != nil {
-		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		handleStreamResultError(err, pointer.Of(int64(http.StatusInternalServerError)), encoder)
 		return
 	}
 
 	if req.AllocID == "" {
-		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(400)), encoder)
-		return
-	}
-	alloc, err := f.c.GetAlloc(req.AllocID)
-	if err != nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(404)), encoder)
+		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 
+	ar, err := f.c.getAllocRunner(req.AllocID)
+	if err != nil {
+		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(http.StatusNotFound)), encoder)
+		return
+	}
+	if ar.IsDestroyed() {
+		handleStreamResultError(
+			fmt.Errorf("state for allocation %s not found on client", req.AllocID),
+			pointer.Of(int64(http.StatusNotFound)),
+			encoder,
+		)
+		return
+	}
+	alloc := ar.Alloc()
+
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
-		handleStreamResultError(err, pointer.Of(int64(403)), encoder)
+		handleStreamResultError(err, pointer.Of(int64(http.StatusForbidden)), encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
-		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(http.StatusForbidden)), encoder)
 		return
 	}
 
 	// Validate the arguments
 	if req.Path == "" {
-		handleStreamResultError(pathNotPresentErr, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(pathNotPresentErr, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 	switch req.Origin {
@@ -202,15 +212,15 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	case "":
 		req.Origin = "start"
 	default:
-		handleStreamResultError(invalidOrigin, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(invalidOrigin, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 
 	fs, err := f.c.GetAllocFS(req.AllocID)
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := pointer.Of(int64(http.StatusInternalServerError))
 		if structs.IsErrUnknownAllocation(err) {
-			code = pointer.Of(int64(404))
+			code = pointer.Of(int64(http.StatusNotFound))
 		}
 
 		handleStreamResultError(err, code, encoder)
@@ -220,13 +230,13 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	// Calculate the offset
 	fileInfo, err := fs.Stat(req.Path)
 	if err != nil {
-		handleStreamResultError(err, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(err, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 	if fileInfo.IsDir {
 		handleStreamResultError(
 			fmt.Errorf("file %q is a directory", req.Path),
-			pointer.Of(int64(400)), encoder)
+			pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 
@@ -328,7 +338,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
+		handleStreamResultError(streamErr, pointer.Of(int64(http.StatusInternalServerError)), encoder)
 		return
 	}
 }
@@ -344,19 +354,29 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&req); err != nil {
-		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		handleStreamResultError(err, pointer.Of(int64(http.StatusInternalServerError)), encoder)
 		return
 	}
 
 	if req.AllocID == "" {
-		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(allocIDNotPresentErr, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
-	alloc, err := f.c.GetAlloc(req.AllocID)
+
+	ar, err := f.c.getAllocRunner(req.AllocID)
 	if err != nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(404)), encoder)
+		handleStreamResultError(structs.NewErrUnknownAllocation(req.AllocID), pointer.Of(int64(http.StatusNotFound)), encoder)
 		return
 	}
+	if ar.IsDestroyed() {
+		handleStreamResultError(
+			fmt.Errorf("state for allocation %s not found on client", req.AllocID),
+			pointer.Of(int64(http.StatusNotFound)),
+			encoder,
+		)
+		return
+	}
+	alloc := ar.Alloc()
 
 	// Check read permissions
 	if aclObj, err := f.c.ResolveToken(req.QueryOptions.AuthToken); err != nil {
@@ -373,13 +393,13 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	// Validate the arguments
 	if req.Task == "" {
-		handleStreamResultError(taskNotPresentErr, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(taskNotPresentErr, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 	switch req.LogType {
 	case "stdout", "stderr":
 	default:
-		handleStreamResultError(logTypeNotPresentErr, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(logTypeNotPresentErr, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 	switch req.Origin {
@@ -387,15 +407,15 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	case "":
 		req.Origin = "start"
 	default:
-		handleStreamResultError(invalidOrigin, pointer.Of(int64(400)), encoder)
+		handleStreamResultError(invalidOrigin, pointer.Of(int64(http.StatusBadRequest)), encoder)
 		return
 	}
 
 	fs, err := f.c.GetAllocFS(req.AllocID)
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := pointer.Of(int64(http.StatusInternalServerError))
 		if structs.IsErrUnknownAllocation(err) {
-			code = pointer.Of(int64(404))
+			code = pointer.Of(int64(http.StatusNotFound))
 		}
 
 		handleStreamResultError(err, code, encoder)
@@ -404,9 +424,9 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	allocState, err := f.c.GetAllocState(req.AllocID)
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := pointer.Of(int64(http.StatusInternalServerError))
 		if structs.IsErrUnknownAllocation(err) {
-			code = pointer.Of(int64(404))
+			code = pointer.Of(int64(http.StatusNotFound))
 		}
 
 		handleStreamResultError(err, code, encoder)
@@ -418,7 +438,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	if taskState == nil {
 		handleStreamResultError(
 			fmt.Errorf("unknown task name %q", req.Task),
-			pointer.Of(int64(400)),
+			pointer.Of(int64(http.StatusBadRequest)),
 			encoder)
 		return
 	}
@@ -426,7 +446,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	if taskState.StartedAt.IsZero() {
 		handleStreamResultError(
 			fmt.Errorf("task %q not started yet. No logs available", req.Task),
-			pointer.Of(int64(404)),
+			pointer.Of(int64(http.StatusNotFound)),
 			encoder)
 		return
 	}
@@ -512,7 +532,7 @@ OUTER:
 
 	if streamErr != nil {
 		// If error has a Code, use it
-		var code int64 = 500
+		var code int64 = http.StatusInternalServerError
 		if codedErr, ok := streamErr.(interface{ Code() int }); ok {
 			code = int64(codedErr.Code())
 		}
