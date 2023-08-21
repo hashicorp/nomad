@@ -305,6 +305,14 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			if s.Identity != nil && s.Identity.Name == "" {
+				multierror.Append(validationErrors, fmt.Errorf("service identity name cannot be empty"))
+			}
+		}
+	}
+
 	return warnings, validationErrors.ErrorOrNil()
 }
 

@@ -8534,6 +8534,84 @@ func TestServicesDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:       "Service with different identity name and aud",
+			Contextual: false,
+			Old: []*Service{
+				{
+					Name:      "test",
+					Provider:  "consul",
+					PortLabel: "http",
+					Identity: &WorkloadIdentity{
+						Name:     "test",
+						Audience: []string{"consul.io"},
+						File:     true,
+					},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "test2",
+					Provider:  "consul",
+					PortLabel: "http",
+					Identity: &WorkloadIdentity{
+						Name:     "test2",
+						Audience: []string{"consul.io", "nomad.dev"},
+						File:     false,
+					},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type:        DiffTypeEdited,
+							Name:        "Name",
+							Old:         "test",
+							New:         "test2",
+							Annotations: nil,
+						},
+					},
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "Identity",
+							Fields: []*FieldDiff{
+								{
+									Type:        DiffTypeEdited,
+									Name:        "File",
+									Old:         "true",
+									New:         "false",
+									Annotations: nil,
+								},
+								{
+									Type:        DiffTypeEdited,
+									Name:        "Name",
+									Old:         "test",
+									New:         "test2",
+									Annotations: nil,
+								},
+							},
+							Objects: []*ObjectDiff{
+								{
+									Type: DiffTypeAdded,
+									Name: "Audience",
+									Fields: []*FieldDiff{
+										{
+											Type: DiffTypeAdded,
+											Name: "Audience",
+											New:  "nomad.dev",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

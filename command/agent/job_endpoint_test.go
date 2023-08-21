@@ -4070,3 +4070,21 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		}))
 	})
 }
+
+func Test_apiWorkloadIdentityToStructs(t *testing.T) {
+	ci.Parallel(t)
+	must.Nil(t, apiWorkloadIdentityToStructs(nil))
+	must.Eq(t, &structs.WorkloadIdentity{
+		Name:        "consul/test",
+		Audience:    []string{"consul.io"},
+		Env:         false,
+		File:        false,
+		ServiceName: "web",
+	}, apiWorkloadIdentityToStructs(&api.WorkloadIdentity{
+		Name:        "consul/test",
+		Audience:    []string{"consul.io"},
+		Env:         false,
+		File:        false,
+		ServiceName: "web",
+	}))
+}

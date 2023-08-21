@@ -56,6 +56,9 @@ type WorkloadIdentity struct {
 	// File writes the Workload Identity into the Task's secrets directory
 	// if set.
 	File bool
+
+	// ServiceName is used to bind the identity to a correct Consul service.
+	ServiceName string
 }
 
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
@@ -63,10 +66,11 @@ func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
 		return nil
 	}
 	return &WorkloadIdentity{
-		Name:     wi.Name,
-		Audience: slices.Clone(wi.Audience),
-		Env:      wi.Env,
-		File:     wi.File,
+		Name:        wi.Name,
+		Audience:    slices.Clone(wi.Audience),
+		Env:         wi.Env,
+		File:        wi.File,
+		ServiceName: wi.ServiceName,
 	}
 }
 
@@ -88,6 +92,10 @@ func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
 	}
 
 	if wi.File != other.File {
+		return false
+	}
+
+	if wi.ServiceName != other.ServiceName {
 		return false
 	}
 

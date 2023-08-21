@@ -609,6 +609,11 @@ type Service struct {
 	// either ServiceProviderConsul or ServiceProviderNomad and defaults to the former when
 	// left empty by the operator.
 	Provider string
+
+	// Identity is a field populated automatically by the job mutating hook.
+	// Its name will be `consul-service/${service_name}`, and its contents will
+	// match the server's `consul.service_identity` configuration block.
+	Identity *WorkloadIdentity
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -634,6 +639,8 @@ func (s *Service) Copy() *Service {
 	ns.Meta = maps.Clone(s.Meta)
 	ns.CanaryMeta = maps.Clone(s.CanaryMeta)
 	ns.TaggedAddresses = maps.Clone(s.TaggedAddresses)
+
+	ns.Identity = s.Identity.Copy()
 
 	return ns
 }
@@ -736,6 +743,10 @@ func (s *Service) Validate() error {
 			ServiceProviderConsul, ServiceProviderNomad, s.Provider))
 	}
 
+	if err := s.validateIdentity(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -808,6 +819,20 @@ func (s *Service) validateNomadService(mErr *multierror.Error) {
 	}
 }
 
+// validateIdentity performs validation on workload identity field populated by
+// the job mutating hook
+func (s *Service) validateIdentity() error {
+	if s.Identity == nil {
+		return nil
+	}
+
+	if len(s.Identity.Audience) == 0 {
+		return fmt.Errorf("Service identity must provide at least one target aud value")
+	}
+
+	return nil
+}
+
 // ValidateName checks if the service Name is valid and should be called after
 // the name has been interpolated
 func (s *Service) ValidateName(name string) error {
@@ -846,6 +871,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
 	hashString(h, s.Namespace)
+	hashIdentity(h, s.Identity)
 
 	// Don't hash the provider parameter, so we don't cause churn of all
 	// registered services when upgrading Nomad versions. The provider is not
@@ -876,6 +902,22 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashConfig(h, upstream.Config)
 			}
 		}
+	}
+}
+
+func hashIdentity(h hash.Hash, identity *WorkloadIdentity) {
+	if identity != nil {
+		hashString(h, identity.Name)
+		hashAud(h, identity.Audience)
+		hashBool(h, identity.Env, "Env")
+		hashBool(h, identity.File, "File")
+		hashString(h, identity.ServiceName)
+	}
+}
+
+func hashAud(h hash.Hash, aud []string) {
+	for _, a := range aud {
+		hashString(h, a)
 	}
 }
 
@@ -966,6 +1008,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if s.EnableTagOverride != o.EnableTagOverride {
+		return false
+	}
+
+	if !s.Identity.Equal(o.Identity) {
 		return false
 	}
 

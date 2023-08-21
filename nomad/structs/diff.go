@@ -665,6 +665,11 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, conDiffs)
 	}
 
+	// Workload Identity diffs
+	if wiDiffs := idDiff(old.Identity, new.Identity, contextual); wiDiffs != nil {
+		diff.Objects = append(diff.Objects, wiDiffs)
+	}
+
 	return diff
 }
 
@@ -2390,15 +2395,22 @@ func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
 	if reflect.DeepEqual(oldWI, newWI) {
 		return nil
 	} else if oldWI == nil {
+		oldWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
 	} else if newWI == nil {
+		newWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
+	}
+
+	audDiff := stringSetDiff(oldWI.Audience, newWI.Audience, "Audience", contextual)
+	if audDiff != nil {
+		diff.Objects = append(diff.Objects, audDiff)
 	}
 
 	// Diff the primitive fields.
