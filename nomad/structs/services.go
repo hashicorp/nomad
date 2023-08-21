@@ -822,14 +822,17 @@ func (s *Service) validateNomadService(mErr *multierror.Error) {
 // validateIdentity performs validation on workload identity field populated by
 // the job mutating hook
 func (s *Service) validateIdentity() error {
-	if s.Identity != nil {
-		if s.Identity.Name != "" {
-			return fmt.Errorf("Service identity name must not be explicitly set in the jobspec")
-		}
-		if len(s.Identity.Audience) == 0 {
-			return fmt.Errorf("Service identity must provide at least one target aud value")
-		}
+	if s.Identity == nil {
+		return nil
 	}
+	
+	if s.Identity.Name != "" {
+		return fmt.Errorf("Service identity name must not be explicitly set in the jobspec")
+	}
+	if len(s.Identity.Audience) == 0 {
+		return fmt.Errorf("Service identity must provide at least one target aud value")
+	}
+
 	return nil
 }
 
