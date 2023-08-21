@@ -285,11 +285,11 @@ config {
   The default `network_mode` for tasks that use group networking in [`bridge`]
   mode will be `container:<name>`, where the name is the container name of the
   parent container used to share network namespaces between tasks. If you set
-  the group `network.mode = "bridge"` you should not set the Docker config
-  `network_mode`, or the container will be unable to reach other containers in
-  the task group. This will also prevent [Connect]-enabled tasks from reaching
-  the Envoy sidecar proxy. You must also set any DNS options in the `network.dns`
-  block and not in the task configuration.
+  the group [`network.mode`][] to `"bridge"` you should not set this Docker
+  `network_mode` config, otherwise the container will be unable to reach other
+  containers in the task group. This will also prevent [Connect]-enabled tasks
+  from reaching the Envoy sidecar proxy. You must also set any DNS options in
+  the `network.dns` block and not in the task configuration.
 
   If you are in the process of migrating from the default Docker network to
   group-wide bridge networking, you may encounter issues preventing your
@@ -1222,6 +1222,7 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [Connect]: /nomad/docs/job-specification/connect
 [`bridge`]: /nomad/docs/job-specification/network#bridge
 [network block]: /nomad/docs/job-specification/network#bridge-mode
+[`network.mode`]: /nomad/docs/job-specification/network#mode
 [`pids_limit`]: /nomad/docs/drivers/docker#pids_limit
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
 [cores]: /nomad/docs/job-specification/resources#cores
