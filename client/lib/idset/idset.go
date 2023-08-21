@@ -40,6 +40,11 @@ func Empty[T ID]() *Set[T] {
 	}
 }
 
+// Copy creates a deep copy of s.
+func (s *Set[T]) Copy() *Set[T] {
+	return &Set[T]{items: s.items.Copy()}
+}
+
 var (
 	numberRe = regexp.MustCompile(`^\d+$`)
 	spanRe   = regexp.MustCompile(`^(\d+)-(\d+)$`)
@@ -111,10 +116,21 @@ func (s *Set[T]) Slice() []T {
 	return items
 }
 
+// InsertSet inserts all items of other into s.
+func (s *Set[T]) InsertSet(other *Set[T]) {
+	s.items.InsertSet(other.items)
+}
+
+// RemoveSet removes all items of other from s.
+func (s *Set[T]) RemoveSet(other *Set[T]) {
+	s.items.RemoveSet(other.items)
+}
+
 // String creates a well-formed cpuset string representation of the Set.
 func (s *Set[T]) String() string {
 	if s.items.Empty() {
-		return ""
+		// use a space to indicate empty in cgroups
+		return " "
 	}
 
 	var parts []string

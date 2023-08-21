@@ -43,13 +43,11 @@ func (h *cpuPartsHook) Name() string {
 }
 
 func (h *cpuPartsHook) Prerun() error {
-	netlog.Cyan("cpuPartsHook.Prerun()")
-	h.partitions.Reserve(h.reservations)
-	return nil
+	netlog.Cyan("cpuPartsHook.Prerun()", "reservations", h.reservations)
+	return h.partitions.Reserve(h.reservations)
 }
 
 func (h *cpuPartsHook) Postrun() error {
-	netlog.Cyan("cpuPartsHook.Postrun()")
-	h.partitions.Release(h.reservations)
-	return nil
+	netlog.Cyan("cpuPartsHook.Postrun()", "reservations", h.reservations)
+	return h.partitions.Release(h.reservations)
 }

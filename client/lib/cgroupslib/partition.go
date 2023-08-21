@@ -8,6 +8,6 @@ import (
 )
 
 type Partition interface {
-	Reserve(*idset.Set[idset.CoreID])
-	Release(*idset.Set[idset.CoreID])
+	Reserve(*idset.Set[idset.CoreID]) error
+	Release(*idset.Set[idset.CoreID]) error
 }
