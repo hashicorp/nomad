@@ -826,9 +826,6 @@ func (s *Service) validateIdentity() error {
 		return nil
 	}
 
-	if s.Identity.Name != "" {
-		return fmt.Errorf("Service identity name must not be explicitly set in the jobspec")
-	}
 	if len(s.Identity.Audience) == 0 {
 		return fmt.Errorf("Service identity must provide at least one target aud value")
 	}
