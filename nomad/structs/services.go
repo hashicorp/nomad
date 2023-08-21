@@ -825,7 +825,7 @@ func (s *Service) validateIdentity() error {
 	if s.Identity == nil {
 		return nil
 	}
-	
+
 	if s.Identity.Name != "" {
 		return fmt.Errorf("Service identity name must not be explicitly set in the jobspec")
 	}
