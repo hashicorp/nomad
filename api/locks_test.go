@@ -90,7 +90,7 @@ type mockService struct {
 	starterID     string
 }
 
-func (ms *mockService) Run(callerID string, ctx context.Context) func(ctx context.Context) error {
+func (ms *mockService) Run(callerID string, _ context.Context) func(ctx context.Context) error {
 	return func(ctx context.Context) error {
 		ms.mu.Lock()
 		ms.startsCounter += 1
