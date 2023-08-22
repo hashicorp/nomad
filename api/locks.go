@@ -35,7 +35,7 @@ var (
 	ErrLockConflict = fmt.Errorf("Existing key does not match lock holder")
 )
 
-// Variables returns a new handle on the variables.
+// Locks returns a new handle on a lock for the given variable.
 func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks {
 	l := &Locks{
 		c:            c,
@@ -50,19 +50,25 @@ func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks
 	return l
 }
 
+// Locks is used to maintain all the resources necessary to operate over a lock.
 type Locks struct {
 	c *Client
 	Variable
-	lease time.Duration
+	ttl time.Duration
 
 	WriteOptions
 }
 
+// Acquire will make the actual call to acquire the lock over the variable using
+// the ttl in the Locks to create the VariableLock.
+//
+// callerID will be used to identify who is holding the lock in the future,
+// currently is only por testing purposes.
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	var out Variable
 
 	l.Variable.Lock = &VariableLock{
-		TTL: l.lease.String(),
+		TTL: l.ttl.String(),
 	}
 
 	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-acquire", l.Variable, &out, &l.WriteOptions)
@@ -75,6 +81,8 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	return out.Lock.ID, nil
 }
 
+// Release makes the call to release the lock over a variable, even if the ttl
+// has not yet passed.
 func (l *Locks) Release(ctx context.Context) error {
 	var out Variable
 
@@ -87,6 +95,9 @@ func (l *Locks) Release(ctx context.Context) error {
 	return nil
 }
 
+// Renew is used to extend the ttl of a lock. It can be used as a heartbeat or a
+// lease to maintain the hold over the lock for longer periods or as a sync
+// mechanism among multiple instances looking to acquire the same lock.
 func (l *Locks) Renew(ctx context.Context) error {
 	var out VariableMetadata
 
@@ -103,6 +114,10 @@ type locker interface {
 	Renew(ctx context.Context) error
 }
 
+// LockLeaser is a helper used to run a protected function that should only be
+// active if the instance that runs it is currently holding the lock.
+// It includes the lease renewal mechanism and tracking in case the protected
+// function returns an error.
 type LockLeaser struct {
 	ID            string
 	lease         time.Duration
@@ -113,7 +128,9 @@ type LockLeaser struct {
 	locker
 }
 
-func (c *Client) NewLockLeaser(wo WriteOptions, v *Variable, lease time.Duration,
+// NewLockLeaser returns an instance of LockLeaser. Both variable and callerID
+// are optional, in case they are not provided, internal ones will be created.
+func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.Duration,
 	callerID string) *LockLeaser {
 	if callerID == "" {
 		callerID = uuid.Generate()
@@ -121,8 +138,8 @@ func (c *Client) NewLockLeaser(wo WriteOptions, v *Variable, lease time.Duration
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
-	if v == nil {
-		v = &Variable{
+	if variable == nil {
+		variable = &Variable{
 			Namespace: wo.Namespace,
 			Path:      "", // TO BE DETERMINED, any ideas?
 			Lock: &VariableLock{
@@ -137,12 +154,14 @@ func (c *Client) NewLockLeaser(wo WriteOptions, v *Variable, lease time.Duration
 		waitPeriod:    time.Duration(float64(lease) * retryBackoffFactor),
 		ID:            callerID,
 		randomDelay:   time.Duration(rn) * time.Millisecond,
-		locker:        c.Locks(wo, v, lease),
+		locker:        c.Locks(wo, variable, lease),
 	}
 
 	return &ll
 }
 
+// Start starts the process of maintaining the lease and executes the protected
+// function in an independent go routine.
 func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.Context) error) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer ll.locker.Release(ctx)
