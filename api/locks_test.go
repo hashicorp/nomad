@@ -124,8 +124,7 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	s := mockService{}
 
-	testCtx, testCancel := context.WithCancel(context.Background())
-	defer testCancel()
+	testCtx := context.Background()
 
 	// Set up independent contexts to test the switch when one controller stops
 	hac1Ctx, hac1Cancel := context.WithCancel(testCtx)
@@ -135,24 +134,31 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 	hac1 := LockLeaser{
 		ID:            "hac1",
 		locker:        &l,
-		renewalPeriod: time.Duration(float64(testLease) * leaseRenewalFactor),
-		waitPeriod:    time.Duration(float64(testLease) * retryBackoffFactor),
+		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   0,
 	}
 
 	hac2 := LockLeaser{
 		ID:            "hac2",
 		locker:        &l,
-		renewalPeriod: time.Duration(float64(testLease) * leaseRenewalFactor),
-		waitPeriod:    time.Duration(float64(testLease) * retryBackoffFactor),
+		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   6 * time.Millisecond,
 	}
 
 	lock := l.getLockState()
 	must.False(t, lock.locked)
 
-	go hac1.Start(hac1Ctx, s.Run(hac1.ID, hac1Ctx))
-	go hac2.Start(testCtx, s.Run(hac2.ID, testCtx))
+	go func() {
+		err := hac1.Start(hac1Ctx, s.Run(hac1.ID, hac1Ctx))
+		must.NoError(t, err)
+	}()
+
+	go func() {
+		err := hac2.Start(testCtx, s.Run(hac2.ID, testCtx))
+		must.NoError(t, err)
+	}()
 
 	time.Sleep(4 * time.Millisecond)
 	/*
@@ -238,12 +244,16 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 	hac3 := LockLeaser{
 		ID:            "hac3",
 		locker:        &l,
-		renewalPeriod: time.Duration(float64(testLease) * leaseRenewalFactor),
-		waitPeriod:    time.Duration(float64(testLease) * retryBackoffFactor),
+		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   1 * time.Millisecond,
 	}
 
-	go hac3.Start(testCtx, s.Run(hac3.ID, testCtx))
+	go func() {
+		err := hac3.Start(testCtx, s.Run(hac3.ID, testCtx))
+		must.NoError(t, err)
+	}()
+
 	time.Sleep(15 * time.Millisecond)
 
 	/*
@@ -333,7 +343,7 @@ func TestFailedRenewal(t *testing.T) {
 		ID:            "hac1",
 		locker:        &l,
 		renewalPeriod: time.Duration(float64(testLease) * 1.5),
-		waitPeriod:    time.Duration(float64(testLease) * retryBackoffFactor),
+		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   0,
 	}
 

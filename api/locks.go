@@ -9,29 +9,12 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/go-multierror"
 )
 
 const (
-	leaseRenewalFactor = 0.7
-	retryBackoffFactor = 1.1
-)
-
-var (
-	// ErrLockHeld is returned if we attempt to double lock
-	ErrLockHeld = fmt.Errorf("Lock already held")
-
-	// ErrLockNotHeld is returned if we attempt to unlock a lock
-	// that we do not hold.
-	ErrLockNotHeld = fmt.Errorf("Lock not held")
-
-	// ErrLockInUse is returned if we attempt to destroy a lock
-	// that is in use.
-	ErrLockInUse = fmt.Errorf("Lock in use")
-
-	// ErrLockConflict is returned if the flags on a key
-	// used for a lock do not match expectation
-	ErrLockConflict = fmt.Errorf("Existing key does not match lock holder")
+	lockLeaseRenewalFactor = 0.7
+	lockRetryBackoffFactor = 1.1
 )
 
 // Locks returns a new handle on a lock for the given variable.
@@ -61,7 +44,8 @@ type Locks struct {
 }
 
 // Acquire will make the actual call to acquire the lock over the variable using
-// the ttl in the Locks to create the VariableLock.
+// the ttl in the Locks to create the VariableLock. It will return the
+// path of the variable holding the lock.
 //
 // callerID will be used to identify who is holding the lock in the future,
 // currently is only por testing purposes.
@@ -79,7 +63,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 
 	l.Variable = out
 
-	return out.Lock.ID, nil
+	return out.Path, nil
 }
 
 // Release makes the call to release the lock over a variable, even if the ttl
@@ -110,8 +94,18 @@ func (l *Locks) Renew(ctx context.Context) error {
 }
 
 type locker interface {
+	// Acquire will make the actual call to acquire the lock over the variable using
+	// the ttl in the Locks to create the VariableLock.
+	//
+	// callerID will be used to identify who is holding the lock in the future,
+	// currently is only por testing purposes.
 	Acquire(ctx context.Context, callerID string) (string, error)
+	// Release makes the call to release the lock over a variable, even if the ttl
+	// has not yet passed.
 	Release(ctx context.Context) error
+	// Renew is used to extend the ttl of a lock. It can be used as a heartbeat or a
+	// lease to maintain the hold over the lock for longer periods or as a sync
+	// mechanism among multiple instances looking to acquire the same lock.
 	Renew(ctx context.Context) error
 }
 
@@ -134,11 +128,9 @@ type LockLeaser struct {
 
 // NewLockLeaser returns an instance of LockLeaser. Both variable and callerID
 // are optional, in case they are not provided, internal ones will be created.
+// Important: It will be on the user to remove the internal variable created for the lock.
 func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.Duration,
 	callerID string) *LockLeaser {
-	if callerID == "" {
-		callerID = uuid.Generate()
-	}
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
@@ -154,8 +146,8 @@ func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.D
 
 	ll := LockLeaser{
 		lease:         lease,
-		renewalPeriod: time.Duration(float64(lease) * leaseRenewalFactor),
-		waitPeriod:    time.Duration(float64(lease) * retryBackoffFactor),
+		renewalPeriod: time.Duration(float64(lease) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(lease) * lockRetryBackoffFactor),
 		ID:            callerID,
 		randomDelay:   time.Duration(rn) * time.Millisecond,
 		locker:        c.Locks(wo, variable, lease),
@@ -164,14 +156,33 @@ func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.D
 	return &ll
 }
 
-// Start starts the process of maintaining the lease and executes the protected
-// function in an independent go routine.
+// Start wraps the start function in charge of executing the protected
+// function and maintain the lease but is in charge of releasing the
+// lock before exiting. It is a blocking function.
 func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.Context) error) error {
+	var mErr multierror.Error
+
+	err := ll.start(ctx, protectedFunc)
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	err = ll.Release(ctx)
+	if err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// start starts the process of maintaining the lease and executes the protected
+// function in an independent go routine.
+func (ll *LockLeaser) start(ctx context.Context, protectedFunc func(ctx context.Context) error) error {
 	ctx, cancel := context.WithCancel(ctx)
-	defer ll.locker.Release(ctx)
+	defer cancel()
 
 	// Channel to monitor the possible errors on the protected function
-	errChannel := make(chan error)
+	errChannel := make(chan error, 1)
 
 	// To avoid collisions if all the instances start at the same time, wait
 	// a random time before making the first call.
@@ -192,10 +203,11 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.
 			funcCtx, funcCancel := context.WithCancel(ctx)
 			defer funcCancel()
 
-			// Start running the lock protected function
+			// Start running the lock protected function.
 			go func() {
 				err := protectedFunc(funcCtx)
 				if err != nil {
+					// Cancel will force the maintainLease to return.
 					cancel()
 					errChannel <- err
 				}
@@ -219,7 +231,7 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.
 
 		select {
 		case err := <-errChannel:
-			return fmt.Errorf("locks: unable to start protected function: %w", err)
+			return fmt.Errorf("locks: error executing the protected function: %w", err)
 
 		case <-ctx.Done():
 			return nil
