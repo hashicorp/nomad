@@ -32,6 +32,7 @@ export default class Job extends Model {
   @attr('number') modifyIndex;
   @attr('date') submitTime;
   @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
+  @attr() ui;
 
   @attr('number') groupCountSum;
   // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
@@ -293,6 +294,11 @@ export default class Job extends Model {
 
   get isPack() {
     return !!this.meta?.structured?.pack;
+  }
+
+  get jobLinks() {
+    console.log('looking for job links', this.meta.structured);
+    return this.meta?.structured?.links ?? [];
   }
 
   // True when the job is the parent periodic or parameterized jobs

@@ -207,6 +207,9 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 		return nil, CodedError(400, "Job must be specified")
 	}
 
+	// Log UI info about the job
+	s.logger.Info("Job UI2", "job_id", validateRequest.Job.ID, "UI", validateRequest.Job.Ui.Description)
+
 	job := ApiJobToStructJob(validateRequest.Job)
 	args := structs.JobValidateRequest{
 		Job: job,
@@ -935,6 +938,9 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 		job, queryRegion, writeReq.Region, s.agent.GetConfig().Region,
 	)
 
+	// Log UI info about the job
+	s.logger.Info("Job UI", "job_id", job.ID, "region", requestRegion, "namespace", writeReq.Namespace, "UI", job.Ui.Description)
+
 	sJob := ApiJobToStructJob(job)
 	sJob.Region = jobRegion
 	writeReq.Region = requestRegion
@@ -1039,6 +1045,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		Ui:             ApiJobUIConfigToStructs(job.Ui),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -2073,6 +2080,25 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	}
 
 	return out
+}
+
+func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
+	// log out
+
+	if jobUI == nil {
+		return nil
+	}
+	links := make([]structs.JobUILink, len(jobUI.Links))
+	for i, link := range jobUI.Links {
+		links[i] = structs.JobUILink{
+			Label: link.Label,
+			Url:   link.URL,
+		}
+	}
+	return &structs.JobUIConfig{
+		Description: jobUI.Description,
+		Links:       links,
+	}
 }
 
 func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {
