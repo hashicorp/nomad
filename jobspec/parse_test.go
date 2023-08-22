@@ -569,6 +569,21 @@ func TestParse(t *testing.T) {
 		},
 
 		{
+			"periodic-crons.hcl",
+			&api.Job{
+				ID:   stringToPtr("foo"),
+				Name: stringToPtr("foo"),
+				Periodic: &api.PeriodicConfig{
+					SpecType:        stringToPtr(api.PeriodicSpecCron),
+					Specs:           []string{"*/5 * * *", "*/7 * * *"},
+					ProhibitOverlap: boolToPtr(true),
+					TimeZone:        stringToPtr("Europe/Minsk"),
+				},
+			},
+			false,
+		},
+
+		{
 			"specify-job.hcl",
 			&api.Job{
 				ID:   stringToPtr("job1"),
