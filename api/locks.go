@@ -51,6 +51,8 @@ func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks
 }
 
 // Locks is used to maintain all the resources necessary to operate over a lock.
+// It makes the calls to the http using an exponential retry mechanism that will
+// try until it either reaches 5 attempts or the ttl of the lock expires.
 type Locks struct {
 	c *Client
 	Variable
@@ -117,7 +119,8 @@ type locker interface {
 // LockLeaser is a helper used to run a protected function that should only be
 // active if the instance that runs it is currently holding the lock.
 // It includes the lease renewal mechanism and tracking in case the protected
-// function returns an error.
+// function returns an error. Internally it uses an exponential retry mechanism
+// for the api calls.
 type LockLeaser struct {
 	ID            string
 	lease         time.Duration
