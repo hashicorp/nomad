@@ -13,7 +13,7 @@ import (
 type Consul struct {
 	// Namespace in which to operate in Consul.
 	//
-	// Namespace is set on the client and can be overriden by the consul.namespace
+	// Namespace is set on the client and can be overridden by the consul.namespace
 	// field in the jobspec.
 	Namespace string
 
