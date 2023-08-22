@@ -1,0 +1,3 @@
+```release-note:feature
+jobspec: Add 'crons' fileld for multiple `cron` expressions
+```

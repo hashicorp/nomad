@@ -136,7 +136,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff.TaskGroups = tgs
 
 	// Periodic diff
-	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic", contextual); pDiff != nil {
+	if pDiff := periodicDiff(j.Periodic, other.Periodic, contextual); pDiff != nil {
 		diff.Objects = append(diff.Objects, pDiff)
 	}
 
@@ -2637,6 +2637,37 @@ func stringSetDiff(old, new []string, name string, contextual bool) *ObjectDiff 
 		diff.Type = DiffTypeNone
 	}
 
+	return diff
+}
+
+func periodicDiff(old, new *PeriodicConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Periodic"}
+	var oldPeriodicFlat, newPeriodicFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &PeriodicConfig{}
+		diff.Type = DiffTypeAdded
+		newPeriodicFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &PeriodicConfig{}
+		diff.Type = DiffTypeDeleted
+		oldPeriodicFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPeriodicFlat = flatmap.Flatten(old, nil, true)
+		newPeriodicFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPeriodicFlat, newPeriodicFlat, contextual)
+
+	if setDiff := stringSetDiff(old.Specs, new.Specs, "Specs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	sort.Sort(FieldDiffs(diff.Fields))
 	return diff
 }
 

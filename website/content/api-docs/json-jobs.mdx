@@ -336,6 +336,14 @@ The `Job` object supports the following keys:
     [here](https://github.com/gorhill/cronexpr#implementation) for full
     documentation of supported cron specs and the predefined expressions.
 
+  - `Specs` - A list of cron expressions configuring the intervals the job is
+    launched at. The job runs at the next earliest time that matches any of the
+    expressions. Supports predefined expressions such as `@daily` and
+    `@weekly`. Refer to [the
+    documentation](https://github.com/gorhill/cronexpr#implementation) for full
+    details about the supported cron specs and the predefined expressions.
+    Conflicts with `Spec`.
+
   - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can be set
     to true to enforce that the periodic job doesn't spawn a new instance of the
     job if any of the previous jobs are still running. It is defaulted to false.
