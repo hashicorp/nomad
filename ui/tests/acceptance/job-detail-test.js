@@ -16,6 +16,7 @@ import moduleForJob, {
 } from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import percySnapshot from '@percy/ember';
+import { allScenarios } from '../../mirage/scenarios/default';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', {
@@ -318,6 +319,39 @@ moduleForJob(
       },
   }
 );
+
+module('Acceptance | ui block', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  test('job renders with description', async function (assert) {
+    allScenarios.smallCluster(server);
+    await JobDetail.visit({ id: 'hcl-definition-job' });
+    assert
+      .dom('[data-test-job-description]')
+      .doesNotExist('Job description does not exist on a standard job');
+    await JobDetail.visit({ id: 'ui-block-job' });
+    assert
+      .dom('[data-test-job-description]')
+      .exists('Job description exists when defined in HCL');
+    assert
+      .dom('[data-test-job-description] strong')
+      .exists('Job description is rendered as markdown, with bold text');
+  });
+
+  test('job renders with links', async function (assert) {
+    allScenarios.smallCluster(server);
+    await JobDetail.visit({ id: 'hcl-definition-job' });
+    assert
+      .dom('[data-test-job-links]')
+      .doesNotExist('Job links do not exist on a standard job');
+    await JobDetail.visit({ id: 'ui-block-job' });
+    assert
+      .dom('[data-test-job-links] a')
+      .exists({ count: 2 }, 'Job links exists when defined in HCL');
+    await percySnapshot(assert);
+  });
+});
 
 module('Acceptance | job detail (with namespaces)', function (hooks) {
   setupApplicationTest(hooks);

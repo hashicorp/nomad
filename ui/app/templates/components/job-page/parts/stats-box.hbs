@@ -6,7 +6,7 @@
 {{! template-lint-disable no-inline-styles }}
 
 {{#if this.description}}
-  <p class="boxed-section">{{this.description}}</p>
+  <p data-test-job-description class="boxed-section">{{this.description}}</p>
 {{/if}}
 
 <div class="boxed-section is-small">
@@ -42,7 +42,7 @@
     </span>
 
     {{#if @job.ui.Links.length}}
-      <span class="pair">
+      <span data-test-job-links class="pair">
         <span class="term">Links</span>
         {{#each @job.ui.Links as |link|}}
           <a href="{{link.Url}}" target="_blank" rel="noopener noreferrer" class="term">
