@@ -297,7 +297,6 @@ export default class Job extends Model {
   }
 
   get jobLinks() {
-    console.log('looking for job links', this.meta.structured);
     return this.meta?.structured?.links ?? [];
   }
 

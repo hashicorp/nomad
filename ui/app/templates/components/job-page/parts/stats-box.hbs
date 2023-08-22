@@ -5,8 +5,8 @@
 
 {{! template-lint-disable no-inline-styles }}
 
-{{#if @job.ui.Description}}
-<p>{{@job.ui.Description}}</p>
+{{#if this.description}}
+  <p class="boxed-section">{{this.description}}</p>
 {{/if}}
 
 <div class="boxed-section is-small">
@@ -41,7 +41,6 @@
       {{#if @job.nodePool}}{{@job.nodePool}}{{else}}-{{/if}}
     </span>
 
-    {{log "LINKS" @job.ui.Links}}
     {{#if @job.ui.Links.length}}
       <span class="pair">
         <span class="term">Links</span>
