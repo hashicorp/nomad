@@ -77,8 +77,9 @@ func (c *Client) ACLTokens() *ACLTokens {
 	return &ACLTokens{client: c}
 }
 
-// DEPRECATED: will be removed in Nomad 1.5.0
 // Bootstrap is used to get the initial bootstrap token
+//
+// See BootstrapOpts to set ACL bootstrapping options.
 func (a *ACLTokens) Bootstrap(q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	var resp ACLToken
 	wm, err := a.client.put("/v1/acl/bootstrap", nil, &resp, q)
