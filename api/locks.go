@@ -7,7 +7,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
 
@@ -36,39 +35,25 @@ var (
 	ErrLockConflict = fmt.Errorf("Existing key does not match lock holder")
 )
 
-type puter interface {
-	retryPut(ctx context.Context, endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error)
-}
-
 // Variables returns a new handle on the variables.
-func (c *Client) Locks(v *Variable, wo WriteOptions) (*Locks, error) {
+func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks {
 	l := &Locks{
-		p:            c,
+		c:            c,
 		WriteOptions: wo,
+		Variable:     *v,
 	}
 
-	// Fill var if empty
-	if v != nil {
-		l.Variable = *v
-	}
-
-	d, err := time.ParseDuration(l.Variable.Lock.TTL)
-	if err != nil {
-		return nil, err
-	}
-
-	c.configureRetries(&retryOptions{
-		maxToLastCall: d,
+	l.c.configureRetries(&retryOptions{
+		maxToLastCall: lease,
 	})
 
-	l.p = c
-
-	return l, nil
+	return l
 }
 
 type Locks struct {
-	p puter
+	c *Client
 	Variable
+	lease time.Duration
 
 	WriteOptions
 }
@@ -76,7 +61,11 @@ type Locks struct {
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	var out Variable
 
-	_, err := l.p.retryPut(ctx, "/v1/var/"+l.Path+"?lock-acquire", l.Variable, &out, &l.WriteOptions)
+	l.Variable.Lock = &VariableLock{
+		TTL: l.lease.String(),
+	}
+
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-acquire", l.Variable, &out, &l.WriteOptions)
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +78,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 func (l *Locks) Release(ctx context.Context) error {
 	var out Variable
 
-	_, err := l.p.retryPut(ctx, "/v1/var/"+l.Path+"?lock-release", l.Variable, &out, &l.WriteOptions)
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-release", l.Variable, &out, &l.WriteOptions)
 	if err != nil {
 		return err
 	}
@@ -101,7 +90,7 @@ func (l *Locks) Release(ctx context.Context) error {
 func (l *Locks) Renew(ctx context.Context) error {
 	var out VariableMetadata
 
-	_, err := l.p.retryPut(ctx, "/v1/var/"+l.Path+"?lock-renew", l.Variable, &out, &l.WriteOptions)
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-renew", l.Variable, &out, &l.WriteOptions)
 	if err != nil {
 		return err
 	}
@@ -116,34 +105,39 @@ type locker interface {
 
 type LockLeaser struct {
 	ID            string
+	lease         time.Duration
 	renewalPeriod time.Duration
 	waitPeriod    time.Duration
 	randomDelay   time.Duration
 
-	logger log.Logger
 	locker
 }
 
-// Should we add the possibility to pass a variable?
-func (c *Client) NewLockLeaser(lease time.Duration, wo WriteOptions) *LockLeaser {
-	ID := uuid.Generate()
+func (c *Client) NewLockLeaser(wo WriteOptions, v *Variable, lease time.Duration,
+	callerID string) *LockLeaser {
+	if callerID == "" {
+		callerID = uuid.Generate()
+	}
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
-	v := &Variable{
-		Namespace: wo.Namespace,
-		Path:      "", // TO BE DETERMINED, any ideas?
-		Lock: &VariableLock{
-			TTL: lease.String(),
-		},
+	if v == nil {
+		v = &Variable{
+			Namespace: wo.Namespace,
+			Path:      "", // TO BE DETERMINED, any ideas?
+			Lock: &VariableLock{
+				TTL: lease.String(),
+			},
+		}
 	}
 
 	ll := LockLeaser{
+		lease:         lease,
 		renewalPeriod: time.Duration(float64(lease) * leaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(lease) * retryBackoffFactor),
-		ID:            ID,
+		ID:            callerID,
 		randomDelay:   time.Duration(rn) * time.Millisecond,
-		locker:        c.Locks(v, wo),
+		locker:        c.Locks(wo, v, lease),
 	}
 
 	return &ll
@@ -151,11 +145,9 @@ func (c *Client) NewLockLeaser(lease time.Duration, wo WriteOptions) *LockLeaser
 
 func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.Context) error) error {
 	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		ll.locker.Release(ctx)
-		cancel()
-	}()
+	defer ll.locker.Release(ctx)
 
+	// Channel to monitor the possible errors on the protected function
 	errChannel := make(chan error)
 
 	// To avoid collisions if all the instances start at the same time, wait
@@ -181,6 +173,7 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.
 			go func() {
 				err := protectedFunc(funcCtx)
 				if err != nil {
+					cancel()
 					errChannel <- err
 				}
 			}()
@@ -203,7 +196,7 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.
 
 		select {
 		case err := <-errChannel:
-			return err
+			return fmt.Errorf("locks: unable to start protected function: %w", err)
 
 		case <-ctx.Done():
 			return nil
