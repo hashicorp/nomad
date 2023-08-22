@@ -118,6 +118,8 @@ type locker interface {
 
 // LockLeaser is a helper used to run a protected function that should only be
 // active if the instance that runs it is currently holding the lock.
+// Can be used to provide synchrony among multiple independent instances.
+//
 // It includes the lease renewal mechanism and tracking in case the protected
 // function returns an error. Internally it uses an exponential retry mechanism
 // for the api calls.
