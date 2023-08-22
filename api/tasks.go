@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -1157,4 +1159,17 @@ type WorkloadIdentity struct {
 	Env         bool     `hcl:"env,optional"`
 	File        bool     `hcl:"file,optional"`
 	ServiceName string   `hcl:"service_name,optional"`
+}
+
+func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
+	if wi == nil {
+		return nil
+	}
+	return &WorkloadIdentity{
+		Name:        wi.Name,
+		Audience:    slices.Clone(wi.Audience),
+		Env:         wi.Env,
+		File:        wi.File,
+		ServiceName: wi.ServiceName,
+	}
 }
