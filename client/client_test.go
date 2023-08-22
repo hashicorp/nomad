@@ -644,7 +644,9 @@ func TestClient_WatchAllocs(t *testing.T) {
 	failureSeen := false
 	testutil.WaitForResult(func() (bool, error) {
 		c1.allocLock.RLock()
-		if _, ok := c1.allocs[alloc3.ID]; ok {
+		_, ok := c1.allocs[alloc3.ID]
+		c1.allocLock.RUnlock()
+		if ok {
 			failureSeen = true
 			return true, fmt.Errorf("Unexpected allocation present in client state.")
 		}
