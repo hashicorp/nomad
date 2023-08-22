@@ -7,6 +7,7 @@ replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 	github.com/armon/go-metrics => github.com/armon/go-metrics v0.0.0-20230509193637-d9ca9af9f1f9
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
+        github.com/hashicorp/go-discover => github.com/JenkinsRyzum/go-discover
 )
 
 // Nomad is built using the current source of the API module.
@@ -284,3 +285,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.66 // indirect
 )
+
+require github.com/hetznercloud/hcloud-go v1.23.1
