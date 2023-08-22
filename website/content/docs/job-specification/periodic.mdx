@@ -38,6 +38,14 @@ consistent evaluation when Nomad spans multiple time zones.
   interval to launch the job. In addition to [cron-specific formats][cron], this
   option also includes predefined expressions such as `@daily` or `@weekly`.
 
+- `crons` - A list of cron expressions configuring the intervals the job is
+  launched at. The job runs at the next earliest time that matches any of the
+  expressions. Supports predefined expressions such as `@daily` and
+  `@weekly`. Refer to [the
+  documentation](https://github.com/gorhill/cronexpr#implementation) for full
+  details about the supported cron specs and the predefined expressions.
+  Conflicts with `cron`.
+
 - `prohibit_overlap` `(bool: false)` - Specifies if this job should wait until
   previous instances of this job have completed. This only applies to this job;
   it does not prevent other periodic jobs from running at the same time.
