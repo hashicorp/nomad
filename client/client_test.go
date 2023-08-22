@@ -562,10 +562,16 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc1.JobID = job.ID
 	alloc1.Job = job
 	alloc1.NodeID = c1.Node().ID
+
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = c1.Node().ID
 	alloc2.JobID = job.ID
 	alloc2.Job = job
+
+	alloc3 := mock.Alloc()
+	alloc3.NodeID = c1.Node().ID
+	alloc3.JobID = job.ID
+	alloc3.Job = job
 
 	state := s1.State()
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job); err != nil {
@@ -599,7 +605,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	// alloc runner.
 	alloc2_2 := alloc2.Copy()
 	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 104, []*structs.Allocation{alloc2_2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 105, []*structs.Allocation{alloc2_2}); err != nil {
 		t.Fatalf("err upserting stopped alloc: %v", err)
 	}
 
@@ -621,6 +627,33 @@ func TestClient_WatchAllocs(t *testing.T) {
 		return ar.Alloc().DesiredStatus == structs.AllocDesiredStatusStop, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
+	})
+
+	// Attempt to add an allocation with a RAFT index which predates the one currently
+	// known to the client. This is to ensure that the client monotonically increases the
+	// index it asks for and does not accept responses which have already been seen.
+	//
+	// Unfortunately, this requires us to depend on timeout for assertion. This isn't
+	// ideal, but barring changes to the state machine it is hard for us to assert that
+	// the client has made a query against the scheduler and received a stale answer.
+	alloc3.DesiredStatus = structs.AllocDesiredStatusStop
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 104, []*structs.Allocation{alloc3}); err != nil {
+		t.Fatalf("err upserting stopped alloc: %v", err)
+	}
+
+	failureSeen := false
+	testutil.WaitForResult(func() (bool, error) {
+		c1.allocLock.RLock()
+		if _, ok := c1.allocs[alloc3.ID]; ok {
+			failureSeen = true
+			return true, fmt.Errorf("Unexpected allocation present in client state.")
+		}
+		return false, nil
+
+	}, func(err error) {
+		if failureSeen {
+			t.Fatalf("err: %v", err)
+		}
 	})
 }
 

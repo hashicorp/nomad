@@ -2366,7 +2366,7 @@ OUTER:
 		// after a prolonged downtime.
 		//
 		// For full context, please see https://github.com/hashicorp/nomad/issues/18267
-		if resp.Index < req.MinQueryIndex {
+		if resp.Index <= req.MinQueryIndex {
 			c.logger.Debug("Received stale allocation information. Retrying.",
 				"received index", resp.Index, "requested min index", req.MinQueryIndex)
 			continue OUTER
