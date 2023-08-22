@@ -4458,6 +4458,7 @@ type Job struct {
 	// JobModifyIndex is the index at which the job *specification* last changed
 	JobModifyIndex uint64
 
+	// Links and Description fields for the Web UI
 	Ui *JobUIConfig
 }
 

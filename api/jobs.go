@@ -933,6 +933,16 @@ type JobSubmission struct {
 	Variables string
 }
 
+type JobUIConfig struct {
+	Description string       `hcl:"description,optional"`
+	Links       []*JobUILink `hcl:"link,block"`
+}
+
+type JobUILink struct {
+	Label string `hcl:"label,optional"`
+	URL   string `hcl:"url,optional"`
+}
+
 func (js *JobSubmission) Canonicalize() {
 	if js == nil {
 		return
@@ -1002,17 +1012,6 @@ type Job struct {
 	CreateIndex              *uint64
 	ModifyIndex              *uint64
 	JobModifyIndex           *uint64
-}
-
-// TODO: ELSEWHERE
-type JobUIConfig struct {
-	Description string       `hcl:"description,optional"`
-	Links       []*JobUILink `hcl:"link,block"`
-}
-
-type JobUILink struct {
-	Label string `hcl:"label,optional"`
-	URL   string `hcl:"url,optional"`
 }
 
 // IsPeriodic returns whether a job is periodic.
