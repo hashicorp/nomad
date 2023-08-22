@@ -3,10 +3,49 @@
 
 package structs
 
+import (
+	"fmt"
+
+	"github.com/hashicorp/go-multierror"
+)
+
 // Consul represents optional per-group consul configuration.
 type Consul struct {
 	// Namespace in which to operate in Consul.
+	//
+	// Namespace is set on the client and can be overriden by the consul.namespace
+	// field in the jobspec.
 	Namespace string
+
+	// UseIdentity tells the server to sign identities for Consul. In Nomad 1.9+ this
+	// field will be ignored (and treated as though it were set to true).
+	//
+	// UseIdentity is set on the server.
+	UseIdentity bool
+
+	// ServiceIdentity is intended to reduce overhead for jobspec authors and make
+	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
+	// job has a service block with the “consul” provider, the Nomad server will sign
+	// a Workload Identity for that service and add it to the service block. The
+	// client will use this identity rather than the client's Consul token for the
+	// group_service and envoy_bootstrap_hook.
+	//
+	// The name field of the identity is always set to
+	// "consul-service/${service_name}-${service_port}".
+	//
+	// ServiceIdentity is set on the server.
+	ServiceIdentity *WorkloadIdentity
+
+	// TemplateIdentity is intended to reduce overhead for jobspec authors and make
+	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
+	// job has both a template block and a consul block, the Nomad server will sign a
+	// Workload Identity for that task. The client will use this identity rather than
+	// the client's Consul token for the template hook.
+	//
+	// The name field of the identity is always set to "consul".
+	//
+	// TemplateIdentity is set on the server.
+	TemplateIdentity *WorkloadIdentity
 }
 
 // Copy the Consul block.
@@ -14,9 +53,13 @@ func (c *Consul) Copy() *Consul {
 	if c == nil {
 		return nil
 	}
-	return &Consul{
-		Namespace: c.Namespace,
-	}
+	nc := new(Consul)
+	*nc = *c
+
+	nc.ServiceIdentity = c.ServiceIdentity.Copy()
+	nc.TemplateIdentity = c.TemplateIdentity.Copy()
+
+	return nc
 }
 
 // Equal returns whether c and o are the same.
@@ -24,13 +67,38 @@ func (c *Consul) Equal(o *Consul) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
-	return c.Namespace == o.Namespace
+	switch {
+	case c.Namespace != o.Namespace:
+		return false
+	case !c.ServiceIdentity.Equal(o.ServiceIdentity):
+		return false
+	case !c.TemplateIdentity.Equal(o.TemplateIdentity):
+		return false
+	}
+	return true
 }
 
 // Validate returns whether c is valid.
 func (c *Consul) Validate() error {
-	// nothing to do here
-	return nil
+	var mErr multierror.Error
+
+	if c.UseIdentity && c.ServiceIdentity == nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("ServiceIdentity must be set if consul.use_identity is set"))
+	}
+
+	if c.ServiceIdentity != nil {
+		if err := c.ServiceIdentity.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	if c.TemplateIdentity != nil {
+		if err := c.TemplateIdentity.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 // ConsulUsage is provides meta information about how Consul is used by a job,

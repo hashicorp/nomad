@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJobDiff(t *testing.T) {
@@ -2078,6 +2079,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Old:  "",
 								New:  "team1",
 							},
+							{
+								Type: DiffTypeAdded,
+								Name: "UseIdentity",
+								Old:  "",
+								New:  "false",
+							},
 						},
 					},
 				},
@@ -2102,6 +2109,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Namespace",
 								Old:  "team1",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "UseIdentity",
+								Old:  "false",
 								New:  "",
 							},
 						},
