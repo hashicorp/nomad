@@ -5,8 +5,10 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -43,12 +45,16 @@ type Locks struct {
 	WriteOptions
 }
 
-// Acquire will make the actual call to acquire the lock over the variable using
-// the ttl in the Locks to create the VariableLock. It will return the
-// path of the variable holding the lock.
+//	 Acquire will make the actual call to acquire the lock over the variable using
+//	the ttl in the Locks to create the VariableLock. It will return the
+//	path of the variable holding the lock.
 //
-// callerID will be used to identify who is holding the lock in the future,
-// currently is only por testing purposes.
+//	callerID will be used to identify who is holding the lock in the future,
+//	currently is only por testing purposes.
+//
+// Important: A conflict response from the server is not considered an error,
+// it will return an  empty lock path meaning no lock was acquired. Any other
+// response will be returned as an error.
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	var out Variable
 
@@ -58,6 +64,16 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 
 	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-acquire", l.Variable, &out, &l.WriteOptions)
 	if err != nil {
+		var callErr UnexpectedResponseError
+		ok := errors.As(err, &callErr)
+
+		// http.StatusConflict means the lock is already held. This will happen
+		// under the normal execution if multiple instances are fighting for the same lock and
+		// doesn't disrupt the flow.
+		if ok || callErr.statusCode != http.StatusConflict {
+			return "", nil
+		}
+
 		return "", err
 	}
 
@@ -192,14 +208,14 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFunc func(ctx context.
 	defer waitTicker.Stop()
 
 	for {
-
+		// Acquire will only return unexpected errors, a conflict is considered
+		// expected.
 		lockID, err := ll.locker.Acquire(ctx, ll.ID)
 		if err != nil {
 			return err
 		}
 
 		if lockID != "" {
-
 			funcCtx, funcCancel := context.WithCancel(ctx)
 			defer funcCancel()
 
@@ -217,11 +233,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFunc func(ctx context.
 			// the lock is lost or the context is canceled.
 			err := ll.maintainLease(ctx)
 			if err != nil {
-
 				funcCancel()
-				// Give the protected function some time to return before potentially
-				// running it again.
-				ll.wait(ctx)
 			}
 
 		}

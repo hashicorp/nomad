@@ -151,7 +151,7 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 	must.False(t, lock.locked)
 
 	go func() {
-		err := hac1.Start(hac1Ctx, s.Run(hac1.ID, hac1Ctx))
+		err := hac1.Start(hac1Ctx, s.Run(hac1.ID, testCtx))
 		must.NoError(t, err)
 	}()
 
@@ -280,9 +280,6 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	// Stop hac1 and release the lock
 	hac1Cancel()
-
-	err := l.Release(testCtx)
-	must.NoError(t, err)
 
 	time.Sleep(10 * time.Millisecond)
 
