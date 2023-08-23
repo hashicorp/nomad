@@ -7,6 +7,7 @@ import (
 	"github.com/shoenig/netlog"
 
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -25,10 +26,15 @@ type cpuset struct {
 	source      string
 	destination string
 	previous    string
-	sync        func(string, string, string)
+	sync        func(string, string)
 }
 
 func (c *cpuset) watch() {
+	if c.sync == nil {
+		// use the real thing if we are not doing tests
+		c.sync = c.copyCpuset
+	}
+
 	ticks, cancel := helper.NewSafeTimer(cpusetSyncPeriod)
 	defer cancel()
 
@@ -37,22 +43,31 @@ func (c *cpuset) watch() {
 		case <-c.doneCh:
 			return
 		case <-ticks.C:
-			c.sync(c.previous, c.source, c.destination)
+			c.sync(c.source, c.destination)
 			ticks.Reset(cpusetSyncPeriod)
 		}
 	}
 }
 
-func copyCpuset(previous, source, destination string) {
-	log.Info("copyCpuset", "previous", previous, "source", source, "destination", destination)
+func (c *cpuset) copyCpuset(source, destination string) {
+	source = filepath.Join(source, "cpuset.cpus.effective")
+	destination = filepath.Join(destination, "cpuset.cpus")
+
+	log.Info("copyCpuset", "previous", c.previous, "source", source, "destination", destination)
 	b, err := os.ReadFile(source)
 	if err != nil {
 		log.Error("copyCpuset", "error1", err)
 		return
 	}
-	if string(b) == previous {
-		log.Error("copyCpuset", "skip", previous)
+	current := string(b)
+	if current == c.previous {
+		log.Error("copyCpuset", "skip", c.previous)
 		return
 	}
-	_ = os.WriteFile(destination, b, 0644)
+	err = os.WriteFile(destination, b, 0644)
+	if err != nil {
+		log.Error("copyCpuset", "error2", err)
+		return
+	}
+	c.previous = current
 }

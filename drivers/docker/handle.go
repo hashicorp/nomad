@@ -249,6 +249,11 @@ func (h *taskHandle) startCpusetFixer() {
 		return
 	}
 
+	if h.task.Resources.LinuxResources.CpusetCpus != "" {
+		// nothing to fixup if the task is given static cores
+		return
+	}
+
 	cgroup := h.containerCgroup
 	if cgroup == "" {
 		// The api does not actually set this value, so we are left to compute
@@ -263,14 +268,11 @@ func (h *taskHandle) startCpusetFixer() {
 		}
 	}
 
-	// need real container cgroup
-
 	log.Info("startCpusetFixer...")
 	go (&cpuset{
 		doneCh:      h.doneCh,
 		source:      h.task.Resources.LinuxResources.CpusetCgroupPath,
 		destination: cgroup,
-		sync:        copyCpuset,
 	}).watch()
 }
 
