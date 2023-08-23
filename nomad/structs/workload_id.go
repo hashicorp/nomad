@@ -5,9 +5,9 @@ package structs
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/go-multierror"
-	"golang.org/x/exp/slices"
 )
 
 const (

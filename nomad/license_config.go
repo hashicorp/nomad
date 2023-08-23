@@ -4,9 +4,8 @@
 package nomad
 
 import (
+	"slices"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 // LicenseConfig allows for tunable licensing config

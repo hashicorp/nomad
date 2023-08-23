@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slices"
 )
 
 // UnexpectedResponseError tracks the components for API errors encountered when

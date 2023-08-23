@@ -8,11 +8,10 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"slices"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/slices"
-
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"

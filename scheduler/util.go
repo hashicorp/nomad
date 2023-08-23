@@ -6,14 +6,14 @@ package scheduler
 import (
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"math/rand"
+	"slices"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID

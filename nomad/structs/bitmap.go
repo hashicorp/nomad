@@ -5,8 +5,7 @@ package structs
 
 import (
 	"fmt"
-
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 // Bitmap is a simple uncompressed bitmap
