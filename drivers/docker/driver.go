@@ -250,6 +250,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  handle.Config,
 		containerID:           container.ID,
+		containerCgroup:       container.HostConfig.Cgroup,
 		containerImage:        container.Image,
 		doneCh:                make(chan bool),
 		waitCh:                make(chan struct{}),

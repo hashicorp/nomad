@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -41,6 +41,7 @@ type taskHandle struct {
 	dloggerPluginClient   *plugin.Client
 	task                  *drivers.TaskConfig
 	containerID           string
+	containerCgroup       string
 	containerImage        string
 	doneCh                chan bool
 	waitCh                chan struct{}
@@ -243,8 +244,40 @@ func (h *taskHandle) shutdownLogger() {
 	h.dloggerPluginClient.Kill()
 }
 
+func (h *taskHandle) startCpusetFixer() {
+	if cgroupslib.GetMode() == cgroupslib.OFF {
+		return
+	}
+
+	cgroup := h.containerCgroup
+	if cgroup == "" {
+		// The api does not actually set this value, so we are left to compute
+		// it ourselves. Luckily this is documented,
+		// https://docs.docker.com/config/containers/runmetrics/#find-the-cgroup-for-a-given-container
+		switch cgroupslib.GetMode() {
+		case cgroupslib.CG1:
+			panic("todo")
+		default:
+			// systemd driver; not sure if we need to consider cgroupfs driver
+			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
+		}
+	}
+
+	// need real container cgroup
+
+	log.Info("startCpusetFixer...")
+	go (&cpuset{
+		doneCh:      h.doneCh,
+		source:      h.task.Resources.LinuxResources.CpusetCgroupPath,
+		destination: cgroup,
+		sync:        copyCpuset,
+	}).watch()
+}
+
 func (h *taskHandle) run() {
 	defer h.shutdownLogger()
+
+	h.startCpusetFixer()
 
 	exitCode, werr := h.infinityClient.WaitContainer(h.containerID)
 	if werr != nil {
