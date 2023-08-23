@@ -398,6 +398,32 @@ func TestFailedRenewal(t *testing.T) {
 	must.StrContains(t, hac.ID, service.starterID)
 }
 
+func TestStart_ProtectedFunctionError(t *testing.T) {
+	l := mockLock{
+		acquireCalls: map[string]int{},
+	}
+
+	testCtx := context.Background()
+
+	hac := LockLeaser{
+		locker:        &l,
+		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
+	}
+
+	lock := l.getLockState()
+	must.False(t, lock.locked)
+
+	err := hac.Start(testCtx, func(ctx context.Context) error {
+		return errors.New("error")
+	})
+	must.Error(t, err)
+
+	lock = l.getLockState()
+	must.False(t, lock.locked)
+	must.Zero(t, lock.renewsCounter)
+}
+
 func copyMap(originalMap map[string]int) map[string]int {
 	newMap := map[string]int{}
 	for k, v := range originalMap {
