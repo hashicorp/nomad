@@ -3157,6 +3157,9 @@ func TestTaskGroupDiff(t *testing.T) {
 									}},
 								},
 								Terminating: &ConsulTerminatingConfigEntry{
+									Meta: map[string]string{
+										"foo": "qux",
+									},
 									Services: []*ConsulLinkedService{{
 										Name:     "linked1",
 										CAFile:   "ca1.pem",
@@ -3252,6 +3255,10 @@ func TestTaskGroupDiff(t *testing.T) {
 									}},
 								},
 								Terminating: &ConsulTerminatingConfigEntry{
+									Meta: map[string]string{
+										"foo":     "var",
+										"testKey": "testValue",
+									},
 									Services: []*ConsulLinkedService{{
 										Name:     "linked2",
 										CAFile:   "ca2.pem",
@@ -3880,6 +3887,22 @@ func TestTaskGroupDiff(t *testing.T) {
 																New:  "",
 															},
 														},
+													},
+												},
+												Fields: []*FieldDiff{
+													{
+														Type:        DiffTypeEdited,
+														Name:        "Meta[foo]",
+														Old:         "qux",
+														New:         "var",
+														Annotations: nil,
+													},
+													{
+														Type:        DiffTypeAdded,
+														Name:        "Meta[testKey]",
+														Old:         "",
+														New:         "testValue",
+														Annotations: nil,
 													},
 												},
 											},

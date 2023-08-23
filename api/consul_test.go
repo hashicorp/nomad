@@ -432,6 +432,15 @@ func TestConsulTerminatingConfigEntry_Canonicalize(t *testing.T) {
 		c.Canonicalize()
 		must.Nil(t, c.Services)
 	})
+
+	t.Run("empty meta", func(t *testing.T) {
+		c := &ConsulTerminatingConfigEntry{
+			Meta:     make(map[string]string),
+			Services: []*ConsulLinkedService{},
+		}
+		c.Canonicalize()
+		must.Nil(t, c.Meta)
+	})
 }
 
 func TestConsulTerminatingConfigEntry_Copy(t *testing.T) {
@@ -443,6 +452,9 @@ func TestConsulTerminatingConfigEntry_Copy(t *testing.T) {
 	})
 
 	entry := &ConsulTerminatingConfigEntry{
+		Meta: map[string]string{
+			"test-key": "test-value",
+		},
 		Services: []*ConsulLinkedService{{
 			Name: "servic1",
 		}, {

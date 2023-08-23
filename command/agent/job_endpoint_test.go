@@ -4024,6 +4024,9 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		require.Equal(t, &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Terminating: &structs.ConsulTerminatingConfigEntry{
+					Meta: map[string]string{
+						"test-key": "test-value",
+					},
 					Services: []*structs.ConsulLinkedService{{
 						Name:     "linked-service",
 						CAFile:   "ca.pem",
@@ -4036,6 +4039,9 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 		}, ApiConsulConnectToStructs(&api.ConsulConnect{
 			Gateway: &api.ConsulGateway{
 				Terminating: &api.ConsulTerminatingConfigEntry{
+					Meta: map[string]string{
+						"test-key": "test-value",
+					},
 					Services: []*api.ConsulLinkedService{{
 						Name:     "linked-service",
 						CAFile:   "ca.pem",

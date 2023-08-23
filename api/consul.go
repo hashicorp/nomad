@@ -573,12 +573,17 @@ type ConsulTerminatingConfigEntry struct {
 	// Namespace is not yet supported.
 	// Namespace string
 
+	Meta     map[string]string      `hcl:"meta,block"`
 	Services []*ConsulLinkedService `hcl:"service,block"`
 }
 
 func (e *ConsulTerminatingConfigEntry) Canonicalize() {
 	if e == nil {
 		return
+	}
+
+	if len(e.Meta) == 0 {
+		e.Meta = nil
 	}
 
 	if len(e.Services) == 0 {
@@ -604,6 +609,7 @@ func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
 	}
 
 	return &ConsulTerminatingConfigEntry{
+		Meta:     maps.Clone(e.Meta),
 		Services: services,
 	}
 }

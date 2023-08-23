@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
@@ -630,6 +631,7 @@ func convertTerminatingCE(namespace, service string, entry *structs.ConsulTermin
 		Namespace: namespace,
 		Kind:      api.TerminatingGateway,
 		Name:      service,
+		Meta:      maps.Clone(entry.Meta),
 		Services:  linked,
 	}
 }

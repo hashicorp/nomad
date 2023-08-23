@@ -1693,6 +1693,7 @@ func apiConnectTerminatingGatewayToStructs(in *api.ConsulTerminatingConfigEntry)
 	}
 
 	return &structs.ConsulTerminatingConfigEntry{
+		Meta:     in.Meta,
 		Services: apiConnectTerminatingServicesToStructs(in.Services),
 	}
 }
