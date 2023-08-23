@@ -228,66 +228,31 @@ REMOVE:
 	return nil
 }
 
-// TransferLeadershipToServerAddress is used to transfer leadership away from the
-// current leader to a specific target peer. This can help prevent leadership
-// flapping during a rolling upgrade by allowing the cluster operator to target
-// an already upgraded node before upgrading the remainder of the cluster.
-func (op *Operator) TransferLeadershipToServerAddress(args *structs.RaftPeerByAddressRequest, reply *struct{}) error {
-	authErr := op.srv.Authenticate(op.ctx, args)
-
-	if done, err := op.srv.forward("Operator.TransferLeadershipToServerAddress", args, args, reply); done {
-		return err
-	}
-	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-
-	// Check management permissions
-	if aclObj, err := op.srv.ResolveACL(args); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
-		return structs.ErrPermissionDenied
-	}
-
-	return op.doTransfer(args)
-}
-
 // TransferLeadershipToServerID is used to transfer leadership away from the
 // current leader to a specific target peer. This can help prevent leadership
 // flapping during a rolling upgrade by allowing the cluster operator to target
 // an already upgraded node before upgrading the remainder of the cluster.
-func (op *Operator) TransferLeadershipToServerID(args *structs.RaftPeerByIDRequest, reply *struct{}) error {
-	authErr := op.srv.Authenticate(op.ctx, args)
+func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply *struct{}) error {
+	authErr := op.srv.Authenticate(op.ctx, req)
 
-	if done, err := op.srv.forward("Operator.TransferLeadershipToServerID", args, args, reply); done {
+	if done, err := op.srv.forward("Operator.TransferLeadershipToPeer", req, req, reply); done {
 		return err
 	}
-	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, req)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
 
 	// Check management permissions
-	if aclObj, err := op.srv.ResolveACL(args); err != nil {
+	if aclObj, err := op.srv.ResolveACL(req); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
-	return op.doTransfer(args)
-}
-
-func (op *Operator) doTransfer(args any) error {
-	var id raft.ServerID
-	var addr raft.ServerAddress
-	var kind, testedVal string // to be used in making error strings
-
-	if lAddr, lID := op.srv.raft.LeaderWithID(); id == lID && addr == lAddr {
-		op.logger.Debug("leadership transfer to current leader is a no-op")
-		return nil
-	}
-
+	// while this is a somewhat more expensive test than later ones, if this
+	// test fails, they will _never_ be able to do a transfer. We do this after
+	// ACL checks though, so as to not leak cluster info to unvalidated users.
 	minRaftProtocol, err := op.srv.MinRaftProtocol()
 	if err != nil {
 		return err
@@ -299,55 +264,48 @@ func (op *Operator) doTransfer(args any) error {
 		return fmt.Errorf("unsupported minimum common raft protocol version")
 	}
 
-	// This is in a scope so that future will go out of scope once we're done
-	// checking the configuration, enabling us to reuse the name later.
-	{
-		// Get the raft configuration
-		future := op.srv.raft.GetConfiguration()
-		if err := future.Error(); err != nil {
-			return err
-		}
+	var lID, tgtID raft.ServerID
+	var lAddr, tgtAddr raft.ServerAddress
+	var kind, testedVal string
 
-		// Since this is an operation designed for humans to use, we will return
-		// an error if the supplied id isn't among the peers since it's
-		// likely a mistake.
-		switch tArg := args.(type) {
-		case *structs.RaftPeerByAddressRequest:
-			kind = "address"
-			testedVal = string(tArg.Address)
-			for _, s := range future.Configuration().Servers {
-				if s.Address == tArg.Address {
-					id = s.ID
-					addr = s.Address
-					goto TRANSFER
-				}
-			}
-		case *structs.RaftPeerByIDRequest:
-			kind = "id"
-			testedVal = string(tArg.ID)
-			for _, s := range future.Configuration().Servers {
-				if s.ID == tArg.ID {
-					id = s.ID
-					addr = s.Address
-					goto TRANSFER
-				}
-			}
-		default:
-			// This should never happen, since this function's callers ensure that the
-			// type is either a RaftPeerByAddressRequest or RaftPeerByIDRequest via
-			// their argument types; however, it can't hurt to be defensive for the
-			// future and it feels better to make an error than to panic for missing
-			// (but non-critical) functionality.
-			op.logger.Error("doTransfer: invalid argument", "type", fmt.Sprintf("%T", args))
-			return fmt.Errorf("doTransfer: invalid argument type (%T)", args)
+	switch {
+	case req.ID != "":
+		kind, testedVal = "ID", string(req.ID)
+	case req.Address != "":
+		kind, testedVal = "address", string(req.Address)
+	default:
+		return fmt.Errorf("invalid request: must provide peer id or address")
+	}
+
+	if lAddr, lID := op.srv.raft.LeaderWithID(); tgtID == lID && tgtAddr == lAddr {
+		op.logger.Debug("leadership transfer to current leader is a no-op")
+		return nil
+	}
+
+	// Get the raft configuration
+	future := op.srv.raft.GetConfiguration()
+	if err := future.Error(); err != nil {
+		return err
+	}
+
+	// Since this is an operation designed for humans to use, we will return
+	// an error if the supplied ID or address isn't among the peers since it's
+	// likely a mistake.
+	var found bool
+	for _, s := range future.Configuration().Servers {
+		if s.ID == req.ID || s.Address == req.Address {
+			tgtID = s.ID
+			tgtAddr = s.Address
+			found = true
 		}
+	}
+	if !found {
 		return fmt.Errorf("%s %q was not found in the Raft configuration",
 			kind, testedVal)
 	}
 
-TRANSFER:
-	log := op.logger.With("peer_id", id, "peer_addr", addr)
-	if err = op.srv.leadershipTransferToServer(id, addr); err != nil {
+	log := op.logger.With("to_peer_id", tgtID, "to_peer_addr", tgtAddr, "from_peer_id", lID, "from_peer_addr", lAddr)
+	if err = op.srv.leadershipTransferToServer(tgtID, tgtAddr); err != nil {
 		log.Error("failed transferring leadership", "error", err)
 		return err
 	}
