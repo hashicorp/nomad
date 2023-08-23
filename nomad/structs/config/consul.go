@@ -6,11 +6,13 @@ package config
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-secure-stdlib/listenerutil"
+
 	"github.com/hashicorp/nomad/helper/pointer"
 )
 
@@ -131,12 +133,42 @@ type ConsulConfig struct {
 	// and register with them
 	ClientAutoJoin *bool `mapstructure:"client_auto_join"`
 
-	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `mapstructure:",unusedKeys" json:"-"`
-
 	// Namespace sets the Consul namespace used for all calls against the
 	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
 	Namespace string `mapstructure:"namespace"`
+
+	// UseIdentity tells the server to sign identities for Consul. In Nomad 1.9+ this
+	// field will be ignored (and treated as though it were set to true).
+	//
+	// UseIdentity is set on the server.
+	UseIdentity *bool `mapstructure:"use_identity"`
+
+	// ServiceIdentity is intended to reduce overhead for jobspec authors and make
+	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
+	// job has a service block with the “consul” provider, the Nomad server will sign
+	// a Workload Identity for that service and add it to the service block. The
+	// client will use this identity rather than the client's Consul token for the
+	// group_service and envoy_bootstrap_hook.
+	//
+	// The name field of the identity is always set to
+	// "consul-service/${service_name}-${service_port}".
+	//
+	// ServiceIdentity is set on the server.
+	ServiceIdentity *WorkloadIdentity `mapstructure:"service_identity"`
+
+	// TemplateIdentity is intended to reduce overhead for jobspec authors and make
+	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
+	// job has both a template block and a consul block, the Nomad server will sign a
+	// Workload Identity for that task. The client will use this identity rather than
+	// the client's Consul token for the template hook.
+	//
+	// The name field of the identity is always set to "consul".
+	//
+	// TemplateIdentity is set on the server.
+	TemplateIdentity *WorkloadIdentity `mapstructure:"template_identity"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `mapstructure:",unusedKeys" json:"-"`
 }
 
 // DefaultConsulConfig returns the canonical defaults for the Nomad
@@ -158,6 +190,7 @@ func DefaultConsulConfig() *ConsulConfig {
 		ClientAutoJoin:       pointer.Of(true),
 		AllowUnauthenticated: pointer.Of(true),
 		Timeout:              5 * time.Second,
+		UseIdentity:          pointer.Of(false),
 
 		// From Consul api package defaults
 		Addr:      def.Address,
@@ -260,6 +293,15 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
 	}
+	if b.UseIdentity != nil {
+		result.UseIdentity = b.UseIdentity
+	}
+	if b.ServiceIdentity != nil {
+		result.ServiceIdentity = b.ServiceIdentity
+	}
+	if b.TemplateIdentity != nil {
+		result.TemplateIdentity = b.TemplateIdentity
+	}
 	return result
 }
 
@@ -359,6 +401,74 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	if nc.AllowUnauthenticated != nil {
 		nc.AllowUnauthenticated = pointer.Of(*nc.AllowUnauthenticated)
 	}
+	if nc.UseIdentity != nil {
+		nc.UseIdentity = pointer.Of(*nc.UseIdentity)
+	}
 
 	return nc
+}
+
+// WorkloadIdentity is the jobspec block which determines if and how a workload
+// identity is exposed to tasks similar to the Vault block.
+//
+// This is a copy of WorkloadIdentity from nomad/structs package in order to
+// avoid import cycles.
+type WorkloadIdentity struct {
+	Name string
+
+	// Audience is the valid recipients for this identity (the "aud" JWT claim)
+	// and defaults to the identity's name.
+	Audience []string
+
+	// Env injects the Workload Identity into the Task's environment if
+	// set.
+	Env bool
+
+	// File writes the Workload Identity into the Task's secrets directory
+	// if set.
+	File bool
+
+	// ServiceName is used to bind the identity to a correct Consul service.
+	ServiceName string
+}
+
+func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
+	if wi == nil {
+		return nil
+	}
+	return &WorkloadIdentity{
+		Name:        wi.Name,
+		Audience:    slices.Clone(wi.Audience),
+		Env:         wi.Env,
+		File:        wi.File,
+		ServiceName: wi.ServiceName,
+	}
+}
+
+func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
+	if wi == nil || other == nil {
+		return wi == other
+	}
+
+	if wi.Name != other.Name {
+		return false
+	}
+
+	if !slices.Equal(wi.Audience, other.Audience) {
+		return false
+	}
+
+	if wi.Env != other.Env {
+		return false
+	}
+
+	if wi.File != other.File {
+		return false
+	}
+
+	if wi.ServiceName != other.ServiceName {
+		return false
+	}
+
+	return true
 }

@@ -11,11 +11,8 @@ import (
 
 // Consul represents configuration related to consul.
 type Consul struct {
-	// Namespace represents a Consul namespace.
-	Namespace        string            `mapstructure:"namespace" hcl:"namespace,optional"`
-	UseIdentity      bool              `hcl:"use_identity"`
-	ServiceIdentity  *WorkloadIdentity `hcl:"service_identity"`
-	TemplateIdentity *WorkloadIdentity `hcl:"template_identity"`
+	// (Enterprise-only) Namespace represents a Consul namespace.
+	Namespace string `mapstructure:"namespace" hcl:"namespace,optional"`
 }
 
 // Canonicalize Consul into a canonical form. The Canonicalize structs containing
@@ -31,16 +28,9 @@ func (c *Consul) Canonicalize() {
 
 // Copy creates a deep copy of c.
 func (c *Consul) Copy() *Consul {
-	if c == nil {
-		return nil
+	return &Consul{
+		Namespace: c.Namespace,
 	}
-	nc := new(Consul)
-	*nc = *c
-
-	nc.ServiceIdentity = c.ServiceIdentity.Copy()
-	nc.TemplateIdentity = c.TemplateIdentity.Copy()
-
-	return nc
 }
 
 // MergeNamespace sets Namespace to namespace if not already configured.
