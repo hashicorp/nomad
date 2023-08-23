@@ -244,9 +244,6 @@ func scopeCG2(allocID, task string) string {
 }
 
 func pathCG2(allocID, task string, cores bool) string {
-	partition := "share"
-	if cores {
-		partition = "reserve"
-	}
+	partition := GetPartitionFromBool(cores)
 	return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 }
