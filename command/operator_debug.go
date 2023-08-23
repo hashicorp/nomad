@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,8 +31,6 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 type OperatorDebugCommand struct {

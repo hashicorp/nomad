@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"golang.org/x/exp/slices"
 )
 
 // Ensure ACLAuthMethodCreateCommand satisfies the cli.Command interface.

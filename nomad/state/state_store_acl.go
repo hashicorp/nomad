@@ -3,10 +3,10 @@ package state
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // ACLTokensByExpired returns an array accessor IDs of expired ACL tokens.
