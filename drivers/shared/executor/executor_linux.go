@@ -6,8 +6,6 @@
 package executor
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"errors"
 	"fmt"
@@ -711,13 +709,8 @@ func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCom
 }
 
 func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
-
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
-
-	// reserved cpuset cores, if any
-	nlog := netlog.New("LibEx")
-	nlog.Info("configureCG2", "cpuCores", cpuCores, "cpuShares", cpuShares)
 
 	// Set the v2 specific unified path
 	scope := filepath.Base(cg)
@@ -732,7 +725,8 @@ func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecC
 	// finally set the path of the cgroup in which to run the task
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
 
-	// todo: we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
+	// todo(shoenig): we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
+	// hopefully for 1.7
 	return nil
 }
 

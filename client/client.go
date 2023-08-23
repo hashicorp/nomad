@@ -4,8 +4,6 @@
 package client
 
 import (
-	// "github.com/shoenig/netlog"
-
 	"errors"
 	"fmt"
 	"net"

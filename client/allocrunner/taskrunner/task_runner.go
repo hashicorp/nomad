@@ -4,8 +4,6 @@
 package taskrunner
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"errors"
 	"fmt"
@@ -853,7 +851,6 @@ func (tr *TaskRunner) assignCgroup(taskConfig *drivers.TaskConfig) {
 	reserveCores := len(tr.taskResources.Cpu.ReservedCores) > 0
 	p := cgroupslib.LinuxResourcesPath(taskConfig.AllocID, taskConfig.Name, reserveCores)
 	taskConfig.Resources.LinuxResources.CpusetCgroupPath = p
-	netlog.Yellow("TaskRunner", "assignCgroup", p)
 }
 
 // runDriver runs the driver and waits for it to exit

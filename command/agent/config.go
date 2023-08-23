@@ -4,8 +4,6 @@
 package agent
 
 import (
-	"github.com/shoenig/netlog"
-
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -1279,9 +1277,6 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
-
-	netlog.Cyan("DevConfig", "rc", conf.Client.ReservableCores)
-
 	return conf
 }
 

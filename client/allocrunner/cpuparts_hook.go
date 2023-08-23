@@ -4,8 +4,6 @@
 package allocrunner
 
 import (
-	"github.com/shoenig/netlog"
-
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -31,8 +29,7 @@ func newCPUPartsHook(
 ) *cpuPartsHook {
 
 	return &cpuPartsHook{
-		// logger:     logger,
-		logger:       netlog.New("CPUPARTS"),
+		logger:       logger,
 		allocID:      alloc.ID,
 		partitions:   partitions,
 		reservations: alloc.ReservedCores(),
@@ -44,11 +41,9 @@ func (h *cpuPartsHook) Name() string {
 }
 
 func (h *cpuPartsHook) Prerun() error {
-	netlog.Cyan("cpuPartsHook.Prerun()", "reservations", h.reservations)
 	return h.partitions.Reserve(h.reservations)
 }
 
 func (h *cpuPartsHook) Postrun() error {
-	netlog.Cyan("cpuPartsHook.Postrun()", "reservations", h.reservations)
 	return h.partitions.Release(h.reservations)
 }
