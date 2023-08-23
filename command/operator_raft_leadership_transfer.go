@@ -36,10 +36,10 @@ General Options:
 Remove Peer Options:
 
   -peer-address="IP:port"
-	Transfer leadership to the Nomad server with given Raft address.
+    Transfer leadership to the Nomad server with given Raft address.
 
   -peer-id="id"
-	Transfer leadership to the Nomad server with given Raft ID.
+    Transfer leadership to the Nomad server with given Raft ID.
 `
 	return strings.TrimSpace(helpText)
 }
