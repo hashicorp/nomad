@@ -19,6 +19,14 @@ const (
 	lockRetryBackoffFactor = 1.1
 )
 
+var (
+	errLockConflict = errors.New("lock is not held")
+
+	//LockNoPathErr is returned when no path is provided in the variable to be
+	// used for the lease mechanism
+	LockNoPathErr = errors.New("the path for the lock provided")
+)
+
 // Locks returns a new handle on a lock for the given variable.
 func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks {
 	l := &Locks{
@@ -52,9 +60,8 @@ type Locks struct {
 //	callerID will be used to identify who is holding the lock in the future,
 //	currently is only por testing purposes.
 //
-// Important: A conflict response from the server is not considered an error,
-// it will return an  empty lock path meaning no lock was acquired. Any other
-// response will be returned as an error.
+// Important: A conflict response from the server is not an execution error
+// and should be handled differently
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	var out Variable
 
@@ -71,7 +78,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 		// under the normal execution if multiple instances are fighting for the same lock and
 		// doesn't disrupt the flow.
 		if ok || callErr.statusCode != http.StatusConflict {
-			return "", nil
+			return "", errLockConflict
 		}
 
 		return "", err
@@ -99,11 +106,24 @@ func (l *Locks) Release(ctx context.Context) error {
 // Renew is used to extend the ttl of a lock. It can be used as a heartbeat or a
 // lease to maintain the hold over the lock for longer periods or as a sync
 // mechanism among multiple instances looking to acquire the same lock.
+// Renew will return true if the renewal was successful.
+//
+// Important: A conflict response from the server is not an execution error
+// and should be handled differently, it signals the leaser that the lock is
+// lost and the execution of the protected
+// function should be stopped, but the lock can be reacquired in the future.
 func (l *Locks) Renew(ctx context.Context) error {
 	var out VariableMetadata
 
 	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-renew", l.Variable, &out, &l.WriteOptions)
 	if err != nil {
+		var callErr UnexpectedResponseError
+		ok := errors.As(err, &callErr)
+
+		if ok || callErr.statusCode != http.StatusConflict {
+			return errLockConflict
+		}
+
 		return err
 	}
 	return nil
@@ -142,22 +162,23 @@ type LockLeaser struct {
 	locker
 }
 
-// NewLockLeaser returns an instance of LockLeaser. Both variable and callerID
-// are optional, in case they are not provided, internal ones will be created.
-// Important: It will be on the user to remove the internal variable created for the lock.
+// NewLockLeaser returns an instance of LockLeaser. callerID
+// is optional, in case they it is not provided, internal one will be created.
+// The variable doesn't need to exist, if it doesn't, one will be created,
+// but the path for it is mandatory.
+//
+// Important: It will be on the user to remove the variable created for the lock.
 func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.Duration,
-	callerID string) *LockLeaser {
+	callerID string) (*LockLeaser, error) {
+
+	if variable == nil || variable.Path == "" {
+		return nil, LockNoPathErr
+	}
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
-	if variable == nil {
-		variable = &Variable{
-			Namespace: wo.Namespace,
-			Path:      "", // TO BE DETERMINED, any ideas?
-			Lock: &VariableLock{
-				TTL: lease.String(),
-			},
-		}
+	variable.Lock = &VariableLock{
+		TTL: lease.String(),
 	}
 
 	ll := LockLeaser{
@@ -169,7 +190,7 @@ func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.D
 		locker:        c.Locks(wo, variable, lease),
 	}
 
-	return &ll
+	return &ll, nil
 }
 
 // Start wraps the start function in charge of executing the protected
@@ -192,50 +213,51 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFunc func(ctx context.
 }
 
 // start starts the process of maintaining the lease and executes the protected
-// function in an independent go routine.
+// function in an independent go routine. It is a blocking function
+// that will only return in case of an error or context cancellation.
 func (ll *LockLeaser) start(ctx context.Context, protectedFunc func(ctx context.Context) error) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	innerCtx, innerCancel := context.WithCancel(ctx)
+	defer innerCancel()
 
-	// Channel to monitor the possible errors on the protected function
+	// Channel to monitor the possible errors on execution
 	errChannel := make(chan error, 1)
 
 	// To avoid collisions if all the instances start at the same time, wait
 	// a random time before making the first call.
-	ll.wait(ctx)
+	waitWithContext(innerCtx, ll.randomDelay)
 
 	waitTicker := time.NewTicker(ll.waitPeriod)
 	defer waitTicker.Stop()
 
 	for {
-		// Acquire will only return unexpected errors, a conflict is considered
-		// expected.
-		lockID, err := ll.locker.Acquire(ctx, ll.ID)
-		if err != nil {
-			return err
+		lockID, err := ll.locker.Acquire(innerCtx, ll.ID)
+		if err != nil && err != errLockConflict {
+			errChannel <- fmt.Errorf("error acquiring the lock: %w", err)
 		}
 
 		if lockID != "" {
-			funcCtx, funcCancel := context.WithCancel(ctx)
+			funcCtx, funcCancel := context.WithCancel(innerCtx)
 			defer funcCancel()
 
-			// Start running the lock protected function.
+			// Execute the lock protected function.
 			go func() {
 				err := protectedFunc(funcCtx)
 				if err != nil {
-					// Cancel will force the maintainLease to return.
-					cancel()
-					errChannel <- err
+					errChannel <- fmt.Errorf("error executing the protected function: %w", err)
 				}
+				// innerCancel will force the maintainLease to return once the protectedFunc
+				// is done.
+				innerCancel()
 			}()
 
 			// Maintain lease is a blocking function, will only return in case
 			// the lock is lost or the context is canceled.
-			err := ll.maintainLease(ctx)
-			if err != nil {
-				funcCancel()
+			err := ll.maintainLease(innerCtx)
+			if err != nil && err != errLockConflict {
+				errChannel <- fmt.Errorf("error renewing the lease: %w", err)
 			}
 
+			funcCancel()
 		}
 
 		waitTicker.Stop()
@@ -243,7 +265,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFunc func(ctx context.
 
 		select {
 		case err := <-errChannel:
-			return fmt.Errorf("locks: error executing the protected function: %w", err)
+			return fmt.Errorf("locks: %w", err)
 
 		case <-ctx.Done():
 			return nil
@@ -270,8 +292,8 @@ func (ll *LockLeaser) maintainLease(ctx context.Context) error {
 	}
 }
 
-func (ll *LockLeaser) wait(ctx context.Context) {
-	t := time.NewTimer(ll.randomDelay)
+func waitWithContext(ctx context.Context, d time.Duration) {
+	t := time.NewTimer(d)
 	defer t.Stop()
 
 	select {

@@ -65,7 +65,7 @@ func (ml *mockLock) Renew(_ context.Context) error {
 
 	if time.Since(ml.leaseStartTime) > testLease {
 		ml.locked = false
-		return errors.New("lease lost")
+		return errLockConflict
 	}
 
 	ml.leaseStartTime = time.Now()
@@ -417,6 +417,7 @@ func TestStart_ProtectedFunctionError(t *testing.T) {
 	err := hac.Start(testCtx, func(ctx context.Context) error {
 		return errors.New("error")
 	})
+
 	must.Error(t, err)
 
 	lock = l.getLockState()
