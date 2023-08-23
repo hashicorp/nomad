@@ -441,7 +441,7 @@ EOF
 
 ```
 
-To Submit this job a token that has the `access-kv` policy in the Namespace `engineering`
+To submit this job, a token that has the `access-kv` policy in the `engineering` namespace is needed:
 
 ```shell-session
 $ vault token create -policy access-kv -namespace=engineering -period 72h -orphan
