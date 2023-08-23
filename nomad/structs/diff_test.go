@@ -566,6 +566,74 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
+			// Periodic multiple times added
+			Old: &Job{},
+			New: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         false,
+					Specs:           []string{"*/15 * * * * *", "*/16 * * * * *"},
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+					TimeZone:        "Europe/Minsk",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Periodic",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Enabled",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ProhibitOverlap",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "SpecType",
+								Old:  "",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "TimeZone",
+								Old:  "",
+								New:  "Europe/Minsk",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Specs",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Specs",
+										Old:  "",
+										New:  "*/15 * * * * *",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Specs",
+										Old:  "",
+										New:  "*/16 * * * * *",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			// Periodic deleted
 			Old: &Job{
 				Periodic: &PeriodicConfig{
@@ -675,6 +743,258 @@ func TestJobDiff(t *testing.T) {
 								Name: "TimeZone",
 								Old:  "Europe/Minsk",
 								New:  "America/Los_Angeles",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Periodic single to multiple times
+			Old: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         false,
+					Spec:            "*/15 * * * * *",
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+					TimeZone:        "Europe/Minsk",
+				},
+			},
+			New: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         true,
+					Specs:           []string{"* * * * * *", "*/5 * * * * *"},
+					SpecType:        "cron",
+					ProhibitOverlap: true,
+					TimeZone:        "America/Los_Angeles",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Periodic",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Enabled",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ProhibitOverlap",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Spec",
+								Old:  "*/15 * * * * *",
+								New:  "",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SpecType",
+								Old:  "foo",
+								New:  "cron",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "TimeZone",
+								Old:  "Europe/Minsk",
+								New:  "America/Los_Angeles",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Specs",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Specs",
+										Old:  "",
+										New:  "* * * * * *",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Specs",
+										Old:  "",
+										New:  "*/5 * * * * *",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Periodic multiple times to single
+			Old: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         false,
+					Specs:           []string{"* * * * * *", "*/5 * * * * *"},
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+					TimeZone:        "Europe/Minsk",
+				},
+			},
+			New: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         true,
+					Spec:            "*/15 * * * * *",
+					SpecType:        "cron",
+					ProhibitOverlap: true,
+					TimeZone:        "America/Los_Angeles",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Periodic",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Enabled",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ProhibitOverlap",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Spec",
+								Old:  "",
+								New:  "*/15 * * * * *",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SpecType",
+								Old:  "foo",
+								New:  "cron",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "TimeZone",
+								Old:  "Europe/Minsk",
+								New:  "America/Los_Angeles",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Specs",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Specs",
+										Old:  "* * * * * *",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Specs",
+										Old:  "*/5 * * * * *",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Periodic edit multiple times
+			Old: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         false,
+					Specs:           []string{"*/4 * * * * *", "*/6 * * * * *"},
+					SpecType:        "foo",
+					ProhibitOverlap: false,
+					TimeZone:        "Europe/Minsk",
+				},
+			},
+			New: &Job{
+				Periodic: &PeriodicConfig{
+					Enabled:         true,
+					Specs:           []string{"*/5 * * * * *", "*/7 * * * * *"},
+					SpecType:        "cron",
+					ProhibitOverlap: true,
+					TimeZone:        "America/Los_Angeles",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Periodic",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Enabled",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "ProhibitOverlap",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "SpecType",
+								Old:  "foo",
+								New:  "cron",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "TimeZone",
+								Old:  "Europe/Minsk",
+								New:  "America/Los_Angeles",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Specs",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Specs",
+										Old:  "",
+										New:  "*/5 * * * * *",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "Specs",
+										Old:  "",
+										New:  "*/7 * * * * *",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Specs",
+										Old:  "*/4 * * * * *",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Specs",
+										Old:  "*/6 * * * * *",
+										New:  "",
+									},
+								},
 							},
 						},
 					},
