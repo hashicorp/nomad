@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/hcl"
@@ -17,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
-	"golang.org/x/exp/slices"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.

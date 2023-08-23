@@ -4,11 +4,11 @@
 package jobspec2
 
 import (
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"golang.org/x/exp/slices"
 )
 
 func normalizeJob(jc *jobConfig) {

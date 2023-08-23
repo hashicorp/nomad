@@ -7,8 +7,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -27,8 +29,6 @@ import (
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/version"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 var (

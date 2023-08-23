@@ -4,6 +4,7 @@
 package checkstore
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"golang.org/x/exp/slices"
 )
 
 var (

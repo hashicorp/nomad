@@ -5,9 +5,8 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
-
-	"golang.org/x/exp/slices"
 )
 
 // UIConfig contains the operator configuration of the web UI

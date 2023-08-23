@@ -4,10 +4,10 @@
 package config
 
 import (
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/pointer"
-	"golang.org/x/exp/slices"
 )
 
 // AuditConfig is the configuration specific to Audit Logging

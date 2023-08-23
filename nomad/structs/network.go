@@ -5,12 +5,11 @@ package structs
 
 import (
 	"fmt"
+	"maps"
 	"math/rand"
 	"net"
+	"slices"
 	"sync"
-
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 const (

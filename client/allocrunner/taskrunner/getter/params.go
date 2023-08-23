@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-getter"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // parameters is encoded by the Nomad client and decoded by the getter sub-process
