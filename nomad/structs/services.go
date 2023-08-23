@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,8 +24,6 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 const (

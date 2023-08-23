@@ -1,8 +1,9 @@
 package config
 
 import (
+	"slices"
+
 	"github.com/hashicorp/nomad/helper"
-	"golang.org/x/exp/slices"
 )
 
 // SentinelConfig is configuration specific to Sentinel
