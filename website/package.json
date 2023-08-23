@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "author": "HashiCorp",
   "engines": {
-    "node": "14.x - 16.x",
-    "npm": ">=7.0.0"
+    "npm": ">=7.0.0",
+    "node": ">=16.x <=18.x"
   },
   "devDependencies": {
     "@hashicorp/platform-cli": "^2.6.0",
