@@ -25,8 +25,6 @@ import (
 	"github.com/hashicorp/go-sockaddr/template"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
-	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
@@ -1273,20 +1271,11 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = pointer.Of(true)
-	conf.Client.ReservableCores = devCores().String()
+	conf.Client.ReservableCores = "" // inherit all the cores
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
 	return conf
-}
-
-// devCores will set aside 2 cpu cores for nomad to make use of when running
-// in -dev mode.
-func devCores() *idset.Set[idset.CoreID] {
-	if cgroupslib.GetMode() == cgroupslib.OFF {
-		return nil
-	}
-	return idset.From[idset.CoreID]([]idset.CoreID{0, 1, 2, 3, 4})
 }
 
 // DefaultConfig is the baseline configuration for Nomad.
