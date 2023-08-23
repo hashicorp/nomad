@@ -164,7 +164,8 @@
       "ssl": true,
       "timeout": "5s",
       "token": "token1",
-      "verify_ssl": true
+      "verify_ssl": true,
+      "use_identity": false
     }
   ],
   "data_dir": "/tmp/nomad",

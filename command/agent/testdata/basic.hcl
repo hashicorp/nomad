@@ -243,6 +243,7 @@ consul {
   auto_advertise         = true
   checks_use_advertise   = true
   timeout                = "5s"
+  use_identity           = false
 }
 
 vault {
