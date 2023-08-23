@@ -70,10 +70,11 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG2("root", NomadCgroupParent, partitionFile); err != nil {
-			log.Error("failed to set root partition mode", "error", err)
-			return
-		}
+		// docker will not play nice
+		// if err := writeCG2("root", NomadCgroupParent, partitionFile); err != nil {
+		// 	log.Error("failed to set root partition mode", "error", err)
+		// 	return
+		// }
 
 		log.Debug("top level partition root nomad.slice cgroup initialized", "cpuset", "xxx")
 
@@ -81,12 +82,12 @@ func Init(log hclog.Logger, cores string) {
 		// configuring nomad.slice/share (member)
 		//
 
-		if err := mkCG2(NomadCgroupParent, "share"); err != nil {
+		if err := mkCG2(NomadCgroupParent, SharePartition()); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, "share", subtreeFile); err != nil {
+		if err := writeCG2(activation, NomadCgroupParent, SharePartition(), subtreeFile); err != nil {
 			log.Error("failed to set subtree control on cpuset share partition", "error", err)
 			return
 		}
@@ -97,12 +98,12 @@ func Init(log hclog.Logger, cores string) {
 		// configuring nomad.slice/reserve (member)
 		//
 
-		if err := mkCG2(NomadCgroupParent, "reserve"); err != nil {
+		if err := mkCG2(NomadCgroupParent, ReservePartition()); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, "reserve", subtreeFile); err != nil {
+		if err := writeCG2(activation, NomadCgroupParent, ReservePartition(), subtreeFile); err != nil {
 			log.Error("failed to set subtree control on cpuset reserve partition", "error", err)
 			return
 		}
@@ -158,16 +159,12 @@ func WriteNomadCG1(iface, filename, content string) error {
 // LinuxResourcesPath returns the filepath to the directory that the field
 // x.Resources.LinuxResources.CpusetCgroupPath is expected to hold on to
 func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
-	cpuGroup := "share"
-	if reserveCores {
-		cpuGroup = "reserve"
-	}
-
+	partition := GetPartitionFromBool(reserveCores)
 	switch GetMode() {
 	case CG1:
 		// SETH TODO:  incorporate share/reserve
 		return filepath.Join(root, "cpuset", NomadCgroupParent, scopeCG1(allocID, task))
 	default:
-		return filepath.Join(root, NomadCgroupParent, cpuGroup, scopeCG2(allocID, task))
+		return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 	}
 }

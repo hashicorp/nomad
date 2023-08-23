@@ -721,11 +721,8 @@ func (l *LibcontainerExecutor) configureCG2(cfg *lconfigs.Config, command *ExecC
 
 	// Set the v2 specific unified path
 	scope := filepath.Base(cg)
-	partition := "share"
-	if cpuCores != "" {
-		partition = "reserve"
-		cfg.Cgroups.Resources.CpusetCpus = cpuCores
-	}
+	cfg.Cgroups.Resources.CpusetCpus = cpuCores
+	partition := cgroupslib.GetPartitionFromCores(cpuCores)
 
 	// sets cpu.weight, which the kernel also translates to cpu.weight.nice
 	// despite what the libcontainer docs say, this sets priority not bandwidth
