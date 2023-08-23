@@ -268,7 +268,6 @@ func (h *taskHandle) startCpusetFixer() {
 		}
 	}
 
-	log.Info("startCpusetFixer...")
 	go (&cpuset{
 		doneCh:      h.doneCh,
 		source:      h.task.Resources.LinuxResources.CpusetCgroupPath,

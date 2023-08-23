@@ -4,8 +4,6 @@
 package docker
 
 import (
-	"github.com/shoenig/netlog"
-
 	"os"
 	"path/filepath"
 	"time"
@@ -14,13 +12,14 @@ import (
 )
 
 const (
+	// cpusetSyncPeriod is how often we check to see if the cpuset of a task
+	// needs to be updated - if there is no work to do, no action is taken
 	cpusetSyncPeriod = 3 * time.Second
 )
 
-var (
-	log = netlog.New("corefix")
-)
-
+// cpuset is used to manage the cpuset.cpus interface file in the cgroup that
+// docker daemon creates for the container being run by the task driver. we
+// must do this hack because docker does not allow
 type cpuset struct {
 	doneCh      <-chan bool
 	source      string
@@ -53,21 +52,25 @@ func (c *cpuset) copyCpuset(source, destination string) {
 	source = filepath.Join(source, "cpuset.cpus.effective")
 	destination = filepath.Join(destination, "cpuset.cpus")
 
-	log.Info("copyCpuset", "previous", c.previous, "source", source, "destination", destination)
+	// read the current value of usable cores
 	b, err := os.ReadFile(source)
 	if err != nil {
-		log.Error("copyCpuset", "error1", err)
 		return
 	}
+
+	// if the current value is the same as the value we wrote last,
+	// there is nothing to do
 	current := string(b)
 	if current == c.previous {
-		log.Error("copyCpuset", "skip", c.previous)
 		return
 	}
+
+	// otherwise write the new value
 	err = os.WriteFile(destination, b, 0644)
 	if err != nil {
-		log.Error("copyCpuset", "error2", err)
 		return
 	}
+
+	// we wrote a new value; store that value so we do not write it again
 	c.previous = current
 }
