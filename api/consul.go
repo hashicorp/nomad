@@ -379,12 +379,29 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 }
 
+type ConsulGatewayTLSSDSConfig struct {
+	ClusterName  string `hcl:"cluster_name,optional" mapstructure:"cluster_name"`
+	CertResource string `hcl:"cert_resource,optional" mapstructure:"cert_resource"`
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
-	Enabled       bool     `hcl:"enabled,optional"`
-	TLSMinVersion string   `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
-	TLSMaxVersion string   `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
-	CipherSuites  []string `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+	Enabled       bool                       `hcl:"enabled,optional"`
+	TLSMinVersion string                     `hcl:"tls_min_version,optional" mapstructure:"tls_min_version"`
+	TLSMaxVersion string                     `hcl:"tls_max_version,optional" mapstructure:"tls_max_version"`
+	CipherSuites  []string                   `hcl:"cipher_suites,optional" mapstructure:"cipher_suites"`
+	SDS           *ConsulGatewayTLSSDSConfig `hcl:"sds_config,block" mapstructure:"sds_config"`
 }
 
 func (tc *ConsulGatewayTLSConfig) Canonicalize() {
@@ -399,6 +416,7 @@ func (tc *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		Enabled:       tc.Enabled,
 		TLSMinVersion: tc.TLSMinVersion,
 		TLSMaxVersion: tc.TLSMaxVersion,
+		SDS:           tc.SDS.Copy(),
 	}
 	if len(tc.CipherSuites) != 0 {
 		cipherSuites := make([]string, len(tc.CipherSuites))
@@ -492,6 +510,35 @@ func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
 	}
 }
 
+type ConsulIngressServiceConfig struct {
+	MaxConnections        *uint32 `hcl:"max_connections,optional" mapstructure:"max_connections"`
+	MaxPendingRequests    *uint32 `hcl:"max_pending_requests,optional" mapstructure:"max_pending_requests"`
+	MaxConcurrentRequests *uint32 `hcl:"max_concurrent_requests,optional" mapstructure:"max_concurrent_requests"`
+}
+
+func (c *ConsulIngressServiceConfig) Copy() *ConsulIngressServiceConfig {
+	if c == nil {
+		return nil
+	}
+
+	nc := new(ConsulIngressServiceConfig)
+	*nc = *c
+
+	if c.MaxConnections != nil {
+		nc.MaxConnections = pointerOf(*c.MaxConnections)
+	}
+
+	if c.MaxPendingRequests != nil {
+		nc.MaxPendingRequests = pointerOf(*c.MaxPendingRequests)
+	}
+
+	if c.MaxConcurrentRequests != nil {
+		nc.MaxConcurrentRequests = pointerOf(*c.MaxConcurrentRequests)
+	}
+
+	return nc
+}
+
 // ConsulIngressConfigEntry represents the Consul Configuration Entry type for
 // an Ingress Gateway.
 //
@@ -500,8 +547,10 @@ type ConsulIngressConfigEntry struct {
 	// Namespace is not yet supported.
 	// Namespace string
 
-	TLS       *ConsulGatewayTLSConfig  `hcl:"tls,block"`
-	Listeners []*ConsulIngressListener `hcl:"listener,block"`
+	TLS       *ConsulGatewayTLSConfig     `hcl:"tls,block"`
+	Listeners []*ConsulIngressListener    `hcl:"listener,block"`
+	Meta      map[string]string           `hcl:"meta,block" mapstructure:"meta"`
+	Defaults  *ConsulIngressServiceConfig `hcl:"defaults,block" mapstructure:"defaults"`
 }
 
 func (e *ConsulIngressConfigEntry) Canonicalize() {
@@ -513,6 +562,10 @@ func (e *ConsulIngressConfigEntry) Canonicalize() {
 
 	if len(e.Listeners) == 0 {
 		e.Listeners = nil
+	}
+
+	if len(e.Meta) == 0 {
+		e.Meta = nil
 	}
 
 	for _, listener := range e.Listeners {
@@ -536,6 +589,8 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	return &ConsulIngressConfigEntry{
 		TLS:       e.TLS.Copy(),
 		Listeners: listeners,
+		Meta:      maps.Clone(e.Meta),
+		Defaults:  e.Defaults.Copy(),
 	}
 }
 

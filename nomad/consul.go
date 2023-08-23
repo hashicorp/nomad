@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
@@ -610,8 +611,47 @@ func convertIngressCE(namespace, service string, entry *structs.ConsulIngressCon
 		Namespace: namespace,
 		Kind:      api.IngressGateway,
 		Name:      service,
-		TLS:       tls,
+		TLS:       *convertGatewayTLSConfig(entry.TLS),
 		Listeners: listeners,
+		Defaults:  convertIngressServiceConfig(entry.Defaults),
+		Meta:      maps.Clone(entry.Meta),
+	}
+}
+
+func convertGatewayTLSConfig(in *structs.ConsulGatewayTLSConfig) *api.GatewayTLSConfig {
+	if in != nil {
+		return &api.GatewayTLSConfig{
+			Enabled:       in.Enabled,
+			TLSMinVersion: in.TLSMinVersion,
+			TLSMaxVersion: in.TLSMaxVersion,
+			CipherSuites:  slices.Clone(in.CipherSuites),
+			SDS:           convertGatewayTLSSDSConfig(in.SDS),
+		}
+	} else {
+		return &api.GatewayTLSConfig{}
+	}
+}
+
+func convertGatewayTLSSDSConfig(in *structs.ConsulGatewayTLSSDSConfig) *api.GatewayTLSSDSConfig {
+	if in != nil {
+		return &api.GatewayTLSSDSConfig{
+			ClusterName:  in.ClusterName,
+			CertResource: in.CertResource,
+		}
+	} else {
+		return &api.GatewayTLSSDSConfig{}
+	}
+}
+
+func convertIngressServiceConfig(in *structs.ConsulIngressServiceConfig) *api.IngressServiceConfig {
+	if in != nil {
+		return &api.IngressServiceConfig{
+			MaxConnections:        in.MaxConnections,
+			MaxPendingRequests:    in.MaxPendingRequests,
+			MaxConcurrentRequests: in.MaxConcurrentRequests,
+		}
+	} else {
+		return &api.IngressServiceConfig{}
 	}
 }
 

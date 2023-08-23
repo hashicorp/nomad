@@ -1895,12 +1895,39 @@ func (p *ConsulGatewayProxy) Validate() error {
 	return nil
 }
 
+type ConsulGatewayTLSSDSConfig struct {
+	ClusterName  string
+	CertResource string
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Copy() *ConsulGatewayTLSSDSConfig {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulGatewayTLSSDSConfig{
+		ClusterName:  c.ClusterName,
+		CertResource: c.CertResource,
+	}
+}
+
+func (c *ConsulGatewayTLSSDSConfig) Equal(o *ConsulGatewayTLSSDSConfig) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	return c.ClusterName == o.ClusterName &&
+		c.CertResource == o.CertResource
+}
+
 // ConsulGatewayTLSConfig is used to configure TLS for a gateway.
 type ConsulGatewayTLSConfig struct {
 	Enabled       bool
 	TLSMinVersion string
 	TLSMaxVersion string
 	CipherSuites  []string
+	// SDS allows configuring TLS certificate from an SDS service.
+	SDS *ConsulGatewayTLSSDSConfig
 }
 
 func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
@@ -1913,6 +1940,7 @@ func (c *ConsulGatewayTLSConfig) Copy() *ConsulGatewayTLSConfig {
 		TLSMinVersion: c.TLSMinVersion,
 		TLSMaxVersion: c.TLSMaxVersion,
 		CipherSuites:  slices.Clone(c.CipherSuites),
+		SDS:           c.SDS.Copy(),
 	}
 }
 
@@ -1924,7 +1952,8 @@ func (c *ConsulGatewayTLSConfig) Equal(o *ConsulGatewayTLSConfig) bool {
 	return c.Enabled == o.Enabled &&
 		c.TLSMinVersion == o.TLSMinVersion &&
 		c.TLSMaxVersion == o.TLSMaxVersion &&
-		helper.SliceSetEq(c.CipherSuites, o.CipherSuites)
+		helper.SliceSetEq(c.CipherSuites, o.CipherSuites) &&
+		c.SDS.Equal(o.SDS)
 }
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
@@ -2067,6 +2096,54 @@ func ingressServicesEqual(a, b []*ConsulIngressService) bool {
 	return helper.ElementsEqual(a, b)
 }
 
+type ConsulIngressServiceConfig struct {
+	MaxConnections        *uint32
+	MaxPendingRequests    *uint32
+	MaxConcurrentRequests *uint32
+}
+
+func (c *ConsulIngressServiceConfig) Copy() *ConsulIngressServiceConfig {
+	if c == nil {
+		return nil
+	}
+	nc := new(ConsulIngressServiceConfig)
+	*nc = *c
+
+	if c.MaxConnections != nil {
+		nc.MaxConnections = pointer.Of(*c.MaxConnections)
+	}
+
+	if c.MaxPendingRequests != nil {
+		nc.MaxPendingRequests = pointer.Of(*c.MaxPendingRequests)
+	}
+
+	if c.MaxConcurrentRequests != nil {
+		nc.MaxConcurrentRequests = pointer.Of(*c.MaxConcurrentRequests)
+	}
+
+	return nc
+}
+
+func (c *ConsulIngressServiceConfig) Equal(o *ConsulIngressServiceConfig) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	if !pointer.Eq(c.MaxConnections, o.MaxConnections) {
+		return false
+	}
+
+	if !pointer.Eq(c.MaxPendingRequests, o.MaxPendingRequests) {
+		return false
+	}
+
+	if !pointer.Eq(c.MaxConcurrentRequests, o.MaxConcurrentRequests) {
+		return false
+	}
+
+	return true
+}
+
 // ConsulIngressConfigEntry represents the Consul Configuration Entry type for
 // an Ingress Gateway.
 //
@@ -2074,6 +2151,8 @@ func ingressServicesEqual(a, b []*ConsulIngressService) bool {
 type ConsulIngressConfigEntry struct {
 	TLS       *ConsulGatewayTLSConfig
 	Listeners []*ConsulIngressListener
+	Meta      map[string]string
+	Defaults  *ConsulIngressServiceConfig
 }
 
 func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
@@ -2092,6 +2171,8 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	return &ConsulIngressConfigEntry{
 		TLS:       e.TLS.Copy(),
 		Listeners: listeners,
+		Meta:      maps.Clone(e.Meta),
+		Defaults:  e.Defaults.Copy(),
 	}
 }
 
@@ -2101,6 +2182,14 @@ func (e *ConsulIngressConfigEntry) Equal(o *ConsulIngressConfigEntry) bool {
 	}
 
 	if !e.TLS.Equal(o.TLS) {
+		return false
+	}
+
+	if !maps.Equal(e.Meta, o.Meta) {
+		return false
+	}
+
+	if !e.Defaults.Equal(o.Defaults) {
 		return false
 	}
 
