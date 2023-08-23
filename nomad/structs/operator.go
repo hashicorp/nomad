@@ -67,6 +67,24 @@ type RaftPeerByIDRequest struct {
 	WriteRequest
 }
 
+// RaftPeerRequest is used by the Operator endpoint to apply a Raft
+// operation on a specific Raft peer by its peer ID or address in the form of
+// "IP:port".
+type RaftPeerRequest struct {
+	// ID is the peer ID to remove
+	ID raft.ServerID
+
+	// Address is the peer to target, in the form "IP:port".
+	Address raft.ServerAddress
+
+	// WriteRequest holds the Region for this request.
+	WriteRequest
+}
+
+func (r *RaftPeerRequest) IsValid() bool {
+	return r.ID == "" || r.Address == ""
+}
+
 // AutopilotSetConfigRequest is used by the Operator endpoint to update the
 // current Autopilot configuration of the cluster.
 type AutopilotSetConfigRequest struct {
