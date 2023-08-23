@@ -165,8 +165,6 @@ the type is not specified as "service", that is the default job type.
 
 ```hcl
 job "docs" {
-  datacenters = ["default"]
-
   group "example" {
     task "server" {
       driver = "docker"
@@ -190,8 +188,6 @@ restricting the eligible nodes to Linux machines.
 
 ```hcl
 job "docs" {
-  datacenters = ["default"]
-
   type = "batch"
 
   constraint {
@@ -219,8 +215,6 @@ all interactions with Vault.
 
 ```hcl
 job "docs" {
-  datacenters = ["default"]
-
   group "example" {
     task "cat" {
       driver = "exec"
