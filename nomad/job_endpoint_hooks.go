@@ -377,3 +377,38 @@ func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
 	}
 	return nil
 }
+
+// jobIdentityCreator finds all `service` block with `provider = "consul"` and
+// creates new `identity` blocks for them.
+type jobIdentityCreator struct {
+	srv *Server
+}
+
+func (jobIdentityCreator) Name() string {
+	return "identityBlockCreator"
+}
+
+func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	warnings := []error{}
+
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			if s.Provider != "consul" {
+				continue
+			}
+			// users can override default settings by setting the identity values in the
+			// jobspec by hand
+			if s.Identity != nil {
+				continue
+			}
+
+			s.Identity = &structs.WorkloadIdentity{
+				Name:        fmt.Sprintf("consul-service/%s", s.Name),
+				Audience:    []string{"consul.io"},
+				ServiceName: fmt.Sprintf("consul-service/%s", s.Name),
+			}
+		}
+	}
+
+	return job, warnings, nil
+}
