@@ -29,7 +29,7 @@ var (
 	errVarNotFound      = structs.NewErrRPCCoded(404, "variable doesn't exist")
 	errLockNotFound     = structs.NewErrRPCCoded(409, "variable doesn't hold a lock")
 	errVarIsLocked      = structs.NewErrRPCCoded(409, "attempting to modify locked variable")
-	errMissingLockInfo  = structs.NewErrRPCCoded(400, "release requires all lock information")
+	errMissingLockInfo  = structs.NewErrRPCCoded(400, "missing lock information")
 )
 
 type variableTimers interface {
