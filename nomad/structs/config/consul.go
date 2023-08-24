@@ -429,7 +429,7 @@ type WorkloadIdentity struct {
 	File bool `mapstructure:"file"`
 
 	// ServiceName is used to bind the identity to a correct Consul service.
-	ServiceName string `mapstructure:"service_name"`
+	ServiceName string `mapstructure:"-" json:"-"`
 }
 
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
