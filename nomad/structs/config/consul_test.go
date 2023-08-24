@@ -13,9 +13,10 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	sockaddr "github.com/hashicorp/go-sockaddr"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/ci"
 )
 
 func TestMain(m *testing.M) {
@@ -91,7 +92,15 @@ func TestConsulConfig_Merge(t *testing.T) {
 		KeyFile:              "2",
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
-		ExtraKeysHCL:         []string{"b", "2"},
+		UseIdentity:          &yes,
+		ServiceIdentity: &WorkloadIdentity{
+			Name:        "test",
+			Audience:    []string{"consul.io", "nomad.dev"},
+			Env:         false,
+			File:        true,
+			ServiceName: "test",
+		},
+		ExtraKeysHCL: []string{"b", "2"},
 	}
 
 	exp := &ConsulConfig{
@@ -119,7 +128,15 @@ func TestConsulConfig_Merge(t *testing.T) {
 		KeyFile:              "2",
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
-		ExtraKeysHCL:         []string{"a", "1"}, // not merged
+		UseIdentity:          &yes,
+		ServiceIdentity: &WorkloadIdentity{
+			Name:        "test",
+			Audience:    []string{"consul.io", "nomad.dev"},
+			Env:         false,
+			File:        true,
+			ServiceName: "test",
+		},
+		ExtraKeysHCL: []string{"a", "1"}, // not merged
 	}
 
 	result := c1.Merge(c2)

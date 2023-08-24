@@ -235,6 +235,17 @@ var basicConfig = &Config{
 		ChecksUseAdvertise:   &trueValue,
 		Timeout:              5 * time.Second,
 		TimeoutHCL:           "5s",
+		UseIdentity:          &trueValue,
+		ServiceIdentity: &config.WorkloadIdentity{
+			Audience: []string{"consul.io", "nomad.dev"},
+			Env:      false,
+			File:     true,
+		},
+		TemplateIdentity: &config.WorkloadIdentity{
+			Audience: []string{"consul.io"},
+			Env:      true,
+			File:     false,
+		},
 	},
 	Consuls: map[string]*config.ConsulConfig{
 		"default": {
@@ -260,6 +271,17 @@ var basicConfig = &Config{
 			ChecksUseAdvertise:   &trueValue,
 			Timeout:              5 * time.Second,
 			TimeoutHCL:           "5s",
+			UseIdentity:          &trueValue,
+			ServiceIdentity: &config.WorkloadIdentity{
+				Audience: []string{"consul.io", "nomad.dev"},
+				Env:      false,
+				File:     true,
+			},
+			TemplateIdentity: &config.WorkloadIdentity{
+				Audience: []string{"consul.io"},
+				Env:      true,
+				File:     false,
+			},
 		},
 	},
 	Vault: &config.VaultConfig{

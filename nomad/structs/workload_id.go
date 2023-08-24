@@ -42,6 +42,10 @@ var (
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
 // identity is exposed to tasks similar to the Vault block.
+//
+// CAUTION: a copy of this struct definition lives in config/consul.go in order
+// to avoid import cycles. If updating WorkloadIdentity, please remember to update
+// its copy as well.
 type WorkloadIdentity struct {
 	Name string
 

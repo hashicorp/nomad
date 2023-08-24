@@ -243,6 +243,17 @@ consul {
   auto_advertise         = true
   checks_use_advertise   = true
   timeout                = "5s"
+  use_identity           = true
+  service_identity {
+    aud  = ["consul.io", "nomad.dev"]
+    env  = false
+    file = true
+  }
+  template_identity {
+    aud  = ["consul.io"]
+    env  = true
+    file = false
+  }
 }
 
 vault {

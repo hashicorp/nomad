@@ -54,9 +54,12 @@ func ParseConfigFile(path string) (*Config, error) {
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
-		ACL:       &ACLConfig{},
-		Audit:     &config.AuditConfig{},
-		Consul:    &config.ConsulConfig{},
+		ACL:   &ACLConfig{},
+		Audit: &config.AuditConfig{},
+		Consul: &config.ConsulConfig{
+			ServiceIdentity:  &config.WorkloadIdentity{},
+			TemplateIdentity: &config.WorkloadIdentity{},
+		},
 		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
@@ -375,6 +378,9 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			return err
 		}
 
+		delete(m, "service_identity")
+		delete(m, "template_identity")
+
 		cc := &config.ConsulConfig{}
 		err := mapstructure.WeakDecode(m, cc)
 		if err != nil {
@@ -395,6 +401,42 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			c.Consuls[cc.Name] = exist.Merge(cc)
 		} else {
 			c.Consuls[cc.Name] = cc
+		}
+
+		// decode service and template identity blocks
+		var listVal *ast.ObjectList
+		if ot, ok := obj.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
+		if o := listVal.Filter("service_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			serviceIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, serviceIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var serviceIdentity config.WorkloadIdentity
+			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
+				return err
+			}
+			c.Consuls[cc.Name].ServiceIdentity = &serviceIdentity
+		}
+
+		if o := listVal.Filter("template_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			templateIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, templateIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var templateIdentity config.WorkloadIdentity
+			if err := mapstructure.WeakDecode(m, &templateIdentity); err != nil {
+				return err
+			}
+			c.Consuls[cc.Name].TemplateIdentity = &templateIdentity
 		}
 	}
 

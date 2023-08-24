@@ -6,11 +6,13 @@ package config
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-secure-stdlib/listenerutil"
+
 	"github.com/hashicorp/nomad/helper/pointer"
 )
 
@@ -131,12 +133,42 @@ type ConsulConfig struct {
 	// and register with them
 	ClientAutoJoin *bool `mapstructure:"client_auto_join"`
 
-	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `mapstructure:",unusedKeys" json:"-"`
-
 	// Namespace sets the Consul namespace used for all calls against the
 	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
 	Namespace string `mapstructure:"namespace"`
+
+	// UseIdentity tells the server to sign identities for Consul. In Nomad 1.9+ this
+	// field will be ignored (and treated as though it were set to true).
+	//
+	// UseIdentity is set on the server.
+	UseIdentity *bool `mapstructure:"use_identity"`
+
+	// ServiceIdentity is intended to reduce overhead for jobspec authors and make
+	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
+	// job has a service block with the “consul” provider, the Nomad server will sign
+	// a Workload Identity for that service and add it to the service block. The
+	// client will use this identity rather than the client's Consul token for the
+	// group_service and envoy_bootstrap_hook.
+	//
+	// The name field of the identity is always set to
+	// "consul-service/${service_name}-${service_port}".
+	//
+	// ServiceIdentity is set on the server.
+	ServiceIdentity *WorkloadIdentity `mapstructure:"service_identity"`
+
+	// TemplateIdentity is intended to reduce overhead for jobspec authors and make
+	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
+	// job has both a template block and a consul block, the Nomad server will sign a
+	// Workload Identity for that task. The client will use this identity rather than
+	// the client's Consul token for the template hook.
+	//
+	// The name field of the identity is always set to "consul".
+	//
+	// TemplateIdentity is set on the server.
+	TemplateIdentity *WorkloadIdentity `mapstructure:"template_identity"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `mapstructure:",unusedKeys" json:"-"`
 }
 
 // DefaultConsulConfig returns the canonical defaults for the Nomad
@@ -158,6 +190,7 @@ func DefaultConsulConfig() *ConsulConfig {
 		ClientAutoJoin:       pointer.Of(true),
 		AllowUnauthenticated: pointer.Of(true),
 		Timeout:              5 * time.Second,
+		UseIdentity:          pointer.Of(false),
 
 		// From Consul api package defaults
 		Addr:      def.Address,
@@ -260,6 +293,15 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
 	}
+	if b.UseIdentity != nil {
+		result.UseIdentity = pointer.Of(*b.UseIdentity)
+	}
+	if b.ServiceIdentity != nil {
+		result.ServiceIdentity = pointer.Of(*b.ServiceIdentity)
+	}
+	if b.TemplateIdentity != nil {
+		result.TemplateIdentity = pointer.Of(*b.TemplateIdentity)
+	}
 	return result
 }
 
@@ -331,34 +373,102 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 		return nil
 	}
 
-	nc := new(ConsulConfig)
-	*nc = *c
+	return &ConsulConfig{
+		Name:                 c.Name,
+		ServerServiceName:    c.ServerServiceName,
+		ServerHTTPCheckName:  c.ServerHTTPCheckName,
+		ServerSerfCheckName:  c.ServerSerfCheckName,
+		ServerRPCCheckName:   c.ServerRPCCheckName,
+		ClientServiceName:    c.ClientServiceName,
+		ClientHTTPCheckName:  c.ClientHTTPCheckName,
+		Tags:                 slices.Clone(c.Tags),
+		AutoAdvertise:        c.AutoAdvertise,
+		ChecksUseAdvertise:   c.ChecksUseAdvertise,
+		Addr:                 c.Addr,
+		GRPCAddr:             c.GRPCAddr,
+		Timeout:              c.Timeout,
+		TimeoutHCL:           c.TimeoutHCL,
+		Token:                c.Token,
+		AllowUnauthenticated: c.AllowUnauthenticated,
+		Auth:                 c.Auth,
+		EnableSSL:            c.EnableSSL,
+		ShareSSL:             c.ShareSSL,
+		VerifySSL:            c.VerifySSL,
+		GRPCCAFile:           c.GRPCCAFile,
+		CAFile:               c.CAFile,
+		CertFile:             c.CertFile,
+		KeyFile:              c.KeyFile,
+		ServerAutoJoin:       c.ServerAutoJoin,
+		ClientAutoJoin:       c.ClientAutoJoin,
+		Namespace:            c.Namespace,
+		UseIdentity:          c.UseIdentity,
+		ServiceIdentity:      c.ServiceIdentity.Copy(),
+		TemplateIdentity:     c.TemplateIdentity.Copy(),
+		ExtraKeysHCL:         slices.Clone(c.ExtraKeysHCL),
+	}
+}
 
-	// Copy the bools
-	if nc.AutoAdvertise != nil {
-		nc.AutoAdvertise = pointer.Of(*nc.AutoAdvertise)
+// WorkloadIdentity is the jobspec block which determines if and how a workload
+// identity is exposed to tasks similar to the Vault block.
+//
+// This is a copy of WorkloadIdentity from nomad/structs package in order to
+// avoid import cycles.
+type WorkloadIdentity struct {
+	Name string `mapstructure:"name"`
+
+	// Audience is the valid recipients for this identity (the "aud" JWT claim)
+	// and defaults to the identity's name.
+	Audience []string `mapstructure:"aud"`
+
+	// Env injects the Workload Identity into the Task's environment if
+	// set.
+	Env bool `mapstructure:"env"`
+
+	// File writes the Workload Identity into the Task's secrets directory
+	// if set.
+	File bool `mapstructure:"file"`
+
+	// ServiceName is used to bind the identity to a correct Consul service.
+	ServiceName string `mapstructure:"-" json:"-"`
+}
+
+func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
+	if wi == nil {
+		return nil
 	}
-	if nc.ChecksUseAdvertise != nil {
-		nc.ChecksUseAdvertise = pointer.Of(*nc.ChecksUseAdvertise)
+	return &WorkloadIdentity{
+		Name:        wi.Name,
+		Audience:    slices.Clone(wi.Audience),
+		Env:         wi.Env,
+		File:        wi.File,
+		ServiceName: wi.ServiceName,
 	}
-	if nc.EnableSSL != nil {
-		nc.EnableSSL = pointer.Of(*nc.EnableSSL)
-	}
-	if nc.VerifySSL != nil {
-		nc.VerifySSL = pointer.Of(*nc.VerifySSL)
-	}
-	if nc.ShareSSL != nil {
-		nc.ShareSSL = pointer.Of(*nc.ShareSSL)
-	}
-	if nc.ServerAutoJoin != nil {
-		nc.ServerAutoJoin = pointer.Of(*nc.ServerAutoJoin)
-	}
-	if nc.ClientAutoJoin != nil {
-		nc.ClientAutoJoin = pointer.Of(*nc.ClientAutoJoin)
-	}
-	if nc.AllowUnauthenticated != nil {
-		nc.AllowUnauthenticated = pointer.Of(*nc.AllowUnauthenticated)
+}
+
+func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
+	if wi == nil || other == nil {
+		return wi == other
 	}
 
-	return nc
+	if wi.Name != other.Name {
+		return false
+	}
+
+	if !slices.Equal(wi.Audience, other.Audience) {
+		return false
+	}
+
+	if wi.Env != other.Env {
+		return false
+	}
+
+	if wi.File != other.File {
+		return false
+	}
+
+	if wi.ServiceName != other.ServiceName {
+		return false
+	}
+
+	return true
 }
