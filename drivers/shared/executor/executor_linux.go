@@ -6,6 +6,8 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"context"
 	"errors"
 	"fmt"
@@ -697,14 +699,22 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *lconfigs.Config, comma
 	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
 }
 
+var nlog = netlog.New("LE")
+
 func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuCores := command.Resources.LinuxResources.CpusetCpus
+
 	// Set the v1 parent relative path (i.e. /nomad/<scope>)
 	scope := filepath.Base(cg)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
 
-	// set cpu.shares
-	res := command.Resources.NomadResources
-	cfg.Cgroups.CpuShares = uint64(res.Cpu.CpuShares)
+	// set cpu resources
+	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
+	cfg.Cgroups.Resources.CpusetCpus = cpuCores
+
+	nlog.Info("configureCG1()", "Cgroups.Path", cfg.Cgroups.Path, "cpuShares", cpuShares, "cpuCores", cpuCores)
+
 	return nil
 }
 

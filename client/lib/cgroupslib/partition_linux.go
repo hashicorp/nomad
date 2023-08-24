@@ -6,6 +6,8 @@
 package cgroupslib
 
 import (
+	"github.com/shoenig/netlog"
+
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,9 +19,23 @@ import (
 // when allocations are created and destroyed. The initial set of cores is
 // the usable set of cores by Nomad.
 func NewPartition(cores *idset.Set[idset.CoreID]) Partition {
+	var (
+		sharePath   string
+		reservePath string
+	)
+
+	switch GetMode() {
+	case CG1:
+		sharePath = filepath.Join(root, "cpuset", NomadCgroupParent, SharePartition(), "cpuset.cpus")
+		reservePath = filepath.Join(root, "cpuset", NomadCgroupParent, ReservePartition(), "cpuset.cpus")
+	case CG2:
+		sharePath = filepath.Join(root, NomadCgroupParent, SharePartition(), "cpuset.cpus")
+		reservePath = filepath.Join(root, NomadCgroupParent, ReservePartition(), "cpuset.cpus")
+	}
+
 	return &partition{
-		sharePath:   filepath.Join(root, NomadCgroupParent, SharePartition(), "cpuset.cpus"),
-		reservePath: filepath.Join(root, NomadCgroupParent, ReservePartition(), "cpuset.cpus"),
+		sharePath:   sharePath,
+		reservePath: reservePath,
 		share:       cores.Copy(),
 		reserve:     idset.Empty[idset.CoreID](),
 	}
@@ -36,7 +52,7 @@ type partition struct {
 
 func (p *partition) Restore(cores *idset.Set[idset.CoreID]) {
 	p.lock.Lock()
-	p.lock.Unlock()
+	defer p.lock.Unlock()
 
 	p.share.RemoveSet(cores)
 	p.reserve.InsertSet(cores)
@@ -62,19 +78,18 @@ func (p *partition) Release(cores *idset.Set[idset.CoreID]) error {
 	return p.write()
 }
 
+var nlog = netlog.New("partition")
+
 func (p *partition) write() error {
-	switch GetMode() {
-	case CG1:
-		panic("not yet implemented")
-	case CG2:
-		shareStr := p.share.String()
-		if err := os.WriteFile(p.sharePath, []byte(shareStr), 0644); err != nil {
-			return err
-		}
-		reserveStr := p.reserve.String()
-		if err := os.WriteFile(p.reservePath, []byte(reserveStr), 0644); err != nil {
-			return err
-		}
+	shareStr := p.share.String()
+	nlog.Info("write()", "sharePath", p.sharePath, "shareStr", shareStr)
+	if err := os.WriteFile(p.sharePath, []byte(shareStr), 0644); err != nil {
+		return err
+	}
+	reserveStr := p.reserve.String()
+	nlog.Info("write()", "reservePath", p.reservePath, "reserveStr", reserveStr)
+	if err := os.WriteFile(p.reservePath, []byte(reserveStr), 0644); err != nil {
+		return err
 	}
 	return nil
 }

@@ -4,6 +4,8 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -191,9 +193,12 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
 	_ = ed.Write("cpu.shares", cpuShares)
 
 	// write cpuset file
-	// cpuSet := command.Resources.LinuxResources.CpusetCpus
-	// need different ed
-	// _ = ed.Write("cpuset.cpus", cpuSet)
+	nlog := netlog.New("HI")
+	cpuSet := command.Resources.LinuxResources.CpusetCpus
+	nlog.Info("configureCG1()", "cgroup", cgroup)
+	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpuset")
+	_ = ed.Write("cpuset.cpus", cpuSet)
+	nlog.Info("configureCG1()", "cpuset", cpuSet)
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {

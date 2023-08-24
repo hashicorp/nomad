@@ -39,8 +39,13 @@ func OpenPath(dir string) Interface {
 // the cpuset cgroup directory in the cgroups v1 regime, but nowadays we want
 // to modify more than the cpuset in some cases.
 func OpenFromCpusetCG1(dir, iface string) Interface {
+	if iface != "cpuset" {
+		dir = strings.Replace(dir, "/share/", "/", 1)
+		dir = strings.Replace(dir, "/reserve/", "/", 1)
+		dir = strings.Replace(dir, "cpuset", iface, 1)
+	}
 	return &editor{
-		dpath: strings.Replace(dir, "cpuset", iface, 1),
+		dpath: dir,
 	}
 }
 
@@ -95,6 +100,7 @@ func Factory(allocID, task string, cores bool) Lifecycle {
 		return &lifeCG1{
 			allocID: allocID,
 			task:    task,
+			cores:   cores,
 		}
 	default:
 		return &lifeCG2{
@@ -118,6 +124,7 @@ type Lifecycle interface {
 type lifeCG1 struct {
 	allocID string
 	task    string
+	cores   bool // uses core reservation
 }
 
 func (l *lifeCG1) Setup() error {
@@ -185,13 +192,17 @@ func (l *lifeCG1) thaw() error {
 
 func (l *lifeCG1) paths() []string {
 	scope := scopeCG1(l.allocID, l.task)
-	ifaces := []string{"freezer", "cpu", "memory", "cpuset"}
-	paths := make([]string, 0, len(ifaces))
+	ifaces := []string{"freezer", "cpu", "memory"}
+	paths := make([]string, 0, len(ifaces)+1)
 	for _, iface := range ifaces {
 		paths = append(paths, filepath.Join(
 			root, iface, NomadCgroupParent, scope,
 		))
 	}
+	partition := GetPartitionFromBool(l.cores)
+	paths = append(paths, filepath.Join(
+		root, "cpuset", NomadCgroupParent, partition, scope,
+	))
 	return paths
 }
 

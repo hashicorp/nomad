@@ -20,6 +20,9 @@ func Init(log hclog.Logger, cores string) {
 
 	switch GetMode() {
 	case CG1:
+		// the name of the cpuset interface file
+		const cpusetFile = "cpuset.cpus"
+
 		// create the /nomad cgroup (or whatever the name is configured to be)
 		// for each cgroup controller we are going to use
 		controllers := []string{"freezer", "memory", "cpu", "cpuset"}
@@ -29,15 +32,34 @@ func Init(log hclog.Logger, cores string) {
 				log.Error("failed to create nomad cgroup", "controller", ctrl, "error", err)
 			}
 		}
+
+		//
+		// configure cpuset partitioning
+		//
+
+		if err := writeCG(cores, "cpuset", NomadCgroupParent, cpusetFile); err != nil {
+			log.Error("failed to write cores to nomad cpuset cgroup", "error", err)
+			return
+		}
+
+		if err := mkCG("cpuset", NomadCgroupParent, SharePartition()); err != nil {
+			log.Error("failed to create share cpuset partition", "error", err)
+			return
+		}
+
+		if err := mkCG("cpuset", NomadCgroupParent, ReservePartition()); err != nil {
+			log.Error("failed to create reserve cpuset partition", "error", err)
+			return
+		}
+
+		log.Debug("nomad cpuset partitions initialized", "cores", cores)
+
 	case CG2:
 		// the cgroup controllers we need to activate at the root and on the nomad slice
 		const activation = "+cpuset +cpu +io +memory +pids"
 
 		// the name of the cgroup subtree interface file
 		const subtreeFile = "cgroup.subtree_control"
-
-		// the name of the cpuset partition interface file
-		const partitionFile = "cpuset.cpus.partition"
 
 		// the name of the cpuset interface file
 		const cpusetFile = "cpuset.cpus"
@@ -46,7 +68,7 @@ func Init(log hclog.Logger, cores string) {
 		// configuring root cgroup (/sys/fs/cgroup)
 		//
 
-		if err := writeCG2(activation, subtreeFile); err != nil {
+		if err := writeCG(activation, subtreeFile); err != nil {
 			log.Error("failed to create nomad cgroup", "error", err)
 			return
 		}
@@ -55,39 +77,33 @@ func Init(log hclog.Logger, cores string) {
 		// configuring nomad.slice
 		//
 
-		if err := mkCG2(NomadCgroupParent); err != nil {
+		if err := mkCG(NomadCgroupParent); err != nil {
 			log.Error("failed to create nomad cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, subtreeFile); err != nil {
+		if err := writeCG(activation, NomadCgroupParent, subtreeFile); err != nil {
 			log.Error("failed to set subtree control on nomad cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(cores, NomadCgroupParent, cpusetFile); err != nil {
+		if err := writeCG(cores, NomadCgroupParent, cpusetFile); err != nil {
 			log.Error("failed to write root partition cpuset", "error", err)
 			return
 		}
 
-		// docker will not play nice
-		// if err := writeCG2("root", NomadCgroupParent, partitionFile); err != nil {
-		// 	log.Error("failed to set root partition mode", "error", err)
-		// 	return
-		// }
-
-		log.Debug("top level partition root nomad.slice cgroup initialized", "cpuset", "xxx")
+		log.Debug("top level partition root nomad.slice cgroup initialized")
 
 		//
 		// configuring nomad.slice/share (member)
 		//
 
-		if err := mkCG2(NomadCgroupParent, SharePartition()); err != nil {
+		if err := mkCG(NomadCgroupParent, SharePartition()); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, SharePartition(), subtreeFile); err != nil {
+		if err := writeCG(activation, NomadCgroupParent, SharePartition(), subtreeFile); err != nil {
 			log.Error("failed to set subtree control on cpuset share partition", "error", err)
 			return
 		}
@@ -98,12 +114,12 @@ func Init(log hclog.Logger, cores string) {
 		// configuring nomad.slice/reserve (member)
 		//
 
-		if err := mkCG2(NomadCgroupParent, ReservePartition()); err != nil {
+		if err := mkCG(NomadCgroupParent, ReservePartition()); err != nil {
 			log.Error("failed to create share cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG2(activation, NomadCgroupParent, ReservePartition(), subtreeFile); err != nil {
+		if err := writeCG(activation, NomadCgroupParent, ReservePartition(), subtreeFile); err != nil {
 			log.Error("failed to set subtree control on cpuset reserve partition", "error", err)
 			return
 		}
@@ -118,20 +134,23 @@ func readRootCG2(filename string) (string, error) {
 	return string(bytes.TrimSpace(b)), err
 }
 
-func filepathCG2(paths ...string) string {
+// filepathCG will return the given paths based on the cgroup root
+func filepathCG(paths ...string) string {
 	base := []string{root}
 	base = append(base, paths...)
 	p := filepath.Join(base...)
 	return p
 }
 
-func writeCG2(content string, paths ...string) error {
-	p := filepathCG2(paths...)
+// writeCG will write content to the cgroup interface file given by paths
+func writeCG(content string, paths ...string) error {
+	p := filepathCG(paths...)
 	return os.WriteFile(p, []byte(content), 0644)
 }
 
-func mkCG2(paths ...string) error {
-	p := filepathCG2(paths...)
+// mkCG will create a cgroup at the given path
+func mkCG(paths ...string) error {
+	p := filepathCG(paths...)
 	return os.MkdirAll(p, 0755)
 }
 
@@ -162,8 +181,7 @@ func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
 	partition := GetPartitionFromBool(reserveCores)
 	switch GetMode() {
 	case CG1:
-		// SETH TODO:  incorporate share/reserve
-		return filepath.Join(root, "cpuset", NomadCgroupParent, scopeCG1(allocID, task))
+		return filepath.Join(root, "cpuset", NomadCgroupParent, partition, scopeCG1(allocID, task))
 	default:
 		return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 	}
