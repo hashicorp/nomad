@@ -28,11 +28,11 @@ var (
 )
 
 // Locks returns a new handle on a lock for the given variable.
-func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks {
+func (c *Client) Locks(wo WriteOptions, v Variable, lease time.Duration) *Locks {
 	l := &Locks{
 		c:            c,
 		WriteOptions: wo,
-		Variable:     v,
+		variable:     v,
 	}
 
 	l.c.configureRetries(&retryOptions{
@@ -46,9 +46,8 @@ func (c *Client) Locks(wo WriteOptions, v *Variable, lease time.Duration) *Locks
 // It makes the calls to the http using an exponential retry mechanism that will
 // try until it either reaches 5 attempts or the ttl of the lock expires.
 type Locks struct {
-	c *Client
-	*Variable
-	ttl time.Duration
+	c        *Client
+	variable Variable
 
 	WriteOptions
 }
@@ -65,12 +64,12 @@ type Locks struct {
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	var out Variable
 
-	l.Variable.Lock = &VariableLock{
-		TTL:       l.Variable.Lock.TTL,
-		LockDelay: l.Variable.Lock.TTL,
+	l.variable.Lock = &VariableLock{
+		TTL:       l.variable.Lock.TTL,
+		LockDelay: l.variable.Lock.TTL,
 	}
 
-	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-acquire", l.Variable, &out, &l.WriteOptions)
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-acquire", l.variable, &out, &l.WriteOptions)
 	if err != nil {
 		callErr, ok := err.(UnexpectedResponseError)
 
@@ -84,7 +83,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 		return "", err
 	}
 
-	l.Variable.Lock = out.Lock
+	l.variable.Lock = out.Lock
 
 	return out.Path, nil
 }
@@ -94,7 +93,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 func (l *Locks) Release(ctx context.Context) error {
 	var out Variable
 
-	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-release", l.Variable, &out, &l.WriteOptions)
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-release", l.variable, &out, &l.WriteOptions)
 	if err != nil {
 		callErr, ok := err.(UnexpectedResponseError)
 
@@ -119,7 +118,7 @@ func (l *Locks) Release(ctx context.Context) error {
 func (l *Locks) Renew(ctx context.Context) error {
 	var out VariableMetadata
 
-	_, err := l.c.retryPut(ctx, "/v1/var/"+l.Path+"?lock-renew", l.Variable, &out, &l.WriteOptions)
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-renew", l.variable, &out, &l.WriteOptions)
 	if err != nil {
 		callErr, ok := err.(UnexpectedResponseError)
 
@@ -171,10 +170,10 @@ type LockLeaser struct {
 // but the path for it is mandatory.
 //
 // Important: It will be on the user to remove the variable created for the lock.
-func (c *Client) NewLockLeaser(wo WriteOptions, variable *Variable, lease time.Duration,
+func (c *Client) NewLockLeaser(wo WriteOptions, variable Variable, lease time.Duration,
 	callerID string) (*LockLeaser, error) {
 
-	if variable == nil || variable.Path == "" {
+	if variable.Path == "" {
 		return nil, LockNoPathErr
 	}
 
@@ -210,74 +209,71 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 	err = ll.locker.Release(ctx)
 	if err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("release: %w", err))
 	}
 
 	return mErr.ErrorOrNil()
 }
 
 // start starts the process of maintaining the lease and executes the protected
-// function in an independent go routine. It is a blocking function
-// that will only return in case of an error or context cancellation.
+// function on an independent go routine. It is a blocking function, it
+// will return once the protected function is done or an execution error
+// arises.
 func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx context.Context) error) error {
-	innerCtx, innerCancel := context.WithCancel(ctx)
-	defer innerCancel()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	// Channel to monitor the possible errors on execution
+	// errChannel is used track execution errors
 	errChannel := make(chan error, 1)
 
 	// To avoid collisions if all the instances start at the same time, wait
 	// a random time before making the first call.
-	waitWithContext(innerCtx, ll.randomDelay)
+	waitWithContext(ctx, ll.randomDelay)
 
 	waitTicker := time.NewTicker(ll.waitPeriod)
 	defer waitTicker.Stop()
 
 	for {
-		lockID, err := ll.locker.Acquire(innerCtx, ll.ID)
+		lockID, err := ll.locker.Acquire(ctx, ll.ID)
 		if err != nil && err != errLockConflict {
 			errChannel <- fmt.Errorf("error acquiring the lock: %w", err)
 		}
 
 		if lockID != "" {
-			funcCtx, funcCancel := context.WithCancel(innerCtx)
+			funcCtx, funcCancel := context.WithCancel(ctx)
 			defer funcCancel()
 
 			// Execute the lock protected function.
 			go func() {
+				defer funcCancel()
 				for _, f := range protectedFuncs {
 					err := f(funcCtx)
 					if err != nil {
-						errChannel <- fmt.Errorf("error executing the protected function: %w", err)
+						errChannel <- fmt.Errorf("error executing protected function %w", err)
+						return
 					}
-					// innerCancel will force the maintainLease to return once the protectedFunc
-					// is done.
-					innerCancel()
+					// cancel will signal teh start function to return without errors
+					cancel()
 				}
 			}()
 
-			// Maintain lease is a blocking function, will only return in case
-			// the lock is lost or the context is canceled.
-			err := ll.maintainLease(innerCtx)
+			// Maintain lease is a blocking function, it will return if there is
+			// an error maintaining the lease or the protected function returned
+			err := ll.maintainLease(funcCtx)
 			if err != nil && err != errLockConflict {
 				errChannel <- fmt.Errorf("error renewing the lease: %w", err)
 			}
-
-			funcCancel()
 		}
 
 		waitTicker.Stop()
 		waitTicker = time.NewTicker(ll.waitPeriod)
 
 		select {
-		case err := <-errChannel:
-			return fmt.Errorf("locks: %w", err)
-
 		case <-ctx.Done():
 			return nil
 
-		case <-innerCtx.Done():
-			return nil
+		case err := <-errChannel:
+			return fmt.Errorf("locks: %w", err)
 
 		case <-waitTicker.C:
 		}
