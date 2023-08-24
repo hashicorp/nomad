@@ -55,4 +55,17 @@ export default class ServerAgentRow extends Component {
   click() {
     this.goToAgent();
   }
+
+  @computed('agent.status')
+  get agentStatusClass() {
+    let agentStatus = this.get('agent.status');
+
+    if (agentStatus === 'alive') {
+      return 'status-text is-success';
+    } else if (agentStatus === 'failed') {
+      return 'status-text is-danger';
+    } else {
+      return '';
+    }
+  }
 }

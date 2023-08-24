@@ -67,6 +67,8 @@ export default class ClientNodeRow extends Component.extend(
       return 'status-text is-warning';
     } else if (compositeStatus === 'down') {
       return 'status-text is-danger';
+    } else if (compositeStatus === 'ready') {
+      return 'status-text is-success';
     } else {
       return '';
     }
