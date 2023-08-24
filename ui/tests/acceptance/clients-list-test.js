@@ -159,7 +159,7 @@ module('Acceptance | clients list', function (hooks) {
 
     ClientsList.nodes[0].compositeStatus.as((readyClient) => {
       assert.equal(readyClient.text, 'ready');
-      assert.ok(readyClient.isUnformatted, 'expected no status class');
+      assert.ok(readyClient.isSuccess, 'expected ready class');
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 

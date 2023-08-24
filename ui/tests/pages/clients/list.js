@@ -45,6 +45,7 @@ export default create({
       tooltip: attribute('aria-label', '.tooltip'),
 
       isInfo: hasClass('is-info', '.status-text'),
+      isSuccess: hasClass('is-success', '.status-text'),
       isWarning: hasClass('is-warning', '.status-text'),
       isUnformatted: isHidden('.status-text'),
     },
