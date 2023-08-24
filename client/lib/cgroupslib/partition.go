@@ -7,7 +7,9 @@ import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 )
 
+// A Partition is used to track reserved vs. shared cpu cores.
 type Partition interface {
+	Restore(*idset.Set[idset.CoreID])
 	Reserve(*idset.Set[idset.CoreID]) error
 	Release(*idset.Set[idset.CoreID]) error
 }

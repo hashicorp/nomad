@@ -17,8 +17,6 @@ import (
 // when allocations are created and destroyed. The initial set of cores is
 // the usable set of cores by Nomad.
 func NewPartition(cores *idset.Set[idset.CoreID]) Partition {
-	// todo: how to restore this?
-
 	return &partition{
 		sharePath:   filepath.Join(root, NomadCgroupParent, SharePartition(), "cpuset.cpus"),
 		reservePath: filepath.Join(root, NomadCgroupParent, ReservePartition(), "cpuset.cpus"),
@@ -34,6 +32,14 @@ type partition struct {
 	lock    sync.Mutex
 	share   *idset.Set[idset.CoreID]
 	reserve *idset.Set[idset.CoreID]
+}
+
+func (p *partition) Restore(cores *idset.Set[idset.CoreID]) {
+	p.lock.Lock()
+	p.lock.Unlock()
+
+	p.share.RemoveSet(cores)
+	p.reserve.InsertSet(cores)
 }
 
 func (p *partition) Reserve(cores *idset.Set[idset.CoreID]) error {

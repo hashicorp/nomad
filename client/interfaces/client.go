@@ -51,6 +51,7 @@ type ProcessWranglers interface {
 
 // CPUPartitions is an interface satisfied by the cgroupslib package.
 type CPUPartitions interface {
+	Restore(*idset.Set[idset.CoreID])
 	Reserve(*idset.Set[idset.CoreID]) error
 	Release(*idset.Set[idset.CoreID]) error
 }
