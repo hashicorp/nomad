@@ -29,8 +29,7 @@ rules:
     severity: "WARNING"
     paths:
       include:
-        - "nomad/fsm.*"
+        - "nomad/fsm*"
         - "nomad/state/state_store*"
       exclude:
-        - "nomad/state/state_store_test.go"
-        - "nomad/state/state_store_restore_test.go"
+        - "*_test.go"
