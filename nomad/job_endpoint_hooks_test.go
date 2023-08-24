@@ -818,91 +818,70 @@ func Test_jobIdentityCreator_Mutate(t *testing.T) {
 		{
 			name: "no mutation",
 			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Services: []*structs.Service{
-							&structs.Service{
-								Provider: "nomad",
-							},
-						},
-					},
-				},
+				TaskGroups: []*structs.TaskGroup{{
+					Services: []*structs.Service{{
+						Provider: "nomad",
+					}},
+				}},
 			},
 			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Services: []*structs.Service{
-							&structs.Service{
-								Provider: "nomad",
-							},
-						},
-					},
-				},
+				TaskGroups: []*structs.TaskGroup{{
+					Services: []*structs.Service{{
+						Provider: "nomad",
+					}},
+				}},
 			},
 		},
 		{
-			name: "custom set identity, no mutation",
+			name: "custom set identity, mutate",
 			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Services: []*structs.Service{
-							&structs.Service{
-								Provider: "consul",
-								Identity: &structs.WorkloadIdentity{
-									Name:     "test",
-									Audience: []string{"consul.io"},
-								},
-							},
+				TaskGroups: []*structs.TaskGroup{{
+					Services: []*structs.Service{{
+						Provider: "consul",
+						Name:     "web",
+						Identity: &structs.WorkloadIdentity{
+							Name:     "test",
+							Audience: []string{"consul.io"},
 						},
-					},
-				},
+					}},
+				}},
 			},
 			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Services: []*structs.Service{
-							&structs.Service{
-								Provider: "consul",
-								Identity: &structs.WorkloadIdentity{
-									Name:     "test",
-									Audience: []string{"consul.io"},
-								},
-							},
+				TaskGroups: []*structs.TaskGroup{{
+					Services: []*structs.Service{{
+						Provider: "consul",
+						Name:     "web",
+						Identity: &structs.WorkloadIdentity{
+							Name:        "consul-service/web",
+							Audience:    []string{"consul.io"},
+							ServiceName: "web",
 						},
-					},
-				},
+					}},
+				}},
 			},
 		},
 		{
 			name: "mutate",
 			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Services: []*structs.Service{
-							&structs.Service{
-								Provider: "consul",
-								Name:     "web",
-							},
-						},
-					},
-				},
+				TaskGroups: []*structs.TaskGroup{{
+					Services: []*structs.Service{{
+						Provider: "consul",
+						Name:     "web",
+					}},
+				}},
 			},
 			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{
-					&structs.TaskGroup{
-						Services: []*structs.Service{
-							&structs.Service{
-								Provider: "consul",
-								Name:     "web",
-								Identity: &structs.WorkloadIdentity{
-									Name:        "consul-service/web",
-									Audience:    []string{"consul.io"},
-									ServiceName: "consul-service/web",
-								},
-							},
+				TaskGroups: []*structs.TaskGroup{{
+					Services: []*structs.Service{{
+						Provider: "consul",
+						Name:     "web",
+						Identity: &structs.WorkloadIdentity{
+							Name:        "consul-service/web",
+							Audience:    []string{"consul.io"},
+							ServiceName: "web",
 						},
-					},
-				},
+					}},
+				}},
 			},
 		},
 	}
