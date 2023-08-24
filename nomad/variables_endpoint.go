@@ -25,11 +25,11 @@ const (
 )
 
 var (
-	errVarAlreadyLocked = structs.NewErrRPCCoded(400, "variable already holds a lock")
-	errVarNotFound      = structs.NewErrRPCCoded(404, "variable doesn't exist")
-	errLockNotFound     = structs.NewErrRPCCoded(409, "variable doesn't hold a lock")
-	errVarIsLocked      = structs.NewErrRPCCoded(409, "attempting to modify locked variable")
-	errMissingLockInfo  = structs.NewErrRPCCoded(400, "missing lock information")
+	errVarAlreadyLocked = structs.NewErrRPCCoded(http.StatusBadRequest, "variable already holds a lock")
+	errVarNotFound      = structs.NewErrRPCCoded(http.StatusNotFound, "variable doesn't exist")
+	errLockNotFound     = structs.NewErrRPCCoded(http.StatusConflict, "variable doesn't hold a lock")
+	errVarIsLocked      = structs.NewErrRPCCoded(http.StatusConflict, "attempting to modify locked variable")
+	errMissingLockInfo  = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
 )
 
 type variableTimers interface {
