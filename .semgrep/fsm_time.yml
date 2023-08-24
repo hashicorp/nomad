@@ -30,4 +30,7 @@ rules:
     paths:
       include:
         - "nomad/fsm.*"
-        - "nomad/state/state_store.*"
+        - "nomad/state/state_store*"
+      exclude:
+        - "nomad/state/state_store_test.go"
+        - "nomad/state/state_store_restore_test.go"
