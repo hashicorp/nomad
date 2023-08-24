@@ -65,7 +65,7 @@ func (ml *mockLock) Renew(_ context.Context) error {
 
 	if time.Since(ml.leaseStartTime) > testLease {
 		ml.locked = false
-		return errLockConflict
+		return ErrLockConflict
 	}
 
 	ml.leaseStartTime = time.Now()

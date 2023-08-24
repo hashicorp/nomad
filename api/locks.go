@@ -20,7 +20,9 @@ const (
 )
 
 var (
-	errLockConflict = errors.New("lock is not held")
+	// ErrLockConflict is returned in case a lock operation can't be performed
+	// because the caller is not the current holder of the lock.
+	ErrLockConflict = errors.New("conflicting operation over lock")
 
 	//LockNoPathErr is returned when no path is provided in the variable to be
 	// used for the lease mechanism
@@ -28,7 +30,7 @@ var (
 )
 
 // Locks returns a new handle on a lock for the given variable.
-func (c *Client) Locks(wo WriteOptions, v Variable, lease time.Duration) *Locks {
+func (c *Client) Locks(wo WriteOptions, v Variable, lockTTL time.Duration) *Locks {
 	l := &Locks{
 		c:            c,
 		WriteOptions: wo,
@@ -36,7 +38,7 @@ func (c *Client) Locks(wo WriteOptions, v Variable, lease time.Duration) *Locks 
 	}
 
 	l.c.configureRetries(&retryOptions{
-		maxToLastCall: lease,
+		maxToLastCall: lockTTL,
 	})
 
 	return l
@@ -45,6 +47,10 @@ func (c *Client) Locks(wo WriteOptions, v Variable, lease time.Duration) *Locks 
 // Locks is used to maintain all the resources necessary to operate over a lock.
 // It makes the calls to the http using an exponential retry mechanism that will
 // try until it either reaches 5 attempts or the ttl of the lock expires.
+// The variable doesn't need to exist, one will be created internally
+// but a path most be provided.
+//
+// Important: It will be on the user to remove the variable created for the lock.
 type Locks struct {
 	c        *Client
 	variable Variable
@@ -59,8 +65,8 @@ type Locks struct {
 //	callerID will be used to identify who is holding the lock in the future,
 //	currently is only por testing purposes.
 //
-// Important: A conflict response from the server is not an execution error
-// and should be handled differently
+// Acquire returns the path of the variable used for the lock. If the lock is
+// already held, it returns ErrLockConflict.
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 	var out Variable
 
@@ -77,7 +83,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 		// under the normal execution if multiple instances are fighting for the same lock and
 		// doesn't disrupt the flow.
 		if ok && callErr.statusCode == http.StatusConflict {
-			return "", errLockConflict
+			return "", fmt.Errorf("acquire conflict %w", ErrLockConflict)
 		}
 
 		return "", err
@@ -90,6 +96,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 
 // Release makes the call to release the lock over a variable, even if the ttl
 // has not yet passed.
+// In case of a call to release a non held lock, Release returns ErrLockConflict.
 func (l *Locks) Release(ctx context.Context) error {
 	var out Variable
 
@@ -98,7 +105,7 @@ func (l *Locks) Release(ctx context.Context) error {
 		callErr, ok := err.(UnexpectedResponseError)
 
 		if ok && callErr.statusCode == http.StatusConflict {
-			return errLockConflict
+			return fmt.Errorf("release conflict %w", ErrLockConflict)
 		}
 		return err
 	}
@@ -111,10 +118,7 @@ func (l *Locks) Release(ctx context.Context) error {
 // mechanism among multiple instances looking to acquire the same lock.
 // Renew will return true if the renewal was successful.
 //
-// Important: A conflict response from the server is not an execution error
-// and should be handled differently, it signals the leaser that the lock is
-// lost and the execution of the protected
-// function should be stopped, but the lock can be reacquired in the future.
+// In case of a call to renew a non held lock, Renew returns ErrLockConflict.
 func (l *Locks) Renew(ctx context.Context) error {
 	var out VariableMetadata
 
@@ -123,7 +127,7 @@ func (l *Locks) Renew(ctx context.Context) error {
 		callErr, ok := err.(UnexpectedResponseError)
 
 		if ok && callErr.statusCode == http.StatusConflict {
-			return errLockConflict
+			return fmt.Errorf("renew conflict %w", ErrLockConflict)
 		}
 
 		return err
@@ -169,10 +173,6 @@ type LockLeaser struct {
 
 // NewLockLeaser returns an instance of LockLeaser. callerID
 // is optional, in case they it is not provided, internal one will be created.
-// The variable doesn't need to exist, if it doesn't, one will be created,
-// but the path for it is mandatory.
-//
-// Important: It will be on the user to remove the variable created for the lock.
 func (c *Client) NewLockLeaser(l Locker, callerID string, lease time.Duration) *LockLeaser {
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
@@ -228,7 +228,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 	for {
 		lockID, err := ll.locker.Acquire(ctx, ll.ID)
-		if err != nil && err != errLockConflict {
+		if err != nil && err != ErrLockConflict {
 			errChannel <- fmt.Errorf("error acquiring the lock: %w", err)
 		}
 
@@ -253,7 +253,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 			// Maintain lease is a blocking function, it will return if there is
 			// an error maintaining the lease or the protected function returned
 			err := ll.maintainLease(funcCtx)
-			if err != nil && err != errLockConflict {
+			if err != nil && err != ErrLockConflict {
 				errChannel <- fmt.Errorf("error renewing the lease: %w", err)
 			}
 		}
