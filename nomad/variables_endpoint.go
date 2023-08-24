@@ -26,10 +26,10 @@ const (
 )
 
 var (
-	errVarAlreadyLocked = errors.New("variable already holds a lock")
-	errVarNotFound      = errors.New("variable doesn't exist")
-	errLockNotFound     = errors.New("variable doesn't hold a lock")
-	errVarIsLocked      = errors.New("attempting to modify locked variable")
+	errVarAlreadyLocked = structs.NewErrRPCCoded(400, "variable already holds a lock")
+	errVarNotFound      = structs.NewErrRPCCoded(404, "variable doesn't exist")
+	errLockNotFound     = structs.NewErrRPCCoded(409, "variable doesn't hold a lock")
+	errVarIsLocked      = structs.NewErrRPCCoded(409, "attempting to modify locked variable")
 )
 
 type variableTimers interface {
