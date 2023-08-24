@@ -1,14 +1,14 @@
 package checkstore
 
 import (
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // A Shim is used to track the latest check status information, one layer above

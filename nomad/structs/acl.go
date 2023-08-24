@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"golang.org/x/crypto/blake2b"
-	"golang.org/x/exp/slices"
 	"oss.indeed.com/go/libtime"
 )
 

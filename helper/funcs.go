@@ -3,11 +3,13 @@ package helper
 import (
 	"crypto/sha512"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -15,8 +17,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // validUUID is used to check if a given string looks like a UUID

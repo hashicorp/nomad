@@ -14,11 +14,13 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc32"
+	"maps"
 	"math"
 	"net"
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,8 +48,6 @@ import (
 	"github.com/mitchellh/copystructure"
 	"github.com/ryanuber/go-glob"
 	"golang.org/x/crypto/blake2b"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 var (
