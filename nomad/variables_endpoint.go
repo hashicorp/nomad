@@ -5,7 +5,6 @@ package nomad
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -30,6 +29,7 @@ var (
 	errVarNotFound      = structs.NewErrRPCCoded(404, "variable doesn't exist")
 	errLockNotFound     = structs.NewErrRPCCoded(409, "variable doesn't hold a lock")
 	errVarIsLocked      = structs.NewErrRPCCoded(409, "attempting to modify locked variable")
+	errMissingLockInfo  = structs.NewErrRPCCoded(400, "release requires all lock information")
 )
 
 type variableTimers interface {
@@ -213,13 +213,13 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			return fmt.Errorf("delete requires a Path")
+			return errMissingLockInfo
 		}
 
 	case structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil ||
 			args.Var.Lock.ID == "" {
-			return errors.New("release requires all lock information")
+			return errMissingLockInfo
 		}
 
 		return structs.ValidatePath(args.Var.Path)
