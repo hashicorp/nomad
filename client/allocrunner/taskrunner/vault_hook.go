@@ -54,6 +54,7 @@ type vaultHookConfig struct {
 	events     ti.EventEmitter
 	lifecycle  ti.TaskLifecycle
 	updater    vaultTokenUpdateHandler
+	widStore   ti.WorkloadIdentityStore
 	logger     log.Logger
 	alloc      *structs.Allocation
 	task       string
@@ -74,6 +75,9 @@ type vaultHook struct {
 
 	// client is the Vault client to retrieve and renew the Vault token
 	client vaultclient.VaultClient
+
+	// widStore is used to retrieve signed workload identities for the task.
+	widStore ti.WorkloadIdentityStore
 
 	// logger is used to log
 	logger log.Logger
@@ -111,6 +115,7 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		eventEmitter: config.events,
 		lifecycle:    config.lifecycle,
 		updater:      config.updater,
+		widStore:     config.widStore,
 		alloc:        config.alloc,
 		taskName:     config.task,
 		firstRun:     true,
@@ -315,29 +320,9 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 	var attempts uint64
 	var backoff time.Duration
 	for {
-		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
-		if err == nil {
-			return tokens[h.taskName], false
-		}
-
-		// Check if this is a server side error
-		if structs.IsServerSide(err) {
-			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
-			h.lifecycle.Kill(h.ctx,
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
-			return "", true
-		}
-
-		// Check if we can't recover from the error
-		if !structs.IsRecoverable(err) {
-			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
-			h.lifecycle.Kill(h.ctx,
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
-			return "", true
+		token, exit, err := h.deriveVaultTokenImpl()
+		if err == nil || exit {
+			return token, exit
 		}
 
 		// Handle the retry case
@@ -353,6 +338,53 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		case <-time.After(backoff):
 		}
 	}
+}
+
+func (h *vaultHook) deriveVaultTokenImpl() (string, bool, error) {
+	wid, err := h.widStore.GetWorkloadIdentity("vault")
+	if err != nil {
+		return "", false, err
+	}
+
+	if wid != nil {
+		tokens, err := h.client.DeriveTokenWithJWT(h.ctx, map[string]vaultclient.JWTLoginRequest{
+			wid.IdentityName: {
+				Role: h.vaultBlock.Role,
+				JWT:  wid.JWT,
+			},
+		})
+		if err != nil {
+			return "", false, err
+		}
+		return tokens[wid.IdentityName], false, nil
+	}
+
+	tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
+	if err != nil {
+		// Check if this is a server side error
+		if structs.IsServerSide(err) {
+			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
+			h.lifecycle.Kill(h.ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
+			return "", true, err
+		}
+
+		// Check if we can't recover from the error
+		if !structs.IsRecoverable(err) {
+			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
+			h.lifecycle.Kill(h.ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
+			return "", true, err
+		}
+
+		return "", false, err
+	}
+
+	return tokens[h.taskName], false, nil
 }
 
 // writeToken writes the given token to disk

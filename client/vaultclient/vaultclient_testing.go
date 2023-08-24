@@ -4,6 +4,7 @@
 package vaultclient
 
 import (
+	"context"
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -62,6 +63,17 @@ func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (m
 	return tokens, nil
 }
 
+func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, reqs map[string]JWTLoginRequest) (map[string]string, error) {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+
+	tokens := make(map[string]string, len(reqs))
+	for id := range reqs {
+		tokens[id] = uuid.Generate()
+	}
+
+	return tokens, nil
+}
 func (vc *MockVaultClient) SetDeriveTokenError(allocID string, tasks []string, err error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()

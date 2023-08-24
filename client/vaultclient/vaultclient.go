@@ -5,6 +5,8 @@ package vaultclient
 
 import (
 	"container/heap"
+	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -13,6 +15,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -37,6 +40,7 @@ type VaultClient interface {
 	// a set of tasks. The wrapped tokens will be unwrapped using vault and
 	// returned.
 	DeriveToken(*structs.Allocation, []string) (map[string]string, error)
+	DeriveTokenWithJWT(context.Context, map[string]JWTLoginRequest) (map[string]string, error)
 
 	// GetConsulACL fetches the Consul ACL token required for the task
 	GetConsulACL(string, string) (*vaultapi.Secret, error)
@@ -97,6 +101,11 @@ type vaultClientRenewalRequest struct {
 
 	// isToken indicates whether the 'id' field is a token or not
 	isToken bool
+}
+
+type JWTLoginRequest struct {
+	JWT  string
+	Role string
 }
 
 // Element representing an entry in the renewal heap
@@ -250,6 +259,36 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	tokens, err := c.tokenDeriver(alloc, taskNames, c.client)
 	if err != nil {
 		c.logger.Error("error deriving token", "error", err, "alloc_id", alloc.ID, "task_names", taskNames)
+		return nil, err
+	}
+
+	return tokens, nil
+}
+
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, reqs map[string]JWTLoginRequest) (map[string]string, error) {
+	c.lock.Lock()
+	defer c.unlockAndUnset()
+
+	tokens := make(map[string]string, len(reqs))
+	var mErr *multierror.Error
+	for k, req := range reqs {
+		s, err := c.client.Logical().WriteWithContext(ctx, "auth/jwt/login", map[string]any{
+			"role": req.Role,
+			"jwt":  req.JWT,
+		})
+		if err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("failed to derive token for identity %s: %v", k, err))
+			continue
+		}
+		if s.Auth == nil {
+			mErr = multierror.Append(mErr, errors.New("token derivation for identity %s did not return a token."))
+			continue
+		}
+
+		tokens[k] = s.Auth.ClientToken
+	}
+
+	if err := mErr.ErrorOrNil(); err != nil {
 		return nil, err
 	}
 

@@ -12,6 +12,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -39,6 +40,8 @@ type identityHook struct {
 
 	stopCtx context.Context
 	stop    context.CancelFunc
+
+	widStore ti.WorkloadIdentityStore
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
@@ -49,6 +52,7 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 
 	h := &identityHook{
 		tr:       tr,
+		widStore: tr,
 		tokenDir: tr.taskDir.SecretsDir,
 		stopCtx:  stopCtx,
 		stop:     stop,
@@ -167,6 +171,7 @@ func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Ta
 	widMap := make(map[string]*structs.SignedWorkloadIdentity, len(signedWIDs))
 	for _, wid := range signedWIDs {
 		widMap[wid.IdentityName] = wid
+		h.widStore.StoreWorkloadIdentity(wid.IdentityName, wid)
 	}
 
 	return widMap, nil
@@ -259,6 +264,8 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 				h.logger.Warn("bug: unexpected workload identity received", "identity", token.IdentityName)
 				continue
 			}
+
+			h.widStore.StoreWorkloadIdentity(token.IdentityName, token)
 
 			if err := h.setAltToken(widspec, token.JWT); err != nil {
 				// Set minExp using retry's backoff logic

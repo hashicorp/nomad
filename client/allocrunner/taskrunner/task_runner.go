@@ -268,6 +268,10 @@ type TaskRunner struct {
 
 	// widmgr fetches workload identities
 	widmgr IdentitySigner
+
+	// wids store the workload identities generated and signed for the task.
+	wids      map[string]*structs.SignedWorkloadIdentity
+	widsLocks sync.RWMutex
 }
 
 type Config struct {
@@ -405,6 +409,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		getter:                config.Getter,
 		wranglers:             config.Wranglers,
 		widmgr:                config.WIDMgr,
+		wids:                  make(map[string]*structs.SignedWorkloadIdentity),
 	}
 
 	// Create the logger based on the allocation ID

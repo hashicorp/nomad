@@ -88,7 +88,10 @@ func (tr *TaskRunner) initHooks() {
 			}))
 	}
 
-	// If Vault is enabled, add the hook
+	// If Vault is enabled, add the hook.
+	//
+	// It must be added after the identityHook so workload identities are
+	// available to be used.
 	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
 			vaultBlock: task.Vault,
@@ -96,6 +99,7 @@ func (tr *TaskRunner) initHooks() {
 			events:     tr,
 			lifecycle:  tr,
 			updater:    tr,
+			widStore:   tr,
 			logger:     hookLogger,
 			alloc:      tr.Alloc(),
 			task:       tr.taskName,
