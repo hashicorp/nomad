@@ -252,7 +252,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 						errChannel <- fmt.Errorf("error executing protected function %w", err)
 						return
 					}
-					// cancel will signal teh start function to return without errors
+					// cancel will signal the start function to return without errors
 					cancel()
 				}
 			}()
