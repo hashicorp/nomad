@@ -555,6 +555,11 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, idDiffs)
 	}
 
+	// Alternate identities diff
+	if altIDDiffs := idSliceDiffs(t.Identities, other.Identities, contextual); altIDDiffs != nil {
+		diff.Objects = append(diff.Objects, altIDDiffs...)
+	}
+
 	return diff, nil
 }
 
@@ -2384,6 +2389,40 @@ func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
 	newPrimitiveFlat := flatmap.Flatten(new, nil, false)
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 	return diff
+}
+
+// idSliceDiff returns the diff of two slices of identity objects. If
+// contextual diff is enabled, all fields will be returned, even if no diff
+// occurred.
+func idSliceDiffs(old, new []*WorkloadIdentity, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*WorkloadIdentity, len(old))
+	newMap := make(map[string]*WorkloadIdentity, len(new))
+
+	for _, o := range old {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new {
+		newMap[n.Name] = n
+	}
+
+	var diffs []*ObjectDiff
+	for index, oldID := range oldMap {
+		// Diff the same, deleted, and edited
+		if diff := idDiff(oldID, newMap[index], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for index, newID := range newMap {
+		// diff the added
+		if oldID, exists := oldMap[index]; !exists {
+			if diff := idDiff(oldID, newID, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
 }
 
 // idDiff returns the diff of two identity objects. If contextual diff is

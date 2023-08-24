@@ -8154,6 +8154,229 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "Alternate identities added",
+			Old: &Task{
+				Identities: []*WorkloadIdentity{
+					{
+						Name:     "consul",
+						Audience: []string{"consul.io"},
+						Env:      true,
+					},
+				},
+			},
+			New: &Task{
+				Identities: []*WorkloadIdentity{
+					{
+						Name:     "consul",
+						Audience: []string{"consul.io"},
+						Env:      true,
+					},
+					{
+						Name:     "vault",
+						Audience: []string{"vault.io"},
+						File:     true,
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Identity",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Audience",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Audience",
+										Old:  "",
+										New:  "vault.io",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Env",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "File",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								Old:  "",
+								New:  "vault",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Alternate identities edited",
+			Old: &Task{
+				Identities: []*WorkloadIdentity{
+					{
+						Name:     "consul",
+						Audience: []string{"consul.io"},
+						Env:      true,
+						File:     false,
+					},
+					{
+						Name:     "vault",
+						Audience: []string{"vault.io"},
+						File:     true,
+					},
+				},
+			},
+			New: &Task{
+				Identities: []*WorkloadIdentity{
+					{
+						Name:     "consul",
+						Audience: []string{"consul-prod.io"},
+						Env:      false,
+						File:     true,
+					},
+					{
+						// Modifying the previous block to be deleted and a new
+						// one to be created.
+						Name:     "vault-dev",
+						Audience: []string{"vault.io"},
+						File:     true,
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Identity",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Audience",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Audience",
+										Old:  "",
+										New:  "consul-prod.io",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "Audience",
+										Old:  "consul.io",
+										New:  "",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Env",
+								Old:  "true",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "File",
+								Old:  "false",
+								New:  "true",
+							},
+						},
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Identity",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Audience",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "Audience",
+										Old:  "",
+										New:  "vault.io",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Env",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "File",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								Old:  "",
+								New:  "vault-dev",
+							},
+						},
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Identity",
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Audience",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "Audience",
+										Old:  "vault.io",
+										New:  "",
+									},
+								},
+							},
+						},
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Env",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "File",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Name",
+								Old:  "vault",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
