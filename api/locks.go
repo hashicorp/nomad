@@ -131,12 +131,15 @@ func (l *Locks) Renew(ctx context.Context) error {
 	return nil
 }
 
-type locker interface {
+// Locker is the interface that wraps the lock handler. It is used by the lock
+// leaser to handle all lock operations.
+type Locker interface {
 	// Acquire will make the actual call to acquire the lock over the variable using
 	// the ttl in the Locks to create the VariableLock.
 	//
 	// callerID will be used to identify who is holding the lock in the future,
 	// currently is only por testing purposes.
+	// It returns the path of the variable holding the lock
 	Acquire(ctx context.Context, callerID string) (string, error)
 	// Release makes the call to release the lock over a variable, even if the ttl
 	// has not yet passed.
@@ -161,7 +164,7 @@ type LockLeaser struct {
 	waitPeriod    time.Duration
 	randomDelay   time.Duration
 
-	locker
+	locker Locker
 }
 
 // NewLockLeaser returns an instance of LockLeaser. callerID
@@ -170,30 +173,20 @@ type LockLeaser struct {
 // but the path for it is mandatory.
 //
 // Important: It will be on the user to remove the variable created for the lock.
-func (c *Client) NewLockLeaser(wo WriteOptions, variable Variable, lease time.Duration,
-	callerID string) (*LockLeaser, error) {
-
-	if variable.Path == "" {
-		return nil, LockNoPathErr
-	}
+func (c *Client) NewLockLeaser(l Locker, callerID string, lease time.Duration) *LockLeaser {
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
-	variable.Lock = &VariableLock{
-		TTL:       lease.String(),
-		LockDelay: lease.String(),
-	}
-
 	ll := LockLeaser{
-		lease:         lease,
+		//lease:         lease,
 		renewalPeriod: time.Duration(float64(lease) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(lease) * lockRetryBackoffFactor),
 		ID:            callerID,
 		randomDelay:   time.Duration(rn) * time.Millisecond,
-		locker:        c.Locks(wo, variable, lease),
+		locker:        l,
 	}
 
-	return &ll, nil
+	return &ll
 }
 
 // Start wraps the start function in charge of executing the protected
