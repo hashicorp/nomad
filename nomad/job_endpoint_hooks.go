@@ -377,3 +377,30 @@ func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
 	}
 	return nil
 }
+
+// jobIdentityCreator adds implicit `identity` blocks for external services,
+// like Consul and Vault.
+type jobIdentityCreator struct {
+	srv *Server
+}
+
+func (jobIdentityCreator) Name() string {
+	return "identityBlockCreator"
+}
+
+func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			if s.Provider != "consul" {
+				continue
+			}
+			s.Identity = &structs.WorkloadIdentity{
+				Name:        fmt.Sprintf("consul-service/%s", s.Name),
+				Audience:    []string{"consul.io"},
+				ServiceName: s.Name,
+			}
+		}
+	}
+
+	return job, nil, nil
+}
