@@ -294,13 +294,13 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.Namespace = b.Namespace
 	}
 	if b.UseIdentity != nil {
-		result.UseIdentity = b.UseIdentity
+		result.UseIdentity = pointer.Of(*b.UseIdentity)
 	}
 	if b.ServiceIdentity != nil {
-		result.ServiceIdentity = b.ServiceIdentity
+		result.ServiceIdentity = pointer.Of(*b.ServiceIdentity)
 	}
 	if b.TemplateIdentity != nil {
-		result.TemplateIdentity = b.TemplateIdentity
+		result.TemplateIdentity = pointer.Of(*b.TemplateIdentity)
 	}
 	return result
 }
@@ -373,39 +373,39 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 		return nil
 	}
 
-	nc := new(ConsulConfig)
-	*nc = *c
-
-	// Copy the bools
-	if nc.AutoAdvertise != nil {
-		nc.AutoAdvertise = pointer.Of(*nc.AutoAdvertise)
+	return &ConsulConfig{
+		Name:                 c.Name,
+		ServerServiceName:    c.ServerServiceName,
+		ServerHTTPCheckName:  c.ServerHTTPCheckName,
+		ServerSerfCheckName:  c.ServerSerfCheckName,
+		ServerRPCCheckName:   c.ServerRPCCheckName,
+		ClientServiceName:    c.ClientServiceName,
+		ClientHTTPCheckName:  c.ClientHTTPCheckName,
+		Tags:                 slices.Clone(c.Tags),
+		AutoAdvertise:        c.AutoAdvertise,
+		ChecksUseAdvertise:   c.ChecksUseAdvertise,
+		Addr:                 c.Addr,
+		GRPCAddr:             c.GRPCAddr,
+		Timeout:              c.Timeout,
+		TimeoutHCL:           c.TimeoutHCL,
+		Token:                c.Token,
+		AllowUnauthenticated: c.AllowUnauthenticated,
+		Auth:                 c.Auth,
+		EnableSSL:            c.EnableSSL,
+		ShareSSL:             c.ShareSSL,
+		VerifySSL:            c.VerifySSL,
+		GRPCCAFile:           c.GRPCCAFile,
+		CAFile:               c.CAFile,
+		CertFile:             c.CertFile,
+		KeyFile:              c.KeyFile,
+		ServerAutoJoin:       c.ServerAutoJoin,
+		ClientAutoJoin:       c.ClientAutoJoin,
+		Namespace:            c.Namespace,
+		UseIdentity:          c.UseIdentity,
+		ServiceIdentity:      c.ServiceIdentity.Copy(),
+		TemplateIdentity:     c.TemplateIdentity.Copy(),
+		ExtraKeysHCL:         slices.Clone(c.ExtraKeysHCL),
 	}
-	if nc.ChecksUseAdvertise != nil {
-		nc.ChecksUseAdvertise = pointer.Of(*nc.ChecksUseAdvertise)
-	}
-	if nc.EnableSSL != nil {
-		nc.EnableSSL = pointer.Of(*nc.EnableSSL)
-	}
-	if nc.VerifySSL != nil {
-		nc.VerifySSL = pointer.Of(*nc.VerifySSL)
-	}
-	if nc.ShareSSL != nil {
-		nc.ShareSSL = pointer.Of(*nc.ShareSSL)
-	}
-	if nc.ServerAutoJoin != nil {
-		nc.ServerAutoJoin = pointer.Of(*nc.ServerAutoJoin)
-	}
-	if nc.ClientAutoJoin != nil {
-		nc.ClientAutoJoin = pointer.Of(*nc.ClientAutoJoin)
-	}
-	if nc.AllowUnauthenticated != nil {
-		nc.AllowUnauthenticated = pointer.Of(*nc.AllowUnauthenticated)
-	}
-	if nc.UseIdentity != nil {
-		nc.UseIdentity = pointer.Of(*nc.UseIdentity)
-	}
-
-	return nc
 }
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
@@ -414,22 +414,22 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 // This is a copy of WorkloadIdentity from nomad/structs package in order to
 // avoid import cycles.
 type WorkloadIdentity struct {
-	Name string
+	Name string `mapstructure:"name"`
 
 	// Audience is the valid recipients for this identity (the "aud" JWT claim)
 	// and defaults to the identity's name.
-	Audience []string
+	Audience []string `mapstructure:"aud"`
 
 	// Env injects the Workload Identity into the Task's environment if
 	// set.
-	Env bool
+	Env bool `mapstructure:"env"`
 
 	// File writes the Workload Identity into the Task's secrets directory
 	// if set.
-	File bool
+	File bool `mapstructure:"file"`
 
 	// ServiceName is used to bind the identity to a correct Consul service.
-	ServiceName string
+	ServiceName string `mapstructure:"service_name"`
 }
 
 func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
