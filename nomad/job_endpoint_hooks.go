@@ -389,8 +389,6 @@ func (jobIdentityCreator) Name() string {
 }
 
 func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error) {
-	warnings := []error{}
-
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
 			if s.Provider != "consul" {
@@ -410,5 +408,5 @@ func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error
 		}
 	}
 
-	return job, warnings, nil
+	return job, nil, nil
 }

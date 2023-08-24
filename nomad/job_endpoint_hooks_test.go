@@ -806,3 +806,113 @@ func TestJob_submissionController(t *testing.T) {
 		must.Nil(t, args.Submission)
 	})
 }
+
+func Test_jobIdentityCreator_Mutate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name              string
+		inputJob          *structs.Job
+		expectedOutputJob *structs.Job
+	}{
+		{
+			name: "no mutation",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Services: []*structs.Service{
+							&structs.Service{
+								Provider: "nomad",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Services: []*structs.Service{
+							&structs.Service{
+								Provider: "nomad",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "custom set identity, no mutation",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Services: []*structs.Service{
+							&structs.Service{
+								Provider: "consul",
+								Identity: &structs.WorkloadIdentity{
+									Name:     "test",
+									Audience: []string{"consul.io"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Services: []*structs.Service{
+							&structs.Service{
+								Provider: "consul",
+								Identity: &structs.WorkloadIdentity{
+									Name:     "test",
+									Audience: []string{"consul.io"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "mutate",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Services: []*structs.Service{
+							&structs.Service{
+								Provider: "consul",
+								Name:     "web",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					&structs.TaskGroup{
+						Services: []*structs.Service{
+							&structs.Service{
+								Provider: "consul",
+								Name:     "web",
+								Identity: &structs.WorkloadIdentity{
+									Name:        "consul-service/web",
+									Audience:    []string{"consul.io"},
+									ServiceName: "consul-service/web",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			impl := jobIdentityCreator{}
+			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
+			must.Eq(t, tc.expectedOutputJob, actualJob)
+			must.NoError(t, actualError)
+			must.Nil(t, actualWarnings)
+		})
+	}
+}
