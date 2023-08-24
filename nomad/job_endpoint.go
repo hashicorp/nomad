@@ -73,7 +73,7 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			jobExposeCheckHook{},
 			jobImpliedConstraints{},
 			jobNodePoolMutatingHook{srv: s},
-			jobIdentityCreator{},
+			jobIdentityCreator{srv: s},
 		},
 		validators: []jobValidator{
 			jobConnectHook{},

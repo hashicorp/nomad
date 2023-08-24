@@ -378,8 +378,7 @@ func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
 	return nil
 }
 
-// jobIdentityCreator finds all `service` block with `provider = "consul"` and
-// creates new `identity` blocks for them.
+// jobIdentityCreator adds implicit `identity` blocks for external services, like Consul and Vault.
 type jobIdentityCreator struct {
 	srv *Server
 }
