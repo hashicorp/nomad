@@ -1,8 +1,9 @@
 package nomad
 
 import (
+	"slices"
+
 	"github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/slices"
 )
 
 // LicenseConfig allows for tunable licensing config

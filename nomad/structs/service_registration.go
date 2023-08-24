@@ -4,10 +4,10 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/ipaddr"
-	"golang.org/x/exp/slices"
 )
 
 const (

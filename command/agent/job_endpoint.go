@@ -2,7 +2,9 @@ package agent
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,8 +14,6 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string

@@ -3,13 +3,13 @@ package structs
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // CSISocketName is the filename that Nomad expects plugins to create inside the

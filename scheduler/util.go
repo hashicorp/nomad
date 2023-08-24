@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"slices"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID

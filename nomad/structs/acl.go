@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"golang.org/x/crypto/blake2b"
-	"golang.org/x/exp/slices"
 )
 
 const (

@@ -3,13 +3,13 @@ package consul
 import (
 	"fmt"
 	"net"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // newConnect creates a new Consul AgentServiceConnect struct based on a Nomad
