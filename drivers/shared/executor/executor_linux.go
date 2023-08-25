@@ -660,8 +660,9 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *lconfigs.Config, command *E
 		return errors.New("cgroup must be set")
 	}
 
-	// set the libcontainer hook for writing the PID to cgroup.procs file
-	l.configureCgroupHook(cfg, command)
+	// // set the libcontainer hook for writing the PID to cgroup.procs file
+	// TODO: this can be cg1 only, right?
+	// l.configureCgroupHook(cfg, command)
 
 	// set the libcontainer memory limits
 	l.configureCgroupMemory(cfg, command)
@@ -701,11 +702,12 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *lconfigs.Config, comma
 
 var nlog = netlog.New("LE")
 
-func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
+func (l *LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCommand, cg string) error {
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
 	// Set the v1 parent relative path (i.e. /nomad/<scope>)
+	// Of course we also set the hook for writing to the cpuset interface
 	scope := filepath.Base(cg)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
 
@@ -714,6 +716,9 @@ func (*LibcontainerExecutor) configureCG1(cfg *lconfigs.Config, command *ExecCom
 	cfg.Cgroups.Resources.CpusetCpus = cpuCores
 
 	nlog.Info("configureCG1()", "Cgroups.Path", cfg.Cgroups.Path, "cpuShares", cpuShares, "cpuCores", cpuCores)
+
+	// set cpuset writer
+	l.configureCgroupHook(cfg, command)
 
 	return nil
 }
