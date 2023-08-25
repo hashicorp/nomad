@@ -398,7 +398,7 @@ type Variable struct {
 	Items VariableItems `hcl:"items"`
 
 	// Lock holds the information about the variable lock if its being used.
-	Lock *VariableLock `hcl:",lock,optional" json:",omitempty"`
+	Lock VariableLock `hcl:",lock,optional" json:",omitempty"`
 }
 
 // VariableMetadata specifies the metadata for a variable and

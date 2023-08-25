@@ -30,7 +30,13 @@ var (
 )
 
 // Locks returns a new handle on a lock for the given variable.
-func (c *Client) Locks(wo WriteOptions, v Variable, lockTTL time.Duration) *Locks {
+func (c *Client) Locks(wo WriteOptions, v Variable) (*Locks, error) {
+
+	ttl, err := time.ParseDuration(v.Lock.TTL)
+	if err != nil {
+		return nil, err
+	}
+
 	l := &Locks{
 		c:            c,
 		WriteOptions: wo,
@@ -38,10 +44,10 @@ func (c *Client) Locks(wo WriteOptions, v Variable, lockTTL time.Duration) *Lock
 	}
 
 	l.c.configureRetries(&retryOptions{
-		maxToLastCall: lockTTL,
+		maxToLastCall: ttl,
 	})
 
-	return l
+	return l, nil
 }
 
 // Locks is used to maintain all the resources necessary to operate over a lock.
@@ -58,7 +64,7 @@ type Locks struct {
 	WriteOptions
 }
 
-//	 Acquire will make the actual call to acquire the lock over the variable using
+//	Acquire will make the actual call to acquire the lock over the variable using
 //	the ttl in the Locks to create the VariableLock. It will return the
 //	path of the variable holding the lock.
 //
@@ -68,13 +74,8 @@ type Locks struct {
 // Acquire returns the path of the variable used for the lock. If the lock is
 // already held, it returns ErrLockConflict.
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
+
 	var out Variable
-
-	l.variable.Lock = &VariableLock{
-		TTL:       l.variable.Lock.TTL,
-		LockDelay: l.variable.Lock.TTL,
-	}
-
 	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-acquire", l.variable, &out, &l.WriteOptions)
 	if err != nil {
 		callErr, ok := err.(UnexpectedResponseError)
@@ -178,7 +179,6 @@ func (c *Client) NewLockLeaser(l Locker, callerID string, lease time.Duration) *
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
 	ll := LockLeaser{
-		//lease:         lease,
 		renewalPeriod: time.Duration(float64(lease) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(lease) * lockRetryBackoffFactor),
 		ID:            callerID,
@@ -228,7 +228,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 	for {
 		lockID, err := ll.locker.Acquire(ctx, ll.ID)
-		if err != nil && err != ErrLockConflict {
+		if err != nil && !errors.Is(err, ErrLockConflict) {
 			errChannel <- fmt.Errorf("error acquiring the lock: %w", err)
 		}
 
@@ -253,7 +253,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 			// Maintain lease is a blocking function, it will return if there is
 			// an error maintaining the lease or the protected function returned
 			err := ll.maintainLease(funcCtx)
-			if err != nil && err != ErrLockConflict {
+			if err != nil && !errors.Is(err, ErrLockConflict) {
 				errChannel <- fmt.Errorf("error renewing the lease: %w", err)
 			}
 		}
