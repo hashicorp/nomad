@@ -3092,7 +3092,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 
 func TestDockerDriver_GroupAdd(t *testing.T) {
 	if !tu.IsCI() {
-		t.Parallel()
+		ci.Parallel(t)
 	}
 	testutil.DockerCompatible(t)
 
