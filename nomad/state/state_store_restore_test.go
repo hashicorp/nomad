@@ -37,25 +37,16 @@ func TestStateStore_RestoreJob(t *testing.T) {
 	job := mock.Job()
 
 	restore, err := state.Restore()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	err = restore.JobRestore(job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	require.NoError(t, restore.Commit())
+	must.NoError(t, err)
+	must.NoError(t, restore.Commit())
 
 	ws := memdb.NewWatchSet()
 	out, err := state.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if !reflect.DeepEqual(out, job) {
-		t.Fatalf("Bad: %#v %#v", out, job)
-	}
+	must.NoError(t, err)
+	must.Eq(t, job, out)
 }
 
 func TestStateStore_RestorePeriodicLaunch(t *testing.T) {
