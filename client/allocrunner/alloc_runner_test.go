@@ -2066,7 +2066,7 @@ func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
 }
 
 func TestAllocRunner_Reconnect(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type tcase struct {
 		clientStatus string

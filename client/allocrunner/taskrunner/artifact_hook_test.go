@@ -160,7 +160,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 // TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess asserts that the artifact hook
 // download multiple files concurrently. this is a successful test without any errors.
 func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	me := &mockEmitter{}
 	sbox := getter.TestSandbox(t)
@@ -248,7 +248,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 // download multiple files concurrently. first iteration will result in failure and
 // second iteration should succeed without downloading already downloaded files.
 func TestTaskRunner_ArtifactHook_ConcurrentDownloadFailure(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	me := &mockEmitter{}
 	sbox := getter.TestSandbox(t)
