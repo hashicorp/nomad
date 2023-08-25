@@ -135,7 +135,7 @@ func TestPlanEndpoint_Submit_Bad(t *testing.T) {
 }
 
 func TestPlanEndpoint_ApplyConcurrent(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0

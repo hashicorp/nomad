@@ -2682,7 +2682,7 @@ func TestACL_GetRoleByName(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethod(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2718,7 +2718,7 @@ func TestACLEndpoint_GetAuthMethod(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2778,7 +2778,7 @@ func TestACLEndpoint_GetAuthMethod_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2814,7 +2814,7 @@ func TestACLEndpoint_GetAuthMethods(t *testing.T) {
 }
 
 func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2874,7 +2874,7 @@ func TestACLEndpoint_GetAuthMethods_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_ListAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2922,7 +2922,7 @@ func TestACLEndpoint_ListAuthMethods(t *testing.T) {
 }
 
 func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -2974,7 +2974,7 @@ func TestACLEndpoint_ListAuthMethods_Blocking(t *testing.T) {
 }
 
 func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -3010,7 +3010,7 @@ func TestACLEndpoint_DeleteAuthMethods(t *testing.T) {
 }
 
 func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
@@ -3483,7 +3483,7 @@ func TestACL_GetBindingRule(t *testing.T) {
 }
 
 func TestACL_OIDCAuthURL(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
 	defer testServerCleanupFn()
@@ -3564,7 +3564,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 }
 
 func TestACL_OIDCCompleteAuth(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
 	defer testServerCleanupFn()
@@ -3736,7 +3736,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 }
 
 func TestACL_Login(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
 	defer testServerCleanupFn()
