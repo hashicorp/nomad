@@ -833,7 +833,7 @@ func Test_jobIdentityCreator_Mutate(t *testing.T) {
 			},
 		},
 		{
-			name: "custom set identity, mutate",
+			name: "custom set identity, merge",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Services: []*structs.Service{{
@@ -841,7 +841,9 @@ func Test_jobIdentityCreator_Mutate(t *testing.T) {
 						Name:     "web",
 						Identity: &structs.WorkloadIdentity{
 							Name:     "test",
-							Audience: []string{"consul.io"},
+							Audience: []string{"consul.io", "nomad.dev"},
+							File:     true,
+							Env:      false,
 						},
 					}},
 				}},
@@ -853,8 +855,10 @@ func Test_jobIdentityCreator_Mutate(t *testing.T) {
 						Name:     "web",
 						Identity: &structs.WorkloadIdentity{
 							Name:        "consul-service/web",
-							Audience:    []string{"consul.io"},
+							Audience:    []string{"consul.io", "nomad.dev"},
 							ServiceName: "web",
+							File:        true,
+							Env:         false,
 						},
 					}},
 				}},

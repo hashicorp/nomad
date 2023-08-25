@@ -394,10 +394,22 @@ func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error
 			if s.Provider != "consul" {
 				continue
 			}
-			s.Identity = &structs.WorkloadIdentity{
-				Name:        fmt.Sprintf("consul-service/%s", s.Name),
-				Audience:    []string{"consul.io"},
-				ServiceName: s.Name,
+
+			identityName := fmt.Sprintf("consul-service/%s", s.Name)
+
+			// if there's an identity block present, overwrite its name and ServiceName, but
+			// keep the rest. Users can set custom aud, file and env properties to account
+			// for the specifics of their environments, but Name and ServiceName must always
+			// conform to a convention.
+			if s.Identity != nil {
+				s.Identity.Name = identityName
+				s.Identity.ServiceName = s.Name
+			} else {
+				s.Identity = &structs.WorkloadIdentity{
+					Name:        identityName,
+					Audience:    []string{"consul.io"},
+					ServiceName: s.Name,
+				}
 			}
 		}
 	}
