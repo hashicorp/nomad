@@ -57,8 +57,8 @@ func ParseConfigFile(path string) (*Config, error) {
 		ACL:   &ACLConfig{},
 		Audit: &config.AuditConfig{},
 		Consul: &config.ConsulConfig{
-			ServiceIdentity:  &config.WorkloadIdentity{},
-			TemplateIdentity: &config.WorkloadIdentity{},
+			ServiceIdentity:  &config.WorkloadIdentityConfig{},
+			TemplateIdentity: &config.WorkloadIdentityConfig{},
 		},
 		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
@@ -418,7 +418,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 				return err
 			}
 
-			var serviceIdentity config.WorkloadIdentity
+			var serviceIdentity config.WorkloadIdentityConfig
 			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
 				return err
 			}
@@ -432,7 +432,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 				return err
 			}
 
-			var templateIdentity config.WorkloadIdentity
+			var templateIdentity config.WorkloadIdentityConfig
 			if err := mapstructure.WeakDecode(m, &templateIdentity); err != nil {
 				return err
 			}

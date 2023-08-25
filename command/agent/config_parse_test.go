@@ -236,12 +236,12 @@ var basicConfig = &Config{
 		Timeout:              5 * time.Second,
 		TimeoutHCL:           "5s",
 		UseIdentity:          &trueValue,
-		ServiceIdentity: &config.WorkloadIdentity{
+		ServiceIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io", "nomad.dev"},
 			Env:      false,
 			File:     true,
 		},
-		TemplateIdentity: &config.WorkloadIdentity{
+		TemplateIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
 			Env:      true,
 			File:     false,
@@ -272,12 +272,12 @@ var basicConfig = &Config{
 			Timeout:              5 * time.Second,
 			TimeoutHCL:           "5s",
 			UseIdentity:          &trueValue,
-			ServiceIdentity: &config.WorkloadIdentity{
+			ServiceIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"consul.io", "nomad.dev"},
 				Env:      false,
 				File:     true,
 			},
-			TemplateIdentity: &config.WorkloadIdentity{
+			TemplateIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
 				Env:      true,
 				File:     false,

@@ -93,7 +93,7 @@ func TestConsulConfig_Merge(t *testing.T) {
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
 		UseIdentity:          &yes,
-		ServiceIdentity: &WorkloadIdentity{
+		ServiceIdentity: &WorkloadIdentityConfig{
 			Name:        "test",
 			Audience:    []string{"consul.io", "nomad.dev"},
 			Env:         false,
@@ -129,7 +129,7 @@ func TestConsulConfig_Merge(t *testing.T) {
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
 		UseIdentity:          &yes,
-		ServiceIdentity: &WorkloadIdentity{
+		ServiceIdentity: &WorkloadIdentityConfig{
 			Name:        "test",
 			Audience:    []string{"consul.io", "nomad.dev"},
 			Env:         false,

@@ -154,7 +154,7 @@ type ConsulConfig struct {
 	// "consul-service/${service_name}-${service_port}".
 	//
 	// ServiceIdentity is set on the server.
-	ServiceIdentity *WorkloadIdentity `mapstructure:"service_identity"`
+	ServiceIdentity *WorkloadIdentityConfig `mapstructure:"service_identity"`
 
 	// TemplateIdentity is intended to reduce overhead for jobspec authors and make
 	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
@@ -165,7 +165,7 @@ type ConsulConfig struct {
 	// The name field of the identity is always set to "consul".
 	//
 	// TemplateIdentity is set on the server.
-	TemplateIdentity *WorkloadIdentity `mapstructure:"template_identity"`
+	TemplateIdentity *WorkloadIdentityConfig `mapstructure:"template_identity"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `mapstructure:",unusedKeys" json:"-"`
@@ -406,69 +406,4 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 		TemplateIdentity:     c.TemplateIdentity.Copy(),
 		ExtraKeysHCL:         slices.Clone(c.ExtraKeysHCL),
 	}
-}
-
-// WorkloadIdentity is the jobspec block which determines if and how a workload
-// identity is exposed to tasks similar to the Vault block.
-//
-// This is a copy of WorkloadIdentity from nomad/structs package in order to
-// avoid import cycles.
-type WorkloadIdentity struct {
-	Name string `mapstructure:"name"`
-
-	// Audience is the valid recipients for this identity (the "aud" JWT claim)
-	// and defaults to the identity's name.
-	Audience []string `mapstructure:"aud"`
-
-	// Env injects the Workload Identity into the Task's environment if
-	// set.
-	Env bool `mapstructure:"env"`
-
-	// File writes the Workload Identity into the Task's secrets directory
-	// if set.
-	File bool `mapstructure:"file"`
-
-	// ServiceName is used to bind the identity to a correct Consul service.
-	ServiceName string `mapstructure:"-" json:"-"`
-}
-
-func (wi *WorkloadIdentity) Copy() *WorkloadIdentity {
-	if wi == nil {
-		return nil
-	}
-	return &WorkloadIdentity{
-		Name:        wi.Name,
-		Audience:    slices.Clone(wi.Audience),
-		Env:         wi.Env,
-		File:        wi.File,
-		ServiceName: wi.ServiceName,
-	}
-}
-
-func (wi *WorkloadIdentity) Equal(other *WorkloadIdentity) bool {
-	if wi == nil || other == nil {
-		return wi == other
-	}
-
-	if wi.Name != other.Name {
-		return false
-	}
-
-	if !slices.Equal(wi.Audience, other.Audience) {
-		return false
-	}
-
-	if wi.Env != other.Env {
-		return false
-	}
-
-	if wi.File != other.File {
-		return false
-	}
-
-	if wi.ServiceName != other.ServiceName {
-		return false
-	}
-
-	return true
 }
