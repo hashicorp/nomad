@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 	"github.com/mitchellh/copystructure"
 )
 
@@ -613,7 +614,7 @@ type Service struct {
 	// Identity is a field populated automatically by the job mutating hook.
 	// Its name will be `consul-service/${service_name}`, and its contents will
 	// match the server's `consul.service_identity` configuration block.
-	Identity *WorkloadIdentity
+	Identity *wid.WorkloadIdentity
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -905,7 +906,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 	}
 }
 
-func hashIdentity(h hash.Hash, identity *WorkloadIdentity) {
+func hashIdentity(h hash.Hash, identity *wid.WorkloadIdentity) {
 	if identity != nil {
 		hashString(h, identity.Name)
 		hashAud(h, identity.Audience)

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/flatmap"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 	"github.com/mitchellh/hashstructure"
 )
 
@@ -2394,9 +2395,9 @@ func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
 // idSliceDiff returns the diff of two slices of identity objects. If
 // contextual diff is enabled, all fields will be returned, even if no diff
 // occurred.
-func idSliceDiffs(old, new []*WorkloadIdentity, contextual bool) []*ObjectDiff {
-	oldMap := make(map[string]*WorkloadIdentity, len(old))
-	newMap := make(map[string]*WorkloadIdentity, len(new))
+func idSliceDiffs(old, new []*wid.WorkloadIdentity, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*wid.WorkloadIdentity, len(old))
+	newMap := make(map[string]*wid.WorkloadIdentity, len(new))
 
 	for _, o := range old {
 		oldMap[o.Name] = o
@@ -2427,18 +2428,18 @@ func idSliceDiffs(old, new []*WorkloadIdentity, contextual bool) []*ObjectDiff {
 
 // idDiff returns the diff of two identity objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
-func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
+func idDiff(oldWI, newWI *wid.WorkloadIdentity, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Identity"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
 
 	if reflect.DeepEqual(oldWI, newWI) {
 		return nil
 	} else if oldWI == nil {
-		oldWI = &WorkloadIdentity{}
+		oldWI = &wid.WorkloadIdentity{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
 	} else if newWI == nil {
-		newWI = &WorkloadIdentity{}
+		newWI = &wid.WorkloadIdentity{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 	} else {

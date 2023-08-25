@@ -46,6 +46,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
@@ -7534,11 +7535,11 @@ type Task struct {
 	CSIPluginConfig *TaskCSIPluginConfig
 
 	// Identity is the default Nomad Workload Identity.
-	Identity *WorkloadIdentity
+	Identity *wid.WorkloadIdentity
 
 	// Identities are the alternate workload identities for use with 3rd party
 	// endpoints.
-	Identities []*WorkloadIdentity
+	Identities []*wid.WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7671,12 +7672,12 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 
 	// Initialize default Nomad workload identity
 	defaultIdx := -1
-	for i, wid := range t.Identities {
-		wid.Canonicalize()
+	for i, id := range t.Identities {
+		id.Canonicalize()
 
 		// For backward compatibility put the default identity in Task.Identity.
-		if wid.Name == WorkloadIdentityDefaultName {
-			t.Identity = wid
+		if id.Name == wid.WorkloadIdentityDefaultName {
+			t.Identity = id
 			defaultIdx = i
 		}
 	}
@@ -7689,7 +7690,7 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 
 	// If there was no default identity, always create one.
 	if t.Identity == nil {
-		t.Identity = &WorkloadIdentity{}
+		t.Identity = &wid.WorkloadIdentity{}
 	}
 	t.Identity.Canonicalize()
 }
@@ -7872,15 +7873,15 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	}
 
 	// Validate Identity/Identities
-	for _, wid := range t.Identities {
+	for _, id := range t.Identities {
 		// Task.Canonicalize should move the default identity out of the Identities
 		// slice, so if one is found that means it is a duplicate.
-		if wid.Name == WorkloadIdentityDefaultName {
+		if id.Name == wid.WorkloadIdentityDefaultName {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate default identities found"))
 		}
 
-		if err := wid.Validate(); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", wid.Name, err))
+		if err := id.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", id.Name, err))
 		}
 	}
 
@@ -11215,7 +11216,7 @@ type IdentityClaims struct {
 //
 // ID claim is random (nondeterministic) so multiple calls with the same values
 // will not return equal claims by design. JWT IDs should never collide.
-func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
+func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *wid.WorkloadIdentity, now time.Time) *IdentityClaims {
 
 	tg := job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {

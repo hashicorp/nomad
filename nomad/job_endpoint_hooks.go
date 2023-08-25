@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 )
 
 const (
@@ -394,7 +395,7 @@ func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error
 			if s.Provider != "consul" {
 				continue
 			}
-			s.Identity = &structs.WorkloadIdentity{
+			s.Identity = &wid.WorkloadIdentity{
 				Name:        fmt.Sprintf("consul-service/%s", s.Name),
 				Audience:    []string{"consul.io"},
 				ServiceName: s.Name,

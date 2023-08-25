@@ -14,6 +14,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 )
 
 // allocTuple is a tuple of the allocation name and potential alloc ID
@@ -320,7 +321,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 			return difference("task identity", at.Identity, bt.Identity)
 		}
 
-		if !slices.EqualFunc(at.Identities, bt.Identities, func(a, b *structs.WorkloadIdentity) bool { return a.Equal(b) }) {
+		if !slices.EqualFunc(at.Identities, bt.Identities, func(a, b *wid.WorkloadIdentity) bool { return a.Equal(b) }) {
 			return difference("task identity", at.Identities, bt.Identities)
 		}
 

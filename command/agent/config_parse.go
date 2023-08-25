@@ -17,6 +17,7 @@ import (
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -57,8 +58,8 @@ func ParseConfigFile(path string) (*Config, error) {
 		ACL:   &ACLConfig{},
 		Audit: &config.AuditConfig{},
 		Consul: &config.ConsulConfig{
-			ServiceIdentity:  &config.WorkloadIdentity{},
-			TemplateIdentity: &config.WorkloadIdentity{},
+			ServiceIdentity:  &wid.WorkloadIdentity{},
+			TemplateIdentity: &wid.WorkloadIdentity{},
 		},
 		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
@@ -418,7 +419,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 				return err
 			}
 
-			var serviceIdentity config.WorkloadIdentity
+			var serviceIdentity wid.WorkloadIdentity
 			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
 				return err
 			}
@@ -432,7 +433,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 				return err
 			}
 
-			var templateIdentity config.WorkloadIdentity
+			var templateIdentity wid.WorkloadIdentity
 			if err := mapstructure.WeakDecode(m, &templateIdentity); err != nil {
 				return err
 			}

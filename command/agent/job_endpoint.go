@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string
@@ -1208,7 +1209,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
 	// the Task.Identity field, so if it is non-nil use it.
 	if id := apiTask.Identity; id != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
+		structsTask.Identity = &wid.WorkloadIdentity{
 			Name:     id.Name,
 			Audience: slices.Clone(id.Audience),
 			Env:      id.Env,
@@ -1217,13 +1218,13 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	}
 
 	if ids := apiTask.Identities; len(ids) > 0 {
-		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
+		structsTask.Identities = make([]*wid.WorkloadIdentity, len(ids))
 		for i, id := range ids {
 			if id == nil {
 				continue
 			}
 
-			structsTask.Identities[i] = &structs.WorkloadIdentity{
+			structsTask.Identities[i] = &wid.WorkloadIdentity{
 				Name:     id.Name,
 				Audience: slices.Clone(id.Audience),
 				Env:      id.Env,
@@ -1553,11 +1554,11 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 	return out
 }
 
-func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIdentity {
+func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *wid.WorkloadIdentity {
 	if in == nil {
 		return nil
 	}
-	return &structs.WorkloadIdentity{
+	return &wid.WorkloadIdentity{
 		Name:        in.Name,
 		Audience:    in.Audience,
 		Env:         in.Env,

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 )
 
 // identityHook sets the task runner's Nomad workload identity token
@@ -104,7 +105,7 @@ func (h *identityHook) setDefaultToken() error {
 
 // setAltToken takes an alternate workload identity and sets the env var and/or
 // writes the token file as specified by the jobspec.
-func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT string) error {
+func (h *identityHook) setAltToken(widspec *wid.WorkloadIdentity, rawJWT string) error {
 	if widspec.Env {
 		h.tr.envBuilder.SetWorkloadToken(widspec.Name, rawJWT)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/wid"
 )
 
 // Alloc endpoint is used for manipulating allocations
@@ -542,7 +543,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 		for _, idReq := range args.Identities {
 			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
 				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingAlloc,
+				Reason:                  wid.WIRejectionReasonMissingAlloc,
 			})
 		}
 
@@ -560,7 +561,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			// new identities.
 			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
 				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingAlloc,
+				Reason:                  wid.WIRejectionReasonMissingAlloc,
 			})
 			continue
 		}
@@ -570,7 +571,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			// Job has likely been updated to remove this task
 			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
 				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingTask,
+				Reason:                  wid.WIRejectionReasonMissingTask,
 			})
 			continue
 		}
@@ -597,7 +598,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 		if !widFound {
 			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
 				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingIdentity,
+				Reason:                  wid.WIRejectionReasonMissingIdentity,
 			})
 			continue
 		}
