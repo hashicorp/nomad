@@ -1714,7 +1714,7 @@ func Test_verifiedTasks(t *testing.T) {
 }
 
 func TestClient_ReconnectAllocs(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, _, cleanupS1 := testServer(t, nil)
 	defer cleanupS1()
