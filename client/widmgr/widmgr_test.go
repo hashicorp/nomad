@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -18,7 +19,7 @@ import (
 )
 
 func TestWIDMgr(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Create a mixed ta
 	ta := agent.NewTestAgent(t, "widtest", func(c *agent.Config) {

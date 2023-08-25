@@ -4378,7 +4378,7 @@ func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
 }
 
 func TestClientEndpoint_UpdateAlloc_Evals_ByTrigger(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	type testCase struct {
 		name               string

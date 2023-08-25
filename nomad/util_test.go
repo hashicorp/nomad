@@ -197,7 +197,7 @@ func TestServersMeetMinimumVersionIncludingFailed(t *testing.T) {
 }
 
 func TestServersMeetMinimumVersionSuffix(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	cases := []struct {
 		members  []serf.Member
