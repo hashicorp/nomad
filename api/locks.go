@@ -218,6 +218,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 	// errChannel is used track execution errors
 	errChannel := make(chan error, 1)
+	defer close(errChannel)
 
 	// To avoid collisions if all the instances start at the same time, wait
 	// a random time before making the first call.
@@ -245,13 +246,12 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 						errChannel <- fmt.Errorf("error executing protected function %w", err)
 						return
 					}
-					// cancel will signal the start function to return without errors
 					cancel()
 				}
 			}()
 
 			// Maintain lease is a blocking function, it will return if there is
-			// an error maintaining the lease or the protected function returned
+			// an error maintaining the lease or the protected function returned.
 			err := ll.maintainLease(funcCtx)
 			if err != nil && !errors.Is(err, ErrLockConflict) {
 				errChannel <- fmt.Errorf("error renewing the lease: %w", err)
