@@ -19,9 +19,14 @@ type mockLock struct {
 	locked        bool
 	acquireCalls  map[string]int
 	renewsCounter int
+	ownerID       string
 	mu            sync.Mutex
 
 	leaseStartTime time.Time
+}
+
+func (ml *mockLock) LockTTL() time.Duration {
+	return testLease
 }
 
 func (ml *mockLock) Acquire(_ context.Context, callerID string) (string, error) {
@@ -36,7 +41,7 @@ func (ml *mockLock) Acquire(_ context.Context, callerID string) (string, error) 
 	ml.locked = true
 	ml.leaseStartTime = time.Now()
 	ml.renewsCounter = 0
-	return "lockID", nil
+	return "lockPath", nil
 }
 
 func (ml *mockLock) Release(_ context.Context) error {
@@ -85,6 +90,8 @@ func (ml *mockLock) getLockState() mockLock {
 }
 
 type mockService struct {
+	mockLock
+
 	mu            sync.Mutex
 	startsCounter int
 	starterID     string

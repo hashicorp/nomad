@@ -41,6 +41,7 @@ func (c *Client) Locks(wo WriteOptions, v Variable) (*Locks, error) {
 		c:            c,
 		WriteOptions: wo,
 		variable:     v,
+		ttl:          ttl,
 	}
 
 	l.c.configureRetries(&retryOptions{
@@ -60,6 +61,7 @@ func (c *Client) Locks(wo WriteOptions, v Variable) (*Locks, error) {
 type Locks struct {
 	c        *Client
 	variable Variable
+	ttl      time.Duration
 
 	WriteOptions
 }
@@ -71,11 +73,11 @@ type Locks struct {
 //	callerID will be used to identify who is holding the lock in the future,
 //	currently is only por testing purposes.
 //
-// Acquire returns the path of the variable used for the lock. If the lock is
-// already held, it returns ErrLockConflict.
+// Acquire returns the path to the variable holding the lock.
 func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 
 	var out Variable
+
 	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-acquire", l.variable, &out, &l.WriteOptions)
 	if err != nil {
 		callErr, ok := err.(UnexpectedResponseError)
@@ -92,7 +94,7 @@ func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
 
 	l.variable.Lock = out.Lock
 
-	return out.Path, nil
+	return l.variable.Path, nil
 }
 
 // Release makes the call to release the lock over a variable, even if the ttl
@@ -136,6 +138,10 @@ func (l *Locks) Renew(ctx context.Context) error {
 	return nil
 }
 
+func (l *Locks) TTL() time.Duration {
+	return l.ttl
+}
+
 // Locker is the interface that wraps the lock handler. It is used by the lock
 // leaser to handle all lock operations.
 type Locker interface {
@@ -144,7 +150,7 @@ type Locker interface {
 	//
 	// callerID will be used to identify who is holding the lock in the future,
 	// currently is only por testing purposes.
-	// It returns the path of the variable holding the lock
+	// Acquire returns the path to the variable holding the lock.
 	Acquire(ctx context.Context, callerID string) (string, error)
 	// Release makes the call to release the lock over a variable, even if the ttl
 	// has not yet passed.
@@ -153,6 +159,9 @@ type Locker interface {
 	// lease to maintain the hold over the lock for longer periods or as a sync
 	// mechanism among multiple instances looking to acquire the same lock.
 	Renew(ctx context.Context) error
+
+	// LockTTL() returns the expiration time of the underlying lock.
+	LockTTL() time.Duration
 }
 
 // LockLeaser is a helper used to run a protected function that should only be
@@ -164,7 +173,6 @@ type Locker interface {
 // for the api calls.
 type LockLeaser struct {
 	ID            string
-	lease         time.Duration
 	renewalPeriod time.Duration
 	waitPeriod    time.Duration
 	randomDelay   time.Duration
@@ -174,14 +182,14 @@ type LockLeaser struct {
 
 // NewLockLeaser returns an instance of LockLeaser. callerID
 // is optional, in case they it is not provided, internal one will be created.
-func (c *Client) NewLockLeaser(l Locker, callerID string, lease time.Duration) *LockLeaser {
+func (c *Client) NewLockLeaser(l Locker, ownerID string) *LockLeaser {
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
 	ll := LockLeaser{
-		renewalPeriod: time.Duration(float64(lease) * lockLeaseRenewalFactor),
-		waitPeriod:    time.Duration(float64(lease) * lockRetryBackoffFactor),
-		ID:            callerID,
+		renewalPeriod: time.Duration(float64(l.LockTTL()) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(l.LockTTL()) * lockRetryBackoffFactor),
+		ID:            ownerID,
 		randomDelay:   time.Duration(rn) * time.Millisecond,
 		locker:        l,
 	}
@@ -260,7 +268,6 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 		waitTicker.Stop()
 		waitTicker = time.NewTicker(ll.waitPeriod)
-
 		select {
 		case <-ctx.Done():
 			return nil
