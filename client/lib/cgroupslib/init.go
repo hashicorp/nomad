@@ -64,7 +64,12 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG("1", "cpuset", NomadCgroupParent, SharePartition(), cloneChilds); err != nil {
+		if err := writeCG("0", "cpuset", NomadCgroupParent, SharePartition(), memsFile); err != nil {
+			log.Error("failed to set cpuset.mems on share cpuset partition", "error", err)
+			return
+		}
+
+		if err := writeCG("0", "cpuset", NomadCgroupParent, SharePartition(), cloneChilds); err != nil {
 			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
 			return
 		}
@@ -74,7 +79,12 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
-		if err := writeCG("1", "cpuset", NomadCgroupParent, ReservePartition(), cloneChilds); err != nil {
+		if err := writeCG("0", "cpuset", NomadCgroupParent, ReservePartition(), memsFile); err != nil {
+			log.Error("failed to set cpuset.mems on reserve cpuset partition", "error", err)
+			return
+		}
+
+		if err := writeCG("0", "cpuset", NomadCgroupParent, ReservePartition(), cloneChilds); err != nil {
 			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
 			return
 		}

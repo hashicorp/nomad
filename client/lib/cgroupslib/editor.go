@@ -6,6 +6,8 @@
 package cgroupslib
 
 import (
+	"github.com/shoenig/netlog"
+
 	"bytes"
 	"fmt"
 	"os"
@@ -88,6 +90,8 @@ func (e *editor) PIDs() (*set.Set[int], error) {
 
 func (e *editor) Write(filename, content string) error {
 	path := filepath.Join(e.dpath, filename)
+	nlog := netlog.New("editor")
+	nlog.Info("Write()", "path", path, "content", content)
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
@@ -134,8 +138,25 @@ func (l *lifeCG1) Setup() error {
 		if err != nil {
 			return err
 		}
+		if strings.Contains(p, "cpuset") {
+			if err = l.inheritMems(p); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
+}
+
+func (l *lifeCG1) inheritMems(destination string) error {
+	parent := filepath.Join(filepath.Dir(destination), "cpuset.mems")
+	b, err := os.ReadFile(parent)
+	if err != nil {
+		return err
+	}
+	destination = filepath.Join(destination, "cpuset.mems")
+	nlog := netlog.New("lifeCG1")
+	nlog.Info("inheritMems()", "destination", destination, "content", string(b))
+	return os.WriteFile(destination, b, 0644)
 }
 
 func (l *lifeCG1) Teardown() error {
