@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func TestMain(m *testing.M) {
@@ -93,12 +94,11 @@ func TestConsulConfig_Merge(t *testing.T) {
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
 		UseIdentity:          &yes,
-		ServiceIdentity: &WorkloadIdentity{
-			Name:        "test",
-			Audience:    []string{"consul.io", "nomad.dev"},
-			Env:         false,
-			File:        true,
-			ServiceName: "test",
+		ServiceIdentity: &WorkloadIdentityConfig{
+			Name:     "test",
+			Audience: []string{"consul.io", "nomad.dev"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
 		},
 		ExtraKeysHCL: []string{"b", "2"},
 	}
@@ -129,12 +129,11 @@ func TestConsulConfig_Merge(t *testing.T) {
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
 		UseIdentity:          &yes,
-		ServiceIdentity: &WorkloadIdentity{
-			Name:        "test",
-			Audience:    []string{"consul.io", "nomad.dev"},
-			Env:         false,
-			File:        true,
-			ServiceName: "test",
+		ServiceIdentity: &WorkloadIdentityConfig{
+			Name:     "test",
+			Audience: []string{"consul.io", "nomad.dev"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
 		},
 		ExtraKeysHCL: []string{"a", "1"}, // not merged
 	}

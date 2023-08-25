@@ -463,6 +463,55 @@ func (c *Config) Copy() *Config {
 	return &nc
 }
 
+// ConsulServiceIdentity returns the workload identity to be used for accessing
+// the Consul API to register and manage Consul services.
+func (c *Config) ConsulServiceIdentity() *structs.WorkloadIdentity {
+	if c.ConsulConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.ConsulConfig.ServiceIdentity)
+}
+
+// ConsulTemplateIdentity returns the workload identity to be used for
+// accessing the Consul API from templates.
+func (c *Config) ConsulTemplateIdentity() *structs.WorkloadIdentity {
+	if c.ConsulConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.ConsulConfig.TemplateIdentity)
+}
+
+// UseConsulIdentity returns true when Consul workload identity is enabled.
+func (c *Config) UseConsulIdentity() bool {
+	return c.ConsulConfig != nil &&
+		c.ConsulConfig.UseIdentity != nil &&
+		*c.ConsulConfig.UseIdentity
+}
+
+// workloadIdentityFromConfig returns a structs.WorkloadIdentity to be used in
+// a job from a config.WorkloadIdentityConfig parsed from an agent config file.
+func workloadIdentityFromConfig(widConfig *config.WorkloadIdentityConfig) *structs.WorkloadIdentity {
+	if widConfig == nil {
+		return nil
+	}
+
+	wid := &structs.WorkloadIdentity{}
+
+	if len(widConfig.Audience) > 0 {
+		wid.Audience = widConfig.Audience
+	}
+	if widConfig.Env != nil {
+		wid.Env = *widConfig.Env
+	}
+	if widConfig.File != nil {
+		wid.File = *widConfig.File
+	}
+
+	return wid
+}
+
 // DefaultConfig returns the default configuration. Only used as the basis for
 // merging agent or test parameters.
 func DefaultConfig() *Config {

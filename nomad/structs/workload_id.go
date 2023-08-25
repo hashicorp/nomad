@@ -43,9 +43,9 @@ var (
 // WorkloadIdentity is the jobspec block which determines if and how a workload
 // identity is exposed to tasks similar to the Vault block.
 //
-// CAUTION: a copy of this struct definition lives in config/consul.go in order
-// to avoid import cycles. If updating WorkloadIdentity, please remember to update
-// its copy as well.
+// CAUTION: a similar struct called WorkloadIdentityConfig lives in
+// nomad/structs/config/workload_id.go and is used for agent configuration.
+// Updates here may need to be applied there as well.
 type WorkloadIdentity struct {
 	Name string
 
