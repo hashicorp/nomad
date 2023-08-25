@@ -1676,7 +1676,7 @@ func TestAlloc_GetServiceRegistrations(t *testing.T) {
 }
 
 func TestAlloc_SignIdentities_Bad(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	// Use non-ACL server because auth should always be enforced on this endpoint
 	s1, cleanupS1 := TestServer(t, nil)
@@ -1759,7 +1759,7 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 // TestAlloc_SignIdentities_Blocking asserts that if a server is behind the
 // desired index the signing request will block until the index is reached.
 func TestAlloc_SignIdentities_Blocking(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	t.Cleanup(cleanupS1)

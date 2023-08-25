@@ -172,7 +172,7 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 }
 
 func TestWorkloadIdentity_Nil(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 
 	var nilWID *WorkloadIdentity
 
