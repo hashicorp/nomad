@@ -2360,6 +2360,18 @@ OUTER:
 		default:
 		}
 
+		// We have not received any new data, or received stale data. This may happen in
+		// an array of situations, the worst of which seems to be a blocking request
+		// timeout when the scheduler which we are contacting is newly added or recovering
+		// after a prolonged downtime.
+		//
+		// For full context, please see https://github.com/hashicorp/nomad/issues/18267
+		if resp.Index <= req.MinQueryIndex {
+			c.logger.Debug("Received stale allocation information. Retrying.",
+				"index", resp.Index, "min_index", req.MinQueryIndex)
+			continue OUTER
+		}
+
 		// Filter all allocations whose AllocModifyIndex was not incremented.
 		// These are the allocations who have either not been updated, or whose
 		// updates are a result of the client sending an update for the alloc.
