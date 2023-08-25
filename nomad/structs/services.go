@@ -344,12 +344,12 @@ func (sc *ServiceCheck) validateNomad() error {
 
 	// expose is connect (consul) specific
 	if sc.Expose {
-		return fmt.Errorf("expose may only be set for Consul service checks")
+		return errors.New("expose may only be set for Consul service checks")
 	}
 
 	// nomad checks do not have warnings
 	if sc.OnUpdate == OnUpdateIgnoreWarn {
-		return fmt.Errorf("on_update may only be set to ignore_warnings for Consul service checks")
+		return errors.New("on_update may only be set to ignore_warnings for Consul service checks")
 	}
 
 	// below are temporary limitations on checks in nomad
@@ -358,13 +358,13 @@ func (sc *ServiceCheck) validateNomad() error {
 	// check_restart.ignore_warnings is not a thing in Nomad (which has no warnings in checks)
 	if sc.CheckRestart != nil {
 		if sc.CheckRestart.IgnoreWarnings {
-			return fmt.Errorf("ignore_warnings on check_restart only supported for Consul service checks")
+			return errors.New("ignore_warnings on check_restart only supported for Consul service checks")
 		}
 	}
 
 	// address_mode="driver" not yet supported on nomad
 	if sc.AddressMode == "driver" {
-		return fmt.Errorf("address_mode = driver may only be set for Consul service checks")
+		return errors.New("address_mode = driver may only be set for Consul service checks")
 	}
 
 	if sc.Type == "http" {
@@ -375,22 +375,22 @@ func (sc *ServiceCheck) validateNomad() error {
 
 	// success_before_passing is consul only
 	if sc.SuccessBeforePassing != 0 {
-		return fmt.Errorf("success_before_passing may only be set for Consul service checks")
+		return errors.New("success_before_passing may only be set for Consul service checks")
 	}
 
 	// failures_before_critical is consul only
 	if sc.FailuresBeforeCritical != 0 {
-		return fmt.Errorf("failures_before_critical may only be set for Consul service checks")
+		return errors.New("failures_before_critical may only be set for Consul service checks")
 	}
 
 	// tls_server_name is consul only
 	if sc.TLSServerName != "" {
-		return fmt.Errorf("tls_server_name may only be set for Consul service checks")
+		return errors.New("tls_server_name may only be set for Consul service checks")
 	}
 
 	// tls_skip_verify is consul only
 	if sc.TLSSkipVerify {
-		return fmt.Errorf("tls_skip_verify may only be set for Consul service checks")
+		return errors.New("tls_skip_verify may only be set for Consul service checks")
 	}
 
 	return nil
