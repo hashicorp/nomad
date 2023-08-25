@@ -23,6 +23,14 @@ func Init(log hclog.Logger, cores string) {
 		// the name of the cpuset interface file
 		const cpusetFile = "cpuset.cpus"
 
+		// the name of the cpuset mems interface file
+		const memsFile = "cpuset.mems"
+
+		const memsSet = "0" // TODO(shoenig) get from topology
+
+		// the name of the clone_children interface file
+		const cloneChilds = "cgroup.clone_children"
+
 		// create the /nomad cgroup (or whatever the name is configured to be)
 		// for each cgroup controller we are going to use
 		controllers := []string{"freezer", "memory", "cpu", "cpuset"}
@@ -37,6 +45,15 @@ func Init(log hclog.Logger, cores string) {
 		// configure cpuset partitioning
 		//
 
+		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, memsFile); err != nil {
+			log.Error("failed to set cpuset.mems on nomad cpuset cgroup", "error", err)
+		}
+
+		if err := writeCG("1", "cpuset", NomadCgroupParent, cloneChilds); err != nil {
+			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
+			return
+		}
+
 		if err := writeCG(cores, "cpuset", NomadCgroupParent, cpusetFile); err != nil {
 			log.Error("failed to write cores to nomad cpuset cgroup", "error", err)
 			return
@@ -47,8 +64,18 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
+		if err := writeCG("1", "cpuset", NomadCgroupParent, SharePartition(), cloneChilds); err != nil {
+			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
+			return
+		}
+
 		if err := mkCG("cpuset", NomadCgroupParent, ReservePartition()); err != nil {
 			log.Error("failed to create reserve cpuset partition", "error", err)
+			return
+		}
+
+		if err := writeCG("1", "cpuset", NomadCgroupParent, ReservePartition(), cloneChilds); err != nil {
+			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
 			return
 		}
 
