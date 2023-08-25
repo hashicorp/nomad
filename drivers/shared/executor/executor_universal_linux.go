@@ -149,8 +149,8 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 func (e *UniversalExecutor) enterCG1(cgroup string) func() {
 	pid := strconv.Itoa(unix.Getpid())
 
-	// write pid to all the groups
-	ifaces := []string{"freezer", "cpu", "memory"} // todo: cpuset
+	// write pid to all the interfaces
+	ifaces := []string{"freezer", "cpu", "memory", "cpuset"}
 	for _, iface := range ifaces {
 		ed := cgroupslib.OpenFromCpusetCG1(cgroup, iface)
 		err := ed.Write("cgroup.procs", pid)
