@@ -188,7 +188,7 @@ func (l *lifeCG1) Kill() error {
 }
 
 func (l *lifeCG1) edit(iface string) *editor {
-	scope := scopeCG1(l.allocID, l.task)
+	scope := ScopeCG1(l.allocID, l.task)
 	return &editor{
 		dpath: filepath.Join(root, iface, NomadCgroupParent, scope),
 	}
@@ -210,7 +210,7 @@ func (l *lifeCG1) thaw() error {
 }
 
 func (l *lifeCG1) paths() []string {
-	scope := scopeCG1(l.allocID, l.task)
+	scope := ScopeCG1(l.allocID, l.task)
 	ifaces := []string{"freezer", "cpu", "memory"}
 	paths := make([]string, 0, len(ifaces)+1)
 	for _, iface := range ifaces {
@@ -269,7 +269,7 @@ func getPIDs(file string) (*set.Set[int], error) {
 	return result, nil
 }
 
-func scopeCG1(allocID, task string) string {
+func ScopeCG1(allocID, task string) string {
 	return fmt.Sprintf("%s.%s", allocID, task)
 }
 

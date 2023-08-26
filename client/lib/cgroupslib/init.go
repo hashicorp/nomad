@@ -243,7 +243,7 @@ func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
 	mode := GetMode()
 	switch {
 	case mode == CG1 && reserveCores:
-		return filepath.Join(root, "cpuset", NomadCgroupParent, partition, scopeCG1(allocID, task))
+		return filepath.Join(root, "cpuset", NomadCgroupParent, partition, ScopeCG1(allocID, task))
 	case mode == CG1 && !reserveCores:
 		return filepath.Join(root, "cpuset", NomadCgroupParent, partition)
 	default:

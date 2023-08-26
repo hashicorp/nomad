@@ -659,9 +659,8 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecC
 	if cg == "" {
 		return errors.New("cgroup must be set")
 	}
-
-	// alloc id, and task name
-	//HI
+	taskName := filepath.Base(command.TaskDir)
+	allocID := filepath.Base(filepath.Dir(command.TaskDir))
 
 	// // set the libcontainer hook for writing the PID to cgroup.procs file
 	// TODO: this can be cg1 only, right?
@@ -673,7 +672,7 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecC
 	// set cgroup v1/v2 specific attributes (cpu, path)
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		return l.configureCG1(cfg, command, cg)
+		return l.configureCG1(cfg, command, allocID, taskName)
 	default:
 		return l.configureCG2(cfg, command, cg)
 	}
@@ -703,35 +702,42 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *
 	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
 }
 
-var nlog = netlog.New("LE")
+func (l *LibcontainerExecutor) configureCG1(
+	cfg *runc.Config,
+	command *ExecCommand,
+	allocID string,
+	taskName string) error {
 
-func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cg string) error {
 	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
-	cpuMems := "0" // TODO(shoenig)
 
 	// Set the v1 parent relative path (i.e. /nomad/<scope>)
-	// Of course we also set the hook for writing to the cpuset interface
-	scope := filepath.Base(cg)
+	// for the NON-cpuset cgroups
+	scope := cgroupslib.ScopeCG1(allocID, taskName)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
 
 	// set cpu resources
 	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
-	cfg.Cgroups.Resources.CpusetCpus = cpuCores
-	cfg.Cgroups.Resources.CpusetMems = cpuMems
 
-	nlog.Info("configureCG1()",
-		"Cgroups.Path", cfg.Cgroups.Path,
-		"CpusetPath", command.Resources.LinuxResources.CpusetCgroupPath,
-		"cpuShares", cpuShares,
-		"cpuCores", cpuCores,
-		"mems", cpuMems,
-	)
+	// we need to manually set the cpuset, because libcontainer will not set
+	// it for our special cpuset cgroup
+	if err := l.cpusetCG1(cpusetPath, cpuCores); err != nil {
+		return fmt.Errorf("failed to set cpuset: %w", err)
+	}
 
-	// set cpuset writer
+	// tell libcontainer to write the pid to our special cpuset cgroup
 	l.configureCgroupHook(cfg, command)
 
 	return nil
+}
+
+func (l *LibcontainerExecutor) cpusetCG1(cpusetCgroupPath, cores string) error {
+	if cores == "" {
+		return nil
+	}
+	ed := cgroupslib.OpenPath(cpusetCgroupPath)
+	return ed.Write("cpuset.cpus", cores)
 }
 
 func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecCommand, cg string) error {
