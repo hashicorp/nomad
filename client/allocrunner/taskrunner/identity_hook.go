@@ -12,6 +12,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -32,10 +33,20 @@ type IdentitySigner interface {
 	SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error)
 }
 
+// tokenSetter provides methods for exposing workload identities to other
+// internal Nomad components.
+type tokenSetter interface {
+	setNomadToken(token string)
+}
+
 type identityHook struct {
-	tr       *TaskRunner
-	tokenDir string
-	logger   log.Logger
+	alloc      *structs.Allocation
+	task       *structs.Task
+	tokenDir   string
+	envBuilder *taskenv.Builder
+	tr         tokenSetter
+	widmgr     IdentitySigner
+	logger     log.Logger
 
 	stopCtx context.Context
 	stop    context.CancelFunc
@@ -48,10 +59,14 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 	stopCtx, stop := context.WithCancel(context.Background())
 
 	h := &identityHook{
-		tr:       tr,
-		tokenDir: tr.taskDir.SecretsDir,
-		stopCtx:  stopCtx,
-		stop:     stop,
+		alloc:      tr.Alloc(),
+		task:       tr.Task(),
+		tokenDir:   tr.taskDir.SecretsDir,
+		envBuilder: tr.envBuilder,
+		tr:         tr,
+		widmgr:     tr.widmgr,
+		stopCtx:    stopCtx,
+		stop:       stop,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -61,19 +76,19 @@ func (*identityHook) Name() string {
 	return "identity"
 }
 
-func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest, *interfaces.TaskPrestartResponse) error {
 
 	// Handle default workload identity
 	if err := h.setDefaultToken(); err != nil {
 		return err
 	}
 
-	signedWIDs, err := h.getIdentities(req.Alloc, req.Task)
+	signedWIDs, err := h.getIdentities()
 	if err != nil {
 		return fmt.Errorf("error fetching alternate identities: %w", err)
 	}
 
-	for _, widspec := range req.Task.Identities {
+	for _, widspec := range h.task.Identities {
 		signedWID := signedWIDs[widspec.Name]
 		if signedWID == nil {
 			// The only way to hit this should be a bug as it indicates the server
@@ -87,7 +102,7 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	}
 
 	// Start token renewal loop
-	go h.renew(req.Alloc.CreateIndex, signedWIDs)
+	go h.renew(h.alloc.CreateIndex, signedWIDs)
 
 	return nil
 }
@@ -100,7 +115,7 @@ func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *inter
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a
 // file if requested by the jobsepc.
 func (h *identityHook) setDefaultToken() error {
-	token := h.tr.alloc.SignedIdentities[h.tr.taskName]
+	token := h.alloc.SignedIdentities[h.task.Name]
 	if token == "" {
 		return nil
 	}
@@ -108,13 +123,11 @@ func (h *identityHook) setDefaultToken() error {
 	// Handle internal use and env var
 	h.tr.setNomadToken(token)
 
-	task := h.tr.Task()
-
 	// Handle file writing
-	if id := task.Identity; id != nil && id.File {
+	if id := h.task.Identity; id != nil && id.File {
 		// Write token as owner readable only
 		tokenPath := filepath.Join(h.tokenDir, wiTokenFile)
-		if err := users.WriteFileFor(tokenPath, []byte(token), task.User); err != nil {
+		if err := users.WriteFileFor(tokenPath, []byte(token), h.task.User); err != nil {
 			return fmt.Errorf("failed to write nomad token: %w", err)
 		}
 	}
@@ -126,12 +139,12 @@ func (h *identityHook) setDefaultToken() error {
 // writes the token file as specified by the jobspec.
 func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT string) error {
 	if widspec.Env {
-		h.tr.envBuilder.SetWorkloadToken(widspec.Name, rawJWT)
+		h.envBuilder.SetWorkloadToken(widspec.Name, rawJWT)
 	}
 
 	if widspec.File {
 		tokenPath := filepath.Join(h.tokenDir, fmt.Sprintf("nomad_%s.jwt", widspec.Name))
-		if err := users.WriteFileFor(tokenPath, []byte(rawJWT), h.tr.Task().User); err != nil {
+		if err := users.WriteFileFor(tokenPath, []byte(rawJWT), h.task.User); err != nil {
 			return fmt.Errorf("failed to write token for identity %q: %w", widspec.Name, err)
 		}
 	}
@@ -142,23 +155,23 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 // getIdentities calls Alloc.SignIdentities to get all of the identities for
 // this workload signed. If there are no identities to be signed then (nil,
 // nil) is returned.
-func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Task) (map[string]*structs.SignedWorkloadIdentity, error) {
+func (h *identityHook) getIdentities() (map[string]*structs.SignedWorkloadIdentity, error) {
 
-	if len(task.Identities) == 0 {
+	if len(h.task.Identities) == 0 {
 		return nil, nil
 	}
 
-	req := make([]*structs.WorkloadIdentityRequest, len(task.Identities))
-	for i, widspec := range task.Identities {
+	req := make([]*structs.WorkloadIdentityRequest, len(h.task.Identities))
+	for i, widspec := range h.task.Identities {
 		req[i] = &structs.WorkloadIdentityRequest{
-			AllocID:      alloc.ID,
-			TaskName:     task.Name,
+			AllocID:      h.alloc.ID,
+			TaskName:     h.task.Name,
 			IdentityName: widspec.Name,
 		}
 	}
 
 	// Get signed workload identities
-	signedWIDs, err := h.tr.widmgr.SignIdentities(alloc.CreateIndex, req)
+	signedWIDs, err := h.widmgr.SignIdentities(h.alloc.CreateIndex, req)
 	if err != nil {
 		return nil, err
 	}
@@ -172,8 +185,10 @@ func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Ta
 	return widMap, nil
 }
 
+// renew fetches new signed workload identity tokens before the existing tokens
+// expire.
 func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.SignedWorkloadIdentity) {
-	wids := h.tr.Task().Identities
+	wids := h.task.Identities
 	if len(wids) == 0 {
 		h.logger.Trace("no workload identities to renew")
 		return
@@ -192,8 +207,8 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		widMap[wid.Name] = wid
 
 		reqs = append(reqs, &structs.WorkloadIdentityRequest{
-			AllocID:      h.tr.allocID,
-			TaskName:     h.tr.taskName,
+			AllocID:      h.alloc.ID,
+			TaskName:     h.task.Name,
 			IdentityName: wid.Name,
 		})
 
@@ -233,7 +248,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		}
 
 		// Renew all tokens together since its cheap
-		tokens, err := h.tr.widmgr.SignIdentities(createIndex, reqs)
+		tokens, err := h.widmgr.SignIdentities(createIndex, reqs)
 		if err != nil {
 			retry++
 			wait = helper.Backoff(minWait, time.Hour, retry) + helper.RandomStagger(minWait)
