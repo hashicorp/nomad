@@ -69,6 +69,12 @@ var basicVaultConfig = &config.VaultConfig{
 	TLSSkipVerify:        &trueValue,
 	TaskTokenTTL:         "1s",
 	Token:                "12345",
+	UseIdentity:          pointer.Of(true),
+	DefaultIdentity: &config.WorkloadIdentityConfig{
+		Audience: []string{"vault.io", "nomad.io"},
+		Env:      pointer.Of(true),
+		File:     pointer.Of(false),
+	},
 }
 
 var basicConfig = &Config{
@@ -584,6 +590,9 @@ func (c *Config) addDefaults() {
 	}
 	if c.Vault == nil {
 		c.Vault = config.DefaultVaultConfig()
+		c.Vaults = map[string]*config.VaultConfig{"default": c.Vault}
+	} else {
+		c.Vault = config.DefaultVaultConfig().Merge(c.Vault)
 		c.Vaults = map[string]*config.VaultConfig{"default": c.Vault}
 	}
 	if c.Telemetry == nil {

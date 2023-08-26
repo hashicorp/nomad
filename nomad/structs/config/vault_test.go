@@ -29,6 +29,8 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(false),
+		DefaultIdentity:      nil,
 	}
 
 	c2 := &VaultConfig{
@@ -44,6 +46,12 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        nil,
 		TLSServerName:        "2",
+		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(true),
+		},
 	}
 
 	e := &VaultConfig{
@@ -59,6 +67,12 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "2",
+		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(true),
+		},
 	}
 
 	result := c1.Merge(c2)
@@ -85,6 +99,13 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Name:     "vault",
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(true),
+		},
 	}
 
 	c2 := &VaultConfig{
@@ -102,6 +123,13 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Name:     "vault",
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(true),
+		},
 	}
 
 	must.Equal(t, c1, c2)
@@ -141,4 +169,18 @@ func TestVaultConfig_Equals(t *testing.T) {
 	}
 
 	must.NotEqual(t, c3, c4)
+
+	c5 := &VaultConfig{
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Name: "vault",
+		},
+	}
+
+	c6 := &VaultConfig{
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Name: "other_vault",
+		},
+	}
+
+	must.NotEqual(t, c5, c6)
 }

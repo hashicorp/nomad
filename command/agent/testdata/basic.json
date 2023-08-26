@@ -392,7 +392,13 @@
       "task_token_ttl": "1s",
       "tls_server_name": "foobar",
       "tls_skip_verify": true,
-      "token": "12345"
+      "token": "12345",
+      "use_identity": true,
+      "default_identity": {
+        "aud": ["vault.io", "nomad.io"],
+        "env": true,
+        "file": false
+      }
     }
   ]
 }
