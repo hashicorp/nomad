@@ -34,21 +34,22 @@ func OpenPath(dir string) Interface {
 	}
 }
 
-// OpenFromCpusetCG1 creates a handle for modifying cgroup interface files of
-// the given interface, given a path to the cpuset interface.
-//
-// This is useful because a Nomad task resources struct only keeps track of
-// the cpuset cgroup directory in the cgroups v1 regime, but nowadays we want
-// to modify more than the cpuset in some cases.
-func OpenFromCpusetCG1(dir, iface string) Interface {
-	if iface != "cpuset" {
-		dir = strings.Replace(dir, "/share/", "/", 1)
-		dir = strings.Replace(dir, "/reserve/", "/", 1)
-		dir = strings.Replace(dir, "cpuset", iface, 1)
-	}
+// OpenCG1 creates a handle for modifying cgroup interface files for the
+// given alloc and task, for the cgroup v1 interface.
+func OpenCG1(allocID, taskName, iface string) Interface {
 	return &editor{
-		dpath: dir,
+		dpath: filepath.Join(root, iface, NomadCgroupParent, ScopeCG1(allocID, taskName)),
 	}
+}
+
+// OpenFromFreezerCG1 creates a handle for modifying cgroup interface files
+// of the given interface, given a path to the freezer cgroup.
+func OpenFromFreezerCG1(orig, iface string) Interface {
+	if iface == "cpuset" {
+		panic("cannot open cpuset")
+	}
+	p := strings.Replace(orig, "/freezer/", "/"+iface+"/", 1)
+	return OpenPath(p)
 }
 
 // An Interface can be used to read and write the interface files of a cgroup.
@@ -160,6 +161,10 @@ func (l *lifeCG1) inheritMems(destination string) error {
 func (l *lifeCG1) Teardown() error {
 	paths := l.paths()
 	for _, p := range paths {
+		if filepath.Base(p) == "share" {
+			// avoid removing the share cgroup
+			continue
+		}
 		err := os.RemoveAll(p)
 		if err != nil {
 			return err

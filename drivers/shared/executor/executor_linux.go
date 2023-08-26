@@ -6,8 +6,6 @@
 package executor
 
 import (
-	"github.com/shoenig/netlog"
-
 	"context"
 	"errors"
 	"fmt"
@@ -655,12 +653,10 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecC
 		return nil
 	}
 
-	cg := command.Cgroup()
+	cg := command.StatsCgroup()
 	if cg == "" {
 		return errors.New("cgroup must be set")
 	}
-	taskName := filepath.Base(command.TaskDir)
-	allocID := filepath.Base(filepath.Dir(command.TaskDir))
 
 	// // set the libcontainer hook for writing the PID to cgroup.procs file
 	// TODO: this can be cg1 only, right?
@@ -672,7 +668,7 @@ func (l *LibcontainerExecutor) configureCgroups(cfg *runc.Config, command *ExecC
 	// set cgroup v1/v2 specific attributes (cpu, path)
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		return l.configureCG1(cfg, command, allocID, taskName)
+		return l.configureCG1(cfg, command, cg)
 	default:
 		return l.configureCG2(cfg, command, cg)
 	}
@@ -702,19 +698,14 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *
 	cfg.Cgroups.Resources.MemorySwappiness = cgroupslib.MaybeDisableMemorySwappiness()
 }
 
-func (l *LibcontainerExecutor) configureCG1(
-	cfg *runc.Config,
-	command *ExecCommand,
-	allocID string,
-	taskName string) error {
+func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cgroup string) error {
 
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
-	// Set the v1 parent relative path (i.e. /nomad/<scope>)
-	// for the NON-cpuset cgroups
-	scope := cgroupslib.ScopeCG1(allocID, taskName)
+	// Set the v1 parent relative path (i.e. /nomad/<scope>) for the NON-cpuset cgroups
+	scope := filepath.Base(cgroup)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, scope)
 
 	// set cpu resources
@@ -745,7 +736,6 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
 	// Set the v2 specific unified path
-	scope := filepath.Base(cg)
 	cfg.Cgroups.Resources.CpusetCpus = cpuCores
 	partition := cgroupslib.GetPartitionFromCores(cpuCores)
 
@@ -755,6 +745,7 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 	cfg.Cgroups.Resources.CpuWeight = cpuWeight
 
 	// finally set the path of the cgroup in which to run the task
+	scope := filepath.Base(cg)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
 
 	// todo(shoenig): we will also want to set cpu bandwidth (i.e. cpu_hard_limit)

@@ -236,6 +236,12 @@ func WriteNomadCG1(iface, filename, content string) error {
 	return os.WriteFile(p, []byte(content), 0644)
 }
 
+// PathCG1 returns the filepath to the cgroup directory of the given interface
+// and allocID / taskName.
+func PathCG1(allocID, taskName, iface string) string {
+	return filepath.Join(root, iface, NomadCgroupParent, ScopeCG1(allocID, taskName))
+}
+
 // LinuxResourcesPath returns the filepath to the directory that the field
 // x.Resources.LinuxResources.CpusetCgroupPath is expected to hold on to
 func LinuxResourcesPath(allocID, task string, reserveCores bool) string {

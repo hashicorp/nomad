@@ -4,7 +4,7 @@
 package executor
 
 import (
-	"github.com/shoenig/netlog"
+	// "github.com/shoenig/netlog"
 
 	"fmt"
 	"os/exec"
@@ -112,12 +112,7 @@ func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 //
 // pid: pid of the executor (i.e. ourself)
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
-
-	// get our cgroup reference (cpuset in v1)
-	cgroup := command.Cgroup()
-
-	nlog := netlog.New("UE")
-	nlog.Info("cRC", "e.command.TaskDir", e.command.TaskDir, "command.TaskDir", command.TaskDir)
+	cgroup := command.StatsCgroup()
 
 	// cgCleanup will be called after the task has been launched
 	// v1: remove the executor process from the task's cgroups
@@ -128,7 +123,7 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
 		e.configureCG1(cgroup, command)
-		cgCleanup = e.enterCG1(cgroup)
+		cgCleanup = e.enterCG1(cgroup, command.CpusetCgroup())
 	default:
 		e.configureCG2(cgroup, command)
 		// configure child process to spawn in the cgroup
@@ -151,17 +146,24 @@ func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid
 // created for the task - so that the task and its children will spawn in
 // those cgroups. The cleanup function moves the executor out of the task's
 // cgroups and into the nomad/ parent cgroups.
-func (e *UniversalExecutor) enterCG1(cgroup string) func() {
+func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) func() {
 	pid := strconv.Itoa(unix.Getpid())
 
-	// write pid to all the interfaces
-	ifaces := []string{"freezer", "cpu", "memory", "cpuset"}
+	// write pid to all the normal interfaces
+	ifaces := []string{"freezer", "cpu", "memory"}
 	for _, iface := range ifaces {
-		ed := cgroupslib.OpenFromCpusetCG1(cgroup, iface)
+		ed := cgroupslib.OpenFromFreezerCG1(statsCgroup, iface)
 		err := ed.Write("cgroup.procs", pid)
 		if err != nil {
 			e.logger.Warn("failed to write cgroup", "interface", iface, "error", err)
 		}
+	}
+
+	// write pid to the cpuset interface, which varies between reserve/share
+	ed := cgroupslib.OpenPath(cpusetCgroup)
+	err := ed.Write("cgroup.procs", pid)
+	if err != nil {
+		e.logger.Warn("failed to write cpuset cgroup", "error", err)
 	}
 
 	// cleanup func that moves executor back up to nomad cgroup
@@ -176,34 +178,32 @@ func (e *UniversalExecutor) enterCG1(cgroup string) func() {
 }
 
 func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) {
+	// write memory limits
 	memHard, memSoft := e.computeMemory(command)
-	ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
+	ed := cgroupslib.OpenFromFreezerCG1(cgroup, "memory")
 	_ = ed.Write("memory.limit_in_bytes", strconv.FormatInt(memHard, 10))
 	if memSoft > 0 {
-		ed = cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
 		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memSoft, 10))
 	}
 
-	// set memory swappiness
+	// write memory swappiness
 	swappiness := cgroupslib.MaybeDisableMemorySwappiness()
 	if swappiness != nil {
-		ed := cgroupslib.OpenFromCpusetCG1(cgroup, "memory")
 		value := int64(*swappiness)
 		_ = ed.Write("memory.swappiness", strconv.FormatInt(value, 10))
 	}
 
-	// write cpu shares file
+	// write cpu shares
 	cpuShares := strconv.FormatInt(command.Resources.LinuxResources.CPUShares, 10)
-	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpu")
+	ed = cgroupslib.OpenFromFreezerCG1(cgroup, "cpu")
 	_ = ed.Write("cpu.shares", cpuShares)
 
-	// write cpuset file
-	nlog := netlog.New("HI")
-	cpuSet := command.Resources.LinuxResources.CpusetCpus
-	nlog.Info("configureCG1()", "cgroup", cgroup)
-	ed = cgroupslib.OpenFromCpusetCG1(cgroup, "cpuset")
-	_ = ed.Write("cpuset.cpus", cpuSet)
-	nlog.Info("configureCG1()", "cpuset", cpuSet)
+	// write cpuset, if set
+	if cpuSet := command.Resources.LinuxResources.CpusetCpus; cpuSet != "" {
+		cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
+		ed = cgroupslib.OpenPath(cpusetPath)
+		_ = ed.Write("cpuset.cpus", cpuSet)
+	}
 }
 
 func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
@@ -229,7 +229,7 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	ed = cgroupslib.OpenPath(cgroup)
 	_ = ed.Write("cpu.weight", strconv.FormatUint(cpuWeight, 10))
 
-	// write cpuset cgroup file
+	// write cpuset cgroup file, if set
 	cpusetCpus := command.Resources.LinuxResources.CpusetCpus
 	_ = ed.Write("cpuset.cpus", cpusetCpus)
 }
