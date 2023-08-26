@@ -1798,6 +1798,21 @@ func TestService_Validate(t *testing.T) {
 			expErr: true,
 		},
 		{
+			name: "provider nomad with tls skip verify",
+			input: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Checks: []*ServiceCheck{
+					{
+						Name:          "servicecheck",
+						Type:          "http",
+						TLSSkipVerify: true,
+					},
+				},
+			},
+			expErr: true,
+		},
+		{
 			name: "provider nomad with connect",
 			input: &Service{
 				Name:     "testservice",
