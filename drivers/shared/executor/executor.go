@@ -187,9 +187,14 @@ func (c *ExecCommand) StatsCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	taskName := filepath.Base(c.TaskDir)
-	allocID := filepath.Base(filepath.Dir(c.TaskDir))
-	return cgroupslib.PathCG1(allocID, taskName, "freezer")
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		taskName := filepath.Base(c.TaskDir)
+		allocID := filepath.Base(filepath.Dir(c.TaskDir))
+		return cgroupslib.PathCG1(allocID, taskName, "freezer")
+	default:
+		return c.CpusetCgroup()
+	}
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should

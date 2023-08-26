@@ -34,14 +34,6 @@ func OpenPath(dir string) Interface {
 	}
 }
 
-// OpenCG1 creates a handle for modifying cgroup interface files for the
-// given alloc and task, for the cgroup v1 interface.
-func OpenCG1(allocID, taskName, iface string) Interface {
-	return &editor{
-		dpath: filepath.Join(root, iface, NomadCgroupParent, ScopeCG1(allocID, taskName)),
-	}
-}
-
 // OpenFromFreezerCG1 creates a handle for modifying cgroup interface files
 // of the given interface, given a path to the freezer cgroup.
 func OpenFromFreezerCG1(orig, iface string) Interface {

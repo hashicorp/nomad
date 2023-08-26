@@ -6,6 +6,8 @@
 package executor
 
 import (
+	"github.com/shoenig/netlog"
+
 	"context"
 	"errors"
 	"fmt"
@@ -747,6 +749,9 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 	// finally set the path of the cgroup in which to run the task
 	scope := filepath.Base(cg)
 	cfg.Cgroups.Path = filepath.Join("/", cgroupslib.NomadCgroupParent, partition, scope)
+
+	nlog := netlog.New("LE")
+	nlog.Info("configureCG2()", "cg", cg, "scope", scope, "path", cfg.Cgroups.Path)
 
 	// todo(shoenig): we will also want to set cpu bandwidth (i.e. cpu_hard_limit)
 	// hopefully for 1.7
