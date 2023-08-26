@@ -170,6 +170,13 @@ func (c *ExecCommand) Cgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
+
+	// problem: we use this to get a reference other cg1 cgroups,
+	// but now we no longer have the allocID / task scope on the end
+	// in the share case
+	//
+	// so uh, how do we get that information?
+
 	return c.Resources.LinuxResources.CpusetCgroupPath
 }
 

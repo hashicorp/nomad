@@ -4,6 +4,8 @@
 package client
 
 import (
+	"github.com/shoenig/netlog"
+
 	"errors"
 	"fmt"
 	"net"
@@ -352,6 +354,9 @@ var (
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
 func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
+	nlog := netlog.New("Client")
+	nlog.Info("-- new client --")
+
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {

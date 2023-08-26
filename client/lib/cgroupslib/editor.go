@@ -138,7 +138,7 @@ func (l *lifeCG1) Setup() error {
 		if err != nil {
 			return err
 		}
-		if strings.Contains(p, "cpuset") {
+		if strings.Contains(p, "/reserve/") {
 			if err = l.inheritMems(p); err != nil {
 				return err
 			}
@@ -154,8 +154,6 @@ func (l *lifeCG1) inheritMems(destination string) error {
 		return err
 	}
 	destination = filepath.Join(destination, "cpuset.mems")
-	nlog := netlog.New("lifeCG1")
-	nlog.Info("inheritMems()", "destination", destination, "content", string(b))
 	return os.WriteFile(destination, b, 0644)
 }
 
@@ -220,10 +218,14 @@ func (l *lifeCG1) paths() []string {
 			root, iface, NomadCgroupParent, scope,
 		))
 	}
-	partition := GetPartitionFromBool(l.cores)
-	paths = append(paths, filepath.Join(
-		root, "cpuset", NomadCgroupParent, partition, scope,
-	))
+
+	switch partition := GetPartitionFromBool(l.cores); partition {
+	case "reserve":
+		paths = append(paths, filepath.Join(root, "cpuset", NomadCgroupParent, partition, scope))
+	case "share":
+		paths = append(paths, filepath.Join(root, "cpuset", NomadCgroupParent, partition))
+	}
+
 	return paths
 }
 

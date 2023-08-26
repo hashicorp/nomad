@@ -109,10 +109,15 @@ func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
 
 // configureResourceContainer on Linux configures the cgroups to be used to track
 // pids created by the executor
+//
+// pid: pid of the executor (i.e. ourself)
 func (e *UniversalExecutor) configureResourceContainer(command *ExecCommand, pid int) (func(), error) {
 
 	// get our cgroup reference (cpuset in v1)
 	cgroup := command.Cgroup()
+
+	nlog := netlog.New("UE")
+	nlog.Info("cRC", "e.command.TaskDir", e.command.TaskDir, "command.TaskDir", command.TaskDir)
 
 	// cgCleanup will be called after the task has been launched
 	// v1: remove the executor process from the task's cgroups

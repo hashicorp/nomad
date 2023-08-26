@@ -28,8 +28,11 @@ func Init(log hclog.Logger, cores string) {
 
 		const memsSet = "0" // TODO(shoenig) get from topology
 
+		// the value to disable inheriting values from parent cgroup
+		const noClone = "0"
+
 		// the name of the clone_children interface file
-		const cloneChilds = "cgroup.clone_children"
+		const cloneFile = "cgroup.clone_children"
 
 		// create the /nomad cgroup (or whatever the name is configured to be)
 		// for each cgroup controller we are going to use
@@ -38,19 +41,32 @@ func Init(log hclog.Logger, cores string) {
 			p := filepath.Join(root, ctrl, NomadCgroupParent)
 			if err := os.MkdirAll(p, 0755); err != nil {
 				log.Error("failed to create nomad cgroup", "controller", ctrl, "error", err)
+				return
 			}
 		}
 
 		//
 		// configure cpuset partitioning
 		//
+		// the tree is lopsided - tasks making use of reserved cpu cores get
+		// their own cgroup with a static cpuset.cpus value. other tasks are
+		// placed in the single share cgroup and share its dynamic cpuset.cpus
+		// value
+		//
+		// e.g.,
+		//  root/cpuset/nomad/
+		//    share/{cgroup.procs, cpuset.cpus, cpuset.mems}
+		//    reserve/
+		//      abc123.task/{cgroup.procs, cpuset.cpus, cpuset.mems}
+		//      def456.task/{cgroup.procs, cpuset.cpus, cpuset.mems}
+
+		if err := writeCG(noClone, "cpuset", NomadCgroupParent, cloneFile); err != nil {
+			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
+			return
+		}
 
 		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, memsFile); err != nil {
 			log.Error("failed to set cpuset.mems on nomad cpuset cgroup", "error", err)
-		}
-
-		if err := writeCG("1", "cpuset", NomadCgroupParent, cloneChilds); err != nil {
-			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
 			return
 		}
 
@@ -59,33 +75,41 @@ func Init(log hclog.Logger, cores string) {
 			return
 		}
 
+		//
+		// share partition
+		//
+
 		if err := mkCG("cpuset", NomadCgroupParent, SharePartition()); err != nil {
 			log.Error("failed to create share cpuset partition", "error", err)
 			return
 		}
 
-		if err := writeCG("0", "cpuset", NomadCgroupParent, SharePartition(), memsFile); err != nil {
+		if err := writeCG(noClone, "cpuset", NomadCgroupParent, SharePartition(), cloneFile); err != nil {
+			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
+			return
+		}
+
+		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, SharePartition(), memsFile); err != nil {
 			log.Error("failed to set cpuset.mems on share cpuset partition", "error", err)
 			return
 		}
 
-		if err := writeCG("0", "cpuset", NomadCgroupParent, SharePartition(), cloneChilds); err != nil {
-			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
-			return
-		}
+		//
+		// reserve partition
+		//
 
 		if err := mkCG("cpuset", NomadCgroupParent, ReservePartition()); err != nil {
 			log.Error("failed to create reserve cpuset partition", "error", err)
 			return
 		}
 
-		if err := writeCG("0", "cpuset", NomadCgroupParent, ReservePartition(), memsFile); err != nil {
-			log.Error("failed to set cpuset.mems on reserve cpuset partition", "error", err)
+		if err := writeCG(noClone, "cpuset", NomadCgroupParent, ReservePartition(), cloneFile); err != nil {
+			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
 			return
 		}
 
-		if err := writeCG("0", "cpuset", NomadCgroupParent, ReservePartition(), cloneChilds); err != nil {
-			log.Error("failed to set clone_children on nomad cpuset cgroup", "error", err)
+		if err := writeCG(memsSet, "cpuset", NomadCgroupParent, ReservePartition(), memsFile); err != nil {
+			log.Error("failed to set cpuset.mems on reserve cpuset partition", "error", err)
 			return
 		}
 
@@ -216,9 +240,12 @@ func WriteNomadCG1(iface, filename, content string) error {
 // x.Resources.LinuxResources.CpusetCgroupPath is expected to hold on to
 func LinuxResourcesPath(allocID, task string, reserveCores bool) string {
 	partition := GetPartitionFromBool(reserveCores)
-	switch GetMode() {
-	case CG1:
+	mode := GetMode()
+	switch {
+	case mode == CG1 && reserveCores:
 		return filepath.Join(root, "cpuset", NomadCgroupParent, partition, scopeCG1(allocID, task))
+	case mode == CG1 && !reserveCores:
+		return filepath.Join(root, "cpuset", NomadCgroupParent, partition)
 	default:
 		return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 	}
