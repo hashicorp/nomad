@@ -133,7 +133,7 @@
     "husky": "^4.2.5",
     "is-ip": "^3.1.0",
     "jsonlint": "^1.6.3",
-    "lint-staged": "^11.2.6",
+    "lint-staged": "^14.0.1",
     "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
     "lodash.isequal": "^4.5.0",
