@@ -48,6 +48,10 @@ type identityHook struct {
 	widmgr     IdentitySigner
 	logger     log.Logger
 
+	// minWait is the minimum amount of time to wait before renewing. Settable to
+	// ease testing.
+	minWait time.Duration
+
 	stopCtx context.Context
 	stop    context.CancelFunc
 }
@@ -65,6 +69,7 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		envBuilder: tr.envBuilder,
 		tr:         tr,
 		widmgr:     tr.widmgr,
+		minWait:    10 * time.Second,
 		stopCtx:    stopCtx,
 		stop:       stop,
 	}
@@ -195,7 +200,8 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 	}
 
 	var reqs []*structs.WorkloadIdentityRequest
-	var minExp time.Time
+	renewNow := false
+	minExp := time.Now().Add(30 * time.Hour)                        // set high default expiration
 	widMap := make(map[string]*structs.WorkloadIdentity, len(wids)) // Identity.Name -> Identity
 
 	for _, wid := range wids {
@@ -216,7 +222,8 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		if !ok {
 			// Missing a signature, treat this case as already expired so we get a
 			// token ASAP
-			minExp = time.Time{}
+			h.logger.Trace("missing token for identity", "identity", wid.Name)
+			renewNow = true
 			continue
 		}
 
@@ -230,8 +237,10 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		return
 	}
 
-	const minWait = 10 * time.Second
-	wait := helper.ExpiryToRenewTime(minExp, time.Now, minWait)
+	var wait time.Duration
+	if !renewNow {
+		wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
+	}
 
 	timer, timerStop := helper.NewStoppedTimer()
 	defer timerStop()
@@ -239,10 +248,11 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 	var retry uint64
 
 	for err := h.stopCtx.Err(); err == nil; {
+		h.logger.Trace("waiting to renew identities", "num", len(reqs), "wait", wait)
 		timer.Reset(wait)
 		select {
 		case <-timer.C:
-			h.logger.Trace("getting new signed identities", "num", len(reqs))
+			h.logger.Debug("getting new signed identities", "num", len(reqs))
 		case <-h.stopCtx.Done():
 			return
 		}
@@ -251,14 +261,14 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		tokens, err := h.widmgr.SignIdentities(createIndex, reqs)
 		if err != nil {
 			retry++
-			wait = helper.Backoff(minWait, time.Hour, retry) + helper.RandomStagger(minWait)
+			wait = helper.Backoff(h.minWait, time.Hour, retry) + helper.RandomStagger(h.minWait)
 			h.logger.Error("error renewing workload identities", "error", err, "next", wait)
 			continue
 		}
 
 		if len(tokens) == 0 {
 			retry++
-			wait = helper.Backoff(minWait, time.Hour, retry) + helper.RandomStagger(minWait)
+			wait = helper.Backoff(h.minWait, time.Hour, retry) + helper.RandomStagger(h.minWait)
 			h.logger.Error("error renewing workload identities", "error", "no tokens", "next", wait)
 			continue
 		}
@@ -277,7 +287,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 
 			if err := h.setAltToken(widspec, token.JWT); err != nil {
 				// Set minExp using retry's backoff logic
-				minExp = time.Now().Add(helper.Backoff(minWait, time.Hour, retry+1) + helper.RandomStagger(minWait))
+				minExp = time.Now().Add(helper.Backoff(h.minWait, time.Hour, retry+1) + helper.RandomStagger(h.minWait))
 				h.logger.Error("error setting new workload identity", "error", err, "identity", token.IdentityName)
 				continue
 			}
@@ -291,7 +301,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		}
 
 		// Success! Set next renewal and reset retries
-		wait = helper.ExpiryToRenewTime(minExp, time.Now, minWait)
+		wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
 		retry = 0
 
 		h.logger.Debug("waitng to renew workloading identities", "next", wait)
