@@ -304,6 +304,6 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
 		retry = 0
 
-		h.logger.Debug("waitng to renew workloading identities", "next", wait)
+		h.logger.Debug("waiting to renew workloading identities", "next", wait)
 	}
 }
