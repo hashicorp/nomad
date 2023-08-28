@@ -6,6 +6,7 @@ package structs
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
@@ -44,6 +45,12 @@ func TestWorkloadIdentity_Equal(t *testing.T) {
 	must.Equal(t, orig, newWI)
 
 	newWI.Audience = []string{"foo"}
+	must.NotEqual(t, orig, newWI)
+
+	newWI.Audience = orig.Audience
+	must.Equal(t, orig, newWI)
+
+	newWI.TTL = 123 * time.Hour
 	must.NotEqual(t, orig, newWI)
 }
 
@@ -84,12 +91,14 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 				Audience: []string{"http://nomadproject.io/"},
 				Env:      true,
 				File:     true,
+				TTL:      time.Hour,
 			},
 			Exp: WorkloadIdentity{
 				Name:     "foo-id",
 				Audience: []string{"http://nomadproject.io/"},
 				Env:      true,
 				File:     true,
+				TTL:      time.Hour,
 			},
 		},
 		{
@@ -142,6 +151,26 @@ func TestWorkloadIdentity_Validate(t *testing.T) {
 				Audience: []string{"foo", "bar"},
 			},
 			Warn: "while multiple audiences is allowed, it is more secure to use 1 audience per identity",
+		},
+		{
+			Desc: "Bad TTL",
+			In: WorkloadIdentity{
+				Name: "foo",
+				TTL:  -1 * time.Hour,
+			},
+			Err: "ttl must be >= 0",
+		},
+		{
+			Desc: "No TTL",
+			In: WorkloadIdentity{
+				Name:     "foo",
+				Audience: []string{"foo"},
+			},
+			Exp: WorkloadIdentity{
+				Name:     "foo",
+				Audience: []string{"foo"},
+			},
+			Warn: "identities without an expiration are insecure",
 		},
 	}
 

@@ -173,7 +173,7 @@ func (wi *WorkloadIdentity) Warnings() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("while multiple audiences is allowed, it is more secure to use 1 audience per identity"))
 	}
 
-	if wi.Name != "" || wi.Name != WorkloadIdentityDefaultName {
+	if wi.Name != "" && wi.Name != WorkloadIdentityDefaultName {
 		if wi.TTL == 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("identities without an expiration are insecure"))
 		}
