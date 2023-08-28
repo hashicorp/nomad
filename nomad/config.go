@@ -463,6 +463,44 @@ func (c *Config) Copy() *Config {
 	return &nc
 }
 
+func (c *Config) DefaultVaultIdentity() *structs.WorkloadIdentity {
+	if c.VaultConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.VaultConfig.DefaultIdentity)
+}
+
+func (c *Config) DefaultConsulServiceIdentity() *structs.WorkloadIdentity {
+	if c.ConsulConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.ConsulConfig.ServiceIdentity)
+}
+
+func workloadIdentityFromConfig(widConfig *config.WorkloadIdentityConfig) *structs.WorkloadIdentity {
+	if widConfig == nil {
+		return nil
+	}
+
+	wid := &structs.WorkloadIdentity{}
+
+	if len(widConfig.Audience) > 0 {
+		wid.Audience = widConfig.Audience
+	}
+
+	if widConfig.Env != nil {
+		wid.Env = *widConfig.Env
+	}
+
+	if widConfig.File != nil {
+		wid.File = *widConfig.File
+	}
+
+	return wid
+}
+
 // DefaultConfig returns the default configuration. Only used as the basis for
 // merging agent or test parameters.
 func DefaultConfig() *Config {
