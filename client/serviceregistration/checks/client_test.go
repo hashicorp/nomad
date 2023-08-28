@@ -203,7 +203,7 @@ func TestChecker_Do_HTTP(t *testing.T) {
 			structs.Healthiness,
 			structs.CheckSuccess,
 			http.StatusOK,
-			"nomad: http ok",
+			"200 ok",
 		),
 	}}
 
