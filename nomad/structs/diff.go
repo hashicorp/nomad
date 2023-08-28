@@ -343,6 +343,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, nDiffs...)
 	}
 
+	// Scaling diff
+	if scDiff := scalingDiff(tg.Scaling, other.Scaling, contextual); scDiff != nil {
+		diff.Objects = append(diff.Objects, scDiff)
+	}
+
 	// Services diff
 	if sDiffs := serviceDiffs(tg.Services, other.Services, contextual); sDiffs != nil {
 		diff.Objects = append(diff.Objects, sDiffs...)
@@ -625,6 +630,66 @@ type TaskDiffs []*TaskDiff
 func (t TaskDiffs) Len() int           { return len(t) }
 func (t TaskDiffs) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t TaskDiffs) Less(i, j int) bool { return t[i].Name < t[j].Name }
+
+// scalingDiff returns the diff of two Scaling objects. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func scalingDiff(old, new *ScalingPolicy, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Scaling"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	filter := []string{"CreateIndex", "ModifyIndex", "ID", "Type", "Target[Job]", "Target[Group]", "Target[Namespace]"}
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ScalingPolicy{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, filter, true)
+	} else if new == nil {
+		new = &ScalingPolicy{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, filter, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, filter, true)
+		newPrimitiveFlat = flatmap.Flatten(new, filter, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
+
+	// Diff Policy
+	if pDiff := policyDiff(old.Policy, new.Policy, contextual); pDiff != nil {
+		diff.Objects = append(diff.Objects, pDiff)
+	}
+
+	sort.Sort(FieldDiffs(diff.Fields))
+	sort.Sort(ObjectDiffs(diff.Objects))
+
+	return diff
+}
+
+// policyDiff returns the diff of two Scaling Policy objects. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func policyDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Policy"}
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if len(old) == 0 {
+		diff.Type = DiffTypeAdded
+	} else if len(new) == 0 {
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// Diff the primitive fields.
+	oldPrimitiveFlat := flatmap.Flatten(old, nil, false)
+	newPrimitiveFlat := flatmap.Flatten(new, nil, false)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
+
+	return diff
+}
 
 // serviceDiff returns the diff of two service objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
