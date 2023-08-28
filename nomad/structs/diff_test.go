@@ -4444,12 +4444,208 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestCase: "Scaling added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				Scaling: &ScalingPolicy{
+					Enabled: true,
+					Max:     10,
+					Min:     1,
+					Policy: map[string]interface{}{
+						"cooldown":            "1m",
+						"evaluation_interval": "5s",
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Scaling",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Enabled",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Max",
+								Old:  "",
+								New:  "10",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Min",
+								Old:  "",
+								New:  "1",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Policy",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "cooldown",
+										Old:  "",
+										New:  "1m",
+									},
+									{
+										Type: DiffTypeAdded,
+										Name: "evaluation_interval",
+										Old:  "",
+										New:  "5s",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Scaling deleted",
+			Old: &TaskGroup{
+				Scaling: &ScalingPolicy{
+					Enabled: true,
+					Max:     10,
+					Min:     1,
+					Policy: map[string]interface{}{
+						"cooldown":            "1m",
+						"evaluation_interval": "5s",
+					},
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Scaling",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Enabled",
+								Old:  "true",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Max",
+								Old:  "10",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Min",
+								Old:  "1",
+								New:  "",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Policy",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeDeleted,
+										Name: "cooldown",
+										Old:  "1m",
+										New:  "",
+									},
+									{
+										Type: DiffTypeDeleted,
+										Name: "evaluation_interval",
+										Old:  "5s",
+										New:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Scaling edited",
+			Old: &TaskGroup{
+				Scaling: &ScalingPolicy{
+					Enabled: true,
+					Max:     10,
+					Min:     1,
+					Policy: map[string]interface{}{
+						"cooldown":            "1m",
+						"evaluation_interval": "5s",
+					},
+				},
+			},
+			New: &TaskGroup{
+				Scaling: &ScalingPolicy{
+					Enabled: true,
+					Max:     15,
+					Min:     5,
+					Policy: map[string]interface{}{
+						"cooldown":            "2m",
+						"evaluation_interval": "10s",
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Scaling",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Max",
+								Old:  "10",
+								New:  "15",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Min",
+								Old:  "1",
+								New:  "5",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Policy",
+								Fields: []*FieldDiff{
+									{
+										Type: DiffTypeEdited,
+										Name: "cooldown",
+										Old:  "1m",
+										New:  "2m",
+									}, {
+										Type: DiffTypeEdited,
+										Name: "evaluation_interval",
+										Old:  "5s",
+										New:  "10s",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
 		require.NotEmpty(t, c.TestCase, "case #%d needs a name", i+1)
 
 		t.Run(c.TestCase, func(t *testing.T) {
+
 			result, err := c.Old.Diff(c.New, c.Contextual)
 			switch c.ExpErr {
 			case true:
