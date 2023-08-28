@@ -4,9 +4,11 @@
 package structs
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/raft"
 )
 
@@ -81,8 +83,25 @@ type RaftPeerRequest struct {
 	WriteRequest
 }
 
-func (r *RaftPeerRequest) IsValid() bool {
-	return r.ID == "" || r.Address == ""
+func (r *RaftPeerRequest) Validate() error {
+	if (r.ID == "" && r.Address == "") || (r.ID != "" && r.Address == "") {
+		return errors.New("either ID or Address must be set")
+	}
+	if r.ID != "" {
+		return r.validateID()
+	}
+	return r.validateAddress()
+}
+
+func (r *RaftPeerRequest) validateID() error {
+	if _, err := uuid.ParseUUID(string(r.ID)); err != nil {
+		return fmt.Errorf("id must be a uuid: %w", err)
+	}
+	return nil
+}
+
+func (r *RaftPeerRequest) validateAddress() error {
+	return nil
 }
 
 // AutopilotSetConfigRequest is used by the Operator endpoint to update the
