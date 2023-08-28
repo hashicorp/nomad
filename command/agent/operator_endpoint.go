@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -100,42 +101,58 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 
 // OperatorRaftTransferLeadership supports actions on Raft peers.
 func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
 	params := req.URL.Query()
-	_, hasID := params["id"]
-	_, hasAddress := params["address"]
 
-	if !hasID && !hasAddress {
-		return nil, CodedError(http.StatusBadRequest, "Must specify either ?id with the destination server's ID or ?address with IP:port of the destination peer")
-	}
-	if hasID && hasAddress {
-		return nil, CodedError(http.StatusBadRequest, "Must specify only one of ?id or ?address")
-	}
+	// Using the params map directly
+	id, hasID := params["id"]
+	addr, hasAddress := params["address"]
 
+	// There are some items that we can parse for here that are more unwieldy in
+	// the Validate() func on the RPC request object, like repeated query params.
 	if hasID {
-		var args structs.RaftPeerByIDRequest
-		s.parseWriteRequest(req, &args.WriteRequest)
-
-		var reply struct{}
-		args.ID = raft.ServerID(params.Get("id"))
-		if err := s.agent.RPC("Operator.TransferLeadershipToServerID", &args, &reply); err != nil {
-			return nil, err
+		if len(id) > 1 {
+			return nil, CodedError(http.StatusBadRequest, "must specify only one id")
+		}
+		if id[0] == "" {
+			return nil, CodedError(http.StatusBadRequest, "id must be non-empty")
+		}
+	} else if hasAddress {
+		if len(addr) > 1 {
+			return nil, CodedError(http.StatusBadRequest, "must specify only one address")
+		}
+		if addr[0] == "" {
+			return nil, CodedError(http.StatusBadRequest, "address must be non-empty")
 		}
 	} else {
-		var args structs.RaftPeerByAddressRequest
-		s.parseWriteRequest(req, &args.WriteRequest)
+		return nil, CodedError(http.StatusBadRequest, "must specify id or address")
+	}
 
-		var reply struct{}
-		args.Address = raft.ServerAddress(params.Get("address"))
-		if err := s.agent.RPC("Operator.TransferLeadershipToServerAddress", &args, &reply); err != nil {
-			return nil, err
+	var reply api.LeadershipTransferResponse
+	args := &structs.RaftPeerRequest{}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	if hasID {
+		args.ID = raft.ServerID(id[0])
+	} else {
+		args.Address = raft.ServerAddress(addr[0])
+		if args.Address == "" {
+			return nil, CodedError(http.StatusBadRequest, "address must be non-empty")
+		}
+		if _, err := netip.ParseAddrPort(string(args.Address)); err != nil {
+			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("address must be in IP:port format: %s", err.Error()))
 		}
 	}
 
-	return nil, nil
+	if err := args.Validate(); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+
+	err := s.agent.RPC("Operator.TransferLeadershipToPeer", &args, &reply)
+	return nil, err
 }
 
 // OperatorAutopilotConfiguration is used to inspect the current Autopilot configuration.
