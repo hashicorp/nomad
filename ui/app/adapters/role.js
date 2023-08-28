@@ -5,7 +5,8 @@
 
 // @ts-check
 import { default as ApplicationAdapter, namespace } from './application';
-
+import classic from 'ember-classic-decorator';
+@classic
 export default class RoleAdapter extends ApplicationAdapter {
   namespace = namespace + '/acl';
 }
