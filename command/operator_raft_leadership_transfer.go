@@ -24,8 +24,8 @@ Usage: nomad operator raft transfer-leadership [options]
 	must be running at least Raft protocol v3 in order to use this command.
 
   There are cases where you might desire transferring leadership from one
-	cluster member to another, for example, during a rolling upgrade. This
-	command allows you to designate a new server to be cluster leader.
+  cluster member to another, for example, during a rolling upgrade. This
+  command allows you to designate a new server to be cluster leader.
 
   If ACLs are enabled, this command requires a management token.
 
@@ -107,7 +107,7 @@ func raftTransferLeadership(address, id string, operator *api.Operator) error {
 		return fmt.Errorf("cannot give both an address and id")
 	}
 
-	// Try to kick the peer.
+	// Try to perform the leadership transfer.
 	if len(address) > 0 {
 		if err := operator.RaftTransferLeadershipByAddress(address, nil); err != nil {
 			return err
