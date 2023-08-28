@@ -567,7 +567,6 @@ module('Acceptance | tokens', function (hooks) {
     assert.dom('.dropdown-options').exists('Dropdown options are shown');
 
     await selectChoose('[data-test-select-jwt]', 'JWT-Regional');
-    console.log(currentURL());
     assert.equal(
       currentURL(),
       '/settings/tokens?jwtAuthMethod=JWT-Regional',

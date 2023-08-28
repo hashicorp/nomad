@@ -24,4 +24,14 @@ export default class Token extends Model {
   get isExpired() {
     return this.expirationTime && this.expirationTime < new Date();
   }
+
+  /**
+   * Combined policies directly on the token, and policies inferred from token's role[s]
+   */
+  get combinedPolicies() {
+    return [
+      ...this.policies.toArray(),
+      ...this.roles.map((role) => role.policies.toArray()).flat(),
+    ].uniq();
+  }
 }

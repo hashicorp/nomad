@@ -159,6 +159,45 @@
                 <button data-test-token-clear class="button is-primary" {{action "clearTokenProperties"}} type="button">Sign Out</button>
               </div>
             </div>
+
+            {{#if this.tokenRecord.roles.length}}
+              <h3 class="title is-4">Roles</h3>
+                {{#each this.tokenRecord.roles as |role|}}
+                <div data-test-token-role class="boxed-section">
+                  <div data-test-role-name class="boxed-section-head">
+                    {{role.name}}
+                  </div>
+                  <div class="boxed-section-body">
+                      {{#if role.description}}
+                        <p class="content">
+                          {{role.description}}
+                        </p>
+                      {{/if}}
+                    <div data-test-role-policies>
+                      <h4 class="title is-5">Policies</h4>
+                      {{#each role.policies as |policy|}}
+                      <li><a href="#{{policy.name}}">{{policy.name}}</a></li>
+                        {{!-- <div data-test-role-policy class="boxed-section">
+                          <div data-test-policy-name class="boxed-section-head">
+                            {{policy.name}}
+                          </div>
+                          <div class="boxed-section-body">
+                            <p data-test-policy-description class="content">
+                              {{#if policy.description}}
+                                {{policy.description}}
+                              {{else}}
+                                <em>No description</em>
+                              {{/if}}
+                            </p>
+                          </div>
+                        </div> --}}
+                      {{/each}}
+                    </div>
+                  </div>
+                </div>
+                {{/each}}
+            {{/if}}
+
             <h3 class="title is-4">Policies</h3>
             {{#if (eq this.tokenRecord.type "management")}}
               <div data-test-token-management-message class="boxed-section">
@@ -167,8 +206,8 @@
                 </div>
               </div>
             {{else}}
-              {{#each this.tokenRecord.policies as |policy|}}
-                <div data-test-token-policy class="boxed-section">
+              {{#each this.tokenRecord.combinedPolicies as |policy|}}
+                <div id="{{policy.name}}" data-test-token-policy class="boxed-section">
                   <div data-test-policy-name class="boxed-section-head">
                     {{policy.name}}
                   </div>
