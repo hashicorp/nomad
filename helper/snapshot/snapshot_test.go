@@ -110,7 +110,7 @@ func makeRaft(t *testing.T, dir string) (*raft.Raft, *MockFSM) {
 
 	timeout := time.After(10 * time.Second)
 	for {
-		if raft.Leader() != "" {
+		if leaderID, _ := raft.LeaderWithID(); leaderID != "" {
 			break
 		}
 
