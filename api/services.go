@@ -243,7 +243,7 @@ type Service struct {
 	TaggedAddresses   map[string]string `hcl:"tagged_addresses,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
-	Identity          *WorkloadIdentity `hcl:"identity,optional"`
+	Identity          *WorkloadIdentity `hcl:"identity,block"`
 
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
