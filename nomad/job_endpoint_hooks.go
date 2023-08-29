@@ -341,10 +341,8 @@ func (v *jobValidate) validateServiceIdentity(s *structs.Service) (warnings []er
 		if s.Identity.Name == "" {
 			return nil, fmt.Errorf("identity for service %s has an empty name", s.Name)
 		}
-	} else {
-		if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
-			return nil, fmt.Errorf("service %s does not have an identity and no default service identity is provided", s.Name)
-		}
+	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
+		return nil, fmt.Errorf("service %s does not have an identity and no default service identity is provided", s.Name)
 	}
 
 	return nil, nil
