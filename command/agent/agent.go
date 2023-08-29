@@ -795,10 +795,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	// Operators may set one of
 	//
-	// - config.reservable_cores (highest precedense) for specifying which cpu cores
+	// - config.reservable_cores (highest precedence) for specifying which cpu cores
 	//   nomad tasks may run on
 	//
-	// - config.reserved.cores (lowest precedense) for specifying which cpu cores
+	// - config.reserved.cores (lowest precedence) for specifying which cpu cores
 	//   nomad tasks may NOT run on
 	//
 	// In either case we will compute the partitioning and have it enforced by
