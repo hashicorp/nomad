@@ -407,7 +407,7 @@ func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
 func TestJobEndpointConnect_ConnectInterpolation(t *testing.T) {
 	ci.Parallel(t)
 
-	server := &Server{logger: testlog.HCLogger(t)}
+	server := &Server{logger: testlog.HCLogger(t), config: DefaultConfig()}
 	jobEndpoint := NewJobEndpoints(server, nil)
 
 	j := mock.ConnectJob()
