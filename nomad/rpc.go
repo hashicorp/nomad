@@ -793,8 +793,8 @@ func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
 		m.KnownLeader = true
 	} else {
 		m.LastContact = time.Since(r.raft.LastContact())
-		knownLeader, _ := r.raft.LeaderWithID()
-		m.KnownLeader = (knownLeader != "")
+		leaderAddr, _ := r.raft.LeaderWithID()
+		m.KnownLeader = (leaderAddr != "")
 	}
 }
 
