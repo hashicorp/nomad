@@ -7,10 +7,126 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_jobValidate_Validate_consul_service(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name         string
+		inputService *structs.Service
+		inputConfig  *Config
+		expectedWarn []error
+		expectedErr  string
+	}{
+		{
+			name: "no error when consul identity not enabled and services does not have an identity",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(false),
+				},
+			},
+		},
+		{
+			name: "no error when consul identity is enabled and default service identity is provided",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+					ServiceIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"consul.io"},
+					},
+				},
+			},
+		},
+		{
+			name: "no error when consul identity is enabled and service has a proper identity",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+				Identity: &structs.WorkloadIdentity{
+					Name:        "consul-service/web",
+					Audience:    []string{"consul.io", "nomad.dev"},
+					File:        true,
+					Env:         false,
+					ServiceName: "web",
+				},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+				},
+			},
+		},
+		{
+			name: "error when service defines identity but consul identity is disabled",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+				Identity: &structs.WorkloadIdentity{
+					Audience: []string{"consul.io", "nomad.dev"},
+					File:     true,
+					Env:      false,
+				},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(false),
+				},
+			},
+			expectedErr: "server configuration for consul.use_identity is not true",
+		},
+		{
+			name: "error when service does not define identity and consul identity is enabled but no default is provided",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+				},
+			},
+			expectedErr: "no default service identity is provided",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputConfig.JobMaxPriority = 100
+			impl := jobValidate{srv: &Server{
+				config: tc.inputConfig,
+			}}
+
+			job := mock.Job()
+			job.TaskGroups[0].Services = []*structs.Service{tc.inputService}
+			job.TaskGroups[0].Tasks[0].Services = []*structs.Service{tc.inputService}
+
+			warn, err := impl.Validate(job)
+			must.Eq(t, tc.expectedWarn, warn)
+
+			if len(tc.expectedErr) == 0 {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedErr)
+			}
+		})
+	}
+}
 
 func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 	ci.Parallel(t)
