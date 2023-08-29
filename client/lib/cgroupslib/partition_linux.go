@@ -6,8 +6,6 @@
 package cgroupslib
 
 import (
-	"github.com/shoenig/netlog"
-
 	"os"
 	"path/filepath"
 	"sync"
@@ -78,16 +76,12 @@ func (p *partition) Release(cores *idset.Set[idset.CoreID]) error {
 	return p.write()
 }
 
-var nlog = netlog.New("partition")
-
 func (p *partition) write() error {
 	shareStr := p.share.String()
-	nlog.Info("write()", "sharePath", p.sharePath, "shareStr", shareStr)
 	if err := os.WriteFile(p.sharePath, []byte(shareStr), 0644); err != nil {
 		return err
 	}
 	reserveStr := p.reserve.String()
-	nlog.Info("write()", "reservePath", p.reservePath, "reserveStr", reserveStr)
 	if err := os.WriteFile(p.reservePath, []byte(reserveStr), 0644); err != nil {
 		return err
 	}

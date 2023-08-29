@@ -4,8 +4,6 @@
 package executor
 
 import (
-	// "github.com/shoenig/netlog"
-
 	"fmt"
 	"os/exec"
 	"strconv"

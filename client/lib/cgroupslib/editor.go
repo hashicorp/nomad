@@ -6,8 +6,6 @@
 package cgroupslib
 
 import (
-	"github.com/shoenig/netlog"
-
 	"bytes"
 	"fmt"
 	"os"
@@ -83,8 +81,6 @@ func (e *editor) PIDs() (*set.Set[int], error) {
 
 func (e *editor) Write(filename, content string) error {
 	path := filepath.Join(e.dpath, filename)
-	nlog := netlog.New("editor")
-	nlog.Info("Write()", "path", path, "content", content)
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
