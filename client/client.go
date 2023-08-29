@@ -1235,30 +1235,12 @@ func (c *Client) restoreState() error {
 		prevAllocWatcher := allocwatcher.NoopPrevAlloc{}
 		prevAllocMigrator := allocwatcher.NoopPrevAlloc{}
 
-		arConf := &config.AllocRunnerConfig{
-			Alloc:               alloc,
-			Logger:              c.logger,
-			ClientConfig:        conf,
-			StateDB:             c.stateDB,
-			StateUpdater:        c,
-			DeviceStatsReporter: c,
-			Consul:              c.consulService,
-			ConsulSI:            c.tokensClient,
-			ConsulProxies:       c.consulProxies,
-			Vault:               c.vaultClient,
-			PrevAllocWatcher:    prevAllocWatcher,
-			PrevAllocMigrator:   prevAllocMigrator,
-			DynamicRegistry:     c.dynamicRegistry,
-			CSIManager:          c.csimanager,
-			DeviceManager:       c.devicemanager,
-			DriverManager:       c.drivermanager,
-			ServersContactedCh:  c.serversContactedCh,
-			ServiceRegWrapper:   c.serviceRegWrapper,
-			CheckStore:          c.checkStore,
-			RPCClient:           c,
-			Getter:              c.getter,
-			Wranglers:           c.wranglers,
-		}
+		arConf := c.newAllocRunnerConfig(alloc, prevAllocWatcher, prevAllocMigrator)
+
+		// ServerContactedCh is used by task runners on restore failures to
+		// wait for servers to be contacted before proceeding with the
+		// restoration process.
+		arConf.ServersContactedCh = c.serversContactedCh
 
 		ar, err := c.allocrunnerFactory(arConf)
 		if err != nil {
@@ -2726,31 +2708,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 	}
 	prevAllocWatcher, prevAllocMigrator := allocwatcher.NewAllocWatcher(watcherConfig)
 
-	arConf := &config.AllocRunnerConfig{
-		Alloc:               alloc,
-		Logger:              c.logger,
-		ClientConfig:        c.GetConfig(),
-		StateDB:             c.stateDB,
-		Consul:              c.consulService,
-		ConsulProxies:       c.consulProxies,
-		ConsulSI:            c.tokensClient,
-		Vault:               c.vaultClient,
-		StateUpdater:        c,
-		DeviceStatsReporter: c,
-		PrevAllocWatcher:    prevAllocWatcher,
-		PrevAllocMigrator:   prevAllocMigrator,
-		DynamicRegistry:     c.dynamicRegistry,
-		CSIManager:          c.csimanager,
-		DeviceManager:       c.devicemanager,
-		DriverManager:       c.drivermanager,
-		ServiceRegWrapper:   c.serviceRegWrapper,
-		CheckStore:          c.checkStore,
-		RPCClient:           c,
-		Getter:              c.getter,
-		Wranglers:           c.wranglers,
-		WIDMgr:              c.widmgr,
-	}
-
+	arConf := c.newAllocRunnerConfig(alloc, prevAllocWatcher, prevAllocMigrator)
 	ar, err := c.allocrunnerFactory(arConf)
 	if err != nil {
 		return err
@@ -2764,6 +2722,39 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 
 	go ar.Run()
 	return nil
+}
+
+// allocRunnerConfig returns a new AllocRunnerConfig that can be used to start
+// or restore an AllocRunner.
+func (c *Client) newAllocRunnerConfig(
+	alloc *structs.Allocation,
+	prevAllocWatcher config.PrevAllocWatcher,
+	prevAllocMigrator config.PrevAllocMigrator,
+) *config.AllocRunnerConfig {
+	return &config.AllocRunnerConfig{
+		Alloc:               alloc,
+		CSIManager:          c.csimanager,
+		CheckStore:          c.checkStore,
+		ClientConfig:        c.GetConfig(),
+		Consul:              c.consulService,
+		ConsulProxies:       c.consulProxies,
+		ConsulSI:            c.tokensClient,
+		DeviceManager:       c.devicemanager,
+		DeviceStatsReporter: c,
+		DriverManager:       c.drivermanager,
+		DynamicRegistry:     c.dynamicRegistry,
+		Getter:              c.getter,
+		Logger:              c.logger,
+		PrevAllocMigrator:   prevAllocMigrator,
+		PrevAllocWatcher:    prevAllocWatcher,
+		RPCClient:           c,
+		ServiceRegWrapper:   c.serviceRegWrapper,
+		StateDB:             c.stateDB,
+		StateUpdater:        c,
+		Vault:               c.vaultClient,
+		WIDMgr:              c.widmgr,
+		Wranglers:           c.wranglers,
+	}
 }
 
 // setupConsulTokenClient configures a tokenClient for managing consul service
