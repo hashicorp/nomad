@@ -91,13 +91,13 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 			LinuxResources: &drivers.LinuxResources{
 				CPUShares:        500,
 				MemoryLimitBytes: 256 * 1024 * 1024,
-				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(alloc.ID, task.Name),
+				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(alloc.ID, task.Name, false),
 			},
 		},
 	}
 
 	// create cgroup for our task (because we aren't using task runners)
-	f := cgroupslib.Factory(alloc.ID, task.Name)
+	f := cgroupslib.Factory(alloc.ID, task.Name, false)
 	must.NoError(t, f.Setup())
 
 	// cleanup cgroup once test is done (because no task runners)
