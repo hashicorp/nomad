@@ -4,8 +4,6 @@
 package client
 
 import (
-	"github.com/shoenig/netlog"
-
 	"errors"
 	"fmt"
 	"net"
@@ -470,8 +468,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	} else {
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
-
-	netlog.Cyan("client start", "topo", c.topology)
 
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(
