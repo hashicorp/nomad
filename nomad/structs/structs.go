@@ -3783,6 +3783,17 @@ type AllocatedResources struct {
 	Shared AllocatedSharedResources
 }
 
+// UsesCores returns true if any of the tasks in the allocation make use
+// of reserved cpu cores.
+func (a *AllocatedResources) UsesCores() bool {
+	for _, taskRes := range a.Tasks {
+		if len(taskRes.Cpu.ReservedCores) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *AllocatedResources) Copy() *AllocatedResources {
 	if a == nil {
 		return nil
