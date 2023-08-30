@@ -205,6 +205,9 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 	switch {
 	case result.StatusCode == http.StatusOK:
 		qr.Status = structs.CheckSuccess
+		// The check output is ignored on success to prevent users from relying
+		// on their content since querying service check results is an
+		// expensive operation.
 		qr.Output = "nomad: http ok"
 		return qr
 	case result.StatusCode < http.StatusBadRequest:
