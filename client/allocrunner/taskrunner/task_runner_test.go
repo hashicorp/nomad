@@ -151,7 +151,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
-		Wranglers:             proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
+		Wranglers:             proclib.MockWranglers(t),
 		WIDMgr:                MockWIDMgr{},
 	}
 

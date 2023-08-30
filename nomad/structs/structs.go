@@ -10610,6 +10610,9 @@ func (a *Allocation) GetCreateIndex() uint64 {
 // ReservedCores returns the union of reserved cores across tasks in this alloc.
 func (a *Allocation) ReservedCores() *idset.Set[idset.CoreID] {
 	s := idset.Empty[idset.CoreID]()
+	if a == nil || a.AllocatedResources == nil {
+		return s
+	}
 	for _, taskResources := range a.AllocatedResources.Tasks {
 		if len(taskResources.Cpu.ReservedCores) > 0 {
 			for _, core := range taskResources.Cpu.ReservedCores {
