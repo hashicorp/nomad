@@ -1,3 +1,0 @@
-```release-note:improvement
-services: Include response body in output for successful HTTP checks when using Nomad native service discovery
-```

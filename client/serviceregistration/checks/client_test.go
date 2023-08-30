@@ -143,7 +143,7 @@ func TestChecker_Do_HTTP(t *testing.T) {
 			structs.Healthiness,
 			structs.CheckSuccess,
 			http.StatusOK,
-			"200 ok",
+			"nomad: http ok",
 		),
 	}, {
 		name: "200 readiness",
@@ -153,7 +153,7 @@ func TestChecker_Do_HTTP(t *testing.T) {
 			structs.Readiness,
 			structs.CheckSuccess,
 			http.StatusOK,
-			"200 ok",
+			"nomad: http ok",
 		),
 	}, {
 		name: "500 healthiness",
@@ -203,7 +203,7 @@ func TestChecker_Do_HTTP(t *testing.T) {
 			structs.Healthiness,
 			structs.CheckSuccess,
 			http.StatusOK,
-			"200 ok",
+			"nomad: http ok",
 		),
 	}}
 
