@@ -1560,6 +1560,8 @@ func TestDockerDriver_Init(t *testing.T) {
 }
 
 func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	// The cpuset_cpus config option is ignored starting in Nomad 1.6
+
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 	testutil.CgroupsCompatible(t)
@@ -1570,15 +1572,15 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 	}{
 		{
 			Name:       "Single CPU",
-			CPUSetCPUs: "0",
+			CPUSetCPUs: "",
 		},
 		{
 			Name:       "Comma separated list of CPUs",
-			CPUSetCPUs: "0,1",
+			CPUSetCPUs: "",
 		},
 		{
 			Name:       "Range of CPUs",
-			CPUSetCPUs: "0-1",
+			CPUSetCPUs: "",
 		},
 	}
 
@@ -1587,16 +1589,16 @@ func TestDockerDriver_CPUSetCPUs(t *testing.T) {
 			task, cfg, _ := dockerTask(t)
 
 			cfg.CPUSetCPUs = testCase.CPUSetCPUs
-			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+			must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 			client, d, handle, cleanup := dockerSetup(t, task, nil)
 			defer cleanup()
-			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+			must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 			container, err := client.InspectContainer(handle.containerID)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.Equal(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
+			must.Eq(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
 		})
 	}
 }
