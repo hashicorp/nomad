@@ -15,6 +15,10 @@ import (
 )
 
 func detect() Mode {
+	if os.Geteuid() > 0 {
+		return OFF
+	}
+
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return OFF
@@ -22,6 +26,7 @@ func detect() Mode {
 	defer func() {
 		_ = f.Close()
 	}()
+
 	return scan(f)
 }
 

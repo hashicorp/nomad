@@ -13,6 +13,12 @@ import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 )
 
+// GetPartition creates a Partition suitable for managing cores on this
+// Linux system.
+func GetPartition(cores *idset.Set[idset.CoreID]) Partition {
+	return NewPartition(cores)
+}
+
 // NewPartition creates a cpuset partition manager for managing the books
 // when allocations are created and destroyed. The initial set of cores is
 // the usable set of cores by Nomad.
@@ -23,6 +29,8 @@ func NewPartition(cores *idset.Set[idset.CoreID]) Partition {
 	)
 
 	switch GetMode() {
+	case OFF:
+		return NoopPartition()
 	case CG1:
 		sharePath = filepath.Join(root, "cpuset", NomadCgroupParent, SharePartition(), "cpuset.cpus")
 		reservePath = filepath.Join(root, "cpuset", NomadCgroupParent, ReservePartition(), "cpuset.cpus")

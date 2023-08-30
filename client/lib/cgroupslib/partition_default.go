@@ -5,8 +5,7 @@
 
 package cgroupslib
 
-type noop struct{}
-
-func (p *noop) Reserve(*idset.Set[idset.CoreID]) {}
-
-func (p *noop) Release(*idset.Set[idset.CoreID]) {}
+// GetPartition creates a no-op Partition that does not do anything.
+func GetPartition(*idset.Set[idset.CoreID]) Partition {
+	return NoopPartition()
+}

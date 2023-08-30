@@ -469,8 +469,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.topology = numalib.NoImpl(ir.Topology)
 	}
 
-	// TODO what to do about default usable cores?
-	c.partitions = cgroupslib.NewPartition(
+	// Create the cpu core partition manager
+	c.partitions = cgroupslib.GetPartition(
 		c.topology.UsableCores(),
 	)
 
