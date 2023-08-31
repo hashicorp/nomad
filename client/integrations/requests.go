@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package integrations
 
 // RenewalRequest is a request object for renewal of both tokens and secret's
