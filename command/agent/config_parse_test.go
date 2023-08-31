@@ -307,6 +307,7 @@ var basicConfig = &Config{
 		TLSSkipVerify:        &trueValue,
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
+		UseIdentity:          pointer.Of(true),
 	},
 	Vaults: map[string]*config.VaultConfig{
 		"default": {
@@ -324,6 +325,7 @@ var basicConfig = &Config{
 			TLSSkipVerify:        &trueValue,
 			TaskTokenTTL:         "1s",
 			Token:                "12345",
+			UseIdentity:          pointer.Of(true),
 		},
 	},
 	TLSConfig: &config.TLSConfig{

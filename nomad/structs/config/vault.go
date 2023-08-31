@@ -83,6 +83,13 @@ type VaultConfig struct {
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
 	TLSServerName string `mapstructure:"tls_server_name"`
+
+	// UseIdentity defines if workload identity JWTs should be used to derive
+	// Vault tokens.
+	//
+	// It is a transitional field used only during the adoption period of
+	// workload identities and will be ignored and removed in future versions.
+	UseIdentity *bool `mapstructure:"use_identity"`
 }
 
 // DefaultVaultConfig returns the canonical defaults for the Nomad
@@ -93,6 +100,7 @@ func DefaultVaultConfig() *VaultConfig {
 		Addr:                 "https://vault.service.consul:8200",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
+		UseIdentity:          pointer.Of(false),
 	}
 }
 
@@ -156,6 +164,8 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
 	}
+
+	result.UseIdentity = pointer.Merge(result.UseIdentity, b.UseIdentity)
 
 	return &result
 }
@@ -263,6 +273,10 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 	}
 
 	if c.TLSServerName != b.TLSServerName {
+		return false
+	}
+
+	if !pointer.Eq(b.UseIdentity, c.UseIdentity) {
 		return false
 	}
 

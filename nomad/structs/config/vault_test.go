@@ -29,6 +29,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(false),
 	}
 
 	c2 := &VaultConfig{
@@ -44,6 +45,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        nil,
 		TLSServerName:        "2",
+		UseIdentity:          pointer.Of(true),
 	}
 
 	e := &VaultConfig{
@@ -59,6 +61,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "2",
+		UseIdentity:          pointer.Of(true),
 	}
 
 	result := c1.Merge(c2)
@@ -85,6 +88,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(true),
 	}
 
 	c2 := &VaultConfig{
@@ -102,6 +106,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(true),
 	}
 
 	must.Equal(t, c1, c2)
@@ -121,6 +126,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(true),
 	}
 
 	c4 := &VaultConfig{
@@ -138,6 +144,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		UseIdentity:          pointer.Of(false),
 	}
 
 	must.NotEqual(t, c3, c4)

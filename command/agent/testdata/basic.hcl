@@ -271,6 +271,7 @@ vault {
   tls_server_name       = "foobar"
   tls_skip_verify       = true
   create_from_role      = "test_role"
+  use_identity          = true
 }
 
 tls {
