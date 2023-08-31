@@ -256,12 +256,12 @@ func (h *taskHandle) startCpusetFixer() {
 
 	cgroup := h.containerCgroup
 	if cgroup == "" {
-		// The api does not actually set this value, so we are left to compute
-		// it ourselves. Luckily this is documented,
+		// The api does not actually set this value, so we are left to compute it ourselves.
+		// Luckily this is documented,
 		// https://docs.docker.com/config/containers/runmetrics/#find-the-cgroup-for-a-given-container
 		switch cgroupslib.GetMode() {
 		case cgroupslib.CG1:
-			panic("todo")
+			cgroup = "/sys/fs/cgroup/cpuset/docker/" + h.containerID
 		default:
 			// systemd driver; not sure if we need to consider cgroupfs driver
 			cgroup = "/sys/fs/cgroup/system.slice/docker-" + h.containerID + ".scope"
