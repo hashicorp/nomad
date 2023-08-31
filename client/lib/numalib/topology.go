@@ -66,8 +66,8 @@ func (khz KHz) String() string {
 // in the future.
 type Topology struct {
 	NodeIDs   *idset.Set[hw.NodeID] `json:"node_ids"`
-	Distances SLIT                     `json:"distances"`
-	Cores     []Core                   `json:"cores"`
+	Distances SLIT                  `json:"distances"`
+	Cores     []Core                `json:"cores"`
 
 	// explicit overrides from client configuration
 	OverrideTotalCompute   MHz `json:"override_total_compute"`
@@ -80,11 +80,11 @@ type Core struct {
 	NodeID     hw.NodeID   `json:"node_id"`
 	SocketID   hw.SocketID `json:"socket_id"`
 	ID         hw.CoreID   `json:"id"`
-	Grade      CoreGrade      `json:"grade"`
-	Disable    bool           `json:"disable"`     // indicates whether Nomad must not use this core
-	BaseSpeed  MHz            `json:"base_speed"`  // cpuinfo_base_freq (primary choice)
-	MaxSpeed   MHz            `json:"max_speed"`   // cpuinfo_max_freq (second choice)
-	GuessSpeed MHz            `json:"guess_speed"` // best effort (fallback)
+	Grade      CoreGrade   `json:"grade"`
+	Disable    bool        `json:"disable"`     // indicates whether Nomad must not use this core
+	BaseSpeed  MHz         `json:"base_speed"`  // cpuinfo_base_freq (primary choice)
+	MaxSpeed   MHz         `json:"max_speed"`   // cpuinfo_max_freq (second choice)
+	GuessSpeed MHz         `json:"guess_speed"` // best effort (fallback)
 }
 
 func (c Core) String() string {
