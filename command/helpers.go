@@ -35,6 +35,14 @@ const (
 // maxLineLength is the maximum width of any line.
 const maxLineLength int = 78
 
+const (
+	BYTE = 1 << (10 * iota)
+	KILOBYTE
+	MEGABYTE
+	GIGABYTE
+	TERABYTE
+)
+
 // formatKV takes a set of strings and formats them into properly
 // aligned k = v pairs using the columnize library.
 func formatKV(in []string) string {
@@ -712,4 +720,33 @@ func loadFromStdin(testStdin io.Reader) (string, error) {
 		return "", fmt.Errorf("Failed to read stdin: %v", err)
 	}
 	return b.String(), nil
+}
+
+// ByteSize converts a number of bytes to a human readable string.
+func ByteSize(bytes uint64) string {
+	unit := ""
+	value := float64(bytes)
+
+	switch {
+	case bytes >= TERABYTE:
+		unit = "TB"
+		value = value / TERABYTE
+	case bytes >= GIGABYTE:
+		unit = "GB"
+		value = value / GIGABYTE
+	case bytes >= MEGABYTE:
+		unit = "MB"
+		value = value / MEGABYTE
+	case bytes >= KILOBYTE:
+		unit = "KB"
+		value = value / KILOBYTE
+	case bytes >= BYTE:
+		unit = "B"
+	case bytes == 0:
+		return "0"
+	}
+
+	result := strconv.FormatFloat(value, 'f', 1, 64)
+	result = strings.TrimSuffix(result, ".0")
+	return result + unit
 }

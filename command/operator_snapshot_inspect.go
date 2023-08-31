@@ -5,15 +5,50 @@ package command
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/snapshot"
+	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/raft"
 	"github.com/posener/complete"
 )
 
 type OperatorSnapshotInspectCommand struct {
 	Meta
+}
+
+type typeStats struct {
+	Name  string
+	Sum   int
+	Count int
+}
+
+// SnapshotInfo is used for passing snapshot stat
+// information between functions
+type SnapshotInfo struct {
+	Stats     map[nomad.SnapshotType]typeStats
+	TotalSize int
+}
+
+// countingReader helps keep track of the bytes we have read
+// when reading snapshots
+type countingReader struct {
+	wrappedReader io.Reader
+	read          int
+}
+
+func (r *countingReader) Read(p []byte) (n int, err error) {
+	n, err = r.wrappedReader.Read(p)
+	if err == nil {
+		r.read += n
+	}
+	return n, err
 }
 
 func (c *OperatorSnapshotInspectCommand) Help() string {
@@ -58,20 +93,119 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 	}
 	defer f.Close()
 
-	meta, err := snapshot.Verify(f)
+	meta, info, err := inspect(f)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error verifying snapshot: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error inspecting snapshot: %s", err))
 		return 1
 	}
-
-	output := []string{
+	stats := generateStats(info)
+	c.Ui.Output(formatListWithSpaces([]string{
+		fmt.Sprintf("Created|%s", extractTimeFromName(meta.ID)),
 		fmt.Sprintf("ID|%s", meta.ID),
-		fmt.Sprintf("Size|%d", meta.Size),
+		fmt.Sprintf("Size|%s", ByteSize(uint64(meta.Size))),
 		fmt.Sprintf("Index|%d", meta.Index),
 		fmt.Sprintf("Term|%d", meta.Term),
 		fmt.Sprintf("Version|%d", meta.Version),
+	}))
+	c.Ui.Output("")
+
+	output := []string{
+		"Type|Count|Size",
+		"----|-----|----",
 	}
+
+	for _, stat := range stats {
+		output = append(output, fmt.Sprintf("%s|%d|%s", stat.Name, stat.Count, ByteSize(uint64(stat.Sum))))
+	}
+	output = append(output, "----|-----|----")
+	output = append(output, fmt.Sprintf("Total|-|%s", ByteSize(uint64(info.TotalSize))))
 
 	c.Ui.Output(formatList(output))
 	return 0
+}
+
+func inspect(file io.Reader) (*raft.SnapshotMeta, *SnapshotInfo, error) {
+	info := &SnapshotInfo{
+		Stats:     make(map[nomad.SnapshotType]typeStats),
+		TotalSize: 0,
+	}
+
+	// w is closed by CopySnapshot
+	r, w := io.Pipe()
+	cr := &countingReader{wrappedReader: r}
+	errCh := make(chan error)
+	metaCh := make(chan *raft.SnapshotMeta)
+
+	go func() {
+		meta, err := snapshot.CopySnapshot(file, w)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to read snapshot: %w", err)
+		} else {
+			metaCh <- meta
+		}
+	}()
+
+	handler := func(header *nomad.SnapshotHeader, snapType nomad.SnapshotType, dec *codec.Decoder) error {
+		name := snapType.String()
+		stat := info.Stats[snapType]
+
+		if stat.Name == "" {
+			stat.Name = name
+		}
+
+		var val interface{}
+		err := dec.Decode(&val)
+		if err != nil {
+			return fmt.Errorf("failed to decode snapshot type %v, error %v", snapType, err)
+		}
+
+		size := cr.read - info.TotalSize
+		stat.Sum += size
+		stat.Count++
+		info.TotalSize = cr.read
+		info.Stats[snapType] = stat
+
+		return nil
+	}
+
+	nomad.ReadSnapshot(cr, handler)
+
+	select {
+	case err := <-errCh:
+		return nil, nil, err
+	case meta := <-metaCh:
+		return meta, info, nil
+	}
+}
+
+func generateStats(info *SnapshotInfo) []typeStats {
+	ss := make([]typeStats, 0, len(info.Stats))
+	for _, stat := range info.Stats {
+		ss = append(ss, stat)
+	}
+
+	// sort by Sum
+	sort.Slice(ss, func(i, j int) bool {
+		// sort alphabetically if size is equal
+		if ss[i].Sum == ss[j].Sum {
+			return ss[i].Name < ss[j].Name
+		}
+		return ss[i].Sum > ss[j].Sum
+	})
+
+	return ss
+}
+
+// Raft snapshot name is in format of <term>-<index>-<time-milliseconds>
+// we will extract the creation time
+func extractTimeFromName(snapshotName string) string {
+	parts := strings.Split(snapshotName, "-")
+	if len(parts) != 3 {
+		return ""
+	}
+	msec, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		return ""
+	}
+	return formatTime(time.UnixMilli(int64(msec)))
 }

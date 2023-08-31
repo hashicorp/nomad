@@ -70,6 +70,39 @@ const (
 	NamespaceSnapshot SnapshotType = 64
 )
 
+var snapshotTypeStrings = map[SnapshotType]string{
+	NodeSnapshot:                         "Node",
+	JobSnapshot:                          "Job",
+	IndexSnapshot:                        "Index",
+	EvalSnapshot:                         "Eval",
+	AllocSnapshot:                        "Alloc",
+	TimeTableSnapshot:                    "TimeTable",
+	PeriodicLaunchSnapshot:               "PeriodicLaunch",
+	JobSummarySnapshot:                   "JobSummary",
+	VaultAccessorSnapshot:                "VaultAccessor",
+	JobVersionSnapshot:                   "JobVersion",
+	DeploymentSnapshot:                   "Deployment",
+	ACLPolicySnapshot:                    "ACLPolicy",
+	ACLTokenSnapshot:                     "ACLToken",
+	SchedulerConfigSnapshot:              "SchedulerConfig",
+	ClusterMetadataSnapshot:              "ClusterMetadata",
+	ServiceIdentityTokenAccessorSnapshot: "ServiceIdentityTokenAccessor",
+	ScalingPolicySnapshot:                "ScalingPolicy",
+	CSIPluginSnapshot:                    "CSIPlugin",
+	CSIVolumeSnapshot:                    "CSIVolume",
+	ScalingEventsSnapshot:                "ScalingEvents",
+	EventSinkSnapshot:                    "EventSink",
+	ServiceRegistrationSnapshot:          "ServiceRegistration",
+	VariablesSnapshot:                    "Variables",
+	VariablesQuotaSnapshot:               "VariablesQuota",
+	RootKeyMetaSnapshot:                  "RootKeyMeta",
+	ACLRoleSnapshot:                      "ACLRole",
+	ACLAuthMethodSnapshot:                "ACLAuthMethod",
+	ACLBindingRuleSnapshot:               "ACLBindingRule",
+	NodePoolSnapshot:                     "NodePool",
+	NamespaceSnapshot:                    "Namespace",
+}
+
 // LogApplier is the definition of a function that can apply a Raft log
 type LogApplier func(buf []byte, index uint64) interface{}
 
@@ -119,8 +152,8 @@ type nomadSnapshot struct {
 	timetable *TimeTable
 }
 
-// snapshotHeader is the first entry in our snapshot
-type snapshotHeader struct {
+// SnapshotHeader is the first entry in our snapshot
+type SnapshotHeader struct {
 }
 
 // FSMConfig is used to configure the FSM
@@ -1535,7 +1568,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 	dec := codec.NewDecoder(old, structs.MsgpackHandle)
 
 	// Read in the header
-	var header snapshotHeader
+	var header SnapshotHeader
 	if err := dec.Decode(&header); err != nil {
 		return err
 	}
@@ -2320,7 +2353,7 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	encoder := codec.NewEncoder(sink, structs.MsgpackHandle)
 
 	// Write the header
-	header := snapshotHeader{}
+	header := SnapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
 		sink.Cancel()
 		return err
@@ -3170,3 +3203,44 @@ func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *
 // to the state store snapshot. There is nothing to explicitly
 // cleanup.
 func (s *nomadSnapshot) Release() {}
+
+// ReadSnapshot decodes each message type and utilizes the handler function to
+// process each message type individually
+func ReadSnapshot(r io.Reader, handler func(header *SnapshotHeader, snapType SnapshotType, dec *codec.Decoder) error) error {
+	// Create a decoder
+	dec := codec.NewDecoder(r, structs.MsgpackHandle)
+
+	// Read in the header
+	var header SnapshotHeader
+	if err := dec.Decode(&header); err != nil {
+		return err
+	}
+
+	// Populate the new state
+	msgType := make([]byte, 1)
+	for {
+		// Read the message type
+		_, err := r.Read(msgType)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		// Decode
+		snapType := SnapshotType(msgType[0])
+
+		if err := handler(&header, snapType, dec); err != nil {
+			return err
+		}
+	}
+}
+
+func (s SnapshotType) String() string {
+	v, ok := snapshotTypeStrings[s]
+	if ok {
+		return v
+	}
+	// TODO: any enterprise snapshot types?
+	return "others"
+}
