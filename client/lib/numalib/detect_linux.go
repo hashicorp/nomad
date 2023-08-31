@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 )
 
 // PlatformScanners returns the set of SystemScanner for Linux.
@@ -59,7 +60,7 @@ func (*Sysfs) available() bool {
 }
 
 func (*Sysfs) discoverOnline(st *Topology) {
-	ids, err := getIDSet[NodeID](nodeOnline)
+	ids, err := getIDSet[hwids.NodeID](nodeOnline)
 	if err == nil {
 		st.NodeIDs = ids
 	}
@@ -72,7 +73,7 @@ func (*Sysfs) discoverCosts(st *Topology) {
 		st.Distances[i] = make([]Cost, dimension)
 	}
 
-	_ = st.NodeIDs.ForEach(func(id NodeID) error {
+	_ = st.NodeIDs.ForEach(func(id hwids.NodeID) error {
 		s, err := getString(distanceFile, id)
 		if err != nil {
 			return err
@@ -87,25 +88,25 @@ func (*Sysfs) discoverCosts(st *Topology) {
 }
 
 func (*Sysfs) discoverCores(st *Topology) {
-	onlineCores, err := getIDSet[idset.CoreID](cpuOnline)
+	onlineCores, err := getIDSet[hwids.CoreID](cpuOnline)
 	if err != nil {
 		return
 	}
 	st.Cores = make([]Core, onlineCores.Size())
 
-	_ = st.NodeIDs.ForEach(func(node NodeID) error {
+	_ = st.NodeIDs.ForEach(func(node hwids.NodeID) error {
 		s, err := os.ReadFile(fmt.Sprintf(cpulistFile, node))
 		if err != nil {
 			return err
 		}
 
-		cores := idset.Parse[idset.CoreID](string(s))
-		_ = cores.ForEach(func(core idset.CoreID) error {
+		cores := idset.Parse[hwids.CoreID](string(s))
+		_ = cores.ForEach(func(core hwids.CoreID) error {
 			// best effort, zero values are defaults
-			socket, _ := getNumeric[SocketID](cpuSocketFile, core)
+			socket, _ := getNumeric[hwids.SocketID](cpuSocketFile, core)
 			max, _ := getNumeric[KHz](cpuMaxFile, core)
 			base, _ := getNumeric[KHz](cpuBaseFile, core)
-			siblings, _ := getIDSet[idset.CoreID](cpuSiblingFile, core)
+			siblings, _ := getIDSet[hwids.CoreID](cpuSiblingFile, core)
 			st.insert(node, socket, core, gradeOf(siblings), max, base)
 			return nil
 		})
@@ -182,7 +183,7 @@ func (s *Cgroups2) ScanSystem(top *Topology) {
 
 // combine scanCgroups
 func scanIDs(top *Topology, content string) {
-	ids := idset.Parse[idset.CoreID](content)
+	ids := idset.Parse[hwids.CoreID](content)
 	for _, cpu := range top.Cores {
 		if !ids.Contains(cpu.ID) {
 			cpu.Disable = true

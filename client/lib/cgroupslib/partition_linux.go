@@ -11,18 +11,19 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 )
 
 // GetPartition creates a Partition suitable for managing cores on this
 // Linux system.
-func GetPartition(cores *idset.Set[idset.CoreID]) Partition {
+func GetPartition(cores *idset.Set[hwids.CoreID]) Partition {
 	return NewPartition(cores)
 }
 
 // NewPartition creates a cpuset partition manager for managing the books
 // when allocations are created and destroyed. The initial set of cores is
 // the usable set of cores by Nomad.
-func NewPartition(cores *idset.Set[idset.CoreID]) Partition {
+func NewPartition(cores *idset.Set[hwids.CoreID]) Partition {
 	var (
 		sharePath   string
 		reservePath string
@@ -43,7 +44,7 @@ func NewPartition(cores *idset.Set[idset.CoreID]) Partition {
 		sharePath:   sharePath,
 		reservePath: reservePath,
 		share:       cores.Copy(),
-		reserve:     idset.Empty[idset.CoreID](),
+		reserve:     idset.Empty[hwids.CoreID](),
 	}
 }
 
@@ -52,11 +53,11 @@ type partition struct {
 	reservePath string
 
 	lock    sync.Mutex
-	share   *idset.Set[idset.CoreID]
-	reserve *idset.Set[idset.CoreID]
+	share   *idset.Set[hwids.CoreID]
+	reserve *idset.Set[hwids.CoreID]
 }
 
-func (p *partition) Restore(cores *idset.Set[idset.CoreID]) {
+func (p *partition) Restore(cores *idset.Set[hwids.CoreID]) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -64,7 +65,7 @@ func (p *partition) Restore(cores *idset.Set[idset.CoreID]) {
 	p.reserve.InsertSet(cores)
 }
 
-func (p *partition) Reserve(cores *idset.Set[idset.CoreID]) error {
+func (p *partition) Reserve(cores *idset.Set[hwids.CoreID]) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -74,7 +75,7 @@ func (p *partition) Reserve(cores *idset.Set[idset.CoreID]) error {
 	return p.write()
 }
 
-func (p *partition) Release(cores *idset.Set[idset.CoreID]) error {
+func (p *partition) Release(cores *idset.Set[hwids.CoreID]) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 

@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -10608,15 +10609,15 @@ func (a *Allocation) GetCreateIndex() uint64 {
 }
 
 // ReservedCores returns the union of reserved cores across tasks in this alloc.
-func (a *Allocation) ReservedCores() *idset.Set[idset.CoreID] {
-	s := idset.Empty[idset.CoreID]()
+func (a *Allocation) ReservedCores() *idset.Set[hwids.CoreID] {
+	s := idset.Empty[hwids.CoreID]()
 	if a == nil || a.AllocatedResources == nil {
 		return s
 	}
 	for _, taskResources := range a.AllocatedResources.Tasks {
 		if len(taskResources.Cpu.ReservedCores) > 0 {
 			for _, core := range taskResources.Cpu.ReservedCores {
-				s.Insert(idset.CoreID(core))
+				s.Insert(hwids.CoreID(core))
 			}
 		}
 	}

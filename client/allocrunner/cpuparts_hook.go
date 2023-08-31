@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,7 +25,7 @@ type cpuPartsHook struct {
 	logger  hclog.Logger
 	allocID string
 
-	reservations *idset.Set[idset.CoreID]
+	reservations *idset.Set[hwids.CoreID]
 	partitions   cgroupslib.Partition
 }
 

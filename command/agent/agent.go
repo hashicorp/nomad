@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
@@ -804,13 +805,13 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	// In either case we will compute the partitioning and have it enforced by
 	// cgroups (on linux). In -dev mode we let nomad use 2 cores.
 	if agentConfig.Client.ReservableCores != "" {
-		cores := idset.Parse[idset.CoreID](agentConfig.Client.ReservableCores)
+		cores := idset.Parse[hwids.CoreID](agentConfig.Client.ReservableCores)
 		conf.ReservableCores = cores.Slice()
 	} else if agentConfig.Client.Reserved.Cores != "" {
-		cores := idset.Parse[idset.CoreID](agentConfig.Client.Reserved.Cores)
+		cores := idset.Parse[hwids.CoreID](agentConfig.Client.Reserved.Cores)
 		res.Cpu.ReservedCpuCores = helper.ConvertSlice(
 			cores.Slice(),
-			func(id idset.CoreID) uint16 { return uint16(id) },
+			func(id hwids.CoreID) uint16 { return uint16(id) },
 		)
 	}
 

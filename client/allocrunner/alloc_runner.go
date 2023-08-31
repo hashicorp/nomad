@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -474,7 +475,7 @@ func (ar *allocRunner) Restore() error {
 // data for each task in the alloc
 func (ar *allocRunner) restoreCores(res *structs.AllocatedResources) {
 	for _, taskRes := range res.Tasks {
-		s := idset.From[idset.CoreID](taskRes.Cpu.ReservedCores)
+		s := idset.From[hwids.CoreID](taskRes.Cpu.ReservedCores)
 		ar.partitions.Restore(s)
 	}
 }

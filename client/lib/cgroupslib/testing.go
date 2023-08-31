@@ -7,23 +7,24 @@ import (
 	"sync"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 )
 
 // MockPartition creates an in-memory Partition manager backed by 8 fake cpu cores.
 func MockPartition() Partition {
 	return &mock{
-		share:   idset.From[idset.CoreID]([]idset.CoreID{0, 1, 2, 3, 4, 5, 6, 7}),
-		reserve: idset.Empty[idset.CoreID](),
+		share:   idset.From[hwids.CoreID]([]hwids.CoreID{0, 1, 2, 3, 4, 5, 6, 7}),
+		reserve: idset.Empty[hwids.CoreID](),
 	}
 }
 
 type mock struct {
 	lock    sync.Mutex
-	share   *idset.Set[idset.CoreID]
-	reserve *idset.Set[idset.CoreID]
+	share   *idset.Set[hwids.CoreID]
+	reserve *idset.Set[hwids.CoreID]
 }
 
-func (m *mock) Restore(cores *idset.Set[idset.CoreID]) {
+func (m *mock) Restore(cores *idset.Set[hwids.CoreID]) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -31,7 +32,7 @@ func (m *mock) Restore(cores *idset.Set[idset.CoreID]) {
 	m.reserve.InsertSet(cores)
 }
 
-func (m *mock) Reserve(cores *idset.Set[idset.CoreID]) error {
+func (m *mock) Reserve(cores *idset.Set[hwids.CoreID]) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -41,7 +42,7 @@ func (m *mock) Reserve(cores *idset.Set[idset.CoreID]) error {
 	return nil
 }
 
-func (m *mock) Release(cores *idset.Set[idset.CoreID]) error {
+func (m *mock) Release(cores *idset.Set[hwids.CoreID]) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

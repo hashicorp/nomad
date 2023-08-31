@@ -17,12 +17,11 @@ import (
 
 // An ID is representative of a non-negative identifier of something like
 // a CPU core ID, a NUMA node ID, etc.
+//
+// See the hwids package for typical use cases.
 type ID interface {
 	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uint
 }
-
-// A CoreID represents one vcpu core.
-type CoreID uint16
 
 // A Set contains some IDs.
 //

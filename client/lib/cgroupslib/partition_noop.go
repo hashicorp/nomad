@@ -5,6 +5,7 @@ package cgroupslib
 
 import (
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
 )
 
 func NoopPartition() Partition {
@@ -13,12 +14,12 @@ func NoopPartition() Partition {
 
 type noop struct{}
 
-func (p *noop) Reserve(*idset.Set[idset.CoreID]) error {
+func (p *noop) Reserve(*idset.Set[hwids.CoreID]) error {
 	return nil
 }
 
-func (p *noop) Release(*idset.Set[idset.CoreID]) error {
+func (p *noop) Release(*idset.Set[hwids.CoreID]) error {
 	return nil
 }
 
-func (p *noop) Restore(*idset.Set[idset.CoreID]) {}
+func (p *noop) Restore(*idset.Set[hwids.CoreID]) {}
