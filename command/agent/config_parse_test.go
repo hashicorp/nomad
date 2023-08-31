@@ -308,6 +308,11 @@ var basicConfig = &Config{
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
 		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &config.WorkloadIdentityConfig{
+			Audience: []string{"vault.io", "nomad.io"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
+		},
 	},
 	Vaults: map[string]*config.VaultConfig{
 		"default": {
@@ -326,6 +331,11 @@ var basicConfig = &Config{
 			TaskTokenTTL:         "1s",
 			Token:                "12345",
 			UseIdentity:          pointer.Of(true),
+			DefaultIdentity: &config.WorkloadIdentityConfig{
+				Audience: []string{"vault.io", "nomad.io"},
+				Env:      pointer.Of(false),
+				File:     pointer.Of(true),
+			},
 		},
 	},
 	TLSConfig: &config.TLSConfig{

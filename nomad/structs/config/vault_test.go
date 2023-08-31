@@ -30,6 +30,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 		UseIdentity:          pointer.Of(false),
+		DefaultIdentity:      nil,
 	}
 
 	c2 := &VaultConfig{
@@ -46,6 +47,11 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSSkipVerify:        nil,
 		TLSServerName:        "2",
 		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
+		},
 	}
 
 	e := &VaultConfig{
@@ -62,6 +68,11 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "2",
 		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
+		},
 	}
 
 	result := c1.Merge(c2)
@@ -89,6 +100,11 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
+		},
 	}
 
 	c2 := &VaultConfig{
@@ -107,6 +123,11 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
+		},
 	}
 
 	must.Equal(t, c1, c2)
@@ -127,6 +148,11 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.dev"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
+		},
 	}
 
 	c4 := &VaultConfig{
@@ -145,6 +171,11 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
 		UseIdentity:          pointer.Of(false),
+		DefaultIdentity: &WorkloadIdentityConfig{
+			Audience: []string{"vault.io"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
+		},
 	}
 
 	must.NotEqual(t, c3, c4)

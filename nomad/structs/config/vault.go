@@ -90,6 +90,10 @@ type VaultConfig struct {
 	// It is a transitional field used only during the adoption period of
 	// workload identities and will be ignored and removed in future versions.
 	UseIdentity *bool `mapstructure:"use_identity"`
+
+	// DefaultIdentity is the default workload identity configuration used when
+	// a job has a `vault` block but no `identity` named "vault".
+	DefaultIdentity *WorkloadIdentityConfig `mapstructure:"default_identity"`
 }
 
 // DefaultVaultConfig returns the canonical defaults for the Nomad
@@ -166,6 +170,13 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 
 	result.UseIdentity = pointer.Merge(result.UseIdentity, b.UseIdentity)
+
+	if result.DefaultIdentity == nil && b.DefaultIdentity != nil {
+		sID := *b.DefaultIdentity
+		result.DefaultIdentity = &sID
+	} else if b.DefaultIdentity != nil {
+		result.DefaultIdentity = result.DefaultIdentity.Merge(b.DefaultIdentity)
+	}
 
 	return &result
 }
@@ -277,6 +288,10 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 	}
 
 	if !pointer.Eq(b.UseIdentity, c.UseIdentity) {
+		return false
+	}
+
+	if !c.DefaultIdentity.Equal(b.DefaultIdentity) {
 		return false
 	}
 

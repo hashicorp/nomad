@@ -370,6 +370,9 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
 			return err
 		}
+
+		delete(m, "default_identity")
+
 		v := &config.VaultConfig{}
 		err := mapstructure.WeakDecode(m, v)
 		if err != nil {
@@ -382,6 +385,28 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			c.Vaults[v.Name] = exist.Merge(v)
 		} else {
 			c.Vaults[v.Name] = v
+		}
+
+		// Decode the default identity.
+		var listVal *ast.ObjectList
+		if ot, ok := obj.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
+		if o := listVal.Filter("default_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			defaultIdendityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, defaultIdendityBlock.Val); err != nil {
+				return err
+			}
+
+			var defaultIdendity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &defaultIdendity); err != nil {
+				return err
+			}
+			c.Vaults[v.Name].DefaultIdentity = &defaultIdendity
 		}
 	}
 
