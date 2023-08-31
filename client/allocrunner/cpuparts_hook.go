@@ -14,6 +14,12 @@ const (
 	cpuPartsHookName = "cpuparts_hook"
 )
 
+// cpuPartsHooks is responsible for managing cpuset partitioning on Linux
+// nodes. This mechanism works by segregating tasks that make use of "cpu" vs.
+// "cores" resources. Tasks that make use of "cpu" resource actually make use
+// of shared cores that have not been reserved. The scheduler ensures enough
+// cores on a node are not reserved such that all tasks have the minimum amount
+// of cpu bandwidth they requested.
 type cpuPartsHook struct {
 	logger  hclog.Logger
 	allocID string

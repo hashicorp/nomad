@@ -12,6 +12,9 @@ import (
 // build-tag specific. These are not the final representative values, just what
 // was set in agent configuration.
 type Configs struct {
-	Logger      hclog.Logger
+	Logger hclog.Logger
+
+	// UsableCores is the actual set of cpu cores Nomad is able and
+	// allowed to use.
 	UsableCores *idset.Set[idset.CoreID]
 }

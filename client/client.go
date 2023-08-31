@@ -476,7 +476,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// Create the process wranglers
 	wranglers := proclib.New(&proclib.Configs{
-		// Partitioning: nil,
 		UsableCores: c.topology.UsableCores(),
 		Logger:      c.logger.Named("proclib"),
 	})
