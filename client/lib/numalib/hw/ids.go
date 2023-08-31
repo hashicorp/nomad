@@ -1,11 +1,11 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-// Package hwids provides types for identifying hardware.
+// Package hw provides types for identifying hardware.
 //
 // This is a separate "leaf" package that is easy to import from many other
 // packages without creating circular imports.
-package hwids
+package hw
 
 type (
 	// A NodeID represents a NUMA node. There could be more than

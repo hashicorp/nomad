@@ -55,6 +55,6 @@ func (g *Generic) ScanSystem(top *Topology) {
 	for i := 0; i < count; i++ {
 		info := infos[0]
 		speed := KHz(MHz(info.Mhz) * 1000)
-		top.insert(nodeID, socketID, hwids.CoreID(i), performance, maxSpeed, speed)
+		top.insert(nodeID, socketID, hw.CoreID(i), performance, maxSpeed, speed)
 	}
 }

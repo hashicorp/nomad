@@ -5,14 +5,14 @@ package cgroupslib
 
 import (
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
 
 // A Partition is used to track reserved vs. shared cpu cores.
 type Partition interface {
-	Restore(*idset.Set[hwids.CoreID])
-	Reserve(*idset.Set[hwids.CoreID]) error
-	Release(*idset.Set[hwids.CoreID]) error
+	Restore(*idset.Set[hw.CoreID])
+	Reserve(*idset.Set[hw.CoreID]) error
+	Release(*idset.Set[hw.CoreID]) error
 }
 
 // SharePartition is the name of the cgroup containing cgroups for tasks

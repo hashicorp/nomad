@@ -5,7 +5,7 @@ package numalib
 
 import (
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
 
 // A SystemScanner represents one methodology of detecting CPU hardware on a
@@ -36,7 +36,7 @@ type ConfigScanner struct {
 	// Only meaningful on Linux, this value can be used to override the set of
 	// CPU core IDs we may make use of. Normally these are detected by reading
 	// Nomad parent cgroup cpuset interface file.
-	ReservableCores *idset.Set[hwids.CoreID]
+	ReservableCores *idset.Set[hw.CoreID]
 
 	// TotalCompute comes from client.cpu_total_compute.
 	//
@@ -50,7 +50,7 @@ type ConfigScanner struct {
 	// ReservedCores comes from client.reserved.cores.
 	//
 	// Used to withhold a set of cores from being used by Nomad for scheduling.
-	ReservedCores *idset.Set[hwids.CoreID]
+	ReservedCores *idset.Set[hw.CoreID]
 
 	// ReservedCompute comes from client.reserved.cpu.
 	//

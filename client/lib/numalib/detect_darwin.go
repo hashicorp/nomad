@@ -7,7 +7,7 @@ package numalib
 
 import (
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/shoenig/go-m1cpu"
 	"golang.org/x/sys/unix"
 )
@@ -50,7 +50,7 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 	eCoreSpeed := KHz(m1cpu.ECoreHz() / 1000)
 
 	top.Cores = make([]Core, pCoreCount+eCoreCount)
-	nthCore := hwids.CoreID(0)
+	nthCore := hw.CoreID(0)
 
 	for i := 0; i < pCoreCount; i++ {
 		top.insert(nodeID, socketID, nthCore, performance, maxSpeed, pCoreSpeed)
@@ -70,6 +70,6 @@ func (m *MacOS) scanLegacyX86(top *Topology) {
 
 	top.Cores = make([]Core, coreCount)
 	for i := 0; i < int(coreCount); i++ {
-		top.insert(nodeID, socketID, hwids.CoreID(i), performance, maxSpeed, coreSpeed)
+		top.insert(nodeID, socketID, hw.CoreID(i), performance, maxSpeed, coreSpeed)
 	}
 }

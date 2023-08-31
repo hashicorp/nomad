@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hwids"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/shoenig/test/must"
 )
 
@@ -22,13 +22,13 @@ func testPartition(t *testing.T) *partition {
 	return &partition{
 		sharePath:   shareFile,
 		reservePath: reserveFile,
-		share:       idset.From[hwids.CoreID]([]hwids.CoreID{10, 11, 12, 13, 14, 15, 16, 17, 18, 19}),
-		reserve:     idset.Empty[hwids.CoreID](),
+		share:       idset.From[hw.CoreID]([]hw.CoreID{10, 11, 12, 13, 14, 15, 16, 17, 18, 19}),
+		reserve:     idset.Empty[hw.CoreID](),
 	}
 }
 
-func coreset(ids ...hwids.CoreID) *idset.Set[hwids.CoreID] {
-	return idset.From[hwids.CoreID](ids)
+func coreset(ids ...hw.CoreID) *idset.Set[hw.CoreID] {
+	return idset.From[hw.CoreID](ids)
 }
 
 func TestPartition_Restore(t *testing.T) {
@@ -41,8 +41,8 @@ func TestPartition_Restore(t *testing.T) {
 	p.Restore(coreset(15, 16, 17))
 	p.Restore(coreset(10, 19))
 
-	expShare := idset.From[hwids.CoreID]([]hwids.CoreID{12, 14, 18})
-	expReserve := idset.From[hwids.CoreID]([]hwids.CoreID{11, 13, 15, 16, 17, 10, 19})
+	expShare := idset.From[hw.CoreID]([]hw.CoreID{12, 14, 18})
+	expReserve := idset.From[hw.CoreID]([]hw.CoreID{11, 13, 15, 16, 17, 10, 19})
 
 	must.Eq(t, expShare, p.share)
 	must.Eq(t, expReserve, p.reserve)
@@ -58,8 +58,8 @@ func TestPartition_Reserve(t *testing.T) {
 	p.Reserve(coreset(10, 15, 19))
 	p.Reserve(coreset(12, 13))
 
-	expShare := idset.From[hwids.CoreID]([]hwids.CoreID{11, 14, 16, 17, 18})
-	expReserve := idset.From[hwids.CoreID]([]hwids.CoreID{10, 12, 13, 15, 19})
+	expShare := idset.From[hw.CoreID]([]hw.CoreID{11, 14, 16, 17, 18})
+	expReserve := idset.From[hw.CoreID]([]hw.CoreID{10, 12, 13, 15, 19})
 
 	must.Eq(t, expShare, p.share)
 	must.Eq(t, expReserve, p.reserve)
