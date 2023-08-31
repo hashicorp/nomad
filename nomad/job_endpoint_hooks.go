@@ -307,13 +307,45 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			if s.Identity != nil && s.Identity.Name == "" {
-				multierror.Append(validationErrors, fmt.Errorf("service identity name cannot be empty"))
+			serviceWarn, serviceErr := v.validateServiceIdentity(s)
+			if serviceErr != nil {
+				multierror.Append(validationErrors, serviceErr)
+			}
+			if len(serviceWarn) > 0 {
+				warnings = append(warnings, serviceWarn...)
+			}
+		}
+
+		for _, t := range tg.Tasks {
+			for _, s := range t.Services {
+				serviceWarn, serviceErr := v.validateServiceIdentity(s)
+				if serviceErr != nil {
+					multierror.Append(validationErrors, serviceErr)
+				}
+				if len(serviceWarn) > 0 {
+					warnings = append(warnings, serviceWarn...)
+				}
 			}
 		}
 	}
 
 	return warnings, validationErrors.ErrorOrNil()
+}
+
+func (v *jobValidate) validateServiceIdentity(s *structs.Service) (warnings []error, err error) {
+	if s.Identity != nil {
+		if !v.srv.config.UseConsulIdentity() {
+			return nil, fmt.Errorf("service %s defines an identity but server configuration for consul.use_identity is not true", s.Name)
+		}
+
+		if s.Identity.Name == "" {
+			return nil, fmt.Errorf("identity for service %s has an empty name", s.Name)
+		}
+	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
+		return nil, fmt.Errorf("service %s does not have an identity and no default service identity is provided", s.Name)
+	}
+
+	return nil, nil
 }
 
 type memoryOversubscriptionValidate struct {
@@ -376,43 +408,4 @@ func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
 		return fmt.Errorf("job source size of %s exceeds maximum of %s and will be discarded", totalSizeHuman, maxSizeHuman)
 	}
 	return nil
-}
-
-// jobIdentityCreator adds implicit `identity` blocks for external services,
-// like Consul and Vault.
-type jobIdentityCreator struct {
-	srv *Server
-}
-
-func (jobIdentityCreator) Name() string {
-	return "identityBlockCreator"
-}
-
-func (jobIdentityCreator) Mutate(job *structs.Job) (*structs.Job, []error, error) {
-	for _, tg := range job.TaskGroups {
-		for _, s := range tg.Services {
-			if s.Provider != "consul" {
-				continue
-			}
-
-			identityName := fmt.Sprintf("consul-service/%s", s.Name)
-
-			// if there's an identity block present, overwrite its name and ServiceName, but
-			// keep the rest. Users can set custom aud, file and env properties to account
-			// for the specifics of their environments, but Name and ServiceName must always
-			// conform to a convention.
-			if s.Identity != nil {
-				s.Identity.Name = identityName
-				s.Identity.ServiceName = s.Name
-			} else {
-				s.Identity = &structs.WorkloadIdentity{
-					Name:        identityName,
-					Audience:    []string{"consul.io"},
-					ServiceName: s.Name,
-				}
-			}
-		}
-	}
-
-	return job, nil, nil
 }

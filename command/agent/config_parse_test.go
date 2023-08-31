@@ -236,15 +236,15 @@ var basicConfig = &Config{
 		Timeout:              5 * time.Second,
 		TimeoutHCL:           "5s",
 		UseIdentity:          &trueValue,
-		ServiceIdentity: &config.WorkloadIdentity{
+		ServiceIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io", "nomad.dev"},
-			Env:      false,
-			File:     true,
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
 		},
-		TemplateIdentity: &config.WorkloadIdentity{
+		TemplateIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
-			Env:      true,
-			File:     false,
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
 		},
 	},
 	Consuls: map[string]*config.ConsulConfig{
@@ -272,15 +272,15 @@ var basicConfig = &Config{
 			Timeout:              5 * time.Second,
 			TimeoutHCL:           "5s",
 			UseIdentity:          &trueValue,
-			ServiceIdentity: &config.WorkloadIdentity{
+			ServiceIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"consul.io", "nomad.dev"},
-				Env:      false,
-				File:     true,
+				Env:      pointer.Of(false),
+				File:     pointer.Of(true),
 			},
-			TemplateIdentity: &config.WorkloadIdentity{
+			TemplateIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
-				Env:      true,
-				File:     false,
+				Env:      pointer.Of(true),
+				File:     pointer.Of(false),
 			},
 		},
 	},
