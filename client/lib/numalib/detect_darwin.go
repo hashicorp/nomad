@@ -20,8 +20,8 @@ func PlatformScanners() []SystemScanner {
 }
 
 const (
-	nodeID   = NodeID(0)
-	socketID = SocketID(0)
+	nodeID   = hw.NodeID(0)
+	socketID = hw.SocketID(0)
 	maxSpeed = KHz(0)
 )
 
@@ -30,7 +30,7 @@ type MacOS struct{}
 
 func (m *MacOS) ScanSystem(top *Topology) {
 	// all apple hardware is non-numa; just assume as much
-	top.NodeIDs = idset.Empty[NodeID]()
+	top.NodeIDs = idset.Empty[hw.NodeID]()
 	top.NodeIDs.Insert(nodeID)
 
 	// arch specific detection

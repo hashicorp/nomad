@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build !linux && !darwin
+///go:build !linux && !darwin
 
 package numalib
 
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/shirou/gopsutil/v3/cpu"
 )
 
@@ -22,8 +23,8 @@ func PlatformScanners() []SystemScanner {
 }
 
 const (
-	nodeID   = NodeID(0)
-	socketID = SocketID(0)
+	nodeID   = hw.NodeID(0)
+	socketID = hw.SocketID(0)
 	maxSpeed = KHz(0)
 )
 
@@ -34,7 +35,7 @@ type Generic struct{}
 func (g *Generic) ScanSystem(top *Topology) {
 	// hardware may or may not be NUMA, but for now we only
 	// detect such topology on linux systems
-	top.NodeIDs = idset.Empty[NodeID]()
+	top.NodeIDs = idset.Empty[hw.NodeID]()
 	top.NodeIDs.Insert(nodeID)
 
 	// cores
