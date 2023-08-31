@@ -16,7 +16,7 @@ import (
 // Init will initialize the cgroup tree that the Nomad client will use for
 // isolating resources of tasks. cores is the cpuset granted for use by Nomad.
 func Init(log hclog.Logger, cores string) {
-	log.Info("INIT INIT", "cores", cores)
+	log.Info("initializing nomad cgroups", "cores", cores)
 
 	switch GetMode() {
 	case CG1:

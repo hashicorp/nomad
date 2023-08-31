@@ -128,8 +128,11 @@ func (s *Set[T]) RemoveSet(other *Set[T]) {
 // String creates a well-formed cpuset string representation of the Set.
 func (s *Set[T]) String() string {
 	if s.items.Empty() {
-		// use a space to indicate empty in cgroups
-		return " "
+		// cgroups notation uses a space (or newline) to indicate
+		// "empty"; and this value is written to cgroups interface
+		// files
+		const empty = " "
+		return empty
 	}
 
 	var parts []string
