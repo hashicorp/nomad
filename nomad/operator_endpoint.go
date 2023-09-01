@@ -258,7 +258,7 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 		return structs.ErrPermissionDenied
 	}
 
-	// Technically, this code will be running on the leader becuase of the RPC
+	// Technically, this code will be running on the leader because of the RPC
 	// forwarding, but a leadership change could happen at any moment while we're
 	// running. We need the leader's raft info to populate the response struct
 	// anyway, so we have a chance to check again here
@@ -274,7 +274,7 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 
 	// while this is a somewhat more expensive test than later ones, if this
 	// test fails, they will _never_ be able to do a transfer. We do this after
-	// ACL checks though, so as to not leak cluster info to unvalidated users.
+	// ACL checks though, so as to not leak cluster info to non-validated users.
 	minRaftProtocol, err := op.srv.MinRaftProtocol()
 	if err != nil {
 		reply.Err = err
@@ -412,7 +412,7 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 		return structs.ErrPermissionDenied
 	}
 
-	// All servers should be at or above 0.8.0 to apply this operatation
+	// All servers should be at or above 0.8.0 to apply this operation
 	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minAutopilotVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update autopilot config", minAutopilotVersion)
 	}
