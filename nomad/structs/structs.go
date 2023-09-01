@@ -7645,6 +7645,15 @@ func (t *Task) IsPoststop() bool {
 		t.Lifecycle.Hook == TaskLifecycleHookPoststop
 }
 
+func (t *Task) GetIdentity(name string) *WorkloadIdentity {
+	for _, wid := range t.Identities {
+		if wid.Name == name {
+			return wid
+		}
+	}
+	return nil
+}
+
 func (t *Task) Copy() *Task {
 	if t == nil {
 		return nil
@@ -10004,10 +10013,6 @@ func (v *Vault) Validate() error {
 	}
 
 	var mErr multierror.Error
-	if len(v.Policies) == 0 {
-		_ = multierror.Append(&mErr, fmt.Errorf("Policy list cannot be empty"))
-	}
-
 	for _, p := range v.Policies {
 		if p == "root" {
 			_ = multierror.Append(&mErr, fmt.Errorf("Can not specify \"root\" policy"))

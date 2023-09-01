@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -123,6 +124,155 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			} else {
 				must.Error(t, err)
 				must.ErrorContains(t, err, tc.expectedErr)
+			}
+		})
+	}
+}
+
+func Test_jobValidate_Validate_vault(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputTaskVault      *structs.Vault
+		inputTaskIdentities []*structs.WorkloadIdentity
+		inputConfig         *config.VaultConfig
+		expectedWarns       []string
+		expectedErr         string
+	}{
+		{
+			name: "no error when vault identity is not enabled and task does not have a vault identity",
+			inputTaskVault: &structs.Vault{
+				Policies: []string{"nomad-workload"},
+			},
+			inputTaskIdentities: nil,
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(false),
+			},
+		},
+		{
+			name:                "no error when vault identity is enabled and identity is provided via config",
+			inputTaskVault:      &structs.Vault{},
+			inputTaskIdentities: nil,
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(true),
+				DefaultIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"vault.io"},
+				},
+			},
+		},
+		{
+			name:           "no error when vault identity is enabled and identity is provided via task",
+			inputTaskVault: &structs.Vault{},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     vaultIdentityName,
+				Audience: []string{"vault.io"},
+			}},
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(true),
+			},
+		},
+		{
+			name:                "error when not using vault identity and vault block is missing policies",
+			inputTaskVault:      &structs.Vault{},
+			inputTaskIdentities: nil,
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(false),
+			},
+			expectedErr: "Vault block with an empty list of policies",
+		},
+		{
+			name:                "error when vault identity is enabled but no identity is provided",
+			inputTaskVault:      &structs.Vault{},
+			inputTaskIdentities: nil,
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(true),
+			},
+			expectedErr: "expected to have a Vault identity",
+		},
+		{
+			name: "warn when vault identity is enabled but task has vault policies",
+			inputTaskVault: &structs.Vault{
+				Policies: []string{"nomad-workload"},
+			},
+			inputTaskIdentities: nil,
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(true),
+				DefaultIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"vault.io"},
+				},
+			},
+			expectedWarns: []string{"policies will be ignored"},
+		},
+		{
+			name: "warn when vault identity is disabled but task has vault identity",
+			inputTaskVault: &structs.Vault{
+				Policies: []string{"nomad-workload"},
+			},
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     vaultIdentityName,
+				Audience: []string{"vault.io"},
+			}},
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(false),
+			},
+			expectedWarns: []string{
+				"has an identity called vault but server is not configured to use Vault identities",
+			},
+		},
+		{
+			name:           "warn when vault identity is provided but task does not have vault block",
+			inputTaskVault: nil,
+			inputTaskIdentities: []*structs.WorkloadIdentity{{
+				Name:     vaultIdentityName,
+				Audience: []string{"vault.io"},
+			}},
+			inputConfig: &config.VaultConfig{
+				UseIdentity: pointer.Of(true),
+			},
+			expectedWarns: []string{
+				"has an identity called vault but no vault block",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			impl := jobValidate{srv: &Server{
+				config: &Config{
+					JobMaxPriority: 100,
+					VaultConfig:    tc.inputConfig,
+				},
+			}}
+
+			job := mock.Job()
+			task := job.TaskGroups[0].Tasks[0]
+
+			task.Identities = tc.inputTaskIdentities
+			task.Vault = tc.inputTaskVault
+			if task.Vault != nil {
+				task.Vault.ChangeMode = structs.VaultChangeModeRestart
+			}
+
+			warns, err := impl.Validate(job)
+
+			if len(tc.expectedErr) == 0 {
+				must.NoError(t, err)
+			} else {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedErr)
+			}
+
+			must.Len(t, len(tc.expectedWarns), warns)
+			for _, exp := range tc.expectedWarns {
+				hasWarn := false
+				for _, w := range warns {
+					if strings.Contains(w.Error(), exp) {
+						hasWarn = true
+						break
+					}
+				}
+				must.True(t, hasWarn, must.Sprintf("expected %v to have warning with %q", warns, exp))
 			}
 		})
 	}

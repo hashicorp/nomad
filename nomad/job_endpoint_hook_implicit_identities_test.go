@@ -238,3 +238,157 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 		})
 	}
 }
+
+func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name              string
+		inputJob          *structs.Job
+		inputConfig       *Config
+		expectedOutputJob *structs.Job
+	}{
+		{
+			name: "no mutation when task does not have a vault block",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfig: &config.VaultConfig{
+					UseIdentity: pointer.Of(true),
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{}},
+				}},
+			},
+		},
+		{
+			name: "no mutation when vault identity is disabled",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfig: &config.VaultConfig{
+					UseIdentity: pointer.Of(false),
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+		},
+		{
+			name: "no mutation when vault identity is enabled but no default identity is configured",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfig: &config.VaultConfig{
+					UseIdentity: pointer.Of(true),
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+		},
+		{
+			name: "no mutation when task has vault identity",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Identities: []*structs.WorkloadIdentity{{
+							Name:     "vault",
+							Audience: []string{"vault.io"},
+						}},
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfig: &config.VaultConfig{
+					UseIdentity: pointer.Of(true),
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Identities: []*structs.WorkloadIdentity{{
+							Name:     "vault",
+							Audience: []string{"vault.io"},
+						}},
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+		},
+		{
+			name: "mutate when task does not have a vault idenity",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				VaultConfig: &config.VaultConfig{
+					UseIdentity: pointer.Of(true),
+					DefaultIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"vault.io"},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Identities: []*structs.WorkloadIdentity{{
+							Name:     "vault",
+							Audience: []string{"vault.io"},
+						}},
+						Vault: &structs.Vault{},
+					}},
+				}},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			impl := jobImplicitIdentitiesHook{srv: &Server{
+				config: tc.inputConfig,
+			}}
+			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
+			must.Eq(t, tc.expectedOutputJob, actualJob)
+			must.NoError(t, actualError)
+			must.Nil(t, actualWarnings)
+		})
+	}
+}

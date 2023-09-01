@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/dustin/go-humanize"
@@ -326,6 +327,10 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 					warnings = append(warnings, serviceWarn...)
 				}
 			}
+
+			vaultWarns, vaultErrs := v.validateVaultIdentity(t)
+			multierror.Append(validationErrors, vaultErrs)
+			warnings = append(warnings, vaultWarns...)
 		}
 	}
 
@@ -346,6 +351,49 @@ func (v *jobValidate) validateServiceIdentity(s *structs.Service) (warnings []er
 	}
 
 	return nil, nil
+}
+
+func (v *jobValidate) validateVaultIdentity(t *structs.Task) (warnings []error, err error) {
+	var mErr *multierror.Error
+
+	// Prefix errors and warnings.
+	defer func() {
+		prefix := fmt.Sprintf("Task %s", t.Name)
+		for i, w := range warnings {
+			warnings[i] = fmt.Errorf("%s %s", prefix, w)
+		}
+		err = multierror.Prefix(mErr, prefix)
+	}()
+
+	hasVault := t.Vault != nil
+	hasTaskWID := t.GetIdentity(vaultIdentityName) != nil
+	hasDefaultWID := v.srv.config.VaultDefaultIdentity() != nil
+
+	useIdentity := hasVault && v.srv.config.UseVaultIdentity()
+	hasWID := hasTaskWID || hasDefaultWID
+
+	if useIdentity {
+		if !hasWID {
+			mErr = multierror.Append(mErr, fmt.Errorf("expected to have a Vault identity, add an identity block called %s or provide a default using the default_identity block in the server Vault configuration", vaultIdentityName))
+		}
+
+		if len(t.Vault.Policies) > 0 {
+			warnings = append(warnings, errors.New("has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored"))
+		}
+	} else if hasVault && len(t.Vault.Policies) == 0 {
+		mErr = multierror.Append(mErr, errors.New("has a Vault block with an empty list of policies"))
+	}
+
+	if hasTaskWID {
+		if !v.srv.config.UseVaultIdentity() {
+			warnings = append(warnings, fmt.Errorf("has an identity called %s but server is not configured to use Vault identities, set use_identity to true in the Vault server configuration", vaultIdentityName))
+		}
+		if !hasVault {
+			warnings = append(warnings, fmt.Errorf("has an identity called %s but no vault block", vaultIdentityName))
+		}
+	}
+
+	return
 }
 
 type memoryOversubscriptionValidate struct {

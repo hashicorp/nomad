@@ -6191,15 +6191,9 @@ func TestVault_Validate(t *testing.T) {
 
 	v := &Vault{
 		Env:        true,
-		ChangeMode: VaultChangeModeNoop,
+		ChangeMode: VaultChangeModeSignal,
+		Policies:   []string{"foo", "root"},
 	}
-
-	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "Policy list") {
-		t.Fatalf("Expected policy list empty error")
-	}
-
-	v.Policies = []string{"foo", "root"}
-	v.ChangeMode = VaultChangeModeSignal
 
 	err := v.Validate()
 	if err == nil {
