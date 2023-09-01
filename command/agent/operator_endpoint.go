@@ -112,22 +112,19 @@ func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, re
 
 	// There are some items that we can parse for here that are more unwieldy in
 	// the Validate() func on the RPC request object, like repeated query params.
-	if hasID {
-		if len(id) > 1 {
-			return nil, CodedError(http.StatusBadRequest, "must specify only one id")
-		}
-		if id[0] == "" {
-			return nil, CodedError(http.StatusBadRequest, "id must be non-empty")
-		}
-	} else if hasAddress {
-		if len(addr) > 1 {
-			return nil, CodedError(http.StatusBadRequest, "must specify only one address")
-		}
-		if addr[0] == "" {
-			return nil, CodedError(http.StatusBadRequest, "address must be non-empty")
-		}
-	} else {
+	switch {
+	case !hasID && !hasAddress:
 		return nil, CodedError(http.StatusBadRequest, "must specify id or address")
+	case hasID && hasAddress:
+		return nil, CodedError(http.StatusBadRequest, "must specify either id or address")
+	case hasID && id[0] == "":
+		return nil, CodedError(http.StatusBadRequest, "id must be non-empty")
+	case hasID && len(id) > 1:
+		return nil, CodedError(http.StatusBadRequest, "must specify only one id")
+	case hasAddress && addr[0] == "":
+		return nil, CodedError(http.StatusBadRequest, "address must be non-empty")
+	case hasAddress && len(addr) > 1:
+		return nil, CodedError(http.StatusBadRequest, "must specify only one address")
 	}
 
 	var reply api.LeadershipTransferResponse
