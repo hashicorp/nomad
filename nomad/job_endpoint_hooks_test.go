@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -20,14 +21,14 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name         string
-		inputService *structs.Service
-		inputConfig  *Config
-		expectedWarn []error
-		expectedErr  string
+		name          string
+		inputService  *structs.Service
+		inputConfig   *Config
+		expectedWarns []string
+		expectedErr   string
 	}{
 		{
-			name: "no error when consul identity not enabled and services does not have an identity",
+			name: "no error when consul identity is not enabled and service does not have an identity",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
@@ -39,7 +40,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "no error when consul identity is enabled and default service identity is provided",
+			name: "no error when consul identity is enabled and identity is provided via server config",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
@@ -54,7 +55,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "no error when consul identity is enabled and service has a proper identity",
+			name: "no error when consul identity is enabled and identity is provided via service",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
@@ -73,11 +74,12 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "error when service defines identity but consul identity is disabled",
+			name: "error when consul identity is disabled and service has identity",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
+					Name:     fmt.Sprintf("%s/web", consulServiceIdentityNamePrefix),
 					Audience: []string{"consul.io", "nomad.dev"},
 					File:     true,
 					Env:      false,
@@ -88,10 +90,10 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					UseIdentity: pointer.Of(false),
 				},
 			},
-			expectedErr: "server configuration for consul.use_identity is not true",
+			expectedErr: "defines an identity but server is not configured to use Consul identities",
 		},
 		{
-			name: "error when service does not define identity and consul identity is enabled but no default is provided",
+			name: "error when consul identity is enabled but no service identity is provided",
 			inputService: &structs.Service{
 				Provider: "consul",
 				Name:     "web",
@@ -101,7 +103,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					UseIdentity: pointer.Of(true),
 				},
 			},
-			expectedErr: "no default service identity is provided",
+			expectedErr: "expected to have an identity",
 		},
 	}
 
@@ -116,14 +118,24 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			job.TaskGroups[0].Services = []*structs.Service{tc.inputService}
 			job.TaskGroups[0].Tasks[0].Services = []*structs.Service{tc.inputService}
 
-			warn, err := impl.Validate(job)
-			must.Eq(t, tc.expectedWarn, warn)
+			warns, err := impl.Validate(job)
 
 			if len(tc.expectedErr) == 0 {
 				must.NoError(t, err)
 			} else {
 				must.Error(t, err)
 				must.ErrorContains(t, err, tc.expectedErr)
+			}
+
+			for _, exp := range tc.expectedWarns {
+				hasWarn := false
+				for _, w := range warns {
+					if strings.Contains(w.Error(), exp) {
+						hasWarn = true
+						break
+					}
+				}
+				must.True(t, hasWarn, must.Sprintf("expected %v to have warning with %q", warns, exp))
 			}
 		})
 	}

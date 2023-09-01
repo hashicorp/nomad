@@ -308,24 +308,16 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			serviceWarn, serviceErr := v.validateServiceIdentity(s)
-			if serviceErr != nil {
-				multierror.Append(validationErrors, serviceErr)
-			}
-			if len(serviceWarn) > 0 {
-				warnings = append(warnings, serviceWarn...)
-			}
+			serviceWarns, serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task group %s", tg.Name))
+			multierror.Append(validationErrors, serviceErrs)
+			warnings = append(warnings, serviceWarns...)
 		}
 
 		for _, t := range tg.Tasks {
 			for _, s := range t.Services {
-				serviceWarn, serviceErr := v.validateServiceIdentity(s)
-				if serviceErr != nil {
-					multierror.Append(validationErrors, serviceErr)
-				}
-				if len(serviceWarn) > 0 {
-					warnings = append(warnings, serviceWarn...)
-				}
+				serviceWarns, serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task %s", t.Name))
+				multierror.Append(validationErrors, serviceErrs)
+				warnings = append(warnings, serviceWarns...)
 			}
 
 			vaultWarns, vaultErrs := v.validateVaultIdentity(t)
@@ -337,20 +329,31 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	return warnings, validationErrors.ErrorOrNil()
 }
 
-func (v *jobValidate) validateServiceIdentity(s *structs.Service) (warnings []error, err error) {
+func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) (warnings []error, err error) {
+	var mErr *multierror.Error
+
+	// Prefix errors and warnings.
+	defer func() {
+		prefix := fmt.Sprintf("Service %s in %s", s.Name, parent)
+		for i, w := range warnings {
+			warnings[i] = fmt.Errorf("%s %s", prefix, w)
+		}
+		err = multierror.Prefix(mErr, prefix)
+	}()
+
 	if s.Identity != nil {
 		if !v.srv.config.UseConsulIdentity() {
-			return nil, fmt.Errorf("service %s defines an identity but server configuration for consul.use_identity is not true", s.Name)
+			mErr = multierror.Append(mErr, errors.New("defines an identity but server is not configured to use Consul identities, set use_identity to true in the Consul server configuration"))
 		}
 
 		if s.Identity.Name == "" {
-			return nil, fmt.Errorf("identity for service %s has an empty name", s.Name)
+			mErr = multierror.Append(mErr, errors.New("has an identity with an empty name"))
 		}
 	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
-		return nil, fmt.Errorf("service %s does not have an identity and no default service identity is provided", s.Name)
+		mErr = multierror.Append(mErr, errors.New("expected to have an identity, add an identity block to the service or provide a default using the service_identity block in the server Consul configuration"))
 	}
 
-	return nil, nil
+	return
 }
 
 func (v *jobValidate) validateVaultIdentity(t *structs.Task) (warnings []error, err error) {
