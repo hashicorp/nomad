@@ -72,7 +72,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	}
 
 	// Fill out the reply.
-	leader := op.srv.raft.Leader()
+	leader, _ := op.srv.raft.LeaderWithID()
 	reply.Index = future.Index()
 	for _, server := range future.Configuration().Servers {
 		node := "(unknown)"

@@ -912,7 +912,7 @@ func (s *Server) setupBootstrapHandler() error {
 	// correct number of servers required for quorum are present).
 	bootstrapFn := func() error {
 		// If there is a raft leader, do nothing
-		if s.raft.Leader() != "" {
+		if leader, _ := s.raft.LeaderWithID(); leader != "" {
 			peersTimeout.Reset(maxStaleLeadership)
 			return nil
 		}
@@ -1935,11 +1935,12 @@ func (s *Server) Stats() map[string]map[string]string {
 	toString := func(v uint64) string {
 		return strconv.FormatUint(v, 10)
 	}
+	leader, _ := s.raft.LeaderWithID()
 	stats := map[string]map[string]string{
 		"nomad": {
 			"server":        "true",
 			"leader":        fmt.Sprintf("%v", s.IsLeader()),
-			"leader_addr":   string(s.raft.Leader()),
+			"leader_addr":   string(leader),
 			"bootstrap":     fmt.Sprintf("%v", s.isSingleServerCluster()),
 			"known_regions": toString(uint64(len(s.peers))),
 		},

@@ -622,7 +622,7 @@ func (s *Server) getLeader() (bool, *serverParts) {
 	}
 
 	// Get the leader
-	leader := s.raft.Leader()
+	leader, _ := s.raft.LeaderWithID()
 	if leader == "" {
 		return false, nil
 	}
@@ -790,7 +790,8 @@ func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
 		m.KnownLeader = true
 	} else {
 		m.LastContact = time.Since(r.raft.LastContact())
-		m.KnownLeader = (r.raft.Leader() != "")
+		leaderAddr, _ := r.raft.LeaderWithID()
+		m.KnownLeader = (leaderAddr != "")
 	}
 }
 
