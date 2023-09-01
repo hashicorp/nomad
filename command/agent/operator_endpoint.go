@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -139,12 +138,6 @@ func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, re
 		args.ID = raft.ServerID(id[0])
 	} else {
 		args.Address = raft.ServerAddress(addr[0])
-		if args.Address == "" {
-			return nil, CodedError(http.StatusBadRequest, "address must be non-empty")
-		}
-		if _, err := netip.ParseAddrPort(string(args.Address)); err != nil {
-			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("address must be in IP:port format: %s", err.Error()))
-		}
 	}
 
 	if err := args.Validate(); err != nil {

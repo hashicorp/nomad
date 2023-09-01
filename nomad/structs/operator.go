@@ -6,6 +6,7 @@ package structs
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/hashicorp/go-uuid"
@@ -101,6 +102,9 @@ func (r *RaftPeerRequest) validateID() error {
 }
 
 func (r *RaftPeerRequest) validateAddress() error {
+	if _, err := netip.ParseAddrPort(string(r.Address)); err != nil {
+		return fmt.Errorf("address must be in IP:port format: %w", err)
+	}
 	return nil
 }
 
