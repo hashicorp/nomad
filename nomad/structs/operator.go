@@ -84,7 +84,7 @@ type RaftPeerRequest struct {
 }
 
 func (r *RaftPeerRequest) Validate() error {
-	if (r.ID == "" && r.Address == "") || (r.ID != "" && r.Address == "") {
+	if (r.ID == "" && r.Address == "") || (r.ID != "" && r.Address != "") {
 		return errors.New("either ID or Address must be set")
 	}
 	if r.ID != "" {
