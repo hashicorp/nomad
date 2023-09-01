@@ -6,15 +6,22 @@ package structs
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestAllocServiceRegistrationsRequest_StaleReadSupport(t *testing.T) {
 	req := &AllocServiceRegistrationsRequest{}
-	require.True(t, req.IsRead())
+	must.True(t, req.IsRead())
 }
 
-func Test_Allocation_ServiceProviderNamespace(t *testing.T) {
+func TestAllocation_GetName(t *testing.T) {
+	var alloc *Allocation
+	must.Eq(t, "", alloc.GetName())
+	alloc = MockAlloc()
+	must.Eq(t, alloc.Name, alloc.GetName())
+}
+
+func TestAllocation_ServiceProviderNamespace(t *testing.T) {
 	testCases := []struct {
 		inputAllocation *Allocation
 		expectedOutput  string
@@ -139,7 +146,7 @@ func Test_Allocation_ServiceProviderNamespace(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := tc.inputAllocation.ServiceProviderNamespace()
-			require.Equal(t, tc.expectedOutput, actualOutput)
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }

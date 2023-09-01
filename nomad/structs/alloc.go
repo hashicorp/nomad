@@ -60,6 +60,16 @@ func (a *Allocation) ServiceProviderNamespace() string {
 	return tg.Consul.GetNamespace()
 }
 
+// GetName returns the name of the allocation. It's safe to call without
+// checking for a nil allocation, and in such cases will return an empty
+// string.
+func (a *Allocation) GetName() string {
+	if a == nil {
+		return ""
+	}
+	return a.Name
+}
+
 type AllocInfo struct {
 	AllocID string
 

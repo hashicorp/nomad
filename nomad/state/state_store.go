@@ -3885,7 +3885,7 @@ func (s *StateStore) updateClientAllocUpdateIndex(txn *txn, index uint64, nodeID
 
 // UpsertAllocs is used to evict a set of allocations and allocate new ones at
 // the same time.
-func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpsertAllocs(_ structs.MessageType, index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {

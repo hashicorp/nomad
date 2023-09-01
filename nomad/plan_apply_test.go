@@ -4,18 +4,21 @@
 package nomad
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -561,8 +564,11 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
+	alloc.Name = "example.cache[0]"
+
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
 	alloc2.AllocatedResources = structs.NodeResourcesToAllocatedResources(node2.NodeResources)
+	alloc2.Name = "example.cache[1]"
 
 	// Create a deployment where the allocs are markeda as canaries
 	d := mock.Deployment()
@@ -619,8 +625,12 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	alloc := mock.Alloc()
+	alloc.Name = "example.cache[0]"
+
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
 	alloc2.AllocatedResources = structs.NodeResourcesToAllocatedResources(node2.NodeResources)
+	alloc2.Name = "example.cache[1]"
+
 	plan := &structs.Plan{
 		Job:       alloc.Job,
 		AllAtOnce: true, // Require all to make progress
@@ -807,9 +817,9 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 // Test that we detect device oversubscription
 func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+
 	alloc := mock.Alloc()
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.NvidiaNode()
 	node.ReservedResources = nil
 
@@ -826,9 +836,9 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 		},
 	}
 
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, testState.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Alloc2 tries to use the same device
 	alloc2 := mock.Alloc()
@@ -842,9 +852,11 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 		},
 	}
 	alloc2.NodeID = node.ID
-	state.UpsertJobSummary(1200, mock.JobSummary(alloc2.JobID))
+	must.NoError(t, testState.UpsertJobSummary(1200, mock.JobSummary(alloc2.JobID)))
 
-	snap, _ := state.Snapshot()
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
+
 	plan := &structs.Plan{
 		Job: alloc.Job,
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -853,23 +865,24 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	require.NoError(err)
-	require.False(fit)
-	require.Equal("device oversubscribed", reason)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, "device oversubscribed", reason)
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	ci.Parallel(t)
 	alloc := mock.Alloc()
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
 	node.Reserved = nil
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
 
 	plan := &structs.Plan{
 		Job: alloc.Job,
@@ -879,30 +892,26 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !fit {
-		t.Fatalf("bad")
-	}
-	if reason != "" {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, "", reason)
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 	ci.Parallel(t)
+
 	alloc := mock.Alloc()
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
 	node.Reserved = nil
 	node.SchedulingEligibility = structs.NodeSchedulingIneligible
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
 
 	plan := &structs.Plan{
 		Job: alloc.Job,
@@ -912,28 +921,23 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !fit {
-		t.Fatalf("bad")
-	}
-	if reason != "" {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, "", reason)
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	ci.Parallel(t)
 	alloc := mock.Alloc()
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
 
 	allocEvict := new(structs.Allocation)
 	*allocEvict = *alloc
@@ -950,29 +954,24 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !fit {
-		t.Fatalf("bad")
-	}
-	if reason != "" {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, "", reason)
 }
 
 func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	ci.Parallel(t)
 	alloc := mock.Alloc()
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
 	alloc.NodeID = node.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
 
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
@@ -983,29 +982,24 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !fit {
-		t.Fatalf("bad")
-	}
-	if reason != "" {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, "", reason)
 }
 
 func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	ci.Parallel(t)
 	alloc := mock.Alloc()
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.Node()
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	node.ReservedResources = nil
 	node.Status = structs.NodeStatusDown
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	snap, _ := state.Snapshot()
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
 
 	allocEvict := new(structs.Allocation)
 	*allocEvict = *alloc
@@ -1018,15 +1012,9 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	}
 
 	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !fit {
-		t.Fatalf("bad")
-	}
-	if reason != "" {
-		t.Fatalf("bad")
-	}
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, "", reason)
 }
 
 // TestPlanApply_EvalNodePlan_Node_Disconnected tests that plans for disconnected
@@ -1034,11 +1022,13 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
+	testState := testStateStore(t)
 	node := mock.Node()
 	node.Status = structs.NodeStatusDisconnected
-	_ = state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	snap, _ := state.Snapshot()
+	must.NoError(t, testState.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+
+	snap, err := testState.Snapshot()
+	must.NoError(t, err)
 
 	unknownAlloc := mock.Alloc()
 	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
@@ -1098,9 +1088,475 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 			}
 
 			fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedFit, fit)
-			require.Equal(t, tc.expectedReason, reason)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedFit, fit)
+			must.Eq(t, tc.expectedReason, reason)
 		})
 	}
+}
+
+func Test_evaluatePlanAllocIndexes(t *testing.T) {
+	ci.Parallel(t)
+
+	// Generate test state that will be used throughout this test. The helper
+	// function can be used to pull a state snapshot which is passed to the
+	// evaluatePlanAllocIndexes function.
+	testState := testStateStore(t)
+
+	testStateSnapshotFn := func(t *testing.T, testState *state.StateStore) *state.StateSnapshot {
+		testStateSnapshot, testStateSnapshotErr := testState.Snapshot()
+		must.NoError(t, testStateSnapshotErr)
+		return testStateSnapshot
+	}
+
+	// Generate and test a non-conflicting alloc index plan which mimics an
+	// initial job registration.
+	t.Run("initial registration", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        "example",
+				Namespace: "default",
+				Version:   0,
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[1]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+					{Name: "example.cache[3]", ID: "e3036b79-c88f-d8a5-09bd-202bc5a842c2"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: "example.cache[0]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: "example.cache[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	t.Run("initial registration conflict", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        "example",
+				Namespace: "default",
+				Version:   0,
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[1]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+					{Name: "example.cache[2]", ID: "e3036b79-c88f-d8a5-09bd-202bc5a842c2"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: "example.cache[0]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: "example.cache[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+	})
+
+	// Generate and insert 3 test allocations into state. This mimics the
+	// behaviour of a job that has been registered and successfully deployed.
+	// The written state does not change, and forms the basis for testing
+	// plans.
+	testAllocs := []*structs.Allocation{mock.Alloc(), mock.Alloc(), mock.Alloc()}
+
+	for i, testAlloc := range testAllocs {
+		testAlloc.Job = testAllocs[0].Job
+		testAlloc.JobID = testAllocs[0].Job.ID
+		testAlloc.ClientStatus = structs.AllocClientStatusRunning
+		testAlloc.Name = fmt.Sprintf("%s.%s[%v]", testAlloc.JobID, testAlloc.TaskGroup, i)
+	}
+
+	must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 10, testAllocs))
+
+	// Grab the concatenation of the jobID and task group name for ease.
+	testJobGroupID := testAllocs[0].JobID + "." + testAllocs[0].TaskGroup
+
+	// Generate a plan with an incremented job version and four node
+	// allocations. This represents a plan generated by an operator scaling
+	// the job by 1.
+	t.Run("job scale out", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[1]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+					{Name: "example.cache[3]", ID: "e3036b79-c88f-d8a5-09bd-202bc5a842c2"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: "example.cache[0]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: "example.cache[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	t.Run("job scale out conflict", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[1]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+					{Name: "example.cache[3]", ID: "e3036b79-c88f-d8a5-09bd-202bc5a842c2"},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: "example.cache[1]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: "example.cache[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+	})
+
+	// Generate a plan which represents a job scaling in. This means we have a
+	// version incrementation, a node update and node allocations alongside the
+	// existing state allocs.
+	t.Run("job scale in", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[1]", ID: testAllocs[0].ID},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testJobGroupID + "[0]", ID: testAllocs[1].ID},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	t.Run("job scale in conflict", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: "bd8cf1bc-5ded-5942-5b39-078878e74e15"},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[1]", ID: testAllocs[0].ID},
+				},
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testJobGroupID + "[1]", ID: testAllocs[1].ID},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+	})
+
+	// Generate a plan which represents a job update, such as modifying the
+	// Docker tag used. This depends on the update block, but in default
+	// configurations, the following plan example will be seen.
+	t.Run("job update", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: testAllocs[2].ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	t.Run("job update conflict", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: "example.cache[1]", ID: testAllocs[1].ID},
+					{Name: "example.cache[3]", ID: testAllocs[2].ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: testJobGroupID + "[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+	})
+
+	// When a client that is running allocations does not heartbeat, a plan
+	// will be generated to replace the allocations. The job version is NOT
+	// incremented, so this test is important to ensure this functionality is
+	// still working.
+	t.Run("alloc lost", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[0]", ID: testAllocs[0].ID},
+					{Name: testJobGroupID + "[2]", ID: testAllocs[2].ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testJobGroupID + "[0]", ID: "2a8243d9-c54b-ec78-8b51-e99ff3579d72"},
+					{Name: testJobGroupID + "[2]", ID: "a5eee921-7d25-0e64-78dd-34c630a0ee67"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	t.Run("alloc lost conflict", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[0]"},
+					{Name: testJobGroupID + "[2]"},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testJobGroupID + "[2]"},
+					{Name: testJobGroupID + "[2]"},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+	})
+
+	// Stopping a job produces a destructive plan only, but increments the job
+	// version. We cannot really test for conflicts here, so this can be used
+	// to ensure correct behaviour.
+	t.Run("job stop", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[0]"},
+					{Name: testJobGroupID + "[1]"},
+					{Name: testJobGroupID + "[2]"},
+				},
+			},
+			NodeAllocation: nil,
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	// When a deployment finishes, a noop plan is processed which does not
+	// include any allocation updates.
+	t.Run("deployment finish", func(t *testing.T) {
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate:     nil,
+			NodeAllocation: nil,
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+	})
+
+	// Canary deployments generate a unique state and plan. This test exercises
+	// the plan generated by a canary deployment being promoted.
+	t.Run("canary promote", func(t *testing.T) {
+
+		// Generate a canary allocation and upset this into state. This mimics
+		// a deployment state which requires manual promotion.
+		canaryAlloc := mock.Alloc()
+		canaryAlloc.Job.Version = 1
+		canaryAlloc.Job = testAllocs[0].Job
+		canaryAlloc.JobID = testAllocs[0].Job.ID
+		canaryAlloc.Name = fmt.Sprintf("%s.%s[%v]", canaryAlloc.JobID, canaryAlloc.TaskGroup, 0)
+
+		must.NoError(t, testState.UpsertAllocs(structs.MsgTypeTestSetup, 20, []*structs.Allocation{canaryAlloc}))
+
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   1,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testJobGroupID + "[0]", ID: testAllocs[0].ID},
+					{Name: testJobGroupID + "[1]", ID: testAllocs[1].ID},
+				},
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: testAllocs[2].ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: testJobGroupID + "[1]"},
+				},
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]"},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan))
+
+		// Delete the alloc state entry, so it doesn't impact any subsequent
+		// tests.
+		must.NoError(t, testState.DeleteEval(30, []string{}, []string{canaryAlloc.ID}, false))
+	})
+
+	// This test mimics what happens when a client disconnects, and an
+	// allocation running on it has max_client_disconnect configured. It runs
+	// both the disconnect and reconnect plan process.
+	t.Run("client disconnect", func(t *testing.T) {
+
+		// Generate a replacement allocation, which will replace the allocation
+		// currently placed on a disconnected client.
+		replacementAlloc := mock.Alloc()
+		replacementAlloc.Job.Version = 0
+		replacementAlloc.NodeID = "52b3508a-c88e-fc83-74c9-829d5ef1103a"
+		replacementAlloc.Job = testAllocs[0].Job
+		replacementAlloc.JobID = testAllocs[0].Job.ID
+		replacementAlloc.ClientStatus = structs.AllocClientStatusRunning
+		replacementAlloc.Name = fmt.Sprintf("%s.%s[%v]", replacementAlloc.JobID, replacementAlloc.TaskGroup, 2)
+
+		disconnectTestPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+			},
+			NodeUpdate: nil,
+			NodeAllocation: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: replacementAlloc.Name, ID: replacementAlloc.ID},
+				},
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: replacementAlloc.Name, ID: testAllocs[2].ID, ClientStatus: structs.AllocClientStatusUnknown},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &disconnectTestPlan))
+
+		// Write the replacement to state, to mimic a successful replacement of
+		// the disconnected allocation.
+		must.NoError(t, testState.UpsertAllocs(
+			structs.MsgTypeTestSetup, 40, []*structs.Allocation{replacementAlloc}))
+
+		// Update the disconnect allocation state to unknown.
+		testAllocs[2].ClientStatus = structs.AllocClientStatusUnknown
+		must.NoError(t, testState.UpsertAllocs(
+			structs.MsgTypeTestSetup, 50, []*structs.Allocation{testAllocs[2]}))
+
+		reconnectTestPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+			},
+			NodeUpdate: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: replacementAlloc.Name, ID: replacementAlloc.ID},
+				},
+			},
+			NodeAllocation: map[string][]*structs.Allocation{
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: testJobGroupID + "[2]", ID: testAllocs[2].ID, ClientStatus: structs.AllocClientStatusRunning},
+				},
+			},
+		}
+		must.NoError(t, evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &reconnectTestPlan))
+
+		// Delete the alloc state entry, so it doesn't impact any subsequent
+		// tests and revert the running allocations state from unknown.
+		must.NoError(t, testState.DeleteEval(60, []string{}, []string{replacementAlloc.ID}, false))
+
+		testAllocs[2].ClientStatus = structs.AllocClientStatusRunning
+		must.NoError(t, testState.UpsertAllocs(
+			structs.MsgTypeTestSetup, 70, []*structs.Allocation{testAllocs[2]}))
+	})
+
+	t.Run("client disconnect conflict", func(t *testing.T) {
+
+		// Generate a replacement allocation, which will replace the allocation
+		// currently placed on a disconnected client.
+		replacementAlloc := mock.Alloc()
+		replacementAlloc.Job.Version = 0
+		replacementAlloc.NodeID = "52b3508a-c88e-fc83-74c9-829d5ef1103a"
+		replacementAlloc.Job = testAllocs[0].Job
+		replacementAlloc.JobID = testAllocs[0].Job.ID
+		replacementAlloc.ClientStatus = structs.AllocClientStatusRunning
+		replacementAlloc.Name = fmt.Sprintf("%s.%s[%v]", replacementAlloc.JobID, replacementAlloc.TaskGroup, 1)
+
+		testPlan := structs.Plan{
+			Job: &structs.Job{
+				ID:        testAllocs[0].JobID,
+				Namespace: testAllocs[0].Namespace,
+				Version:   0,
+			},
+			NodeUpdate: nil,
+			NodeAllocation: map[string][]*structs.Allocation{
+				"52b3508a-c88e-fc83-74c9-829d5ef1103a": {
+					{Name: replacementAlloc.Name, ID: replacementAlloc.ID},
+				},
+				"8bdb21db-9445-3650-ca9d-0d7883cc8a73": {
+					{Name: replacementAlloc.Name, ID: testAllocs[2].ID, ClientStatus: structs.AllocClientStatusUnknown},
+				},
+			},
+		}
+		must.ErrorContains(t,
+			evaluatePlanAllocIndexes(testStateSnapshotFn(t, testState), &testPlan),
+			duplicateAllocIndexErrorString)
+	})
 }
