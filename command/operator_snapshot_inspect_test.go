@@ -64,7 +64,7 @@ func TestOperatorSnapshotInspect_HandlesFailure(t *testing.T) {
 
 		code := cmd.Run([]string{filepath.Join(tmpDir, "invalid.snap")})
 		require.NotZero(t, code)
-		require.Contains(t, ui.ErrorWriter.String(), "Error verifying snapshot")
+		require.Contains(t, ui.ErrorWriter.String(), "Error inspecting snapshot")
 	})
 }
 

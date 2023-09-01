@@ -29,6 +29,11 @@ type typeStats struct {
 	Count int
 }
 
+type SnapshotInspectFormat struct {
+	Meta  *raft.SnapshotMeta
+	Stats []typeStats
+}
+
 // SnapshotInfo is used for passing snapshot stat
 // information between functions
 type SnapshotInfo struct {
@@ -59,6 +64,11 @@ Usage: nomad operator snapshot inspect [options] <file>
 
   To inspect the file "backup.snap":
     $ nomad operator snapshot inspect backup.snap
+
+Snapshot State Options:
+
+  -json
+  	Output the snapshot inspect in its JSON format.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -78,7 +88,18 @@ func (c *OperatorSnapshotInspectCommand) Synopsis() string {
 func (c *OperatorSnapshotInspectCommand) Name() string { return "operator snapshot inspect" }
 
 func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
+	var json bool
+
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
+
+	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
 	// Check that we either got no filename or exactly one.
+	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <filename>")
 		c.Ui.Error(commandErrorText(c))
@@ -99,6 +120,24 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 		return 1
 	}
 	stats := generateStats(info)
+
+	// format as JSON if requested
+	if json {
+		data := SnapshotInspectFormat{
+			Meta:  meta,
+			Stats: stats,
+		}
+		out, err := Format(json, "", data)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
+	}
+
+	// print human readable output
 	c.Ui.Output(formatListWithSpaces([]string{
 		fmt.Sprintf("Created|%s", extractTimeFromName(meta.ID)),
 		fmt.Sprintf("ID|%s", meta.ID),
