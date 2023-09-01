@@ -265,7 +265,8 @@ func equalDevices(n1, n2 *structs.Node) bool {
 
 // constructNodeServerInfoResponse assumes the n.srv.peerLock is held for reading.
 func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateSnapshot, reply *structs.NodeUpdateResponse) error {
-	reply.LeaderRPCAddr = string(n.srv.raft.Leader())
+	leaderAddr, _ := n.srv.raft.LeaderWithID()
+	reply.LeaderRPCAddr = string(leaderAddr)
 
 	// Reply with config information required for future RPC requests
 	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))

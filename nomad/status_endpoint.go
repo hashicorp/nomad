@@ -30,9 +30,9 @@ func (s *Status) Leader(args *structs.GenericRequest, reply *string) error {
 		return err
 	}
 
-	leader := string(s.srv.raft.Leader())
+	leader, _ := s.srv.raft.LeaderWithID()
 	if leader != "" {
-		*reply = leader
+		*reply = string(leader)
 	} else {
 		*reply = ""
 	}
