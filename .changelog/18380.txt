@@ -1,0 +1,3 @@
+```release-note:improvement
+api: add unit test to deployments client
+```
