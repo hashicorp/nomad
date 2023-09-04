@@ -16,7 +16,6 @@
     "client/devicemanager/...",
     "client/dynamicplugins/...",
     "client/fingerprint/...",
-    "client/integrations/...",
     "client/interfaces/...",
     "client/lib/...",
     "client/logmon/...",
