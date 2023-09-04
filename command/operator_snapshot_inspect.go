@@ -61,11 +61,13 @@ func (c *OperatorSnapshotInspectCommand) Help() string {
 Usage: nomad operator snapshot inspect [options] <file>
 
   Displays information about a snapshot file on disk.
+  The output will include all snapshot types and their
+  respective sizes, sorted in descending order.
 
   To inspect the file "backup.snap":
     $ nomad operator snapshot inspect backup.snap
 
-Snapshot State Options:
+Snapshot Inspect Options:
 
   -json
   	Output the snapshot inspect in its JSON format.
@@ -137,11 +139,11 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 		return 0
 	}
 
-	// print human readable output
+	// print human-readable output
 	c.Ui.Output(formatListWithSpaces([]string{
 		fmt.Sprintf("Created|%s", extractTimeFromName(meta.ID)),
 		fmt.Sprintf("ID|%s", meta.ID),
-		fmt.Sprintf("Size|%s", ByteSize(uint64(meta.Size))),
+		fmt.Sprintf("Size|%s", ByteToHumanString(uint64(meta.Size))),
 		fmt.Sprintf("Index|%d", meta.Index),
 		fmt.Sprintf("Term|%d", meta.Term),
 		fmt.Sprintf("Version|%d", meta.Version),
@@ -154,10 +156,10 @@ func (c *OperatorSnapshotInspectCommand) Run(args []string) int {
 	}
 
 	for _, stat := range stats {
-		output = append(output, fmt.Sprintf("%s|%d|%s", stat.Name, stat.Count, ByteSize(uint64(stat.Sum))))
+		output = append(output, fmt.Sprintf("%s|%d|%s", stat.Name, stat.Count, ByteToHumanString(uint64(stat.Sum))))
 	}
 	output = append(output, "----|-----|----")
-	output = append(output, fmt.Sprintf("Total|-|%s", ByteSize(uint64(info.TotalSize))))
+	output = append(output, fmt.Sprintf("Total|-|%s", ByteToHumanString(uint64(info.TotalSize))))
 
 	c.Ui.Output(formatList(output))
 	return 0
@@ -195,7 +197,7 @@ func inspect(file io.Reader) (*raft.SnapshotMeta, *SnapshotInfo, error) {
 		var val interface{}
 		err := dec.Decode(&val)
 		if err != nil {
-			return fmt.Errorf("failed to decode snapshot type %v, error %v", snapType, err)
+			return fmt.Errorf("failed to decode snapshot %q: %v", snapType, err)
 		}
 
 		size := cr.read - info.TotalSize
@@ -207,7 +209,10 @@ func inspect(file io.Reader) (*raft.SnapshotMeta, *SnapshotInfo, error) {
 		return nil
 	}
 
-	nomad.ReadSnapshot(cr, handler)
+	err := nomad.ReadSnapshot(cr, handler)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	select {
 	case err := <-errCh:
@@ -246,5 +251,5 @@ func extractTimeFromName(snapshotName string) string {
 	if err != nil {
 		return ""
 	}
-	return formatTime(time.UnixMilli(int64(msec)))
+	return formatTime(time.UnixMilli(msec))
 }

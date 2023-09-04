@@ -722,8 +722,8 @@ func loadFromStdin(testStdin io.Reader) (string, error) {
 	return b.String(), nil
 }
 
-// ByteSize converts a number of bytes to a human readable string.
-func ByteSize(bytes uint64) string {
+// ByteToHumanString converts a number of bytes to a human readable string.
+func ByteToHumanString(bytes uint64) string {
 	unit := ""
 	value := float64(bytes)
 

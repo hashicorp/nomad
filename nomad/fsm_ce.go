@@ -11,3 +11,8 @@ package nomad
 func (n *nomadFSM) allocQuota(_ string) (string, error) {
 	return "", nil
 }
+
+// enterpriseSnapshotType is a no-op for community edition.
+func enterpriseSnapshotType(s SnapshotType) (string, bool) {
+	return "", false
+}

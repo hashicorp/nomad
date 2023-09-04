@@ -685,3 +685,51 @@ func Test_extractVarFlags(t *testing.T) {
 		}, result)
 	})
 }
+
+func Test_ByteToHumanString(t *testing.T) {
+	tests := []struct {
+		name  string
+		bytes uint64
+		want  string
+	}{
+		{
+			name:  "zero bytes",
+			bytes: 0,
+			want:  "0",
+		},
+		{
+			name:  "bytes unit",
+			bytes: 500,
+			want:  "500B",
+		},
+		{
+			name:  "KB unit",
+			bytes: 1500,
+			want:  "1.5KB",
+		},
+		{
+			name:  "MB unit",
+			bytes: 5000000,
+			want:  "4.8MB",
+		},
+		{
+			name:  "GB unit",
+			bytes: 4000000000,
+			want:  "3.7GB",
+		},
+		{
+			name:  "TB unit",
+			bytes: 5500000000000,
+			want:  "5TB",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ByteToHumanString(tt.bytes)
+			if got != tt.want {
+				t.Errorf("ByteToHumanString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

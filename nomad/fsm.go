@@ -3241,6 +3241,9 @@ func (s SnapshotType) String() string {
 	if ok {
 		return v
 	}
-	// TODO: any enterprise snapshot types?
+	v, ok = enterpriseSnapshotType(s)
+	if ok {
+		return v
+	}
 	return "others"
 }
