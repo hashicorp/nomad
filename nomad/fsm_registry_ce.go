@@ -11,13 +11,13 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-// registerLogAppliers is a no-op for open-source only FSMs.
+// registerLogAppliers is a no-op for community edition only FSMs.
 func (n *nomadFSM) registerLogAppliers() {}
 
-// registerSnapshotRestorers is a no-op for open-source only FSMs.
+// registerSnapshotRestorers is a no-op for community edition only FSMs.
 func (n *nomadFSM) registerSnapshotRestorers() {}
 
-// persistEnterpriseTables is a no-op for open-source only FSMs.
-func (s *nomadSnapshot) persistEnterpriseTables(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+// persistEnterpriseTables is a no-op for community edition only FSMs.
+func (s *nomadSnapshot) persistEnterpriseTables(_ raft.SnapshotSink, _ *codec.Encoder) error {
 	return nil
 }
