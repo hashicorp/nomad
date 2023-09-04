@@ -23,7 +23,7 @@ func TestDeployments_List(t *testing.T) {
 
 	// Initially there should be no deployment
 	resp0, _, err := deployments.List(nil)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 0, resp0)
 
 	// Register
@@ -36,7 +36,7 @@ func TestDeployments_List(t *testing.T) {
 	// Query the jobs back out again
 	resp2, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp2)
 
 	f := func() error {
@@ -67,7 +67,7 @@ func TestDeployments_PrefixList(t *testing.T) {
 
 	// Initially there should be no deployment
 	resp, _, err := deployments.PrefixList("b1")
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 0, resp)
 
 	// Create a job of type service
@@ -83,7 +83,7 @@ func TestDeployments_PrefixList(t *testing.T) {
 	// Query the jobs back out again
 	resp3, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp3)
 
 	f := func() error {
@@ -131,7 +131,7 @@ func TestDeployments_Info(t *testing.T) {
 	// Query the jobs
 	resp2, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp2)
 
 	f := func() error {
@@ -182,7 +182,7 @@ func TestDeployments_Allocations(t *testing.T) {
 	// Query the jobs
 	resp2, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp2)
 
 	f := func() error {
@@ -239,7 +239,7 @@ func TestDeployments_Fail(t *testing.T) {
 	// Query the jobs
 	resp2, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp2)
 
 	f := func() error {
@@ -293,7 +293,7 @@ func TestDeployments_Pause(t *testing.T) {
 	// Query the jobs
 	resp2, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp2)
 
 	f := func() error {
@@ -325,6 +325,7 @@ func TestDeployments_Pause(t *testing.T) {
 		wait.Gap(100*time.Millisecond),
 	))
 }
+
 func TestDeployments_Unpause(t *testing.T) {
 	testutil.Parallel(t)
 
@@ -346,7 +347,7 @@ func TestDeployments_Unpause(t *testing.T) {
 	// Query the jobs
 	resp2, qm, err := jobs.List(nil)
 	assertQueryMeta(t, qm)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	must.Len(t, 1, resp2)
 
 	f := func() error {
@@ -373,7 +374,7 @@ func TestDeployments_Unpause(t *testing.T) {
 
 		// UnPause the deployment
 		_, _, err = deployments.Pause(resp3[0].ID, false, nil)
-		must.Nil(t, err)
+		must.NoError(t, err)
 
 		// Query Info again to check the status
 		resp5, _, err := deployments.Info(resp3[0].ID, nil)
