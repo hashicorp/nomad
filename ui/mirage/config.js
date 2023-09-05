@@ -572,6 +572,9 @@ export default function () {
     if (
       tokenForSecret &&
       (tokenForSecret.policies.includes(policy) ||
+        tokenForSecret.roles.models.any((role) =>
+          role.policies.includes(policy)
+        ) ||
         tokenForSecret.type === 'management')
     ) {
       return this.serialize(policy);
@@ -579,6 +582,11 @@ export default function () {
 
     // Return not authorized otherwise
     return new Response(403, {}, null);
+  });
+
+  this.get('/acl/role/:id', function ({ roles }, req) {
+    const role = roles.findBy({ id: req.params.id });
+    return this.serialize(role);
   });
 
   this.get('/acl/policies', function ({ policies }, req) {

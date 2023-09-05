@@ -12,6 +12,30 @@ export default ApplicationSerializer.extend({
     if (relationship === 'policies') {
       return 'Policies';
     }
-    return ApplicationSerializer.prototype.keyForRelationshipIds.apply(this, arguments);
+    // // TODO: might not need this?
+    if (relationship === 'roles') {
+      return 'Roles';
+    }
+    return ApplicationSerializer.prototype.keyForRelationshipIds.apply(
+      this,
+      arguments
+    );
+  },
+
+  serialize() {
+    var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);
+    if (json instanceof Array) {
+      json.forEach(serializeToken);
+    } else {
+      serializeToken(json);
+    }
+    return json;
   },
 });
+
+function serializeToken(token) {
+  token.Roles = (token.Roles || []).map((role) => {
+    return { ID: role, Name: role };
+  });
+  return token;
+}

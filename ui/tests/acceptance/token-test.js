@@ -28,6 +28,11 @@ let job;
 let node;
 let managementToken;
 let clientToken;
+let clientReaderToken;
+let clientWriterToken;
+let dualPolicyToken;
+let policyAndRoleToken;
+
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
