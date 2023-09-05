@@ -28,10 +28,6 @@ let job;
 let node;
 let managementToken;
 let clientToken;
-let clientReaderToken;
-let clientWriterToken;
-let dualPolicyToken;
-let policyAndRoleToken;
 
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
@@ -734,4 +730,73 @@ module('Acceptance | tokens', function (hooks) {
       requestHeaders[name.toUpperCase()]
     );
   }
+
+  module('Roles', function (hooks) {
+    // Set up a token with a role
+    hooks.beforeEach(function () {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      faker.seed(1);
+      allScenarios.rolesTestCluster(server);
+    });
+
+    test('Policies are derived from role', async function (assert) {
+      assert.expect(19);
+
+      await Tokens.visit();
+
+      let token;
+
+      // User with 1 role, containing 1 policy, and no direct policies
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'High Level Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      assert.dom('[data-test-token-role]').exists({ count: 1 });
+      assert.dom('[data-test-role-name]').hasText('high-level');
+      assert.dom('[data-test-role-policies] li').exists({ count: 1 });
+      assert.dom('[data-test-role-policies] li').hasText('job-writer');
+
+      assert.dom('[data-test-token-policy]').exists({ count: 1 });
+      assert.dom('[data-test-policy-name]').hasText('job-writer');
+
+      await Tokens.clear();
+
+      // User with 1 role, containing 2 policies, and a direct policy
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'Policy And Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      assert.dom('[data-test-token-role]').exists({ count: 1 });
+      assert.dom('[data-test-role-name]').hasText('reader');
+      assert.dom('[data-test-role-policies] li').exists({ count: 2 });
+      let policyLinks = findAll('[data-test-role-policies] li');
+      assert.dom(policyLinks[0]).hasText('client-reader');
+      assert.dom(policyLinks[1]).hasText('job-reader');
+
+      assert.dom('[data-test-token-policy]').exists({ count: 3 });
+      let policyBlocks = findAll('[data-test-policy-name]');
+      assert.dom(policyBlocks[0]).hasText('operator');
+      assert.dom(policyBlocks[1]).hasText('client-reader');
+      assert.dom(policyBlocks[2]).hasText('job-reader');
+
+      await percySnapshot(assert);
+
+      await Tokens.clear();
+
+      // User with 2 roles, each containing 1 policy, and one of the policies is also directly on their token
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'Multi Role And Policy Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      assert.equal(token.roleIds.length, 2);
+      assert.equal(token.policyIds.length, 1);
+
+      assert.dom('[data-test-token-role]').exists({ count: 2 });
+      assert.dom('[data-test-token-policy]').exists({ count: 2 });
+    });
+  });
 });

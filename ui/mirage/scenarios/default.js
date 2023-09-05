@@ -442,6 +442,12 @@ function policiesTestCluster(server) {
 
 function rolesTestCluster(server) {
   faker.seed(1);
+
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 2);
+  server.createList('node', 5);
+  server.createList('job', 5);
+
   // createTokens(server);
 
   // Create policies
@@ -478,17 +484,35 @@ function rolesTestCluster(server) {
     },
   });
 
+  const operatorPolicy = server.create('policy', {
+    id: 'operator',
+    name: 'operator',
+    description: 'Can operate',
+    rulesJSON: {
+      operator: {
+        policy: 'write',
+      },
+    },
+  });
+
+  const jobReaderPolicy = server.create('policy', {
+    id: 'job-reader',
+    name: 'job-reader',
+    description: 'Can learn about jobs',
+    rulesJSON: {
+      namespace: {
+        '*': {
+          policy: 'read',
+        },
+      },
+    },
+  });
+
   const highLevelJobPolicy = server.create('policy', {
     id: 'job-writer',
     name: 'job-writer',
     description: 'Can do lots with jobs',
     rulesJSON: {
-      // Namespaces: [
-      //   {
-      //     Name: '*',
-      //     Capabilities: ['list-jobs', 'alloc-exec', 'submit-job', 'read-job'],
-      //   },
-      // ],
       namespace: {
         '*': {
           policy: 'write',
@@ -510,6 +534,13 @@ function rolesTestCluster(server) {
     name: 'high-level',
     description: 'Can do lots of things',
     policyIds: [highLevelJobPolicy.id],
+  });
+
+  const readerRole = server.create('role', {
+    id: 'reader',
+    name: 'reader',
+    description: 'Can read things',
+    policyIds: [clientReaderPolicy.id, jobReaderPolicy.id],
   });
 
   // Create tokens
@@ -547,14 +578,21 @@ function rolesTestCluster(server) {
   let policyAndRoleToken = server.create('token', {
     type: 'client',
     name: 'Policy And Role Token',
-    policyIds: [clientReaderPolicy.id],
-    roleIds: [highLevelRole.id],
+    policyIds: [operatorPolicy.id],
+    roleIds: [readerRole.id],
   });
 
-  let multiRoleTOken = server.create('token', {
+  let multiRoleToken = server.create('token', {
     type: 'client',
     name: 'Multi Role Token',
     roleIds: [editorRole.id, highLevelRole.id],
+  });
+
+  let multiRoleAndPolicyToken = server.create('token', {
+    type: 'client',
+    name: 'Multi Role And Policy Token',
+    roleIds: [editorRole.id, highLevelRole.id],
+    policyIds: [clientWriterPolicy.id], // also included within editorRole, so redundant here.
   });
 
   logTokens(server);
