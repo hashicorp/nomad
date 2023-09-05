@@ -70,11 +70,8 @@ type Locks struct {
 //	the ttl in the Locks to create the VariableLock. It will return the
 //	path of the variable holding the lock.
 //
-//	callerID will be used to identify who is holding the lock in the future,
-//	currently is only por testing purposes.
-//
 // Acquire returns the path to the variable holding the lock.
-func (l *Locks) Acquire(ctx context.Context, callerID string) (string, error) {
+func (l *Locks) Acquire(ctx context.Context) (string, error) {
 
 	var out Variable
 
@@ -148,10 +145,8 @@ type Locker interface {
 	// Acquire will make the actual call to acquire the lock over the variable using
 	// the ttl in the Locks to create the VariableLock.
 	//
-	// callerID will be used to identify who is holding the lock in the future,
-	// currently is only por testing purposes.
 	// Acquire returns the path to the variable holding the lock.
-	Acquire(ctx context.Context, callerID string) (string, error)
+	Acquire(ctx context.Context) (string, error)
 	// Release makes the call to release the lock over a variable, even if the ttl
 	// has not yet passed.
 	Release(ctx context.Context) error
@@ -172,7 +167,7 @@ type Locker interface {
 // function returns an error. Internally it uses an exponential retry mechanism
 // for the api calls.
 type LockLeaser struct {
-	ID            string
+	Name          string
 	renewalPeriod time.Duration
 	waitPeriod    time.Duration
 	randomDelay   time.Duration
@@ -182,14 +177,13 @@ type LockLeaser struct {
 
 // NewLockLeaser returns an instance of LockLeaser. callerID
 // is optional, in case they it is not provided, internal one will be created.
-func (c *Client) NewLockLeaser(l Locker, ownerID string) *LockLeaser {
+func (c *Client) NewLockLeaser(l Locker) *LockLeaser {
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
 	ll := LockLeaser{
 		renewalPeriod: time.Duration(float64(l.LockTTL()) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(l.LockTTL()) * lockRetryBackoffFactor),
-		ID:            ownerID,
 		randomDelay:   time.Duration(rn) * time.Millisecond,
 		locker:        l,
 	}
@@ -236,7 +230,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 	defer waitTicker.Stop()
 
 	for {
-		lockID, err := ll.locker.Acquire(ctx, ll.ID)
+		lockID, err := ll.locker.Acquire(ctx)
 		if err != nil && !errors.Is(err, ErrLockConflict) {
 			errChannel <- fmt.Errorf("error acquiring the lock: %w", err)
 		}

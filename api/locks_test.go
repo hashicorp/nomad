@@ -19,17 +19,12 @@ type mockLock struct {
 	locked        bool
 	acquireCalls  map[string]int
 	renewsCounter int
-	ownerID       string
 	mu            sync.Mutex
 
 	leaseStartTime time.Time
 }
 
-func (ml *mockLock) LockTTL() time.Duration {
-	return testLease
-}
-
-func (ml *mockLock) Acquire(_ context.Context, callerID string) (string, error) {
+func (ml *mockLock) acquire(_ context.Context, callerID string) (string, error) {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
 
@@ -42,6 +37,19 @@ func (ml *mockLock) Acquire(_ context.Context, callerID string) (string, error) 
 	ml.leaseStartTime = time.Now()
 	ml.renewsCounter = 0
 	return "lockPath", nil
+}
+
+type lockHandler struct {
+	*mockLock
+	callerID string
+}
+
+func (lh *lockHandler) LockTTL() time.Duration {
+	return testLease
+}
+
+func (lh *lockHandler) Acquire(ctx context.Context) (string, error) {
+	return lh.acquire(ctx, lh.callerID)
 }
 
 func (ml *mockLock) Release(_ context.Context) error {
@@ -139,16 +147,22 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	// Wait time on hac1 is 0, it should always get the lock.
 	hac1 := LockLeaser{
-		ID:            "hac1",
-		locker:        &l,
+		Name: "hac1",
+		locker: &lockHandler{
+			mockLock: &l,
+			callerID: "hac1",
+		},
 		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   0,
 	}
 
 	hac2 := LockLeaser{
-		ID:            "hac2",
-		locker:        &l,
+		Name: "hac2",
+		locker: &lockHandler{
+			mockLock: &l,
+			callerID: "hac2",
+		},
 		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   6 * time.Millisecond,
@@ -158,12 +172,12 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 	must.False(t, lock.locked)
 
 	go func() {
-		err := hac1.Start(hac1Ctx, s.Run(hac1.ID, testCtx))
+		err := hac1.Start(hac1Ctx, s.Run(hac1.Name, testCtx))
 		must.NoError(t, err)
 	}()
 
 	go func() {
-		err := hac2.Start(testCtx, s.Run(hac2.ID, testCtx))
+		err := hac2.Start(testCtx, s.Run(hac2.Name, testCtx))
 		must.NoError(t, err)
 	}()
 
@@ -179,13 +193,13 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 	service := s.getServiceState()
 
 	must.True(t, lock.locked)
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 0, lock.acquireCalls[hac2.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 0, lock.acquireCalls[hac2.Name])
 
 	must.Eq(t, 0, lock.renewsCounter)
 
 	must.Eq(t, 1, service.startsCounter)
-	must.StrContains(t, hac1.ID, service.starterID)
+	must.StrContains(t, hac1.Name, service.starterID)
 
 	time.Sleep(6 * time.Millisecond)
 	/*
@@ -197,13 +211,13 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 	lock = l.getLockState()
 	service = s.getServiceState()
 	must.True(t, lock.locked)
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 1, lock.acquireCalls[hac2.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 1, lock.acquireCalls[hac2.Name])
 
 	must.One(t, lock.renewsCounter)
 
 	must.One(t, service.startsCounter)
-	must.StrContains(t, hac1.ID, service.starterID)
+	must.StrContains(t, hac1.Name, service.starterID)
 
 	time.Sleep(5 * time.Millisecond)
 
@@ -217,14 +231,14 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 1, lock.acquireCalls[hac2.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 1, lock.acquireCalls[hac2.Name])
 
 	must.True(t, lock.locked)
 
 	must.Eq(t, 2, lock.renewsCounter)
 	must.Eq(t, 1, service.startsCounter)
-	must.StrContains(t, hac1.ID, service.starterID)
+	must.StrContains(t, hac1.Name, service.starterID)
 
 	time.Sleep(15 * time.Millisecond)
 
@@ -238,26 +252,29 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 3, lock.acquireCalls[hac2.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 3, lock.acquireCalls[hac2.Name])
 
 	must.True(t, lock.locked)
 
 	must.Eq(t, 4, lock.renewsCounter)
 	must.Eq(t, 1, service.startsCounter)
-	must.StrContains(t, hac1.ID, service.starterID)
+	must.StrContains(t, hac1.Name, service.starterID)
 
 	// Start a new instance of the service with ha running, initial delay of 1ms
 	hac3 := LockLeaser{
-		ID:            "hac3",
-		locker:        &l,
+		Name: "hac3",
+		locker: &lockHandler{
+			mockLock: &l,
+			callerID: "hac3",
+		},
 		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   1 * time.Millisecond,
 	}
 
 	go func() {
-		err := hac3.Start(testCtx, s.Run(hac3.ID, testCtx))
+		err := hac3.Start(testCtx, s.Run(hac3.Name, testCtx))
 		must.NoError(t, err)
 	}()
 
@@ -275,15 +292,15 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 4, lock.acquireCalls[hac2.ID])
-	must.Eq(t, 2, lock.acquireCalls[hac3.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 4, lock.acquireCalls[hac2.Name])
+	must.Eq(t, 2, lock.acquireCalls[hac3.Name])
 
 	must.True(t, lock.locked)
 
 	must.Eq(t, 6, lock.renewsCounter)
 	must.Eq(t, 1, service.startsCounter)
-	must.StrContains(t, hac1.ID, service.starterID)
+	must.StrContains(t, hac1.Name, service.starterID)
 
 	// Stop hac1 and release the lock
 	hac1Cancel()
@@ -300,15 +317,15 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 5, lock.acquireCalls[hac2.ID])
-	must.Eq(t, 3, lock.acquireCalls[hac3.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 5, lock.acquireCalls[hac2.Name])
+	must.Eq(t, 3, lock.acquireCalls[hac3.Name])
 
 	must.True(t, lock.locked)
 
 	must.Eq(t, 0, lock.renewsCounter)
 	must.Eq(t, 2, service.startsCounter)
-	must.StrContains(t, hac2.ID, service.starterID)
+	must.StrContains(t, hac2.Name, service.starterID)
 
 	time.Sleep(5 * time.Millisecond)
 
@@ -321,15 +338,15 @@ func TestAcquireLock_MultipleInstances(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac1.ID])
-	must.Eq(t, 5, lock.acquireCalls[hac2.ID])
-	must.Eq(t, 3, lock.acquireCalls[hac3.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac1.Name])
+	must.Eq(t, 5, lock.acquireCalls[hac2.Name])
+	must.Eq(t, 3, lock.acquireCalls[hac3.Name])
 
 	must.True(t, lock.locked)
 
 	must.Eq(t, 1, lock.renewsCounter)
 	must.Eq(t, 2, service.startsCounter)
-	must.StrContains(t, hac2.ID, service.starterID)
+	must.StrContains(t, hac2.Name, service.starterID)
 }
 
 func TestFailedRenewal(t *testing.T) {
@@ -344,8 +361,11 @@ func TestFailedRenewal(t *testing.T) {
 
 	// Set the renewal period to 1.5  * testLease (15 ms) to force and error.
 	hac := LockLeaser{
-		ID:            "hac1",
-		locker:        &l,
+		Name: "hac1",
+		locker: &lockHandler{
+			mockLock: &l,
+			callerID: "hac1",
+		},
 		renewalPeriod: time.Duration(float64(testLease) * 1.5),
 		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 		randomDelay:   0,
@@ -354,7 +374,7 @@ func TestFailedRenewal(t *testing.T) {
 	lock := l.getLockState()
 	must.False(t, lock.locked)
 
-	go hac.Start(testCtx, s.Run(hac.ID, testCtx))
+	go hac.Start(testCtx, s.Run(hac.Name, testCtx))
 
 	time.Sleep(5 * time.Millisecond)
 	/*
@@ -364,12 +384,12 @@ func TestFailedRenewal(t *testing.T) {
 
 	lock = l.getLockState()
 	service := s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac.Name])
 	must.True(t, lock.locked)
 
 	must.Eq(t, 0, lock.renewsCounter)
 	must.Eq(t, 1, service.startsCounter)
-	must.StrContains(t, hac.ID, service.starterID)
+	must.StrContains(t, hac.Name, service.starterID)
 
 	time.Sleep(15 * time.Millisecond)
 
@@ -381,12 +401,12 @@ func TestFailedRenewal(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 1, lock.acquireCalls[hac.ID])
+	must.Eq(t, 1, lock.acquireCalls[hac.Name])
 	must.False(t, lock.locked)
 
 	must.Eq(t, 0, lock.renewsCounter)
 	must.Eq(t, 1, service.startsCounter)
-	must.StrContains(t, hac.ID, "")
+	must.StrContains(t, hac.Name, "")
 
 	time.Sleep(10 * time.Millisecond)
 
@@ -397,12 +417,12 @@ func TestFailedRenewal(t *testing.T) {
 
 	lock = l.getLockState()
 	service = s.getServiceState()
-	must.Eq(t, 2, lock.acquireCalls[hac.ID])
+	must.Eq(t, 2, lock.acquireCalls[hac.Name])
 	must.True(t, lock.locked)
 
 	must.Eq(t, 0, lock.renewsCounter)
 	must.Eq(t, 2, service.startsCounter)
-	must.StrContains(t, hac.ID, service.starterID)
+	must.StrContains(t, hac.Name, service.starterID)
 }
 
 func TestStart_ProtectedFunctionError(t *testing.T) {
@@ -413,7 +433,10 @@ func TestStart_ProtectedFunctionError(t *testing.T) {
 	testCtx := context.Background()
 
 	hac := LockLeaser{
-		locker:        &l,
+		locker: &lockHandler{
+			mockLock: &l,
+			callerID: "hac",
+		},
 		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
 	}
