@@ -9,6 +9,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -47,18 +48,13 @@ type JWTLoginRequest struct {
 // ConsulClient is the interface that the nomad client uses to interact with
 // Consul.
 type ConsulClient interface {
-	// DeriveSITokenWithJWT contacts the nomad server and fetches wrapped tokens
-	// for a set of tasks. The wrapped tokens will be unwrapped using consul and
-	// returned.
+	// DeriveSITokenWithJWT logs into Consul using JWT and retrieves a Consul
+	// SI ACL token.
 	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]string, error)
 }
 
 type consulClient struct {
-	// tokenDeriver is a function pointer passed in by the client to derive
-	// tokens by making RPC calls to the nomad server.
-	tokenDeriver TokenDeriverFunc
-
-	// client is the API client to interact with vault
+	// client is the API client to interact with consul
 	client *consulapi.Client
 
 	// config is the configuration to connect to consul
@@ -68,22 +64,21 @@ type consulClient struct {
 }
 
 // NewConsulClient creates a new Consul client
-func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger, tokenDeriver TokenDeriverFunc) (*consulClient, error) {
+func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (*consulClient, error) {
 	if config == nil {
 		return nil, fmt.Errorf("nil consul config")
 	}
 
 	logger = logger.Named("consul")
 
-	c := &consulClient{
-		config:       config,
-		logger:       logger,
-		tokenDeriver: tokenDeriver,
-	}
-
 	// if UseIdentity is unset of set to false, return an empty client
 	if config.UseIdentity == nil || !*config.UseIdentity {
 		return nil, nil
+	}
+
+	c := &consulClient{
+		config: config,
+		logger: logger,
 	}
 
 	// Get the Consul API configuration
@@ -129,7 +124,7 @@ func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (ma
 	}
 
 	if err := mErr.ErrorOrNil(); err != nil {
-		return nil, err
+		return tokens, err
 	}
 
 	return tokens, nil
