@@ -51,7 +51,9 @@ func testServiceJob() *Job {
 	// Create a job of type service
 	task := NewTask("dummy-task", "exec").SetConfig("command", "/bin/sleep")
 	group1 := NewTaskGroup("dummy-group", 1).AddTask(task)
-	job := NewServiceJob("dummy-service", "dummy-service", "global", 5).AddTaskGroup(group1)
+	job := NewServiceJob("dummy-service", "dummy-service", "global", 5).
+		AddTaskGroup(group1).
+		AddDatacenter("dc1")
 	return job
 }
 
