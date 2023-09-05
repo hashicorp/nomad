@@ -189,9 +189,9 @@ func TestRPC_PlaintextRPCSucceedsWhenInUpgradeMode(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -231,9 +231,9 @@ func TestRPC_PlaintextRPCFailsWhenNotInUpgradeMode(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -297,9 +297,9 @@ func TestRPC_streamingRpcConn_badMethod_TLS(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -407,9 +407,9 @@ func TestRPC_streamingRpcConn_goodMethod_TLS(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	dir := t.TempDir()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
@@ -545,9 +545,9 @@ func TestRPC_TLS_in_TLS(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	s, cleanup := TestServer(t, func(c *Config) {
@@ -605,9 +605,9 @@ func TestRPC_Limits_OK(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile   = "../helper/tlsutil/testdata/ca.pem"
-		foocert  = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey   = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile   = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert  = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey   = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 		maxConns = 10 // limit must be < this for testing
 	)
 
