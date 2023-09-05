@@ -29,6 +29,17 @@ func testStateStore(t *testing.T) *StateStore {
 	return TestStateStore(t)
 }
 
+func TestStateStore_InvalidConfig(t *testing.T) {
+	config := &StateStoreConfig{
+		// default zero value, but explicit because it causes validation failure
+		JobTrackedVersions: 0,
+	}
+	store, err := NewStateStore(config)
+	must.Nil(t, store)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "JobTrackedVersions must be positive")
+}
+
 func TestStateStore_Blocking_Error(t *testing.T) {
 	ci.Parallel(t)
 

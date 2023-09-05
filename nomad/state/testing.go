@@ -32,11 +32,13 @@ func TestStateStore(t testing.TB) *StateStore {
 
 func TestStateStorePublisher(t testing.TB) *StateStoreConfig {
 	return &StateStoreConfig{
-		Logger:          testlog.HCLogger(t),
-		Region:          "global",
-		EnablePublisher: true,
+		Logger:             testlog.HCLogger(t),
+		Region:             "global",
+		EnablePublisher:    true,
+		JobTrackedVersions: structs.JobDefaultTrackedVersions,
 	}
 }
+
 func TestStateStoreCfg(t testing.TB, cfg *StateStoreConfig) *StateStore {
 	state, err := NewStateStore(cfg)
 	if err != nil {
