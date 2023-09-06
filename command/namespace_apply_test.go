@@ -88,6 +88,16 @@ node_pool_config {
   allowed = ["prod*"]
 }
 
+vault {
+  default = "infra"
+  allowed = ["apps", "infra"]
+}
+
+consul {
+  default = "prod"
+  allowed = ["prod", "apps*"]
+}
+
 meta {
   dept = "eng"
 }`,
@@ -102,6 +112,14 @@ meta {
 				NodePoolConfiguration: &api.NamespaceNodePoolConfiguration{
 					Default: "dev",
 					Allowed: []string{"prod*"},
+				},
+				VaultConfiguration: &api.NamespaceVaultConfiguration{
+					Default: "infra",
+					Allowed: []string{"apps", "infra"},
+				},
+				ConsulConfiguration: &api.NamespaceConsulConfiguration{
+					Default: "prod",
+					Allowed: []string{"prod", "apps*"},
 				},
 				Meta: map[string]string{
 					"dept": "eng",

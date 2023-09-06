@@ -31,6 +31,26 @@ func TestNamespace_Validate_Oss(t *testing.T) {
 			},
 			expectedErr: "unlicensed",
 		},
+		{
+			name: "vault config not allowed",
+			namespace: &Namespace{
+				Name: "test",
+				VaultConfiguration: &NamespaceVaultConfiguration{
+					Default: "dev",
+				},
+			},
+			expectedErr: "unlicensed",
+		},
+		{
+			name: "consul config not allowed",
+			namespace: &Namespace{
+				Name: "test",
+				ConsulConfiguration: &NamespaceConsulConfiguration{
+					Default: "dev",
+				},
+			},
+			expectedErr: "unlicensed",
+		},
 	}
 
 	for _, tc := range cases {

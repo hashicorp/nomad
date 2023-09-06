@@ -5380,6 +5380,9 @@ type Namespace struct {
 	// pools.
 	NodePoolConfiguration *NamespaceNodePoolConfiguration
 
+	VaultConfiguration  *NamespaceVaultConfiguration
+	ConsulConfiguration *NamespaceConsulConfiguration
+
 	// Meta is the set of metadata key/value pairs that attached to the namespace
 	Meta map[string]string
 
@@ -5444,6 +5447,26 @@ func (n *Namespace) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", e))
 	}
 
+	err = n.VaultConfiguration.Validate()
+	switch e := err.(type) {
+	case *multierror.Error:
+		for _, vErr := range e.Errors {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid vault configuration: %v", vErr))
+		}
+	case error:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid vault configuration: %v", e))
+	}
+
+	err = n.ConsulConfiguration.Validate()
+	switch e := err.(type) {
+	case *multierror.Error:
+		for _, cErr := range e.Errors {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid consul configuration: %v", cErr))
+		}
+	case error:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid consul configuration: %v", e))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -5474,6 +5497,26 @@ func (n *Namespace) SetHash() []byte {
 		}
 		for _, pool := range n.NodePoolConfiguration.Denied {
 			_, _ = hash.Write([]byte(pool))
+		}
+	}
+
+	if n.VaultConfiguration != nil {
+		_, _ = hash.Write([]byte(n.VaultConfiguration.Default))
+		for _, cluster := range n.VaultConfiguration.Allowed {
+			_, _ = hash.Write([]byte(cluster))
+		}
+		for _, cluster := range n.VaultConfiguration.Denied {
+			_, _ = hash.Write([]byte(cluster))
+		}
+	}
+
+	if n.ConsulConfiguration != nil {
+		_, _ = hash.Write([]byte(n.ConsulConfiguration.Default))
+		for _, cluster := range n.ConsulConfiguration.Allowed {
+			_, _ = hash.Write([]byte(cluster))
+		}
+		for _, cluster := range n.ConsulConfiguration.Denied {
+			_, _ = hash.Write([]byte(cluster))
 		}
 	}
 
@@ -5514,6 +5557,19 @@ func (n *Namespace) Copy() *Namespace {
 		np.Allowed = slices.Clone(n.NodePoolConfiguration.Allowed)
 		np.Denied = slices.Clone(n.NodePoolConfiguration.Denied)
 	}
+	if n.VaultConfiguration != nil {
+		nv := new(NamespaceVaultConfiguration)
+		*nv = *n.VaultConfiguration
+		nv.Allowed = slices.Clone(n.VaultConfiguration.Allowed)
+		nv.Denied = slices.Clone(n.VaultConfiguration.Denied)
+	}
+	if n.ConsulConfiguration != nil {
+		nc := new(NamespaceConsulConfiguration)
+		*nc = *n.ConsulConfiguration
+		nc.Allowed = slices.Clone(n.ConsulConfiguration.Allowed)
+		nc.Denied = slices.Clone(n.ConsulConfiguration.Denied)
+	}
+
 	if n.Meta != nil {
 		nc.Meta = make(map[string]string, len(n.Meta))
 		for k, v := range n.Meta {

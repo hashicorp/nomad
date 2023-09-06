@@ -24,6 +24,24 @@ func (n *NamespaceNodePoolConfiguration) Validate() error {
 	return nil
 }
 
+func (n *NamespaceVaultConfiguration) Canonicalize() {}
+
+func (n *NamespaceVaultConfiguration) Validate() error {
+	if n != nil {
+		return errors.New("Multi-Cluster Vault is unlicensed.")
+	}
+	return nil
+}
+
+func (n *NamespaceConsulConfiguration) Canonicalize() {}
+
+func (n *NamespaceConsulConfiguration) Validate() error {
+	if n != nil {
+		return errors.New("Multi-Cluster Consul is unlicensed.")
+	}
+	return nil
+}
+
 func (m *Multiregion) Validate(jobType string, jobDatacenters []string) error {
 	if m != nil {
 		return errors.New("Multiregion jobs are unlicensed.")
