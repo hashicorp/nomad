@@ -299,9 +299,16 @@ export default function () {
     });
 
     if (token) {
-      const { policyIds } = token;
-      // TODO: Update this to account for ACL roles. Currently a user with roles but no policies-on-token will 500 on /nodes.
-      const policies = server.db.policies.find(policyIds);
+      const policyIds = token.policyIds || [];
+
+      const roleIds = token.roleIds || [];
+      const roles = server.db.roles.find(roleIds);
+      const rolePolicyIds = roles.map((role) => role.policyIds).flat();
+
+      const policies = server.db.policies.find([
+        ...policyIds,
+        ...rolePolicyIds,
+      ]);
       const hasReadPolicy = policies.find(
         (p) =>
           p.rulesJSON.Node?.Policy === 'read' ||

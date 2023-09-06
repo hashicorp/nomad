@@ -798,5 +798,9 @@ module('Acceptance | tokens', function (hooks) {
       assert.dom('[data-test-token-role]').exists({ count: 2 });
       assert.dom('[data-test-token-policy]').exists({ count: 2 });
     });
+
+    test('Token priveleges are derived from role', async function (assert) {
+      // Check that a node reader can read nodes if the policy to do so only exists at their role level
+    });
   });
 });
