@@ -204,7 +204,7 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 	err = ll.locker.Release(ctx)
 	if err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("release: %w", err))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("lock release: %w", err))
 	}
 
 	return mErr.ErrorOrNil()
@@ -232,7 +232,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 	for {
 		lockID, err := ll.locker.Acquire(ctx)
 		if err != nil && !errors.Is(err, ErrLockConflict) {
-			errChannel <- fmt.Errorf("error acquiring the lock: %w", err)
+			errChannel <- err
 		}
 
 		if lockID != "" {

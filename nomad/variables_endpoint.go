@@ -103,7 +103,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 	err = canonicalizeAndValidate(args)
 	if err != nil {
-		return err
+		return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
 	}
 
 	var ev *structs.VariableEncrypted
@@ -209,7 +209,11 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	case structs.VarOpSet, structs.VarOpCAS:
 		args.Var.Canonicalize()
 
-		return args.Var.Validate()
+		err := args.Var.Validate()
+		if err != nil {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
+		}
+		return nil
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
