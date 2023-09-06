@@ -1513,10 +1513,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 	// Create a new state store
 	config := &state.StateStoreConfig{
-		Logger:          n.config.Logger,
-		Region:          n.config.Region,
-		EnablePublisher: n.config.EnableEventBroker,
-		EventBufferSize: n.config.EventBufferSize,
+		Logger:             n.config.Logger,
+		Region:             n.config.Region,
+		EnablePublisher:    n.config.EnableEventBroker,
+		EventBufferSize:    n.config.EventBufferSize,
+		JobTrackedVersions: n.config.JobTrackedVersions,
 	}
 	newState, err := state.NewStateStore(config)
 	if err != nil {
