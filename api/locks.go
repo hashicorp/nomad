@@ -26,11 +26,15 @@ var (
 
 	//LockNoPathErr is returned when no path is provided in the variable to be
 	// used for the lease mechanism
-	LockNoPathErr = errors.New("the path for the lock provided")
+	LockNoPathErr = errors.New("variable's path can't be empty")
 )
 
 // Locks returns a new handle on a lock for the given variable.
 func (c *Client) Locks(wo WriteOptions, v Variable) (*Locks, error) {
+
+	if v.Path == "" {
+		return nil, LockNoPathErr
+	}
 
 	ttl, err := time.ParseDuration(v.Lock.TTL)
 	if err != nil {
