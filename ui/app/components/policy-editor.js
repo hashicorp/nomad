@@ -52,7 +52,10 @@ export default class PolicyEditorComponent extends Component {
       });
 
       if (shouldRedirectAfterSave) {
-        this.router.transitionTo('policies.policy', this.policy.id);
+        this.router.transitionTo(
+          'access-control.policies.policy',
+          this.policy.id
+        );
       }
     } catch (error) {
       this.notifications.add({

@@ -84,11 +84,12 @@ operator {
 #  * write
 `;
 
-export default class PoliciesNewRoute extends Route {
+export default class AccessControlPoliciesNewRoute extends Route {
   @service can;
   @service router;
 
   beforeModel() {
+    console.log('newbefoma');
     if (this.can.cannot('write policy')) {
       this.router.transitionTo('/policies');
     }

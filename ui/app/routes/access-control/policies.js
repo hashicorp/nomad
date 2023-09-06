@@ -9,7 +9,7 @@ import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
 import { inject as service } from '@ember/service';
 import { hash } from 'rsvp';
 
-export default class PoliciesRoute extends Route.extend(
+export default class AccessControlPoliciesRoute extends Route.extend(
   withForbiddenState,
   WithModelErrorHandling
 ) {
@@ -18,7 +18,6 @@ export default class PoliciesRoute extends Route.extend(
   @service router;
 
   beforeModel() {
-    console.log('befoma polic');
     if (this.can.cannot('list policies')) {
       this.router.transitionTo('/jobs');
     }

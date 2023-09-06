@@ -19,6 +19,6 @@ export default class PoliciesIndexController extends Controller {
   }
 
   @action openPolicy(policy) {
-    this.router.transitionTo('policies.policy', policy.name);
+    this.router.transitionTo('access-control.policies.policy', policy.name);
   }
 }

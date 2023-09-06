@@ -11,7 +11,7 @@ import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
-export default class PoliciesPolicyController extends Controller {
+export default class AccessControlPoliciesPolicyController extends Controller {
   @service notifications;
   @service router;
   @service store;
@@ -25,6 +25,7 @@ export default class PoliciesPolicyController extends Controller {
   @tracked isDeleting = false;
 
   get newTokenString() {
+    console.log('modello', this.model);
     return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=<8h>`;
   }
 
@@ -48,7 +49,7 @@ export default class PoliciesPolicyController extends Controller {
         type: `success`,
         destroyOnClick: false,
       });
-      this.router.transitionTo('policies');
+      this.router.transitionTo('access-control.policies');
     } catch (err) {
       this.notifications.add({
         title: `Error deleting Policy ${this.policy.name}`,

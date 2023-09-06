@@ -9,12 +9,13 @@ import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
 import { inject as service } from '@ember/service';
 import { hash } from 'rsvp';
 
-export default class PoliciesPolicyRoute extends Route.extend(
+export default class AccessControlPoliciesPolicyRoute extends Route.extend(
   withForbiddenState,
   WithModelErrorHandling
 ) {
   @service store;
   async model(params) {
+    console.log('reckoning the policy model');
     return hash({
       policy: this.store.findRecord('policy', decodeURIComponent(params.name), {
         reload: true,
@@ -25,5 +26,9 @@ export default class PoliciesPolicyRoute extends Route.extend(
           token.policyNames?.includes(decodeURIComponent(params.name))
         ),
     });
+  }
+
+  afterModel(model) {
+    console.log('MODEL AFTER', model);
   }
 }
