@@ -254,9 +254,9 @@ func TestClient_MixedTLS(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{
@@ -302,12 +302,12 @@ func TestClient_BadTLS(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
-		badca   = "../helper/tlsutil/testdata/ca-bad.pem"
-		badcert = "../helper/tlsutil/testdata/nomad-bad.pem"
-		badkey  = "../helper/tlsutil/testdata/nomad-bad-key.pem"
+		cafile        = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		fooclientcert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fooclientkey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
+		badca         = "../helper/tlsutil/testdata/bad-agent-ca.pem"
+		badcert       = "../helper/tlsutil/testdata/badRegion-client-bad.pem"
+		badkey        = "../helper/tlsutil/testdata/badRegion-client-bad-key.pem"
 	)
 	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{
@@ -315,8 +315,8 @@ func TestClient_BadTLS(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CertFile:             fooclientcert,
+			KeyFile:              fooclientkey,
 		}
 	})
 	defer cleanupS1()
@@ -923,9 +923,9 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile        = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		fooclientcert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fooclientkey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -959,8 +959,8 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 		EnableRPC:            true,
 		VerifyServerHostname: true,
 		CAFile:               cafile,
-		CertFile:             foocert,
-		KeyFile:              fookey,
+		CertFile:             fooclientcert,
+		KeyFile:              fooclientkey,
 	}
 
 	err := c1.reloadTLSConnections(newConfig)
@@ -999,9 +999,9 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile        = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		fooclientcert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fooclientkey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -1011,8 +1011,8 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CertFile:             fooclientcert,
+			KeyFile:              fooclientkey,
 		}
 	})
 	defer cleanup()
