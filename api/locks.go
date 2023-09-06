@@ -135,7 +135,7 @@ func (l *Locks) Renew(ctx context.Context) error {
 	return nil
 }
 
-func (l *Locks) TTL() time.Duration {
+func (l *Locks) LockTTL() time.Duration {
 	return l.ttl
 }
 
