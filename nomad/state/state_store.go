@@ -105,6 +105,13 @@ type StateStoreConfig struct {
 	JobTrackedVersions int
 }
 
+func (c *StateStoreConfig) Validate() error {
+	if c.JobTrackedVersions <= 0 {
+		return fmt.Errorf("JobTrackedVersions must be positive; got: %d", c.JobTrackedVersions)
+	}
+	return nil
+}
+
 // The StateStore is responsible for maintaining all the Nomad
 // state. It is manipulated by the FSM which maintains consistency
 // through the use of Raft. The goals of the StateStore are to provide
@@ -139,6 +146,10 @@ func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
 
 // NewStateStore is used to create a new state store
 func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Create the MemDB
 	db, err := memdb.NewMemDB(stateStoreSchema())
 	if err != nil {
@@ -2031,6 +2042,11 @@ func (s *StateStore) deleteJobVersions(index uint64, job *structs.Job, txn *txn)
 // upsertJobVersion inserts a job into its historic version table and limits the
 // number of job versions that are tracked.
 func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) error {
+	// JobTrackedVersions really must not be zero here
+	if err := s.config.Validate(); err != nil {
+		return err
+	}
+
 	// Insert the job
 	if err := txn.Insert("job_version", job); err != nil {
 		return fmt.Errorf("failed to insert job into job_version table: %v", err)
