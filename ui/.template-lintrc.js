@@ -19,5 +19,6 @@ module.exports = {
   },
   ignore: [
     'app/components/breadcrumbs/*', // using {{(modifier)}} syntax
+    'app/templates/components/list-pagination/list-pager', // using {{(modifier)}} syntax
   ],
 };
