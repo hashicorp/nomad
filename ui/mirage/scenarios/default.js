@@ -476,10 +476,23 @@ function rolesTestCluster(server) {
   const clientDenierPolicy = server.create('policy', {
     id: 'client-denier',
     name: 'client-denier',
-    description: "Can't do anything",
+    description: "Can't do anything with Clients",
     rulesJSON: {
       Node: {
         Policy: 'deny',
+      },
+    },
+  });
+
+  const jobDenierPolicy = server.create('policy', {
+    id: 'job-denier',
+    name: 'job-denier',
+    description: "Can't do anything with Jobs",
+    rulesJSON: {
+      namespace: {
+        '*': {
+          policy: 'deny',
+        },
       },
     },
   });
@@ -513,11 +526,14 @@ function rolesTestCluster(server) {
     name: 'job-writer',
     description: 'Can do lots with jobs',
     rulesJSON: {
-      namespace: {
-        '*': {
-          policy: 'write',
+      Namespaces: [
+        {
+          Name: '*',
+          Policy: '',
+          Capabilities: ['submit-job'],
+          Variables: null,
         },
-      },
+      ],
     },
   });
 
@@ -541,6 +557,13 @@ function rolesTestCluster(server) {
     name: 'reader',
     description: 'Can read things',
     policyIds: [clientReaderPolicy.id, jobReaderPolicy.id],
+  });
+
+  const denierRole = server.create('role', {
+    id: 'denier',
+    name: 'denier',
+    description: "Can't do anything",
+    policyIds: [clientDenierPolicy.id, jobDenierPolicy.id],
   });
 
   // Create tokens
@@ -593,6 +616,18 @@ function rolesTestCluster(server) {
     name: 'Multi Role And Policy Token',
     roleIds: [editorRole.id, highLevelRole.id],
     policyIds: [clientWriterPolicy.id], // also included within editorRole, so redundant here.
+  });
+
+  let noClientsViaPolicyToken = server.create('token', {
+    type: 'client',
+    name: 'Clientless Policy Token',
+    policyIds: [clientDenierPolicy.id],
+  });
+
+  let noClientsViaRoleToken = server.create('token', {
+    type: 'client',
+    name: 'Clientless Role Token',
+    roleIds: [denierRole.id],
   });
 
   logTokens(server);

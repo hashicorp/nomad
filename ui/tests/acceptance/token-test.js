@@ -800,7 +800,41 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     test('Token priveleges are derived from role', async function (assert) {
-      // Check that a node reader can read nodes if the policy to do so only exists at their role level
+      // First, check that a node reader can read nodes if the policy to do so only exists at their role level
+      await visit('/clients');
+      // Expect to see some nodes
+      let nodes = server.db.nodes;
+      assert.dom('[data-test-client-node-row]').exists({ count: nodes.length });
+
+      // Head back and sign in as Clientless Role Token
+      await Tokens.visit();
+      let token = server.db.tokens.findBy(
+        (t) => t.name === 'Clientless Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      await visit('/clients');
+      // Expect no rows, and a denied message
+      assert.dom('[data-test-client-node-row]').doesNotExist();
+      assert.dom('[data-test-error]').exists();
+
+      // Pop over to the jobs page and make sure the Run button is disabled
+      await visit('/jobs');
+      assert.dom('[data-test-run-job]').hasTagName('button');
+      assert.dom('[data-test-run-job]').isDisabled();
+
+      // Sign out, and sign back in as a high-level role token
+      await Tokens.visit();
+      await Tokens.clear();
+      token = server.db.tokens.findBy(
+        (t) => t.name === 'High Level Role Token'
+      );
+      await Tokens.secret(token.secretId).submit();
+
+      await visit('/jobs');
+      // Expect the Run button/link to work now
+      assert.dom('[data-test-run-job]').hasTagName('a');
+      assert.dom('[data-test-run-job]').hasAttribute('href', '/ui/jobs/run');
     });
   });
 });
