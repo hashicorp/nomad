@@ -155,7 +155,7 @@ type Locker interface {
 	// mechanism among multiple instances looking to acquire the same lock.
 	Renew(ctx context.Context) error
 
-	// LockTTL() returns the expiration time of the underlying lock.
+	// LockTTL returns the expiration time of the underlying lock.
 	LockTTL() time.Duration
 }
 
