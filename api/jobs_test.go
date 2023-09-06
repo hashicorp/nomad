@@ -336,6 +336,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(30 * time.Second),
@@ -422,6 +423,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Tasks: []*Task{
 							{
@@ -513,6 +515,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(30 * time.Second),
@@ -687,6 +690,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(30 * time.Second),
@@ -741,6 +745,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										AddressMode: "auto",
 										OnUpdate:    "require_healthy",
 										Provider:    "consul",
+										Cluster:     "default",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",
@@ -949,6 +954,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(2 * time.Second),
@@ -997,6 +1003,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(1 * time.Second),
@@ -1128,6 +1135,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(30 * time.Second),
@@ -1182,6 +1190,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 						Consul: &Consul{
 							Namespace: "",
+							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          pointerOf(30 * time.Second),

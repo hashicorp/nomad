@@ -248,6 +248,9 @@ type Service struct {
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
 	Provider string `hcl:"provider,optional"`
+
+	// Cluster is valid only for Nomad Enterprise with provider: consul
+	Cluster string `hcl:"cluster,optional`
 }
 
 const (
@@ -284,6 +287,9 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default the service provider.
 	if s.Provider == "" {
 		s.Provider = ServiceProviderConsul
+	}
+	if s.Cluster == "" {
+		s.Cluster = "default"
 	}
 
 	if len(s.Meta) == 0 {

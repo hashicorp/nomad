@@ -242,8 +242,8 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		return c
 	}
 
-	// Check consul namespace updated
-	if c := consulNamespaceUpdated(a, b); c.modified {
+	// Check consul updated
+	if c := consulUpdated(a, b); c.modified {
 		return c
 	}
 
@@ -361,18 +361,26 @@ func nonNetworkResourcesUpdated(a, b *structs.Resources) comparison {
 	return same
 }
 
-// consulNamespaceUpdated returns true if the Consul namespace in the task group
-// has been changed.
+// consulUpdated returns true if the Consul namespace or cluster in the task
+// group has been changed.
 //
-// This is treated as a destructive update unlike ordinary Consul service configuration
-// because Namespaces directly impact networking validity among Consul intentions.
-// Forcing the task through a reschedule is a sure way of breaking no-longer valid
-// network connections.
-func consulNamespaceUpdated(tgA, tgB *structs.TaskGroup) comparison {
+// This is treated as a destructive update unlike ordinary Consul service
+// configuration because Namespaces and Cluster directly impact networking
+// validity among Consul intentions.  Forcing the task through a reschedule is a
+// sure way of breaking no-longer valid network connections.
+func consulUpdated(tgA, tgB *structs.TaskGroup) comparison {
 	// job.ConsulNamespace is pushed down to the TGs, just check those
 	if a, b := tgA.Consul.GetNamespace(), tgB.Consul.GetNamespace(); a != b {
 		return difference("consul namespace", a, b)
 	}
+
+	// if either are nil, we can treat this as a non-destructive update
+	if tgA.Consul != nil && tgB.Consul != nil {
+		if a, b := tgA.Consul.Cluster, tgB.Consul.Cluster; a != b {
+			return difference("consul cluster", a, b)
+		}
+	}
+
 	return same
 }
 
@@ -394,6 +402,11 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) comparison {
 					if serviceA.PortLabel != serviceB.PortLabel {
 						return difference("connect service port label", serviceA.PortLabel, serviceB.PortLabel)
 					}
+
+					if serviceA.Cluster != serviceB.Cluster {
+						return difference("connect service cluster", serviceA.Cluster, serviceB.Cluster)
+					}
+
 					break
 				}
 			}

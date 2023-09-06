@@ -2985,11 +2985,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Consul: &structs.Consul{
 					Namespace: "team-foo",
+					Cluster:   "default",
 				},
 				Services: []*structs.Service{
 					{
 						Name:              "groupserviceA",
 						Provider:          "consul",
+						Cluster:           "default",
 						Tags:              []string{"a", "b"},
 						CanaryTags:        []string{"d", "e"},
 						EnableTagOverride: true,
@@ -3091,6 +3093,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							{
 								Name:              "serviceA",
 								Provider:          "consul",
+								Cluster:           "default",
 								Tags:              []string{"1", "2"},
 								CanaryTags:        []string{"3", "4"},
 								EnableTagOverride: true,
@@ -3429,6 +3432,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Consul: &structs.Consul{
 					Namespace: "foo",
+					Cluster:   "default",
 				},
 				Tasks: []*structs.Task{
 					{

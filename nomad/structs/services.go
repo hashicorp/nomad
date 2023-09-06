@@ -615,6 +615,9 @@ type Service struct {
 	// left empty by the operator.
 	Provider string
 
+	// Consul Cluster (by name) to send API requests to
+	Cluster string
+
 	// Identity is a field populated automatically by the job mutating hook.
 	// Its name will be `consul-service/${service_name}`, and its contents will
 	// match the server's `consul.service_identity` configuration block.
@@ -957,6 +960,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if s.Provider != o.Provider {
+		return false
+	}
+
+	if s.Cluster != o.Cluster {
 		return false
 	}
 
