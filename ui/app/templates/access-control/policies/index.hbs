@@ -3,14 +3,14 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{page-title "Policies and Roles"}}
+{{page-title "Policies"}}
 <section class="section">
   <div class="toolbar">
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
       {{#if (can "write policy")}}
         <LinkTo
-          @route="policies.new"
+          @route="access-control.policies.new"
           class="button is-primary"
           data-test-create-policy
         >
@@ -48,7 +48,7 @@
           action=(action "openPolicy" row.model)
         }}>
           <td data-test-policy-name>
-						<LinkTo @route="policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
+						<LinkTo @route="access-control.policies.policy" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
 					</td>
           {{#if (can "list token")}}
             <td data-test-policy-token-count>
@@ -69,7 +69,7 @@
         No Policies
       </h3>
       <p class="empty-message-body">
-        Get started by <LinkTo @route="policies.new">creating a new policy</LinkTo>
+        Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
       </p>
     </div>
   {{/if}}

@@ -18,6 +18,7 @@ export default class PoliciesRoute extends Route.extend(
   @service router;
 
   beforeModel() {
+    console.log('befoma polic');
     if (this.can.cannot('list policies')) {
       this.router.transitionTo('/jobs');
     }

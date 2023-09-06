@@ -3,12 +3,18 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{page-title "Authorization"}}
+{{page-title (if this.tokenRecord "Profile" "Sign In")}}
 <section class="section authorization-page">
   {{#if this.isValidatingToken}}
     <LoadingSpinner />
   {{else}}
-    <h1 class="title">Authorization and access control</h1>
+    <h1 class="title">
+      {{#if this.tokenRecord}}
+        Profile
+      {{else}}
+        Sign In
+      {{/if}}
+    </h1>
 
     <div class="status-notifications {{if this.canSignIn "is-half"}}">
 

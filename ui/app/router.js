@@ -111,11 +111,12 @@ Router.map(function () {
     });
   });
 
-  this.route('policies', function () {
-    this.route('new');
-
-    this.route('policy', {
-      path: '/:name',
+  this.route('access-control', function () {
+    this.route('policies', function () {
+      this.route('new');
+      this.route('policy', {
+        path: '/:name',
+      });
     });
   });
   // Mirage-only route for testing OIDC flow
