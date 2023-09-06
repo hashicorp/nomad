@@ -931,6 +931,7 @@ type Vault struct {
 	Policies     []string `hcl:"policies,optional"`
 	Role         string   `hcl:"role,optional"`
 	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
+	Cluster      string   `hcl:"cluster,optional"`
 	Env          *bool    `hcl:"env,optional"`
 	DisableFile  *bool    `mapstructure:"disable_file" hcl:"disable_file,optional"`
 	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
@@ -946,6 +947,9 @@ func (v *Vault) Canonicalize() {
 	}
 	if v.Namespace == nil {
 		v.Namespace = pointerOf("")
+	}
+	if v.Cluster == "" {
+		v.Cluster = "default"
 	}
 	if v.ChangeMode == nil {
 		v.ChangeMode = pointerOf("restart")
