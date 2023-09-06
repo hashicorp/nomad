@@ -21,11 +21,11 @@ import (
 // work when TLS is enabled.
 func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	const (
-		caFn         = "../helper/tlsutil/testdata/global-ca.pem"
-		serverCertFn = "../helper/tlsutil/testdata/global-server.pem"
-		serverKeyFn  = "../helper/tlsutil/testdata/global-server-key.pem"
-		clientCertFn = "../helper/tlsutil/testdata/global-client.pem"
-		clientKeyFn  = "../helper/tlsutil/testdata/global-client-key.pem"
+		caFn         = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		serverCertFn = "../helper/tlsutil/testdata/global-server-nomad.pem"
+		serverKeyFn  = "../helper/tlsutil/testdata/global-server-nomad-key.pem"
+		clientCertFn = "../helper/tlsutil/testdata/global-client-nomad.pem"
+		clientKeyFn  = "../helper/tlsutil/testdata/global-client-nomad-key.pem"
 	)
 	ci.Parallel(t)
 	require := require.New(t)

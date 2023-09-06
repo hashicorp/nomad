@@ -56,9 +56,9 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 	require := require.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile        = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		fooservercert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fooserverkey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 
 	s1, cleanupS1 := nomad.TestServer(t, func(c *nomad.Config) {
@@ -69,8 +69,8 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CertFile:             fooservercert,
+			KeyFile:              fooserverkey,
 		}
 	})
 	defer cleanupS1()
@@ -84,8 +84,8 @@ func TestRpc_streamingRpcConn_badEndpoint_TLS(t *testing.T) {
 			EnableRPC:            true,
 			VerifyServerHostname: true,
 			CAFile:               cafile,
-			CertFile:             foocert,
-			KeyFile:              fookey,
+			CertFile:             fooservercert,
+			KeyFile:              fooserverkey,
 		}
 	})
 	defer cleanupC()
