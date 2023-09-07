@@ -15,5 +15,9 @@ func (f *VaultFingerprint) vaultConfigs(req *FingerprintRequest) map[string]*con
 		return nil
 	}
 
+	if len(req.Config.VaultConfigs) > 1 {
+		f.logger.Warn("multiple Vault configurations are only supported in Nomad Enterprise")
+	}
+
 	return map[string]*config.VaultConfig{"default": agentCfg.VaultConfig}
 }
