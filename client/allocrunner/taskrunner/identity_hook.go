@@ -112,9 +112,15 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 	return nil
 }
 
+// Stop implements interfaces.TaskStopHook
 func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
 	h.stop()
 	return nil
+}
+
+// Shutdown implements interfaces.ShutdownHook
+func (h *identityHook) Shutdown() {
+	h.stop()
 }
 
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a
@@ -280,7 +286,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 			widspec, ok := widMap[token.IdentityName]
 			if !ok {
 				// Bug: Every requested workload identity should either have a signed
-				// identity.
+				// identity or rejection.
 				h.logger.Warn("bug: unexpected workload identity received", "identity", token.IdentityName)
 				continue
 			}

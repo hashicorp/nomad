@@ -26,6 +26,8 @@ import (
 )
 
 var _ interfaces.TaskPrestartHook = (*identityHook)(nil)
+var _ interfaces.TaskStopHook = (*identityHook)(nil)
+var _ interfaces.ShutdownHook = (*identityHook)(nil)
 
 // See task_runner_test.go:TestTaskRunner_IdentityHook
 
