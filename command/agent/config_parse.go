@@ -72,6 +72,29 @@ func ParseConfigFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to decode HCL file %s: %w", path, err)
 	}
 
+	// Re-parse the file to extract the multiple Vault configurations, which we
+	// need to parse by hand because we don't have a label on the block
+	root, err := hcl.Parse(buf.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HCL file %s: %w", path, err)
+	}
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return nil, fmt.Errorf("error parsing: root should be an object")
+	}
+	matches := list.Filter("vault")
+	if len(matches.Items) > 0 {
+		if err := parseVaults(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'vault': %w", err)
+		}
+	}
+	matches = list.Filter("consul")
+	if len(matches.Items) > 0 {
+		if err := parseConsuls(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'consul': %w", err)
+		}
+	}
+
 	// convert strings to time.Durations
 	tds := []durationConversionMap{
 		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL, nil},
@@ -152,6 +175,30 @@ func ParseConfigFile(path string) (*Config, error) {
 		},
 	}
 
+	// Parse durations for Consul and Vault config blocks if provided.
+	//
+	// Since the map of multiple cluster configuration contains a pointer to
+	// the default block we don't need to parse it directly.
+	for name, consulConfig := range c.Consuls {
+		if consulConfig.ServiceIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				fmt.Sprintf("consuls.%s.service_identity.ttl", name), nil, &consulConfig.ServiceIdentity.TTLHCL,
+				func(d *time.Duration) {
+					consulConfig.ServiceIdentity.TTL = d
+				},
+			})
+		}
+
+		if consulConfig.TemplateIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				fmt.Sprintf("consuls.%s.template_identity.ttl", name), nil, &consulConfig.TemplateIdentity.TTLHCL,
+				func(d *time.Duration) {
+					consulConfig.TemplateIdentity.TTL = d
+				},
+			})
+		}
+	}
+
 	// Add enterprise audit sinks for time.Duration parsing
 	for i, sink := range c.Audit.Sinks {
 		tds = append(tds, durationConversionMap{
@@ -164,28 +211,6 @@ func ParseConfigFile(path string) (*Config, error) {
 		return nil, err
 	}
 
-	// Re-parse the file to extract the multiple Vault configurations, which we
-	// need to parse by hand because we don't have a label on the block
-	root, err := hcl.Parse(buf.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse HCL file %s: %w", path, err)
-	}
-	list, ok := root.Node.(*ast.ObjectList)
-	if !ok {
-		return nil, fmt.Errorf("error parsing: root should be an object")
-	}
-	matches := list.Filter("vault")
-	if len(matches.Items) > 0 {
-		if err := parseVaults(c, matches); err != nil {
-			return nil, fmt.Errorf("error parsing 'vault': %w", err)
-		}
-	}
-	matches = list.Filter("consul")
-	if len(matches.Items) > 0 {
-		if err := parseConsuls(c, matches); err != nil {
-			return nil, fmt.Errorf("error parsing 'consul': %w", err)
-		}
-	}
 	// report unexpected keys
 	err = extraKeys(c)
 	if err != nil {

@@ -5,6 +5,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -19,6 +20,7 @@ func TestWorkloadIdentityConfig_Copy(t *testing.T) {
 		Audience: []string{"aud"},
 		Env:      pointer.Of(true),
 		File:     pointer.Of(false),
+		TTL:      pointer.Of(time.Hour),
 	}
 
 	// Verify Copy() returns the same values but different pointer.
@@ -31,6 +33,7 @@ func TestWorkloadIdentityConfig_Copy(t *testing.T) {
 	clone.Audience = []string{"aud", "clone"}
 	clone.Env = pointer.Of(false)
 	clone.File = pointer.Of(true)
+	clone.TTL = pointer.Of(time.Second)
 
 	must.NotEq(t, original, clone)
 	must.NotEqOp(t, original, clone)
@@ -52,12 +55,14 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Hour),
 			},
 			b: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Hour),
 			},
 			expectEq: true,
 		},
@@ -121,6 +126,16 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 			},
 			expectEq: false,
 		},
+		{
+			name: "different ttl",
+			a: &WorkloadIdentityConfig{
+				TTL: pointer.Of(time.Hour),
+			},
+			b: &WorkloadIdentityConfig{
+				TTL: pointer.Of(time.Minute),
+			},
+			expectEq: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -152,6 +167,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Hour),
 			},
 		},
 		{
@@ -164,6 +180,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud", "other"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Hour),
 			},
 		},
 		{
@@ -176,6 +193,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(false),
 				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Hour),
 			},
 		},
 		{
@@ -188,6 +206,20 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(true),
+				TTL:      pointer.Of(time.Hour),
+			},
+		},
+		{
+			name: "merge ttl",
+			other: &WorkloadIdentityConfig{
+				TTL: pointer.Of(time.Second),
+			},
+			expected: &WorkloadIdentityConfig{
+				Name:     "test",
+				Audience: []string{"aud"},
+				Env:      pointer.Of(true),
+				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Second),
 			},
 		},
 	}
@@ -199,6 +231,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				TTL:      pointer.Of(time.Hour),
 			}
 			got := original.Merge(tc.other)
 			must.Eq(t, tc.expected, got)

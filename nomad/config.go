@@ -508,6 +508,9 @@ func workloadIdentityFromConfig(widConfig *config.WorkloadIdentityConfig) *struc
 	if widConfig.File != nil {
 		wid.File = *widConfig.File
 	}
+	if widConfig.TTL != nil {
+		wid.TTL = *widConfig.TTL
+	}
 
 	return wid
 }
