@@ -150,6 +150,16 @@ func ParseConfigFile(path string) (*Config, error) {
 				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
+		{"consul.service_identity.ttl", nil, &c.Consul.ServiceIdentity.TTLHCL,
+			func(d *time.Duration) {
+				c.Consul.ServiceIdentity.TTL = d
+			},
+		},
+		{"consul.template_identity.ttl", nil, &c.Consul.TemplateIdentity.TTLHCL,
+			func(d *time.Duration) {
+				c.Consul.TemplateIdentity.TTL = d
+			},
+		},
 	}
 
 	// Add enterprise audit sinks for time.Duration parsing
