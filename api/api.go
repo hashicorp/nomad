@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -580,6 +581,39 @@ func (c *Client) getNodeClientImpl(nodeID string, timeout time.Duration, q *Quer
 // SetSecretID sets the ACL token secret for API requests.
 func (c *Client) SetSecretID(secretID string) {
 	c.config.SecretID = secretID
+}
+
+func (c *Client) configureRetries(ro *retryOptions) {
+	c.config.retryOptions = &retryOptions{
+		maxRetries:      defaultNumberOfRetries,
+		maxBackoffDelay: defaultMaxBackoffDelay,
+		delayBase:       defaultDelayTimeBase,
+	}
+
+	if ro.delayBase != 0 {
+		c.config.retryOptions.delayBase = ro.delayBase
+	}
+
+	if ro.maxRetries != 0 {
+		c.config.retryOptions.maxRetries = ro.maxRetries
+	}
+
+	if ro.maxBackoffDelay != 0 {
+		c.config.retryOptions.maxBackoffDelay = ro.maxBackoffDelay
+	}
+
+	if ro.maxToLastCall != 0 {
+		c.config.retryOptions.maxToLastCall = ro.maxToLastCall
+	}
+
+	if ro.fixedDelay != 0 {
+		c.config.retryOptions.fixedDelay = ro.fixedDelay
+	}
+
+	// Ensure that a big attempt number or a big delayBase number will not cause
+	// a negative delay by overflowing the delay increase.
+	c.config.retryOptions.maxValidAttempt = int64(math.Log2(float64(math.MaxInt64 /
+		c.config.retryOptions.delayBase.Nanoseconds())))
 }
 
 // request is used to help build up a request

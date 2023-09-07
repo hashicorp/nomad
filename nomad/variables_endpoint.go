@@ -5,7 +5,6 @@ package nomad
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,10 +25,11 @@ const (
 )
 
 var (
-	errVarAlreadyLocked = errors.New("variable already holds a lock")
-	errVarNotFound      = errors.New("variable doesn't exist")
-	errLockNotFound     = errors.New("variable doesn't hold a lock")
-	errVarIsLocked      = errors.New("attempting to modify locked variable")
+	errVarAlreadyLocked = structs.NewErrRPCCoded(http.StatusBadRequest, "variable already holds a lock")
+	errVarNotFound      = structs.NewErrRPCCoded(http.StatusNotFound, "variable doesn't exist")
+	errLockNotFound     = structs.NewErrRPCCoded(http.StatusConflict, "variable doesn't hold a lock")
+	errVarIsLocked      = structs.NewErrRPCCoded(http.StatusConflict, "attempting to modify locked variable")
+	errMissingLockInfo  = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
 )
 
 type variableTimers interface {
@@ -103,7 +103,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 
 	err = canonicalizeAndValidate(args)
 	if err != nil {
-		return err
+		return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
 	}
 
 	var ev *structs.VariableEncrypted
@@ -209,17 +209,21 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 	case structs.VarOpSet, structs.VarOpCAS:
 		args.Var.Canonicalize()
 
-		return args.Var.Validate()
+		err := args.Var.Validate()
+		if err != nil {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
+		}
+		return nil
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			return fmt.Errorf("delete requires a Path")
+			return errMissingLockInfo
 		}
 
 	case structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil ||
 			args.Var.Lock.ID == "" {
-			return errors.New("release requires all lock information")
+			return errMissingLockInfo
 		}
 
 		return structs.ValidatePath(args.Var.Path)
