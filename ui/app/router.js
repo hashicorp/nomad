@@ -118,8 +118,16 @@ Router.map(function () {
         path: '/:name',
       });
     });
-    this.route('roles', function () {});
-    this.route('tokens');
+    this.route('roles', function () {
+      this.route('role', {
+        path: '/:name',
+      });
+    });
+    this.route('tokens', function () {
+      // this.route('policy', {
+      //   path: '/:name',
+      // });
+    });
   });
   // Mirage-only route for testing OIDC flow
   if (config['ember-cli-mirage']) {

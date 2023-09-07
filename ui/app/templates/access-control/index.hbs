@@ -1,5 +1,4 @@
 <section class="section access-control-overview">
-  <h1 class="title">Access Control</h1>
   <section class="intro">
     <p>Your Nomad cluster has Access Control enabled, which you can use to control access to data and APIs. Here, you can manage the Tokens, Policies, and Roles for your system.</p>
     <footer>
@@ -18,18 +17,18 @@
     </Hds::Card::Container>
     <Hds::Card::Container @level="mid" @hasBorder={{true}}>
       <LinkTo
-        @route="access-control.policies"
-      >
-        <h2 class="title">{{this.model.policies.length}} {{pluralize "Policy" this.model.policies.length}}</h2>
-        <p>Sets of rules defining the capabilities granted to adhering tokens.</p>
-      </LinkTo>
-    </Hds::Card::Container>
-    <Hds::Card::Container @level="mid" @hasBorder={{true}}>
-      <LinkTo
         @route="access-control.roles"
       >
         <h2 class="title">{{this.model.roles.length}} {{pluralize "Role" this.model.roles.length}}</h2>
         <p>Roles group one or more Policies into higher-level sets of permissions.</p>
+      </LinkTo>
+    </Hds::Card::Container>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}}>
+      <LinkTo
+        @route="access-control.policies"
+      >
+        <h2 class="title">{{this.model.policies.length}} {{pluralize "Policy" this.model.policies.length}}</h2>
+        <p>Sets of rules defining the capabilities granted to adhering tokens.</p>
       </LinkTo>
     </Hds::Card::Container>
   </div>

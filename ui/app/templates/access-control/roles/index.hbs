@@ -1,2 +1,78 @@
-{{page-title "Index"}}
-{{outlet}}
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="section">
+  <div class="toolbar">
+    <p class="toolbar-item">
+      ACL Roles group one or more Policies into higher-level sets of permissions. A user token can have any number of roles or policies.
+    </p>
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+      {{#if (can "write policy")}}
+        <LinkTo
+          @route="access-control.policies.new"
+          class="button is-primary"
+          data-test-create-policy
+        >
+          Create Role
+        </LinkTo>
+      {{else}}
+        <button
+          class="button is-primary is-disabled tooltip is-right-aligned"
+          aria-label="You don’t have sufficient permissions"
+          disabled
+          type="button"
+          data-test-disabled-create-policy
+        >
+          Create Role
+        </button>
+      {{/if}}
+
+      </div>
+    </div>
+  </div>
+  {{#if this.roles.length}}
+    <ListTable
+      @source={{this.roles}}
+      @class="roles no-mobile-condense" as |t|>
+      <t.head>
+        <th>Role Name</th>
+        {{#if (can "list token")}}
+          <th>Tokens</th>
+        {{/if}}
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-role-row {{on "click" (action "openRole" row.model)}}
+        {{keyboard-shortcut 
+          enumerated=true
+          action=(action "openRole" row.model)
+        }}>
+          <td data-test-policy-name>
+						<LinkTo @route="access-control.roles.role" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
+					</td>
+          {{#if (can "list token")}}
+            <td data-test-policy-token-count>
+              <span>
+                <span data-test-policy-total-tokens>{{row.model.tokens.length}}</span>
+                {{#if (filter-by "isExpired" row.model.tokens)}}
+                  <span data-test-policy-expired-tokens class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+                {{/if}}
+              </span>
+            </td>
+          {{/if}}
+        </tr>
+      </t.body>
+    </ListTable>
+  {{else}}
+    <div class="empty-message">
+      <h3 data-test-empty-policies-list-headline class="empty-message-headline">
+        No Policies
+      </h3>
+      <p class="empty-message-body">
+        Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+      </p>
+    </div>
+  {{/if}}
+</section>

@@ -1,0 +1,120 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="section">
+  <div class="toolbar">
+    <p class="toolbar-item">
+      ACL Tokens are associated with one or more policies or roles to grant specific capabilities. Users can use these to sign into, and operate, Nomad with the permissions laid out in their policies.
+    </p>
+    {{!-- <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+      {{#if (can "write policy")}}
+        <LinkTo
+          @route="access-control.policies.new"
+          class="button is-primary"
+          data-test-create-policy
+        >
+          Create Policy
+        </LinkTo>
+      {{else}}
+        <button
+          class="button is-primary is-disabled tooltip is-right-aligned"
+          aria-label="You don’t have sufficient permissions"
+          disabled
+          type="button"
+          data-test-disabled-create-policy
+        >
+          Create Policy
+        </button>
+      {{/if}}
+
+      </div>
+    </div> --}}
+  </div>
+  {{#if this.model.tokens.length}}
+    <ListTable
+      @source={{this.model.tokens}}
+      @class="tokens no-mobile-condense" as |t|>
+      <t.head>
+        <t.sort-by @prop="name">
+          Name
+        </t.sort-by>
+        <t.sort-by @prop="createTime">
+          Created
+        </t.sort-by>
+        <th>Expires</th>
+        <th>Roles</th>
+        <th>Policies</th>
+        {{#if (can "destroy token")}}
+          <th>Delete</th>
+        {{/if}}
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-policy-token-row>
+          <td data-test-token-name>
+            <Tooltip @text={{row.model.id}}>
+              {{row.model.name}}
+            </Tooltip>
+          </td>
+          <td>
+            {{moment-from-now row.model.createTime interval=1000}}
+          </td>
+          <td>
+            {{#if row.model.expirationTime}}
+              <Tooltip @text={{row.model.expirationTime}}>
+                <span data-test-token-expiration-time class="{{if row.model.isExpired "has-text-danger"}}">{{moment-from-now row.model.expirationTime interval=1000}}</span>
+              </Tooltip>
+            {{else}}
+              <span class="has-text-grey">Never</span>
+            {{/if}}
+          </td>
+          <td>
+            {{#each row.model.roles as |role|}}
+              <LinkTo @route="access-control.roles.role" @model={{role.name}}>{{role.name}}</LinkTo>
+            {{else}}
+              No Roles
+            {{/each}}
+          </td>
+          <td>
+            {{#each row.model.policies as |policy|}}
+              <LinkTo @route="access-control.policies.policy" @model={{policy.name}}>{{policy.name}}</LinkTo>
+            {{else}}
+              No Policies
+            {{/each}}
+          </td>
+          {{#if (can "destroy token")}}
+            <td class="is-200px">
+              <TwoStepButton
+                data-test-delete-token-button
+                @idleText="Delete"
+                @cancelText="Cancel"
+                @confirmText="Yes, delete"
+                @confirmationMessage="Are you sure?"
+                @awaitingConfirmation={{row.model.isPendingDeletion}}
+                @onConfirm={{perform this.deleteToken row.model}}
+                @inlineText={{true}}
+                @classes={{hash
+                  idleButton="is-danger is-outlined"
+                  confirmButton="is-danger"
+                }}
+              />
+            </td>
+          {{/if}}
+        </tr>
+      </t.body>
+
+
+    </ListTable>
+  {{else}}
+    <div class="empty-message">
+      <h3 data-test-empty-policies-list-headline class="empty-message-headline">
+        No Policies
+      </h3>
+      <p class="empty-message-body">
+        Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+      </p>
+    </div>
+  {{/if}}
+</section>

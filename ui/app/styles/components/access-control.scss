@@ -12,7 +12,9 @@
 
   .section-cards {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    // grid-template-columns: repeat(3, 1fr);
+    // Repeat 3 but minimum width is 200px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     & > div {
       display: flex;
