@@ -150,7 +150,7 @@ func (wi *WorkloadIdentity) Validate() error {
 	}
 
 	if wi.TTL > 0 && (wi.Name == "" || wi.Name == WorkloadIdentityDefaultName) {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("ttl for default token not yet supported"))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("ttl for default identity not yet supported"))
 	}
 
 	if wi.TTL < 0 {

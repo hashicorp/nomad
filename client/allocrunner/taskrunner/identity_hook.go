@@ -44,7 +44,7 @@ type identityHook struct {
 	task       *structs.Task
 	tokenDir   string
 	envBuilder *taskenv.Builder
-	tr         tokenSetter
+	ts         tokenSetter
 	widmgr     IdentitySigner
 	logger     log.Logger
 
@@ -67,7 +67,7 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		task:       tr.Task(),
 		tokenDir:   tr.taskDir.SecretsDir,
 		envBuilder: tr.envBuilder,
-		tr:         tr,
+		ts:         tr,
 		widmgr:     tr.widmgr,
 		minWait:    10 * time.Second,
 		stopCtx:    stopCtx,
@@ -126,7 +126,7 @@ func (h *identityHook) setDefaultToken() error {
 	}
 
 	// Handle internal use and env var
-	h.tr.setNomadToken(token)
+	h.ts.setNomadToken(token)
 
 	// Handle file writing
 	if id := h.task.Identity; id != nil && id.File {
@@ -248,11 +248,11 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 	var retry uint64
 
 	for err := h.stopCtx.Err(); err == nil; {
-		h.logger.Trace("waiting to renew identities", "num", len(reqs), "wait", wait)
+		h.logger.Debug("waiting to renew identities", "num", len(reqs), "wait", wait)
 		timer.Reset(wait)
 		select {
 		case <-timer.C:
-			h.logger.Debug("getting new signed identities", "num", len(reqs))
+			h.logger.Trace("getting new signed identities", "num", len(reqs))
 		case <-h.stopCtx.Done():
 			return
 		}
@@ -303,7 +303,5 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		// Success! Set next renewal and reset retries
 		wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
 		retry = 0
-
-		h.logger.Debug("waiting to renew workloading identities", "next", wait)
 	}
 }
