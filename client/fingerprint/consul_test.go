@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
@@ -491,6 +492,10 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	node.Attributes["connect.grpc"] = "foo"
 	node.Attributes["unique.consul.name"] = "foo"
 
+	// Reset the nextCheck time for testing purposes, or we won't pick up the
+	// change until the next period, up to 2min from now
+	cf.states["default"].nextCheck = time.Now()
+
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
 	must.NoError(t, err2)         // does not return error
@@ -569,6 +574,10 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	node.Attributes["consul.connect"] = "foo"
 	node.Attributes["connect.grpc"] = "foo"
 	node.Attributes["unique.consul.name"] = "foo"
+
+	// Reset the nextCheck time for testing purposes, or we won't pick up the
+	// change until the next period, up to 2min from now
+	cf.states["default"].nextCheck = time.Now()
 
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
