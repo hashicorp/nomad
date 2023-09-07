@@ -462,6 +462,7 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 				Env:          pointerOf(true),
 				DisableFile:  pointerOf(false),
 				Namespace:    pointerOf(""),
+				Cluster:      "default",
 				ChangeMode:   pointerOf("restart"),
 				ChangeSignal: pointerOf("SIGHUP"),
 			},

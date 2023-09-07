@@ -7693,6 +7693,7 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Role:         "nomad-task",
 					Namespace:    "ns1",
+					Cluster:      "default",
 					Policies:     []string{"foo", "bar"},
 					Env:          true,
 					DisableFile:  true,
@@ -7704,6 +7705,7 @@ func TestTaskDiff(t *testing.T) {
 				Vault: &Vault{
 					Role:         "nomad-task",
 					Namespace:    "ns1",
+					Cluster:      "default",
 					Policies:     []string{"bar", "baz"},
 					Env:          true,
 					DisableFile:  true,
@@ -7729,6 +7731,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "ChangeSignal",
 								Old:  "SIGUSR1",
 								New:  "SIGUSR1",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Cluster",
+								Old:  "default",
+								New:  "default",
 							},
 							{
 								Type: DiffTypeNone,

@@ -9858,6 +9858,9 @@ type Vault struct {
 	// Namespace is the vault namespace that should be used.
 	Namespace string
 
+	// Cluster (by name) to send API requests to
+	Cluster string
+
 	// Env marks whether the Vault Token should be exposed as an environment
 	// variable
 	Env bool
@@ -9885,6 +9888,8 @@ func (v *Vault) Equal(o *Vault) bool {
 	case !slices.Equal(v.Policies, o.Policies):
 		return false
 	case v.Namespace != o.Namespace:
+		return false
+	case v.Cluster != o.Cluster:
 		return false
 	case v.Env != o.Env:
 		return false

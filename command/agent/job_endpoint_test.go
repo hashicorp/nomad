@@ -3214,6 +3214,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Vault: &structs.Vault{
 							Role:         "nomad-task",
 							Namespace:    "ns1",
+							Cluster:      "default",
 							Policies:     []string{"a", "b", "c"},
 							Env:          true,
 							DisableFile:  false,
