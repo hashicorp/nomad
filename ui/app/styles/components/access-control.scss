@@ -1,0 +1,32 @@
+.access-control-overview {
+  .intro {
+    margin-bottom: 2rem;
+    p {
+      margin-bottom: 1rem;
+    }
+    footer {
+      display: flex;
+      gap: 1rem;
+    }
+  }
+
+  .section-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    & > div {
+      display: flex;
+      flex-direction: row;
+      & > a {
+        padding: 1rem;
+        text-decoration: none;
+        color: $black;
+        display: block;
+
+        &:hover {
+          background-color: var(--token-color-surface-interactive-hover);
+        }
+      }
+    }
+  }
+}
