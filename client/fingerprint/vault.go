@@ -17,20 +17,15 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
-const (
-	vaultAvailable   = "available"
-	vaultUnavailable = "unavailable"
-)
-
 var vaultBaseFingerprintInterval = 15 * time.Second
 
 // VaultFingerprint is used to fingerprint for Vault
 type VaultFingerprint struct {
 	logger log.Logger
-	states map[string]*fingerprintState
+	states map[string]*vaultFingerprintState
 }
 
-type fingerprintState struct {
+type vaultFingerprintState struct {
 	client      *vapi.Client
 	isAvailable bool
 	nextCheck   time.Time
@@ -40,7 +35,7 @@ type fingerprintState struct {
 func NewVaultFingerprint(logger log.Logger) Fingerprint {
 	return &VaultFingerprint{
 		logger: logger.Named("vault"),
-		states: map[string]*fingerprintState{},
+		states: map[string]*vaultFingerprintState{},
 	}
 }
 
@@ -63,7 +58,7 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 
 	state, ok := f.states[cfg.Name]
 	if !ok {
-		state = &fingerprintState{}
+		state = &vaultFingerprintState{}
 		f.states[cfg.Name] = state
 	}
 	if state.nextCheck.After(time.Now()) {
