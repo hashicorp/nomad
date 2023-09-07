@@ -3097,6 +3097,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					{
 						Name:              "foo",
 						Namespace:         "team1",
+						Cluster:           "default",
 						TaskName:          "task1",
 						EnableTagOverride: false,
 						Checks: []*ServiceCheck{
@@ -3179,6 +3180,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					{
 						Name:              "foo",
 						Namespace:         "team1",
+						Cluster:           "default",
 						TaskName:          "task2",
 						EnableTagOverride: true,
 						Checks: []*ServiceCheck{
@@ -3287,6 +3289,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Cluster",
+								Old:  "default",
+								New:  "default",
 							},
 							{
 								Type: DiffTypeEdited,
@@ -6353,6 +6361,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Cluster",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "EnableTagOverride",
 								Old:  "false",
 								New:  "false",
@@ -6510,6 +6524,12 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Cluster",
+								Old:  "",
+								New:  "",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6965,7 +6985,8 @@ func TestTaskDiff(t *testing.T) {
 			Old: &Task{
 				Services: []*Service{
 					{
-						Name: "foo",
+						Name:    "foo",
+						Cluster: "default",
 						Checks: []*ServiceCheck{
 							{
 								Name:          "foo",
@@ -6991,7 +7012,8 @@ func TestTaskDiff(t *testing.T) {
 			New: &Task{
 				Services: []*Service{
 					{
-						Name: "foo",
+						Name:    "foo",
+						Cluster: "default",
 						Checks: []*ServiceCheck{
 							{
 								Name:          "foo",
@@ -7033,6 +7055,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "AddressMode",
 								Old:  "",
 								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Cluster",
+								Old:  "default",
+								New:  "default",
 							},
 							{
 								Type: DiffTypeNone,
@@ -8664,6 +8692,12 @@ func TestServicesDiff(t *testing.T) {
 							New:  "alloc",
 						},
 						{
+							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "",
+							New:  "",
+						},
+						{
 							Type: DiffTypeEdited,
 							Name: "EnableTagOverride",
 							Old:  "true",
@@ -8760,6 +8794,12 @@ func TestServicesDiff(t *testing.T) {
 							Name: "AddressMode",
 						},
 						{
+							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "",
+							New:  "",
+						},
+						{
 							Type: DiffTypeAdded,
 							Name: "EnableTagOverride",
 							New:  "false",
@@ -8825,6 +8865,12 @@ func TestServicesDiff(t *testing.T) {
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "",
+							New:  "",
 						},
 						{
 							Type: DiffTypeAdded,
@@ -8896,6 +8942,12 @@ func TestServicesDiff(t *testing.T) {
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "",
+							New:  "",
 						},
 						{
 							Type: DiffTypeNone,
@@ -8976,6 +9028,12 @@ func TestServicesDiff(t *testing.T) {
 						},
 						{
 							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "",
+							New:  "",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "EnableTagOverride",
 							Old:  "false",
 							New:  "false",
@@ -9038,6 +9096,7 @@ func TestServicesDiff(t *testing.T) {
 				{
 					Name:      "webapp",
 					Provider:  "nomad",
+					Cluster:   "default",
 					PortLabel: "http",
 				},
 			},
@@ -9045,6 +9104,7 @@ func TestServicesDiff(t *testing.T) {
 				{
 					Name:      "webapp",
 					Provider:  "consul",
+					Cluster:   "default",
 					PortLabel: "http",
 				},
 			},
@@ -9060,6 +9120,12 @@ func TestServicesDiff(t *testing.T) {
 						{
 							Type: DiffTypeNone,
 							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "default",
+							New:  "default",
 						},
 						{
 							Type: DiffTypeNone,

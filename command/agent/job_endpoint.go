@@ -1491,6 +1491,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			TaggedAddresses:   maps.Clone(s.TaggedAddresses),
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
+			Cluster:           s.Cluster,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1847,6 +1848,7 @@ func apiConsulToStructs(in *api.Consul) *structs.Consul {
 	}
 	return &structs.Consul{
 		Namespace: in.Namespace,
+		Cluster:   in.Cluster,
 	}
 }
 
