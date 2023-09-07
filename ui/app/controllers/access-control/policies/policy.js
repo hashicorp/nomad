@@ -25,7 +25,6 @@ export default class AccessControlPoliciesPolicyController extends Controller {
   @tracked isDeleting = false;
 
   get newTokenString() {
-    console.log('modello', this.model);
     return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=<8h>`;
   }
 

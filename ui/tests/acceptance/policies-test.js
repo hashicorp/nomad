@@ -19,9 +19,9 @@ module('Acceptance | policies', function (hooks) {
     assert.expect(4);
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
-    assert.dom('[data-test-gutter-link="policies"]').exists();
-    assert.equal(currentURL(), '/policies');
+    await visit('/access-control/policies');
+    assert.dom('[data-test-gutter-link="access-control"]').exists();
+    assert.equal(currentURL(), '/access-control/policies');
     assert
       .dom('[data-test-policy-row]')
       .exists({ count: server.db.policies.length });
@@ -34,9 +34,9 @@ module('Acceptance | policies', function (hooks) {
   test('Prevents policies access if you lack a management token', async function (assert) {
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[1].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
     assert.equal(currentURL(), '/jobs');
-    assert.dom('[data-test-gutter-link="policies"]').doesNotExist();
+    assert.dom('[data-test-gutter-link="access-control"]').doesNotExist();
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
@@ -44,16 +44,19 @@ module('Acceptance | policies', function (hooks) {
   test('Modifying an existing policy', async function (assert) {
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
     await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+    assert.equal(
+      currentURL(),
+      `/access-control/policies/${server.db.policies[0].name}`
+    );
     assert.dom('[data-test-policy-editor]').exists();
     assert.dom('[data-test-title]').includesText(server.db.policies[0].name);
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(
       currentURL(),
-      `/policies/${server.db.policies[0].name}`,
+      `/access-control/policies/${server.db.policies[0].name}`,
       'remain on page after save'
     );
     // Reset Token
@@ -64,31 +67,31 @@ module('Acceptance | policies', function (hooks) {
     assert.expect(7);
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
     await click('[data-test-create-policy]');
-    assert.equal(currentURL(), '/policies/new');
+    assert.equal(currentURL(), '/access-control/policies/new');
     await typeIn('[data-test-policy-name-input]', 'My Fun Policy');
     await click('button[type="submit"]');
     assert
       .dom('.flash-message.alert-critical')
       .exists('Doesnt let you save a bad name');
-    assert.equal(currentURL(), '/policies/new');
+    assert.equal(currentURL(), '/access-control/policies/new');
     document.querySelector('[data-test-policy-name-input]').value = ''; // clear
     await typeIn('[data-test-policy-name-input]', 'My-Fun-Policy');
     await click('button[type="submit"]');
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(
       currentURL(),
-      '/policies/My-Fun-Policy',
+      '/access-control/policies/My-Fun-Policy',
       'redirected to the now-created policy'
     );
-    await visit('/policies');
+    await visit('/access-control/policies');
     const newPolicy = [...findAll('[data-test-policy-name]')].filter((a) =>
       a.textContent.includes('My-Fun-Policy')
     )[0];
     assert.ok(newPolicy, 'Policy is in the list');
     await click(newPolicy);
-    assert.equal(currentURL(), '/policies/My-Fun-Policy');
+    assert.equal(currentURL(), '/access-control/policies/My-Fun-Policy');
     await percySnapshot(assert);
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
@@ -97,18 +100,18 @@ module('Acceptance | policies', function (hooks) {
   test('Deleting a policy', async function (assert) {
     allScenarios.policiesTestCluster(server);
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
     const firstPolicyName = server.db.policies[0].name;
     const firstPolicyRow = [...findAll('[data-test-policy-name]')].filter(
       (row) => row.textContent.includes(firstPolicyName)
     )[0];
     await click(firstPolicyRow);
-    assert.equal(currentURL(), `/policies/${firstPolicyName}`);
+    assert.equal(currentURL(), `/access-control/policies/${firstPolicyName}`);
     await click('[data-test-delete-button] button');
     assert.dom('[data-test-confirm-button]').exists();
     await click('[data-test-confirm-button]');
     assert.dom('.flash-message.alert-success').exists();
-    assert.equal(currentURL(), '/policies');
+    assert.equal(currentURL(), '/access-control/policies');
     assert.dom(`[data-test-policy-name="${firstPolicyName}"]`).doesNotExist();
     // Reset Token
     window.localStorage.nomadTokenSecret = null;

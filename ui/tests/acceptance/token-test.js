@@ -62,7 +62,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.ok(document.title.includes('Authorization'));
+    assert.ok(document.title.includes('Sign In'));
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -597,7 +597,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
     assert.dom('[data-test-policy-token-count]').exists();
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
       return token.policyIds.includes(server.db.policies[0].name);
@@ -620,10 +620,13 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
 
     await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+    assert.equal(
+      currentURL(),
+      `/access-control/policies/${server.db.policies[0].name}`
+    );
 
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
       return token.policyIds.includes(server.db.policies[0].name);
@@ -654,10 +657,10 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
 
     await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${testPolicy.name}`);
+    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
     assert
       .dom('[data-test-policy-token-row]')
       .exists(
@@ -695,10 +698,10 @@ module('Acceptance | tokens', function (hooks) {
     );
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/policies');
+    await visit('/access-control/policies');
 
     await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${testPolicy.name}`);
+    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
 
     assert
       .dom('[data-test-policy-token-row]')

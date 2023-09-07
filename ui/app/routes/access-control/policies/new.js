@@ -89,7 +89,6 @@ export default class AccessControlPoliciesNewRoute extends Route {
   @service router;
 
   beforeModel() {
-    console.log('newbefoma');
     if (this.can.cannot('write policy')) {
       this.router.transitionTo('/policies');
     }

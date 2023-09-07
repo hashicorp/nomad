@@ -15,7 +15,6 @@ export default class AccessControlPoliciesPolicyRoute extends Route.extend(
 ) {
   @service store;
   async model(params) {
-    console.log('reckoning the policy model');
     return hash({
       policy: this.store.findRecord('policy', decodeURIComponent(params.name), {
         reload: true,
@@ -26,9 +25,5 @@ export default class AccessControlPoliciesPolicyRoute extends Route.extend(
           token.policyNames?.includes(decodeURIComponent(params.name))
         ),
     });
-  }
-
-  afterModel(model) {
-    console.log('MODEL AFTER', model);
   }
 }
