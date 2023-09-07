@@ -60,7 +60,7 @@ func (s *Server) CreateVariableLockTTLTimer(variable structs.VariableEncrypted) 
 
 	s.lockTTLTimer.Create(lockID, lockTTL, func() {
 		s.logger.Debug("locks: lock TTL expired, starting delay",
-			"namespace", variable.Namespace, "path", variable.Path)
+			"namespace", variable.Namespace, "path", variable.Path, "ttl", variable.Lock.TTL)
 		s.lockTTLTimer.StopAndRemove(lockID)
 
 		_ = time.AfterFunc(variable.Lock.LockDelay, func() {
@@ -112,7 +112,7 @@ func (s *Server) RenewTTLTimer(variable structs.VariableEncrypted) error {
 	lockID := variable.LockID()
 
 	s.logger.Debug("locks: renewing the lock",
-		"namespace", variable.Namespace, "path", variable.Path)
+		"namespace", variable.Namespace, "path", variable.Path, "ttl", variable.Lock.TTL)
 
 	lock := s.lockTTLTimer.Get(lockID)
 	if lock == nil {
