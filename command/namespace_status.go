@@ -164,6 +164,36 @@ func (c *NamespaceStatusCommand) Run(args []string) int {
 		c.Ui.Output(formatKV(npConfigOut))
 	}
 
+	if ns.VaultConfiguration != nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Vault Configuration[reset]"))
+		vConfig := ns.VaultConfiguration
+		vConfigOut := []string{
+			fmt.Sprintf("Default|%s", vConfig.Default),
+		}
+		if len(vConfig.Allowed) > 0 {
+			vConfigOut = append(vConfigOut, fmt.Sprintf("Allowed|%s", strings.Join(vConfig.Allowed, ", ")))
+		}
+		if len(vConfig.Denied) > 0 {
+			vConfigOut = append(vConfigOut, fmt.Sprintf("Denied|%s", strings.Join(vConfig.Denied, ", ")))
+		}
+		c.Ui.Output(formatKV(vConfigOut))
+	}
+
+	if ns.ConsulConfiguration != nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Consul Configuration[reset]"))
+		cConfig := ns.ConsulConfiguration
+		cConfigOut := []string{
+			fmt.Sprintf("Default|%s", cConfig.Default),
+		}
+		if len(cConfig.Allowed) > 0 {
+			cConfigOut = append(cConfigOut, fmt.Sprintf("Allowed|%s", strings.Join(cConfig.Allowed, ", ")))
+		}
+		if len(cConfig.Denied) > 0 {
+			cConfigOut = append(cConfigOut, fmt.Sprintf("Denied|%s", strings.Join(cConfig.Denied, ", ")))
+		}
+		c.Ui.Output(formatKV(cConfigOut))
+	}
+
 	return 0
 }
 

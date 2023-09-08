@@ -395,6 +395,17 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		}
 	}
 
+	for _, consul := range config.Consuls {
+		if err := structs.ValidateConsulClusterName(consul.Name); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid Consul configuration: %v", err))
+		}
+	}
+	for _, vault := range config.Vaults {
+		if err := structs.ValidateVaultClusterName(vault.Name); err != nil {
+			c.Ui.Error(fmt.Sprintf("Invalid Vault configuration: %v", err))
+		}
+	}
+
 	for _, volumeConfig := range config.Client.HostVolumes {
 		if volumeConfig.Path == "" {
 			c.Ui.Error("Missing path in host_volume config")

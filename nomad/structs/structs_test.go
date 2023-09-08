@@ -101,6 +101,14 @@ func TestNamespace_SetHash(t *testing.T) {
 			Default: "dev",
 			Allowed: []string{"default"},
 		},
+		VaultConfiguration: &NamespaceVaultConfiguration{
+			Default: "default",
+			Allowed: []string{"default"},
+		},
+		ConsulConfiguration: &NamespaceConsulConfiguration{
+			Default: "default",
+			Allowed: []string{"default"},
+		},
 		Meta: map[string]string{
 			"a": "b",
 			"c": "d",
@@ -150,6 +158,24 @@ func TestNamespace_SetHash(t *testing.T) {
 	must.NotNil(t, ns.Hash)
 	must.Eq(t, out6, ns.Hash)
 	must.NotEq(t, out5, out6)
+
+	ns.VaultConfiguration.Default = "infra"
+	ns.VaultConfiguration.Allowed = []string{}
+	ns.VaultConfiguration.Denied = []string{"all"}
+	out7 := ns.SetHash()
+	must.NotNil(t, out7)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out7, ns.Hash)
+	must.NotEq(t, out6, out7)
+
+	ns.ConsulConfiguration.Default = "infra"
+	ns.ConsulConfiguration.Allowed = []string{}
+	ns.ConsulConfiguration.Denied = []string{"all"}
+	out8 := ns.SetHash()
+	must.NotNil(t, out8)
+	must.NotNil(t, ns.Hash)
+	must.Eq(t, out8, ns.Hash)
+	must.NotEq(t, out7, out8)
 }
 
 func TestNamespace_Copy(t *testing.T) {
@@ -165,6 +191,14 @@ func TestNamespace_Copy(t *testing.T) {
 		},
 		NodePoolConfiguration: &NamespaceNodePoolConfiguration{
 			Default: "dev",
+			Allowed: []string{"default"},
+		},
+		VaultConfiguration: &NamespaceVaultConfiguration{
+			Default: "default",
+			Allowed: []string{"default"},
+		},
+		ConsulConfiguration: &NamespaceConsulConfiguration{
+			Default: "default",
 			Allowed: []string{"default"},
 		},
 		Meta: map[string]string{
@@ -183,6 +217,12 @@ func TestNamespace_Copy(t *testing.T) {
 	nsCopy.NodePoolConfiguration.Default = "default"
 	nsCopy.NodePoolConfiguration.Allowed = []string{}
 	nsCopy.NodePoolConfiguration.Denied = []string{"dev"}
+	nsCopy.VaultConfiguration.Default = "infra"
+	nsCopy.VaultConfiguration.Allowed = []string{}
+	nsCopy.VaultConfiguration.Denied = []string{"dev"}
+	nsCopy.ConsulConfiguration.Default = "infra"
+	nsCopy.ConsulConfiguration.Allowed = []string{}
+	nsCopy.ConsulConfiguration.Denied = []string{"dev"}
 	nsCopy.Meta["a"] = "z"
 	must.NotEq(t, ns, nsCopy)
 

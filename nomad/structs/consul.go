@@ -3,6 +3,11 @@
 
 package structs
 
+import (
+	"fmt"
+	"regexp"
+)
+
 // Consul represents optional per-group consul configuration.
 type Consul struct {
 	// Namespace in which to operate in Consul.
@@ -41,6 +46,20 @@ func (c *Consul) Equal(o *Consul) bool {
 // Validate returns whether c is valid.
 func (c *Consul) Validate() error {
 	// nothing to do here
+	return nil
+}
+
+var (
+	// validConsulVaultClusterName is the rule used to validate a Consul or
+	// Vault cluster name.
+	validConsulVaultClusterName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
+)
+
+func ValidateConsulClusterName(cluster string) error {
+	if !validConsulVaultClusterName.MatchString(cluster) {
+		return fmt.Errorf("invalid name %q, must match regex %s", cluster, validConsulVaultClusterName)
+	}
+
 	return nil
 }
 
