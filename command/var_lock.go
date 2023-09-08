@@ -11,14 +11,18 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
 type VarLockCommand struct {
-	shell bool
-	ttl   string
+	shell      bool
+	inFmt      string
+	ttl        string
+	lockDelay  string
+	maxRetries int64
 
 	varPutCommand *VarPutCommand
 }
@@ -29,15 +33,13 @@ Usage:
 nomad var lock [options] <lock spec file reference> child...
 nomad var lock [options] <path to store variable> [<variable spec file reference>] child...
 
- The lock command provides a mechanism for simple distributed locking. A lock
- is created in the given variable, and only when held, is a child process invoked.
+  The lock command provides a mechanism for simple distributed locking. A lock
+  is created in the given variable, and only when held, is a child process invoked.
 
   The lock command can be called on an existing variable or an entire new variable
   specification can be provided to the command from a file by using an
-  @-prefixed path to a variable specification file. 
-
-  If items need to be stored in the variable when locking, they can be supplied 
-  using the specification.
+  @-prefixed path to a variable specification file. Items to be stored in the 
+  variable can be supplied using the specification file as well. 
 
   Nomad lock launches its children in a shell. By default, Nomad will use the
   shell defined in the environment variable SHELL. If SHELL is not defined, 
@@ -57,7 +59,6 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Put Options:
-
   -verbose
      Provides additional information via standard error to preserve standard
      output (stdout) for redirected output.
@@ -91,7 +92,9 @@ func (c *VarLockCommand) Run(args []string) int {
 	flags.Usage = func() { c.varPutCommand.Ui.Output(c.Help()) }
 
 	flags.BoolVar(&doVerbose, "verbose", false, "")
-	flags.StringVar(&c.ttl, "ttl", "", "")
+	flags.StringVar(&c.ttl, "ttl", "", "Time the variable will be locked")
+	flags.StringVar(&c.lockDelay, "delay", "", "Time to variable is blocked from locking when a lease is lost")
+	flags.Int64Var(&c.maxRetries, "reties", 5, "Maximum number of retries when calling the lock endpoint")
 	flags.BoolVar(&c.shell, "shell", true, "Use a shell to run the command (can set a custom shell via the SHELL "+"environment variable).")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
@@ -127,11 +130,6 @@ func (c *VarLockCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := c.varPutCommand.validateOutputFlag(); err != nil {
-		c.varPutCommand.Ui.Error(err.Error())
-		return 1
-	}
-
 	path, args, err = c.readPathFromArgs(args)
 	if err != nil {
 		c.varPutCommand.Ui.Error(err.Error())
@@ -145,14 +143,37 @@ func (c *VarLockCommand) Run(args []string) int {
 	}
 
 	if sv.Lock == nil {
-		if c.ttl == "" {
-			c.varPutCommand.Ui.Error("missing lock information")
-			return 1
+		if c.ttl == "" && c.lockDelay == "" {
+			c.varPutCommand.verbose("Using defaults for the lock")
 		}
 
 		sv.Lock = &api.VariableLock{
-			TTL: c.ttl,
+			TTL:       api.DefaultLockTTL.String(),
+			LockDelay: api.DefaultLockDelay.String(),
 		}
+	}
+
+	if c.ttl != "" {
+		fmt.Println("what???")
+		c.varPutCommand.verbose("Using TTL for the lock of " + c.ttl)
+		_, err := time.ParseDuration(c.ttl)
+		if err != nil {
+			c.varPutCommand.Ui.Error(fmt.Sprintf("Invalid TTL: %s", err))
+			return 1
+		}
+
+		sv.Lock.TTL = c.ttl
+	}
+
+	if c.lockDelay != "" {
+		c.varPutCommand.verbose("Using delay for the lock of " + c.lockDelay)
+		_, err := time.ParseDuration(c.ttl)
+		if err != nil {
+			c.varPutCommand.Ui.Error(fmt.Sprintf("Invalid Lock Delay: %s", err))
+			return 1
+		}
+
+		sv.Lock.LockDelay = c.lockDelay
 	}
 
 	// Get the HTTP client
@@ -162,6 +183,7 @@ func (c *VarLockCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Set up the locks handler
 	l, err := client.Locks(api.WriteOptions{}, *sv)
 	if err != nil {
 		c.varPutCommand.Ui.Error(fmt.Sprintf("Error initializing lock handler: %s", err))
@@ -169,10 +191,14 @@ func (c *VarLockCommand) Run(args []string) int {
 	}
 
 	ctx := context.Background()
-	ll := client.NewLockLeaser(l)
 
+	// Set up the lease handler
+	ll := client.NewLockLeaser(l)
+	c.varPutCommand.verbose("Attempting to acquire lock")
+
+	// Run the shell inside the protected function.
 	if err := ll.Start(ctx, func(ctx context.Context) error {
-		c.varPutCommand.verbose(fmt.Sprintf("Ready to execute: %s", args[0]))
+		c.varPutCommand.verbose(fmt.Sprintf("Variable locked, ready to execute: %s", args[0]))
 		var newCommand func(ctx context.Context, args []string) (*exec.Cmd, error)
 		if !c.shell {
 			newCommand = subprocess
@@ -202,10 +228,11 @@ func (c *VarLockCommand) Run(args []string) int {
 		return cmd.Wait()
 
 	}); err != nil {
-		c.varPutCommand.Ui.Error(err.Error())
+		c.varPutCommand.Ui.Error("Lock error:" + err.Error())
 		return 1
 	}
 
+	c.varPutCommand.verbose("Releasing the lock")
 	return 0
 }
 
@@ -221,7 +248,7 @@ func (c *VarLockCommand) readPathFromArgs(args []string) (string, []string, erro
 		// ArgFileRefs start with "@" so we need to peel that off
 		// detect format based on file extension
 		specPath := arg[1:]
-
+		err = c.varPutCommand.setParserForFileArg(specPath)
 		c.varPutCommand.verbose(fmt.Sprintf("Reading whole variable specification from %q", specPath))
 		c.varPutCommand.contents, err = os.ReadFile(specPath)
 		if err != nil {
@@ -237,7 +264,7 @@ func (c *VarLockCommand) readPathFromArgs(args []string) (string, []string, erro
 	switch {
 	case isArgFileRef(args[0]):
 		arg := args[0]
-
+		err = c.varPutCommand.setParserForFileArg(arg)
 		c.varPutCommand.verbose(fmt.Sprintf("Creating variable %q from specification file %q", path, arg))
 		fPath := arg[1:]
 		c.varPutCommand.contents, err = os.ReadFile(fPath)
