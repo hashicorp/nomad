@@ -18,11 +18,10 @@ import (
 )
 
 type VarLockCommand struct {
-	shell      bool
-	inFmt      string
-	ttl        string
-	lockDelay  string
-	maxRetries int64
+	shell     bool
+	inFmt     string
+	ttl       string
+	lockDelay string
 
 	varPutCommand *VarPutCommand
 }
@@ -52,17 +51,17 @@ nomad var lock [options] <path to store variable> [<variable spec file reference
   If ACLs are enabled, this command requires the 'variables:write' capability
   for the destination namespace and path.
 
-  var lock Options:
-
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Put Options:
+Var lock Options:
   -verbose
      Provides additional information via standard error to preserve standard
      output (stdout) for redirected output.
 
+  -shell - Optional, use a shell to run the command (can set a custom shell via
+		the SHELL environment variable). The default value is true.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -94,7 +93,6 @@ func (c *VarLockCommand) Run(args []string) int {
 	flags.BoolVar(&doVerbose, "verbose", false, "")
 	flags.StringVar(&c.ttl, "ttl", "", "Time the variable will be locked")
 	flags.StringVar(&c.lockDelay, "delay", "", "Time to variable is blocked from locking when a lease is lost")
-	flags.Int64Var(&c.maxRetries, "reties", 5, "Maximum number of retries when calling the lock endpoint")
 	flags.BoolVar(&c.shell, "shell", true, "Use a shell to run the command (can set a custom shell via the SHELL "+"environment variable).")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
