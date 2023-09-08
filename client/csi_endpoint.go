@@ -471,7 +471,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()
 
-	mounter, err := c.c.csimanager.MounterForPlugin(ctx, req.PluginID)
+	manager, err := c.c.csimanager.ManagerForPlugin(ctx, req.PluginID)
 	if err != nil {
 		return fmt.Errorf("CSI.NodeDetachVolume: %v", err)
 	}
@@ -482,7 +482,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		AccessMode:     req.AccessMode,
 	}
 
-	err = mounter.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
+	err = manager.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
 	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the unmounting previously happened but the server failed to
 		// checkpoint, we'll get an error from Unmount but can safely
