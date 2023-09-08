@@ -99,7 +99,6 @@ func TestConsulConfig_Merge(t *testing.T) {
 			Audience: []string{"consul.io", "nomad.dev"},
 			Env:      pointer.Of(false),
 			File:     pointer.Of(true),
-			TTL:      pointer.Of(2 * time.Hour),
 		},
 		ExtraKeysHCL: []string{"b", "2"},
 	}
@@ -135,7 +134,6 @@ func TestConsulConfig_Merge(t *testing.T) {
 			Audience: []string{"consul.io", "nomad.dev"},
 			Env:      pointer.Of(false),
 			File:     pointer.Of(true),
-			TTL:      pointer.Of(2 * time.Hour),
 		},
 		ExtraKeysHCL: []string{"a", "1"}, // not merged
 	}

@@ -248,13 +248,11 @@ consul {
     aud  = ["consul.io", "nomad.dev"]
     env  = false
     file = true
-    ttl  = "1h"
   }
   template_identity {
     aud  = ["consul.io"]
     env  = true
     file = false
-    ttl  = "2h"
   }
 }
 
