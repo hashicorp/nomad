@@ -227,7 +227,7 @@ func TestCSIHook(t *testing.T) {
 			alloc.Job.TaskGroups[0].Volumes = tc.volumeRequests
 
 			callCounts := &callCounter{counts: map[string]int{}}
-			mgr := mockPluginManager{mounter: mockVolumeMounter{
+			mgr := mockPluginManager{mounter: mockVolumeManager{
 				hasMounts:         tc.startsWithValidMounts,
 				callCounts:        callCounts,
 				failsFirstUnmount: pointer.Of(tc.failsFirstUnmount),
@@ -342,7 +342,7 @@ func TestCSIHook_Prerun_Validation(t *testing.T) {
 			alloc.Job.TaskGroups[0].Volumes = volumeRequests
 
 			callCounts := &callCounter{counts: map[string]int{}}
-			mgr := mockPluginManager{mounter: mockVolumeMounter{
+			mgr := mockPluginManager{mounter: mockVolumeManager{
 				callCounts:        callCounts,
 				failsFirstUnmount: pointer.Of(false),
 			}}
@@ -469,20 +469,20 @@ func (r mockRPCer) testVolume(id string) *structs.CSIVolume {
 	return vol
 }
 
-type mockVolumeMounter struct {
+type mockVolumeManager struct {
 	hasMounts         bool
 	failsFirstUnmount *bool
 	callCounts        *callCounter
 }
 
-func (vm mockVolumeMounter) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *csimanager.UsageOptions, publishContext map[string]string) (*csimanager.MountInfo, error) {
+func (vm mockVolumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *csimanager.UsageOptions, publishContext map[string]string) (*csimanager.MountInfo, error) {
 	vm.callCounts.inc("mount")
 	return &csimanager.MountInfo{
 		Source: filepath.Join("test-alloc-dir", alloc.ID, vol.ID, usageOpts.ToFS()),
 	}, nil
 }
 
-func (vm mockVolumeMounter) UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usageOpts *csimanager.UsageOptions) error {
+func (vm mockVolumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usageOpts *csimanager.UsageOptions) error {
 	vm.callCounts.inc("unmount")
 
 	if *vm.failsFirstUnmount {
@@ -493,24 +493,24 @@ func (vm mockVolumeMounter) UnmountVolume(ctx context.Context, volID, remoteID, 
 	return nil
 }
 
-func (vm mockVolumeMounter) HasMount(_ context.Context, mountInfo *csimanager.MountInfo) (bool, error) {
+func (vm mockVolumeManager) HasMount(_ context.Context, mountInfo *csimanager.MountInfo) (bool, error) {
 	vm.callCounts.inc("hasMount")
 	return mountInfo != nil && vm.hasMounts, nil
 }
 
-func (vm mockVolumeMounter) ExternalID() string {
+func (vm mockVolumeManager) ExternalID() string {
 	return "i-example"
 }
 
 type mockPluginManager struct {
-	mounter mockVolumeMounter
+	mounter mockVolumeManager
 }
 
 func (mgr mockPluginManager) WaitForPlugin(ctx context.Context, pluginType, pluginID string) error {
 	return nil
 }
 
-func (mgr mockPluginManager) MounterForPlugin(ctx context.Context, pluginID string) (csimanager.VolumeMounter, error) {
+func (mgr mockPluginManager) ManagerForPlugin(ctx context.Context, pluginID string) (csimanager.VolumeManager, error) {
 	return mgr.mounter, nil
 }
 

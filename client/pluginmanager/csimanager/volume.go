@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/csi"
 )
 
-var _ VolumeMounter = &volumeManager{}
+var _ VolumeManager = &volumeManager{}
 
 const (
 	DefaultMountActionTimeout = 2 * time.Minute

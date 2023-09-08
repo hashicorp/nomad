@@ -107,10 +107,10 @@ func (i *instanceManager) setupVolumeManager() {
 	}
 }
 
-// VolumeMounter returns the volume manager that is configured for the given plugin
+// VolumeManager returns the volume manager that is configured for the given plugin
 // instance. If called before the volume manager has been setup, it will block until
 // the volume manager is ready or the context is closed.
-func (i *instanceManager) VolumeMounter(ctx context.Context) (VolumeMounter, error) {
+func (i *instanceManager) VolumeManager(ctx context.Context) (VolumeManager, error) {
 	select {
 	case <-i.volumeManagerSetupCh:
 		return i.volumeManager, nil
