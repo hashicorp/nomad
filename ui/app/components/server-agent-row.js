@@ -57,13 +57,16 @@ export default class ServerAgentRow extends Component {
   }
 
   @computed('agent.status')
-  get agentStatusClass() {
+  get agentStatusColor() {
     let agentStatus = this.get('agent.status');
-
     if (agentStatus === 'alive') {
-      return 'status-text is-success';
+      return 'success';
     } else if (agentStatus === 'failed') {
-      return 'status-text is-danger';
+      return 'critical';
+    } else if (agentStatus === 'leaving') {
+      return 'neutral';
+    } else if (agentStatus === 'left') {
+      return 'neutral';
     } else {
       return '';
     }
