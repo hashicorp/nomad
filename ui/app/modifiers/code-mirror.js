@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { action } from '@ember/object';
 import { bind } from '@ember/runloop';
 import codemirror from 'codemirror';
@@ -25,6 +30,7 @@ export default class CodeMirrorModifier extends Modifier {
   }
 
   didUpdateArguments() {
+    this._editor.setOption('lineWrapping', this.args.named.lineWrapping);
     this._editor.setOption('readOnly', this.args.named.readOnly);
     if (!this.args.named.content) {
       return;
@@ -36,7 +42,11 @@ export default class CodeMirrorModifier extends Modifier {
 
   @action
   _onChange(editor) {
-    this.args.named.onUpdate(editor.getValue(), this._editor);
+    this.args.named.onUpdate(
+      editor.getValue(),
+      this._editor,
+      this.args.named.type
+    );
   }
 
   _setup() {
@@ -57,6 +67,7 @@ export default class CodeMirrorModifier extends Modifier {
         value: this.args.named.content || '',
         viewportMargin: this.args.named.viewportMargin || '',
         screenReaderLabel: this.args.named.screenReaderLabel || '',
+        lineWrapping: this.args.named.lineWrapping || false,
       });
 
       if (this.autofocus) {

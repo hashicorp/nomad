@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package testutils
 
 import (
@@ -13,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/testutil"
@@ -102,18 +105,14 @@ var ExecTaskStreamingBasicCases = []struct {
 		Stdout:   "hello from stdin\r\nhello from stdin\r\n",
 		ExitCode: 0,
 	},
-	// t.Skip: https://github.com/hashicorp/nomad/pull/14600
-	// This test is broken in CircleCI only. It works on GHA in both 20.04 and
-	// 22.04 and has been verified to work on real Nomad; temporarily
-	// commenting-out so that we don't block unrelated CI runs.
-	// {
-	// 	Name:    "tty: children processes",
-	// 	Command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
-	// 	Tty:     true,
-	// 	// when using tty; wait for lead process only, like `docker exec -it`
-	// 	Stdout:   "from main\r\n",
-	// 	ExitCode: 0,
-	// },
+	{
+		Name:    "tty: children processes",
+		Command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
+		Tty:     true,
+		// when using tty; wait for lead process only, like `docker exec -it`
+		Stdout:   "from main\r\n",
+		ExitCode: 0,
+	},
 }
 
 func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, taskID string) {
@@ -194,13 +193,14 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 		// we always run in a cgroup - testing freezer cgroup
 		r = execTask(t, driver, taskID,
 			"cat /proc/self/cgroup",
-			false, "")
+			false, "",
+		)
 		require.Zero(t, r.exitCode)
 
-		if !cgutil.UseV2 {
-			acceptable := []string{
-				":freezer:/nomad", ":freezer:/docker",
-			}
+		switch cgroupslib.GetMode() {
+
+		case cgroupslib.CG1:
+			acceptable := []string{":freezer:/nomad", ":freezer:/docker"}
 			if testutil.IsCI() {
 				// github actions freezer cgroup
 				acceptable = append(acceptable, ":freezer:/actions_job")
@@ -216,7 +216,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 			if !ok {
 				require.Fail(t, "unexpected freezer cgroup", "expected freezer to be /nomad/ or /docker/, but found:\n%s", r.stdout)
 			}
-		} else {
+		case cgroupslib.CG2:
 			info, _ := driver.PluginInfo()
 			if info.Name == "docker" {
 				// Note: docker on cgroups v2 now returns nothing

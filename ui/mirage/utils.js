@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import faker from 'nomad-ui/mirage/faker';
 
 export function provide(count, provider) {
@@ -11,8 +16,13 @@ export function provider() {
   return () => provide(...arguments);
 }
 
-export function pickOne(list) {
-  return list[faker.random.number(list.length - 1)];
+export function pickOne(list, filterFn) {
+  let candidates = list;
+  if (filterFn) {
+    candidates = list.filter(filterFn);
+  }
+
+  return candidates[faker.random.number(candidates.length - 1)];
 }
 
 export function arrToObj(prop, alias = '') {
@@ -26,7 +36,6 @@ export function arrToObj(prop, alias = '') {
 }
 
 export const generateAcceptanceTestEvalMock = (id) => {
-
   return {
     CreateIndex: 20,
     CreateTime: 1647899150314738000,

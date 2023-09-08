@@ -1,5 +1,16 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 .json-viewer {
   &.has-fluid-height .CodeMirror-scroll {
+    min-height: 0;
+  }
+
+  &.is-variable-editor .CodeMirror-scroll {
+    box-sizing: inherit;
+    height: 200px;
     min-height: 0;
   }
 }

@@ -8,8 +8,6 @@ description: The /namespace endpoints are used to query for and interact with na
 
 The `/namespace` endpoints are used to query for and interact with namespaces.
 
-~> Prior to Nomad 1.0 Namespaces were an Enterprise-only feature.
-
 ## List Namespaces
 
 This endpoint lists all namespaces.
@@ -143,22 +141,56 @@ The table below shows this endpoint's support for
   metadata to attach to the namespace. Namespace metadata is not used by Nomad
   and is intended for use by operators and third party tools.
 
-- `Quota` `(string: "")` - Specifies an quota to attach to the namespace.
+- `Quota` `(string: "")` <EnterpriseAlert inline /> - Specifies an quota to
+  attach to the namespace.
+
+- `Capabilities` `(Capabilities: <optional>)` - Specifies capabilities allowed
+  in the namespace. These values are checked at job submission.
+
+  - `EnabledTaskDrivers` `(array<string>: [])` - List of task drivers allowed
+    in the namespace. If empty all task drivers are allowed.
+
+  - `DisabledTaskDrivers` `(array<string>: [])` - List of task drivers disabled
+    in the namespace.
+
+- `NodePoolConfiguration` `(NodePoolConfiguration: <optional>)` <EnterpriseAlert inline /> -
+  Specifies node pool configurations. These values are checked at job
+  submission.
+
+  - `Default` `(string: "default")` - Specifies the node pool to use for jobs
+  in this namespace that don't define a node pool in their specification.
+
+  - `Allowed` `(array<string>: [])` - Specifies the node pools that are allowed
+    to be used by jobs in this namespace. This field supports wildcard globbing
+    through the use of `*` for multi-character matching. If specified, only the
+    node pools that match these patterns are allowed. This field cannot be used
+    with `Disabled`.
+
+  - `disabled` `(array<string>: [])` - Specifies the node pools that are not
+    allowed to be used by jobs in this namespace. This field supports wildcard
+    globbing through the use of `*` for multi-character matching. If specified,
+    any node pool is allowed except for those that match any of these patterns.
+    This field cannot be used with `Enabled`.
 
 ### Sample Payload
 
-```javascript
+```json
 {
   "Name": "api-prod",
   "Description": "Production API Servers",
   "Meta": {
     "contact": "platform-eng@example.com"
   },
-  "Quota": "prod-quota"
+  "Quota": "prod-quota",
+  "Capabilities": {
+    "DisabledTaskDrivers": ["raw_exec"]
+  },
+  "NodePoolConfiguration": {
+    "Default": "prod-pool",
+    "Allowed": ["default"]
+  }
 }
 ```
-
-Note that the `Quota` key is Enterprise-only.
 
 ### Sample Request
 

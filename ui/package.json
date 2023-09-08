@@ -17,9 +17,12 @@
     "lint:js": "eslint . --cache",
     "lint:js:fix": "eslint . --fix",
     "start": "ember server",
-    "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
-    "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
+    "build-storybook": "STORYBOOK=true ember build && NODE_OPTIONS=--openssl-legacy-provider build-storybook -s dist",
+    "storybook": "NODE_OPTIONS=--openssl-legacy-provider STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint test:*",
+    "exam": "percy exec -- ember exam --split=4 --parallel",
+    "exam:parallel": "percy exec --parallel -- ember exam",
+    "percy": "percy",
     "test:ember": "percy exec -- ember test",
     "local:qunitdom": "ember test --server --query=dockcontainer",
     "local:exam": "ember exam --server --load-balance --parallel=4",
@@ -47,7 +50,7 @@
     "@glimmer/component": "^1.0.4",
     "@glimmer/tracking": "^1.0.4",
     "@hashicorp/structure-icons": "^1.3.0",
-    "@storybook/ember-cli-storybook": "https://github.com/DingoEatingFuzz/ember-cli-storybook#c207500",
+    "@storybook/ember-cli-storybook": "https://github.com/storybookjs/ember-cli-storybook#27bf1b4",
     "anser": "^2.1.1",
     "babel-eslint": "^10.1.0",
     "base64-js": "^1.3.1",
@@ -70,7 +73,7 @@
     "ember-classic-decorator": "^3.0.0",
     "ember-cli": "~3.28.5",
     "ember-cli-babel": "^7.26.10",
-    "ember-cli-clipboard": "^0.13.0",
+    "ember-cli-clipboard": "^1.0.0",
     "ember-cli-dependency-checker": "^3.2.0",
     "ember-cli-deprecation-workflow": "^2.1.0",
     "ember-cli-flash": "^3.0.0",
@@ -100,7 +103,6 @@
     "ember-maybe-import-regenerator": "^1.0.0",
     "ember-modifier": "3.2.7",
     "ember-moment": "^9.0.1",
-    "ember-named-blocks-polyfill": "^0.2.4",
     "ember-on-resize-modifier": "^1.0.0",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^7.0.0",
@@ -146,12 +148,13 @@
     "testem": "^3.0.3",
     "testem-multi-reporter": "^1.2.0",
     "text-encoder-lite": "^2.0.0",
-    "webpack": "^5.69.1",
+    "webpack": "^5.86.0",
     "xterm": "^4.6.0",
     "xterm-addon-fit": "0.5.0"
   },
   "optionalDependencies": {
     "@babel/plugin-transform-member-expression-literals": "^7.16.7",
+    "@storybook/addon-docs": "^6.3.20",
     "@storybook/addon-knobs": "^6.3.1",
     "@storybook/addon-storysource": "^6.3.10",
     "@storybook/addon-viewport": "^6.3.10",
@@ -174,8 +177,9 @@
     ]
   },
   "dependencies": {
-    "@hashicorp/design-system-components": "^1.5.0",
-    "@hashicorp/ember-flight-icons": "^2.0.12",
+    "@babel/helper-string-parser": "^7.19.4",
+    "@hashicorp/design-system-components": "^2.6.0",
+    "@hashicorp/ember-flight-icons": "^3.0.4",
     "@percy/cli": "^1.6.1",
     "@percy/ember": "^3.0.0",
     "curved-arrows": "^0.1.0",
@@ -186,6 +190,7 @@
     "title-case": "^3.0.3"
   },
   "resolutions": {
-    "ember-auto-import": "^2.4.0"
+    "ember-auto-import": "^2.4.0",
+    "prop-types": "^15.8.1"
   }
 }

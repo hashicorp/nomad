@@ -15,12 +15,7 @@ BUILD_DATE_FLAG = $(GO_MODULE)/version.BuildDate=$(BUILD_DATE)
 
 GO_LDFLAGS = -X $(GIT_COMMIT_FLAG) -X $(BUILD_DATE_FLAG)
 
-ifneq (MSYS_NT,$(THIS_OS))
-# GOPATH supports PATH style multi-paths; assume the first entry is favorable.
-# Necessary because new Circle images override GOPATH with multiple values.
-# See: https://discuss.circleci.com/t/gopath-is-set-to-multiple-directories/7174
-GOPATH := $(shell go env GOPATH | cut -d: -f1)
-endif
+GOPATH := $(shell go env GOPATH)
 
 # Respect $GOBIN if set in environment or via $GOENV file.
 BIN := $(shell go env GOBIN)
@@ -49,7 +44,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 # LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
 # published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.5.2
+LAST_RELEASE ?= v1.6.1
 
 default: help
 
@@ -58,6 +53,7 @@ ALL_TARGETS = linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
+	linux_s390x \
 	windows_386 \
 	windows_amd64
 endif
@@ -135,7 +131,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	go install gotest.tools/gotestsum@v1.8.2
+	go install gotest.tools/gotestsum@v1.10.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
@@ -143,12 +139,12 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.1.12
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.5.0
+	go install github.com/shoenig/go-modtool@v0.1.1
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
-## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.6
 
@@ -252,6 +248,10 @@ tidy: ## Tidy up the go mod files
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
 	@echo "==> Tidy nomad module"
+	@go-modtool \
+		--replace-comment="Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826." \
+		--subs-comment="Nomad is built using the current source of the API module." \
+		-w fmt go.mod
 	@go mod tidy
 
 .PHONY: dev
@@ -317,13 +317,13 @@ e2e-test: dev ## Run the Nomad e2e test suite
 .PHONY: integration-test
 integration-test: dev ## Run Nomad integration tests
 	@echo "==> Running Nomad integration test suites:"
-	go test \
-		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
-		-cover \
+	NOMAD_E2E_VAULTCOMPAT=1 go test \
+		-v \
+		-race \
 		-timeout=900s \
+		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/vaultcompat/ \
-		-integration
+		github.com/hashicorp/nomad/e2e/vaultcompat
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
@@ -411,11 +411,6 @@ endif
 missing: ## Check for packages not being tested
 	@echo "==> Checking for packages not being tested ..."
 	@go run -modfile tools/go.mod tools/missing/main.go ci/test-core.json
-
-.PHONY: ec2info
-ec2info: ## Generate AWS EC2 CPU specification table
-	@echo "==> Generating AWS EC2 specifications ..."
-	@go run -modfile tools/go.mod tools/ec2info/main.go
 
 .PHONY: cl
 cl: ## Create a new Changelog entry

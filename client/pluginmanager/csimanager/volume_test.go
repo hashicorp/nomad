@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package csimanager
 
 import (
@@ -89,7 +92,8 @@ func TestVolumeManager_ensureStagingDir(t *testing.T) {
 
 			csiFake := &csifake.Client{}
 			eventer := func(e *structs.NodeEvent) {}
-			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
+				tmpPath, tmpPath, true, "i-example")
 			expectedStagingPath := manager.stagingDirForVolume(tmpPath, tc.Volume.ID, tc.UsageOptions)
 
 			if tc.CreateDirAheadOfTime {
@@ -190,7 +194,8 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 			csiFake.NextNodeStageVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
-			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
+				tmpPath, tmpPath, true, "i-example")
 			ctx := context.Background()
 
 			err := manager.stageVolume(ctx, tc.Volume, tc.UsageOptions, nil)
@@ -248,7 +253,8 @@ func TestVolumeManager_unstageVolume(t *testing.T) {
 			csiFake.NextNodeUnstageVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
-			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
+				tmpPath, tmpPath, true, "i-example")
 			ctx := context.Background()
 
 			err := manager.unstageVolume(ctx,
@@ -371,7 +377,8 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			csiFake.NextNodePublishVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
-			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
+				tmpPath, tmpPath, true, "i-example")
 			ctx := context.Background()
 
 			_, err := manager.publishVolume(ctx, tc.Volume, tc.Allocation, tc.UsageOptions, nil)
@@ -438,7 +445,8 @@ func TestVolumeManager_unpublishVolume(t *testing.T) {
 			csiFake.NextNodeUnpublishVolumeErr = tc.PluginErr
 
 			eventer := func(e *structs.NodeEvent) {}
-			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+			manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
+				tmpPath, tmpPath, true, "i-example")
 			ctx := context.Background()
 
 			err := manager.unpublishVolume(ctx,
@@ -470,7 +478,8 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 		events = append(events, e)
 	}
 
-	manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
+	manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake,
+		tmpPath, tmpPath, true, "i-example")
 	ctx := context.Background()
 	vol := &structs.CSIVolume{
 		ID:        "vol",

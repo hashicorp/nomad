@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 'use strict';
 
 module.exports = {
@@ -14,5 +19,6 @@ module.exports = {
   },
   ignore: [
     'app/components/breadcrumbs/*', // using {{(modifier)}} syntax
+    'app/templates/components/list-pagination/list-pager', // using {{(modifier)}} syntax
   ],
 };

@@ -1,0 +1,3 @@
+```release-note:bug
+drivers/docker: Fixed a bug where long-running docker operations would incorrectly timeout
+```

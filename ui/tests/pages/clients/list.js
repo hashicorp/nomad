@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import {
   attribute,
   create,
@@ -45,6 +50,7 @@ export default create({
     },
 
     address: text('[data-test-client-address]'),
+    nodePool: text('[data-test-client-node-pool]'),
     datacenter: text('[data-test-client-datacenter]'),
     version: text('[data-test-client-version]'),
     allocations: text('[data-test-client-allocations]'),
@@ -70,6 +76,7 @@ export default create({
   },
 
   facets: {
+    nodePools: multiFacet('[data-test-node-pool-facet]'),
     class: multiFacet('[data-test-class-facet]'),
     state: multiFacet('[data-test-state-facet]'),
     datacenter: multiFacet('[data-test-datacenter-facet]'),

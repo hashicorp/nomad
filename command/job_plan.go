@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -194,7 +197,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.Get(path)
+	_, job, err := c.JobGetter.Get(path)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
@@ -234,9 +237,9 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	// Setup the options
-	opts := &api.PlanOptions{}
-	if diff {
-		opts.Diff = true
+	opts := &api.PlanOptions{
+		// Always request the diff so we can tell if there are changes.
+		Diff: true,
 	}
 	if policyOverride {
 		opts.PolicyOverride = true

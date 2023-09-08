@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package client
 
 import (
@@ -7,8 +10,9 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -29,7 +33,7 @@ func gcConfig() *GCConfig {
 
 // exitAllocRunner is a helper that updates the allocs on the given alloc
 // runners to be terminal
-func exitAllocRunner(runners ...AllocRunner) {
+func exitAllocRunner(runners ...interfaces.AllocRunner) {
 	for _, ar := range runners {
 		terminalAlloc := ar.Alloc().Copy()
 		terminalAlloc.DesiredStatus = structs.AllocDesiredStatusStop
@@ -102,7 +106,7 @@ func (m *MockStatsCollector) Collect() error {
 	return nil
 }
 
-func (m *MockStatsCollector) Stats() *stats.HostStats {
+func (m *MockStatsCollector) Stats() *hoststats.HostStats {
 	if len(m.availableValues) == 0 {
 		return nil
 	}
@@ -114,8 +118,8 @@ func (m *MockStatsCollector) Stats() *stats.HostStats {
 	if m.index < len(m.availableValues)-1 {
 		m.index = m.index + 1
 	}
-	return &stats.HostStats{
-		AllocDirStats: &stats.DiskStats{
+	return &hoststats.HostStats{
+		AllocDirStats: &hoststats.DiskStats{
 			Available:         available,
 			UsedPercent:       usedPercent,
 			InodesUsedPercent: inodePercent,
@@ -394,7 +398,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertJobFn := func(server *nomad.Server, j *structs.Job) {
 		state := server.State()
-		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), j))
+		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), nil, j))
 		require.NoError(state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
 	}
 

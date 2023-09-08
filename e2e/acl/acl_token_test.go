@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package acl
 
 import (
@@ -30,11 +33,11 @@ func testACLTokenExpiration(t *testing.T) {
 
 	nomadClient := e2eutil.NomadClient(t)
 
-	// Create and defer the cleanup process. This is used to remove all
+	// Create and defer the Cleanup process. This is used to remove all
 	// resources created by this test and covers situations where the test
 	// fails or during normal running.
-	cleanUpProcess := newCleanup()
-	defer cleanUpProcess.run(t, nomadClient)
+	cleanUpProcess := NewCleanup()
+	defer cleanUpProcess.Run(t, nomadClient)
 
 	// Create an ACL policy which will be assigned to the created ACL tokens.
 	customNamespacePolicy := api.ACLPolicy{
@@ -45,7 +48,7 @@ func testACLTokenExpiration(t *testing.T) {
 	_, err := nomadClient.ACLPolicies().Upsert(&customNamespacePolicy, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.add(customNamespacePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Add(customNamespacePolicy.Name, ACLPolicyTestResourceType)
 
 	// Create our default query options which can be used when testing a token
 	// against the API. The caller should update the auth token as needed.
@@ -92,7 +95,7 @@ func testACLTokenExpiration(t *testing.T) {
 		*tokenNormalExpiryCreateResp.ExpirationTime,
 		tokenNormalExpiryCreateResp.CreateTime.Add(tokenNormalExpiryCreateResp.ExpirationTTL))
 
-	cleanUpProcess.add(tokenNormalExpiryCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Add(tokenNormalExpiryCreateResp.AccessorID, ACLTokenTestResourceType)
 
 	// Add the token to our query options and ensure we can now list jobs with
 	// the default namespace.
@@ -116,7 +119,7 @@ func testACLTokenExpiration(t *testing.T) {
 		*tokenQuickExpiryCreateResp.ExpirationTime,
 		tokenQuickExpiryCreateResp.CreateTime.Add(tokenQuickExpiryCreateResp.ExpirationTTL))
 
-	cleanUpProcess.add(tokenQuickExpiryCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Add(tokenQuickExpiryCreateResp.AccessorID, ACLTokenTestResourceType)
 
 	// Block the test (sorry) until the token has expired.
 	time.Sleep(tokenQuickExpiry.ExpirationTTL)
@@ -129,7 +132,7 @@ func testACLTokenExpiration(t *testing.T) {
 	require.ErrorContains(t, err, "ACL token expired")
 	require.Nil(t, jobListResp)
 
-	cleanUpProcess.remove(tokenQuickExpiryCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Remove(tokenQuickExpiryCreateResp.AccessorID, ACLTokenTestResourceType)
 
 	// List the tokens to ensure the output correctly shows the token
 	// expiration. Other tests may have left tokens in state, so do not perform
@@ -164,7 +167,7 @@ func testACLTokenExpiration(t *testing.T) {
 	require.ErrorContains(t, err, "ACL token not found")
 	require.Nil(t, tokenNormalExpiryReadResp)
 
-	cleanUpProcess.remove(tokenNormalExpiryCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Remove(tokenNormalExpiryCreateResp.AccessorID, ACLTokenTestResourceType)
 }
 
 // testACLTokenRolePolicyAssignment tests that tokens allow and have the
@@ -174,11 +177,11 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 
 	nomadClient := e2eutil.NomadClient(t)
 
-	// Create and defer the cleanup process. This is used to remove all
+	// Create and defer the Cleanup process. This is used to remove all
 	// resources created by this test and covers situations where the test
 	// fails or during normal running.
-	cleanUpProcess := newCleanup()
-	defer cleanUpProcess.run(t, nomadClient)
+	cleanUpProcess := NewCleanup()
+	defer cleanUpProcess.Run(t, nomadClient)
 
 	// Create two ACL policies which will be used throughout this test. One
 	// grants read access to the default namespace, the other grants read
@@ -191,7 +194,7 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	_, err := nomadClient.ACLPolicies().Upsert(&defaultNamespacePolicy, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.add(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Add(defaultNamespacePolicy.Name, ACLPolicyTestResourceType)
 
 	nodePolicy := api.ACLPolicy{
 		Name:        "e2e-acl-" + uuid.Short(),
@@ -201,7 +204,7 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	_, err = nomadClient.ACLPolicies().Upsert(&nodePolicy, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.add(nodePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Add(nodePolicy.Name, ACLPolicyTestResourceType)
 
 	// Create an ACL role that has the node read policy assigned.
 	aclRole := api.ACLRole{
@@ -214,7 +217,7 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	require.NotNil(t, aclRoleCreateResp)
 	require.NotEmpty(t, aclRoleCreateResp.ID)
 
-	cleanUpProcess.add(aclRoleCreateResp.ID, aclRoleTestResourceType)
+	cleanUpProcess.Add(aclRoleCreateResp.ID, ACLRoleTestResourceType)
 
 	// Create an ACL token which only has the ACL policy which allows reading
 	// the default namespace assigned.
@@ -228,7 +231,7 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	require.NotNil(t, aclTokenCreateResp)
 	require.NotEmpty(t, aclTokenCreateResp.SecretID)
 
-	cleanUpProcess.add(aclTokenCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Add(aclTokenCreateResp.AccessorID, ACLTokenTestResourceType)
 
 	// Test that the token can read the default namespace, but that it cannot
 	// read node objects.
@@ -291,7 +294,7 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	require.NotNil(t, aclTokenCreateResp)
 	require.NotEmpty(t, aclTokenCreateResp.SecretID)
 
-	cleanUpProcess.add(aclTokenCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Add(aclTokenCreateResp.AccessorID, ACLTokenTestResourceType)
 
 	// Test that the token is working as expected.
 	defaultNSQueryMeta.AuthToken = aclTokenCreateResp.SecretID
@@ -308,11 +311,11 @@ func testACLTokenRolePolicyAssignment(t *testing.T) {
 	// remove the assignment.
 	_, err = nomadClient.ACLPolicies().Delete(defaultNamespacePolicy.Name, nil)
 	require.NoError(t, err)
-	cleanUpProcess.remove(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Remove(defaultNamespacePolicy.Name, ACLPolicyTestResourceType)
 
 	_, err = nomadClient.ACLRoles().Delete(aclRoleCreateResp.ID, nil)
 	require.NoError(t, err)
-	cleanUpProcess.remove(aclRoleCreateResp.ID, aclRoleTestResourceType)
+	cleanUpProcess.Remove(aclRoleCreateResp.ID, ACLRoleTestResourceType)
 
 	// The token now should not have any power here; quite different to
 	// Gandalf's power over the spell on King Theoden.

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import AdapterError from '@ember-data/adapter/error';
 import {
   click,
@@ -61,6 +66,7 @@ module('Acceptance | job run', function (hooks) {
 
   hooks.beforeEach(function () {
     // Required for placing allocations (a result of creating jobs)
+    server.create('node-pool');
     server.create('node');
 
     managementToken = server.create('token');

@@ -67,12 +67,16 @@ $ curl \
   settings mentioned below.
 
   - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler
-    binpacks or spreads allocations on available nodes.
+    binpacks or spreads allocations on available nodes. Node pools may set
+    their own [`SchedulerAlgorithm`][np_sched_algo] value that takes precedence
+    over this global value.
 
-  - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When
-    `true`, tasks may exceed their reserved memory limit, if the client has excess
-    memory capacity. Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
-    to take advantage of memory oversubscription.
+  - `MemoryOversubscriptionEnabled` `(bool: false)` - When `true`, tasks may
+    exceed their reserved memory limit, if the client has excess memory
+    capacity. Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
+    to take advantage of memory oversubscription. Node pools may set their own
+    [`MemoryOversubscriptionEnabled`][np_mem_oversubs] value that takes
+    precedence over this global value.
 
   - `RejectJobRegistration` `(bool: false)` - When `true`, the server will return
     permission denied errors for job registration, job dispatch, and job scale APIs,
@@ -148,12 +152,14 @@ server state is authoritative.
 
 - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler
   binpacks or spreads allocations on available nodes. Possible values are
-  `"binpack"` and `"spread"`
+  `"binpack"` and `"spread"`. This value may also be set per [node
+  pool][np_sched_algo].
 
-- `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When
-  `true`, tasks may exceed their reserved memory limit, if the client has excess
-  memory capacity. Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
-  to take advantage of memory oversubscription.
+- `MemoryOversubscriptionEnabled` `(bool: false)` - When `true`, tasks may
+  exceed their reserved memory limit, if the client has excess memory capacity.
+  Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
+  to take advantage of memory oversubscription. This value may also be set per
+  [node pool][np_mem_oversubs].
 
 - `RejectJobRegistration` `(bool: false)` - When `true`, the server will return
   permission denied errors for job registration, job dispatch, and job scale APIs,
@@ -200,3 +206,5 @@ server state is authoritative.
 - `Index` - Current Raft index when the request was received.
 
 [`default_scheduler_config`]: /nomad/docs/configuration/server#default_scheduler_config
+[np_mem_oversubs]: /nomad/docs/other-specifications/node-pool#memory_oversubscription_enabled
+[np_sched_algo]: /nomad/docs/other-specifications/node-pool#scheduler_algorithm

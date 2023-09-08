@@ -1,11 +1,16 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package state
 
 import (
+	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -40,6 +45,22 @@ type StateDB interface {
 
 	// PutNetworkStatus puts the allocation's network status. It may be nil.
 	PutNetworkStatus(allocID string, ns *structs.AllocNetworkStatus, opts ...WriteOption) error
+
+	// PutAcknowledgedState stores an allocation's last acknowledged state or
+	// returns an error if it could not be stored.
+	PutAcknowledgedState(string, *arstate.State, ...WriteOption) error
+
+	// GetAcknowledgedState retrieves an allocation's last acknowledged
+	// state. It may be nil even if there's no error
+	GetAcknowledgedState(string) (*arstate.State, error)
+
+	// PutAllocVolumes stores stubs of an allocation's dynamic volume mounts so
+	// they can be restored.
+	PutAllocVolumes(allocID string, state *arstate.AllocVolumes, opts ...WriteOption) error
+
+	// GetAllocVolumes retrieves stubs of an allocation's dynamic volume mounts
+	// so they can be restored.
+	GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error)
 
 	// GetTaskRunnerState returns the LocalState and TaskState for a
 	// TaskRunner. Either state may be nil if it is not found, but if an
@@ -105,6 +126,9 @@ type StateDB interface {
 	// GetNodeMeta retrieves node metadata for merging with the copy from
 	// the Client's config.
 	GetNodeMeta() (map[string]*string, error)
+
+	PutNodeRegistration(*cstructs.NodeRegistration) error
+	GetNodeRegistration() (*cstructs.NodeRegistration, error)
 
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.

@@ -1,5 +1,11 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-env node */
 module.exports = {
+  framework: '@storybook/ember',
   addons: [
     '@storybook/addon-docs',
     '@storybook/addon-storysource',
@@ -11,4 +17,7 @@ module.exports = {
     '../stories/components/*.stories.js',
     '../stories/charts/*.stories.js',
   ],
+  core: {
+    builder: '@storybook/builder-webpack4',
+  },
 };

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import {
   attribute,
   create,
@@ -77,21 +82,22 @@ export default create({
     return this.packStats.toArray().findBy('id', id);
   },
 
-  jobClientStatusSummary: {
-    scope: '[data-test-job-client-summary]',
-    statusBar: jobClientStatusBar('[data-test-job-client-status-bar]'),
-    toggle: {
-      scope: '[data-test-accordion-head] [data-test-accordion-toggle]',
+  statusModes: {
+    current: {
+      scope: '[data-test-status-mode-current]',
       click: clickable(),
-      isDisabled: attribute('disabled'),
-      tooltip: attribute('aria-label'),
+    },
+    historical: {
+      scope: '[data-test-status-mode-historical]',
+      click: clickable(),
     },
   },
+
   childrenSummary: jobClientStatusBar(
-    '[data-test-job-summary] [data-test-children-status-bar]'
+    '[data-test-children-status-bar]:not(.is-narrow)'
   ),
   allocationsSummary: jobClientStatusBar(
-    '[data-test-job-summary] [data-test-allocation-status-bar]'
+    '[data-test-allocation-status-bar]:not(.is-narrow)'
   ),
   ...taskGroups(),
   ...allocations(),
@@ -102,13 +108,17 @@ export default create({
     scope: '[data-test-jobs-header]',
     hasSubmitTime: isPresent('[data-test-jobs-submit-time-header]'),
     hasNamespace: isPresent('[data-test-jobs-namespace-header]'),
+    hasNodePool: isPresent('[data-test-jobs-node-pool-header]'),
+    hasType: isPresent('[data-test-jobs-type-header]'),
+    hasPriority: isPresent('[data-test-jobs-priority-header]'),
   },
 
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),
     name: text('[data-test-job-name]'),
-    namespace: text('[data-test-job-namespace]'),
     link: attribute('href', '[data-test-job-name] a'),
+    namespace: text('[data-test-job-namespace]'),
+    nodePool: text('[data-test-job-node-pool]'),
     submitTime: text('[data-test-job-submit-time]'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),

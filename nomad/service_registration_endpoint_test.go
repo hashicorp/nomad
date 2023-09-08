@@ -1,8 +1,12 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -884,8 +888,8 @@ func TestServiceRegistration_List(t *testing.T) {
 				job := allocs[0].Job
 				job.Namespace = "platform"
 				allocs[0].Namespace = "platform"
-				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
-				s.signAllocIdentities(job, allocs)
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+				s.signAllocIdentities(job, allocs, time.Now())
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
@@ -1171,8 +1175,8 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				// Generate an allocation with a signed identity
 				allocs := []*structs.Allocation{mock.Alloc()}
 				job := allocs[0].Job
-				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, job))
-				s.signAllocIdentities(job, allocs)
+				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+				s.signAllocIdentities(job, allocs, time.Now())
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]

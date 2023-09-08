@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{page-title "Jobs"}}
 <section class="section">
   <div class="toolbar">
@@ -54,6 +59,13 @@
           @onSelect={{action this.setFacetQueryParam "qpType"}}
         />
         <MultiSelectDropdown
+          data-test-node-pool-facet
+          @label="Node Pool"
+          @options={{this.optionsNodePool}}
+          @selection={{this.selectionNodePool}}
+          @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
+        />
+        <MultiSelectDropdown
           data-test-status-facet
           @label="Status"
           @options={{this.optionsStatus}}
@@ -84,7 +96,7 @@
             @query={{hash namespace=this.qpNamespace}}
             data-test-run-job
             class="button is-primary"
-            {{keyboard-shortcut 
+            {{keyboard-shortcut
               label="Run Job"
               pattern=(array "r" "u" "n")
               action=(action this.goToRun)
@@ -136,6 +148,9 @@
           </t.sort-by>
           <t.sort-by @prop="type">
             Type
+          </t.sort-by>
+          <t.sort-by @prop="nodePool">
+              Node Pool
           </t.sort-by>
           <t.sort-by @prop="priority">
             Priority

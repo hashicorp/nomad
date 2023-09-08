@@ -1,5 +1,7 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "drain_migrate" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -19,22 +21,7 @@ job "drain_migrate" {
       config {
         image   = "busybox:1"
         command = "/bin/sh"
-        args    = ["local/test.sh"]
-      }
-
-      template {
-        data = <<EOT
-#!/bin/sh
-if [ ! -f /alloc/data/{{ env "NOMAD_JOB_NAME" }} ]; then
-  echo writing {{ env "NOMAD_ALLOC_ID" }} to /alloc/data/{{ env "NOMAD_JOB_NAME" }}
-  echo {{ env "NOMAD_ALLOC_ID" }} > /alloc/data/{{ env "NOMAD_JOB_NAME" }}
-else
-   echo /alloc/data/{{ env "NOMAD_JOB_NAME" }} already exists
-fi
-sleep 3600
-EOT
-
-        destination = "local/test.sh"
+        args    = ["-c", "echo \"data from $NOMAD_ALLOC_ID\" >> /alloc/data/migrate.txt && sleep 120"]
       }
 
       resources {

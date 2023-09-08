@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{did-update this.onViewChange @view}}
 {{did-insert this.establishKeyValues}}
 <form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
@@ -5,10 +10,22 @@
   {{#if @model.isNew}}
     {{#unless this.isJobTemplateVariable}}
       <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>nomad/jobs/</code> to automatically make your variable accessible to a specified job, task group, or task.<br />
+        <p>Prefix your path with <code>nomad/jobs</code> to automatically make your variable accessible to all jobs. <br />
+        Adding job name, group name, or task name will make your variable available to that specific job, group, or task. <br />
         Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>
     {{/unless}}
+
+    {{#if this.shouldShowLinkedEntities}}
+      <VariableForm::RelatedEntities
+        @new={{true}}
+        @job={{@model.pathLinkedEntities.job}}
+        @group={{@model.pathLinkedEntities.group}}
+        @task={{@model.pathLinkedEntities.task}}
+        @namespace={{or this.variableNamespace "default"}}
+      />
+    {{/if}}
+
   {{/if}}
 
   {{#if this.hasConflict}}
@@ -56,7 +73,7 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{this.duplicatePathWarning.path}}
+            @model={{concat this.duplicatePathWarning.path "@" (or this.variableNamespace "default")}}
           >
             edit the existing variable
           </LinkTo>
@@ -132,6 +149,7 @@
             class="delete-row button is-danger is-inverted"
             type="button"
             {{on "click" (action this.deleteRow entry)}}
+            disabled={{eq this.keyValues.length 1}}
           >
             Delete
           </button>
@@ -143,16 +161,6 @@
         </div>
       {{/each}}
     {{/if}}
-  {{/if}}
-
-  {{#if (and this.shouldShowLinkedEntities @model.isNew)}}
-    <VariableForm::RelatedEntities
-      @new={{true}}
-      @job={{@model.pathLinkedEntities.job}}
-      @group={{@model.pathLinkedEntities.group}}
-      @task={{@model.pathLinkedEntities.task}}
-      @namespace={{this.variableNamespace}}
-    />
   {{/if}}
 
   <footer>

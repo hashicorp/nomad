@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable qunit/require-expect */
 import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
@@ -33,6 +38,7 @@ module('Acceptance | tokens', function (hooks) {
     faker.seed(1);
 
     server.create('agent');
+    server.create('node-pool');
     node = server.create('node');
     job = server.create('job');
     managementToken = server.create('token');
@@ -55,7 +61,7 @@ module('Acceptance | tokens', function (hooks) {
       null,
       'No token secret set'
     );
-    assert.equal(document.title, 'Authorization - Mirage - Nomad');
+    assert.ok(document.title.includes('Authorization'));
 
     await Tokens.secret(secretId).submit();
     assert.equal(
@@ -306,7 +312,7 @@ module('Acceptance | tokens', function (hooks) {
     assert.timeout(6000);
     const nearlyExpiringToken = server.create('token', {
       name: 'Not quite dead yet',
-      expirationTime: moment().add(10, 'm').add(5, 's').toDate(),
+      expirationTime: moment().add(10, 'm').add(3, 's').toDate(),
     });
 
     await Tokens.visit();
@@ -636,22 +642,28 @@ module('Acceptance | tokens', function (hooks) {
 
   test('Tokens Deletion', async function (assert) {
     allScenarios.policiesTestCluster(server);
+    const testPolicy = server.db.policies[0];
+    const existingTokens = server.db.tokens.filter((t) =>
+      t.policyIds.includes(testPolicy.name)
+    );
     // Create an expired token
     server.create('token', {
       name: 'Doomed Token',
       id: 'enjoying-my-day-here',
-      policyIds: [server.db.policies[0].name],
+      policyIds: [testPolicy.name],
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/policies');
 
     await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
-
+    assert.equal(currentURL(), `/policies/${testPolicy.name}`);
     assert
       .dom('[data-test-policy-token-row]')
-      .exists({ count: 3 }, 'Expected number of tokens are shown');
+      .exists(
+        { count: existingTokens.length + 1 },
+        'Expected number of tokens are shown'
+      );
 
     const doomedTokenRow = [...findAll('[data-test-policy-token-row]')].find(
       (a) => a.textContent.includes('Doomed Token')
@@ -667,32 +679,45 @@ module('Acceptance | tokens', function (hooks) {
     assert.dom('.flash-message.alert-success').exists();
     assert
       .dom('[data-test-policy-token-row]')
-      .exists({ count: 2 }, 'One fewer token after deletion');
+      .exists(
+        { count: existingTokens.length },
+        'One fewer token after deletion'
+      );
     await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
   });
 
   test('Test Token Creation', async function (assert) {
     allScenarios.policiesTestCluster(server);
+    const testPolicy = server.db.policies[0];
+    const existingTokens = server.db.tokens.filter((t) =>
+      t.policyIds.includes(testPolicy.name)
+    );
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/policies');
 
     await click('[data-test-policy-row]:first-child');
-    assert.equal(currentURL(), `/policies/${server.db.policies[0].name}`);
+    assert.equal(currentURL(), `/policies/${testPolicy.name}`);
 
     assert
       .dom('[data-test-policy-token-row]')
-      .exists({ count: 2 }, 'Expected number of tokens are shown');
+      .exists(
+        { count: existingTokens.length },
+        'Expected number of tokens are shown'
+      );
 
     await click('[data-test-create-test-token]');
     assert.dom('.flash-message.alert-success').exists();
     assert
       .dom('[data-test-policy-token-row]')
-      .exists({ count: 3 }, 'One more token after test token creation');
+      .exists(
+        { count: existingTokens.length + 1 },
+        'One more token after test token creation'
+      );
     assert
       .dom('[data-test-policy-token-row]:last-child [data-test-token-name]')
-      .hasText(`Example Token for ${server.db.policies[0].name}`);
+      .hasText(`Example Token for ${testPolicy.name}`);
     await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
   });

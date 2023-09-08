@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -17,9 +20,7 @@ func assertQueryMeta(t *testing.T, qm *QueryMeta) {
 
 func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 	t.Helper()
-	if wm.LastIndex == 0 {
-		t.Fatalf("bad index: %d", wm.LastIndex)
-	}
+	must.Positive(t, wm.LastIndex, must.Sprint("expected WriteMeta.LastIndex to be > 0"))
 }
 
 func testJob() *Job {
@@ -44,6 +45,14 @@ func testJob() *Job {
 		AddDatacenter("dc1").
 		AddTaskGroup(group)
 
+	return job
+}
+
+func testServiceJob() *Job {
+	// Create a job of type service
+	task := NewTask("dummy-task", "exec").SetConfig("command", "/bin/sleep")
+	group1 := NewTaskGroup("dummy-group", 1).AddTask(task)
+	job := NewServiceJob("dummy-service", "dummy-service", "global", 5).AddTaskGroup(group1)
 	return job
 }
 

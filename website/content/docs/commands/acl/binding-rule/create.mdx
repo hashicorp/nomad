@@ -32,6 +32,10 @@ via flags detailed below.
 - `-selector`: Selector is an expression that matches against verified identity
   attributes returned from the auth method during login.
 
+  ~> **Caveat:** Selectors that operate on `ClaimMappings` (as opposed to
+  `ListClaimMappings`), the key that we match against has to be prefixed with
+  `value.`
+
 - `-bind-type`: Specifies adjusts how this binding rule is applied at login time
   to internal Nomad objects. Valid options are `role`, `policy`, and `management`.
 
@@ -102,6 +106,28 @@ ID           = 698fdad6-dcb3-79dd-dc72-b43374057dea
 Description  = example binding rule
 Auth Method  = auth0
 Selector     = "\"project-developer\" in list.roles"
+Bind Type    = role
+Bind Name    = eng-ro
+Create Time  = 2022-12-20 11:15:22.582568 +0000 UTC
+Modify Time  = 2022-12-20 11:15:22.582568 +0000 UTC
+Create Index = 14
+Modify Index = 14
+```
+
+Create a new ACL Binding Rule where the selector uses a mathing against a
+single `ClaimMapping` which uses `owner` as its value:
+
+```shell-session
+$ nomad acl binding-rule create \
+    -description "example binding rule" \
+    -auth-method "github" \
+    -bind-type "role" \
+    -bind-name "eng-ro" \
+    -selector="value.owner == user"
+ID           = 698fdad6-dcb3-79dd-dc72-b43374057dea
+Description  = example binding rule
+Auth Method  = github
+Selector     = "value.owner == user"
 Bind Type    = role
 Bind Name    = eng-ro
 Create Time  = 2022-12-20 11:15:22.582568 +0000 UTC

@@ -1,0 +1,3 @@
+```release-note:improvement
+driver/docker: Default `devices.container_path` to `devices.host_path` like Docker's CLI
+```

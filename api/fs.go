@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -18,6 +21,14 @@ const (
 	// and end of a file.
 	OriginStart = "start"
 	OriginEnd   = "end"
+
+	// FSLogNameStdout is the name given to the stdout log stream of a task. It
+	// can be used when calling AllocFS.Logs as the logType parameter.
+	FSLogNameStdout = "stdout"
+
+	// FSLogNameStderr is the name given to the stderr log stream of a task. It
+	// can be used when calling AllocFS.Logs as the logType parameter.
+	FSLogNameStderr = "stderr"
 )
 
 // AllocFileInfo holds information about a file inside the AllocDir

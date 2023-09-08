@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocwatcher
 
 import (
@@ -5,10 +8,12 @@ import (
 	"sync"
 
 	multierror "github.com/hashicorp/go-multierror"
+
+	"github.com/hashicorp/nomad/client/config"
 )
 
 type groupPrevAllocWatcher struct {
-	prevAllocs []PrevAllocWatcher
+	prevAllocs []config.PrevAllocWatcher
 	wg         sync.WaitGroup
 
 	// waiting and migrating are true when alloc runner is waiting on the
@@ -18,7 +23,7 @@ type groupPrevAllocWatcher struct {
 	waitingLock sync.RWMutex
 }
 
-func NewGroupAllocWatcher(watchers ...PrevAllocWatcher) PrevAllocWatcher {
+func NewGroupAllocWatcher(watchers ...config.PrevAllocWatcher) config.PrevAllocWatcher {
 	return &groupPrevAllocWatcher{
 		prevAllocs: watchers,
 	}
@@ -45,7 +50,7 @@ func (g *groupPrevAllocWatcher) Wait(ctx context.Context) error {
 	g.wg.Add(len(g.prevAllocs))
 
 	for _, alloc := range g.prevAllocs {
-		go func(ctx context.Context, alloc PrevAllocWatcher) {
+		go func(ctx context.Context, alloc config.PrevAllocWatcher) {
 			defer g.wg.Done()
 			err := alloc.Wait(ctx)
 			if err != nil {

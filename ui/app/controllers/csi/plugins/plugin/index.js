@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 
@@ -14,6 +19,6 @@ export default class IndexController extends Controller {
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation);
+    this.transitionToRoute('allocations.allocation', allocation.id);
   }
 }

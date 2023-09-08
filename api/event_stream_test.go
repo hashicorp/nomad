@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -37,6 +40,10 @@ func TestTopic_String(t *testing.T) {
 		{
 			inputTopic:     TopicNode,
 			expectedOutput: "Node",
+		},
+		{
+			inputTopic:     TopicNodePool,
+			expectedOutput: "NodePool",
 		},
 		{
 			inputTopic:     TopicService,
@@ -296,6 +303,19 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				must.Eq(t, &Node{
 					ID:         "some-id",
 					Datacenter: "some-dc-id",
+				}, n)
+			},
+		},
+		{
+			desc:  "node_pool",
+			input: []byte(`{"Topic":"NodePool","Payload":{"NodePool":{"Description":"prod pool","Name":"prod"}}}`),
+			expectFn: func(t *testing.T, event Event) {
+				must.Eq(t, TopicNodePool, event.Topic)
+				n, err := event.NodePool()
+				must.NoError(t, err)
+				must.Eq(t, &NodePool{
+					Name:        "prod",
+					Description: "prod pool",
 				}, n)
 			},
 		},

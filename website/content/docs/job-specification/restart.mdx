@@ -36,10 +36,11 @@ For example, assuming that the task group restart policy is:
 
 ```hcl
 restart {
-  interval = "30m"
-  attempts = 2
-  delay    = "15s"
-  mode     = "fail"
+  interval         = "30m"
+  attempts         = 2
+  delay            = "15s"
+  mode             = "fail"
+  render_templates = true
 }
 ```
 
@@ -55,10 +56,11 @@ then the effective restart policy for the task will be:
 
 ```hcl
 restart {
-  interval = "30m"
-  attempts = 5
-  delay    = "15s"
-  mode     = "fail"
+  interval         = "30m"
+  attempts         = 5
+  delay            = "15s"
+  mode             = "fail"
+  render_templates = true
 }
 ```
 
@@ -86,6 +88,11 @@ level, so that the Connect sidecar can inherit the default `restart`.
   than `attempts` times in an interval. For a detailed explanation of these
   values and their behavior, please see the [mode values section](#mode-values).
 
+- `render_templates` `(bool: false)` - Specifies whether to re-render all 
+templates when a task is restarted. If set to `true`, all templates will be re-rendered
+when the task restarts. This can be useful for re-fetching Vault secrets, even if the
+lease on the existing secrets has not yet expired.
+
 ### `restart` Parameter Defaults
 
 The values for many of the `restart` parameters vary by job type. Here are the
@@ -95,10 +102,11 @@ defaults by job type:
 
   ```hcl
   restart {
-    attempts = 3
-    delay    = "15s"
-    interval = "24h"
-    mode     = "fail"
+    attempts         = 3
+    delay            = "15s"
+    interval         = "24h"
+    mode             = "fail"
+    render_templates = false
   }
   ```
 
@@ -106,10 +114,11 @@ defaults by job type:
 
   ```hcl
   restart {
-    interval = "30m"
-    attempts = 2
-    delay    = "15s"
-    mode     = "fail"
+    interval         = "30m"
+    attempts         = 2
+    delay            = "15s"
+    mode             = "fail"
+    render_templates = false
   }
   ```
 

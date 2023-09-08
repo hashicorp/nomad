@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 //go:build ent
 // +build ent
 
@@ -10,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
@@ -83,7 +87,7 @@ func TestQuotaDeleteCommand_AutocompleteArgs(t *testing.T) {
 	_, err := client.Quotas().Register(qs, nil)
 	assert.Nil(err)
 
-	args := complete.Args{Last: "t"}
+	args := complete.Args{Last: "quot"}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
@@ -94,7 +98,7 @@ func TestQuotaDeleteCommand_AutocompleteArgs(t *testing.T) {
 // testQuotaSpec returns a test quota specification
 func testQuotaSpec() *api.QuotaSpec {
 	return &api.QuotaSpec{
-		Name: "test",
+		Name: "quota-test-" + uuid.Short(),
 		Limits: []*api.QuotaLimit{
 			{
 				Region: "global",

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package client
 
 import (
@@ -14,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -77,6 +81,12 @@ func TestAllocations_RestartAllTasks(t *testing.T) {
 
 	alloc := mock.LifecycleAlloc()
 	require.Nil(client.addAlloc(alloc, ""))
+
+	// setup process wranglers for our tasks to make sure they work with restart
+	client.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "web"})
+	client.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "init"})
+	client.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "side"})
+	client.wranglers.Setup(proclib.Task{AllocID: alloc.ID, Task: "poststart"})
 
 	// Can't restart all tasks while specifying a task name.
 	req := &nstructs.AllocRestartRequest{

@@ -1,14 +1,17 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package consul
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"sync"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // MockNamespaces is a mock implementation of NamespaceAPI.

@@ -1,9 +1,13 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskrunner
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 	"time"
@@ -14,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -77,8 +82,13 @@ type vaultHook struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// tokenPath is the path in which to read and write the token
-	tokenPath string
+	// privateDirTokenPath is the path inside the task's private directory where
+	// the Vault token is read and written.
+	privateDirTokenPath string
+
+	// secretsDirTokenPath is the path inside the task's secret directory where the
+	// Vault token is written unless disabled by the task.
+	secretsDirTokenPath string
 
 	// alloc is the allocation
 	alloc *structs.Allocation
@@ -128,17 +138,24 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	// Try to recover a token if it was previously written in the secrets
 	// directory
 	recoveredToken := ""
-	h.tokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
-	data, err := os.ReadFile(h.tokenPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("failed to recover vault token: %v", err)
-		}
+	h.privateDirTokenPath = filepath.Join(req.TaskDir.PrivateDir, vaultTokenFile)
+	h.secretsDirTokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
 
-		// Token file doesn't exist
-	} else {
-		// Store the recovered token
-		recoveredToken = string(data)
+	// Handle upgrade path by searching for the previous token in all possible
+	// paths where the token may be.
+	for _, path := range []string{h.privateDirTokenPath, h.secretsDirTokenPath} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("failed to recover vault token from %s: %v", path, err)
+			}
+
+			// Token file doesn't exist in this path.
+		} else {
+			// Store the recovered token
+			recoveredToken = string(data)
+			break
+		}
 	}
 
 	// Launch the token manager
@@ -295,7 +312,8 @@ OUTER:
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
 func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
-	attempts := 0
+	var attempts uint64
+	var backoff time.Duration
 	for {
 		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
 		if err == nil {
@@ -323,13 +341,10 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		}
 
 		// Handle the retry case
-		backoff := (1 << (2 * uint64(attempts))) * vaultBackoffBaseline
-		if backoff > vaultBackoffLimit {
-			backoff = vaultBackoffLimit
-		}
-		h.logger.Error("failed to derive Vault token", "error", err, "recoverable", true, "backoff", backoff)
-
+		backoff = helper.Backoff(vaultBackoffBaseline, vaultBackoffLimit, attempts)
 		attempts++
+
+		h.logger.Error("failed to derive Vault token", "error", err, "recoverable", true, "backoff", backoff)
 
 		// Wait till retrying
 		select {
@@ -342,8 +357,24 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 
 // writeToken writes the given token to disk
 func (h *vaultHook) writeToken(token string) error {
-	if err := os.WriteFile(h.tokenPath, []byte(token), 0666); err != nil {
+	// Handle upgrade path by first checking if the tasks private directory
+	// exists. If it doesn't, this allocation probably existed before the
+	// private directory was introduced, so keep using the secret directory to
+	// prevent unnecessary errors during task recovery.
+	if _, err := os.Stat(path.Dir(h.privateDirTokenPath)); os.IsNotExist(err) {
+		if err := os.WriteFile(h.secretsDirTokenPath, []byte(token), 0666); err != nil {
+			return fmt.Errorf("failed to write vault token to secrets dir: %v", err)
+		}
+		return nil
+	}
+
+	if err := os.WriteFile(h.privateDirTokenPath, []byte(token), 0600); err != nil {
 		return fmt.Errorf("failed to write vault token: %v", err)
+	}
+	if !h.vaultBlock.DisableFile {
+		if err := os.WriteFile(h.secretsDirTokenPath, []byte(token), 0666); err != nil {
+			return fmt.Errorf("failed to write vault token to secrets dir: %v", err)
+		}
 	}
 
 	return nil

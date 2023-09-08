@@ -1,0 +1,20 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+rules:
+  - id: "disallow-imports"
+    patterns:
+      - pattern: '"github.com/boltdb/bolt"'
+      - pattern: '"github.com/pkg/errors"'
+      - pattern: '"github.com/hashicorp/consul"'
+      - pattern: '"github.com/hashicorp/consul/command/flags"'
+      - pattern: '"github.com/hashicorp/consul/sdk"'
+      - pattern: '"golang.org/x/exp/slices"'
+      - pattern: '"golang.org/x/exp/maps"'
+    message: "Import of this package has been disallowed"
+    languages:
+      - "generic"
+    severity: "ERROR"
+    paths:
+      include:
+        - "*.go"

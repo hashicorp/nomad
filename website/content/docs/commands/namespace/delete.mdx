@@ -9,8 +9,11 @@ description: |
 
 The `namespace delete` command is used delete a namespace.
 
-~> Namespaces are open source in Nomad 1.0. Namespaces were Enterprise-only
-when introduced in Nomad 0.7.
+<Tip>
+  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
+    Nomad Namespaces tutorial
+  </a> for more information.
+</Tip>
 
 ## Usage
 
@@ -21,6 +24,10 @@ nomad namespace delete [options] <namespace>
 The `namespace delete` command requires the name of the namespace to be deleted.
 
 If ACLs are enabled, this command requires a management ACL token.
+
+You cannot delete a namespace that has non-terminal jobs. In federated clusters,
+you cannot delete a namespace that has non-terminal jobs in any of the federated
+regions.
 
 ## General Options
 

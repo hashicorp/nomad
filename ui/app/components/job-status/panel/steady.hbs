@@ -1,0 +1,111 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="job-status-panel boxed-section steady-state {{if (eq @statusMode "historical") "historical-state" "current-state"}}" data-test-job-status-panel data-test-status-mode={{@statusMode}}>
+  <div class="boxed-section-head">
+    <h2>Status: <Hds::Badge @text={{this.currentStatus.label}} @color={{this.currentStatus.state}} @type="filled" /></h2>
+    
+    <div class="select-mode">
+      <button type="button"
+        data-test-status-mode-current
+        class="button is-small is-borderless {{if (eq @statusMode "current") "is-active"}}"
+        {{on "click" (action (optional @setStatusMode) "current")}}
+      >
+        Current
+      </button>
+      <button type="button"
+        data-test-status-mode-historical
+        class="button is-small is-borderless {{if (eq @statusMode "historical") "is-active"}}"
+        {{on "click" (action (optional @setStatusMode) "historical")}}>
+        Historical
+      </button>
+    </div>
+  </div>
+  <div class="boxed-section-body">
+    {{#if (eq @statusMode "historical")}}
+      <JobPage::Parts::SummaryChart @job={{@job}} />
+    {{else}}
+      <h3 class="title is-4 running-allocs-title">
+        {{#if this.allAllocsComplete}}
+          All allocations have completed successfully
+        {{else}}
+          <strong>
+              {{@job.runningAllocs ~}}
+              {{#unless this.atMostOneAllocPerNode ~}}
+                {{#if (eq @job.type "batch") ~}}
+                  /{{this.totalNonCompletedAllocs}}
+                {{else ~}}
+                  /{{this.totalAllocs}}
+                {{/if}}
+              {{/unless}}
+          </strong>
+          {{#if (eq @job.type "batch") ~}}Remaining{{/if}}
+          {{pluralize "Allocation" @job.runningAllocs}} Running
+        {{/if}}
+      </h3>
+      <JobStatus::AllocationStatusRow @allocBlocks={{this.allocBlocks}} @steady={{true}} />
+
+      <div class="legend-and-summary {{if @job.latestDeployment "has-latest-deployment"}}">
+        <legend>
+          {{#each this.allocTypes as |type|}}
+            <ConditionalLinkTo
+              @condition={{and (not (eq type.label "unplaced")) (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length")}}
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{hash status=(concat '["' type.label '"]') version=(concat '[' (map-by "version" this.versions) ']')}}
+              @class="legend-item {{if (eq (get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length") 0) "faded"}}"
+              @label="View {{type.label}} allocations"
+            >
+              <span class="represented-allocation {{type.label}}"></span>
+              <span class="count">{{get (get (get (get this.allocBlocks type.label) 'healthy') 'nonCanary') "length"}} {{capitalize type.label}}</span>
+            </ConditionalLinkTo>
+          {{/each}}
+        </legend>
+
+
+        <JobStatus::FailedOrLost
+          @rescheduledAllocs={{this.rescheduledAllocs}}
+          @restartedAllocs={{this.restartedAllocs}}
+          @job={{@job}}
+          @supportsRescheduling={{this.supportsRescheduling}}
+        />
+
+        <section class="versions">
+          <h4>Versions</h4>
+          <ul>
+            {{#each this.versions as |versionObj|}}
+              <li>
+                <LinkTo data-version={{versionObj.version}} @route="jobs.job.allocations" @model={{@job}} @query={{hash version=(concat '[' versionObj.version ']')    status=(concat '["running", "pending", "failed"]')         }}>
+                  {{#if (eq versionObj.version "unknown")}}
+                    <Hds::Badge @text="unknown" @type="inverted" class="version-label" />
+                  {{else}}
+                    <Hds::Badge @text={{concat "v" versionObj.version}} @type="inverted" class="version-label" />
+                  {{/if}}
+                  <Hds::Badge @text={{versionObj.allocations.length}} @type="filled" class="version-count" />
+                </LinkTo>
+              </li>
+            {{/each}}
+          </ul>
+        </section>
+
+        {{#if @job.latestDeployment}}
+          <JobStatus::LatestDeployment @job={{@job}} />
+        {{/if}}
+
+      </div>
+
+      <div class="history-and-params">
+        {{#if this.latestVersionAllocations.length}}
+          <JobStatus::DeploymentHistory
+            @title="Allocation History"
+            @allocations={{this.latestVersionAllocations}}
+            @isHidden={{true}}
+          />
+        {{/if}}
+      </div>
+
+    {{/if}}
+  </div>
+</div>

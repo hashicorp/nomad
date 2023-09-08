@@ -1,9 +1,15 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 // Consul represents optional per-group consul configuration.
 type Consul struct {
 	// Namespace in which to operate in Consul.
 	Namespace string
+
+	// Cluster (by name) to send API requests to
+	Cluster string
 }
 
 // Copy the Consul block.
@@ -13,6 +19,7 @@ func (c *Consul) Copy() *Consul {
 	}
 	return &Consul{
 		Namespace: c.Namespace,
+		Cluster:   c.Cluster,
 	}
 }
 
@@ -21,7 +28,14 @@ func (c *Consul) Equal(o *Consul) bool {
 	if c == nil || o == nil {
 		return c == o
 	}
-	return c.Namespace == o.Namespace
+	if c.Namespace != o.Namespace {
+		return false
+	}
+	if c.Cluster != o.Cluster {
+		return false
+	}
+
+	return true
 }
 
 // Validate returns whether c is valid.

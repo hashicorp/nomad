@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -8,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	multierror "github.com/hashicorp/go-multierror"
@@ -19,7 +23,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
-	"golang.org/x/exp/slices"
 )
 
 // Detect characters that are not valid identifiers to emit a warning when they

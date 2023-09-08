@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -13,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1668,5 +1672,183 @@ func TestAlloc_GetServiceRegistrations(t *testing.T) {
 			defer cleanup()
 			tc.testFn(t, server, aclToken)
 		})
+	}
+}
+
+func TestAlloc_SignIdentities_Bad(t *testing.T) {
+	ci.Parallel(t)
+
+	// Use non-ACL server because auth should always be enforced on this endpoint
+	s1, cleanupS1 := TestServer(t, nil)
+	t.Cleanup(cleanupS1)
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	req := &structs.AllocIdentitiesRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     "global",
+			Namespace:  structs.DefaultNamespace,
+			AllowStale: true,
+		},
+	}
+	var resp structs.AllocIdentitiesResponse
+
+	// Not including identities results in an error to catch bad client
+	// implementations
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp), "no identities requested")
+
+	// Making up an alloc returns a rejection.
+	req.Identities = []*structs.WorkloadIdentityRequest{{
+		AllocID:      uuid.Generate(),
+		TaskName:     "foo",
+		IdentityName: "bar",
+	}}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
+	must.Len(t, 1, resp.Rejections)
+	must.Eq(t, *req.Identities[0], resp.Rejections[0].WorkloadIdentityRequest)
+	must.Eq(t, structs.WIRejectionReasonMissingAlloc, resp.Rejections[0].Reason)
+
+	// Insert an alloc with an alternate identity
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Tasks[0].Identities = []*structs.WorkloadIdentity{
+		{
+			Name:     "alt",
+			Audience: []string{"test"},
+		},
+	}
+	summary := mock.JobSummary(alloc.JobID)
+	state := s1.fsm.State()
+	must.NoError(t, state.UpsertJobSummary(100, summary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc}))
+
+	// A valid alloc and invalid TaskName is an error
+	req.Identities[0].AllocID = alloc.ID
+	req.Identities[0].TaskName = "invalid"
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
+	must.Len(t, 1, resp.Rejections)
+	must.Eq(t, *req.Identities[0], resp.Rejections[0].WorkloadIdentityRequest)
+	must.Eq(t, structs.WIRejectionReasonMissingTask, resp.Rejections[0].Reason)
+
+	// A valid alloc+task name still errors if the identity doesn't exist
+	req.Identities[0].TaskName = "web"
+	req.Identities[0].IdentityName = "invalid"
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
+	must.Len(t, 1, resp.Rejections)
+	must.Eq(t, *req.Identities[0], resp.Rejections[0].WorkloadIdentityRequest)
+	must.Eq(t, structs.WIRejectionReasonMissingIdentity, resp.Rejections[0].Reason)
+
+	// I know the test is named "Bad" but let's make sure it does actually work
+	req.Identities[0].IdentityName = "alt"
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
+	must.Len(t, 0, resp.Rejections)
+	must.Len(t, 1, resp.SignedIdentities)
+
+	// Looking for a missing alloc should return a rejection and a signed id
+	req.Identities = append(req.Identities, &structs.WorkloadIdentityRequest{
+		AllocID:      uuid.Generate(),
+		TaskName:     "foo",
+		IdentityName: "bar",
+	})
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
+	must.Len(t, 1, resp.Rejections)
+	must.Eq(t, *req.Identities[1], resp.Rejections[0].WorkloadIdentityRequest)
+	must.Eq(t, structs.WIRejectionReasonMissingAlloc, resp.Rejections[0].Reason)
+	must.Len(t, 1, resp.SignedIdentities)
+}
+
+// TestAlloc_SignIdentities_Blocking asserts that if a server is behind the
+// desired index the signing request will block until the index is reached.
+func TestAlloc_SignIdentities_Blocking(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	t.Cleanup(cleanupS1)
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the alloc we're going to query for, but don't insert it yet. This
+	// simulates querying a slow follower or a restoring server.
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Tasks[0].Identities = []*structs.WorkloadIdentity{
+		{
+			Name:     "alt",
+			Audience: []string{"test"},
+		},
+	}
+	summary := mock.JobSummary(alloc.JobID)
+
+	// Write a different alloc so the index is known but won't match our request
+	otherAlloc := mock.Alloc()
+	otherSummary := mock.JobSummary(otherAlloc.JobID)
+	must.NoError(t, state.UpsertJobSummary(999, otherSummary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{otherAlloc}))
+
+	type resultT struct {
+		Err   error
+		Reply structs.AllocIdentitiesResponse
+	}
+	resultCh := make(chan resultT, 1)
+
+	go func() {
+		req := &structs.AllocIdentitiesRequest{
+			Identities: []*structs.WorkloadIdentityRequest{
+				{
+					AllocID:      alloc.ID,
+					TaskName:     "web",
+					IdentityName: "alt",
+				},
+			},
+			QueryOptions: structs.QueryOptions{
+				Region:        "global",
+				Namespace:     structs.DefaultNamespace,
+				AllowStale:    true,
+				MinQueryIndex: 1999,
+				MaxQueryTime:  10 * time.Second,
+			},
+		}
+		var resp structs.AllocIdentitiesResponse
+
+		err := msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp)
+		resultCh <- resultT{
+			Err:   err,
+			Reply: resp,
+		}
+	}()
+
+	select {
+	case result := <-resultCh:
+		t.Fatalf("1. result returned when RPC should have blocked.\n >> err=%s\n >> rejections=%v", result.Err, result.Reply.Rejections)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// Add another alloc to bump the index but not to the MinQueryIndex
+	otherAlloc = mock.Alloc()
+	otherSummary = mock.JobSummary(otherAlloc.JobID)
+	must.NoError(t, state.UpsertJobSummary(1997, otherSummary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1998, []*structs.Allocation{otherAlloc}))
+
+	select {
+	case result := <-resultCh:
+		t.Fatalf("2. result returned when RPC should have blocked.\n >> err=%s\n >> rejections=%v", result.Err, result.Reply.Rejections)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// Finally add the alloc we're waiting for
+	must.NoError(t, state.UpsertJobSummary(1999, summary))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2000, []*structs.Allocation{alloc}))
+
+	select {
+	case result := <-resultCh:
+		must.NoError(t, result.Err)
+		must.Eq(t, 2000, result.Reply.Index)
+		must.Len(t, 0, result.Reply.Rejections)
+		must.Len(t, 1, result.Reply.SignedIdentities)
+		sid := result.Reply.SignedIdentities[0]
+		must.Eq(t, alloc.ID, sid.AllocID)
+		must.Eq(t, "web", sid.TaskName)
+		must.Eq(t, "alt", sid.IdentityName)
+	case <-time.After(5 * time.Second):
+		t.Fatalf("result not returned when expected")
 	}
 }

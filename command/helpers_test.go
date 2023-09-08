@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -6,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,10 +17,12 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -218,9 +224,10 @@ const (
       resources {}
     }
     restart {
-      attempts = 10
-      mode     = "delay"
-      interval = "15s"
+      attempts         = 10
+      mode             = "delay"
+      interval         = "15s"
+      render_templates = false
     }
   }
 }`
@@ -237,9 +244,10 @@ var (
 				Name:  pointer.Of("group1"),
 				Count: pointer.Of(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts: pointer.Of(10),
-					Interval: pointer.Of(15 * time.Second),
-					Mode:     pointer.Of("delay"),
+					Attempts:        pointer.Of(10),
+					Interval:        pointer.Of(15 * time.Second),
+					Mode:            pointer.Of("delay"),
+					RenderTemplates: pointer.Of(false),
 				},
 
 				Tasks: []*api.Task{
@@ -268,7 +276,7 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 
 	j := &JobGetter{}
-	aj, err := j.ApiJob(fh.Name())
+	_, aj, err := j.ApiJob(fh.Name())
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -315,7 +323,7 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 			require.NoError(t, err)
 
 			j := &JobGetter{}
-			_, err = j.ApiJob(fh.Name())
+			_, _, err = j.ApiJob(fh.Name())
 			require.Error(t, err)
 
 			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
@@ -366,7 +374,13 @@ job "example" {
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, true)
+	jg := &JobGetter{
+		Vars:     cliArgs,
+		VarFiles: []string{vf.Name()},
+		Strict:   true,
+	}
+
+	_, j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -415,7 +429,13 @@ unsedVar2 = "from-varfile"
 	_, err = vf.WriteString(fileVars + "\n")
 	require.NoError(t, err)
 
-	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()}, false)
+	jg := &JobGetter{
+		Vars:     cliArgs,
+		VarFiles: []string{vf.Name()},
+		Strict:   false,
+	}
+
+	_, j, err := jg.Get(hclf.Name())
 	require.NoError(t, err)
 
 	require.NotNil(t, j)
@@ -434,7 +454,7 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	j := &JobGetter{}
-	aj, err := j.ApiJob("http://127.0.0.1:12345/")
+	_, aj, err := j.ApiJob("http://127.0.0.1:12345/")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -611,4 +631,57 @@ func TestUiErrorWriter(t *testing.T) {
 
 	expectedErr += "and thensome more\n"
 	require.Equal(t, expectedErr, errBuf.String())
+}
+
+func Test_extractVarFiles(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("none", func(t *testing.T) {
+		result, err := extractVarFiles(nil)
+		must.NoError(t, err)
+		must.Eq(t, "", result)
+	})
+
+	t.Run("files", func(t *testing.T) {
+		d := t.TempDir()
+		fileOne := filepath.Join(d, "one.hcl")
+		fileTwo := filepath.Join(d, "two.hcl")
+
+		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o644))
+		must.NoError(t, os.WriteFile(fileTwo, []byte(`baz = 42`), 0o644))
+
+		result, err := extractVarFiles([]string{fileOne, fileTwo})
+		must.NoError(t, err)
+		must.Eq(t, "foo = \"bar\"\nbaz = 42\n", result)
+	})
+
+	t.Run("unreadble", func(t *testing.T) {
+		testutil.RequireNonRoot(t)
+
+		d := t.TempDir()
+		fileOne := filepath.Join(d, "one.hcl")
+
+		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o200))
+
+		_, err := extractVarFiles([]string{fileOne})
+		must.ErrorContains(t, err, "permission denied")
+	})
+}
+
+func Test_extractVarFlags(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		result := extractVarFlags(nil)
+		must.MapEmpty(t, result)
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractVarFlags([]string{"one=1", "two=2", "three"})
+		must.Eq(t, map[string]string{
+			"one":   "1",
+			"two":   "2",
+			"three": "",
+		}, result)
+	})
 }

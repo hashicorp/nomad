@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskrunner
 
 import (
@@ -12,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 )
@@ -66,7 +70,7 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 
 	dir := t.TempDir()
 
-	hookConf := newLogMonHookConfig(task.Name, dir)
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
@@ -99,4 +103,53 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 		ExistingState: maps.Clone(resp.State),
 	}
 	require.NoError(t, hook.Stop(context.Background(), &stopReq, nil))
+}
+
+// TestTaskRunner_LogmonHook_Disabled asserts that no logmon running or expected
+// by any of the lifecycle hooks.
+func TestTaskRunner_LogmonHook_Disabled(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.LogConfig.Disabled = true
+
+	dir := t.TempDir()
+
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
+	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hook := newLogMonHook(runner, testlog.HCLogger(t))
+
+	req := interfaces.TaskPrestartRequest{Task: task}
+	resp := interfaces.TaskPrestartResponse{}
+
+	// First prestart should not set reattach key and never be Done.
+	must.NoError(t, hook.Prestart(context.Background(), &req, &resp))
+	t.Cleanup(func() { hook.Stop(context.Background(), nil, nil) })
+
+	must.False(t, resp.Done)
+	hookData, ok := resp.State[logmonReattachKey]
+	must.False(t, ok)
+	must.Eq(t, "", hookData)
+
+	// Running prestart again should still be a noop
+	req.PreviousState = map[string]string{}
+	must.NoError(t, hook.Prestart(context.Background(), &req, &resp))
+
+	must.False(t, resp.Done)
+	hookData, ok = resp.State[logmonReattachKey]
+	must.False(t, ok)
+	must.Eq(t, "", hookData)
+
+	// PreviousState should always be initialized by the caller, but just
+	// belt-and-suspenders for this test to ensure we can't panic on this code
+	// path
+	req.PreviousState = nil
+	must.NoError(t, hook.Prestart(context.Background(), &req, &resp))
+
+	// Running stop should not error even with no running logmon
+	stopReq := interfaces.TaskStopRequest{
+		ExistingState: maps.Clone(resp.State),
+	}
+	must.NoError(t, hook.Stop(context.Background(), &stopReq, nil))
 }

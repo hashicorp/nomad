@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskenv
 
 import (
@@ -189,6 +192,18 @@ func TestEnvironment_AsList(t *testing.T) {
 			},
 		},
 	}
+	a.AllocatedResources.Tasks["mail"] = &structs.AllocatedTaskResources{
+		Networks: []*structs.NetworkResource{
+			{
+				Device: "eth0",
+				IP:     "fd12:3456:789a:1::1",
+				MBits:  50,
+				ReservedPorts: []structs.Port{
+					{Label: "ipv6", Value: 2222},
+				},
+			},
+		},
+	}
 	a.Namespace = "not-default"
 	task := a.Job.TaskGroups[0].Tasks[0]
 	task.Env = map[string]string{
@@ -217,6 +232,9 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_IP_ssh_ssh=192.168.0.100",
 		"NOMAD_PORT_ssh_other=1234",
 		"NOMAD_PORT_ssh_ssh=22",
+		"NOMAD_ADDR_mail_ipv6=[fd12:3456:789a:1::1]:2222",
+		"NOMAD_IP_mail_ipv6=fd12:3456:789a:1::1",
+		"NOMAD_PORT_mail_ipv6=2222",
 		"NOMAD_CPU_LIMIT=500",
 		"NOMAD_CPU_CORES=0,5-7",
 		"NOMAD_DC=dc1",

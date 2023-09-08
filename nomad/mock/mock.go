@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package mock
 
 import (
@@ -37,6 +40,50 @@ func HCL() string {
 		}
 	}
 }
+`
+}
+
+// HCLVar returns a the HCL of job that requires a HCL variables S, N,
+// and B to be set. Also returns the content of a vars-file to satisfy
+// those variables.
+func HCLVar() (string, string) {
+	return `
+variable "S" {
+  type = string
+}
+
+variable "N" {
+  type = number
+}
+
+variable "B" {
+  type = bool
+}
+
+job "var-job" {
+	type = "batch"
+	constraint {
+		attribute = "${attr.kernel.name}"
+		value = "linux"
+	}
+	group "group" {
+		task "task" {
+			driver = "raw_exec"
+			config {
+				command = "echo"
+                args = ["S is ${var.S}, N is ${var.N}, B is ${var.B}"]
+			}
+			resources {
+				cpu = 10
+				memory = 32
+			}
+		}
+	}
+}
+`, `
+S = "stringy"
+N = 42
+B = true
 `
 }
 
@@ -200,8 +247,19 @@ func Namespace() *structs.Namespace {
 		CreateIndex: 100,
 		ModifyIndex: 200,
 	}
+	ns.Canonicalize()
 	ns.SetHash()
 	return ns
+}
+
+func NodePool() *structs.NodePool {
+	pool := &structs.NodePool{
+		Name:        fmt.Sprintf("pool-%s", uuid.Short()),
+		Description: "test node pool",
+		Meta:        map[string]string{"team": "test"},
+	}
+	pool.SetHash()
+	return pool
 }
 
 // ServiceRegistrations generates an array containing two unique service

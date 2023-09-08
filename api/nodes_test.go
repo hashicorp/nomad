@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -57,6 +60,7 @@ func TestNodes_List(t *testing.T) {
 
 	nodeListStub, queryMeta := queryNodeList(t, nodes)
 	must.Len(t, 1, nodeListStub)
+	must.Eq(t, NodePoolDefault, nodeListStub[0].NodePool)
 
 	// Check that we got valid QueryMeta.
 	assertQueryMeta(t, queryMeta)
@@ -137,6 +141,7 @@ func TestNodes_Info(t *testing.T) {
 	// Check that the result is what we expect
 	must.Eq(t, nodeID, result.ID)
 	must.Eq(t, dc, result.Datacenter)
+	must.Eq(t, NodePoolDefault, result.NodePool)
 
 	must.Eq(t, 20000, result.NodeResources.MinDynamicPort)
 	must.Eq(t, 32000, result.NodeResources.MaxDynamicPort)

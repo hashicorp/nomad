@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package acl
 
 import (
@@ -17,11 +20,11 @@ func testACLRole(t *testing.T) {
 
 	nomadClient := e2eutil.NomadClient(t)
 
-	// Create and defer the cleanup process. This is used to remove all
+	// Create and defer the Cleanup process. This is used to remove all
 	// resources created by this test and covers situations where the test
 	// fails or during normal running.
-	cleanUpProcess := newCleanup()
-	defer cleanUpProcess.run(t, nomadClient)
+	cleanUpProcess := NewCleanup()
+	defer cleanUpProcess.Run(t, nomadClient)
 
 	// An ACL role must reference an ACL policy that is stored in state. Ensure
 	// this behaviour by attempting to create a role that links to a policy
@@ -43,7 +46,7 @@ func testACLRole(t *testing.T) {
 	_, err = nomadClient.Namespaces().Register(&ns, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.add(ns.Name, namespaceTestResourceType)
+	cleanUpProcess.Add(ns.Name, NamespaceTestResourceType)
 
 	// Create an ACL policy which will be used to link from the role. This
 	// policy grants read access to our custom namespace.
@@ -55,7 +58,7 @@ func testACLRole(t *testing.T) {
 	_, err = nomadClient.ACLPolicies().Upsert(&customNamespacePolicy, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.add(customNamespacePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Add(customNamespacePolicy.Name, ACLPolicyTestResourceType)
 
 	// Create a valid role with a link to the previously created policy.
 	validRole := api.ACLRole{
@@ -69,7 +72,7 @@ func testACLRole(t *testing.T) {
 	require.NotEmpty(t, aclRoleCreateResp.ID)
 	require.Equal(t, validRole.Name, aclRoleCreateResp.Name)
 
-	cleanUpProcess.add(aclRoleCreateResp.ID, aclRoleTestResourceType)
+	cleanUpProcess.Add(aclRoleCreateResp.ID, ACLRoleTestResourceType)
 
 	// Perform a role listing and check we have the expected entries.
 	aclRoleListResp, _, err := nomadClient.ACLRoles().List(nil)
@@ -87,7 +90,7 @@ func testACLRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, aclTokenCreateResp)
 
-	cleanUpProcess.add(aclTokenCreateResp.AccessorID, aclTokenTestResourceType)
+	cleanUpProcess.Add(aclTokenCreateResp.AccessorID, ACLTokenTestResourceType)
 
 	// Attempt two job listings against the two available namespaces. The token
 	// only has access to the custom namespace, so the default should return an
@@ -111,7 +114,7 @@ func testACLRole(t *testing.T) {
 	_, err = nomadClient.ACLPolicies().Upsert(&defaultNamespacePolicy, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.add(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Add(defaultNamespacePolicy.Name, ACLPolicyTestResourceType)
 
 	// Update the ACL role to include the new ACL policy that allows read
 	// access to the default namespace.
@@ -133,7 +136,7 @@ func testACLRole(t *testing.T) {
 	_, err = nomadClient.ACLPolicies().Delete(defaultNamespacePolicy.Name, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.remove(defaultNamespacePolicy.Name, aclPolicyTestResourceType)
+	cleanUpProcess.Remove(defaultNamespacePolicy.Name, ACLPolicyTestResourceType)
 
 	// The permission to list the job in the default namespace should now be
 	// revoked.
@@ -144,7 +147,7 @@ func testACLRole(t *testing.T) {
 	_, err = nomadClient.ACLRoles().Delete(aclRoleUpdateResp.ID, nil)
 	require.NoError(t, err)
 
-	cleanUpProcess.remove(aclRoleUpdateResp.ID, aclRoleTestResourceType)
+	cleanUpProcess.Remove(aclRoleUpdateResp.ID, ACLRoleTestResourceType)
 
 	// We should now not be able to list jobs in the custom namespace either as
 	// the token does not have any permissions.

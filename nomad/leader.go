@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -55,22 +58,26 @@ var minACLRoleVersion = version.Must(version.NewVersion("1.4.0"))
 // minACLAuthMethodVersion is the Nomad version at which the ACL auth methods
 // table was introduced. It forms the minimum version all federated servers must
 // meet before the feature can be used.
-var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
+var minACLAuthMethodVersion = version.Must(version.NewVersion("1.5.0"))
 
 // minACLJWTAuthMethodVersion is the Nomad version at which the ACL JWT auth method type
 // was introduced. It forms the minimum version all federated servers must
 // meet before the feature can be used.
-var minACLJWTAuthMethodVersion = version.Must(version.NewVersion("1.5.3"))
+var minACLJWTAuthMethodVersion = version.Must(version.NewVersion("1.5.4"))
 
 // minACLBindingRuleVersion is the Nomad version at which the ACL binding rules
 // table was introduced. It forms the minimum version all federated servers
 // must meet before the feature can be used.
-var minACLBindingRuleVersion = version.Must(version.NewVersion("1.5.0-beta.1"))
+var minACLBindingRuleVersion = version.Must(version.NewVersion("1.5.0"))
 
 // minNomadServiceRegistrationVersion is the Nomad version at which the service
 // registrations table was introduced. It forms the minimum version all local
 // servers must meet before the feature can be used.
 var minNomadServiceRegistrationVersion = version.Must(version.NewVersion("1.3.0"))
+
+// Any writes to node pools requires that all servers are on version 1.6.0 to
+// prevent older versions of the server from crashing.
+var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
@@ -422,6 +429,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 			go s.replicateACLAuthMethods(stopCh)
 			go s.replicateACLBindingRules(stopCh)
 			go s.replicateNamespaces(stopCh)
+			go s.replicateNodePools(stopCh)
 		}
 	}
 
@@ -588,6 +596,146 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 	for lns := range local {
 		if _, ok := remote[lns]; !ok {
 			delete = append(delete, lns)
+		}
+	}
+	return
+}
+
+// replicateNodePools is used to replicate node pools from the authoritative
+// region to this region.
+func (s *Server) replicateNodePools(stopCh chan struct{}) {
+	req := structs.NodePoolListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
+		},
+	}
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting node pool replication from authoritative region", "region", req.Region)
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		if !ServersMeetMinimumVersion(
+			s.serf.Members(), s.Region(), minNodePoolsVersion, true) {
+			s.logger.Trace(
+				"all servers must be upgraded to 1.6.0 before Node Pools can be replicated")
+			if s.replicationBackoffContinue(stopCh) {
+				continue
+			} else {
+				return
+			}
+		}
+
+		var resp structs.NodePoolListResponse
+		req.AuthToken = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion, "NodePool.List", &req, &resp)
+		if err != nil {
+			s.logger.Error("failed to fetch node pools from authoritative region", "error", err)
+			if s.replicationBackoffContinue(stopCh) {
+				continue
+			} else {
+				return
+			}
+		}
+
+		// Perform a two-way diff
+		delete, update := diffNodePools(s.State(), req.MinQueryIndex, resp.NodePools)
+
+		// A significant amount of time could pass between the last check
+		// on whether we should stop the replication process. Therefore, do
+		// a check here, before calling Raft.
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
+		// Delete node pools that should not exist
+		if len(delete) > 0 {
+			args := &structs.NodePoolDeleteRequest{
+				Names: delete,
+			}
+			_, _, err := s.raftApply(structs.NodePoolDeleteRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to delete node pools", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+		}
+
+		// Update local node pools
+		if len(update) > 0 {
+			args := &structs.NodePoolUpsertRequest{
+				NodePools: update,
+			}
+			_, _, err := s.raftApply(structs.NodePoolUpsertRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to update node pools", "error", err)
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+		}
+
+		// Update the minimum query index, blocks until there is a change.
+		req.MinQueryIndex = resp.Index
+	}
+}
+
+// diffNodePools is used to perform a two-way diff between the local node pools
+// and the remote node pools to determine which node pools need to be deleted or
+// updated.
+func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*structs.NodePool) (delete []string, update []*structs.NodePool) {
+	// Construct a set of the local and remote node pools
+	local := make(map[string][]byte)
+	remote := make(map[string]struct{})
+
+	// Add all the local node pools
+	iter, err := store.NodePools(nil, state.SortDefault)
+	if err != nil {
+		panic("failed to iterate local node pools")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		pool := raw.(*structs.NodePool)
+		local[pool.Name] = pool.Hash
+	}
+
+	for _, rnp := range remoteList {
+		remote[rnp.Name] = struct{}{}
+
+		if localHash, ok := local[rnp.Name]; !ok {
+			// Node pools that are missing locally should be added
+			update = append(update, rnp)
+
+		} else if rnp.ModifyIndex > minIndex && !bytes.Equal(localHash, rnp.Hash) {
+			// Node pools that have been added/updated more recently than the
+			// last index we saw, and have a hash mismatch with what we have
+			// locally, should be updated.
+			update = append(update, rnp)
+		}
+	}
+
+	// Node pools that don't exist on the remote should be deleted
+	for lnp := range local {
+		if _, ok := remote[lnp]; !ok {
+			delete = append(delete, lnp)
 		}
 	}
 	return
@@ -1845,6 +1993,17 @@ func (s *Server) replicateACLRoles(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLRoleVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.4.0 or later before ACL Roles can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.
 			req.AuthToken = s.ReplicationToken()
@@ -2043,6 +2202,17 @@ func (s *Server) replicateACLAuthMethods(stopCh chan struct{}) {
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
 
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLAuthMethodVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.5.0 or later before ACL Auth Methods can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
+
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.
 			req.AuthToken = s.ReplicationToken()
@@ -2237,6 +2407,17 @@ func (s *Server) replicateACLBindingRules(stopCh chan struct{}) {
 			// the error as the context will never be cancelled and the limit
 			// parameters are controlled internally.
 			_ = limiter.Wait(context.Background())
+
+			if !ServersMeetMinimumVersion(
+				s.serf.Members(), s.Region(), minACLBindingRuleVersion, true) {
+				s.logger.Trace(
+					"all servers must be upgraded to 1.5.0 or later before ACL Binding Rules can be replicated")
+				if s.replicationBackoffContinue(stopCh) {
+					continue
+				} else {
+					return
+				}
+			}
 
 			// Set the replication token on each replication iteration so that
 			// it is always current and can handle agent SIGHUP reloads.

@@ -91,12 +91,13 @@ attributes are interpreted by **both** constraints and within the task and
 driver.
 
 | Variable              | Description                                 | Example Value                          |
-| ----------------------| ------------------------------------------- | -------------------------------------- |
+|-----------------------|---------------------------------------------|----------------------------------------|
 | `${node.unique.id}`   | 36 character unique client identifier       | `9afa5da1-8f39-25a2-48dc-ba31fd7c0023` |
 | `${node.region}`      | Client's region                             | `global`                               |
 | `${node.datacenter}`  | Client's datacenter                         | `dc1`                                  |
 | `${node.unique.name}` | Client's name                               | `nomad-client-10-1-2-4`                |
 | `${node.class}`       | Client's class                              | `linux-64bit`                          |
+| `${node.pool}`        | Client's node pool                          | `prod`                                 |
 | `${attr.<property>}`  | Property given by `property` on the client  | `${attr.cpu.arch} => amd64`            |
 | `${meta.<key>}`       | Metadata value given by `key` on the client | `${meta.foo} => bar`                   |
 
@@ -121,6 +122,7 @@ Below is a table documenting common node properties.
 | `${attr.platform.aws.placement.availability-zone}` | Availability Zone of the client (if on AWS EC2)                                                                                                        |
 | `${attr.os.name}`                                  | Operating system of the client (e.g. `ubuntu`, `windows`, `darwin`)                                                                                    |
 | `${attr.os.version}`                               | Version of the client OS                                                                                                                               |
+| `${attr.os.build}`                                 | Build number (e.g `14393.5501`) of the client OS (if on Windows)                                                                                       |
 
 The full list of node attributes can be obtained by running `nomad node status -verbose [node]`.
 

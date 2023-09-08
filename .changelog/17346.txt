@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fix a panic in the `nomad job restart` command when monitoring replacement allocations
+```

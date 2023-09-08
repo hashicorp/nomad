@@ -1,0 +1,45 @@
+# Run 'make check' on paths ignored by test-core.yaml.
+name: Run checks
+on:
+  pull_request:
+    paths:
+      - 'demo/**'
+      - 'e2e/terraform/**'
+      - 'terraform/**'
+      - 'website/**'
+  push:
+    branches:
+      - 'main'
+      - 'release/**'
+    paths:
+      - 'demo/**'
+      - 'e2e/terraform/**'
+      - 'terraform/**'
+      - 'website/**'
+  workflow_call:
+
+jobs:
+  checks:
+    # largest available self-hosted disk for extra iops because linting is io-intensive
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255"]') || 'ubuntu-22.04' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0 # needs tags for checkproto
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
+      - name: Git config token
+        if: endsWith(github.repository, '-enterprise')
+        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
+      - uses: hashicorp/setup-golang@v1
+      - name: Run make check
+        run: |
+          make missing
+          make bootstrap
+          make check
+permissions:
+  contents: read
+  id-token: write

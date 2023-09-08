@@ -1,35 +1,33 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package fingerprint
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 
-	"github.com/hashicorp/nomad/lib/cpuset"
-
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/stats"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-)
-
-const (
-	// defaultCPUTicks is the default amount of CPU resources assumed to be
-	// available if the CPU performance data is unable to be detected. This is
-	// common on EC2 instances, where the env_aws fingerprinter will follow up,
-	// setting an accurate value.
-	defaultCPUTicks = 1000 // 1 core * 1 GHz
+	"github.com/klauspost/cpuid/v2"
 )
 
 // CPUFingerprint is used to fingerprint the CPU
 type CPUFingerprint struct {
 	StaticFingerprinter
 	logger hclog.Logger
+	top    *numalib.Topology
 
 	// accumulates result in these resource structs
 	resources     *structs.Resources
 	nodeResources *structs.NodeResources
 }
 
-// NewCPUFingerprint is used to create a CPU fingerprint
+// NewCPUFingerprint is used to create a CPU fingerprint.
 func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
 	return &CPUFingerprint{
 		logger:        logger.Named("cpu"),
@@ -39,7 +37,7 @@ func NewCPUFingerprint(logger hclog.Logger) Fingerprint {
 }
 
 func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
-	f.initialize()
+	f.initialize(request)
 
 	f.setModelName(response)
 
@@ -47,45 +45,81 @@ func (f *CPUFingerprint) Fingerprint(request *FingerprintRequest, response *Fing
 
 	f.setCoreCount(response)
 
-	f.setReservableCores(request, response)
+	f.setReservableCores(response)
 
-	f.setTotalCompute(request, response)
+	f.setTotalCompute(response)
+
+	f.setNUMA(response)
 
 	f.setResponseResources(response)
 
+	// indicate we successfully detected the system cpu / memory configuration
 	response.Detected = true
+
+	// pass the topology back up to the client
+	response.UpdateInitialResult = func(ir *InitialResult) {
+		ir.Topology = f.top
+	}
 
 	return nil
 }
 
-func (f *CPUFingerprint) initialize() {
-	if err := stats.Init(); err != nil {
-		f.logger.Warn("failed initializing stats collector", "error", err)
+func (*CPUFingerprint) reservedCompute(request *FingerprintRequest) structs.NodeReservedCpuResources {
+	switch {
+	case request.Config.Node == nil:
+		return structs.NodeReservedCpuResources{}
+	case request.Config.Node.ReservedResources == nil:
+		return structs.NodeReservedCpuResources{}
+	default:
+		return request.Config.Node.ReservedResources.Cpu
 	}
+}
+
+func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
+	var (
+		reservableCores *idset.Set[numalib.CoreID]
+		totalCompute    = request.Config.CpuCompute
+		reservedCompute = f.reservedCompute(request)
+		reservedCores   = idset.From[numalib.CoreID](reservedCompute.ReservedCpuCores)
+	)
+
+	if rc := request.Config.ReservableCores; rc != nil {
+		reservableCores = idset.From[numalib.CoreID](rc)
+	}
+
+	f.top = numalib.Scan(append(
+		numalib.PlatformScanners(),
+		&numalib.ConfigScanner{
+			ReservableCores: reservableCores,
+			ReservedCores:   reservedCores,
+			TotalCompute:    numalib.MHz(totalCompute),
+			ReservedCompute: numalib.MHz(reservedCompute.CpuShares),
+		},
+	))
 }
 
 func (f *CPUFingerprint) setModelName(response *FingerprintResponse) {
-	if modelName := stats.CPUModelName(); modelName != "" {
-		response.AddAttribute("cpu.modelname", modelName)
-		f.logger.Debug("detected CPU model", "name", modelName)
+	if model := cpuid.CPU.BrandName; model != "" {
+		response.AddAttribute("cpu.modelname", model)
+		f.logger.Debug("detected CPU model", "name", model)
 	}
 }
 
-func (*CPUFingerprint) frequency(mhz uint64) string {
-	return fmt.Sprintf("%.0f", float64(mhz))
+func (*CPUFingerprint) frequency(mhz numalib.MHz) string {
+	return strconv.FormatUint(uint64(mhz), 10)
 }
 
 func (f *CPUFingerprint) setFrequency(response *FingerprintResponse) {
-	power, efficiency := stats.CPUMHzPerCore()
+	performance, efficiency := f.top.CoreSpeeds()
 	switch {
 	case efficiency > 0:
 		response.AddAttribute("cpu.frequency.efficiency", f.frequency(efficiency))
-		response.AddAttribute("cpu.frequency.power", f.frequency(power))
+		response.AddAttribute("cpu.frequency.performance", f.frequency(performance))
 		f.logger.Debug("detected CPU efficiency core speed", "mhz", efficiency)
-		f.logger.Debug("detected CPU power core speed", "mhz", power)
-	case power > 0:
-		response.AddAttribute("cpu.frequency", f.frequency(power))
-		f.logger.Debug("detected CPU frequency", "mhz", power)
+		f.logger.Debug("detected CPU performance core speed", "mhz", performance)
+	case performance > 0:
+		response.AddAttribute("cpu.frequency", f.frequency(performance))
+		f.logger.Debug("detected CPU frequency", "mhz", performance)
 	}
 }
 
@@ -93,57 +127,72 @@ func (*CPUFingerprint) cores(count int) string {
 	return strconv.Itoa(count)
 }
 
+func (*CPUFingerprint) nodes(count int) string {
+	return strconv.Itoa(count)
+}
+
 func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse) {
-	power, efficiency := stats.CPUNumCores()
+	total := f.top.NumCores()
+	performance := f.top.NumPCores()
+	efficiency := f.top.NumECores()
 	switch {
 	case efficiency > 0:
 		response.AddAttribute("cpu.numcores.efficiency", f.cores(efficiency))
-		response.AddAttribute("cpu.numcores.power", f.cores(power))
+		response.AddAttribute("cpu.numcores.performance", f.cores(performance))
+		response.AddAttribute("cpu.numcores", f.cores(total))
 		f.logger.Debug("detected CPU efficiency core count", "cores", efficiency)
-		f.logger.Debug("detected CPU power core count", "cores", power)
-	case power > 0:
-		response.AddAttribute("cpu.numcores", f.cores(power))
-		f.logger.Debug("detected CPU core count", power)
-	}
-	f.nodeResources.Cpu.TotalCpuCores = uint16(power + efficiency)
-}
-
-func (f *CPUFingerprint) setReservableCores(request *FingerprintRequest, response *FingerprintResponse) {
-	reservable := request.Config.ReservableCores
-	if len(reservable) > 0 {
-		f.logger.Debug("reservable cores set by config", "cpuset", reservable)
-	} else {
-		cgroupParent := request.Config.CgroupParent
-		if reservable = f.deriveReservableCores(cgroupParent); reservable != nil {
-			if request.Node.ReservedResources != nil {
-				forNode := request.Node.ReservedResources.Cpu.ReservedCpuCores
-				reservable = cpuset.New(reservable...).Difference(cpuset.New(forNode...)).ToSlice()
-				f.logger.Debug("client configuration reserves these cores for node", "cores", forNode)
-			}
-			f.logger.Debug("set of reservable cores available for tasks", "cores", reservable)
-		}
-	}
-
-	response.AddAttribute("cpu.reservablecores", strconv.Itoa(len(reservable)))
-	f.nodeResources.Cpu.ReservableCpuCores = reservable
-}
-
-func (f *CPUFingerprint) setTotalCompute(request *FingerprintRequest, response *FingerprintResponse) {
-	var ticks uint64
-	switch {
-	case request.Config.CpuCompute > 0:
-		ticks = uint64(request.Config.CpuCompute)
-	case stats.TotalTicksAvailable() > 0:
-		ticks = stats.TotalTicksAvailable()
+		f.logger.Debug("detected CPU performance core count", "cores", performance)
+		f.logger.Debug("detected CPU core count", "cores", total)
 	default:
-		ticks = defaultCPUTicks
+		response.AddAttribute("cpu.numcores", f.cores(total))
+		f.logger.Debug("detected CPU core count", "cores", total)
 	}
-	response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", ticks))
-	f.resources.CPU = int(ticks)
-	f.nodeResources.Cpu.CpuShares = int64(ticks)
+	f.nodeResources.Cpu.TotalCpuCores = uint16(total)
+}
+
+func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse) {
+	switch runtime.GOOS {
+	case "linux":
+		// topology has already reduced to the intersection of usable cores
+		usable := f.top.UsableCores()
+		response.AddAttribute("cpu.reservablecores", f.cores(usable.Size()))
+		f.nodeResources.Cpu.ReservableCpuCores = helper.ConvertSlice(
+			usable.Slice(), func(id numalib.CoreID) uint16 {
+				return uint16(id)
+			})
+	default:
+		response.AddAttribute("cpu.reservablecores", "0")
+	}
+}
+
+func (f *CPUFingerprint) setTotalCompute(response *FingerprintResponse) {
+	totalCompute := f.top.TotalCompute()
+	usableCompute := f.top.UsableCompute()
+
+	response.AddAttribute("cpu.totalcompute", f.frequency(totalCompute))
+	response.AddAttribute("cpu.usablecompute", f.frequency(usableCompute))
+
+	f.resources.CPU = int(totalCompute)
+	f.nodeResources.Cpu.CpuShares = int64(totalCompute)
 }
 
 func (f *CPUFingerprint) setResponseResources(response *FingerprintResponse) {
 	response.Resources = f.resources
 	response.NodeResources = f.nodeResources
+}
+
+func (f *CPUFingerprint) setNUMA(response *FingerprintResponse) {
+	if !f.top.SupportsNUMA() {
+		return
+	}
+
+	nodes := f.top.Nodes()
+	response.AddAttribute("numa.node.count", f.nodes(nodes.Size()))
+
+	nodes.ForEach(func(id numalib.NodeID) error {
+		key := fmt.Sprintf("numa.node%d.cores", id)
+		cores := f.top.NodeCores(id)
+		response.AddAttribute(key, cores.String())
+		return nil
+	})
 }

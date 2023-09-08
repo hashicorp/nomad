@@ -23,43 +23,45 @@ env:
 
 jobs:
   prepare-release:
-    runs-on: ubuntu-20.04
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-20.04' }}
     outputs:
       build-ref: ${{ steps.commit-change-push.outputs.build-ref }}
     steps:
       - name: Prevent running from main
         if: ${{ github.ref_name == 'main' }}
-        run: |
+        run: |-
           echo "::error::Workflow not allowed to run from ${{ github.ref_name }}"
           exit 1
 
       - name: Print release info
-        run: |
+        run: |-
           echo "::notice::Release v${{ github.event.inputs.version }} from branch ${{ github.ref_name }}"
 
       - name: Install semver CLI
-        run: |
+        run: |-
           local_bin="${HOME}/.local/bin"
           mkdir -p "${local_bin}"
           curl -L --output "${local_bin}/semver" \
             https://raw.githubusercontent.com/fsaintjacques/semver-tool/3.3.0/src/semver
           chmod +x "${local_bin}/semver"
-          echo "${local_bin}" >> $GITHUB_PATH
+          echo "${local_bin}" >> "$GITHUB_PATH"
 
       - name: Validate release version
-        run: |
+        run: |-
           if [ "$(semver validate ${{ github.event.inputs.version }})" == "invalid" ]; then
             echo "::error::Version ${{ github.event.inputs.version }} is invalid"
             exit 1
           fi
-
-      - uses: actions/checkout@v2
-
-      - name: Setup Git
-        run: |
-          if [ "${{ secrets.ELEVATED_GITHUB_TOKEN }}" ]; then
-            git config --global url."https://${{ secrets.ELEVATED_GITHUB_TOKEN }}:@github.com/".insteadOf "https://github.com"
-          fi
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
+      - name: Git config token
+        if: endsWith(github.repository, '-enterprise')
+        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
+      - name: Git config user/name
+        run: |-
           git config --global user.email "github-team-nomad-core@hashicorp.com"
           git config --global user.name "hc-github-team-nomad-core"
 
@@ -69,17 +71,17 @@ jobs:
         # version, because "goenv" can react to it automatically.
         run: |
           echo "Building with Go $(cat .go-version)"
-          echo "::set-output name=go-version::$(cat .go-version)"
+          echo "go-version=$(cat .go-version)" >> "$GITHUB_OUTPUT"
 
       - name: Setup go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
         with:
           go-version: ${{ steps.get-go-version.outputs.go-version }}
 
       - name: Setup node and yarn
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
         with:
-          node-version: "14"
+          node-version: "18"
           cache-dependency-path: "ui/yarn.lock"
 
       - name: Install Yarn
@@ -138,15 +140,14 @@ jobs:
           else
             echo "no files were updated"
           fi
-          echo "::set-output name=build-ref::$(git rev-parse HEAD)"
+          echo "build-ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Invoke build workflow
-        uses: benc-uk/workflow-dispatch@v1.1
-        with:
-          workflow: build
-          token: ${{ secrets.ELEVATED_GITHUB_TOKEN}}
-          inputs: '{"build-ref": "${{ steps.commit-change-push.outputs.build-ref }}", "make-prerelease": "false"}'
-          ref: ${{ needs.prepare-release.outputs.build-ref }}
+        id: invoke-build
+        env:
+          GH_TOKEN: ${{ env.ELEVATED_GITHUB_TOKEN || secrets.ELEVATED_GITHUB_TOKEN }}
+        run: |
+          gh workflow run build.yml --ref ${{ github.ref_name }} --field build-ref=${{ steps.commit-change-push.outputs.build-ref }} --field make-prerelease=false
 
       - name: Revert notification channel
         if: ${{ github.event.inputs.notification-channel != '' }}
@@ -190,7 +191,7 @@ jobs:
         run: |
           # These generated files are only needed when building the final
           # binary and should be not be present in the repository afterwards.
-          find . -name '*.generated.go' | xargs git rm
+          find . -name '*.generated.go' -print0 | xargs -0 git rm
           git status
 
       - name: Commit post-release changes
@@ -205,3 +206,7 @@ jobs:
           else
             echo "no files were updated"
           fi
+
+permissions:
+  contents: write
+  id-token: write

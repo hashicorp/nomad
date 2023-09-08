@@ -46,10 +46,10 @@ are not loaded recursively.
 For example:
 
 ```shell-session
-$ nomad-autoscaler agent -config=autoscaler.conf -config=/etc/nomad-autoscaler -config=extra.json
+$ nomad-autoscaler agent -config=autoscaler.hcl -config=/etc/nomad-autoscaler -config=extra.json
 ```
 
-This will load configuration from `autoscaler.conf`, from `.hcl` and `.json` files
+This will load configuration from `autoscaler.hcl`, from `.hcl` and `.json` files
 under `/etc/nomad-autoscaler`, and finally from `extra.json`. As each file is
 processed, its contents are merged into the existing configuration. When merging,
 any non-empty values from the latest config file will append or replace

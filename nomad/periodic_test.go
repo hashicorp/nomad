@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -672,7 +675,7 @@ func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 	// Insert job.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -696,12 +699,12 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 	// Insert periodic job and child.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
 	childjob := deriveChildJob(job)
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, childjob); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -733,12 +736,12 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	// Insert periodic job and child.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
 	childjob := deriveChildJob(job)
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, childjob); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 

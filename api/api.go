@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -892,13 +895,16 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 	conn, resp, err := dialer.Dial(rhttp.URL.String(), rhttp.Header)
 
 	// check resp status code, as it's more informative than handshake error we get from ws library
-	if resp != nil && resp.StatusCode != 101 {
+	if resp != nil && resp.StatusCode != http.StatusSwitchingProtocols {
 		var buf bytes.Buffer
 
 		if resp.Header.Get("Content-Encoding") == "gzip" {
 			greader, err := gzip.NewReader(resp.Body)
 			if err != nil {
-				return nil, nil, fmt.Errorf("Unexpected response code: %d", resp.StatusCode)
+				return nil, nil, newUnexpectedResponseError(
+					fromStatusCode(resp.StatusCode),
+					withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+					withError(err))
 			}
 			io.Copy(&buf, greader)
 		} else {
@@ -906,7 +912,11 @@ func (c *Client) websocket(endpoint string, q *QueryOptions) (*websocket.Conn, *
 		}
 		resp.Body.Close()
 
-		return nil, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
+		return nil, nil, newUnexpectedResponseError(
+			fromStatusCode(resp.StatusCode),
+			withExpectedStatuses([]int{http.StatusSwitchingProtocols}),
+			withBody(fmt.Sprint(buf.Bytes())),
+		)
 	}
 
 	return conn, resp, err
@@ -1124,24 +1134,6 @@ func encodeBody(obj interface{}) (io.Reader, error) {
 		return nil, err
 	}
 	return buf, nil
-}
-
-// requireOK is used to wrap doRequest and check for a 200
-func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *http.Response, error) {
-	if e != nil {
-		if resp != nil {
-			resp.Body.Close()
-		}
-		return d, nil, e
-	}
-	if resp.StatusCode != 200 {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, resp.Body)
-		_ = resp.Body.Close()
-		body := strings.TrimSpace(buf.String())
-		return d, nil, fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, body)
-	}
-	return d, resp, nil
 }
 
 // Context returns the context used for canceling HTTP requests related to this query

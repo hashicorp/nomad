@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # a job that mounts the EFS volume and sleeps, so that we can
 # read its mounted file system remotely
 job "use-efs-volume" {

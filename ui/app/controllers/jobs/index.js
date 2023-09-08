@@ -1,3 +1,10 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+//@ts-check
+
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
@@ -12,6 +19,9 @@ import {
   deserializedQueryParam as selection,
 } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
+
+const DEFAULT_SORT_PROPERTY = 'modifyIndex';
+const DEFAULT_SORT_DESCENDING = true;
 
 @classic
 export default class IndexController extends Controller.extend(
@@ -52,13 +62,16 @@ export default class IndexController extends Controller.extend(
     {
       qpNamespace: 'namespace',
     },
+    {
+      qpNodePool: 'nodePool',
+    },
   ];
 
   currentPage = 1;
   @readOnly('userSettings.pageSize') pageSize;
 
-  sortProperty = 'modifyIndex';
-  sortDescending = true;
+  sortProperty = DEFAULT_SORT_PROPERTY;
+  sortDescending = DEFAULT_SORT_DESCENDING;
 
   @computed
   get searchProps() {
@@ -76,16 +89,19 @@ export default class IndexController extends Controller.extend(
   qpStatus = '';
   qpDatacenter = '';
   qpPrefix = '';
+  qpNodePool = '';
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
+  @selection('qpNodePool') selectionNodePool;
 
   @computed
   get optionsType() {
     return [
       { key: 'batch', label: 'Batch' },
+      { key: 'pack', label: 'Pack' },
       { key: 'parameterized', label: 'Parameterized' },
       { key: 'periodic', label: 'Periodic' },
       { key: 'service', label: 'Service' },
@@ -188,6 +204,29 @@ export default class IndexController extends Controller.extend(
     return availableNamespaces;
   }
 
+  @computed('selectionNodePool', 'model.nodePools.[]')
+  get optionsNodePool() {
+    const availableNodePools = this.model.nodePools;
+
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set(
+        'qpNodePool',
+        serialize(
+          intersection(
+            availableNodePools.map(({ name }) => name),
+            this.selectionNodePool
+          )
+        )
+      );
+    });
+
+    return availableNodePools.map((nodePool) => ({
+      key: nodePool.name,
+      label: nodePool.name,
+    }));
+  }
+
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
@@ -206,6 +245,7 @@ export default class IndexController extends Controller.extend(
     'selectionType',
     'selectionStatus',
     'selectionDatacenter',
+    'selectionNodePool',
     'selectionPrefix'
   )
   get filteredJobs() {
@@ -214,12 +254,19 @@ export default class IndexController extends Controller.extend(
       selectionStatus: statuses,
       selectionDatacenter: datacenters,
       selectionPrefix: prefixes,
+      selectionNodePool: nodePools,
     } = this;
 
     // A job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.visibleJobs.filter((job) => {
-      if (types.length && !types.includes(job.get('displayType'))) {
+      const shouldShowPack = types.includes('pack') && job.displayType.isPack;
+
+      if (types.length && shouldShowPack) {
+        return true;
+      }
+
+      if (types.length && !types.includes(job.get('displayType.type'))) {
         return false;
       }
 
@@ -231,6 +278,10 @@ export default class IndexController extends Controller.extend(
         datacenters.length &&
         !job.get('datacenters').find((dc) => datacenters.includes(dc))
       ) {
+        return false;
+      }
+
+      if (nodePools.length && !nodePools.includes(job.get('nodePool'))) {
         return false;
       }
 
@@ -246,9 +297,47 @@ export default class IndexController extends Controller.extend(
     });
   }
 
+  // eslint-disable-next-line ember/require-computed-property-dependencies
+  @computed('searchTerm')
+  get sortAtLastSearch() {
+    return {
+      sortProperty: this.sortProperty,
+      sortDescending: this.sortDescending,
+      searchTerm: this.searchTerm,
+    };
+  }
+
+  @computed(
+    'searchTerm',
+    'sortAtLastSearch.{sortDescending,sortProperty}',
+    'sortDescending',
+    'sortProperty'
+  )
+  get prioritizeSearchOrder() {
+    let shouldPrioritizeSearchOrder =
+      !!this.searchTerm &&
+      this.sortAtLastSearch.sortProperty === this.sortProperty &&
+      this.sortAtLastSearch.sortDescending === this.sortDescending;
+    if (shouldPrioritizeSearchOrder) {
+      /* eslint-disable ember/no-side-effects */
+      this.set('sortDescending', DEFAULT_SORT_DESCENDING);
+      this.set('sortProperty', DEFAULT_SORT_PROPERTY);
+      this.set('sortAtLastSearch.sortProperty', DEFAULT_SORT_PROPERTY);
+      this.set('sortAtLastSearch.sortDescending', DEFAULT_SORT_DESCENDING);
+    }
+    /* eslint-enable ember/no-side-effects */
+    return shouldPrioritizeSearchOrder;
+  }
+
   @alias('filteredJobs') listToSearch;
   @alias('listSearched') listToSort;
-  @alias('listSorted') sortedJobs;
+
+  // sortedJobs is what we use to populate the table;
+  // If the user has searched but not sorted, we return the (fuzzy) searched list verbatim
+  // If the user has sorted, we allow the fuzzy search to filter down the list, but return it in a sorted order.
+  get sortedJobs() {
+    return this.prioritizeSearchOrder ? this.listSearched : this.listSorted;
+  }
 
   isShowingDeploymentDetails = false;
 

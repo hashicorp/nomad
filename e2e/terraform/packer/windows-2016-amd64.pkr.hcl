@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 variable "build_sha" {
   type        = string
   description = "the revision of the packer scripts building this image"
@@ -19,7 +22,7 @@ source "amazon-ebs" "latest_windows_2016" {
 
   source_ami_filter {
     filters = {
-      name                = "Windows_Server-2016-English-Full-Base-*"
+      name                = "Windows_Server-2016-English-Full-Containers-*"
       root-device-type    = "ebs"
       virtualization-type = "hvm"
     }
@@ -41,7 +44,6 @@ build {
       "windows-2016-amd64/disable-windows-updates.ps1",
       "windows-2016-amd64/fix-tls.ps1",
       "windows-2016-amd64/install-nuget.ps1",
-      "windows-2016-amd64/install-docker.ps1",
       "windows-2016-amd64/install-consul.ps1",
       "windows-2016-amd64/install-nomad.ps1"
     ]

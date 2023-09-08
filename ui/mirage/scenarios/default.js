@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { assign } from '@ember/polyfills';
 import config from 'nomad-ui/config/environment';
 import * as topoScenarios from './topo';
@@ -25,7 +30,7 @@ export const allScenarios = {
   ...sysbatchScenarios,
 };
 
-const scenario =
+export const scenario =
   getScenarioQueryParameter() ||
   getConfigValue('mirageScenario', 'emptyCluster');
 
@@ -39,9 +44,12 @@ export default function (server) {
     );
   }
 
+  // Make sure built-in node pools exist.
+  createBuiltInNodePools(server);
   if (withNamespaces) createNamespaces(server);
   if (withTokens) createTokens(server);
   if (withRegions) createRegions(server);
+
   activeScenario(server);
 }
 
@@ -51,6 +59,7 @@ function smallCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 2);
   server.createList('node', 5);
   server.create(
     'node',
@@ -66,6 +75,105 @@ function smallCluster(server) {
     withTaskServices: true,
     name: 'Service-haver',
     id: 'service-haver',
+    namespaceId: 'default',
+  });
+  server.create('job', {
+    createAllocations: true,
+    groupTaskCount: 150,
+    shallow: true,
+    allocStatusDistribution: {
+      running: 0.5,
+      failed: 0.05,
+      unknown: 0.2,
+      lost: 0.1,
+      complete: 0.1,
+      pending: 0.05,
+    },
+    name: 'mixed-alloc-job',
+    id: 'mixed-alloc-job',
+    namespaceId: 'default',
+    type: 'service',
+    activeDeployment: true,
+  });
+
+  //#region Active Deployment
+
+  const activelyDeployingJobGroups = 2;
+  const activelyDeployingTasksPerGroup = 100;
+
+  const activelyDeployingJob = server.create('job', {
+    createAllocations: true,
+    groupTaskCount: activelyDeployingTasksPerGroup,
+    shallow: true,
+    resourceSpec: Array(activelyDeployingJobGroups).fill('M: 257, C: 500'),
+    noDeployments: true, // manually created below
+    activeDeployment: true,
+    allocStatusDistribution: {
+      running: 0.6,
+      failed: 0.05,
+      unknown: 0.05,
+      lost: 0,
+      complete: 0,
+      pending: 0.3,
+    },
+    name: 'actively-deploying-job',
+    id: 'actively-deploying-job',
+    namespaceId: 'default',
+    type: 'service',
+  });
+
+  server.create('deployment', false, 'active', {
+    jobId: activelyDeployingJob.id,
+    groupDesiredTotal: activelyDeployingTasksPerGroup,
+    versionNumber: 1,
+    status: 'running',
+  });
+  server.createList('allocation', 25, {
+    jobId: activelyDeployingJob.id,
+    jobVersion: 0,
+    clientStatus: 'running',
+  });
+
+  // Manipulate the above job to show a nice distribution of running, canary, etc. allocs
+  let activelyDeployingJobAllocs = server.schema.allocations
+    .all()
+    .filter((a) => a.jobId === activelyDeployingJob.id);
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(0, 10)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: false, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(10, 20)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'running')
+    .slice(20, 65)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'pending')
+    .slice(0, 10)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: true } })
+    );
+  activelyDeployingJobAllocs.models
+    .filter((a) => a.clientStatus === 'failed')
+    .slice(0, 5)
+    .forEach((a) =>
+      a.update({ deploymentStatus: { Healthy: true, Canary: false } })
+    );
+
+  //#endregion Active Deployment
+
+  server.create('job', {
+    name: 'hcl-definition-job',
+    id: 'display-hcl',
     namespaceId: 'default',
   });
   server.createList('allocFile', 5);
@@ -96,6 +204,7 @@ function smallCluster(server) {
     'just some arbitrary file',
     'another arbitrary file',
     'another arbitrary file again',
+    'nomad/jobs',
   ].forEach((path) => server.create('variable', { id: path }));
 
   server.create('variable', {
@@ -243,6 +352,7 @@ function smallCluster(server) {
 
 function mediumCluster(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 5);
   server.createList('node', 50);
   server.createList('job', 25);
 }
@@ -250,8 +360,14 @@ function mediumCluster(server) {
 function variableTestCluster(server) {
   faker.seed(1);
   createTokens(server);
+  server.create('token', {
+    name: 'Novars Murphy',
+    id: 'n0-v4r5-4cc355',
+    type: 'client',
+  });
   createNamespaces(server);
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
   server.createList('node', 5);
   server.createList('job', 3);
   server.createList('variable', 3);
@@ -327,6 +443,7 @@ function servicesTestCluster(server) {
   faker.seed(1);
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
   server.createList('node', 5);
   server.createList('job', 1, { createRecommendations: true });
   server.create('job', {
@@ -459,12 +576,14 @@ function servicesTestCluster(server) {
 // Due to Mirage performance, large cluster scenarios will be slow
 function largeCluster(server) {
   server.createList('agent', 5);
+  server.createList('node-pool', 10);
   server.createList('node', 1000);
   server.createList('job', 100);
 }
 
 function massiveCluster(server) {
   server.createList('agent', 7);
+  server.createList('node-pool', 100);
   server.createList('node', 5000);
   server.createList('job', 2000);
 }
@@ -498,6 +617,7 @@ function allNodeTypes(server) {
 
 function everyFeature(server) {
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 3);
 
   server.create('node', 'forceIPv4');
   server.create('node', 'draining');
@@ -531,6 +651,11 @@ function emptyCluster(server) {
 }
 
 // Behaviors
+
+function createBuiltInNodePools(server) {
+  server.create('node-pool', { name: 'default' });
+  server.create('node-pool', { name: 'all' });
+}
 
 function createTokens(server) {
   server.createList('token', 3);
@@ -571,11 +696,12 @@ Secret: ${token.secretId}
 Accessor: ${token.accessorId}
 
 `);
-
-    console.log(
-      'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.'
-    );
   });
+
+  console.log(
+    'Alternatively, log in with a JWT. If it ends with `management`, you have full access. If it ends with `bad`, you`ll get an error. Otherwise, you`ll get a token with limited access.'
+  );
+  console.log('=====================================');
 }
 
 function getConfigValue(variableName, defaultValue) {

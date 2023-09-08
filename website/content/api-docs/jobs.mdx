@@ -122,6 +122,10 @@ The table below shows this endpoint's support for
 
 - `Job` `(Job: <required>)` - Specifies the JSON definition of the job.
 
+- `Submission` `(JobSubmission: <optional>)` - Specifies the original HCL/HCL2/JSON
+  definition of the job. This data is useful for reference only, it is not considered
+  for the actual scheduling of `Job`.
+
 - `EnforceIndex` `(bool: false)` - If set, the job will only be registered if the
   passed `JobModifyIndex` matches the current job's index. If the index is zero,
   the register only occurs if the job is new. This paradigm allows check-and-set
@@ -148,6 +152,7 @@ The table below shows this endpoint's support for
   "Job": {
     "Datacenters": ["dc1"],
     "ID": "cache",
+    "NodePool": "prod",
     "TaskGroups": [
       {
         "Name": "cache",
@@ -235,6 +240,12 @@ The table below shows this endpoint's support for
 - `Canonicalize` `(bool: false)` - Flag to enable setting any unset fields to
   their default values.
 
+- `Variables` `(string: "")` - Specifies HCL2 variables to use during parsing of
+  the job in the var file format.
+
+- `VariableFlags` `(map[string]string: nil)` - Specifies HCL2 variables to use
+  during parsing of the job in key = value format.
+
 - `HCLv1` `(bool: false)` - Use the legacy v1 HCL parser.
 
 ### Sample Payload
@@ -278,6 +289,7 @@ $ curl \
   "ModifyIndex": 0,
   "Name": "my-job",
   "Namespace": "default",
+  "NodePool": "prod",
   "ParameterizedJob": null,
   "ParentID": "",
   "Payload": null,
@@ -347,6 +359,7 @@ $ curl \
   "Priority": 50,
   "AllAtOnce": false,
   "Datacenters": ["dc1"],
+  "NodePool": "prod",
   "Constraints": [
     {
       "LTarget": "${attr.kernel.name}",
@@ -481,6 +494,7 @@ $ curl \
           },
           "KillTimeout": 5000000000,
           "LogConfig": {
+            "Disabled": false,
             "MaxFiles": 10,
             "MaxFileSizeMB": 10
           },
@@ -545,7 +559,64 @@ $ curl \
 - `Type`: The type of job in terms of scheduling. It can have one of the following values:
   - `service`: Allocations are intended to remain alive.
   - `batch`: Allocations are intended to exit.
-  - `system`: Each client gets an allocation.
+  - `system`: Each client in the datacenter and node pool gets an allocation.
+
+## Read Job Submission
+
+This endpoint reads original source information about a specific version of a single
+job. The data this endpoint provides is only available if it was provided with the
+original job during job registration. Only the most recent 6 job source files are
+retained.
+
+| Method | Path                           | Produces           |
+| ------ | ------------------------------ | ------------------ |
+|`GET`   | `/v1/job/:job_id/submission`   | `application/json` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
+   specified as part of the path.
+- `version` `(int: <required>)` - Specifies the version number of the job for which
+  to retrieve the original source information. This is specified as a query string
+  parameter.
+- `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
+  enabled, this value must match a namespace that the token is allowed to access.
+  This is specified as a query string parameter.
+
+### Sample Request
+
+```shell-session
+nomad operator api /v1/job/my-job/submission?version=42
+```
+
+### Sample Response
+
+```json
+{
+  "Format": "hcl2",
+  "JobIndex": 11,
+  "JobID": "myjob",
+  "Namespace": "default",
+  "Source": "variable \"X\" {\n  type = string\n}\n\nvariable \"Y\" {\n  type = number\n}\n\nvariable \"Z\" {\n  type = bool\n}\n  \njob \"myjob\" {\n  type = \"sysbatch\"\n  \n  meta {\n    nomad_discard_job_source = false\n  }\n\n  group \"group\" {\n    task \"task\" {\n      driver = \"raw_exec\"\n\n      config {\n        command = \"echo\"\n        args = [\"X ${var.X}, Y ${var.Y}, Z ${var.Z}\"]\n      }\n\n      resources {\n        cpu    = 10\n        memory = 16\n      }\n    }\n  }\n}\n",
+  "VariableFlags": {
+    "Z": "true",
+    "X": "x",
+    "Y": "2"
+  },
+  "Variables": "",
+  "Version": 0
+}
+```
+
+#### Field Reference
+
+- `JobID`: The ID of the job associated with the original job file.
+- `Format`: The file format of the original job file. One of `hcl2`, `hcl1`, or `json`.
+- `Source`: The literal content of the original job file.
+- `VariableFlags`: The key-value pairs of HCL variables as submitted via `-var` command
+  line arguments when submitting the job via CLI.
+- `Variables`: The content of the variables form when submitting the job via the WebUI.
+- `Version`: The version of the job this submission source is associated with.
 
 ## List Job Versions
 
@@ -607,6 +678,7 @@ $ curl \
       "Name": "example",
       "Namespace": "default",
       "NomadTokenID": "",
+      "NodePool": "prod",
       "ParameterizedJob": null,
       "ParentID": "",
       "Payload": null,
@@ -695,6 +767,7 @@ $ curl \
               "Leader": false,
               "Lifecycle": null,
               "LogConfig": {
+                "Disabled": false,
                 "MaxFileSizeMB": 10,
                 "MaxFiles": 10
               },
@@ -762,8 +835,7 @@ $ curl \
     https://localhost:4646/v1/job/my-job/versions?diffs=true
 ```
 
-```
-
+```json
 {
   "Diffs": [
     {
@@ -820,6 +892,7 @@ $ curl \
       "Multiregion": null,
       "Name": "example",
       "Namespace": "default",
+      "NodePool": "prod",
       "NomadTokenID": "",
       "ParameterizedJob": null,
       "ParentID": "",
@@ -913,6 +986,7 @@ $ curl \
               "Leader": false,
               "Lifecycle": null,
               "LogConfig": {
+                "Disabled": false,
                 "MaxFileSizeMB": 10,
                 "MaxFiles": 10
               },
@@ -988,6 +1062,7 @@ $ curl \
       "Multiregion": null,
       "Name": "example",
       "Namespace": "default",
+      "NodePool": "prod",
       "NomadTokenID": "",
       "ParameterizedJob": null,
       "ParentID": "",
@@ -1079,6 +1154,7 @@ $ curl \
               "Leader": false,
               "Lifecycle": null,
               "LogConfig": {
+                "Disabled": false,
                 "MaxFileSizeMB": 10,
                 "MaxFiles": 10
               },
@@ -1686,9 +1762,12 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified
   in the job file during submission). This is specified as part of the path.
 
-- `idempotency_token` `(string: "")` - Optional identifier used to prevent more
+- `IdempotencyToken` `(string: "")` - Optional identifier used to prevent more
   than one instance of the job from being dispatched. This is specified as a
   URL query parameter.
+
+- `IdPrefixTemplate` `(string: "")` - Optional prefix added to dispatched job
+  IDs.
 
 - `Payload` `(string: "")` - Specifies a base64 encoded string containing the
   payload. This is limited to 65536 bytes (64KiB).
@@ -2080,6 +2159,7 @@ $ curl \
       "NodesAvailable": {
         "dc1": 1
       },
+      "NodesInPool": 1,
       "ClassFiltered": null,
       "ConstraintFiltered": null,
       "NodesExhausted": 1,

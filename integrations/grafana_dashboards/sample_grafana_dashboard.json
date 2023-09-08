@@ -169,10 +169,10 @@
           "steppedLine": true,
           "targets": [
             {
-              "expr": "nomad_linux_client_allocations_running",
+              "expr": "nomad_client_allocations_running",
               "format": "time_series",
               "intervalFactor": 2,
-              "metric": "nomad_linux_client_allocations_running",
+              "metric": "nomad_client_allocations_running",
               "refId": "A",
               "step": 20
             }
@@ -245,10 +245,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "nomad_linux_client_allocations_blocked",
+              "expr": "nomad_client_allocations_blocked",
               "format": "time_series",
               "intervalFactor": 2,
-              "metric": "nomad_linux_client_allocations_blocked",
+              "metric": "nomad_client_allocations_blocked",
               "refId": "A",
               "step": 40
             }
@@ -322,10 +322,10 @@
           "span": 6,
           "targets": [
             {
-              "expr": "nomad_linux_runtime_total_gc_pause_ns",
+              "expr": "nomad_runtime_total_gc_pause_ns",
               "format": "time_series",
               "intervalFactor": 2,
-              "metric": "nomad_linux_runtime_total_gc_pause_ns",
+              "metric": "nomad_runtime_total_gc_pause_ns",
               "refId": "A",
               "step": 20
             }
@@ -385,10 +385,10 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "nomad_linux_runtime_alloc_bytes",
+              "expr": "nomad_runtime_alloc_bytes",
               "format": "time_series",
               "intervalFactor": 2,
-              "metric": "nomad_linux_runtime_alloc_bytes",
+              "metric": "nomad_runtime_alloc_bytes",
               "refId": "A",
               "step": 40
             }

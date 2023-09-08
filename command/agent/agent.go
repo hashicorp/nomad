@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
@@ -14,18 +17,19 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/dustin/go-humanize"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/command/agent/event"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad"
@@ -160,7 +164,7 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 
 // convertServerConfig takes an agent config and log output and returns a Nomad
 // Config. There may be missing fields that must be set by the agent. To do this
-// call finalizeServerConfig
+// call finalizeServerConfig.
 func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf := agentConfig.NomadConfig
 	if conf == nil {
@@ -338,6 +342,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobMaxPriority = jobMaxPriority
 	conf.JobDefaultPriority = jobDefaultPriority
 
+	if agentConfig.Server.JobTrackedVersions != nil {
+		if *agentConfig.Server.JobTrackedVersions <= 0 {
+			return nil, fmt.Errorf("job_tracked_versions must be greater than 0")
+		}
+		conf.JobTrackedVersions = *agentConfig.Server.JobTrackedVersions
+	}
+
 	// Set up the bind addresses
 	rpcAddr, err := net.ResolveTCPAddr("tcp", agentConfig.normalizedAddrs.RPC)
 	if err != nil {
@@ -496,7 +507,14 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Add the Consul and Vault configs
 	conf.ConsulConfig = agentConfig.Consul
+	for _, consulConfig := range agentConfig.Consuls {
+		conf.ConsulConfigs[consulConfig.Name] = consulConfig
+	}
+
 	conf.VaultConfig = agentConfig.Vault
+	for _, vaultConfig := range agentConfig.Vaults {
+		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
+	}
 
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
@@ -571,6 +589,16 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
 	}
 
+	// Interpret job_max_source_size as bytes from string value
+	if agentConfig.Server.JobMaxSourceSize == nil {
+		agentConfig.Server.JobMaxSourceSize = pointer.Of("1M")
+	}
+	jobMaxSourceBytes, err := humanize.ParseBytes(*agentConfig.Server.JobMaxSourceSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse max job source bytes: %w", err)
+	}
+	conf.JobMaxSourceSize = int(jobMaxSourceBytes)
+
 	return conf, nil
 }
 
@@ -603,7 +631,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		return nil, err
 	}
 
-	if err := a.finalizeClientConfig(c); err != nil {
+	if err = a.finalizeClientConfig(c); err != nil {
 		return nil, err
 	}
 
@@ -735,6 +763,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Node.Name = agentConfig.NodeName
 	conf.Node.Meta = agentConfig.Client.Meta
 	conf.Node.NodeClass = agentConfig.Client.NodeClass
+	conf.Node.NodePool = agentConfig.Client.NodePool
 
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP
@@ -777,7 +806,14 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.ConsulConfig = agentConfig.Consul
+	for _, consulConfig := range agentConfig.Consuls {
+		conf.ConsulConfigs[consulConfig.Name] = consulConfig
+	}
+
 	conf.VaultConfig = agentConfig.Vault
+	for _, vaultConfig := range agentConfig.Vaults {
+		conf.VaultConfigs[vaultConfig.Name] = vaultConfig
+	}
 
 	// Set up Telemetry configuration
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
@@ -819,15 +855,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
 
-	conf.CgroupParent = cgutil.GetCgroupParent(agentConfig.Client.CgroupParent)
-	if agentConfig.Client.ReserveableCores != "" {
-		cores, err := cpuset.Parse(agentConfig.Client.ReserveableCores)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse 'reservable_cores': %v", err)
-		}
-		conf.ReservableCores = cores.ToSlice()
-	}
-
 	if agentConfig.Client.NomadServiceDiscovery != nil {
 		conf.NomadServiceDiscovery = *agentConfig.Client.NomadServiceDiscovery
 	}
@@ -837,6 +864,12 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		return nil, fmt.Errorf("invalid artifact config: %v", err)
 	}
 	conf.Artifact = artifactConfig
+
+	drainConfig, err := clientconfig.DrainConfigFromAgent(agentConfig.Client.Drain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid drain_on_shutdown config: %v", err)
+	}
+	conf.Drain = drainConfig
 
 	return conf, nil
 }

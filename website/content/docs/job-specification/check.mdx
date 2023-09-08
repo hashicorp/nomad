@@ -81,6 +81,8 @@ job "example" {
 
 - `grpc_use_tls` `(bool: false)` - Use TLS to perform a gRPC health check. May
   be used with `tls_skip_verify` to use TLS but skip certificate verification.
+  May be used with `tls_server_name` to specify the ServerName to use for SNI
+  and validation of the certificate presented by the server being checked.
 
 - `initial_status` `(string: <enum>)` - Specifies the starting status of the
   service. Valid options are `passing`, `warning`, and `critical`. Omitting
@@ -157,8 +159,27 @@ job "example" {
   Nomad. For Consul service checks, valid options are `grpc`, `http`, `script`,
   and `tcp`. For Nomad service checks, valid options are `http` and `tcp`.
 
-- `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
-  checks. Only supported in the Consul service provider.
+- `tls_server_name` `(string: "")` - Indicates the ServerName to use for SNI and
+  validation of the certificate presented by the server being checked, when
+  performing TLS enabled checks (`https` and `grpc` with `grpc_use_tls`). If left
+  unspecified, the ServerName will be inferred from the address of the server
+  being checked unless the address is an IP address. There are two common cases
+  where this is beneficial:
+
+    - When the check address contains an IP, `tls_server_name` can be specified
+      for SNI. Note: setting `tls_server_name` will also override the hostname
+      used to verify the certificate presented by the server being checked.
+
+    - When the check address contains a hostname which isn't be present in the
+      SAN (Subject Alternative Name) field of the certificate presented by the
+      server being checked. Note: setting `tls_server_name` will also override
+      the hostname used for SNI.
+
+  This field is only supported in the Consul service provider. 
+
+- `tls_skip_verify` `(bool: false)` - Skip verification of certificates for
+  `https` and `grpc` with `grpc_use_tls` checks . Only supported in the Consul
+  service provider.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
   evaluated when determining deployment health (including a job's initial
@@ -354,7 +375,7 @@ service {
     path      = "/leader"
     interval  = "10s"
     timeout   = "2s"
-    on_update = "ignore_warnings"
+    on_update = "ignore"
   }
 }
 ```

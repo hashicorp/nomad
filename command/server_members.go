@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -115,7 +118,13 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Sort the members
 	sort.Sort(api.AgentMembersNameSort(srvMembers.Members))
 
+	// Determine the leaders per region.
+	leaders, leaderErr := regionLeaders(client, srvMembers.Members)
+
 	if json || len(tmpl) > 0 {
+		for _, member := range srvMembers.Members {
+			member.Tags["Leader"] = fmt.Sprintf("%t", isLeader(member, leaders))
+		}
 		out, err := Format(json, tmpl, srvMembers.Members)
 		if err != nil {
 			c.Ui.Error(err.Error())
@@ -125,9 +134,6 @@ func (c *ServerMembersCommand) Run(args []string) int {
 		c.Ui.Output(out)
 		return 0
 	}
-
-	// Determine the leaders per region.
-	leaders, leaderErr := regionLeaders(client, srvMembers.Members)
 
 	// Format the list
 	var out []string

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package drainer
 
 import (
@@ -364,10 +367,10 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 		}
 
 		// Check if the alloc should be considered migrated. A migrated
-		// allocation is one that is terminal, is on a draining
-		// allocation, and has only happened since our last handled index to
+		// allocation is one that is terminal on the client, is on a draining
+		// allocation, and has been updated since our last handled index to
 		// avoid emitting many duplicate migrate events.
-		if alloc.TerminalStatus() &&
+		if alloc.ClientTerminalStatus() &&
 			onDrainingNode &&
 			alloc.ModifyIndex > lastHandledIndex {
 			result.migrated = append(result.migrated, alloc)
@@ -382,8 +385,8 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 
 		// An alloc can't be considered for migration if:
 		// - It isn't on a draining node
-		// - It is already terminal
-		if !onDrainingNode || alloc.TerminalStatus() {
+		// - It is already terminal on the client
+		if !onDrainingNode || alloc.ClientTerminalStatus() {
 			continue
 		}
 
@@ -411,7 +414,7 @@ func handleTaskGroup(snap *state.StateSnapshot, batch bool, tg *structs.TaskGrou
 	// Determine how many we can drain
 	thresholdCount := tg.Count - tg.Migrate.MaxParallel
 	numToDrain := healthy - thresholdCount
-	numToDrain = helper.Min(len(drainable), numToDrain)
+	numToDrain = min(len(drainable), numToDrain)
 	if numToDrain <= 0 {
 		return nil
 	}

@@ -29,10 +29,12 @@ allocation directory like the one below.
 │   └── tmp
 ├── task1
 │   ├── local
+│   ├── private
 │   ├── secrets
 │   └── tmp
 └── task2
     ├── local
+    ├── private
     ├── secrets
     └── tmp
 ```
@@ -68,6 +70,17 @@ allocation directory like the one below.
     `NOMAD_TASK_DIR`. Note this is not the same as the "task working
     directory". This directory is private to the task.
 
+  - **«taskname»/private/**: This directory is used by Nomad to store private files
+    related to the allocation, such as Vault tokens, that are not shared with tasks
+    when using [`image` isolation](#image-isolation). The contents of files in this
+    directory cannot be read by the `nomad alloc fs` command or the via Nomad's
+    API.
+    <Warning>
+      While not shared with tasks that use <code>image</code> isolation, this
+      path is still accessible by tasks using <a href="#chroot-isolation">
+      <code>chroot</code></a> or <a href="#none-isolation"><code>none</code></a> isolation
+    </Warning>
+
   - **«taskname»/secrets/**: This directory is the location provided to the task as
     `NOMAD_SECRETS_DIR`. The contents of files in this directory cannot be read
     by the `nomad alloc fs` command. It can be used to store secret data that
@@ -97,6 +110,7 @@ drwxrwxrwx  4.0 KiB  2020-10-27T18:00:32Z  tmp/
 $ nomad alloc fs c0b2245f task1/
 Mode         Size     Modified Time         Name
 drwxrwxrwx   4.0 KiB  2020-10-27T18:00:33Z  local/
+drwxrwxrwx   60 B     2020-10-27T18:00:32Z  private/
 drwxrwxrwx   60 B     2020-10-27T18:00:32Z  secrets/
 dtrwxrwxrwx  4.0 KiB  2020-10-27T18:00:32Z  tmp/
 ```
@@ -150,6 +164,7 @@ minimal filesystem tree:
 │   └── tmp
 └── task1
     ├── local
+    ├── private
     ├── secrets
     └── tmp
 ```
@@ -165,6 +180,7 @@ drwxrwxrwx  4.0 KiB  2020-10-27T18:51:54Z  task1/
 $ nomad alloc fs b0686b27 task1
 Mode         Size     Modified Time         Name
 drwxrwxrwx   4.0 KiB  2020-10-27T18:51:54Z  local/
+drwxrwxrwx   60 B     2020-10-27T18:51:54Z  private/
 drwxrwxrwx   60 B     2020-10-27T18:51:54Z  secrets/
 dtrwxrwxrwx  4.0 KiB  2020-10-27T18:51:54Z  tmp/
 
@@ -287,6 +303,7 @@ contents], in addition to the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
     ├── lib32
     ├── lib64
     ├── local
+    ├── private
     ├── proc
     ├── run
     ├── sbin
@@ -315,6 +332,7 @@ drwxr-xr-x   4.0 KiB  2020-10-27T19:05:22Z  lib/
 drwxr-xr-x   4.0 KiB  2020-10-27T19:05:22Z  lib32/
 drwxr-xr-x   4.0 KiB  2020-10-27T19:05:22Z  lib64/
 drwxrwxrwx   4.0 KiB  2020-10-27T19:05:22Z  local/
+drwxrwxrwx   60 B     2020-10-27T19:05:22Z  private/
 drwxr-xr-x   4.0 KiB  2020-10-27T19:05:24Z  proc/
 drwxr-xr-x   4.0 KiB  2020-10-27T19:05:22Z  run/
 drwxr-xr-x   12 KiB   2020-10-27T19:05:22Z  sbin/
@@ -334,6 +352,7 @@ $ nomad alloc exec eebd13a7 /bin/sh
 $ mount
 ...
 /dev/mapper/root on /alloc type ext4 (rw,relatime,errors=remount-ro,data=ordered)
+tmpfs on /private type tmpfs (rw,noexec,relatime,size=1024k)
 tmpfs on /secrets type tmpfs (rw,noexec,relatime,size=1024k)
 ...
 ```
@@ -377,6 +396,7 @@ minimal filesystem tree:
 └── task3
     ├── executor.out
     ├── local
+    ├── private
     ├── secrets
     └── tmp
 ```
@@ -388,6 +408,7 @@ $ nomad alloc fs 87ec7d12 task3
 Mode         Size     Modified Time         Name
 -rw-r--r--   140 B    2020-10-27T19:15:33Z  executor.out
 drwxrwxrwx   4.0 KiB  2020-10-27T19:15:33Z  local/
+drwxrwxrwx   60 B     2020-10-27T19:15:33Z  private/
 drwxrwxrwx   60 B     2020-10-27T19:15:33Z  secrets/
 dtrwxrwxrwx  4.0 KiB  2020-10-27T19:15:33Z  tmp/
 ```

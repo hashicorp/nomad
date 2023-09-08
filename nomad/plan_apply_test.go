@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -888,7 +891,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 }
 
 func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	alloc := mock.Alloc()
 	state := testStateStore(t)
 	node := mock.Node()

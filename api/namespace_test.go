@@ -1,6 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
+	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
@@ -141,4 +146,19 @@ func TestNamespaces_List(t *testing.T) {
 	assertQueryMeta(t, qm)
 	must.Len(t, 1, resp)
 	must.Eq(t, ns2.Name, resp[0].Name)
+}
+
+func TestNamespace_NotFound(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	namespaces := c.Namespaces()
+
+	var ure UnexpectedResponseError
+	_, _, e := namespaces.Info("dummy", nil)
+
+	ok := errors.As(e, &ure)
+	must.True(t, ok)
+	must.Eq(t, http.StatusNotFound, ure.StatusCode())
 }

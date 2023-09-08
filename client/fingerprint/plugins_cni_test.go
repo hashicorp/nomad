@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package fingerprint
 
 import (
@@ -26,8 +29,10 @@ func TestPluginsCNIFingerprint_Fingerprint_present(t *testing.T) {
 	must.True(t, response.Detected)
 	attrCustom := f.(*PluginsCNIFingerprint).attribute("custom")
 	attrBridge := f.(*PluginsCNIFingerprint).attribute("bridge")
+	attrVlan := f.(*PluginsCNIFingerprint).attribute("vlan")
 	must.Eq(t, "v1.2.3", response.Attributes[attrCustom])
 	must.Eq(t, "v1.0.2", response.Attributes[attrBridge])
+	must.Eq(t, "v1.2.0", response.Attributes[attrVlan])
 }
 
 func TestPluginsCNIFingerprint_Fingerprint_multi(t *testing.T) {
@@ -46,10 +51,12 @@ func TestPluginsCNIFingerprint_Fingerprint_multi(t *testing.T) {
 	must.True(t, response.Detected)
 	attrCustom := f.(*PluginsCNIFingerprint).attribute("custom")
 	attrBridge := f.(*PluginsCNIFingerprint).attribute("bridge")
+	attrVlan := f.(*PluginsCNIFingerprint).attribute("vlan")
 	attrCustom2 := f.(*PluginsCNIFingerprint).attribute("custom2")
 	must.Eq(t, "v1.2.3", response.Attributes[attrCustom])
 	must.Eq(t, "v1.0.2", response.Attributes[attrBridge])
 	must.Eq(t, "v9.9.9", response.Attributes[attrCustom2])
+	must.Eq(t, "v1.2.0", response.Attributes[attrVlan])
 }
 
 func TestPluginsCNIFingerprint_Fingerprint_absent(t *testing.T) {

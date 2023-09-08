@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
     <li><LinkTo @route="clients.client.index" @model={{this.client}} @activeClass="is-active">Overview</LinkTo></li>

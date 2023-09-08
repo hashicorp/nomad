@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package stream
 
 import (
@@ -362,6 +365,12 @@ func aclAllowsSubscription(aclObj *acl.ACL, subReq *SubscribeRequest) bool {
 			}
 		case structs.TopicNode:
 			if ok := aclObj.AllowNodeRead(); !ok {
+				return false
+			}
+		case structs.TopicNodePool:
+			// Require management token for node pools since we can't filter
+			// out node pools the token doesn't have access to.
+			if ok := aclObj.IsManagement(); !ok {
 				return false
 			}
 		default:

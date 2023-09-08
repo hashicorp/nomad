@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package isolation
 
 import (
@@ -36,7 +39,7 @@ func testExecUsesChroot(t *testing.T) {
 	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})
 
 	// assert log contents
-	logs, err := e2eutil.AllocLogs(allocID, e2eutil.LogsStdOut)
+	logs, err := e2eutil.AllocLogs(allocID, "", e2eutil.LogsStdOut)
 	must.NoError(t, err)
 	must.RegexMatch(t, regexp.MustCompile(`(?m:^/alloc\b)`), logs)
 	must.RegexMatch(t, regexp.MustCompile(`(?m:^/local\b)`), logs)
@@ -60,7 +63,7 @@ func testImageUsesChroot(t *testing.T) {
 	e2eutil.WaitForAllocsStopped(t, nomad, []string{allocID})
 
 	// assert log contents
-	logs, err := e2eutil.AllocLogs(allocID, e2eutil.LogsStdOut)
+	logs, err := e2eutil.AllocLogs(allocID, "", e2eutil.LogsStdOut)
 	must.NoError(t, err)
 	must.RegexMatch(t, regexp.MustCompile(`(?m:^/alloc\b)`), logs)
 	must.RegexMatch(t, regexp.MustCompile(`(?m:^/local\b)`), logs)

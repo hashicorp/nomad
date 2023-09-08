@@ -1,0 +1,26 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
+name: vault-secrets
+description: 'pull secrets from CI Vault into environment vars'
+inputs:
+  paths:
+    description: 'vault-action secrets input'
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to Vault
+      if: endsWith(github.repository, '-enterprise')
+      id: vault-auth
+      run: vault-auth
+      shell: bash
+    - name: Retrieve Vault-hosted Secrets
+      if: endsWith(github.repository, '-enterprise')
+      id: vault
+      uses: hashicorp/vault-action@v2.4.3
+      with:
+        url: ${{ steps.vault-auth.outputs.addr }}
+        caCertificate: ${{ steps.vault-auth.outputs.ca_certificate }}
+        token: ${{ steps.vault-auth.outputs.token }}
+        secrets: ${{ inputs.paths }}

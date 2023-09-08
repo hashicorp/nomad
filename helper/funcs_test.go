@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package helper
 
 import (
@@ -11,52 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 )
-
-func Test_Min(t *testing.T) {
-	t.Run("int", func(t *testing.T) {
-		a := 1
-		b := 2
-		must.Eq(t, 1, Min(a, b))
-		must.Eq(t, 1, Min(b, a))
-	})
-
-	t.Run("float64", func(t *testing.T) {
-		a := 1.1
-		b := 2.2
-		must.Eq(t, 1.1, Min(a, b))
-		must.Eq(t, 1.1, Min(b, a))
-	})
-
-	t.Run("string", func(t *testing.T) {
-		a := "cat"
-		b := "dog"
-		must.Eq(t, "cat", Min(a, b))
-		must.Eq(t, "cat", Min(b, a))
-	})
-}
-
-func Test_Max(t *testing.T) {
-	t.Run("int", func(t *testing.T) {
-		a := 1
-		b := 2
-		must.Eq(t, 2, Max(a, b))
-		must.Eq(t, 2, Max(b, a))
-	})
-
-	t.Run("float64", func(t *testing.T) {
-		a := 1.1
-		b := 2.2
-		must.Eq(t, 2.2, Max(a, b))
-		must.Eq(t, 2.2, Max(b, a))
-	})
-
-	t.Run("string", func(t *testing.T) {
-		a := "cat"
-		b := "dog"
-		must.Eq(t, "dog", Max(a, b))
-		must.Eq(t, "dog", Max(b, a))
-	})
-}
 
 func TestIsSubset(t *testing.T) {
 	l := []string{"a", "b", "c"}

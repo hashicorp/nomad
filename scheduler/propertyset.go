@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -6,7 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -29,6 +32,10 @@ type propertySet struct {
 
 	// targetAttribute is the attribute this property set is checking
 	targetAttribute string
+
+	// targetValues are the set of attribute values that are explicitly expected,
+	// so we can combine the count of values that belong to any implicit targets.
+	targetValues *set.Set[string]
 
 	// allowedCount is the allowed number of allocations that can have the
 	// distinct property
@@ -59,6 +66,7 @@ func NewPropertySet(ctx Context, job *structs.Job) *propertySet {
 		jobID:          job.ID,
 		namespace:      job.Namespace,
 		existingValues: make(map[string]uint64),
+		targetValues:   set.From([]string{}),
 		logger:         ctx.Logger().Named("property_set"),
 	}
 
@@ -125,6 +133,10 @@ func (p *propertySet) setTargetAttributeWithCount(targetAttribute string, allowe
 	// eviction and then select. This means the plan has an eviction before a
 	// single select has finished.
 	p.PopulateProposed()
+}
+
+func (p *propertySet) SetTargetValues(values []string) {
+	p.targetValues = set.From(values)
 }
 
 // populateExisting is a helper shared when setting the constraint to populate
@@ -228,7 +240,7 @@ func (p *propertySet) SatisfiesDistinctProperties(option *structs.Node, tg strin
 // UsedCount returns the number of times the value of the attribute being tracked by this
 // property set is used across current and proposed allocations. It also returns the resolved
 // attribute value for the node, and an error message if it couldn't be resolved correctly
-func (p *propertySet) UsedCount(option *structs.Node, tg string) (string, string, uint64) {
+func (p *propertySet) UsedCount(option *structs.Node, _ string) (string, string, uint64) {
 	// Check if there was an error building
 	if p.errorBuilding != nil {
 		return "", p.errorBuilding.Error(), 0
@@ -236,38 +248,41 @@ func (p *propertySet) UsedCount(option *structs.Node, tg string) (string, string
 
 	// Get the nodes property value
 	nValue, ok := getProperty(option, p.targetAttribute)
+	targetPropertyValue := p.targetedPropertyValue(nValue)
 	if !ok {
 		return nValue, fmt.Sprintf("missing property %q", p.targetAttribute), 0
 	}
 	combinedUse := p.GetCombinedUseMap()
-	usedCount := combinedUse[nValue]
-	return nValue, "", usedCount
+	usedCount := combinedUse[targetPropertyValue]
+	return targetPropertyValue, "", usedCount
 }
 
 // GetCombinedUseMap counts how many times the property has been used by
 // existing and proposed allocations. It also takes into account any stopped
 // allocations
 func (p *propertySet) GetCombinedUseMap() map[string]uint64 {
-	combinedUse := make(map[string]uint64, helper.Max(len(p.existingValues), len(p.proposedValues)))
+	combinedUse := make(map[string]uint64, max(len(p.existingValues), len(p.proposedValues)))
 	for _, usedValues := range []map[string]uint64{p.existingValues, p.proposedValues} {
 		for propertyValue, usedCount := range usedValues {
-			combinedUse[propertyValue] += usedCount
+			targetPropertyValue := p.targetedPropertyValue(propertyValue)
+			combinedUse[targetPropertyValue] += usedCount
 		}
 	}
 
 	// Go through and discount the combined count when the value has been
 	// cleared by a proposed stop.
 	for propertyValue, clearedCount := range p.clearedValues {
-		combined, ok := combinedUse[propertyValue]
+		targetPropertyValue := p.targetedPropertyValue(propertyValue)
+		combined, ok := combinedUse[targetPropertyValue]
 		if !ok {
 			continue
 		}
 
 		// Don't clear below 0.
 		if combined >= clearedCount {
-			combinedUse[propertyValue] = combined - clearedCount
+			combinedUse[targetPropertyValue] = combined - clearedCount
 		} else {
-			combinedUse[propertyValue] = 0
+			combinedUse[targetPropertyValue] = 0
 		}
 	}
 	return combinedUse
@@ -332,7 +347,8 @@ func (p *propertySet) populateProperties(allocs []*structs.Allocation, nodes map
 			continue
 		}
 
-		properties[nProperty]++
+		targetPropertyValue := p.targetedPropertyValue(nProperty)
+		properties[targetPropertyValue]++
 	}
 }
 
@@ -343,4 +359,15 @@ func getProperty(n *structs.Node, property string) (string, bool) {
 	}
 
 	return resolveTarget(property, n)
+}
+
+// targetedPropertyValue transforms the property value to combine all implicit
+// target values into a single wildcard placeholder so that we get accurate
+// counts when we compare an explicitly-defined target against multiple implicit
+// targets.
+func (p *propertySet) targetedPropertyValue(propertyValue string) string {
+	if p.targetValues.Empty() || p.targetValues.Contains(propertyValue) {
+		return propertyValue
+	}
+	return "*"
 }

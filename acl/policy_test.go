@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package acl
 
 import (
@@ -70,6 +73,18 @@ func TestParse(t *testing.T) {
 			}
 			namespace "autoscaler" {
 				policy = "scale"
+			}
+			host_volume "production-tls-*" {
+				capabilities = ["mount-readonly"]
+			}
+			host_volume "staging-tls-*" {
+				policy = "write"
+			}
+			node_pool "prod" {
+				capabilities = ["read"]
+			}
+			node_pool "dev" {
+				policy = "write"
 			}
 			agent {
 				policy = "read"
@@ -172,6 +187,251 @@ func TestParse(t *testing.T) {
 						},
 					},
 				},
+				HostVolumes: []*HostVolumePolicy{
+					{
+						Name:         "production-tls-*",
+						Capabilities: []string{"mount-readonly"},
+					},
+					{
+						Name:   "staging-tls-*",
+						Policy: "write",
+						Capabilities: []string{
+							"mount-readonly",
+							"mount-readwrite",
+						},
+					},
+				},
+				NodePools: []*NodePoolPolicy{
+					{
+						Name:         "prod",
+						Capabilities: []string{"read"},
+					},
+					{
+						Name:         "dev",
+						Policy:       "write",
+						Capabilities: []string{"delete", "read", "write"},
+					},
+				},
+				Agent: &AgentPolicy{
+					Policy: PolicyRead,
+				},
+				Node: &NodePolicy{
+					Policy: PolicyWrite,
+				},
+				Operator: &OperatorPolicy{
+					Policy: PolicyDeny,
+				},
+				Quota: &QuotaPolicy{
+					Policy: PolicyRead,
+				},
+				Plugin: &PluginPolicy{
+					Policy: PolicyRead,
+				},
+			},
+		},
+		{
+			`
+			{
+				"namespace": [
+					{
+						"default": {
+							"policy": "read"
+						},
+					},
+					{
+						"other": {
+							"policy": "write"
+						},
+					},
+					{
+						"secret": {
+							"capabilities": [
+								"deny",
+								"read-logs"
+							]
+						}
+					},
+					{
+						"apps": {
+							"variables": [
+								{
+									"path": [
+										{
+											"jobs/write-does-not-imply-read-or-delete": {
+												"capabilities": ["write"],
+											},
+										},
+										{
+											"project/read-implies-list": {
+												"capabilities": ["read"],
+											},
+										},
+										{
+											"project/explicit": {
+												"capabilities": ["read", "list", "destroy"],
+											},
+										},
+									],
+								},
+							],
+						},
+					},
+					{
+						"autoscaler": {
+							"policy": "scale"
+						},
+					},
+				],
+				"host_volume": [
+					{
+						"production-tls-*": {
+							"capabilities": ["mount-readonly"]
+						}
+					},
+					{
+						"staging-tls-*": {
+							"policy": "write"
+						}
+					}
+				],
+				"node_pool": [
+					{
+						"prod": {
+							"capabilities": ["read"]
+						}
+					},
+					{
+						"dev": {
+							"policy": "write"
+						}
+					}
+				],
+				"agent": {
+					"policy": "read"
+				},
+				"node": {
+					"policy": "write"
+				},
+				"operator": {
+					"policy": "deny"
+				},
+				"quota": {
+					"policy": "read"
+				},
+				"plugin": {
+					"policy": "read"
+				}
+			}`,
+			"",
+			&Policy{
+				Namespaces: []*NamespacePolicy{
+					{
+						Name:   "default",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
+							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
+						},
+					},
+					{
+						Name:   "other",
+						Policy: PolicyWrite,
+						Capabilities: []string{
+							NamespaceCapabilityListJobs,
+							NamespaceCapabilityParseJob,
+							NamespaceCapabilityReadJob,
+							NamespaceCapabilityCSIListVolume,
+							NamespaceCapabilityCSIReadVolume,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityScaleJob,
+							NamespaceCapabilitySubmitJob,
+							NamespaceCapabilityDispatchJob,
+							NamespaceCapabilityReadLogs,
+							NamespaceCapabilityReadFS,
+							NamespaceCapabilityAllocExec,
+							NamespaceCapabilityAllocLifecycle,
+							NamespaceCapabilityCSIMountVolume,
+							NamespaceCapabilityCSIWriteVolume,
+							NamespaceCapabilitySubmitRecommendation,
+						},
+					},
+					{
+						Name: "secret",
+						Capabilities: []string{
+							NamespaceCapabilityDeny,
+							NamespaceCapabilityReadLogs,
+						},
+					},
+					{
+						Name: "apps",
+						Variables: &VariablesPolicy{
+							Paths: []*VariablesPathPolicy{
+								{
+									PathSpec:     "jobs/write-does-not-imply-read-or-delete",
+									Capabilities: []string{VariablesCapabilityWrite},
+								},
+								{
+									PathSpec: "project/read-implies-list",
+									Capabilities: []string{
+										VariablesCapabilityRead,
+										VariablesCapabilityList,
+									},
+								},
+								{
+									PathSpec: "project/explicit",
+									Capabilities: []string{
+										VariablesCapabilityRead,
+										VariablesCapabilityList,
+										VariablesCapabilityDestroy,
+									},
+								},
+							},
+						},
+					},
+					{
+						Name:   "autoscaler",
+						Policy: PolicyScale,
+						Capabilities: []string{
+							NamespaceCapabilityListScalingPolicies,
+							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityReadJobScaling,
+							NamespaceCapabilityScaleJob,
+						},
+					},
+				},
+				HostVolumes: []*HostVolumePolicy{
+					{
+						Name:         "production-tls-*",
+						Capabilities: []string{"mount-readonly"},
+					},
+					{
+						Name:   "staging-tls-*",
+						Policy: "write",
+						Capabilities: []string{
+							"mount-readonly",
+							"mount-readwrite",
+						},
+					},
+				},
+				NodePools: []*NodePoolPolicy{
+					{
+						Name:         "prod",
+						Capabilities: []string{"read"},
+					},
+					{
+						Name:         "dev",
+						Policy:       "write",
+						Capabilities: []string{"delete", "read", "write"},
+					},
+				},
 				Agent: &AgentPolicy{
 					Policy: PolicyRead,
 				},
@@ -200,6 +460,30 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			namespace {
+				policy = "read"
+			}
+			`,
+			"Invalid namespace name",
+			nil,
+		},
+		{
+			`
+			{
+				"namespace": [
+					{
+						"": {
+							"policy": "read"
+						}
+					}
+				]
+			}
+			`,
+			"Invalid namespace name",
+			nil,
+		},
+		{
+			`
 			namespace "dev" {
 			  variables "*" {
 			      capabilities = ["read", "write"]
@@ -211,11 +495,58 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			namespace "dev" {
+				policy = "read"
+
+				variables {
+					path {}
+					path "nomad/jobs/example" {
+						capabilities = ["read"]
+					}
+				}
+			}
+			`,
+			"Invalid missing variable path in namespace",
+			nil,
+		},
+		{
+			`
+			{
+				"namespace": [
+					{
+						"dev": {
+							"policy": "read",
+							"variables": [
+								{
+									"paths": [
+										{
+											"": {
+												"capabilities": ["read"]
+											}
+										}
+									]
+								]
+							]
+						}
+					}
+				]
+			}
+			`,
+			"no variable paths in namespace dev",
+			nil,
+		},
+		{
+			`
 			namespace "default" {
 				capabilities = ["deny", "foo"]
 			}
 			`,
 			"Invalid namespace capability",
+			nil,
+		},
+		{
+			`namespace {}`,
+			"invalid acl policy",
 			nil,
 		},
 		{
@@ -295,6 +626,150 @@ func TestParse(t *testing.T) {
 		},
 		{
 			`
+			node_pool "pool-read-only" {
+				policy = "read"
+			}
+
+			node_pool "pool-read-write" {
+				policy = "write"
+			}
+
+			node_pool "pool-read-upsert" {
+				policy = "read"
+				capabilities = ["write"]
+			}
+
+			node_pool "pool-multiple-capabilities" {
+				policy = "read"
+				capabilities = ["write", "delete"]
+			}
+
+			node_pool "pool-deny-policy" {
+				policy = "deny"
+				capabilities = ["write"]
+			}
+
+			node_pool "pool-deny-capability" {
+				capabilities = ["deny", "read"]
+			}
+
+			node_pool "pool-*" {
+				policy = "read"
+			}
+			`,
+			"",
+			&Policy{
+				NodePools: []*NodePoolPolicy{
+					{
+						Name:   "pool-read-only",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-read-write",
+						Policy: PolicyWrite,
+						Capabilities: []string{
+							NodePoolCapabilityDelete,
+							NodePoolCapabilityRead,
+							NodePoolCapabilityWrite,
+						},
+					},
+					{
+						Name:   "pool-read-upsert",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityWrite,
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-multiple-capabilities",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityWrite,
+							NodePoolCapabilityDelete,
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-deny-policy",
+						Policy: PolicyDeny,
+						Capabilities: []string{
+							NodePoolCapabilityWrite,
+							NodePoolCapabilityDeny,
+						},
+					},
+					{
+						Name:   "pool-deny-capability",
+						Policy: "",
+						Capabilities: []string{
+							NodePoolCapabilityDeny,
+							NodePoolCapabilityRead,
+						},
+					},
+					{
+						Name:   "pool-*",
+						Policy: PolicyRead,
+						Capabilities: []string{
+							NodePoolCapabilityRead,
+						},
+					},
+				},
+			},
+		},
+		{
+			`
+			node_pool "" {
+			}
+			`,
+			"Invalid node pool name",
+			nil,
+		},
+		{
+			`
+			node_pool "pool%" {
+			}
+			`,
+			"Invalid node pool name",
+			nil,
+		},
+		{
+			`
+			node_pool "my-pool" {
+				capabilities = ["read", "invalid"]
+			}
+			`,
+			"Invalid node pool capability",
+			nil,
+		},
+		{
+			`
+			node_pool {
+				policy = "read"
+			}
+			`,
+			"Invalid node pool name",
+			nil,
+		},
+		{
+			`
+			{
+				"node_pool": [
+					{
+						"": {
+							"policy": "read"
+						}
+					}
+				]
+			}
+			`,
+			"Invalid node pool name",
+			nil,
+		},
+		{
+			`
 			host_volume "production-tls-*" {
 				capabilities = ["mount-readonly"]
 			}
@@ -335,6 +810,30 @@ func TestParse(t *testing.T) {
 			`
 			host_volume "volume has a space" {
 				capabilities = ["mount-readwrite"]
+			}
+			`,
+			"Invalid host volume name",
+			nil,
+		},
+		{
+			`
+			host_volume {
+				policy = "read"
+			}
+			`,
+			"Invalid host volume name",
+			nil,
+		},
+		{
+			`
+			{
+				"host_volume": [
+					{
+						"": {
+							"policy": "read"
+						}
+					}
+				]
 			}
 			`,
 			"Invalid host volume name",

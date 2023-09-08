@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where network pause container would not be removed after node restart
+```

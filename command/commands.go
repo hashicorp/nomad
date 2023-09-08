@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -610,6 +613,46 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"node status": func() (cli.Command, error) {
 			return &NodeStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool": func() (cli.Command, error) {
+			return &NodePoolCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool apply": func() (cli.Command, error) {
+			return &NodePoolApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool delete": func() (cli.Command, error) {
+			return &NodePoolDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool info": func() (cli.Command, error) {
+			return &NodePoolInfoCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool init": func() (cli.Command, error) {
+			return &NodePoolInitCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool jobs": func() (cli.Command, error) {
+			return &NodePoolJobsCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool list": func() (cli.Command, error) {
+			return &NodePoolListCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node pool nodes": func() (cli.Command, error) {
+			return &NodePoolNodesCommand{
 				Meta: meta,
 			}, nil
 		},

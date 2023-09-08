@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -5,12 +8,12 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"slices"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"golang.org/x/exp/slices"
-
 	"github.com/hashicorp/memberlist"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -63,6 +66,11 @@ type Config struct {
 
 	// EventBufferSize is the amount of events to hold in memory.
 	EventBufferSize int64
+
+	// JobMaxSourceSize limits the maximum size of a jobs source hcl/json
+	// before being discarded automatically. A value of zero indicates no job
+	// sources will be stored.
+	JobMaxSourceSize int
 
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
@@ -302,8 +310,18 @@ type Config struct {
 	// ConsulConfig is this Agent's Consul configuration
 	ConsulConfig *config.ConsulConfig
 
-	// VaultConfig is this Agent's Vault configuration
+	// ConsulConfigs is a map of Consul configurations, here to support features
+	// in Nomad Enterprise. The default Consul config pointer above will be
+	// found in this map under the name "default"
+	ConsulConfigs map[string]*config.ConsulConfig
+
+	// VaultConfig is this Agent's default Vault configuration
 	VaultConfig *config.VaultConfig
+
+	// VaultConfigs is a map of Vault configurations, here to support features
+	// in Nomad Enterprise. The default Vault config pointer above will be found
+	// in this map under the name "default"
+	VaultConfigs map[string]*config.VaultConfig
 
 	// RPCHoldTimeout is how long an RPC can be "held" before it is errored.
 	// This is used to paper over a loss of leadership by instead holding RPCs,
@@ -408,6 +426,9 @@ type Config struct {
 
 	// JobMaxPriority is an upper bound on the Job priority.
 	JobMaxPriority int
+
+	// JobTrackedVersions is the number of historic Job versions that are kept.
+	JobTrackedVersions int
 }
 
 func (c *Config) Copy() *Config {
@@ -430,7 +451,9 @@ func (c *Config) Copy() *Config {
 	nc.SerfConfig = pointer.Copy(c.SerfConfig)
 	nc.EnabledSchedulers = slices.Clone(c.EnabledSchedulers)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TLSConfig = c.TLSConfig.Copy()
 	nc.SentinelConfig = c.SentinelConfig.Copy()
 	nc.AutopilotConfig = c.AutopilotConfig.Copy()
@@ -438,6 +461,55 @@ func (c *Config) Copy() *Config {
 	nc.SearchConfig = c.SearchConfig.Copy()
 
 	return &nc
+}
+
+// ConsulServiceIdentity returns the workload identity to be used for accessing
+// the Consul API to register and manage Consul services.
+func (c *Config) ConsulServiceIdentity() *structs.WorkloadIdentity {
+	if c.ConsulConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.ConsulConfig.ServiceIdentity)
+}
+
+// ConsulTemplateIdentity returns the workload identity to be used for
+// accessing the Consul API from templates.
+func (c *Config) ConsulTemplateIdentity() *structs.WorkloadIdentity {
+	if c.ConsulConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.ConsulConfig.TemplateIdentity)
+}
+
+// UseConsulIdentity returns true when Consul workload identity is enabled.
+func (c *Config) UseConsulIdentity() bool {
+	return c.ConsulConfig != nil &&
+		c.ConsulConfig.UseIdentity != nil &&
+		*c.ConsulConfig.UseIdentity
+}
+
+// workloadIdentityFromConfig returns a structs.WorkloadIdentity to be used in
+// a job from a config.WorkloadIdentityConfig parsed from an agent config file.
+func workloadIdentityFromConfig(widConfig *config.WorkloadIdentityConfig) *structs.WorkloadIdentity {
+	if widConfig == nil {
+		return nil
+	}
+
+	wid := &structs.WorkloadIdentity{}
+
+	if len(widConfig.Audience) > 0 {
+		wid.Audience = widConfig.Audience
+	}
+	if widConfig.Env != nil {
+		wid.Env = *widConfig.Env
+	}
+	if widConfig.File != nil {
+		wid.File = *widConfig.File
+	}
+
+	return wid
 }
 
 // DefaultConfig returns the default configuration. Only used as the basis for
@@ -527,7 +599,11 @@ func DefaultConfig() *Config {
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
+		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 	}
+
+	c.ConsulConfigs = map[string]*config.ConsulConfig{"default": c.ConsulConfig}
+	c.VaultConfigs = map[string]*config.VaultConfig{"default": c.VaultConfig}
 
 	// Enable all known schedulers by default
 	c.EnabledSchedulers = make([]string, 0, len(scheduler.BuiltinSchedulers))

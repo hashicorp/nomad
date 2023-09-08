@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package docklog
 
 import (
@@ -5,7 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,20 +22,12 @@ import (
 )
 
 func testContainerDetails() (image string, imageName string, imageTag string) {
-	name := "busybox"
-	tag := "1"
+	image = testutil.TestBusyboxImage()
+	parts := strings.Split(image, ":")
+	imageName = parts[0]
+	imageTag = parts[1]
 
-	if runtime.GOOS == "windows" {
-		name = "hashicorpdev/busybox-windows"
-		tag = "server2016-0.1"
-	}
-
-	if testutil.IsCI() {
-		// In CI, use HashiCorp Mirror to avoid DockerHub rate limiting
-		name = "docker.mirror.hashicorp.services/" + name
-	}
-
-	return name + ":" + tag, name, tag
+	return image, imageName, imageTag
 }
 
 func TestDockerLogger_Success(t *testing.T) {

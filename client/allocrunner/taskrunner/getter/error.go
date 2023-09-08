@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package getter
 
 // Error is a RecoverableError used to include the URL along with the underlying

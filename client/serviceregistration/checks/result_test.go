@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package checks
 
 import (
@@ -106,46 +109,6 @@ func TestChecks_Stub(t *testing.T) {
 		Service:   "service",
 		Check:     "check",
 	}, result)
-}
-
-func TestChecks_AllocationResults_diff(t *testing.T) {
-	cases := []struct {
-		name    string
-		results []structs.CheckID
-		ids     []structs.CheckID
-		exp     []structs.CheckID
-	}{{
-		name:    "empty results and empty ids",
-		results: nil,
-		ids:     nil,
-		exp:     nil,
-	}, {
-		name:    "empty results and nonempty ids",
-		results: nil,
-		ids:     []structs.CheckID{"aaa", "bbb"},
-		exp:     []structs.CheckID{"aaa", "bbb"},
-	}, {
-		name:    "nonempty results and empty ids",
-		results: []structs.CheckID{"aaa", "bbb"},
-		ids:     nil,
-		exp:     nil,
-	}, {
-		name:    "mix",
-		results: []structs.CheckID{"aaa", "ccc", "ddd", "fff"},
-		ids:     []structs.CheckID{"bbb", "ccc", "fff", "eee"},
-		exp:     []structs.CheckID{"bbb", "eee"},
-	}}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ar := make(AllocationResults)
-			for _, id := range tc.results {
-				ar[id] = nil
-			}
-			result := ar.diff(tc.ids)
-			must.Eq(t, tc.exp, result)
-		})
-	}
 }
 
 func TestChecks_ClientResults_Insert(t *testing.T) {

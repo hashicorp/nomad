@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div
   class="sidebar has-subnav service-sidebar {{if this.isSideBarOpen "open"}}"
   {{on-click-outside
@@ -15,6 +20,11 @@
             {{#if (eq this.aggregateStatus 'Unhealthy')}}
               <FlightIcon @name="x-square-fill" @color="#c84034" />
               Unhealthy
+            {{else if (eq this.aggregateStatus 'Unknown')}}
+            <Tooltip @text="The parent allocation for this service is not running" @isFullText={{true}}>
+              <FlightIcon @name="help" @color="#999999" />
+              Health Unknown
+            </Tooltip>
             {{else}}
               <FlightIcon @name="check-square-fill" @color="#25ba81" />
               Healthy

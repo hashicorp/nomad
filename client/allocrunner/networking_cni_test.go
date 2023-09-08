@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 //go:build linux
 
 package allocrunner
@@ -122,6 +125,22 @@ func TestCNI_forceCleanup(t *testing.T) {
 		err := c.forceCleanup(ipt, "2dd71cac-2b1e-ff08-167c-735f7f9f4964")
 		must.EqError(t, err, "failed to cleanup iptables rules for alloc 2dd71cac-2b1e-ff08-167c-735f7f9f4964")
 	})
+}
+
+// TestCNI_cniToAllocNet_NoInterfaces asserts an error is returned if CNIResult
+// contains no interfaces.
+func TestCNI_cniToAllocNet_NoInterfaces(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.CNIResult{}
+
+	// Only need a logger
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	require.Error(t, err)
+	require.Nil(t, allocNet)
 }
 
 // TestCNI_cniToAllocNet_Fallback asserts if a CNI plugin result lacks an IP on

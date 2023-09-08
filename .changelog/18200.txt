@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where exponential backoff could result in excessive CPU usage
+```

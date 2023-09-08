@@ -1,0 +1,12 @@
+{
+  "Name": "example",
+  "Description": "Example node pool",
+  "Meta": {
+    "environment": "prod",
+    "owner": "sre"
+  },
+  "SchedulerConfiguration": {
+    "SchedulerAlgorithm": "spread",
+    "MemoryOversubscriptionEnabled": true
+  }
+}

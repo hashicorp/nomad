@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -15,7 +18,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
-
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -70,12 +72,15 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			jobConnectHook{},
 			jobExposeCheckHook{},
 			jobImpliedConstraints{},
+			jobNodePoolMutatingHook{srv: s},
+			jobImplicitIdentitiesHook{srv: s},
 		},
 		validators: []jobValidator{
 			jobConnectHook{},
 			jobExposeCheckHook{},
 			jobVaultHook{srv: s},
 			jobNamespaceConstraintCheckHook{srv: s},
+			jobNodePoolValidatingHook{srv: s},
 			&jobValidate{srv: s},
 			&memoryOversubscriptionValidate{srv: s},
 		},
@@ -110,6 +115,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 	args.Job = job
+
+	// Run the submission controller
+	warnings = append(warnings, j.submissionController(args))
 
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
@@ -1049,8 +1057,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 
+	// Perform validation on the job to ensure we have something that can
+	// actually be scaled. This logic can only exist here, as we need access
+	// to the job object.
 	if job == nil {
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
+	}
+	if job.Type == structs.JobTypeSystem {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, `cannot scale jobs of type "system"`)
 	}
 
 	// Since job is going to be mutated we must copy it since state store methods
@@ -1141,7 +1155,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 				ID:             uuid.Generate(),
 				Namespace:      namespace,
 				Priority:       job.Priority, // Safe as nil check performed above.
-				Type:           structs.JobTypeService,
+				Type:           job.Type,
 				TriggeredBy:    structs.EvalTriggerScaling,
 				JobID:          args.JobID,
 				JobModifyIndex: reply.JobModifyIndex,
@@ -1181,6 +1195,52 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	j.srv.setQueryMeta(&reply.QueryMeta)
 
 	return nil
+}
+
+func (j *Job) GetJobSubmission(args *structs.JobSubmissionRequest, reply *structs.JobSubmissionResponse) error {
+	authErr := j.srv.Authenticate(j.ctx, args)
+	if done, err := j.srv.forward("Job.GetJobSubmission", args, args, reply); done {
+		return err
+	}
+	j.srv.MeasureRPCRate("job_submission", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "get_job_submission"}, time.Now())
+
+	// Check for read-job permissions
+	if aclObj, err := j.srv.ResolveACL(args); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// Look for the submission
+			out, err := state.JobSubmission(ws, args.RequestNamespace(), args.JobID, args.Version)
+			if err != nil {
+				return err
+			}
+
+			// Setup the output
+			reply.Submission = out
+			if out != nil {
+				// associate with the index of the job this submission originates from
+				reply.Index = out.JobModifyIndex
+			} else {
+				// if there is no submission context, associate with no index
+				reply.Index = 0
+			}
+
+			// Set the query response
+			j.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return j.srv.blockingRPC(&opts)
 }
 
 // GetJob is used to request information about a specific job
@@ -1443,7 +1503,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			if err != nil {
 				return err
 			}
-			reply.Index = helper.Max(jindex, sindex)
+			reply.Index = max(jindex, sindex)
 
 			// Set the query response
 			j.srv.setQueryMeta(&reply.QueryMeta)
@@ -1754,13 +1814,13 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
-			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, args.Job); err != nil {
+			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, nil, args.Job); err != nil {
 				return err
 			}
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
-		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, args.Job)
+		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, nil, args.Job)
 		if err != nil {
 			return err
 		}

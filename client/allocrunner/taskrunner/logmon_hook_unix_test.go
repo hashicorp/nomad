@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 //go:build !windows
 // +build !windows
 
@@ -32,7 +35,7 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 
 	dir := t.TempDir()
 
-	hookConf := newLogMonHookConfig(task.Name, dir)
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
@@ -97,7 +100,7 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 
 	dir := t.TempDir()
 
-	hookConf := newLogMonHookConfig(task.Name, dir)
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
 	runner := &TaskRunner{logmonHookConfig: hookConf}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 

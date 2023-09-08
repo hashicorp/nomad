@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <button {{action "toggleOpen"}} class="toggle-button {{if this.hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
   {{x-icon (if this.isOpen "chevron-down" "chevron-right")}}
   {{this.taskGroup.name}}

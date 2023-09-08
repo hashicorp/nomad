@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskrunner
 
 import (
@@ -6,7 +9,6 @@ import (
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -23,7 +25,7 @@ func NewDriverHandle(
 		net:         net,
 		taskID:      taskID,
 		killSignal:  task.KillSignal,
-		killTimeout: helper.Min(task.KillTimeout, maxKillTimeout),
+		killTimeout: min(task.KillTimeout, maxKillTimeout),
 	}
 }
 

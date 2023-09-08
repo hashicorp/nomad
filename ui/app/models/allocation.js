@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { equal, none } from '@ember/object/computed';
@@ -27,6 +32,7 @@ export default class Allocation extends Model {
   @belongsTo('job') job;
   @belongsTo('node') node;
   @attr('string') namespace;
+  @attr('string') nodeID;
   @attr('string') name;
   @attr('string') taskGroupName;
   @fragment('resources') resources;
@@ -41,6 +47,44 @@ export default class Allocation extends Model {
 
   @attr('string') clientStatus;
   @attr('string') desiredStatus;
+  @attr() desiredTransition;
+  @attr() deploymentStatus;
+
+  get isCanary() {
+    return this.deploymentStatus?.Canary;
+  }
+
+  // deploymentStatus.Healthy can be true, false, or null. Null implies pending
+  get isHealthy() {
+    return this.deploymentStatus?.Healthy;
+  }
+
+  get isUnhealthy() {
+    return this.deploymentStatus?.Healthy === false;
+  }
+
+  get willNotRestart() {
+    return this.clientStatus === 'failed' || this.clientStatus === 'lost';
+  }
+
+  get willNotReschedule() {
+    return (
+      this.willNotRestart &&
+      !this.get('nextAllocation.content') &&
+      !this.get('followUpEvaluation.content')
+    );
+  }
+
+  get hasBeenRescheduled() {
+    return this.get('followUpEvaluation.content');
+  }
+
+  get hasBeenRestarted() {
+    return this.states
+      .map((s) => s.events.content)
+      .flat()
+      .find((e) => e.type === 'Restarting');
+  }
 
   @attr healthChecks;
 

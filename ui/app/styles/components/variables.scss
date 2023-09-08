@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 .section.single-variable {
   margin-top: 1.5rem;
 
@@ -18,6 +23,10 @@
     .toggler {
       margin-right: 0.25rem;
     }
+  }
+  .copy-button {
+    position: relative;
+    top: 3px;
   }
 }
 
@@ -196,7 +205,28 @@ table.variable-items {
       display: grid;
       grid-template-columns: auto auto 1fr;
       gap: 0.5rem;
+      & > code {
+        white-space: pre-wrap;
+      }
     }
+  }
+}
+
+.job-variables-intro {
+  margin-bottom: 1rem;
+  ul li {
+    list-style-type: disc;
+    margin-left: 2rem;
+    code {
+      white-space-collapse: preserve-breaks;
+      display: inline-flex;
+    }
+  }
+}
+
+.job-variables-message {
+  p {
+    margin-bottom: 1rem;
   }
 }
 

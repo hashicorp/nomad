@@ -16,7 +16,7 @@ CURRENT_GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD)
 LOCAL_CONTENT_DIR=
 PWD=$$(pwd)
 
-DOCKER_IMAGE="hashicorp/dev-portal"
+DOCKER_IMAGE="docker.io/hashicorp/dev-portal"
 DOCKER_IMAGE_LOCAL="dev-portal-local"
 DOCKER_RUN_FLAGS=-it \
 		--publish "3000:3000" \

@@ -1,13 +1,15 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
 	"fmt"
+	"maps"
 	"math/rand"
 	"net"
+	"slices"
 	"sync"
-
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -746,7 +748,11 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, portsInOffer []int, minDynamicPo
 			return nil, fmt.Errorf("stochastic dynamic port selection failed")
 		}
 
-		randPort := minDynamicPort + rand.Intn(maxDynamicPort-minDynamicPort)
+		randPort := minDynamicPort
+		if maxDynamicPort-minDynamicPort > 0 {
+			randPort = randPort + rand.Intn(maxDynamicPort-minDynamicPort)
+		}
+
 		if nodeUsed != nil && nodeUsed.Check(uint(randPort)) {
 			goto PICK
 		}

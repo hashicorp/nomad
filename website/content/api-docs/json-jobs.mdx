@@ -62,6 +62,7 @@ $ nomad job run -output example.nomad.hcl
     "Datacenters": [
       "dc1"
     ],
+    "NodePool": "prod",
     "Constraints": null,
     "Affinities": null,
     "TaskGroups": [
@@ -256,6 +257,8 @@ The `Job` object supports the following keys:
 - `Datacenters` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
+- `NodePool` - The node pool in which the job can be placed. Defaults to `"default"`.
+
 - `TaskGroups` - A list to define additional task groups. See the task group
   reference for more details.
 
@@ -332,6 +335,14 @@ The `Job` object supports the following keys:
     at. Supports predefined expressions such as "@daily" and "@weekly" See
     [here](https://github.com/gorhill/cronexpr#implementation) for full
     documentation of supported cron specs and the predefined expressions.
+
+  - `Specs` - A list of cron expressions configuring the intervals the job is
+    launched at. The job runs at the next earliest time that matches any of the
+    expressions. Supports predefined expressions such as `@daily` and
+    `@weekly`. Refer to [the
+    documentation](https://github.com/gorhill/cronexpr#implementation) for full
+    details about the supported cron specs and the predefined expressions.
+    Conflicts with `Spec`.
 
   - <a id="prohibit_overlap">`ProhibitOverlap`</a> - `ProhibitOverlap` can be set
     to true to enforce that the periodic job doesn't spawn a new instance of the
@@ -927,6 +938,8 @@ The `Affinity` object supports the following keys:
 The `LogConfig` object configures the log rotation policy for a task's `stdout` and
 `stderr`. The `LogConfig` object supports the following attributes:
 
+- `Disabled` - Disables log collection.
+
 - `MaxFiles` - The maximum number of rotated files Nomad will retain for
   `stdout` and `stderr`, each tracked individually.
 
@@ -940,6 +953,7 @@ a validation error when a job is submitted.
 ```json
 {
   "LogConfig": {
+    "Disabled": false,
     "MaxFiles": 3,
     "MaxFileSizeMB": 10
   }

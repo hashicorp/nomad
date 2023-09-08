@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where restarting proxy sidecar tasks failed
+```

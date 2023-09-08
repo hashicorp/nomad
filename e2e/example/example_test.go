@@ -1,54 +1,52 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package example
 
 import (
-	"os"
+	"fmt"
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/e2e/v3/namespaces3"
+	"github.com/hashicorp/nomad/e2e/v3/util3"
+	"github.com/shoenig/test/must"
 )
 
 func TestExample(t *testing.T) {
-	nomad := e2eutil.NomadClient(t)
+	cluster3.Establish(t,
+		cluster3.Leader(),
+		cluster3.LinuxClients(1),
+		cluster3.Timeout(3*time.Second),
+	)
 
-	e2eutil.WaitForLeader(t, nomad)
-	e2eutil.WaitForNodesReady(t, nomad, 2)
-
-	t.Run("TestExample_Simple", testExample_Simple)
-	t.Run("TestExample_WithCleanup", testExample_WithCleanup)
+	t.Run("testSleep", testSleep)
+	t.Run("testNamespace", testNamespace)
+	t.Run("testEnv", testEnv)
 }
 
-func testExample_Simple(t *testing.T) {
-	t.Logf("Logging %s", t.Name())
-	out, err := e2eutil.Command("nomad", "node", "status")
-	require.NoError(t, err, "failed to run `nomad node status`")
-
-	rows, err := e2eutil.ParseColumns(out)
-	require.NoError(t, err, "failed to parse `nomad node status`")
-	for _, row := range rows {
-		require.Equal(t, "ready", row["Status"])
-	}
+func testSleep(t *testing.T) {
+	_, cleanup := jobs3.Submit(t, "./input/sleep.hcl")
+	t.Cleanup(cleanup)
 }
 
-func testExample_WithCleanup(t *testing.T) {
+func testNamespace(t *testing.T) {
+	name := util3.ShortID("example")
 
-	t.Logf("Logging %s", t.Name())
-	nomad := e2eutil.NomadClient(t)
+	nsCleanup := namespaces3.Create(t, name)
+	t.Cleanup(nsCleanup)
 
-	_, err := e2eutil.Command("nomad", "job", "init", "-short", "./input/example.nomad")
-	require.NoError(t, err, "failed to run `nomad job init -short`")
-	t.Cleanup(func() { os.Remove("input/example.nomad") })
+	_, jobCleanup := jobs3.Submit(t, "./input/sleep.hcl", jobs3.Namespace(name))
+	t.Cleanup(jobCleanup)
+}
 
-	jobIDs := []string{}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+func testEnv(t *testing.T) {
+	job, cleanup := jobs3.Submit(t, "./input/env.hcl", jobs3.WaitComplete("group"))
+	t.Cleanup(cleanup)
 
-	jobID := "example-" + uuid.Short()
-	jobIDs = append(jobIDs, jobID)
-	e2eutil.RegisterAndWaitForAllocs(t, nomad, "./input/example.nomad", jobID, "")
-
-	jobs, _, err := nomad.Jobs().List(nil)
-	require.NoError(t, err)
-	require.NotEmpty(t, jobs)
+	expect := fmt.Sprintf("NOMAD_JOB_ID=%s", job.JobID())
+	logs := job.TaskLogs("group", "task")
+	must.StrContains(t, logs.Stdout, expect)
 }

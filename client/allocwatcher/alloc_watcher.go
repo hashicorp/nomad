@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocwatcher
 
 import (
@@ -46,29 +49,6 @@ type AllocRunnerMeta interface {
 	Alloc() *structs.Allocation
 }
 
-// PrevAllocWatcher allows AllocRunners to wait for a previous allocation to
-// terminate whether or not the previous allocation is local or remote.
-// See `PrevAllocMigrator` for migrating workloads.
-type PrevAllocWatcher interface {
-	// Wait for previous alloc to terminate
-	Wait(context.Context) error
-
-	// IsWaiting returns true if a concurrent caller is blocked in Wait
-	IsWaiting() bool
-}
-
-// PrevAllocMigrator allows AllocRunners to migrate a previous allocation
-// whether or not the previous allocation is local or remote.
-type PrevAllocMigrator interface {
-	PrevAllocWatcher
-
-	// IsMigrating returns true if a concurrent caller is in Migrate
-	IsMigrating() bool
-
-	// Migrate data from previous alloc
-	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
-}
-
 type Config struct {
 	// Alloc is the current allocation which may need to block on its
 	// previous allocation stopping.
@@ -94,12 +74,12 @@ type Config struct {
 	Logger hclog.Logger
 }
 
-func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string, m AllocRunnerMeta) PrevAllocMigrator {
+func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string, m AllocRunnerMeta) config.PrevAllocMigrator {
 	logger := c.Logger.Named("alloc_migrator").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
 	tasks := tg.Tasks
-	sticky := tg.EphemeralDisk != nil && tg.EphemeralDisk.Sticky
 	migrate := tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate
+	sticky := tg.EphemeralDisk != nil && (tg.EphemeralDisk.Sticky || migrate)
 
 	if m != nil {
 		// Local Allocation because there's an alloc runner
@@ -133,7 +113,7 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 // Note that c.Alloc.PreviousAllocation must NOT be used in this func as it
 // used for preemption which has a distinct field. The caller is responsible
 // for passing the allocation to be watched as watchedAllocID.
-func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) PrevAllocWatcher {
+func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) config.PrevAllocWatcher {
 	logger := c.Logger.Named("alloc_watcher").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
 	if m != nil {
@@ -164,13 +144,13 @@ func newWatcherForAlloc(c Config, watchedAllocID string, m AllocRunnerMeta) Prev
 // For allocs which are either running on another node or have already
 // terminated their alloc runners, use a remote backend which watches the alloc
 // status via rpc.
-func NewAllocWatcher(c Config) (PrevAllocWatcher, PrevAllocMigrator) {
+func NewAllocWatcher(c Config) (config.PrevAllocWatcher, config.PrevAllocMigrator) {
 	if c.Alloc.PreviousAllocation == "" && c.PreemptedRunners == nil {
 		return NoopPrevAlloc{}, NoopPrevAlloc{}
 	}
 
-	var prevAllocWatchers []PrevAllocWatcher
-	var prevAllocMigrator PrevAllocMigrator = NoopPrevAlloc{}
+	var prevAllocWatchers []config.PrevAllocWatcher
+	var prevAllocMigrator config.PrevAllocMigrator = NoopPrevAlloc{}
 
 	// We have a previous allocation, add its listener to the watchers, and
 	// use a migrator.
@@ -299,15 +279,7 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) e
 
 	p.logger.Debug("copying previous alloc")
 
-	moveErr := dest.Move(p.prevAllocDir, p.tasks)
-
-	// Always cleanup previous alloc
-	if err := p.prevAllocDir.Destroy(); err != nil {
-		p.logger.Error("error destroying alloc dir",
-			"error", err, "previous_alloc_dir", p.prevAllocDir.AllocDir)
-	}
-
-	return moveErr
+	return dest.Move(p.prevAllocDir, p.tasks)
 }
 
 // remotePrevAlloc is a prevAllocWatcher for previous allocations on remote

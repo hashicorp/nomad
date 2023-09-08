@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import AbstractAbility from './abstract';
 import { computed } from '@ember/object';
 import { and, or } from '@ember/object/computed';

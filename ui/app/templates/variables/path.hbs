@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{page-title "Variables: " this.absolutePath}}
 {{#each this.breadcrumbs as |crumb|}}
   <Breadcrumb @crumb={{crumb}} />
@@ -20,6 +25,11 @@
               @route="variables.new"
               @query={{hash path=(concat this.absolutePath "/")}}
               class="button is-primary"
+              {{keyboard-shortcut
+                pattern=(array "n" "v")
+                action=(action this.goToNewVariable)
+                label="Create Variable"
+              }}
             >
               Create Variable
             </LinkTo>

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -11,6 +14,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
@@ -1801,6 +1805,87 @@ func TestLeader_DiffNamespaces(t *testing.T) {
 
 	// ns2 is un-modified - ignore. ns3 modified, ns4 new.
 	assert.Equal(t, []string{ns3.Name, ns4.Name}, update)
+}
+
+func TestLeader_ReplicateNodePools(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
+		c.Region = "region1"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+	})
+	defer cleanupS1()
+	s2, _, cleanupS2 := TestACLServer(t, func(c *Config) {
+		c.Region = "region2"
+		c.AuthoritativeRegion = "region1"
+		c.ACLEnabled = true
+		c.ReplicationBackoff = 20 * time.Millisecond
+		c.ReplicationToken = root.SecretID
+	})
+	defer cleanupS2()
+	TestJoin(t, s1, s2)
+	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
+
+	// Write a node pool to the authoritative region
+	np1 := mock.NodePool()
+	must.NoError(t, s1.State().UpsertNodePools(
+		structs.MsgTypeTestSetup, 100, []*structs.NodePool{np1}))
+
+	// Wait for the node pool to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		store := s2.State()
+		out, err := store.NodePoolByName(nil, np1.Name)
+		return out != nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate node pool")
+	})
+
+	// Delete the node pool at the authoritative region
+	must.NoError(t, s1.State().DeleteNodePools(structs.MsgTypeTestSetup, 200, []string{np1.Name}))
+
+	// Wait for the namespace deletion to replicate
+	testutil.WaitForResult(func() (bool, error) {
+		store := s2.State()
+		out, err := store.NodePoolByName(nil, np1.Name)
+		return out == nil, err
+	}, func(err error) {
+		t.Fatalf("should replicate node pool deletion")
+	})
+}
+
+func TestLeader_DiffNodePools(t *testing.T) {
+	ci.Parallel(t)
+
+	state := state.TestStateStore(t)
+
+	// Populate the local state
+	np1, np2, np3 := mock.NodePool(), mock.NodePool(), mock.NodePool()
+	must.NoError(t, state.UpsertNodePools(
+		structs.MsgTypeTestSetup, 100, []*structs.NodePool{np1, np2, np3}))
+
+	// Simulate a remote list
+	rnp2 := np2.Copy()
+	rnp2.ModifyIndex = 50 // Ignored, same index
+	rnp3 := np3.Copy()
+	rnp3.ModifyIndex = 100 // Updated, higher index
+	rnp3.Description = "force a hash update"
+	rnp3.SetHash()
+	rnp4 := mock.NodePool()
+	remoteList := []*structs.NodePool{
+		rnp2,
+		rnp3,
+		rnp4,
+	}
+	delete, update := diffNodePools(state, 50, remoteList)
+	sort.Strings(delete)
+
+	// np1 does not exist on the remote side, should delete
+	test.Eq(t, []string{structs.NodePoolAll, structs.NodePoolDefault, np1.Name}, delete)
+
+	// np2 is un-modified - ignore. np3 modified, np4 new.
+	test.Eq(t, []*structs.NodePool{rnp3, rnp4}, update)
 }
 
 // waitForStableLeadership waits until a leader is elected and all servers

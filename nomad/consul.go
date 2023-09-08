@@ -1,9 +1,13 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -416,8 +419,10 @@ func (c *consulACLsAPI) singleRevoke(ctx context.Context, accessor *structs.SITo
 		return err
 	}
 
-	// Consul will no-op the deletion of a non-existent token (no error)
 	_, err := c.aclClient.TokenDelete(accessor.AccessorID, &api.WriteOptions{Namespace: accessor.ConsulNamespace})
+	if err != nil && strings.Contains(err.Error(), "Cannot find token to delete") {
+		return nil // Consul will error when deleting a non-existent token
+	}
 	return err
 }
 

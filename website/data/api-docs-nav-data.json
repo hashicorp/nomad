@@ -37,6 +37,10 @@
         "path": "acl/binding-rules"
       },
       {
+        "title": "Login",
+        "path": "acl/login"
+      },
+      {
         "title": "OIDC",
         "path": "acl/oidc"
       },
@@ -89,6 +93,10 @@
   {
     "title": "Nodes",
     "path": "nodes"
+  },
+  {
+    "title": "Node Pools",
+    "path": "node-pools"
   },
   {
     "title": "Metrics",

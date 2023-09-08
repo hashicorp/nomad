@@ -1,0 +1,37 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
+name: setup-js
+description: install node and yarn, and run yarn install
+inputs:
+  node-version:
+    description: 'node version'
+    # https://github.com/ember-cli/ember-cli/blob/master/docs/node-support.md
+    # package.json has ember-cli at version ~3.28.5 currently
+    default: '16'
+runs:
+  using: composite
+  steps:
+    - name: Install yarn
+      run: |-
+        # install yarn if not present
+        yarn --version && exit
+        # note: can't `npm install -g` on self-hosted runners
+        npm install yarn --no-package-lock --no-save
+        cd node_modules/.bin
+          ./yarn --version
+          echo "$PWD" >> "$GITHUB_PATH"
+      working-directory: /tmp
+      shell: bash
+    # enforce node version (self-hosted default is not necessarily what we want)
+    # after yarn, so we can use yarn for cache.
+    - name: Setup node
+      uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: yarn
+        cache-dependency-path: ui/yarn.lock
+    - name: Yarn install
+      run: yarn install --frozen-lockfile
+      working-directory: ui
+      shell: bash

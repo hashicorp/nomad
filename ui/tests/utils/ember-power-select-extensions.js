@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { click, settled } from '@ember/test-helpers';
 // TODO: Contribute these helpers back upstream once we are on the latest version of
 // ember-power-select (4.x)

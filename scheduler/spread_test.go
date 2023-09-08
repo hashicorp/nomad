@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -8,12 +11,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSpreadIterator_SingleAttribute(t *testing.T) {
@@ -558,6 +565,104 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 
 }
 
+func TestSpreadIterator_NoInfinity(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+	var nodes []*RankedNode
+
+	// Add 3 nodes in different DCs to the state store
+	for i := 1; i < 4; i++ {
+		node := mock.Node()
+		node.Datacenter = fmt.Sprintf("dc%d", i)
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node))
+		nodes = append(nodes, &RankedNode{Node: node})
+	}
+
+	static := NewStaticRankIterator(ctx, nodes)
+
+	job := mock.Job()
+	tg := job.TaskGroups[0]
+	job.TaskGroups[0].Count = 8
+
+	// Create spread target of 50% in dc1, 50% in dc2, and 0% in the implicit target
+	spread := &structs.Spread{
+		Weight:    100,
+		Attribute: "${node.datacenter}",
+		SpreadTarget: []*structs.SpreadTarget{
+			{
+				Value:   "dc1",
+				Percent: 50,
+			},
+			{
+				Value:   "dc2",
+				Percent: 50,
+			},
+			{
+				Value:   "*",
+				Percent: 0,
+			},
+		},
+	}
+	tg.Spreads = []*structs.Spread{spread}
+	spreadIter := NewSpreadIterator(ctx, static)
+	spreadIter.SetJob(job)
+	spreadIter.SetTaskGroup(tg)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, spreadIter)
+
+	out := collectRanked(scoreNorm)
+
+	// Scores should be even between dc1 and dc2 nodes, without an -Inf on dc3
+	must.Len(t, 3, out)
+	test.Eq(t, 0.75, out[0].FinalScore)
+	test.Eq(t, 0.75, out[1].FinalScore)
+	test.Eq(t, -1, out[2].FinalScore)
+
+	// Reset scores
+	for _, node := range nodes {
+		node.Scores = nil
+		node.FinalScore = 0
+	}
+
+	// Create very unbalanced spread target to force large negative scores
+	spread = &structs.Spread{
+		Weight:    100,
+		Attribute: "${node.datacenter}",
+		SpreadTarget: []*structs.SpreadTarget{
+			{
+				Value:   "dc1",
+				Percent: 99,
+			},
+			{
+				Value:   "dc2",
+				Percent: 1,
+			},
+			{
+				Value:   "*",
+				Percent: 0,
+			},
+		},
+	}
+	tg.Spreads = []*structs.Spread{spread}
+	static = NewStaticRankIterator(ctx, nodes)
+	spreadIter = NewSpreadIterator(ctx, static)
+	spreadIter.SetJob(job)
+	spreadIter.SetTaskGroup(tg)
+
+	scoreNorm = NewScoreNormalizationIterator(ctx, spreadIter)
+
+	out = collectRanked(scoreNorm)
+
+	// Scores should heavily favor dc1, with an -Inf on dc3
+	must.Len(t, 3, out)
+	desired := 8 * 0.99 // 8 allocs * 99%
+	test.Eq(t, (desired-1)/desired, out[0].FinalScore)
+	test.Eq(t, -11.5, out[1].FinalScore)
+	test.LessEq(t, out[1].FinalScore, out[2].FinalScore,
+		test.Sprintf("expected implicit dc3 to be <= dc2"))
+}
+
 func Test_evenSpreadScoreBoost(t *testing.T) {
 	ci.Parallel(t)
 
@@ -573,6 +678,7 @@ func Test_evenSpreadScoreBoost(t *testing.T) {
 			"dc3": 1,
 		},
 		targetAttribute: "${node.datacenter}",
+		targetValues:    &set.Set[string]{},
 	}
 
 	opt := &structs.Node{
@@ -746,7 +852,7 @@ func generateJob(jobSize int) *structs.Job {
 }
 
 func upsertJob(h *Harness, job *structs.Job) (*structs.Evaluation, error) {
-	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job)
+	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job)
 	if err != nil {
 		return nil, err
 	}
@@ -867,7 +973,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 
 	job1.Version = 1
 	job1.TaskGroups[0].Count = 5
-	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job1)
+	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job1)
 	require.NoError(t, err)
 
 	allocs := []*structs.Allocation{}
@@ -899,7 +1005,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	job2 := job1.Copy()
 	job2.Version = 2
 	job2.Spreads = nil
-	err = h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2)
+	err = h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2)
 	require.NoError(t, err)
 
 	eval := &structs.Evaluation{
@@ -917,4 +1023,135 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	processErr := h.Process(NewServiceScheduler, eval)
 	require.NoError(t, processErr, "failed to process eval")
 	require.Len(t, h.Plans, 1)
+}
+
+func TestSpread_ImplicitTargets(t *testing.T) {
+
+	dcs := []string{"dc1", "dc2", "dc3"}
+
+	setupNodes := func(h *Harness) map[string]string {
+		nodesToDcs := map[string]string{}
+		var nodes []*RankedNode
+
+		for i, dc := range dcs {
+			for n := 0; n < 4; n++ {
+				node := mock.Node()
+				node.Datacenter = dc
+				must.NoError(t, h.State.UpsertNode(
+					structs.MsgTypeTestSetup, uint64(100+i), node))
+				nodes = append(nodes, &RankedNode{Node: node})
+				nodesToDcs[node.ID] = node.Datacenter
+			}
+		}
+		return nodesToDcs
+	}
+
+	setupJob := func(h *Harness, testCaseSpread *structs.Spread) *structs.Evaluation {
+		job := mock.MinJob()
+		job.Datacenters = dcs
+		job.TaskGroups[0].Count = 12
+
+		job.TaskGroups[0].Spreads = []*structs.Spread{testCaseSpread}
+		must.NoError(t, h.State.UpsertJob(
+			structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+		eval := &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+			h.NextIndex(), []*structs.Evaluation{eval}))
+
+		return eval
+	}
+
+	testCases := []struct {
+		name   string
+		spread *structs.Spread
+		expect map[string]int
+	}{
+		{
+
+			name: "empty implicit target",
+			spread: &structs.Spread{
+				Weight:    100,
+				Attribute: "${node.datacenter}",
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+				},
+			},
+			expect: map[string]int{"dc1": 6},
+		},
+		{
+			name: "wildcard implicit target",
+			spread: &structs.Spread{
+				Weight:    100,
+				Attribute: "${node.datacenter}",
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+					{
+						Value:   "*",
+						Percent: 50,
+					},
+				},
+			},
+			expect: map[string]int{"dc1": 6},
+		},
+		{
+			name: "explicit targets",
+			spread: &structs.Spread{
+				Weight:    100,
+				Attribute: "${node.datacenter}",
+				SpreadTarget: []*structs.SpreadTarget{
+					{
+						Value:   "dc1",
+						Percent: 50,
+					},
+					{
+						Value:   "dc2",
+						Percent: 25,
+					},
+					{
+						Value:   "dc3",
+						Percent: 25,
+					},
+				},
+			},
+			expect: map[string]int{"dc1": 6, "dc2": 3, "dc3": 3},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := NewHarness(t)
+			nodesToDcs := setupNodes(h)
+			eval := setupJob(h, tc.spread)
+			must.NoError(t, h.Process(NewServiceScheduler, eval))
+			must.Len(t, 1, h.Plans)
+
+			plan := h.Plans[0]
+			must.False(t, plan.IsNoOp())
+
+			dcCounts := map[string]int{}
+			for node, allocs := range plan.NodeAllocation {
+				dcCounts[nodesToDcs[node]] += len(allocs)
+			}
+			for dc, expectVal := range tc.expect {
+				// not using test.MapEqual here because we have incomplete
+				// expectations for the implicit DCs on some tests.
+				test.Eq(t, expectVal, dcCounts[dc],
+					test.Sprintf("expected %d in %q", expectVal, dc))
+			}
+
+		})
+	}
 }

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package executor
 
 import (
@@ -25,8 +28,11 @@ const (
 
 // CreateExecutor launches an executor plugin and returns an instance of the
 // Executor interface
-func CreateExecutor(logger hclog.Logger, driverConfig *base.ClientDriverConfig,
-	executorConfig *ExecutorConfig) (Executor, *plugin.Client, error) {
+func CreateExecutor(
+	logger hclog.Logger,
+	driverConfig *base.ClientDriverConfig,
+	executorConfig *ExecutorConfig,
+) (Executor, *plugin.Client, error) {
 
 	c, err := json.Marshal(executorConfig)
 	if err != nil {

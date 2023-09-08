@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { alias } from '@ember/object/computed';
 import EmberObject, { computed } from '@ember/object';
 import { module, test } from 'qunit';

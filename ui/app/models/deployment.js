@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
@@ -18,7 +23,7 @@ export default class Deployment extends Model {
 
   // If any task group is not promoted yet requires promotion and the deployment
   // is still running, the deployment needs promotion.
-  @computed('status', 'taskGroupSummaries.@each.promoted')
+  @computed('status', 'taskGroupSummaries.@each.{promoted,requiresPromotion}')
   get requiresPromotion() {
     return (
       this.status === 'running' &&
@@ -29,6 +34,13 @@ export default class Deployment extends Model {
             summary.get('requiresPromotion') && !summary.get('promoted')
         )
     );
+  }
+
+  @computed('taskGroupSummaries.@each.autoPromote')
+  get isAutoPromoted() {
+    return this.taskGroupSummaries
+      .toArray()
+      .every((summary) => summary.get('autoPromote'));
   }
 
   @attr('string') status;

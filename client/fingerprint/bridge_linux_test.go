@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package fingerprint
 
 import (
@@ -16,11 +19,11 @@ func TestBridgeFingerprint_detect(t *testing.T) {
 	ci.Parallel(t)
 
 	f := &BridgeFingerprint{logger: testlog.HCLogger(t)}
-	require.NoError(t, f.detect("ip_tables"))
+	require.NoError(t, f.detect("kernel")) // kernel should be there.
 
 	err := f.detect("nonexistentmodule")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "3 errors occurred")
+	require.Contains(t, err.Error(), "4 errors occurred")
 }
 
 func writeFile(t *testing.T, prefix, content string) string {

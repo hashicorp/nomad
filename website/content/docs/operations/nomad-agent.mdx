@@ -82,22 +82,49 @@ There are several important messages that `nomad agent` outputs:
 
 ## Stopping an Agent
 
-An agent can be stopped in two ways: gracefully or forcefully. By default,
-any signal to an agent (interrupt, terminate, kill) will cause the agent
-to forcefully stop. Graceful termination can be configured by either
-setting `leave_on_interrupt` or `leave_on_terminate` to respond to the
+By default, any stop signal to an agent (interrupt or terminate) will cause the
+agent to exit after ensuring its internal state is committed to disk as
+needed. You can configuration additonal behaviors by setting shutdown
+[`leave_on_interrupt`][] or [`leave_on_terminate`][] to respond to the
 respective signals.
 
-When gracefully exiting, clients will update their status to terminal on
-the servers so that tasks can be migrated to healthy agents. Servers
-will notify their intention to leave the cluster which allows them to
-leave the [consensus](/nomad/docs/concepts/consensus) peer set.
+For servers, when `leave_on_interrupt` or `leave_on_terminate` are set the
+server will notify other servers of their intention to leave the cluster, which
+allows them to leave the [consensus][] peer set. It is especially important that
+a server node be allowed to leave gracefully so that there will be a minimal
+impact on availability as the server leaves the consensus peer set. If a server
+does not gracefully leave, and will not return into service, the [`server
+force-leave` command][] should be used to eject it from the consensus peer set.
 
-It is especially important that a server node be allowed to leave gracefully
-so that there will be a minimal impact on availability as the server leaves
-the consensus peer set. If a server does not gracefully leave, and will not
-return into service, the [`server force-leave` command](/nomad/docs/commands/server/force-leave)
-should be used to eject it from the consensus peer set.
+For clients, when `leave_on_interrupt` or `leave_on_terminate` are set and the
+client is configured with [`drain_on_shutdown`][], the client will drain its
+workloads before shutting down.
+
+## Signal Handling
+
+In addition to the optional handling of interrupt (`SIGINT`) and terminate
+signals (`SIGTERM`) described in [Stopping an Agent](#stopping-an-agent), Nomad
+supports special behavior for several other signals useful for debugging.
+
+* `SIGHUP` will cause Nomad to [reload its configuration][].
+* `SIGUSR1` will cause Nomad to print its [metrics][] without stopping the
+  agent.
+* `SIGQUIT`, `SIGILL`, `SIGTRAP`, `SIGABRT`, `SIGSTKFLT`, `SIGEMT`, or `SIGSYS`
+  signals are handled by the Go runtime and will cause the Nomad agent to exit
+  and print its stack trace.
+
+When using the official HashiCorp packages on Linux, you can send these signals
+via `systemctl`. For example, to print the Nomad agent's metrics:
+
+```shell-session
+$ sudo systemctl kill nomad -s SIGUSR1
+```
+
+You can then read those metrics in the service logs:
+
+```shell-session
+$ journalctl -u nomad
+```
 
 ## Lifecycle
 
@@ -150,3 +177,12 @@ require root privileges. While it is possible to run Nomad as an unprivileged
 user, careful testing must be done to ensure the task drivers and features
 you use function as expected. The Nomad client's data directory should be
 owned by `root` with filesystem permissions set to `0700`.
+
+
+[`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
+[`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
+[`server force-leave` command]: /nomad/docs/commands/server/force-leave
+[consensus]: /nomad/docs/concepts/consensus
+[`drain_on_shutdown`]: /nomad/docs/configuration/client#drain_on_shutdown
+[reload its configuration]: /nomad/docs/configuration#configuration-reload
+[metrics]: /nomad/docs/operations/metrics-reference

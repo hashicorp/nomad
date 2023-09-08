@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package oversubscription
 
 import (
@@ -72,7 +75,7 @@ func (tc *OversubscriptionTest) TestDocker(f *framework.F) {
 	alloc := tc.runTest(f, "oversubscription-docker-", "docker.nomad")
 
 	// check that cgroup reports the memoryMaxMB as the limit within he container
-	stdout, err := e2eutil.AllocLogs(alloc.ID, e2eutil.LogsStdOut)
+	stdout, err := e2eutil.AllocLogs(alloc.ID, "", e2eutil.LogsStdOut)
 	f.NoError(err)
 	f.Equal(fmt.Sprintf("%d\n", 30*1024*1024), stdout)
 }

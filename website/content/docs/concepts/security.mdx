@@ -17,7 +17,7 @@ workloads including Docker, non-containerized, microservice, and batch
 applications.
 
 Nomad utilizes a lightweight gossip and RPC system, [similar to
-Consul](/consul/docs/concepts/security), which provides
+Consul](/consul/docs/security/security-models/core), which provides
 various essential features. Both of these systems provide security mechanisms
 which should be utilized to help provide [confidentiality, integrity and
 authentication](https://en.wikipedia.org/wiki/Information_security).
@@ -37,11 +37,10 @@ but the general mechanisms for a secure Nomad deployment revolve around:
   authorization for authenticated connections by granting capabilities to ACL
   tokens.
 
-- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)**
-
-  - Access to read and write to a namespace can be
-    controlled to allow for granular access to job information managed within a
-    multi-tenant cluster.
+- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)** - 
+  Access to read and write to a namespace can be
+  controlled to allow for granular access to job information managed within a
+  multi-tenant cluster.
 
 - **[Sentinel Policies](/nomad/tutorials/governance-and-policy/sentinel)**
   (**Enterprise Only**) - Sentinel policies allow for granular control over

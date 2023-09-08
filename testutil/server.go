@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package testutil
 
 // TestServer is a test helper. It uses a fork/exec model to create
@@ -75,7 +78,8 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled      bool `json:"enabled"`
+	TotalCompute int  `json:"cpu_total_compute"`
 }
 
 // VaultConfig is used to configure Vault
@@ -84,6 +88,7 @@ type VaultConfig struct {
 	Address              string `json:"address"`
 	AllowUnauthenticated bool   `json:"allow_unauthenticated"`
 	Token                string `json:"token"`
+	Role                 string `json:"role"`
 }
 
 // ACLConfig is used to configure ACLs
@@ -357,7 +362,7 @@ func (s *TestServer) url(path string) string {
 
 // requireOK checks the HTTP response code and ensures it is acceptable.
 func (s *TestServer) requireOK(resp *http.Response) error {
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Bad status code: %d", resp.StatusCode)
 	}
 	return nil
@@ -365,7 +370,7 @@ func (s *TestServer) requireOK(resp *http.Response) error {
 
 // put performs a new HTTP PUT request.
 func (s *TestServer) put(path string, body io.Reader) *http.Response {
-	req, err := http.NewRequest("PUT", s.url(path), body)
+	req, err := http.NewRequest(http.MethodPut, s.url(path), body)
 	if err != nil {
 		s.t.Fatalf("err: %s", err)
 	}

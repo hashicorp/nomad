@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -10,13 +13,18 @@ import (
 type Consul struct {
 	// (Enterprise-only) Namespace represents a Consul namespace.
 	Namespace string `mapstructure:"namespace" hcl:"namespace,optional"`
+
+	// (Enterprise-only) Cluster represents a specific Consul cluster.
+	Cluster string `mapstructure:"cluster" hcl:"cluster,optional"`
 }
 
 // Canonicalize Consul into a canonical form. The Canonicalize structs containing
 // a Consul should ensure it is not nil.
 func (c *Consul) Canonicalize() {
-	// Nothing to do here.
-	//
+	if c.Cluster == "" {
+		c.Cluster = "default"
+	}
+
 	// If Namespace is nil, that is a choice of the job submitter that
 	// we should inherit from higher up (i.e. job<-group). Likewise, if
 	// Namespace is set but empty, that is a choice to use the default consul
@@ -27,6 +35,7 @@ func (c *Consul) Canonicalize() {
 func (c *Consul) Copy() *Consul {
 	return &Consul{
 		Namespace: c.Namespace,
+		Cluster:   c.Cluster,
 	}
 }
 

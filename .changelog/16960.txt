@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix a visual bug where evaluation response wasn't scrollable in the Web UI.
+```

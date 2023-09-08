@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # This file was used to generate basic.json from https://www.hcl2json.com/
 region = "foobar"
 
@@ -240,6 +243,17 @@ consul {
   auto_advertise         = true
   checks_use_advertise   = true
   timeout                = "5s"
+  use_identity           = true
+  service_identity {
+    aud  = ["consul.io", "nomad.dev"]
+    env  = false
+    file = true
+  }
+  template_identity {
+    aud  = ["consul.io"]
+    env  = true
+    file = false
+  }
 }
 
 vault {

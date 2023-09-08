@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import matchGlob from 'nomad-ui/utils/match-glob';
 import { module, test } from 'qunit';
 

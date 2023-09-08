@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fix address for ports in IPv6 networks
+```

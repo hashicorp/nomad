@@ -1,0 +1,3 @@
+```release-note:improvement
+cni: Ensure to setup CNI addresses in deterministic order
+```

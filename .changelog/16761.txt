@@ -1,0 +1,3 @@
+```release-note:improvement
+core: Prevent `task.kill_timeout` being greater than `update.progress_deadline`
+```

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
@@ -47,9 +52,9 @@ export default Factory.extend({
         });
       }
       if (!service.allocId) {
-        const servicedAlloc = pickOne(
-          server.db.allocations.filter((a) => a.jobId === 'service-haver') || []
-        );
+        const servicedAlloc = (server.db.allocations.filter(
+          (a) => a.jobId === 'service-haver'
+        ) || [])[0];
         if (servicedAlloc) {
           service.update({
             allocId: servicedAlloc.id,

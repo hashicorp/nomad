@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable qunit/require-expect */
 import {
   click,
@@ -638,6 +643,7 @@ module('Acceptance | evaluations list', function (hooks) {
 
   module('resource linking', function () {
     test('it should generate a link to the job resource', async function (assert) {
+      server.create('node-pool');
       server.create('node');
       const job = server.create('job', { id: 'example', shallow: true });
       server.create('evaluation', { jobId: job.id });
@@ -657,6 +663,7 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     test('it should generate a link to the node resource', async function (assert) {
+      server.create('node-pool');
       const node = server.create('node');
       server.create('evaluation', { nodeId: node.id });
       await visit('/evaluations');

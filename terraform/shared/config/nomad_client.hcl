@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 data_dir  = "/opt/nomad/data"
 bind_addr = "0.0.0.0"
 

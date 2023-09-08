@@ -1,7 +1,13 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 import { DATACENTERS } from '../common';
+import { scenario } from '../scenarios/default';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
 const AGENT_STATUSES = ['alive', 'leaving', 'left', 'failed'];
@@ -22,7 +28,7 @@ export default Factory.extend({
       Label: {
         TextColor: 'white',
         BackgroundColor: 'hotpink',
-        Text: 'Mirage',
+        Text: `Mirage - ${scenario}`,
       },
     },
     ACL: {

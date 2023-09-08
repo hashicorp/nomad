@@ -1,0 +1,3 @@
+```release-note:bug
+drain: Fixed a bug where drains would complete based on the server status and not the client status of an allocation
+```

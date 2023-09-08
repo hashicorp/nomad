@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias, readOnly } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
@@ -52,6 +57,9 @@ export default class IndexController extends Controller.extend(
     {
       qpVolume: 'volume',
     },
+    {
+      qpNodePool: 'nodePool',
+    },
   ];
 
   currentPage = 1;
@@ -70,12 +78,14 @@ export default class IndexController extends Controller.extend(
   qpDatacenter = '';
   qpVersion = '';
   qpVolume = '';
+  qpNodePool = '';
 
   @selection('qpClass') selectionClass;
   @selection('qpState') selectionState;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpVersion') selectionVersion;
   @selection('qpVolume') selectionVolume;
+  @selection('qpNodePool') selectionNodePool;
 
   @computed('nodes.[]', 'selectionClass')
   get optionsClass() {
@@ -159,11 +169,37 @@ export default class IndexController extends Controller.extend(
     return volumes.sort().map((volume) => ({ key: volume, label: volume }));
   }
 
+  @computed('selectionNodePool', 'model.nodePools.[]')
+  get optionsNodePool() {
+    const availableNodePools = this.model.nodePools.filter(
+      (p) => p.name !== 'all'
+    );
+
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set(
+        'qpNodePool',
+        serialize(
+          intersection(
+            availableNodePools.map(({ name }) => name),
+            this.selectionNodePool
+          )
+        )
+      );
+    });
+
+    return availableNodePools.map((nodePool) => ({
+      key: nodePool.name,
+      label: nodePool.name,
+    }));
+  }
+
   @computed(
     'nodes.[]',
     'selectionClass',
     'selectionState',
     'selectionDatacenter',
+    'selectionNodePool',
     'selectionVersion',
     'selectionVolume'
   )
@@ -172,6 +208,7 @@ export default class IndexController extends Controller.extend(
       selectionClass: classes,
       selectionState: states,
       selectionDatacenter: datacenters,
+      selectionNodePool: nodePools,
       selectionVersion: versions,
       selectionVolume: volumes,
     } = this;
@@ -196,6 +233,9 @@ export default class IndexController extends Controller.extend(
         !node.hostVolumes.find((volume) => volumes.includes(volume.name))
       )
         return false;
+      if (nodePools.length && !nodePools.includes(node.get('nodePool'))) {
+        return false;
+      }
 
       if (onlyIneligible && node.get('isEligible')) return false;
       if (onlyDraining && !node.get('isDraining')) return false;

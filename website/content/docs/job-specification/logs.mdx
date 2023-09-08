@@ -3,7 +3,7 @@ layout: docs
 page_title: logs Block - Job Specification
 description: |-
   The "logs" block configures the log rotation policy for a task's stdout and
-  stderr. Logging is enabled by default with sane defaults. The "logs" block
+  stderr. Logging is enabled by default with reasonable defaults. The "logs" block
   allows for finer-grained control over how Nomad handles log files.
 ---
 
@@ -12,10 +12,9 @@ description: |-
 <Placement groups={['job', 'group', 'task', 'logs']} />
 
 The `logs` block configures the log rotation policy for a task's `stdout` and
-`stderr`. Logging is enabled by default with sane defaults (provided in the
-parameters section below), and there is currently no way to disable logging for
-tasks. The `logs` block allows for finer-grained control over how Nomad handles
-log files.
+`stderr`. Logging is enabled by default with reasonable defaults (provided in
+the parameters section below). The `logs` block allows for finer-grained control
+over how Nomad handles log files.
 
 Nomad's log rotation works by writing stdout/stderr output from tasks to a file
 inside the `alloc/logs/` directory with the following format:
@@ -32,11 +31,16 @@ job "docs" {
       logs {
         max_files     = 10
         max_file_size = 10
+        disabled      = false
       }
     }
   }
 }
 ```
+
+Each job's logs will be written to ephemeral disk space. If you increase the total
+amount of logs on disk, you may want to increase ephemeral disk size as well. See
+the [ephemeral disk documentation][] for more information.
 
 For information on how to interact with logs after they have been configured,
 please see the [`nomad alloc logs`][logs-command] command.
@@ -52,6 +56,17 @@ please see the [`nomad alloc logs`][logs-command] command.
   the total amount of disk space needed to retain the rotated set of files,
   Nomad will return a validation error when a job is submitted.
 
+- `disabled` `(bool: false)` - Specifies that log collection should be enabled for
+  this task. If set to `true`, the task driver will attach stdout/stderr of the
+  task to `/dev/null` (or `NUL` on Windows). You should only disable log
+  collection if your application has some other way of emitting logs, such as
+  writing to a remote syslog server. Note that the `nomad alloc logs` command
+  and related APIs will return errors (404 "not found") if logging is disabled.
+
+  Some task drivers such as `docker` support a [`disable_log_collection`][]
+  option. If the task driver's `disable_log_collection` option is set to `true`,
+  it will override `disabled=false` in the task's `logs` block.
+
 ## `logs` Examples
 
 The following examples only show the `logs` blocks. Remember that the
@@ -60,7 +75,7 @@ The following examples only show the `logs` blocks. Remember that the
 ### Configure Defaults
 
 This example shows a default logging configuration. Yes, it is empty on purpose.
-Nomad automatically enables logging with sane defaults as described in the
+Nomad automatically enables logging with reasonable defaults as described in the
 parameters section above.
 
 ```hcl
@@ -81,3 +96,5 @@ logs {
 ```
 
 [logs-command]: /nomad/docs/commands/alloc/logs 'Nomad logs command'
+[`disable_log_collection`]: /nomad/docs/drivers/docker#disable_log_collection
+[ephemeral disk documentation]: /nomad/docs/job-specification/ephemeral_disk 'Nomad ephemeral disk Job Specification'

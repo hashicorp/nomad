@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package jobspec
 
 import (
@@ -259,6 +262,8 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 		valid := []string{
 			"max_files",
 			"max_file_size",
+			"enabled", // COMPAT(1.6.0): remove in favor of disabled
+			"disabled",
 		}
 		if err := checkHCLKeys(logsBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "logs ->")
@@ -309,8 +314,9 @@ func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	// If we have a vault block, then parse that
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		v := &api.Vault{
-			Env:        boolToPtr(true),
-			ChangeMode: stringToPtr("restart"),
+			Env:         boolToPtr(true),
+			DisableFile: boolToPtr(false),
+			ChangeMode:  stringToPtr("restart"),
 		}
 
 		if err := parseVault(v, o); err != nil {

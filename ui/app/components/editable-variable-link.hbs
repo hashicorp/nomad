@@ -1,0 +1,17 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{!-- Either link to a new variable with a pre-filled path, or the existing variable in edit mode, depending if it exists --}}
+{{#if (can "write variable")}}
+  {{#with (editable-variable-link @path existingPaths=@existingPaths namespace=@namespace) as |link|}}
+    {{#if link.model}}
+      <LinkTo @route={{link.route}} @model={{link.model}} @query={{link.query}}>{{@path}}</LinkTo>
+    {{else}}
+      <LinkTo @route={{link.route}} @query={{link.query}}>{{@path}}</LinkTo>
+    {{/if}}
+  {{/with}}
+{{else}}
+  @path
+{{/if}}

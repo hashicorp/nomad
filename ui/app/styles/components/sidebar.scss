@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 $topNavOffset: 112px;
 $subNavOffset: 49px;
 
@@ -35,6 +40,26 @@ $subNavOffset: 49px;
     left: -16px;
     box-shadow: -5px 0 10px -5px rgb(0 0 0 / 20%);
     border-radius: 16px;
+  }
+
+  &.evaluations-sidebar {
+    display: flex;
+    gap: 1.5rem;
+    flex-direction: column;
+
+    & > .evaluation-response {
+      display: grid;
+      min-height: 200px;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+      & > .boxed-section-body {
+        overflow: auto;
+      }
+    }
+    & > div,
+    h1.title {
+      margin: 0;
+    }
   }
 }
 

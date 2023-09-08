@@ -24,13 +24,17 @@ nomad tls ca create [options]
   `-additional-domain`. Can be used multiple times. This option can only used in
   combination with `-domain` and `-name-constraint`.
 
-- `common-name`: Common Name of CA. Defaults to Nomad Agent CA.
+- `-common-name`: Common Name of CA. Defaults to Nomad Agent CA.
+
+- `-country`: Country of the CA. Defaults to "US".
 
 - `-days=<int>`: Provide number of days the CA is valid for from now on,
   defaults to 5 years.
 
 - `-domain=<string>`: Domain of nomad cluster. Only used in combination with
   `-name-constraint`. Defaults to `nomad`.
+
+- `-locality`: Locality of the CA. Defaults to "San Francisco".
 
 - `-name-constraint`: Add name constraints for the CA. Results in rejecting
   certificates for other DNS than specified. If set to true, "localhost" and
@@ -39,6 +43,16 @@ nomad tls ca create [options]
 ~> **Warning:** If `-name-constraint` is enabled and you intend to serve the
   Nomad web UI over HTTPS its DNS must be added with `additional-domain`. It is
   not possible to add that after the fact.
+
+- `-organization`: Organization of the CA. Defaults to "HashiCorp Inc.".
+
+- `-organizational-unit`: Organizational Unit of the CA. Defaults to "Nomad".
+
+- `-postal-code`: Postal Code of the CA. Defaults to "94105".
+
+- `-province`: Province of the CA. Defaults to "CA".
+
+- `-street-address`: Street Address of the CA. Defaults to "101 Second Street".
 
 ## Example
 

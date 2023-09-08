@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package config
 
 import (
@@ -66,6 +69,7 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	conf.CgroupParent = "testing.slice"
 
 	conf.VaultConfig.Enabled = pointer.Of(false)
+	conf.VaultConfigs["default"].Enabled = pointer.Of(false)
 	conf.DevMode = true
 
 	// Loosen GC threshold

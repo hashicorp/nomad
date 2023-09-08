@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -77,7 +80,7 @@ func TestJobEvalCommand_Run(t *testing.T) {
 
 	// Create a job
 	job := mock.Job()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 11, nil, job)
 	require.Nil(err)
 
 	job, err = state.JobByID(nil, structs.DefaultNamespace, job.ID)
@@ -118,7 +121,7 @@ func TestJobEvalCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -141,7 +144,7 @@ func TestJobEvalCommand_ACL(t *testing.T) {
 	// Create a job.
 	job := mock.MinJob()
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
 	must.NoError(t, err)
 
 	testCases := []struct {

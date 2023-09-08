@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { copy } from 'ember-copy';
 import { get } from '@ember/object';
 import { makeArray } from '@ember/array';

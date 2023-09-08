@@ -1,14 +1,17 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	vapi "github.com/hashicorp/vault/api"
-	"golang.org/x/exp/slices"
 )
 
 // jobVaultHook is an job registration admission controller for Vault blocks.

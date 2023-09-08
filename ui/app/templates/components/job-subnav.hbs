@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div data-test-subnav="job" class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
     <li data-test-tab="overview">
@@ -39,43 +44,57 @@
         </LinkTo>
       </li>
     {{/if}}
-    <li data-test-tab="allocations">
-      <LinkTo
-        @route="jobs.job.allocations"
-        @model={{format-job-id @job.id}}
-        @activeClass="is-active"
-      >
-        Allocations
-      </LinkTo>
-    </li>
-    <li data-test-tab="evaluations">
-      <LinkTo
-        @route="jobs.job.evaluations"
-        @model={{@job}}
-        @activeClass="is-active"
-      >
-        Evaluations
-      </LinkTo>
-    </li>
-    {{#if this.shouldRenderClientsTab}}
-      <li data-test-tab="clients">
+    {{#unless this.shouldHideNonParentTabs}}
+      <li data-test-tab="allocations">
         <LinkTo
-          @route="jobs.job.clients"
+          @route="jobs.job.allocations"
+          @model={{format-job-id @job.id}}
+          @activeClass="is-active"
+        >
+          Allocations
+        </LinkTo>
+      </li>
+      <li data-test-tab="evaluations">
+        <LinkTo
+          @route="jobs.job.evaluations"
           @model={{@job}}
           @activeClass="is-active"
         >
-          Clients
+          Evaluations
+        </LinkTo>
+      </li>
+      {{#if this.shouldRenderClientsTab}}
+        <li data-test-tab="clients">
+          <LinkTo
+            @route="jobs.job.clients"
+            @model={{@job}}
+            @activeClass="is-active"
+          >
+            Clients
+          </LinkTo>
+        </li>
+      {{/if}}
+      <li data-test-tab="services">
+        <LinkTo
+          @route="jobs.job.services"
+          @model={{@job}}
+          @activeClass="is-active"
+        >
+          Services
+        </LinkTo>
+      </li>
+    {{/unless}}
+    {{#if (can "list variables")}}
+      <li data-test-tab="variables">
+        <LinkTo
+          @route="jobs.job.variables"
+          @model={{@job}}
+          @activeClass="is-active"
+        >
+          Variables
         </LinkTo>
       </li>
     {{/if}}
-    <li data-test-tab="services">
-      <LinkTo
-        @route="jobs.job.services"
-        @model={{@job}}
-        @activeClass="is-active"
-      >
-        Services
-      </LinkTo>
-    </li>
+
   </ul>
 </div>

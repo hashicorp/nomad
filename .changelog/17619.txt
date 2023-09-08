@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a panic when a node has only one configured dynamic port
+```

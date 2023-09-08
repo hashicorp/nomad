@@ -52,16 +52,17 @@ requests since they are not replicated between regions.
 ### Workload Identity
 
 Nomad allocations can receive workload identities in the form of a
-[JSON Web Token (JWT)][]. The
+[JSON Web Token (JWT)][jwt]. The
 [Workload Identity concept page][workload identity] has more information on
 this topic.
 
 ### Auth Method
 
 Authentication methods dictate how Nomad should talk to SSO providers when a
-user requests to authenticate using one. Currently, Nomad only supports the
-[OpenID Connect (OIDC)][oidc] SSO workflow which allows users to log in to Nomad
-via applications such as [Auth0][auth0], [Okta][okta], and [Vault][vault].
+user requests to authenticate using one. Currently, Nomad supports the [OpenID
+Connect (OIDC)][oidc] SSO workflow which allows users to log in to Nomad via
+applications such as [Auth0][auth0], [Okta][okta], and [Vault][vault], and
+non-interactive login via externally-issued [JSON Web Tokens (JWT)][jwt].
 
 ### Binding Rule
 
@@ -88,7 +89,7 @@ rules, and token marked as `Global`.
 [access control tutorials]: /nomad/tutorials/access-control
 [ACL policy reference doc]: /nomad/docs/other-specifications/acl-policy
 [authoritative region]: /nomad/docs/configuration/server#authoritative_region
-[JSON Web Token (JWT)]: https://datatracker.ietf.org/doc/html/rfc7519
+[jwt]: https://datatracker.ietf.org/doc/html/rfc7519
 [workload identity]: /nomad/docs/concepts/workload-identity
 [oidc]: https://openid.net/connect/
 [auth0]: https://auth0.com/

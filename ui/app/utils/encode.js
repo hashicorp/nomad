@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import base64js from 'base64-js';
 import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
 

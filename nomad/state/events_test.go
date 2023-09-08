@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package state
 
 import (
@@ -111,7 +114,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()
@@ -155,7 +158,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -232,7 +235,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, j, false, setupTx))
+	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -387,6 +390,62 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	require.Equal(t, structs.NodeStatusDown, event.Node.Status)
 }
 
+func TestEventsFromChanges_NodePoolUpsertRequestType(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	// Create test node pool.
+	pool := mock.NodePool()
+	err := s.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	// Update test node pool.
+	updated := pool.Copy()
+	updated.Meta["updated"] = "true"
+	err = s.UpsertNodePools(structs.NodePoolUpsertRequestType, 1001, []*structs.NodePool{updated})
+	must.NoError(t, err)
+
+	// Wait and verify update event.
+	events := WaitForEvents(t, s, 1001, 1, 1*time.Second)
+	must.Len(t, 1, events)
+
+	e := events[0]
+	must.Eq(t, structs.TopicNodePool, e.Topic)
+	must.Eq(t, structs.TypeNodePoolUpserted, e.Type)
+	must.Eq(t, pool.Name, e.Key)
+
+	payload := e.Payload.(*structs.NodePoolEvent)
+	must.Eq(t, updated, payload.NodePool)
+}
+
+func TestEventsFromChanges_NodePoolDeleteRequestType(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	// Create test node pool.
+	pool := mock.NodePool()
+	err := s.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t, err)
+
+	// Delete test node pool.
+	err = s.DeleteNodePools(structs.NodePoolDeleteRequestType, 1001, []string{pool.Name})
+	must.NoError(t, err)
+
+	// Wait and verify delete event.
+	events := WaitForEvents(t, s, 1001, 1, 1*time.Second)
+	must.Len(t, 1, events)
+
+	e := events[0]
+	must.Eq(t, structs.TopicNodePool, e.Topic)
+	must.Eq(t, structs.TypeNodePoolDeleted, e.Type)
+	must.Eq(t, pool.Name, e.Key)
+
+	payload := e.Payload.(*structs.NodePoolEvent)
+	must.Eq(t, pool, payload.NodePool)
+}
+
 func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	ci.Parallel(t)
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
@@ -437,7 +496,7 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	require.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, job))
+	require.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
@@ -584,7 +643,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 
 	alloc := mock.Alloc()
 
-	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, alloc.Job))
+	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, nil, alloc.Job))
 	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
 
 	msgType := structs.AllocUpdateDesiredTransitionRequestType

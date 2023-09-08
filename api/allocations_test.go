@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -156,6 +159,46 @@ func TestAllocations_CreateIndexSort(t *testing.T) {
 		{CreateIndex: 1},
 	}
 	must.Eq(t, allocs, expect)
+}
+
+func TestAllocations_Info(t *testing.T) {
+	testutil.RequireRoot(t)
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	a := c.Allocations()
+
+	// wait for node
+	_ = oneNodeFromNodeList(t, c.Nodes())
+
+	// Create a job and attempt to register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp)
+	must.UUIDv4(t, resp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// List allocations.
+	qo := &QueryOptions{
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err := a.List(qo)
+	must.NoError(t, err)
+	must.NonZero(t, qm.LastIndex)
+
+	// Check that we got one allocation.
+	must.Len(t, 1, allocs)
+	must.Eq(t, resp.EvalID, allocs[0].EvalID)
+
+	// Fetch alloc info.
+	qo.WaitIndex = qm.LastIndex
+	alloc, _, err := a.Info(allocs[0].ID, qo)
+
+	must.NotNil(t, alloc.NetworkStatus)
 }
 
 func TestAllocations_RescheduleInfo(t *testing.T) {

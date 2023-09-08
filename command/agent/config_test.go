@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
@@ -106,6 +109,7 @@ func TestConfig_Merge(t *testing.T) {
 			StateDir:  "/tmp/state1",
 			AllocDir:  "/tmp/alloc1",
 			NodeClass: "class1",
+			NodePool:  "dev",
 			Options: map[string]string{
 				"foo": "bar",
 			},
@@ -180,6 +184,7 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Origin": "*",
 		},
 		Vault: &config.VaultConfig{
+			Name:                 "default",
 			Token:                "1",
 			AllowUnauthenticated: &falseValue,
 			TaskTokenTTL:         "1",
@@ -190,6 +195,21 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "1",
 			TLSSkipVerify:        &falseValue,
 			TLSServerName:        "1",
+		},
+		Vaults: map[string]*config.VaultConfig{
+			"default": {
+				Name:                 "default",
+				Token:                "1",
+				AllowUnauthenticated: &falseValue,
+				TaskTokenTTL:         "1",
+				Addr:                 "1",
+				TLSCaFile:            "1",
+				TLSCaPath:            "1",
+				TLSCertFile:          "1",
+				TLSKeyFile:           "1",
+				TLSSkipVerify:        &falseValue,
+				TLSServerName:        "1",
+			},
 		},
 		Consul: &config.ConsulConfig{
 			ServerServiceName:    "1",
@@ -208,6 +228,26 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:       &falseValue,
 			ClientAutoJoin:       &falseValue,
 			ChecksUseAdvertise:   &falseValue,
+		},
+		Consuls: map[string]*config.ConsulConfig{
+			"default": {
+				ServerServiceName:    "1",
+				ClientServiceName:    "1",
+				AutoAdvertise:        &falseValue,
+				Addr:                 "1",
+				AllowUnauthenticated: &falseValue,
+				Timeout:              1 * time.Second,
+				Token:                "1",
+				Auth:                 "1",
+				EnableSSL:            &falseValue,
+				VerifySSL:            &falseValue,
+				CAFile:               "1",
+				CertFile:             "1",
+				KeyFile:              "1",
+				ServerAutoJoin:       &falseValue,
+				ClientAutoJoin:       &falseValue,
+				ChecksUseAdvertise:   &falseValue,
+			},
 		},
 		Autopilot: &config.AutopilotConfig{
 			CleanupDeadServers:      &falseValue,
@@ -294,6 +334,7 @@ func TestConfig_Merge(t *testing.T) {
 			StateDir:  "/tmp/state2",
 			AllocDir:  "/tmp/alloc2",
 			NodeClass: "class2",
+			NodePool:  "dev",
 			Servers:   []string{"server2"},
 			Meta: map[string]string{
 				"baz": "zip",
@@ -388,6 +429,7 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
 		Vault: &config.VaultConfig{
+			Name:                 "default",
 			Token:                "2",
 			AllowUnauthenticated: &trueValue,
 			TaskTokenTTL:         "2",
@@ -398,6 +440,21 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "2",
 			TLSSkipVerify:        &trueValue,
 			TLSServerName:        "2",
+		},
+		Vaults: map[string]*config.VaultConfig{
+			"default": {
+				Name:                 "default",
+				Token:                "2",
+				AllowUnauthenticated: &trueValue,
+				TaskTokenTTL:         "2",
+				Addr:                 "2",
+				TLSCaFile:            "2",
+				TLSCaPath:            "2",
+				TLSCertFile:          "2",
+				TLSKeyFile:           "2",
+				TLSSkipVerify:        &trueValue,
+				TLSServerName:        "2",
+			},
 		},
 		Consul: &config.ConsulConfig{
 			ServerServiceName:    "2",
@@ -416,6 +473,26 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:       &trueValue,
 			ClientAutoJoin:       &trueValue,
 			ChecksUseAdvertise:   &trueValue,
+		},
+		Consuls: map[string]*config.ConsulConfig{
+			"default": {
+				ServerServiceName:    "2",
+				ClientServiceName:    "2",
+				AutoAdvertise:        &trueValue,
+				Addr:                 "2",
+				AllowUnauthenticated: &trueValue,
+				Timeout:              2 * time.Second,
+				Token:                "2",
+				Auth:                 "2",
+				EnableSSL:            &trueValue,
+				VerifySSL:            &trueValue,
+				CAFile:               "2",
+				CertFile:             "2",
+				KeyFile:              "2",
+				ServerAutoJoin:       &trueValue,
+				ClientAutoJoin:       &trueValue,
+				ChecksUseAdvertise:   &trueValue,
+			},
 		},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{

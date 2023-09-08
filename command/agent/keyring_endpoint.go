@@ -1,11 +1,81 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/go-jose/go-jose/v3"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// jwksMinMaxAge is the minimum amount of time the JWKS endpoint will instruct
+// consumers to cache a response for.
+const jwksMinMaxAge = 15 * time.Minute
+
+// JWKSRequest is used to handle JWKS requests. JWKS stands for JSON Web Key
+// Sets and returns the public keys used for signing workload identities. Third
+// parties may use this endpoint to validate workload identities. Consumers
+// should cache this endpoint, preferably until an unknown kid is encountered.
+func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.GenericRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var rpcReply structs.KeyringListPublicResponse
+	if err := s.agent.RPC("Keyring.ListPublic", &args, &rpcReply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &rpcReply.QueryMeta)
+
+	// Key set will change after max(CreateTime) + RotationThreshold.
+	var newestKey int64
+	jwks := make([]jose.JSONWebKey, 0, len(rpcReply.PublicKeys))
+	for _, pubKey := range rpcReply.PublicKeys {
+		if pubKey.CreateTime > newestKey {
+			newestKey = pubKey.CreateTime
+		}
+
+		jwk := jose.JSONWebKey{
+			KeyID:     pubKey.KeyID,
+			Algorithm: pubKey.Algorithm,
+			Use:       pubKey.Use,
+		}
+
+		// Convert public key bytes to an ed25519 public key
+		if k, err := pubKey.GetPublicKey(); err == nil {
+			jwk.Key = k
+		} else {
+			s.logger.Warn("error getting public key. server is likely newer than client", "err", err)
+			continue
+		}
+
+		jwks = append(jwks, jwk)
+	}
+
+	// Have nonzero create times and threshold so set a reasonable cache time.
+	if newestKey > 0 && rpcReply.RotationThreshold > 0 {
+		exp := time.Unix(0, newestKey).Add(rpcReply.RotationThreshold)
+		maxAge := helper.ExpiryToRenewTime(exp, time.Now, jwksMinMaxAge)
+		resp.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d", int(maxAge.Seconds())))
+	}
+
+	out := &jose.JSONWebKeySet{
+		Keys: jwks,
+	}
+
+	return out, nil
+}
 
 // KeyringRequest is used route operator/raft API requests to the implementing
 // functions.

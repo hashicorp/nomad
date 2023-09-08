@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskrunner
 
 import (
@@ -50,7 +53,7 @@ func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
 
-	tr.logmonHookConfig = newLogMonHookConfig(task.Name, tr.taskDir.LogDir)
+	tr.logmonHookConfig = newLogMonHookConfig(task.Name, task.LogConfig, tr.taskDir.LogDir)
 
 	// Add the hook resources
 	tr.hookResources = &hookResources{}
@@ -69,6 +72,7 @@ func (tr *TaskRunner) initHooks() {
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
 		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
+		newWranglerHook(tr.wranglers, task.Name, alloc.ID, hookLogger),
 	}
 
 	// If the task has a CSI block, add the hook.
@@ -108,14 +112,15 @@ func (tr *TaskRunner) initHooks() {
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
-			logger:          hookLogger,
-			lifecycle:       tr,
-			events:          tr,
-			templates:       task.Templates,
-			clientConfig:    tr.clientConfig,
-			envBuilder:      tr.envBuilder,
-			consulNamespace: consulNamespace,
-			nomadNamespace:  tr.alloc.Job.Namespace,
+			logger:              hookLogger,
+			lifecycle:           tr,
+			events:              tr,
+			templates:           task.Templates,
+			clientConfig:        tr.clientConfig,
+			envBuilder:          tr.envBuilder,
+			consulNamespace:     consulNamespace,
+			nomadNamespace:      tr.alloc.Job.Namespace,
+			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
 		}))
 	}
 

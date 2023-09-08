@@ -1,14 +1,14 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
@@ -453,40 +453,4 @@ type ErrCASConflict struct {
 
 func (e ErrCASConflict) Error() string {
 	return fmt.Sprintf("cas conflict: expected ModifyIndex %v; found %v", e.CheckIndex, e.Conflict.ModifyIndex)
-}
-
-// doRequestWrapper is a function that wraps the client's doRequest method
-// and can be used to provide error and response handling
-type doRequestWrapper = func(time.Duration, *http.Response, error) (time.Duration, *http.Response, error)
-
-// requireStatusIn is a doRequestWrapper generator that takes expected HTTP
-// response codes and validates that the received response code is among them
-func requireStatusIn(statuses ...int) doRequestWrapper {
-	fn := func(d time.Duration, resp *http.Response, e error) (time.Duration, *http.Response, error) {
-		if e != nil {
-			if resp != nil {
-				_ = resp.Body.Close()
-			}
-			return d, nil, e
-		}
-
-		for _, status := range statuses {
-			if resp.StatusCode == status {
-				return d, resp, nil
-			}
-		}
-
-		return d, nil, generateUnexpectedResponseCodeError(resp)
-	}
-	return fn
-}
-
-// generateUnexpectedResponseCodeError creates a standardized error
-// when the the API client's newRequest method receives an unexpected
-// HTTP response code when accessing the variable's HTTP API
-func generateUnexpectedResponseCodeError(resp *http.Response) error {
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, resp.Body)
-	_ = resp.Body.Close()
-	return fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
 }

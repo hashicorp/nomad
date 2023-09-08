@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -20,8 +23,13 @@ import (
 	"github.com/kr/text"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-
 	"github.com/ryanuber/columnize"
+)
+
+const (
+	formatJSON = "json"
+	formatHCL1 = "hcl1"
+	formatHCL2 = "hcl2"
 )
 
 // maxLineLength is the maximum width of any line.
@@ -422,19 +430,11 @@ func (j *JobGetter) Validate() error {
 }
 
 // ApiJob returns the Job struct from jobfile.
-func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
-	return j.ApiJobWithArgs(jpath, nil, nil, true)
-}
-
-func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string, strict bool) (*api.Job, error) {
-	j.Vars = vars
-	j.VarFiles = varfiles
-	j.Strict = strict
-
+func (j *JobGetter) ApiJob(jpath string) (*api.JobSubmission, *api.Job, error) {
 	return j.Get(jpath)
 }
 
-func (j *JobGetter) Get(jpath string) (*api.Job, error) {
+func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -447,23 +447,23 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		pathName = "stdin"
 	default:
 		if len(jpath) == 0 {
-			return nil, fmt.Errorf("Error jobfile path has to be specified.")
+			return nil, nil, fmt.Errorf("Error jobfile path has to be specified.")
 		}
 
 		jobFile, err := os.CreateTemp("", "jobfile")
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		defer os.Remove(jobFile.Name())
 
 		if err := jobFile.Close(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// Get the pwd
 		pwd, err := os.Getwd()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		client := &gg.Client{
@@ -476,11 +476,11 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		}
 
 		if err := client.Get(); err != nil {
-			return nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
+			return nil, nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
 		} else {
 			file, err := os.Open(jobFile.Name())
 			if err != nil {
-				return nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
+				return nil, nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
 			}
 			defer file.Close()
 			jobfile = file
@@ -488,12 +488,22 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 	}
 
 	// Parse the JobFile
-	var jobStruct *api.Job
+	var jobStruct *api.Job               // deserialized destination
+	var source bytes.Buffer              // tee the original
+	var jobSubmission *api.JobSubmission // store the original and format
+	jobfile = io.TeeReader(jobfile, &source)
 	var err error
 	switch {
 	case j.HCL1:
 		jobStruct, err = jobspec.Parse(jobfile)
+
+		// include the hcl1 source as the submission
+		jobSubmission = &api.JobSubmission{
+			Source: source.String(),
+			Format: formatHCL1,
+		}
 	case j.JSON:
+
 		// Support JSON files with both a top-level Job key as well as
 		// ones without.
 		eitherJob := struct {
@@ -502,7 +512,7 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		}{}
 
 		if err := json.NewDecoder(jobfile).Decode(&eitherJob); err != nil {
-			return nil, fmt.Errorf("Failed to parse JSON job: %w", err)
+			return nil, nil, fmt.Errorf("Failed to parse JSON job: %w", err)
 		}
 
 		if eitherJob.NestedJob != nil {
@@ -510,15 +520,24 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 		} else {
 			jobStruct = &eitherJob.Job
 		}
-	default:
-		var buf bytes.Buffer
-		_, err = io.Copy(&buf, jobfile)
-		if err != nil {
-			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+
+		// include the json source as the submission
+		jobSubmission = &api.JobSubmission{
+			Source: source.String(),
+			Format: formatJSON,
 		}
+	default:
+		// we are parsing HCL2
+
+		// make a copy of the job file (or stdio)
+		if _, err = io.Copy(&source, jobfile); err != nil {
+			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
+		}
+
+		// we are parsing HCL2, whether from a file or stdio
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
-			Body:     buf.Bytes(),
+			Body:     source.Bytes(),
 			ArgVars:  j.Vars,
 			AllowFS:  true,
 			VarFiles: j.VarFiles,
@@ -526,18 +545,65 @@ func (j *JobGetter) Get(jpath string) (*api.Job, error) {
 			Strict:   j.Strict,
 		})
 
+		var varFileCat string
+		var readVarFileErr error
+		if err == nil {
+			// combine any -var-file data into one big blob
+			varFileCat, readVarFileErr = extractVarFiles([]string(j.VarFiles))
+			if readVarFileErr != nil {
+				return nil, nil, fmt.Errorf("Failed to read var file(s): %w", readVarFileErr)
+			}
+		}
+
+		// submit the job with the submission with content from -var flags
+		jobSubmission = &api.JobSubmission{
+			VariableFlags: extractVarFlags(j.Vars),
+			Variables:     varFileCat,
+			Source:        source.String(),
+			Format:        formatHCL2,
+		}
 		if err != nil {
-			if _, merr := jobspec.Parse(&buf); merr == nil {
-				return nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
+			if _, merr := jobspec.Parse(&source); merr == nil {
+				return nil, nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
 			}
 		}
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
+		return nil, nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
 
-	return jobStruct, nil
+	return jobSubmission, jobStruct, nil
+}
+
+// extractVarFiles concatenates the content of each file in filenames and
+// returns it all as one big content blob
+func extractVarFiles(filenames []string) (string, error) {
+	var sb strings.Builder
+	for _, filename := range filenames {
+		b, err := os.ReadFile(filename)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(string(b))
+		sb.WriteString("\n")
+	}
+	return sb.String(), nil
+}
+
+// extractVarFlags is used to parse the values of -var command line arguments
+// and turn them into a map to be used for submission. The result is never
+// nil for convenience.
+func extractVarFlags(slice []string) map[string]string {
+	m := make(map[string]string, len(slice))
+	for _, s := range slice {
+		if tokens := strings.SplitN(s, "=", 2); len(tokens) == 1 {
+			m[tokens[0]] = ""
+		} else {
+			m[tokens[0]] = tokens[1]
+		}
+	}
+	return m
 }
 
 // mergeAutocompleteFlags is used to join multiple flag completion sets.

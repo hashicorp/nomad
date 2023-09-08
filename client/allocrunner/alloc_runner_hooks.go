@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocrunner
 
 import (
@@ -5,41 +8,12 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
-
-type hookResourceSetter interface {
-	GetAllocHookResources() *cstructs.AllocHookResources
-	SetAllocHookResources(*cstructs.AllocHookResources)
-}
-
-type allocHookResourceSetter struct {
-	ar *allocRunner
-}
-
-func (a *allocHookResourceSetter) GetAllocHookResources() *cstructs.AllocHookResources {
-	a.ar.hookStateMu.RLock()
-	defer a.ar.hookStateMu.RUnlock()
-
-	return a.ar.hookState
-}
-
-func (a *allocHookResourceSetter) SetAllocHookResources(res *cstructs.AllocHookResources) {
-	a.ar.hookStateMu.Lock()
-	defer a.ar.hookStateMu.Unlock()
-
-	a.ar.hookState = res
-
-	// Propagate to all of the TRs within the lock to ensure consistent state.
-	// TODO: Refactor so TR's pull state from AR?
-	for _, tr := range a.ar.tasks {
-		tr.SetAllocHookResources(res)
-	}
-}
 
 // allocHealthSetter is a shim to allow the alloc health watcher hook to set
 // and clear the alloc health without full access to the alloc runner state
@@ -117,10 +91,6 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// create network isolation setting shim
 	ns := &allocNetworkIsolationSetter{ar: ar}
 
-	// create hook resource setting shim
-	hrs := &allocHookResourceSetter{ar: ar}
-	hrs.SetAllocHookResources(&cstructs.AllocHookResources{})
-
 	// build the network manager
 	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
 	if err != nil {
@@ -149,7 +119,6 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newCgroupHook(ar.Alloc(), ar.cpusetManager),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulClient, ar.checkStore),
@@ -166,8 +135,11 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		}),
 		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig, config.Node.Attributes),
 		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
-		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, hrs, ar.clientConfig.Node.SecretID),
+		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
 		newChecksHook(hookLogger, alloc, ar.checkStore, ar),
+	}
+	if config.ExtraAllocHooks != nil {
+		ar.runnerHooks = append(ar.runnerHooks, config.ExtraAllocHooks...)
 	}
 
 	return nil

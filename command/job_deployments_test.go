@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -61,7 +64,7 @@ func TestJobDeploymentsCommand_Run(t *testing.T) {
 	// Create a job without a deployment
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
 	// Should display no match if the job doesn't have deployments
 	if code := cmd.Run([]string{"-address=" + url, job.ID}); code != 0 {
@@ -105,7 +108,7 @@ func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
 	// Create a job without a deployment
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
 	// Should display no match if the job doesn't have deployments
 	if code := cmd.Run([]string{"-address=" + url, "-latest", job.ID}); code != 0 {
@@ -145,7 +148,7 @@ func TestJobDeploymentsCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -168,7 +171,7 @@ func TestJobDeploymentsCommand_ACL(t *testing.T) {
 	// Create a job with a deployment.
 	job := mock.Job()
 	state := srv.Agent.Server().State()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
 	must.NoError(t, err)
 
 	d := mock.Deployment()

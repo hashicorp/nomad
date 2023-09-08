@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocrunner
 
 import (
@@ -6,18 +9,18 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocwatcher"
+	"github.com/hashicorp/nomad/client/config"
 )
 
 // diskMigrationHook migrates ephemeral disk volumes. Depends on alloc dir
 // being built but must be run before anything else manipulates the alloc dir.
 type diskMigrationHook struct {
 	allocDir     *allocdir.AllocDir
-	allocWatcher allocwatcher.PrevAllocMigrator
+	allocWatcher config.PrevAllocMigrator
 	logger       log.Logger
 }
 
-func newDiskMigrationHook(logger log.Logger, allocWatcher allocwatcher.PrevAllocMigrator, allocDir *allocdir.AllocDir) *diskMigrationHook {
+func newDiskMigrationHook(logger log.Logger, allocWatcher config.PrevAllocMigrator, allocDir *allocdir.AllocDir) *diskMigrationHook {
 	h := &diskMigrationHook{
 		allocDir:     allocDir,
 		allocWatcher: allocWatcher,

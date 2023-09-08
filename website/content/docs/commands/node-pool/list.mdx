@@ -1,0 +1,132 @@
+---
+layout: docs
+page_title: 'Commands: node pool list'
+description: |
+  The node pool list command is used to list node pools.
+---
+
+# Command: node pool list
+
+The `node pool list` command is used to list existing node pools.
+
+## Usage
+
+```plaintext
+nomad node pool list [options] <node-pool>
+```
+
+If ACLs are enabled, this command requires a management token to view all node
+pools. A non-management token can be used to list node pools for which the
+token has the 'read' capability.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## List Options
+
+- `-filter`: Specifies an expression used to [filter results][api_filtering].
+
+- `-json`: Output the node pools in JSON format.
+
+- `-page-token`: Where to start [pagination][api_pagination].
+
+- `-per-page`: How many results to show per page. If not specified, or set to
+  `0`, all results are returned.
+
+- `-t`: Format and display node pools using a Go template.
+
+## Examples
+
+List all node pools:
+
+```shell-session
+$ nomad node pool list
+Name     Description
+all      Node pool with all nodes in the cluster.
+default  Default node pool.
+dev      Node pool for dev workloads.
+prod     Node pool for production workloads.
+```
+
+Retrieve information in JSON format:
+
+```shell-session
+$ nomad node pool list -json
+[
+    {
+        "CreateIndex": 1,
+        "Description": "Node pool with all nodes in the cluster.",
+        "Meta": null,
+        "ModifyIndex": 1,
+        "Name": "all",
+        "SchedulerConfiguration": null
+    },
+    {
+        "CreateIndex": 1,
+        "Description": "Default node pool.",
+        "Meta": null,
+        "ModifyIndex": 1,
+        "Name": "default",
+        "SchedulerConfiguration": null
+    },
+    {
+        "CreateIndex": 21,
+        "Description": "Node pool for dev workloads.",
+        "Meta": {
+            "env": "development"
+        },
+        "ModifyIndex": 21,
+        "Name": "dev",
+        "SchedulerConfiguration": null
+    },
+    {
+        "CreateIndex": 39,
+        "Description": "Node pool for production workloads.",
+        "Meta": {
+            "env": "production"
+        },
+        "ModifyIndex": 39,
+        "Name": "prod",
+        "SchedulerConfiguration": {
+            "SchedulerAlgorithm": "spread"
+        }
+    }
+]
+```
+
+Customize output with a Go template:
+
+```shell-session
+$ nomad node pool list -t '{{range .}}{{.Name}} [{{.Meta.env}}] - {{.Description}}{{println}}{{end}}'
+all [<no value>] - Node pool with all nodes in the cluster.
+default [<no value>] - Default node pool.
+dev [development] - Node pool for dev workloads.
+prod [production] - Node pool for production workloads.
+```
+
+```shell-session
+$ nomad node pool info -t "{{.Name}} [{{.Meta.env}}] - {{.Description}}" prod
+prod [production] - Node pool for production workloads.
+```
+
+Paginate list:
+
+```shell-session
+$ nomad node pool list -per-page 2
+Name     Description
+all      Node pool with all nodes in the cluster.
+default  Default node pool.
+
+Results have been paginated. To get the next page run:
+
+nomad node pool list -per-page 2 -page-token dev
+
+$ nomad node pool list -per-page 2 -page-token dev
+Name  Description
+dev   Node pool for dev workloads.
+prod  Node pool for production workloads.
+```
+
+[api_filtering]: /nomad/api-docs#filtering
+[api_pagination]: /nomad/api-docs#pagination

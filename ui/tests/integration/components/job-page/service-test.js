@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
@@ -26,6 +31,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
+    this.server.create('node-pool');
+    this.server.create('node');
   });
 
   hooks.afterEach(function () {
@@ -39,7 +46,10 @@ module('Integration | Component | job-page/service', function (hooks) {
       @sortProperty={{sortProperty}}
       @sortDescending={{sortDescending}}
       @currentPage={{currentPage}}
-      @gotoJob={{gotoJob}} />
+      @gotoJob={{gotoJob}}
+      @statusMode={{statusMode}}
+      @setStatusMode={{setStatusMode}}
+      />
   `;
 
   const commonProperties = (job) => ({
@@ -48,6 +58,8 @@ module('Integration | Component | job-page/service', function (hooks) {
     sortDescending: true,
     currentPage: 1,
     gotoJob() {},
+    statusMode: 'current',
+    setStatusMode() {},
   });
 
   const makeMirageJob = (server, props = {}) =>
@@ -98,7 +110,7 @@ module('Integration | Component | job-page/service', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(2);
+    assert.expect(1);
 
     const mirageJob = makeMirageJob(this.server, { status: 'dead' });
     await this.store.findAll('job');
@@ -126,7 +138,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-
     await expectError(assert, 'Could Not Start Job');
   });
 
@@ -267,7 +278,11 @@ module('Integration | Component | job-page/service', function (hooks) {
       'The error message mentions ACLs'
     );
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(
+      this.element,
+      assert,
+      'scrollable-region-focusable'
+    ); //keyframe animation fades from opacity 0
 
     await click('[data-test-job-error-close]');
 
@@ -289,8 +304,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await click('[data-test-active-deployment] [data-test-idle-button]');
-    await click('[data-test-active-deployment] [data-test-confirm-button]');
+    await click('.active-deployment [data-test-fail]');
 
     const requests = this.server.pretender.handledRequests;
 
@@ -317,8 +331,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await click('[data-test-active-deployment] [data-test-idle-button]');
-    await click('[data-test-active-deployment] [data-test-confirm-button]');
+    await click('.active-deployment [data-test-fail]');
 
     assert.equal(
       find('[data-test-job-error-title]').textContent,
@@ -330,7 +343,11 @@ module('Integration | Component | job-page/service', function (hooks) {
       'The error message mentions ACLs'
     );
 
-    await componentA11yAudit(this.element, assert);
+    await componentA11yAudit(
+      this.element,
+      assert,
+      'scrollable-region-focusable'
+    ); //keyframe animation fades from opacity 0
 
     await click('[data-test-job-error-close]');
 

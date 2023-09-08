@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <div data-test-topo-viz-node class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
   {{#unless @isDense}}
     <p data-test-label class="label">
@@ -6,11 +11,15 @@
       {{else if (not @node.node.isEligible)}}
         <span data-test-status-icon class="tooltip" aria-label="Client is ineligible">{{x-icon "lock-closed" class="is-warning"}}</span>
       {{/if}}
-      <strong><LinkTo @route="clients.client" @model={{@node.node.id}}>{{@node.node.name}}</LinkTo></strong>
-      <span class="bumper-left">{{this.count}} Allocs</span>
-      <span class="bumper-left is-faded">{{format-scheduled-bytes @node.memory start="MiB"}}, {{format-scheduled-hertz @node.cpu}}</span>
-      <span class="bumper-left is-faded">{{@node.node.status}}</span>
-      <span class="bumper-left is-faded">{{@node.node.version}}</span>
+      <span class="tooltip" aria-label="Node Name"><strong><LinkTo @route="clients.client" @model={{@node.node.id}}>{{@node.node.name}}</LinkTo></strong></span>
+      <span class="bumper-left tooltip" aria-label="Number of Allocations">{{this.count}} Allocs</span>
+      <span class="bumper-left is-faded tooltip" aria-label="Node Pool">{{@node.node.nodePool}}</span>
+      <span class="bumper-left is-faded">
+        <span class="tooltip" aria-label="Node Memory">{{format-scheduled-bytes @node.memory start="MiB"}}</span>,
+        <span class="tooltip" aria-label="Node CPU">{{format-scheduled-hertz @node.cpu}}</span>
+      </span>
+      <span class="bumper-left is-faded tooltip" aria-label="Node Status">{{@node.node.status}}</span>
+      <span class="bumper-left is-faded tooltip" aria-label="Nomad Version">{{@node.node.version}}</span>
     </p>
   {{/unless}}
   <svg

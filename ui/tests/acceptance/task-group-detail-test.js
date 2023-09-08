@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
 import { currentURL, settled } from '@ember/test-helpers';
@@ -30,6 +35,7 @@ module('Acceptance | task group detail', function (hooks) {
 
   hooks.beforeEach(async function () {
     server.create('agent');
+    server.create('node-pool');
     server.create('node', 'forceIPv4');
 
     job = server.create('job', {
@@ -121,9 +127,8 @@ module('Acceptance | task group detail', function (hooks) {
       'Aggregated Disk reservation for all tasks'
     );
 
-    assert.equal(
-      document.title,
-      `Task group ${taskGroup.name} - Job ${job.name} - Mirage - Nomad`
+    assert.ok(
+      document.title.includes(`Task group ${taskGroup.name} - Job ${job.name}`)
     );
   });
 

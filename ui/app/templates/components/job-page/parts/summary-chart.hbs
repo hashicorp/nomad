@@ -1,0 +1,67 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#if @job.hasChildren}}
+  <ChildrenStatusBar
+    @allocationContainer={{@job.summary}}
+    @job={{@job.summary}}
+    @class="split-view" as |chart|
+  >
+    <ol data-test-legend class="legend">
+      {{#each chart.data as |datum index|}}
+        <li
+          class="{{datum.className}}
+
+            {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+
+            {{if (eq datum.value 0) "is-empty"}}"
+        >
+          <JobPage::Parts::SummaryLegendItem
+            @datum={{datum}}
+            @index={{index}}
+          />
+        </li>
+      {{/each}}
+    </ol>
+  </ChildrenStatusBar>
+{{else}}
+  <AllocationStatusBar
+    @allocationContainer={{@job.summary}}
+    @job={{@job}}
+    @onSliceClick={{this.onSliceClick}}
+    @class="split-view" as |chart|
+  >
+    <ol data-test-legend class="legend">
+      {{#each chart.data as |datum index|}}
+        <li
+          data-test-legend-label="{{datum.className}}"
+          class="{{datum.className}}
+
+            {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+
+            {{if (eq datum.value 0) "is-empty" "is-clickable"}}"
+        >
+          {{#if (and (gt datum.value 0) datum.legendLink)}}
+            <LinkTo
+              @route="jobs.job.allocations"
+              @model={{@job}}
+              @query={{datum.legendLink.queryParams}}
+            >
+              <JobPage::Parts::SummaryLegendItem
+                @datum={{datum}}
+                @index={{index}}
+              />
+            </LinkTo>
+          {{else}}
+            <JobPage::Parts::SummaryLegendItem
+              @datum={{datum}}
+              @index={{index}}
+            />
+          {{/if}}
+        </li>
+      {{/each}}
+    </ol>
+  </AllocationStatusBar>
+{{/if}}

@@ -1,0 +1,3 @@
+```release-note:improvement
+runtime: Added 'os.build' attribute to node fingerprint on windows os
+```

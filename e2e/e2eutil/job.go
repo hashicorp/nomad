@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package e2eutil
 
 import (
@@ -12,15 +15,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test"
 )
 
 // Register registers a jobspec from a file but with a unique ID.
 // The caller is responsible for recording that ID for later cleanup.
 func Register(jobID, jobFilePath string) error {
+	_, err := RegisterGetOutput(jobID, jobFilePath)
+	return err
+}
+
+// RegisterGetOutput registers a jobspec from a file but with a unique ID.
+// The caller is responsible for recording that ID for later cleanup.
+// Also returns the CLI output from running 'job run'.
+func RegisterGetOutput(jobID, jobFilePath string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	return execCmd(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", "job", "run", "-detach", "-"))
+	b, err := execCmd(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", "job", "run", "-detach", "-"))
+	return string(b), err
 }
 
 // RegisterWithArgs registers a jobspec from a file but with a unique ID. The
@@ -33,7 +45,8 @@ func RegisterWithArgs(jobID, jobFilePath string, args ...string) error {
 	baseArgs = append(baseArgs, "-")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	return execCmd(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", baseArgs...))
+	_, err := execCmd(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", baseArgs...))
+	return err
 }
 
 // Revert reverts the job to the given version.
@@ -41,18 +54,19 @@ func Revert(jobID, jobFilePath string, version int) error {
 	args := []string{"job", "revert", "-detach", jobID, strconv.Itoa(version)}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	return execCmd(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", args...))
+	_, err := execCmd(jobID, jobFilePath, exec.CommandContext(ctx, "nomad", args...))
+	return err
 }
 
-func execCmd(jobID, jobFilePath string, cmd *exec.Cmd) error {
+func execCmd(jobID, jobFilePath string, cmd *exec.Cmd) ([]byte, error) {
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		return fmt.Errorf("could not open stdin?: %w", err)
+		return nil, fmt.Errorf("could not open stdin?: %w", err)
 	}
 
 	content, err := os.ReadFile(jobFilePath)
 	if err != nil {
-		return fmt.Errorf("could not open job file: %w", err)
+		return nil, fmt.Errorf("could not open job file: %w", err)
 	}
 
 	// hack off the job block to replace with our unique ID
@@ -69,9 +83,9 @@ func execCmd(jobID, jobFilePath string, cmd *exec.Cmd) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("could not register job: %w\n%v", err, string(out))
+		return out, fmt.Errorf("could not register job: %w\n%v", err, string(out))
 	}
-	return nil
+	return out, nil
 }
 
 // PeriodicForce forces a periodic job to dispatch
@@ -248,10 +262,24 @@ func CleanupJobsAndGC(t *testing.T, jobIDs *[]string) func() {
 	return func() {
 		for _, jobID := range *jobIDs {
 			err := StopJob(jobID, "-purge", "-detach")
-			assert.NoError(t, err)
+			test.NoError(t, err)
 		}
 		_, err := Command("nomad", "system", "gc")
-		assert.NoError(t, err)
+		test.NoError(t, err)
+	}
+}
+
+// MaybeCleanupJobsAndGC stops and purges the list of jobIDs and runs a
+// system gc. Returns a func so that the return value can be used
+// in t.Cleanup. Similar to CleanupJobsAndGC, but this one does not assert
+// on a successful stop and gc, which is useful for tests that want to stop and
+// gc the jobs themselves but we want a backup Cleanup just in case.
+func MaybeCleanupJobsAndGC(jobIDs *[]string) func() {
+	return func() {
+		for _, jobID := range *jobIDs {
+			_ = StopJob(jobID, "-purge", "-detach")
+		}
+		_, _ = Command("nomad", "system", "gc")
 	}
 }
 
@@ -270,8 +298,8 @@ func CleanupJobsAndGCWithContext(t *testing.T, ctx context.Context, jobIDs *[]st
 	}
 	for _, jobID := range *jobIDs {
 		err := StopJob(jobID, "-purge", "-detach")
-		assert.NoError(t, err)
+		test.NoError(t, err)
 	}
 	_, err := Command("nomad", "system", "gc")
-	assert.NoError(t, err)
+	test.NoError(t, err)
 }

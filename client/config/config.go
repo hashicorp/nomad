@@ -1,23 +1,27 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package config
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/consul-template/config"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-	"github.com/hashicorp/nomad/command/agent/host"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
-
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -165,11 +169,21 @@ type Config struct {
 	// Version is the version of the Nomad client
 	Version *version.VersionInfo
 
-	// ConsulConfig is this Agent's Consul configuration
+	// ConsulConfig is this Agent's default Consul configuration
 	ConsulConfig *structsc.ConsulConfig
 
-	// VaultConfig is this Agent's Vault configuration
+	// ConsulConfigs is a map of Consul configurations, here to support features
+	// in Nomad Enterprise. The default Consul config pointer above will be
+	// found in this map under the name "default"
+	ConsulConfigs map[string]*structsc.ConsulConfig
+
+	// VaultConfig is this Agent's default Vault configuration
 	VaultConfig *structsc.VaultConfig
+
+	// VaultConfigs is a map of Vault configurations, here to support features
+	// in Nomad Enterprise. The default Vault config pointer above will be found
+	// in this map under the name "default"
+	VaultConfigs map[string]*structsc.VaultConfig
 
 	// StatsCollectionInterval is the interval at which the Nomad client
 	// collects resource usage stats
@@ -246,6 +260,8 @@ type Config struct {
 	// StateDBFactory is used to override stateDB implementations,
 	StateDBFactory state.NewStateDBFunc
 
+	AllocRunnerFactory AllocRunnerFactory
+
 	// CNIPath is the path used to search for CNI plugins. Multiple paths can
 	// be specified with colon delimited
 	CNIPath string
@@ -293,7 +309,7 @@ type Config struct {
 	CgroupParent string
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
-	ReservableCores []uint16
+	ReservableCores []numalib.CoreID
 
 	// NomadServiceDiscovery determines whether the Nomad native service
 	// discovery client functionality is enabled.
@@ -313,6 +329,12 @@ type Config struct {
 
 	// Artifact configuration from the agent's config file.
 	Artifact *ArtifactConfig
+
+	// Drain configuration from the agent's config file.
+	Drain *DrainConfig
+
+	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
+	ExtraAllocHooks []interfaces.RunnerHook
 }
 
 type APIListenerRegistrar interface {
@@ -736,7 +758,9 @@ func (c *Config) Copy() *Config {
 	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
 	nc.ConsulConfig = c.ConsulConfig.Copy()
+	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
 	nc.VaultConfig = c.VaultConfig.Copy()
+	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
@@ -745,7 +769,7 @@ func (c *Config) Copy() *Config {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
-	return &Config{
+	cfg := &Config{
 		Version:                 version.GetVersion(),
 		VaultConfig:             structsc.DefaultVaultConfig(),
 		ConsulConfig:            structsc.DefaultConsulConfig(),
@@ -783,10 +807,17 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       cgutil.GetCgroupParent(""),
+		CgroupParent:       "nomad.slice", // SETH todo
 		MaxDynamicPort:     structs.DefaultMinDynamicPort,
 		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
+
+	cfg.ConsulConfigs = map[string]*structsc.ConsulConfig{
+		"default": cfg.ConsulConfig}
+	cfg.VaultConfigs = map[string]*structsc.VaultConfig{
+		"default": cfg.VaultConfig}
+
+	return cfg
 }
 
 // Read returns the specified configuration value or "".

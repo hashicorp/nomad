@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { next } from '@ember/runloop';
 import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
@@ -20,6 +25,7 @@ module('Unit | Adapter | Volume', function (hooks) {
     this.initializeUI = async () => {
       this.server.create('namespace');
       this.server.create('namespace', { id: 'some-namespace' });
+      this.server.create('node-pool');
       this.server.create('node');
       this.server.create('job', { id: 'job-1', namespaceId: 'default' });
       this.server.create('csi-plugin', 2);

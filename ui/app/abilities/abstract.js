@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { Ability } from 'ember-can';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -112,8 +115,9 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -225,8 +229,9 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -346,8 +351,9 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -478,8 +484,9 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -572,8 +579,9 @@ func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 	out := collectRanked(scoreNorm)
@@ -671,8 +679,9 @@ func TestBinPackIterator_Network_NodeError(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 	out := collectRanked(scoreNorm)
@@ -798,8 +807,9 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 	out := collectRanked(scoreNorm)
@@ -941,8 +951,9 @@ func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1052,8 +1063,9 @@ func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1153,8 +1165,9 @@ func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *test
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1247,8 +1260,9 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1369,8 +1383,9 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1479,8 +1494,9 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1599,8 +1615,9 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+	binp := NewBinPackIterator(ctx, static, false, 0)
 	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
 
@@ -1904,8 +1921,9 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
-			binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
+			binp := NewBinPackIterator(ctx, static, false, 0)
 			binp.SetTaskGroup(c.TaskGroup)
+			binp.SetSchedulerConfiguration(testSchedulerConfig)
 
 			out := binp.Next()
 			if out == nil && !c.NoPlace {

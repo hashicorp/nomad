@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 job "plugin-cephrbd-node" {
   datacenters = ["dc1", "dc2"]
 

@@ -1,7 +1,12 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 $queued: $grey-lighter;
 $starting: $grey-lighter;
 $running: $primary;
-$complete: $nomad-green-dark;
+$complete: $nomad-green-pale;
 $failed: $danger;
 $lost: $dark;
 $not-scheduled: $blue-200;

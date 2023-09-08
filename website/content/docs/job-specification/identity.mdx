@@ -47,5 +47,12 @@ job "docs" {
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
 
+## Task API
+
+It can be convenient to combine workload identity with Nomad's [Task API]
+[taskapi] for  enabling tasks to access the Nomad API.
+
 [taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
 [Workload Identity]: /nomad/docs/concepts/workload-identity "Nomad Workload Identity"
+[windows]: https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+[taskapi]: /nomad/api-docs/task-api

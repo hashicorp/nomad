@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -118,6 +121,14 @@ Run Options:
     the job file. This overrides the token found in $CONSUL_HTTP_TOKEN environment
     variable and that found in the job.
 
+  -consul-namespace
+    (Enterprise only) If set, any services in the job will be registered into
+    the specified Consul namespace. Any template block reading from Consul KV
+    will be scoped to the specified Consul namespace. If Consul ACLs are
+    enabled and the "consul" block "allow_unauthenticated" is disabled in the
+    Nomad server configuration, then a Consul token must be supplied with
+    appropriate service and KV Consul ACL policy permissions.
+
   -vault-token
     Used to validate if the user submitting the job has permission to run the job
     according to its Vault policies. A Vault token must be supplied if the vault
@@ -153,21 +164,22 @@ func (c *JobRunCommand) Synopsis() string {
 func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-check-index":     complete.PredictNothing,
-			"-detach":          complete.PredictNothing,
-			"-verbose":         complete.PredictNothing,
-			"-consul-token":    complete.PredictNothing,
-			"-vault-token":     complete.PredictAnything,
-			"-vault-namespace": complete.PredictAnything,
-			"-output":          complete.PredictNothing,
-			"-policy-override": complete.PredictNothing,
-			"-preserve-counts": complete.PredictNothing,
-			"-json":            complete.PredictNothing,
-			"-hcl1":            complete.PredictNothing,
-			"-hcl2-strict":     complete.PredictNothing,
-			"-var":             complete.PredictAnything,
-			"-var-file":        complete.PredictFiles("*.var"),
-			"-eval-priority":   complete.PredictNothing,
+			"-check-index":      complete.PredictNothing,
+			"-detach":           complete.PredictNothing,
+			"-verbose":          complete.PredictNothing,
+			"-consul-token":     complete.PredictNothing,
+			"-consul-namespace": complete.PredictAnything,
+			"-vault-token":      complete.PredictAnything,
+			"-vault-namespace":  complete.PredictAnything,
+			"-output":           complete.PredictNothing,
+			"-policy-override":  complete.PredictNothing,
+			"-preserve-counts":  complete.PredictNothing,
+			"-json":             complete.PredictNothing,
+			"-hcl1":             complete.PredictNothing,
+			"-hcl2-strict":      complete.PredictNothing,
+			"-var":              complete.PredictAnything,
+			"-var-file":         complete.PredictFiles("*.var"),
+			"-eval-priority":    complete.PredictNothing,
 		})
 }
 
@@ -233,7 +245,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.Get(args[0])
+	sub, job, err := c.JobGetter.Get(args[0])
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
@@ -317,6 +329,7 @@ func (c *JobRunCommand) Run(args []string) int {
 		PolicyOverride: override,
 		PreserveCounts: preserveCounts,
 		EvalPriority:   evalPriority,
+		Submission:     sub,
 	}
 	if enforce {
 		opts.EnforceIndex = true

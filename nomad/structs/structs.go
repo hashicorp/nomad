@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -14,17 +17,19 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc32"
+	"maps"
 	"math"
 	"net"
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -46,8 +51,6 @@ import (
 	"github.com/mitchellh/copystructure"
 	"github.com/ryanuber/go-glob"
 	"golang.org/x/crypto/blake2b"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 var (
@@ -122,6 +125,8 @@ const (
 	ACLAuthMethodsDeleteRequestType              MessageType = 56
 	ACLBindingRulesUpsertRequestType             MessageType = 57
 	ACLBindingRulesDeleteRequestType             MessageType = 58
+	NodePoolUpsertRequestType                    MessageType = 59
+	NodePoolDeleteRequestType                    MessageType = 60
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -129,6 +134,11 @@ const (
 )
 
 const (
+	// SystemInitializationType is used for messages that initialize parts of
+	// the system, such as the state store. These messages are not included in
+	// the event stream.
+	SystemInitializationType MessageType = 127
+
 	// IgnoreUnknownTypeFlag is set along with a MessageType
 	// to indicate that the message type can be safely ignored
 	// if it is not recognized. This is for future proofing, so
@@ -512,15 +522,15 @@ func (ai *AuthenticatedIdentity) String() string {
 		return "unauthenticated"
 	}
 	if ai.ACLToken != nil {
-		return fmt.Sprintf("token:%s", ai.ACLToken.AccessorID)
+		return "token:" + ai.ACLToken.AccessorID
 	}
 	if ai.Claims != nil {
-		return fmt.Sprintf("alloc:%s", ai.Claims.AllocationID)
+		return "alloc:" + ai.Claims.AllocationID
 	}
 	if ai.ClientID != "" {
-		return fmt.Sprintf("client:%s", ai.ClientID)
+		return "client:" + ai.ClientID
 	}
-	return fmt.Sprintf("%s:%s", ai.TLSName, ai.RemoteIP.String())
+	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
 
 func (ai *AuthenticatedIdentity) IsExpired(now time.Time) bool {
@@ -571,6 +581,11 @@ type WriteMeta struct {
 type NodeRegisterRequest struct {
 	Node      *Node
 	NodeEvent *NodeEvent
+
+	// CreateNodePool is used to indicate that the node's node pool should be
+	// create along with the node registration if it doesn't exist.
+	CreateNodePool bool
+
 	WriteRequest
 }
 
@@ -691,6 +706,9 @@ type NodeSpecificRequest struct {
 // JobRegisterRequest is used for Job.Register endpoint
 // to register a job as being a schedulable entity.
 type JobRegisterRequest struct {
+	Submission *JobSubmission
+
+	// Job is the parsed job, no matter what form the input was in.
 	Job *Job
 
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -787,6 +805,23 @@ type JobEvaluateRequest struct {
 // EvalOptions is used to encapsulate options when forcing a job evaluation
 type EvalOptions struct {
 	ForceReschedule bool
+}
+
+// JobSubmissionRequest is used to query a JobSubmission object associated with a
+// job at a specific version.
+type JobSubmissionRequest struct {
+	JobID   string
+	Version uint64
+
+	QueryOptions
+}
+
+// JobSubmissionResponse contains a JobSubmission object, which may be nil
+// if no submission data is available.
+type JobSubmissionResponse struct {
+	Submission *JobSubmission
+
+	QueryMeta
 }
 
 // JobSpecificRequest is used when we just need to specify a target job
@@ -1645,9 +1680,14 @@ type SingleAllocResponse struct {
 	QueryMeta
 }
 
-// AllocsGetResponse is used to return a set of allocations
+// AllocsGetResponse is used to return a set of allocations and their workload
+// identities.
 type AllocsGetResponse struct {
 	Allocs []*Allocation
+
+	// SignedIdentities are the alternate workload identities for the Allocs.
+	SignedIdentities []SignedWorkloadIdentity
+
 	QueryMeta
 }
 
@@ -2084,6 +2124,9 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	// NodePool is the node pool the node belongs to.
+	NodePool string
+
 	// ComputedClass is a unique id that identifies nodes with a common set of
 	// attributes and capabilities.
 	ComputedClass string
@@ -2171,6 +2214,10 @@ func (n *Node) Ready() bool {
 func (n *Node) Canonicalize() {
 	if n == nil {
 		return
+	}
+
+	if n.NodePool == "" {
+		n.NodePool = NodePoolDefault
 	}
 
 	// Ensure SchedulingEligibility is correctly set whenever draining so the plan applier and other scheduling logic
@@ -2320,6 +2367,22 @@ func (n *Node) IsInAnyDC(datacenters []string) bool {
 	return false
 }
 
+// IsInPool returns true if the node is in the pool argument or if the pool
+// argument is the special "all" pool
+func (n *Node) IsInPool(pool string) bool {
+	return pool == NodePoolAll || n.NodePool == pool
+}
+
+// HasEvent returns true if the node has the given message in its events list.
+func (n *Node) HasEvent(msg string) bool {
+	for _, ev := range n.Events {
+		if ev.Message == msg {
+			return true
+		}
+	}
+	return false
+}
+
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 
@@ -2331,6 +2394,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		Datacenter:            n.Datacenter,
 		Name:                  n.Name,
 		NodeClass:             n.NodeClass,
+		NodePool:              n.NodePool,
 		Version:               n.Attributes["nomad.version"],
 		Drain:                 n.DrainStrategy != nil,
 		SchedulingEligibility: n.SchedulingEligibility,
@@ -2368,6 +2432,7 @@ type NodeListStub struct {
 	Attributes            map[string]string `json:",omitempty"`
 	Datacenter            string
 	Name                  string
+	NodePool              string
 	NodeClass             string
 	Version               string
 	Drain                 bool
@@ -2798,6 +2863,13 @@ func (d *DNSConfig) Copy() *DNSConfig {
 		Searches: slices.Clone(d.Searches),
 		Options:  slices.Clone(d.Options),
 	}
+}
+
+func (d *DNSConfig) IsZero() bool {
+	if d == nil {
+		return true
+	}
+	return len(d.Options) == 0 || len(d.Searches) == 0 || len(d.Servers) == 0
 }
 
 // NetworkResource is used to represent available network
@@ -4237,14 +4309,75 @@ const (
 	// for the system to remain healthy.
 	CoreJobPriority = math.MaxInt16
 
-	// JobTrackedVersions is the number of historic job versions that are
+	// JobDefaultTrackedVersions is the number of historic job versions that are
 	// kept.
-	JobTrackedVersions = 6
+	JobDefaultTrackedVersions = 6
 
 	// JobTrackedScalingEvents is the number of scaling events that are
 	// kept for a single task group.
 	JobTrackedScalingEvents = 20
 )
+
+// A JobSubmission contains the original job specification, along with the Variables
+// submitted with the job.
+type JobSubmission struct {
+	// Source contains the original job definition (may be hc1, hcl2, or json)
+	Source string
+
+	// Format indicates whether the original job was hcl1, hcl2, or json.
+	Format string
+
+	// VariableFlags contain the CLI "-var" flag arguments as submitted with the
+	// job (hcl2 only).
+	VariableFlags map[string]string
+
+	// Variables contains the opaque variable blob that was input from the
+	// webUI (hcl2 only).
+	Variables string
+
+	// Namespace is managed internally, do not set.
+	//
+	// The namespace the associated job belongs to.
+	Namespace string
+
+	// JobID is managed internally, not set.
+	//
+	// The job.ID field.
+	JobID string
+
+	// Version is managed internally, not set.
+	//
+	// The version of the Job this submission is associated with.
+	Version uint64
+
+	// JobModifyIndex is managed internally, not set.
+	//
+	// The raft index the Job this submission is associated with.
+	JobModifyIndex uint64
+}
+
+// Hash returns a value representative of the intended uniquness of a
+// JobSubmission in the job_submission state store table (namespace, jobID, version).
+func (js *JobSubmission) Hash() string {
+	return fmt.Sprintf("%s \x00 %s \x00 %d", js.Namespace, js.JobID, js.Version)
+}
+
+// Copy creates a deep copy of js.
+func (js *JobSubmission) Copy() *JobSubmission {
+	if js == nil {
+		return nil
+	}
+	return &JobSubmission{
+		Source:         js.Source,
+		Format:         js.Format,
+		VariableFlags:  maps.Clone(js.VariableFlags),
+		Variables:      js.Variables,
+		Namespace:      js.Namespace,
+		JobID:          js.JobID,
+		Version:        js.Version,
+		JobModifyIndex: js.JobModifyIndex,
+	}
+}
 
 // Job is the scope of a scheduling request to Nomad. It is the largest
 // scoped object, and is a named collection of task groups. Each task group
@@ -4291,6 +4424,14 @@ type Job struct {
 
 	// Datacenters contains all the datacenters this job is allowed to span
 	Datacenters []string
+
+	// NodePool specifies the node pool this job is allowed to run on.
+	//
+	// An empty value is allowed during job registration, in which case the
+	// namespace default node pool is used in Enterprise and the 'default' node
+	// pool in OSS. But a node pool must be set before the job is stored, so
+	// that will happen in the admission mutators.
+	NodePool string
 
 	// Constraints can be specified at a job level and apply to
 	// all the task groups and tasks.
@@ -4524,6 +4665,7 @@ func (j *Job) Validate() error {
 			}
 		}
 	}
+
 	if len(j.TaskGroups) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job task groups"))
 	}
@@ -4660,6 +4802,12 @@ func (j *Job) Warnings() error {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// cron -> crons
+	if j.Periodic != nil && j.Periodic.Spec != "" {
+		err := fmt.Errorf("cron is deprecated and may be removed in a future release. Use crons instead")
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -4734,6 +4882,7 @@ func (j *Job) Stub(summary *JobSummary, fields *JobStubFields) *JobListStub {
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
+		NodePool:          j.NodePool,
 		Multiregion:       j.Multiregion,
 		Type:              j.Type,
 		Priority:          j.Priority,
@@ -4926,6 +5075,7 @@ type JobListStub struct {
 	Name              string
 	Namespace         string `json:",omitempty"`
 	Datacenters       []string
+	NodePool          string
 	Multiregion       *Multiregion
 	Type              string
 	Priority          int
@@ -5136,6 +5286,12 @@ func (u *UpdateStrategy) IsEmpty() bool {
 		return true
 	}
 
+	// When the Job is transformed from api to struct, the Update Strategy block is
+	// copied into the existing task groups, the only things that are passed along
+	// are MaxParallel and Stagger, because they are enforced at job level.
+	// That is why checking if MaxParallel is zero is enough to know if the
+	// update block is empty.
+
 	return u.MaxParallel == 0
 }
 
@@ -5180,6 +5336,7 @@ func (m *Multiregion) Copy() *Multiregion {
 			Name:        region.Name,
 			Count:       region.Count,
 			Datacenters: []string{},
+			NodePool:    region.NodePool,
 			Meta:        map[string]string{},
 		}
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
@@ -5200,6 +5357,7 @@ type MultiregionRegion struct {
 	Name        string
 	Count       int
 	Datacenters []string
+	NodePool    string
 	Meta        map[string]string
 }
 
@@ -5217,6 +5375,10 @@ type Namespace struct {
 
 	// Capabilities is the set of capabilities allowed for this namespace
 	Capabilities *NamespaceCapabilities
+
+	// NodePoolConfiguration is the namespace configuration for handling node
+	// pools.
+	NodePoolConfiguration *NamespaceNodePoolConfiguration
 
 	// Meta is the set of metadata key/value pairs that attached to the namespace
 	Meta map[string]string
@@ -5237,6 +5399,28 @@ type NamespaceCapabilities struct {
 	DisabledTaskDrivers []string
 }
 
+// NamespaceNodePoolConfiguration stores configuration about node pools for a
+// namespace.
+type NamespaceNodePoolConfiguration struct {
+	// Default is the node pool used by jobs in this namespace that don't
+	// specify a node pool of their own.
+	Default string
+
+	// Allowed specifies the node pools that are allowed to be used by jobs in
+	// this namespace. By default, all node pools are allowed. If an empty list
+	// is provided only the namespace's default node pool is allowed. This field
+	// supports wildcard globbing through the use of `*` for multi-character
+	// matching. This field cannot be used with Denied.
+	Allowed []string
+
+	// Denied specifies the node pools that are not allowed to be used by jobs
+	// in this namespace. This field supports wildcard globbing through the use
+	// of `*` for multi-character matching. If specified, any node pool is
+	// allowed to be used, except for those that match any of these patterns.
+	// This field cannot be used with Allowed.
+	Denied []string
+}
+
 func (n *Namespace) Validate() error {
 	var mErr multierror.Error
 
@@ -5248,6 +5432,16 @@ func (n *Namespace) Validate() error {
 	if len(n.Description) > maxNamespaceDescriptionLength {
 		err := fmt.Errorf("description longer than %d", maxNamespaceDescriptionLength)
 		mErr.Errors = append(mErr.Errors, err)
+	}
+
+	err := n.NodePoolConfiguration.Validate()
+	switch e := err.(type) {
+	case *multierror.Error:
+		for _, npErr := range e.Errors {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", npErr))
+		}
+	case error:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid node pool configuration: %v", e))
 	}
 
 	return mErr.ErrorOrNil()
@@ -5271,6 +5465,15 @@ func (n *Namespace) SetHash() []byte {
 		}
 		for _, driver := range n.Capabilities.DisabledTaskDrivers {
 			_, _ = hash.Write([]byte(driver))
+		}
+	}
+	if n.NodePoolConfiguration != nil {
+		_, _ = hash.Write([]byte(n.NodePoolConfiguration.Default))
+		for _, pool := range n.NodePoolConfiguration.Allowed {
+			_, _ = hash.Write([]byte(pool))
+		}
+		for _, pool := range n.NodePoolConfiguration.Denied {
+			_, _ = hash.Write([]byte(pool))
 		}
 	}
 
@@ -5304,6 +5507,12 @@ func (n *Namespace) Copy() *Namespace {
 		c.EnabledTaskDrivers = slices.Clone(n.Capabilities.EnabledTaskDrivers)
 		c.DisabledTaskDrivers = slices.Clone(n.Capabilities.DisabledTaskDrivers)
 		nc.Capabilities = c
+	}
+	if n.NodePoolConfiguration != nil {
+		np := new(NamespaceNodePoolConfiguration)
+		*np = *n.NodePoolConfiguration
+		np.Allowed = slices.Clone(n.NodePoolConfiguration.Allowed)
+		np.Denied = slices.Clone(n.NodePoolConfiguration.Denied)
 	}
 	if n.Meta != nil {
 		nc.Meta = make(map[string]string, len(n.Meta))
@@ -5380,6 +5589,10 @@ type PeriodicConfig struct {
 	// on the SpecType.
 	Spec string
 
+	// Specs specifies the intervals the job should be run as. It is parsed based
+	// on the SpecType.
+	Specs []string
+
 	// SpecType defines the format of the spec.
 	SpecType string
 
@@ -5412,7 +5625,10 @@ func (p *PeriodicConfig) Validate() error {
 	}
 
 	var mErr multierror.Error
-	if p.Spec == "" {
+	if p.Spec != "" && len(p.Specs) != 0 {
+		_ = multierror.Append(&mErr, fmt.Errorf("Only cron or crons may be used"))
+	}
+	if p.Spec == "" && len(p.Specs) == 0 {
 		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
 	}
 
@@ -5426,9 +5642,18 @@ func (p *PeriodicConfig) Validate() error {
 	switch p.SpecType {
 	case PeriodicSpecCron:
 		// Validate the cron spec
-		if _, err := cronexpr.Parse(p.Spec); err != nil {
-			_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+		if p.Spec != "" {
+			if _, err := cronexpr.Parse(p.Spec); err != nil {
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+			}
 		}
+		// Validate the cron specs
+		for _, spec := range p.Specs {
+			if _, err := cronexpr.Parse(spec); err != nil {
+				_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", spec, err))
+			}
+		}
+
 	case PeriodicSpecTest:
 		// No-op
 	default:
@@ -5450,15 +5675,18 @@ func (p *PeriodicConfig) Canonicalize() {
 
 // CronParseNext is a helper that parses the next time for the given expression
 // but captures any panic that may occur in the underlying library.
-func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t time.Time, err error) {
+func CronParseNext(fromTime time.Time, spec string) (t time.Time, err error) {
 	defer func() {
 		if recover() != nil {
 			t = time.Time{}
 			err = fmt.Errorf("failed parsing cron expression: %q", spec)
 		}
 	}()
-
-	return e.Next(fromTime), nil
+	exp, err := cronexpr.Parse(spec)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed parsing cron expression: %s: %v", spec, err)
+	}
+	return exp.Next(fromTime), nil
 }
 
 // Next returns the closest time instant matching the spec that is after the
@@ -5468,11 +5696,24 @@ func CronParseNext(e *cronexpr.Expression, fromTime time.Time, spec string) (t t
 func (p *PeriodicConfig) Next(fromTime time.Time) (time.Time, error) {
 	switch p.SpecType {
 	case PeriodicSpecCron:
-		e, err := cronexpr.Parse(p.Spec)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed parsing cron expression: %q: %v", p.Spec, err)
+		// Single spec parsing
+		if p.Spec != "" {
+			return CronParseNext(fromTime, p.Spec)
 		}
-		return CronParseNext(e, fromTime, p.Spec)
+
+		// multiple specs parsing
+		var nextTime time.Time
+		for _, spec := range p.Specs {
+			t, err := CronParseNext(fromTime, spec)
+			if err != nil {
+				return time.Time{}, fmt.Errorf("failed parsing cron expression %s: %v", spec, err)
+			}
+			if nextTime.IsZero() || t.Before(nextTime) {
+				nextTime = t
+			}
+		}
+		return nextTime, nil
+
 	case PeriodicSpecTest:
 		split := strings.Split(p.Spec, ",")
 		if len(split) == 1 && split[0] == "" {
@@ -5667,16 +5908,18 @@ var (
 	// Canonicalize in api/tasks.go
 
 	DefaultServiceJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 2,
-		Interval: 30 * time.Minute,
-		Mode:     RestartPolicyModeFail,
+		Delay:           15 * time.Second,
+		Attempts:        2,
+		Interval:        30 * time.Minute,
+		Mode:            RestartPolicyModeFail,
+		RenderTemplates: false,
 	}
 	DefaultBatchJobRestartPolicy = RestartPolicy{
-		Delay:    15 * time.Second,
-		Attempts: 3,
-		Interval: 24 * time.Hour,
-		Mode:     RestartPolicyModeFail,
+		Delay:           15 * time.Second,
+		Attempts:        3,
+		Interval:        24 * time.Hour,
+		Mode:            RestartPolicyModeFail,
+		RenderTemplates: false,
 	}
 )
 
@@ -6009,6 +6252,9 @@ type RestartPolicy struct {
 	// Mode controls what happens when the task restarts more than attempt times
 	// in an interval.
 	Mode string
+
+	// RenderTemplates is flag to explicitly render all templates on task restart
+	RenderTemplates bool
 }
 
 func (r *RestartPolicy) Copy() *RestartPolicy {
@@ -6710,20 +6956,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 
 	// Validate the tasks
 	for _, task := range tg.Tasks {
-		// Validate the task does not reference undefined volume mounts
-		for i, mnt := range task.VolumeMounts {
-			if mnt.Volume == "" {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing an empty volume", task.Name, i))
-				continue
-			}
-
-			if _, ok := tg.Volumes[mnt.Volume]; !ok {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Task %s has a volume mount (%d) referencing undefined volume %s", task.Name, i, mnt.Volume))
-				continue
-			}
-		}
-
-		if err := task.Validate(tg.EphemeralDisk, j.Type, tg.Services, tg.Networks); err != nil {
+		if err := task.Validate(j.Type, tg); err != nil {
 			outer := fmt.Errorf("Task %s validation failed: %v", task.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
@@ -7147,6 +7380,7 @@ const (
 type LogConfig struct {
 	MaxFiles      int
 	MaxFileSizeMB int
+	Disabled      bool
 }
 
 func (l *LogConfig) Equal(o *LogConfig) bool {
@@ -7162,6 +7396,10 @@ func (l *LogConfig) Equal(o *LogConfig) bool {
 		return false
 	}
 
+	if l.Disabled != o.Disabled {
+		return false
+	}
+
 	return true
 }
 
@@ -7172,6 +7410,7 @@ func (l *LogConfig) Copy() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      l.MaxFiles,
 		MaxFileSizeMB: l.MaxFileSizeMB,
+		Disabled:      l.Disabled,
 	}
 }
 
@@ -7180,18 +7419,28 @@ func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
 		MaxFiles:      10,
 		MaxFileSizeMB: 10,
+		Disabled:      false,
 	}
 }
 
-// Validate returns an error if the log config specified are less than
-// the minimum allowed.
-func (l *LogConfig) Validate() error {
+// Validate returns an error if the log config specified are less than the
+// minimum allowed. Note that because we have a non-zero default MaxFiles and
+// MaxFileSizeMB, we can't validate that they're unset if Disabled=true
+func (l *LogConfig) Validate(disk *EphemeralDisk) error {
 	var mErr multierror.Error
 	if l.MaxFiles < 1 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum number of files is 1; got %d", l.MaxFiles))
 	}
 	if l.MaxFileSizeMB < 1 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum file size is 1MB; got %d", l.MaxFileSizeMB))
+	}
+	if disk != nil {
+		logUsage := (l.MaxFiles * l.MaxFileSizeMB)
+		if disk.SizeMB <= logUsage {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("log storage (%d MB) must be less than requested disk capacity (%d MB)",
+					logUsage, disk.SizeMB))
+		}
 	}
 	return mErr.ErrorOrNil()
 }
@@ -7284,9 +7533,12 @@ type Task struct {
 	// CSIPluginConfig is used to configure the plugin supervisor for the task.
 	CSIPluginConfig *TaskCSIPluginConfig
 
-	// Identity controls if and how the workload identity is exposed to
-	// tasks similar to the Vault block.
+	// Identity is the default Nomad Workload Identity.
 	Identity *WorkloadIdentity
+
+	// Identities are the alternate workload identities for use with 3rd party
+	// endpoints.
+	Identities []*WorkloadIdentity
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7348,6 +7600,7 @@ func (t *Task) Copy() *Task {
 	nt.DispatchPayload = nt.DispatchPayload.Copy()
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
+	nt.Identities = helper.CopySlice(nt.Identities)
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -7415,6 +7668,30 @@ func (t *Task) Canonicalize(job *Job, tg *TaskGroup) {
 	for _, template := range t.Templates {
 		template.Canonicalize()
 	}
+
+	// Initialize default Nomad workload identity
+	defaultIdx := -1
+	for i, wid := range t.Identities {
+		wid.Canonicalize()
+
+		// For backward compatibility put the default identity in Task.Identity.
+		if wid.Name == WorkloadIdentityDefaultName {
+			t.Identity = wid
+			defaultIdx = i
+		}
+	}
+
+	// If the default identity was found in Identities above, remove it from the
+	// slice.
+	if defaultIdx >= 0 {
+		t.Identities = slices.Delete(t.Identities, defaultIdx, defaultIdx+1)
+	}
+
+	// If there was no default identity, always create one.
+	if t.Identity == nil {
+		t.Identity = &WorkloadIdentity{}
+	}
+	t.Identity.Canonicalize()
 }
 
 func (t *Task) GoString() string {
@@ -7422,7 +7699,7 @@ func (t *Task) GoString() string {
 }
 
 // Validate is used to check a task for reasonable configuration
-func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service, tgNetworks Networks) error {
+func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	var mErr multierror.Error
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
@@ -7439,6 +7716,20 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	}
 	if t.KillTimeout < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("KillTimeout must be a positive value"))
+	} else {
+		// Validate the group's update strategy does not conflict with the
+		// task's kill_timeout for service jobs.
+		//
+		// progress_deadline = 0 has a special meaning so it should not be
+		// validated against the task's kill_timeout.
+		conflictsWithProgressDeadline := jobType == JobTypeService &&
+			tg.Update != nil &&
+			tg.Update.ProgressDeadline > 0 &&
+			t.KillTimeout > tg.Update.ProgressDeadline
+		if conflictsWithProgressDeadline {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("KillTimout (%s) longer than the group's ProgressDeadline (%s)",
+				t.KillTimeout, tg.Update.ProgressDeadline))
+		}
 	}
 	if t.ShutdownDelay < 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
@@ -7454,10 +7745,11 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	// Validate the log config
 	if t.LogConfig == nil {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing Log Config"))
-	} else if err := t.LogConfig.Validate(); err != nil {
+	} else if err := t.LogConfig.Validate(tg.EphemeralDisk); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
+	// Validate constraints and affinities.
 	for idx, constr := range t.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
@@ -7485,19 +7777,11 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	}
 
 	// Validate Services
-	if err := validateServices(t, tgNetworks); err != nil {
+	if err := validateServices(t, tg.Networks); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	if t.LogConfig != nil && ephemeralDisk != nil {
-		logUsage := (t.LogConfig.MaxFiles * t.LogConfig.MaxFileSizeMB)
-		if ephemeralDisk.SizeMB <= logUsage {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("log storage (%d MB) must be less than requested disk capacity (%d MB)",
-					logUsage, ephemeralDisk.SizeMB))
-		}
-	}
-
+	// Validate artifacts.
 	for idx, artifact := range t.Artifacts {
 		if err := artifact.Validate(); err != nil {
 			outer := fmt.Errorf("Artifact %d validation failed: %v", idx+1, err)
@@ -7505,12 +7789,14 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		}
 	}
 
+	// Validate Vault.
 	if t.Vault != nil {
 		if err := t.Vault.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Vault validation failed: %v", err))
 		}
 	}
 
+	// Validate templates.
 	destinations := make(map[string]int, len(t.Templates))
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Validate(); err != nil {
@@ -7552,7 +7838,7 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		}
 
 		// Ensure the proxy task has a corresponding service entry
-		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tgServices)
+		serviceErr := ValidateConnectProxyService(t.Kind.Value(), tg.Services)
 		if serviceErr != nil {
 			mErr.Errors = append(mErr.Errors, serviceErr)
 		}
@@ -7562,6 +7848,13 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 	for idx, vm := range t.VolumeMounts {
 		if !MountPropagationModeIsValid(vm.PropagationMode) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) has an invalid propagation mode: \"%s\"", idx, vm.PropagationMode))
+		}
+
+		// Validate the task does not reference undefined volume mounts
+		if vm.Volume == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references an empty volume", idx))
+		} else if _, ok := tg.Volumes[vm.Volume]; !ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume Mount (%d) references undefined volume %s", idx, vm.Volume))
 		}
 	}
 
@@ -7576,6 +7869,19 @@ func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices
 		}
 
 		// TODO: Investigate validation of the PluginMountDir. Not much we can do apart from check IsAbs until after we understand its execution environment though :(
+	}
+
+	// Validate Identity/Identities
+	for _, wid := range t.Identities {
+		// Task.Canonicalize should move the default identity out of the Identities
+		// slice, so if one is found that means it is a duplicate.
+		if wid.Name == WorkloadIdentityDefaultName {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate default identities found"))
+		}
+
+		if err := wid.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", wid.Name, err))
+		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -7748,6 +8054,13 @@ func (t *Task) Warnings() error {
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Warnings(); err != nil {
 			err = multierror.Prefix(err, fmt.Sprintf("Template[%d]", idx))
+			mErr.Errors = append(mErr.Errors, err)
+		}
+	}
+
+	for _, wid := range t.Identities {
+		if err := wid.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Identity[%s]", wid.Name))
 			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
@@ -8272,6 +8585,16 @@ func (h *TaskHandle) Copy() *TaskHandle {
 	return &newTH
 }
 
+func (h *TaskHandle) Equal(o *TaskHandle) bool {
+	if h == nil || o == nil {
+		return h == o
+	}
+	if h.Version != o.Version {
+		return false
+	}
+	return bytes.Equal(h.DriverState, o.DriverState)
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -8349,6 +8672,37 @@ func (ts *TaskState) Copy() *TaskState {
 // service or system allocation.
 func (ts *TaskState) Successful() bool {
 	return ts.State == TaskStateDead && !ts.Failed
+}
+
+func (ts *TaskState) Equal(o *TaskState) bool {
+	if ts.State != o.State {
+		return false
+	}
+	if ts.Failed != o.Failed {
+		return false
+	}
+	if ts.Restarts != o.Restarts {
+		return false
+	}
+	if ts.LastRestart != o.LastRestart {
+		return false
+	}
+	if ts.StartedAt != o.StartedAt {
+		return false
+	}
+	if ts.FinishedAt != o.FinishedAt {
+		return false
+	}
+	if !slices.EqualFunc(ts.Events, o.Events, func(ts, o *TaskEvent) bool {
+		return ts.Equal(o)
+	}) {
+		return false
+	}
+	if !ts.TaskHandle.Equal(o.TaskHandle) {
+		return false
+	}
+
+	return true
 }
 
 const (
@@ -8683,6 +9037,31 @@ func (e *TaskEvent) GoString() string {
 	return fmt.Sprintf("%v - %v", e.Time, e.Type)
 }
 
+// Equal on TaskEvent ignores the deprecated fields
+func (e *TaskEvent) Equal(o *TaskEvent) bool {
+	if e == nil || o == nil {
+		return e == o
+	}
+
+	if e.Type != o.Type {
+		return false
+	}
+	if e.Time != o.Time {
+		return false
+	}
+	if e.Message != o.Message {
+		return false
+	}
+	if e.DisplayMessage != o.DisplayMessage {
+		return false
+	}
+	if !maps.Equal(e.Details, o.Details) {
+		return false
+	}
+
+	return true
+}
+
 // SetDisplayMessage sets the display message of TaskEvent
 func (e *TaskEvent) SetDisplayMessage(msg string) *TaskEvent {
 	e.DisplayMessage = msg
@@ -8817,7 +9196,7 @@ func (e *TaskEvent) SetValidationError(err error) *TaskEvent {
 }
 
 func (e *TaskEvent) SetKillTimeout(timeout, maxTimeout time.Duration) *TaskEvent {
-	actual := helper.Min(timeout, maxTimeout)
+	actual := min(timeout, maxTimeout)
 	e.KillTimeout = actual
 	e.Details["kill_timeout"] = actual.String()
 	return e
@@ -9467,15 +9846,28 @@ const (
 
 // Vault stores the set of permissions a task needs access to from Vault.
 type Vault struct {
+	// Role is the Vault role used to login to Vault using a JWT.
+	//
+	// If empty, defaults to the server's create_from_role value or the Vault
+	// cluster default role.
+	Role string
+
 	// Policies is the set of policies that the task needs access to
 	Policies []string
 
 	// Namespace is the vault namespace that should be used.
 	Namespace string
 
+	// Cluster (by name) to send API requests to
+	Cluster string
+
 	// Env marks whether the Vault Token should be exposed as an environment
 	// variable
 	Env bool
+
+	// DisableFile marks whether the Vault Token should be exposed in the file
+	// vault_token in the task's secrets directory.
+	DisableFile bool
 
 	// ChangeMode is used to configure the task's behavior when the Vault
 	// token changes because the original token could not be renewed in time.
@@ -9486,23 +9878,22 @@ type Vault struct {
 	ChangeSignal string
 }
 
-func DefaultVaultBlock() *Vault {
-	return &Vault{
-		Env:        true,
-		ChangeMode: VaultChangeModeRestart,
-	}
-}
-
 func (v *Vault) Equal(o *Vault) bool {
 	if v == nil || o == nil {
 		return v == o
 	}
 	switch {
+	case v.Role != o.Role:
+		return false
 	case !slices.Equal(v.Policies, o.Policies):
 		return false
 	case v.Namespace != o.Namespace:
 		return false
+	case v.Cluster != o.Cluster:
+		return false
 	case v.Env != o.Env:
+		return false
+	case v.DisableFile != o.DisableFile:
 		return false
 	case v.ChangeMode != o.ChangeMode:
 		return false
@@ -9780,6 +10171,14 @@ func (d *Deployment) GoString() string {
 	return base
 }
 
+// GetNamespace implements the NamespaceGetter interface, required for pagination.
+func (d *Deployment) GetNamespace() string {
+	if d == nil {
+		return ""
+	}
+	return d.Namespace
+}
+
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
 	// AutoRevert marks whether the task group has indicated the job should be
@@ -9872,6 +10271,46 @@ func (rt *RescheduleTracker) Copy() *RescheduleTracker {
 	}
 	nt.Events = rescheduleEvents
 	return nt
+}
+
+func (rt *RescheduleTracker) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
+	if reschedulePolicy == nil {
+		return false
+	}
+	attempts := reschedulePolicy.Attempts
+	enabled := attempts > 0 || reschedulePolicy.Unlimited
+	if !enabled {
+		return false
+	}
+	if reschedulePolicy.Unlimited {
+		return true
+	}
+	// Early return true if there are no attempts yet and the number of allowed attempts is > 0
+	if (rt == nil || len(rt.Events) == 0) && attempts > 0 {
+		return true
+	}
+	attempted, _ := rt.rescheduleInfo(reschedulePolicy, failTime)
+	return attempted < attempts
+}
+
+func (rt *RescheduleTracker) rescheduleInfo(reschedulePolicy *ReschedulePolicy, failTime time.Time) (int, int) {
+	if reschedulePolicy == nil {
+		return 0, 0
+	}
+	attempts := reschedulePolicy.Attempts
+	interval := reschedulePolicy.Interval
+
+	attempted := 0
+	if rt != nil && attempts > 0 {
+		for j := len(rt.Events) - 1; j >= 0; j-- {
+			lastAttempt := rt.Events[j].RescheduleTime
+			timeDiff := failTime.UTC().UnixNano() - lastAttempt
+			if timeDiff < interval.Nanoseconds() {
+				attempted += 1
+			}
+		}
+	}
+	return attempted, attempts
 }
 
 // RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
@@ -10308,47 +10747,11 @@ func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy, failTi
 // RescheduleEligible returns if the allocation is eligible to be rescheduled according
 // to its ReschedulePolicy and the current state of its reschedule trackers
 func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
-	if reschedulePolicy == nil {
-		return false
-	}
-	attempts := reschedulePolicy.Attempts
-	enabled := attempts > 0 || reschedulePolicy.Unlimited
-	if !enabled {
-		return false
-	}
-	if reschedulePolicy.Unlimited {
-		return true
-	}
-	// Early return true if there are no attempts yet and the number of allowed attempts is > 0
-	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
-		return true
-	}
-	attempted, _ := a.rescheduleInfo(reschedulePolicy, failTime)
-	return attempted < attempts
-}
-
-func (a *Allocation) rescheduleInfo(reschedulePolicy *ReschedulePolicy, failTime time.Time) (int, int) {
-	if reschedulePolicy == nil {
-		return 0, 0
-	}
-	attempts := reschedulePolicy.Attempts
-	interval := reschedulePolicy.Interval
-
-	attempted := 0
-	if a.RescheduleTracker != nil && attempts > 0 {
-		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
-			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
-			timeDiff := failTime.UTC().UnixNano() - lastAttempt
-			if timeDiff < interval.Nanoseconds() {
-				attempted += 1
-			}
-		}
-	}
-	return attempted, attempts
+	return a.RescheduleTracker.RescheduleEligible(reschedulePolicy, failTime)
 }
 
 func (a *Allocation) RescheduleInfo() (int, int) {
-	return a.rescheduleInfo(a.ReschedulePolicy(), a.LastEventTime())
+	return a.RescheduleTracker.rescheduleInfo(a.ReschedulePolicy(), a.LastEventTime())
 }
 
 // LastEventTime is the time of the last task event in the allocation.
@@ -10406,7 +10809,7 @@ func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *Re
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
 	if reschedulePolicy.Attempts > 0 && a.RescheduleTracker != nil && a.RescheduleTracker.Events != nil {
 		// Check for eligibility based on the interval if max attempts is set
-		attempted, attempts := a.rescheduleInfo(reschedulePolicy, failTime)
+		attempted, attempts := a.RescheduleTracker.rescheduleInfo(reschedulePolicy, failTime)
 		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
 	return nextRescheduleTime, rescheduleEligible
@@ -10617,13 +11020,8 @@ func (a *Allocation) ShouldMigrate() bool {
 		return false
 	}
 
-	// We won't migrate any data is the user hasn't enabled migration or the
-	// disk is not marked as sticky
-	if !tg.EphemeralDisk.Migrate || !tg.EphemeralDisk.Sticky {
-		return false
-	}
-
-	return true
+	// We won't migrate any data if the user hasn't enabled migration
+	return tg.EphemeralDisk.Migrate
 }
 
 // SetEventDisplayMessages populates the display message if its not already set,
@@ -10709,6 +11107,7 @@ func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
 		TaskStates:            a.TaskStates,
 		DeploymentStatus:      a.DeploymentStatus,
 		FollowupEvalID:        a.FollowupEvalID,
+		NextAllocation:        a.NextAllocation,
 		RescheduleTracker:     a.RescheduleTracker,
 		PreemptedAllocations:  a.PreemptedAllocations,
 		PreemptedByAllocation: a.PreemptedByAllocation,
@@ -10805,35 +11204,6 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
-func (a *Allocation) ToIdentityClaims(job *Job) *IdentityClaims {
-	now := jwt.NewNumericDate(time.Now().UTC())
-	claims := &IdentityClaims{
-		Namespace:    a.Namespace,
-		JobID:        a.JobID,
-		AllocationID: a.ID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			// TODO: implement a refresh loop to prevent allocation identities from
-			// expiring before the allocation is terminal. Once that's implemented,
-			// add an ExpiresAt here ExpiresAt: &jwt.NumericDate{}
-			// https://github.com/hashicorp/nomad/issues/16258
-			NotBefore: now,
-			IssuedAt:  now,
-		},
-	}
-	if job != nil && job.ParentID != "" {
-		claims.JobID = job.ParentID
-	}
-	return claims
-}
-
-func (a *Allocation) ToTaskIdentityClaims(job *Job, taskName string) *IdentityClaims {
-	claims := a.ToIdentityClaims(job)
-	if claims != nil {
-		claims.TaskName = taskName
-	}
-	return claims
-}
-
 // IdentityClaims are the input to a JWT identifying a workload. It
 // should never be serialized to msgpack unsigned.
 type IdentityClaims struct {
@@ -10842,7 +11212,56 @@ type IdentityClaims struct {
 	AllocationID string `json:"nomad_allocation_id"`
 	TaskName     string `json:"nomad_task"`
 
-	jwt.RegisteredClaims
+	jwt.Claims
+}
+
+// NewIdentityClaims returns new workload identity claims. Since it may be
+// called with a denormalized Allocation, the Job must be passed in distinctly.
+//
+// ID claim is random (nondeterministic) so multiple calls with the same values
+// will not return equal claims by design. JWT IDs should never collide.
+func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *WorkloadIdentity, now time.Time) *IdentityClaims {
+
+	tg := job.LookupTaskGroup(alloc.TaskGroup)
+	if tg == nil {
+		return nil
+	}
+
+	jwtnow := jwt.NewNumericDate(now.UTC())
+	claims := &IdentityClaims{
+		Namespace:    alloc.Namespace,
+		JobID:        alloc.JobID,
+		AllocationID: alloc.ID,
+		Claims: jwt.Claims{
+			NotBefore: jwtnow,
+			IssuedAt:  jwtnow,
+		},
+	}
+
+	// If this is a child job, use the parent's ID
+	if job.ParentID != "" {
+		claims.JobID = job.ParentID
+	}
+
+	claims.TaskName = taskName
+	claims.Audience = wid.Audience
+	claims.SetSubject(job, alloc.TaskGroup, taskName, wid.Name)
+
+	claims.ID = uuid.Generate()
+
+	return claims
+}
+
+// SetSubject creates the standard subject claim for workload identities.
+func (claims *IdentityClaims) SetSubject(job *Job, group, task, id string) {
+	claims.Subject = strings.Join([]string{
+		job.Region,
+		job.Namespace,
+		job.ID,
+		group,
+		task,
+		id,
+	}, ":")
 }
 
 // AllocationDiff is another named type for Allocation (to use the same fields),
@@ -10871,6 +11290,7 @@ type AllocListStub struct {
 	TaskStates            map[string]*TaskState
 	DeploymentStatus      *AllocDeploymentStatus
 	FollowupEvalID        string
+	NextAllocation        string
 	RescheduleTracker     *RescheduleTracker
 	PreemptedAllocations  []string
 	PreemptedByAllocation string
@@ -10885,6 +11305,12 @@ type AllocListStub struct {
 // method will be removed in a future release.
 func (a *AllocListStub) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
+}
+
+// RescheduleEligible returns if the allocation is eligible to be rescheduled according
+// to its ReschedulePolicy and the current state of its reschedule trackers
+func (a *AllocListStub) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
+	return a.RescheduleTracker.RescheduleEligible(reschedulePolicy, failTime)
 }
 
 func setDisplayMsg(taskStates map[string]*TaskState) {
@@ -10922,6 +11348,9 @@ type AllocMetric struct {
 
 	// NodesFiltered is the number of nodes filtered due to a constraint
 	NodesFiltered int
+
+	// NodesInPool is the number of nodes in the node pool used by the job.
+	NodesInPool int
 
 	// NodesAvailable is the number of nodes available for evaluation per DC.
 	NodesAvailable map[string]int
@@ -11168,6 +11597,41 @@ func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
 	}
 }
 
+func (a *AllocNetworkStatus) Equal(o *AllocNetworkStatus) bool {
+	// note: this accounts for when DNSConfig is non-nil but empty
+	switch {
+	case a == nil && o.IsZero():
+		return true
+	case o == nil && a.IsZero():
+		return true
+	case a == nil || o == nil:
+		return a == o
+	}
+
+	switch {
+	case a.InterfaceName != o.InterfaceName:
+		return false
+	case a.Address != o.Address:
+		return false
+	case !a.DNS.Equal(o.DNS):
+		return false
+	}
+	return true
+}
+
+func (a *AllocNetworkStatus) IsZero() bool {
+	if a == nil {
+		return true
+	}
+	if a.InterfaceName != "" || a.Address != "" {
+		return false
+	}
+	if !a.DNS.IsZero() {
+		return false
+	}
+	return true
+}
+
 // NetworkStatus is an interface satisfied by alloc runner, for acquiring the
 // network status of an allocation.
 type NetworkStatus interface {
@@ -11242,6 +11706,24 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	}
 
 	return c
+}
+
+func (a *AllocDeploymentStatus) Equal(o *AllocDeploymentStatus) bool {
+	if a == nil || o == nil {
+		return a == o
+	}
+
+	switch {
+	case !pointer.Eq(a.Healthy, o.Healthy):
+		return false
+	case a.Timestamp != o.Timestamp:
+		return false
+	case a.Canary != o.Canary:
+		return false
+	case a.ModifyIndex != o.ModifyIndex:
+		return false
+	}
+	return true
 }
 
 const (

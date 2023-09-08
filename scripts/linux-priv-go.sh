@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 
 set -o errexit
 
@@ -18,7 +21,7 @@ case $(arch) in
 esac
 
 function install_go() {
-	local go_version="1.20.2"
+	local go_version="1.21.0"
 	local download="https://storage.googleapis.com/golang/go${go_version}.linux-${ARCH}.tar.gz"
 
 	if go version 2>&1 | grep -q "${go_version}"; then

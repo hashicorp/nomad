@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package state_test
 
 import (
@@ -13,9 +16,11 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
+	"github.com/hashicorp/nomad/client/config"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	. "github.com/hashicorp/nomad/client/state"
@@ -197,7 +202,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 
 	clientConf.StateDir = path
 
-	conf := &allocrunner.Config{
+	conf := &config.AllocRunnerConfig{
 		Alloc:             alloc,
 		Logger:            clientConf.Logger,
 		ClientConfig:      clientConf,
@@ -209,6 +214,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 		PrevAllocMigrator: allocwatcher.NoopPrevAlloc{},
 		DeviceManager:     devicemanager.NoopMockManager(),
 		DriverManager:     drivermanager.TestDriverManager(t),
+		Wranglers:         proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
 	}
 	ar, err := allocrunner.NewAllocRunner(conf)
 	require.NoError(t, err)

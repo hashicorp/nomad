@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -7,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,6 +52,7 @@ func testNode() *Node {
 			"pci-dss": "true",
 		},
 		NodeClass: "linux-medium-pci",
+		NodePool:  "dev",
 		Status:    NodeStatusReady,
 	}
 }
@@ -213,6 +218,25 @@ func TestNode_ComputedClass_Meta(t *testing.T) {
 	if old != n.ComputedClass {
 		t.Fatal("ComputeClass() didn't ignore unique meta key")
 	}
+}
+
+func TestNode_ComputedClass_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a node and get its computed class.
+	n := testNode()
+	err := n.ComputeClass()
+	must.NoError(t, err)
+	must.NotEq(t, "", n.ComputedClass)
+	old := n.ComputedClass
+
+	// Modify node pool and expect computed class to change.
+	n.NodePool = "prod"
+	err = n.ComputeClass()
+	must.NoError(t, err)
+	must.NotEq(t, "", n.ComputedClass)
+	must.NotEq(t, old, n.ComputedClass)
+	old = n.ComputedClass
 }
 
 func TestNode_EscapedConstraints(t *testing.T) {

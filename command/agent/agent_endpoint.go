@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
@@ -56,7 +59,7 @@ func nomadMember(m serf.Member) Member {
 }
 
 func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -86,6 +89,11 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	if self.Config != nil && self.Config.Vault != nil && self.Config.Vault.Token != "" {
 		self.Config.Vault.Token = "<redacted>"
 	}
+	for _, vaultConfig := range self.Config.Vaults {
+		if vaultConfig.Token != "" {
+			vaultConfig.Token = "<redacted>"
+		}
+	}
 
 	if self.Config != nil && self.Config.ACL != nil && self.Config.ACL.ReplicationToken != "" {
 		self.Config.ACL.ReplicationToken = "<redacted>"
@@ -93,6 +101,11 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 
 	if self.Config != nil && self.Config.Consul != nil && self.Config.Consul.Token != "" {
 		self.Config.Consul.Token = "<redacted>"
+	}
+	for _, consulConfig := range self.Config.Consuls {
+		if consulConfig.Token != "" {
+			consulConfig.Token = "<redacted>"
+		}
 	}
 
 	if self.Config != nil && self.Config.Telemetry != nil && self.Config.Telemetry.CirconusAPIToken != "" {
@@ -128,7 +141,7 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 }
 
 func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -415,9 +428,9 @@ func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter,
 // servers for a given agent.
 func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.updateServers(resp, req)
-	case "GET":
+	case http.MethodGet:
 		return s.listServers(resp, req)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -549,7 +562,7 @@ type joinResult struct {
 }
 
 func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 

@@ -83,8 +83,15 @@ client {
   port assignment via [`reserved`](#reserved-parameters) parameters.
 
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
-  group client nodes by user-defined class. This can be used during job
-  placement as a filter.
+  group client nodes by user-defined class. This value can be used during job
+  placement as an [`affinity`][] or [`constraint`][] attribute and other places
+  where [variable interpolation][runtime_var_interpolation] is supported.
+
+- `node_pool` `(string: "default")` - Specifies the node pool in which the
+  client is registered. If the node pool does not exist yet, it will be created
+  automatically if the node registers in the authoritative region. In
+  non-authoritative regions, the node is kept in the `initializing` status
+  until the node pool is created and replicated.
 
 - `options` <code>([Options](#options-parameters): nil)</code> - Specifies a
   key-value mapping of internal configuration for clients, such as for driver
@@ -171,6 +178,11 @@ client {
 
 - `host_network` <code>([host_network](#host_network-block): nil)</code> - Registers
   additional host networks with the node that can be selected when port mapping.
+
+- `drain_on_shutdown` <code>([drain_on_shutdown](#drain_on_shutdown-block):
+  nil)</code> - Controls the behavior of the client when
+  [`leave_on_interrupt`][] or [`leave_on_terminate`][] are set and the client
+  receives the appropriate signal.
 
 - `cgroup_parent` `(string: "/nomad")` - Specifies the cgroup parent for which cgroup
   subsystems managed by Nomad will be mounted under. Currently this only applies to the
@@ -602,6 +614,50 @@ client {
   [`reserved.reserved_ports`](#reserved_ports) are also reserved on each host
   network.
 
+### `drain_on_shutdown` Block
+
+The `drain_on_shutdown` block controls the behavior of the client when
+[`leave_on_interrupt`][] or [`leave_on_terminate`][] are set. By default
+`drain_on_shutdown` is not configured and clients will not drain on any
+signal.
+
+If `drain_on_shutdown` is configured, the node will drain itself when receiving
+the appropriate signal (`SIGINT` for `leave_on_interrupt` or `SIGTERM` on
+`leave_on_terminate`). By default this acts similarly to running [`nomad node
+drain -self -no-deadline`][]
+
+Note that even if no deadline is set, your init system may send `SIGKILL` to
+Nomad if the drain takes longer than allowed by the service shutdown. For
+example, when running under Linux with `systemd`, you should adjust the
+[`TimeoutStopSec`][] value in the `nomad.service` unit file to account for
+enough time for the client to drain.
+
+```hcl
+client {
+  # Either leave_on_interrupt or leave_on_terminate must be set
+  # for this to take effect.
+  drain_on_shutdown {
+    deadline           = "1h"
+    force              = false
+    ignore_system_jobs = false
+  }
+}
+```
+
+- `deadline` `(string: "1h")` - Set the deadline by which all allocations must
+  be moved off the client. Remaining allocations after the deadline are removed
+  from the client, regardless of their [`migrate`][] block. Defaults to 1 hour.
+
+- `force` `(bool: false)` - Setting to `true` drains all the allocations on the
+  client immediately, ignoring the [`migrate`][] block. Note if you have
+  multiple allocations for the same job on the draining client without
+  additional allocations on other clients, this will result in an outage for
+  that job until the drain is complete.
+
+- `ignore_system_jobs` `(bool: false)` - Setting to `true` allows the drain to
+  complete without stopping system job allocations. By default system jobs (and
+  CSI plugins) are stopped last.
+
 ## `client` Examples
 
 ### Common Setup
@@ -659,10 +715,18 @@ client {
 }
 ```
 
+[`affinity`]: /nomad/docs/job-specification/affinity
+[`constraint`]: /nomad/docs/job-specification/constraint
 [plugin-options]: #plugin-options
 [plugin-block]: /nomad/docs/configuration/plugin
 [server-join]: /nomad/docs/configuration/server_join 'Server Join'
 [metadata_constraint]: /nomad/docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
+[runtime_var_interpolation]: /nomad/docs/runtime/interpolation
 [task working directory]: /nomad/docs/runtime/environment#task-directories 'Task directories'
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
+[`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
+[`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
+[migrate]: /nomad/docs/job-specification/migrate
+[`nomad node drain -self -no-deadline`]: /nomad/docs/commands/node/drain
+[`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -8,10 +11,10 @@ import (
 
 // MeasureRPCRate increments the appropriate rate metric for this endpoint,
 // with a label from the identity
-func (srv *Server) MeasureRPCRate(endpoint, op string, args structs.RequestWithIdentity) {
+func (s *Server) MeasureRPCRate(endpoint, op string, args structs.RequestWithIdentity) {
 	identity := args.GetIdentity()
 
-	if !srv.config.ACLEnabled || identity == nil || srv.config.DisableRPCRateMetricsLabels {
+	if !s.config.ACLEnabled || identity == nil || s.config.DisableRPCRateMetricsLabels {
 		// If ACLs aren't enabled, we never have a sensible identity.
 		// Or the administrator may have disabled the identity labels.
 		metrics.IncrCounter([]string{"nomad", "rpc", endpoint, op}, 1)

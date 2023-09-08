@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Output error messages during deployment monitoring
+```

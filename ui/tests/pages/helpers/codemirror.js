@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 // Like fillable, but for the CodeMirror editor
 //
 // Usage: fillIn: codeFillable('[data-test-editor]')

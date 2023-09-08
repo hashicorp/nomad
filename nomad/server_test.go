@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -37,9 +40,9 @@ func TestServer_RPC_TLS(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -102,9 +105,9 @@ func TestServer_RPC_MixedTLS(t *testing.T) {
 	ci.Parallel(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-server-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-server-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -241,9 +244,9 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 	dir := t.TempDir()
 
@@ -289,9 +292,9 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	dir := t.TempDir()
@@ -335,9 +338,9 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	dir := t.TempDir()
@@ -388,9 +391,9 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS_OnlyRPC(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../helper/tlsutil/testdata/ca.pem"
-		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 
 	dir := t.TempDir()
@@ -443,9 +446,9 @@ func TestServer_Reload_TLSConnections_Raft(t *testing.T) {
 	assert := assert.New(t)
 
 	const (
-		cafile  = "../../helper/tlsutil/testdata/ca.pem"
-		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
-		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		cafile  = "../../helper/tlsutil/testdata/nomad-agent-ca.pem"
+		foocert = "../../helper/tlsutil/testdata/regionFoo-client-nomad.pem"
+		fookey  = "../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 		barcert = "../dev/tls_cluster/certs/nomad.pem"
 		barkey  = "../dev/tls_cluster/certs/nomad-key.pem"
 	)

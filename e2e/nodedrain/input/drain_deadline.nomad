@@ -1,38 +1,34 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "drain_deadline" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
   }
 
+  migrate {
+    max_parallel     = 1
+    min_healthy_time = "30s"
+  }
+
   group "group" {
+
+    count = 2
 
     task "task" {
       driver = "docker"
 
-      kill_timeout = "2m"
-
       config {
         image   = "busybox:1"
         command = "/bin/sh"
-        args    = ["local/script.sh"]
-      }
-
-      template {
-        data = <<EOF
-#!/bin/sh
-trap 'sleep 60' 2
-sleep 600
-EOF
-
-        destination = "local/script.sh"
-        change_mode = "noop"
+        args    = ["-c", "sleep 600"]
       }
 
       resources {
         cpu    = 256
-        memory = 128
+        memory = 64
       }
     }
   }

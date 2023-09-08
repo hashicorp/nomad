@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 <h1 class="title with-flex">
   <div data-test-job-name>
     {{or this.title this.job.name}}
@@ -7,7 +12,6 @@
         <span>Pack</span>
       </span>
     {{/if}}
-    <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
     {{yield}}
   </div>
   <div>

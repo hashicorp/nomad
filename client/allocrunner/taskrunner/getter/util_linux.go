@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 //go:build linux
 
 package getter
@@ -5,44 +8,11 @@ package getter
 import (
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/shoenig/go-landlock"
 	"golang.org/x/sys/unix"
 )
-
-var (
-	// userUID is the current user's uid
-	userUID uint32
-
-	// userGID is the current user's gid
-	userGID uint32
-)
-
-func init() {
-	userUID = uint32(syscall.Getuid())
-	userGID = uint32(syscall.Getgid())
-}
-
-// attributes returns the system process attributes to run
-// the sandbox process with
-func attributes() *syscall.SysProcAttr {
-	uid, gid := credentials()
-	return &syscall.SysProcAttr{
-		Credential: &syscall.Credential{
-			Uid: uid,
-			Gid: gid,
-		},
-	}
-}
-
-// credentials returns the UID and GID of the user the child process
-// will run as - for now this is always the same user the Nomad agent is
-// running as.
-func credentials() (uint32, uint32) {
-	return userUID, userGID
-}
 
 // findHomeDir returns the home directory as provided by os.UserHomeDir. In case
 // os.UserHomeDir returns an error, we return /root if the current process is being
@@ -93,6 +63,7 @@ func lockdown(allocDir, taskDir string) error {
 		landlock.Dir("/bin", "rx"),
 		landlock.Dir("/usr/bin", "rx"),
 		landlock.Dir("/usr/local/bin", "rx"),
+		landlock.Dir("/usr/libexec", "rx"),
 		landlock.Dir(allocDir, "rwc"),
 		landlock.Dir(taskDir, "rwc"),
 	}
@@ -104,17 +75,19 @@ func lockdown(allocDir, taskDir string) error {
 
 func additionalFilesForVCS() []*landlock.Path {
 	const (
-		sshDir        = ".ssh"                  // git ssh
-		knownHosts    = ".ssh/known_hosts"      // git ssh
-		etcPasswd     = "/etc/passwd"           // git ssh
-		gitGlobalFile = "/etc/gitconfig"        // https://git-scm.com/docs/git-config#SCOPES
-		hgGlobalFile  = "/etc/mercurial/hgrc"   // https://www.mercurial-scm.org/doc/hgrc.5.html#files
-		hgGlobalDir   = "/etc/mercurial/hgrc.d" // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		homeSSHDir     = ".ssh"                     // git ssh
+		homeKnownHosts = ".ssh/known_hosts"         // git ssh
+		etcPasswd      = "/etc/passwd"              // git ssh
+		etcKnownHosts  = "/etc/ssh/ssh_known_hosts" // git ssh
+		gitGlobalFile  = "/etc/gitconfig"           // https://git-scm.com/docs/git-config#SCOPES
+		hgGlobalFile   = "/etc/mercurial/hgrc"      // https://www.mercurial-scm.org/doc/hgrc.5.html#files
+		hgGlobalDir    = "/etc/mercurial/hgrc.d"    // https://www.mercurial-scm.org/doc/hgrc.5.html#files
 	)
 	return filesForVCS(
-		sshDir,
-		knownHosts,
+		homeSSHDir,
+		homeKnownHosts,
 		etcPasswd,
+		etcKnownHosts,
 		gitGlobalFile,
 		hgGlobalFile,
 		hgGlobalDir,
@@ -122,33 +95,37 @@ func additionalFilesForVCS() []*landlock.Path {
 }
 
 func filesForVCS(
-	sshDir,
-	knownHosts,
+	homeSSHDir,
+	homeKnownHosts,
 	etcPasswd,
+	etcKnownHosts,
 	gitGlobalFile,
 	hgGlobalFile,
 	hgGlobalDir string) []*landlock.Path {
 
 	// omit ssh if there is no home directory
 	home := findHomeDir()
-	sshDir = filepath.Join(home, sshDir)
-	knownHosts = filepath.Join(home, knownHosts)
+	homeSSHDir = filepath.Join(home, homeSSHDir)
+	homeKnownHosts = filepath.Join(home, homeKnownHosts)
 
-	// only add if a path exists
+	// detect if p exists
 	exists := func(p string) bool {
 		_, err := os.Stat(p)
 		return err == nil
 	}
 
 	result := make([]*landlock.Path, 0, 6)
-	if exists(sshDir) {
-		result = append(result, landlock.Dir(sshDir, "r"))
+	if exists(homeSSHDir) {
+		result = append(result, landlock.Dir(homeSSHDir, "r"))
 	}
-	if exists(knownHosts) {
-		result = append(result, landlock.File(knownHosts, "rw"))
+	if exists(homeKnownHosts) {
+		result = append(result, landlock.File(homeKnownHosts, "rw"))
 	}
 	if exists(etcPasswd) {
 		result = append(result, landlock.File(etcPasswd, "r"))
+	}
+	if exists(etcKnownHosts) {
+		result = append(result, landlock.File(etcKnownHosts, "r"))
 	}
 	if exists(gitGlobalFile) {
 		result = append(result, landlock.File(gitGlobalFile, "r"))

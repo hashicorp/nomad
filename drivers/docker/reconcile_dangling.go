@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package docker
 
 import (
@@ -19,10 +22,10 @@ import (
 // creation API call fail with a network error.  containerReconciler
 // scans for these untracked containers and kill them.
 type containerReconciler struct {
-	ctx    context.Context
-	config *ContainerGCConfig
-	client *docker.Client
-	logger hclog.Logger
+	ctx       context.Context
+	config    *ContainerGCConfig
+	logger    hclog.Logger
+	getClient func() (*docker.Client, error)
 
 	isDriverHealthy   func() bool
 	trackedContainers func() *set.Set[string]
@@ -33,10 +36,10 @@ type containerReconciler struct {
 
 func newReconciler(d *Driver) *containerReconciler {
 	return &containerReconciler{
-		ctx:    d.ctx,
-		config: &d.config.GC.DanglingContainers,
-		client: client,
-		logger: d.logger,
+		ctx:       d.ctx,
+		config:    &d.config.GC.DanglingContainers,
+		getClient: d.getDockerClient,
+		logger:    d.logger,
 
 		isDriverHealthy:   func() bool { return d.previouslyDetected() && d.fingerprintSuccessful() },
 		trackedContainers: d.trackedContainers,
@@ -106,9 +109,14 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 		return nil
 	}
 
+	dockerClient, err := r.getClient()
+	if err != nil {
+		return err
+	}
+
 	for _, id := range untracked.Slice() {
 		ctx, cancel := r.dockerAPIQueryContext()
-		err := client.RemoveContainer(docker.RemoveContainerOptions{
+		err := dockerClient.RemoveContainer(docker.RemoveContainerOptions{
 			Context: ctx,
 			ID:      id,
 			Force:   true,
@@ -132,7 +140,12 @@ func (r *containerReconciler) untrackedContainers(tracked *set.Set[string], cuto
 	ctx, cancel := r.dockerAPIQueryContext()
 	defer cancel()
 
-	cc, err := client.ListContainers(docker.ListContainersOptions{
+	dockerClient, err := r.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	cc, err := dockerClient.ListContainers(docker.ListContainersOptions{
 		Context: ctx,
 		All:     false, // only reconcile running containers
 	})

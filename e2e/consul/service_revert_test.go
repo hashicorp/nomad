@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package consul
 
 import (
@@ -9,17 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
-
-func TestConsul(t *testing.T) {
-	// todo: migrate the remaining consul tests
-
-	nomad := e2eutil.NomadClient(t)
-
-	e2eutil.WaitForLeader(t, nomad)
-	e2eutil.WaitForNodesReady(t, nomad, 1)
-
-	t.Run("testServiceReversion", testServiceReversion)
-}
 
 // testServiceReversion asserts we can
 // - submit a job with a service

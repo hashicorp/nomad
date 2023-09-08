@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 @import './components/accordion';
 @import './components/badge-nomad-internal';
 @import './components/boxed-section';
@@ -43,7 +48,7 @@
 @import './components/timeline';
 @import './components/toggle';
 @import './components/toolbar';
-@import './components/tooltip';
+@import './components/tooltip_legacy';
 @import './components/two-step-button';
 @import './components/evaluations';
 @import './components/variables';
@@ -53,3 +58,4 @@
 @import './components/authorization';
 @import './components/policies';
 @import './components/metadata-editor';
+@import './components/job-status-panel';

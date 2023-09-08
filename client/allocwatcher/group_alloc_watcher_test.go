@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocwatcher
 
 import (
@@ -6,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -25,7 +29,7 @@ func TestPrevAlloc_GroupPrevAllocWatcher_Block(t *testing.T) {
 
 	waiter, _ := NewAllocWatcher(conf)
 
-	groupWaiter := &groupPrevAllocWatcher{prevAllocs: []PrevAllocWatcher{waiter}}
+	groupWaiter := &groupPrevAllocWatcher{prevAllocs: []config.PrevAllocWatcher{waiter}}
 
 	// Wait in a goroutine with a context to make sure it exits at the right time
 	ctx, cancel := context.WithCancel(context.Background())
@@ -99,7 +103,7 @@ func TestPrevAlloc_GroupPrevAllocWatcher_BlockMulti(t *testing.T) {
 	waiter2, _ := NewAllocWatcher(conf2)
 
 	groupWaiter := &groupPrevAllocWatcher{
-		prevAllocs: []PrevAllocWatcher{
+		prevAllocs: []config.PrevAllocWatcher{
 			waiter1,
 			waiter2,
 		},

@@ -35,8 +35,7 @@ Usage: `nomad tls cert create [options]`
 - `-days=<int>`: Provide number of days the certificate is valid for from now
   on. Defaults to 1 year.
 
-- `-dc=<string>`: Provide the datacenter. Matters only for `-server`
-  certificates. Defaults to `dc1`.
+- `-cluster-region=<string>`: DEPRECATED please use `-region`.
 
 - `-domain=<string>`: Provide the domain. Matters only for `-server`
   certificates.
@@ -44,9 +43,7 @@ Usage: `nomad tls cert create [options]`
 - `-key=<string>`: Provide path to the key. Defaults to
   `#DOMAIN#-agent-ca-key.pem`.
 
-- `-node=<string>`: When generating a server cert and this server is set an
-  additional DNS name is included of the form
-  `<node>.server.<datacenter>.<domain>`.
+- `-region=<string>`: Provide the region. Defaults to "global".
 
 - `-server`: Generate server certificate.
 

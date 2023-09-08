@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -349,6 +352,17 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Method:   "POST",
 				Body:     "this is a request payload!",
 			},
+		},
+		{
+			name: "http with tls_server_name",
+			sc: &ServiceCheck{
+				Type:          ServiceCheckHTTP,
+				Interval:      3 * time.Second,
+				Timeout:       1 * time.Second,
+				Path:          "/health",
+				TLSServerName: "foo",
+			},
+			exp: `tls_server_name may only be set for Consul service checks`,
 		},
 	}
 
@@ -1840,6 +1854,21 @@ func TestService_Validate(t *testing.T) {
 					{
 						Name: "servicecheck",
 						Type: "script",
+					},
+				},
+			},
+			expErr: true,
+		},
+		{
+			name: "provider nomad with tls skip verify",
+			input: &Service{
+				Name:     "testservice",
+				Provider: "nomad",
+				Checks: []*ServiceCheck{
+					{
+						Name:          "servicecheck",
+						Type:          "http",
+						TLSSkipVerify: true,
 					},
 				},
 			},

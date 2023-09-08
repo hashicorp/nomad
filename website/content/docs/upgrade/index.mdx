@@ -73,6 +73,12 @@ On a single server, install the new version of Nomad. You can do this by
 joining a new server to the cluster or by replacing or upgrading the binary
 locally and restarting the Nomad service.
 
+Note that if you have [`leave_on_terminate`][] or [`leave_on_interrupt`][] set,
+you should ensure you're using the expected signal for your upgrade process. For
+example, if you have `leave_on_terminate` set and you intend on updating a
+server in-place, you should `SIGINT` and not `SIGTERM` when shutting down the
+server before restarting it.
+
 ### 2. Check cluster health
 
 [Monitor the Nomad logs][monitor] on the remaining servers to check that the
@@ -215,10 +221,10 @@ elections that will slow down the process:
 
 If you are running a single Nomad server, restarting it in-place will
 result in that server not being able to elect itself as a leader. To
-avoid this, create a new [`raft.peers`][peers-json] file before
+avoid this, create a new [`peers.json`][peers-json] file before
 restarting the server with the new configuration. If you have `jq`
 installed you can run the following script on the server's host to
-write the correct `raft.peers` file:
+write the correct `peers.json` file:
 
 ```
 #!/usr/bin/env bash
@@ -244,3 +250,5 @@ configuration to `3` and restart the server.
 
 [peers-json]: /nomad/tutorials/manage-clusters/outage-recovery#manual-recovery-using-peersjson
 [`raft_protocol`]: /nomad/docs/configuration/server#raft_protocol
+[`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
+[`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate

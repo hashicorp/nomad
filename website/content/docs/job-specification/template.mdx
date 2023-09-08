@@ -430,7 +430,6 @@ template {
 {{ range nomadVarList }}
   {{ . }}
 {{ end }}
-}
 EOH
 }
 
@@ -439,7 +438,6 @@ template {
 {{ range nomadVarList }}
   {{ .Path }}
 {{ end }}
-}
 EOH
 }
 ```
@@ -453,7 +451,6 @@ template {
 {{ range nomadVarList "path/to/filter" }}
   {{ . }}
 {{ end }}
-}
 EOH
 }
 ```
@@ -468,7 +465,6 @@ template {
 {{ range nomadVarList "path/to/filter@example_namespace" }}
   {{ . }}
 {{ end }}
-}
 EOH
 }
 ```
@@ -512,7 +508,7 @@ link to the parent variable:
 
 - `Values`: produces a key-sorted list.
 
-- `Tuples`: produces a key-sorted list of K,V tuple structs.
+- `Tuples`: produces a key-sorted list of K,V tuple structs, with accessors `.K` and `.V` for the key and value respectively.
 
 - `Metadata`: returns this collection's parent metadata as a `NomadVarMeta`
 

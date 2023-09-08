@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
@@ -11,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -209,6 +213,7 @@ var basicConfig = &Config{
 	DisableUpdateCheck:        pointer.Of(true),
 	DisableAnonymousSignature: true,
 	Consul: &config.ConsulConfig{
+		Name:                 "default",
 		ServerServiceName:    "nomad",
 		ServerHTTPCheckName:  "nomad-server-http-health-check",
 		ServerSerfCheckName:  "nomad-server-serf-health-check",
@@ -230,8 +235,57 @@ var basicConfig = &Config{
 		ChecksUseAdvertise:   &trueValue,
 		Timeout:              5 * time.Second,
 		TimeoutHCL:           "5s",
+		UseIdentity:          &trueValue,
+		ServiceIdentity: &config.WorkloadIdentityConfig{
+			Audience: []string{"consul.io", "nomad.dev"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
+		},
+		TemplateIdentity: &config.WorkloadIdentityConfig{
+			Audience: []string{"consul.io"},
+			Env:      pointer.Of(true),
+			File:     pointer.Of(false),
+		},
+	},
+	Consuls: map[string]*config.ConsulConfig{
+		"default": {
+			Name:                 "default",
+			ServerServiceName:    "nomad",
+			ServerHTTPCheckName:  "nomad-server-http-health-check",
+			ServerSerfCheckName:  "nomad-server-serf-health-check",
+			ServerRPCCheckName:   "nomad-server-rpc-health-check",
+			ClientServiceName:    "nomad-client",
+			ClientHTTPCheckName:  "nomad-client-http-health-check",
+			Addr:                 "127.0.0.1:9500",
+			AllowUnauthenticated: &trueValue,
+			Token:                "token1",
+			Auth:                 "username:pass",
+			EnableSSL:            &trueValue,
+			VerifySSL:            &trueValue,
+			CAFile:               "/path/to/ca/file",
+			CertFile:             "/path/to/cert/file",
+			KeyFile:              "/path/to/key/file",
+			ServerAutoJoin:       &trueValue,
+			ClientAutoJoin:       &trueValue,
+			AutoAdvertise:        &trueValue,
+			ChecksUseAdvertise:   &trueValue,
+			Timeout:              5 * time.Second,
+			TimeoutHCL:           "5s",
+			UseIdentity:          &trueValue,
+			ServiceIdentity: &config.WorkloadIdentityConfig{
+				Audience: []string{"consul.io", "nomad.dev"},
+				Env:      pointer.Of(false),
+				File:     pointer.Of(true),
+			},
+			TemplateIdentity: &config.WorkloadIdentityConfig{
+				Audience: []string{"consul.io"},
+				Env:      pointer.Of(true),
+				File:     pointer.Of(false),
+			},
+		},
 	},
 	Vault: &config.VaultConfig{
+		Name:                 "default",
 		Addr:                 "127.0.0.1:9500",
 		AllowUnauthenticated: &trueValue,
 		ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
@@ -245,6 +299,24 @@ var basicConfig = &Config{
 		TLSSkipVerify:        &trueValue,
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
+	},
+	Vaults: map[string]*config.VaultConfig{
+		"default": {
+			Name:                 "default",
+			Addr:                 "127.0.0.1:9500",
+			AllowUnauthenticated: &trueValue,
+			ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
+			Enabled:              &falseValue,
+			Role:                 "test_role",
+			TLSCaFile:            "/path/to/ca/file",
+			TLSCaPath:            "/path/to/ca",
+			TLSCertFile:          "/path/to/cert/file",
+			TLSKeyFile:           "/path/to/key/file",
+			TLSServerName:        "foobar",
+			TLSSkipVerify:        &trueValue,
+			TaskTokenTTL:         "1s",
+			Token:                "12345",
+		},
 	},
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:                  true,
@@ -356,7 +428,9 @@ var pluginConfig = &Config{
 	DisableUpdateCheck:        nil,
 	DisableAnonymousSignature: false,
 	Consul:                    nil,
+	Consuls:                   map[string]*config.ConsulConfig{},
 	Vault:                     nil,
+	Vaults:                    map[string]*config.VaultConfig{},
 	TLSConfig:                 nil,
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
@@ -508,7 +582,9 @@ func TestConfig_Parse(t *testing.T) {
 			// defaults, which include additional settings
 			oldDefault := &Config{
 				Consul:    config.DefaultConsulConfig(),
+				Consuls:   map[string]*config.ConsulConfig{"default": config.DefaultConsulConfig()},
 				Vault:     config.DefaultVaultConfig(),
+				Vaults:    map[string]*config.VaultConfig{"default": config.DefaultVaultConfig()},
 				Autopilot: config.DefaultAutopilotConfig(),
 			}
 			actual = oldDefault.Merge(actual)
@@ -543,12 +619,14 @@ func (c *Config) addDefaults() {
 	}
 	if c.Consul == nil {
 		c.Consul = config.DefaultConsulConfig()
+		c.Consuls = map[string]*config.ConsulConfig{"default": c.Consul}
 	}
 	if c.Autopilot == nil {
 		c.Autopilot = config.DefaultAutopilotConfig()
 	}
 	if c.Vault == nil {
 		c.Vault = config.DefaultVaultConfig()
+		c.Vaults = map[string]*config.VaultConfig{"default": c.Vault}
 	}
 	if c.Telemetry == nil {
 		c.Telemetry = &Telemetry{}
@@ -686,15 +764,34 @@ var sample0 = &Config{
 	EnableSyslog:   true,
 	SyslogFacility: "LOCAL0",
 	Consul: &config.ConsulConfig{
+		Name:           "default",
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		ServerAutoJoin: pointer.Of(false),
 		ClientAutoJoin: pointer.Of(false),
 	},
+	Consuls: map[string]*config.ConsulConfig{
+		"default": {
+			Name:           "default",
+			Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+			ServerAutoJoin: pointer.Of(false),
+			ClientAutoJoin: pointer.Of(false),
+		},
+	},
 	Vault: &config.VaultConfig{
+		Name:    "default",
 		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
+	Vaults: map[string]*config.VaultConfig{
+		"default": {
+			Name:    "default",
+			Enabled: pointer.Of(true),
+			Role:    "nomad-cluster",
+			Addr:    "http://host.example.com:8200",
+		},
+	},
+
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
 		EnableRPC:            true,
@@ -781,15 +878,34 @@ var sample1 = &Config{
 	EnableSyslog:   true,
 	SyslogFacility: "LOCAL0",
 	Consul: &config.ConsulConfig{
+		Name:           "default",
 		EnableSSL:      pointer.Of(true),
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		ServerAutoJoin: pointer.Of(false),
 		ClientAutoJoin: pointer.Of(false),
 	},
+	Consuls: map[string]*config.ConsulConfig{
+		"default": {
+			Name:           "default",
+			EnableSSL:      pointer.Of(true),
+			Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+			ServerAutoJoin: pointer.Of(false),
+			ClientAutoJoin: pointer.Of(false),
+		},
+	},
 	Vault: &config.VaultConfig{
+		Name:    "default",
 		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
+	},
+	Vaults: map[string]*config.VaultConfig{
+		"default": {
+			Name:    "default",
+			Enabled: pointer.Of(true),
+			Role:    "nomad-cluster",
+			Addr:    "http://host.example.com:8200",
+		},
 	},
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
@@ -900,4 +1016,99 @@ func permutations(arr []string) [][]string {
 	}
 	helper(arr, len(arr))
 	return res
+}
+
+func TestConfig_MultipleVault(t *testing.T) {
+
+	// verify the default Vault config is set from the list
+	cfg := DefaultConfig()
+	must.Eq(t, "default", cfg.Vault.Name)
+	must.Equal(t, config.DefaultVaultConfig(), cfg.Vault)
+	must.Nil(t, cfg.Vault.Enabled) // unset
+	must.Eq(t, "https://vault.service.consul:8200", cfg.Vault.Addr)
+	must.Eq(t, "", cfg.Vault.Token)
+
+	must.MapLen(t, 1, cfg.Vaults)
+	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
+	must.True(t, cfg.Vault == cfg.Vaults["default"]) // must be same pointer
+
+	// merge in the user's configuration
+	fc, err := LoadConfig("testdata/basic.hcl")
+	must.NoError(t, err)
+	cfg = cfg.Merge(fc)
+
+	must.Eq(t, "default", cfg.Vault.Name)
+	must.NotNil(t, cfg.Vault.Enabled, must.Sprint("override should set to non-nil"))
+	must.False(t, *cfg.Vault.Enabled)
+	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
+	must.Eq(t, "12345", cfg.Vault.Token)
+
+	must.MapLen(t, 1, cfg.Vaults)
+	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
+
+	// add an extra Vault config and override fields in the default
+	fc, err = LoadConfig("testdata/extra-vault.hcl")
+	must.NoError(t, err)
+
+	cfg = cfg.Merge(fc)
+
+	must.Eq(t, "default", cfg.Vault.Name)
+	must.True(t, *cfg.Vault.Enabled)
+	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
+	must.Eq(t, "abracadabra", cfg.Vault.Token)
+
+	must.MapLen(t, 2, cfg.Vaults)
+	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
+
+	must.Eq(t, "alternate", cfg.Vaults["alternate"].Name)
+	must.True(t, *cfg.Vaults["alternate"].Enabled)
+	must.Eq(t, "127.0.0.1:9501", cfg.Vaults["alternate"].Addr)
+	must.Eq(t, "xyzzy", cfg.Vaults["alternate"].Token)
+}
+
+func TestConfig_MultipleConsul(t *testing.T) {
+
+	// verify the default Consul config is set from the list
+	cfg := DefaultConfig()
+	must.Eq(t, "default", cfg.Consul.Name)
+	must.Eq(t, config.DefaultConsulConfig(), cfg.Consul)
+	must.True(t, *cfg.Consul.AllowUnauthenticated)
+	must.Eq(t, "127.0.0.1:8500", cfg.Consul.Addr)
+	must.Eq(t, "", cfg.Consul.Token)
+
+	must.MapLen(t, 1, cfg.Consuls)
+	must.Eq(t, cfg.Consul, cfg.Consuls["default"])
+	must.True(t, cfg.Consul == cfg.Consuls["default"]) // must be same pointer
+
+	// merge in the user's configuration
+	fc, err := LoadConfig("testdata/basic.hcl")
+	must.NoError(t, err)
+	cfg = cfg.Merge(fc)
+
+	must.Eq(t, "default", cfg.Consul.Name)
+	must.True(t, *cfg.Consul.AllowUnauthenticated)
+	must.Eq(t, "127.0.0.1:9500", cfg.Consul.Addr)
+	must.Eq(t, "token1", cfg.Consul.Token)
+
+	must.MapLen(t, 1, cfg.Consuls)
+	must.Eq(t, cfg.Consul, cfg.Consuls["default"])
+
+	// add an extra Consul config and override fields in the default
+	fc, err = LoadConfig("testdata/extra-consul.hcl")
+	must.NoError(t, err)
+
+	cfg = cfg.Merge(fc)
+
+	must.Eq(t, "default", cfg.Consul.Name)
+	must.False(t, *cfg.Consul.AllowUnauthenticated)
+	must.Eq(t, "127.0.0.1:9501", cfg.Consul.Addr)
+	must.Eq(t, "abracadabra", cfg.Consul.Token)
+
+	must.MapLen(t, 2, cfg.Consuls)
+	must.Eq(t, cfg.Consul, cfg.Consuls["default"])
+
+	must.Eq(t, "alternate", cfg.Consuls["alternate"].Name)
+	must.True(t, *cfg.Consuls["alternate"].AllowUnauthenticated)
+	must.Eq(t, "127.0.0.2:8501", cfg.Consuls["alternate"].Addr)
+	must.Eq(t, "xyzzy", cfg.Consuls["alternate"].Token)
 }

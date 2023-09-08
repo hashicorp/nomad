@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -217,6 +220,14 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	}
 
 	return nv
+}
+
+func (v *VolumeRequest) VolumeID(tgName string) string {
+	source := v.Source
+	if v.PerAlloc {
+		source = source + AllocSuffix(tgName)
+	}
+	return source
 }
 
 func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest {

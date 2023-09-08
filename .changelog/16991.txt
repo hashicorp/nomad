@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed filtering on maps with missing keys
+```

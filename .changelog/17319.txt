@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fixed a handful of UX-related bugs during variable editing
+```

@@ -1,8 +1,12 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +22,7 @@ import (
 	cconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1196,7 +1201,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	}
 	var resp0 structs.NodeUpdateResponse
 	err = client.RPC("Node.Register", req0, &resp0)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := srv.connectedNodes()
@@ -1231,18 +1236,27 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 		}
 	}).Node
 	index++
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	volID := uuid.Generate()
-	vols := []*structs.CSIVolume{{
-		ID:        volID,
-		Namespace: structs.DefaultNamespace,
-		PluginID:  "minnie",
-		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
-	}}
+	noPluginVolID := uuid.Generate()
+	vols := []*structs.CSIVolume{
+		{
+			ID:        volID,
+			Namespace: structs.DefaultNamespace,
+			PluginID:  "minnie",
+			Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		},
+		{
+			ID:        noPluginVolID,
+			Namespace: structs.DefaultNamespace,
+			PluginID:  "doesnt-exist",
+			Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		},
+	}
 	index++
 	err = state.UpsertCSIVolume(index, vols)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Delete volumes
 
@@ -1259,7 +1273,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	}
 	resp1 := &structs.CSIVolumeCreateResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)
-	require.EqualError(t, err, "volume not found: bad")
+	must.EqError(t, err, "volume not found: bad")
 
 	// Make sure the valid volume wasn't deleted
 	req2 := &structs.CSIVolumeGetRequest{
@@ -1270,19 +1284,34 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	}
 	resp2 := &structs.CSIVolumeGetResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	require.NoError(t, err)
-	require.NotNil(t, resp2.Volume)
+	must.NoError(t, err)
+	must.NotNil(t, resp2.Volume)
 
 	// Fix the delete request
 	fake.NextDeleteError = nil
 	req1.VolumeIDs = []string{volID}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Make sure it was deregistered
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	require.NoError(t, err)
-	require.Nil(t, resp2.Volume)
+	must.NoError(t, err)
+	must.Nil(t, resp2.Volume)
+
+	// Create a delete request for a volume without plugin.
+	req3 := &structs.CSIVolumeDeleteRequest{
+		VolumeIDs: []string{noPluginVolID},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: ns,
+		},
+		Secrets: structs.CSISecrets{
+			"secret-key-1": "secret-val-1",
+		},
+	}
+	resp3 := &structs.CSIVolumeCreateResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req3, resp3)
+	must.EqError(t, err, fmt.Sprintf(`plugin "doesnt-exist" for volume "%s" not found`, noPluginVolID))
 }
 
 func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
@@ -1967,4 +1996,50 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 	require.Nil(t, plugin)
 	require.Nil(t, vol)
 	require.EqualError(t, err, fmt.Sprintf("volume not found: %s", id2))
+}
+
+func TestCSI_SerializedControllerRPC(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, shutdown := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	var wg sync.WaitGroup
+	wg.Add(3)
+
+	timeCh := make(chan lang.Pair[string, time.Duration])
+
+	testFn := func(pluginID string, dur time.Duration) {
+		defer wg.Done()
+		c := NewCSIVolumeEndpoint(srv, nil)
+		now := time.Now()
+		err := c.serializedControllerRPC(pluginID, func() error {
+			time.Sleep(dur)
+			return nil
+		})
+		elapsed := time.Since(now)
+		timeCh <- lang.Pair[string, time.Duration]{pluginID, elapsed}
+		must.NoError(t, err)
+	}
+
+	go testFn("plugin1", 50*time.Millisecond)
+	go testFn("plugin2", 50*time.Millisecond)
+	go testFn("plugin1", 50*time.Millisecond)
+
+	totals := map[string]time.Duration{}
+	for i := 0; i < 3; i++ {
+		pair := <-timeCh
+		totals[pair.First] += pair.Second
+	}
+
+	wg.Wait()
+
+	// plugin1 RPCs should block each other
+	must.GreaterEq(t, 150*time.Millisecond, totals["plugin1"])
+	must.Less(t, 200*time.Millisecond, totals["plugin1"])
+
+	// plugin1 RPCs should not block plugin2 RPCs
+	must.GreaterEq(t, 50*time.Millisecond, totals["plugin2"])
+	must.Less(t, 100*time.Millisecond, totals["plugin2"])
 }

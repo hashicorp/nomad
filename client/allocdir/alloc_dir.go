@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocdir
 
 import (
@@ -56,6 +59,10 @@ var (
 	// TaskSecrets is the name of the secret directory inside each task
 	// directory
 	TaskSecrets = "secrets"
+
+	// TaskPrivate is the name of the private directory inside each task
+	// directory
+	TaskPrivate = "private"
 
 	// TaskDirs is the set of directories created in each tasks directory.
 	TaskDirs = map[string]os.FileMode{TmpDirName: os.ModeSticky | 0777}
@@ -303,6 +310,13 @@ func (d *AllocDir) UnmountAll() error {
 			}
 		}
 
+		if pathExists(dir.PrivateDir) {
+			if err := removeSecretDir(dir.PrivateDir); err != nil {
+				mErr.Errors = append(mErr.Errors,
+					fmt.Errorf("failed to remove the private dir %q: %v", dir.PrivateDir, err))
+			}
+		}
+
 		// Unmount dev/ and proc/ have been mounted.
 		if err := dir.unmountSpecialDirs(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
@@ -443,6 +457,10 @@ func (d *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 		if filepath.HasPrefix(p, dir.SecretsDir) {
 			d.mu.RUnlock()
 			return nil, fmt.Errorf("Reading secret file prohibited: %s", path)
+		}
+		if filepath.HasPrefix(p, dir.PrivateDir) {
+			d.mu.RUnlock()
+			return nil, fmt.Errorf("Reading private file prohibited: %s", path)
 		}
 	}
 	d.mu.RUnlock()

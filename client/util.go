@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package client
 
 import (
@@ -38,7 +41,8 @@ func diffAllocs(existing map[string]uint64, allocs *allocUpdates) *diffResult {
 			continue
 		}
 
-		// Check for an update
+		// Check for an update (note: AllocModifyIndex is only updated for
+		// server updates)
 		if pulled && alloc.AllocModifyIndex > existIndex {
 			result.updated = append(result.updated, alloc)
 			continue

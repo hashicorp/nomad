@@ -1,9 +1,20 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{#if this.visible}}
   <LinkTo
     @query={{hash currentPage=this.page}}
     class={{this.class}}
     data-test-pager={{this.test}}
     aria-label={{this.label}}
+    {{(modifier
+      this.includeKeyboardNav
+      label=(if (eq this.label 'Next page') 'Next Page' 'Previous Page')
+      action=(action "gotoRoute")
+      pattern=(if (eq this.label 'Next page') (array "]" "]") (array "[" "["))
+    )}}
   >
     {{yield}}
   </LinkTo>

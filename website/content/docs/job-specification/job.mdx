@@ -24,6 +24,8 @@ job "docs" {
 
   datacenters = ["us-east-1"]
 
+  node_pool = "prod"
+
   group "example" {
     # ...
   }
@@ -80,6 +82,9 @@ job "docs" {
   which are eligible for task placement. This field allows wildcard globbing
   through the use of `*` for multi-character matching. The default value is
   `["*"]`, which allows the job to be placed in any available datacenter.
+
+- `node_pool` `(string: <optional>)` - Specifies the node pool to place the job
+  in. The node pool must exist when the job is registered. Defaults to `"default"`.
 
 - `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
@@ -160,8 +165,6 @@ the type is not specified as "service", that is the default job type.
 
 ```hcl
 job "docs" {
-  datacenters = ["default"]
-
   group "example" {
     task "server" {
       driver = "docker"
@@ -185,8 +188,6 @@ restricting the eligible nodes to Linux machines.
 
 ```hcl
 job "docs" {
-  datacenters = ["default"]
-
   type = "batch"
 
   constraint {
@@ -214,8 +215,6 @@ all interactions with Vault.
 
 ```hcl
 job "docs" {
-  datacenters = ["default"]
-
   group "example" {
     task "cat" {
       driver = "exec"

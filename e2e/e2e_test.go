@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // This package exists to wrap our e2e provisioning and test framework so that it
 // can be run via 'go test ./e2e'. See './framework/framework.go'
 package e2e
@@ -21,7 +24,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/lifecycle"
 	_ "github.com/hashicorp/nomad/e2e/metrics"
 	_ "github.com/hashicorp/nomad/e2e/networking"
-	_ "github.com/hashicorp/nomad/e2e/nodedrain"
 	_ "github.com/hashicorp/nomad/e2e/nomadexec"
 	_ "github.com/hashicorp/nomad/e2e/oversubscription"
 	_ "github.com/hashicorp/nomad/e2e/parameterized"
@@ -42,6 +44,7 @@ import (
 	// we get a quick check that they compile on every commit
 	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
 	_ "github.com/hashicorp/nomad/e2e/namespaces"
+	_ "github.com/hashicorp/nomad/e2e/nodedrain"
 	_ "github.com/hashicorp/nomad/e2e/volumes"
 )
 

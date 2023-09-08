@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
 import { findAll, find, render } from '@ember/test-helpers';
@@ -20,6 +25,7 @@ module(
       this.store = this.owner.lookup('service:store');
       this.server = startMirage();
       this.server.create('namespace');
+      this.server.create('node-pool');
     });
 
     hooks.afterEach(function () {

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocrunner
 
 import (
@@ -13,13 +16,12 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
-	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/serviceregistration"
@@ -28,10 +30,12 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"golang.org/x/exp/maps"
 )
 
 // allocRunner is used to run all the tasks in a given allocation
@@ -119,6 +123,10 @@ type allocRunner struct {
 	state     *state.State
 	stateLock sync.RWMutex
 
+	// lastAcknowledgedState is the alloc runner state that was last
+	// acknowledged by the server (may lag behind ar.state)
+	lastAcknowledgedState *state.State
+
 	stateDB cstate.StateDB
 
 	// allocDir is used to build the allocations directory structure.
@@ -128,9 +136,9 @@ type allocRunner struct {
 	// transitions.
 	runnerHooks []interfaces.RunnerHook
 
-	// hookState is the output of allocrunner hooks
-	hookState   *cstructs.AllocHookResources
-	hookStateMu sync.RWMutex
+	// hookResources holds the output from allocrunner hooks so that later
+	// allocrunner hooks or task runner hooks can read them
+	hookResources *cstructs.AllocHookResources
 
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
@@ -143,10 +151,10 @@ type allocRunner struct {
 
 	// prevAllocWatcher allows waiting for any previous or preempted allocations
 	// to exit
-	prevAllocWatcher allocwatcher.PrevAllocWatcher
+	prevAllocWatcher config.PrevAllocWatcher
 
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
-	prevAllocMigrator allocwatcher.PrevAllocMigrator
+	prevAllocMigrator config.PrevAllocMigrator
 
 	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
 	// plugins).
@@ -155,9 +163,6 @@ type allocRunner struct {
 	// csiManager is used to wait for CSI Volumes to be attached, and by the task
 	// runner to manage their mounting
 	csiManager csimanager.Manager
-
-	// cpusetManager is responsible for configuring task cgroups if supported by the platform
-	cpusetManager cgutil.CpusetManager
 
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
@@ -181,7 +186,7 @@ type allocRunner struct {
 
 	// rpcClient is the RPC Client that should be used by the allocrunner and its
 	// hooks to communicate with Nomad Servers.
-	rpcClient RPCer
+	rpcClient config.RPCer
 
 	// serviceRegWrapper is the handler wrapper that is used by service hooks
 	// to perform service and check registration and deregistration.
@@ -192,15 +197,16 @@ type allocRunner struct {
 
 	// getter is an interface for retrieving artifacts.
 	getter cinterfaces.ArtifactGetter
-}
 
-// RPCer is the interface needed by hooks to make RPC calls.
-type RPCer interface {
-	RPC(method string, args interface{}, reply interface{}) error
+	// wranglers is an interface for managing unix/windows processes.
+	wranglers cinterfaces.ProcessWranglers
+
+	// widmgr fetches workload identities
+	widmgr *widmgr.WIDMgr
 }
 
 // NewAllocRunner returns a new allocation runner.
-func NewAllocRunner(config *Config) (*allocRunner, error) {
+func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, error) {
 	alloc := config.Alloc
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
@@ -230,7 +236,6 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		prevAllocMigrator:        config.PrevAllocMigrator,
 		dynamicRegistry:          config.DynamicRegistry,
 		csiManager:               config.CSIManager,
-		cpusetManager:            config.CpusetManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
@@ -238,6 +243,9 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		serviceRegWrapper:        config.ServiceRegWrapper,
 		checkStore:               config.CheckStore,
 		getter:                   config.Getter,
+		wranglers:                config.Wranglers,
+		hookResources:            cstructs.NewAllocHookResources(),
+		widmgr:                   config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID
@@ -293,10 +301,9 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			ShutdownDelayCtx:    ar.shutdownDelayCtx,
 			ServiceRegWrapper:   ar.serviceRegWrapper,
 			Getter:              ar.getter,
-		}
-
-		if ar.cpusetManager != nil {
-			trConfig.CpusetCgroupPathGetter = ar.cpusetManager.CgroupPathFor(ar.id, task.Name)
+			Wranglers:           ar.wranglers,
+			AllocHookResources:  ar.hookResources,
+			WIDMgr:              ar.widmgr,
 		}
 
 		// Create, but do not Run, the task runner
@@ -342,17 +349,15 @@ func (ar *allocRunner) Run() {
 			ar.logger.Error("prerun failed", "error", err)
 
 			for _, tr := range ar.tasks {
-				tr.MarkFailedDead(fmt.Sprintf("failed to setup alloc: %v", err))
+				// emit event and mark task to be cleaned up during runTasks()
+				tr.MarkFailedKill(fmt.Sprintf("failed to setup alloc: %v", err))
 			}
-
-			goto POST
 		}
 	}
 
 	// Run the runners (blocks until they exit)
 	ar.runTasks()
 
-POST:
 	if ar.isShuttingDown() {
 		return
 	}
@@ -447,6 +452,9 @@ func (ar *allocRunner) Restore() error {
 			return err
 		}
 		states[tr.Task().Name] = tr.TaskState()
+
+		// restore process wrangler for task
+		ar.wranglers.Setup(proclib.Task{AllocID: tr.Alloc().ID, Task: tr.Task().Name})
 	}
 
 	ar.taskCoordinator.Restore(states)
@@ -731,11 +739,25 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	}
 	wg.Wait()
 
+	// Perform no action on post stop tasks, but retain their states if they exist. This
+	// commonly happens at the time of alloc GC from the client node.
+	for name, tr := range ar.tasks {
+		if !tr.IsPoststopTask() {
+			continue
+		}
+
+		state := tr.TaskState()
+		if state != nil {
+			states[name] = state
+		}
+	}
+
 	return states
 }
 
-// clientAlloc takes in the task states and returns an Allocation populated
-// with Client specific fields
+// clientAlloc takes in the task states and returns an Allocation populated with
+// Client specific fields. Note: this mutates the allocRunner's state to store
+// the taskStates!
 func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *structs.Allocation {
 	ar.stateLock.Lock()
 	defer ar.stateLock.Unlock()
@@ -1269,6 +1291,12 @@ func (ar *allocRunner) RestartAll(event *structs.TaskEvent) error {
 
 // restartTasks restarts all task runners concurrently.
 func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEvent, failure bool, force bool) error {
+
+	// ensure we are not trying to restart an alloc that is terminal
+	if !ar.shouldRun() {
+		return fmt.Errorf("restart of an alloc that should not run")
+	}
+
 	waitCh := make(chan struct{})
 	var err *multierror.Error
 	var errMutex sync.Mutex
@@ -1389,4 +1417,81 @@ func (ar *allocRunner) GetTaskDriverCapabilities(taskName string) (*drivers.Capa
 	}
 
 	return tr.DriverCapabilities()
+}
+
+// AcknowledgeState is called by the client's alloc sync when a given client
+// state has been acknowledged by the server
+func (ar *allocRunner) AcknowledgeState(a *state.State) {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	ar.lastAcknowledgedState = a
+	ar.persistLastAcknowledgedState(a)
+}
+
+// persistLastAcknowledgedState stores the last client state acknowledged by the server
+func (ar *allocRunner) persistLastAcknowledgedState(a *state.State) {
+	if err := ar.stateDB.PutAcknowledgedState(ar.id, a); err != nil {
+		// While any persistence errors are very bad, the worst case scenario
+		// for failing to persist last acknowledged state is that if the agent
+		// is restarted it will send the update again.
+		ar.logger.Error("error storing acknowledged allocation status", "error", err)
+	}
+}
+
+// GetUpdatePriority returns the update priority based the difference between
+// the current state and the state that was last acknowledged from a server
+// update, returning urgent priority when the update is critical to marking
+// allocations for rescheduling. This is called from the client in the same
+// goroutine that called AcknowledgeState so that we can't get a TOCTOU error.
+func (ar *allocRunner) GetUpdatePriority(a *structs.Allocation) cstructs.AllocUpdatePriority {
+	ar.stateLock.RLock()
+	defer ar.stateLock.RUnlock()
+
+	last := ar.lastAcknowledgedState
+	if last == nil {
+		if a.ClientStatus == structs.AllocClientStatusFailed {
+			return cstructs.AllocUpdatePriorityUrgent
+		}
+		return cstructs.AllocUpdatePriorityTypical
+	}
+
+	switch {
+	case last.ClientStatus != a.ClientStatus:
+		return cstructs.AllocUpdatePriorityUrgent
+	case last.ClientDescription != a.ClientDescription:
+		return cstructs.AllocUpdatePriorityTypical
+	case !last.DeploymentStatus.Equal(a.DeploymentStatus):
+		// TODO: this field gates deployment progress, so we may consider
+		// returning urgent here; right now urgent updates are primarily focused
+		// on recovering from failure
+		return cstructs.AllocUpdatePriorityTypical
+	case !last.NetworkStatus.Equal(a.NetworkStatus):
+		return cstructs.AllocUpdatePriorityTypical
+	}
+
+	if !maps.EqualFunc(last.TaskStates, a.TaskStates, func(st, o *structs.TaskState) bool {
+		return st.Equal(o)
+
+	}) {
+		return cstructs.AllocUpdatePriorityTypical
+	}
+
+	return cstructs.AllocUpdatePriorityNone
+}
+
+func (ar *allocRunner) SetCSIVolumes(vols map[string]*state.CSIVolumeStub) error {
+	return ar.stateDB.PutAllocVolumes(ar.id, &state.AllocVolumes{
+		CSIVolumes: vols,
+	})
+}
+
+func (ar *allocRunner) GetCSIVolumes() (map[string]*state.CSIVolumeStub, error) {
+	allocVols, err := ar.stateDB.GetAllocVolumes(ar.id)
+	if err != nil {
+		return nil, err
+	}
+	if allocVols == nil {
+		return nil, nil
+	}
+	return allocVols.CSIVolumes, nil
 }

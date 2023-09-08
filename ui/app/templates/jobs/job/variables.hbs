@@ -1,0 +1,80 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Job " @model.job.name " variables"}}
+<JobSubnav @job={{@model.job}} />
+
+<section class="section">
+
+<header class="job-variables-intro">
+  <Hds::Alert @type="inline" @color="highlight" as |A|>
+    <A.Title>Automatic Access to Variables</A.Title>
+    <A.Description>
+      <p>Tasks in this job can have <a href="https://developer.hashicorp.com/nomad/docs/concepts/variables#task-access-to-variables" target="_blank" rel="noopener noreferrer">automatic access to Nomad Variables</a>.</p>
+      <ul>
+        <li data-test-variables-intro-all-jobs>Use 
+          <code>
+            <EditableVariableLink @path="nomad/jobs" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
+          </code>
+           for access in all tasks in all jobs</li>
+        <li data-test-variables-intro-job>
+          Use
+          <code>
+            <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
+          </code>
+          for access from all tasks in this job
+        </li>
+        <li data-test-variables-intro-groups>
+          Use
+          {{#if (gt this.firstFewTaskGroupNames.length 1)}}
+            {{#each this.firstFewTaskGroupNames as |name|}}
+              <code><EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} /></code>,
+            {{/each}}
+            etc. for access from all tasks in a specific task group
+          {{else}}
+            <code>
+              <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{object-at 0 this.firstFewTaskGroupNames}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
+            </code>
+            for access from all tasks in a specific task group
+          {{/if}}
+        </li>
+        <li data-test-variables-intro-tasks>
+          Use
+          {{#if (gt this.firstFewTaskNames.length 1)}}
+            {{#each this.firstFewTaskNames as |name|}}
+              <code><EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{name}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} /></code>,
+            {{/each}}
+            etc. for access from a specific task
+          {{else}}
+            <code>
+              <EditableVariableLink @path="nomad/jobs/{{this.model.job.name}}/{{object-at 0 this.firstFewTaskNames}}" @existingPaths={{this.jobRelevantVariables.files}} @namespace={{this.model.job.namespace.name}} />
+            </code> for access from a specific task
+          {{/if}}
+        </li>
+      </ul>
+    </A.Description>
+    <A.Link::Standalone @color="secondary" @icon="arrow-right" @iconPosition="trailing" @text="Learn more about Nomad Variables" @href="https://developer.hashicorp.com/nomad/tutorials/variables" />
+  </Hds::Alert>
+</header>
+
+{{#if this.jobRelevantVariables.files.length}}
+<VariablePaths
+  @branch={{this.jobRelevantVariables}}
+/>
+{{else}}
+  <section class="job-variables-message">
+    <p data-test-no-auto-vars-message>
+      Job <strong>{{this.model.job.name}}</strong> does not have automatic access to any variables, but may have access by virtue of policies associated with this job's tasks' workload identities. See <a href="https://developer.hashicorp.com/nomad/docs/concepts/workload-identity#workload-associated-acl-policies" target="_blank" rel="noopener noreferrer">Workload-Associated ACL Policies</a> for more information.
+    </p>
+    {{#if (can "write variable")}}
+      <Hds::Button data-test-create-variable-button @text="Create a Variable" @size="large" @route="variables.new" @query={{hash path=(concat "nomad/jobs/" this.model.job.name)}} />
+    {{/if}}
+  </section>
+{{/if}}
+
+
+
+</section>
+

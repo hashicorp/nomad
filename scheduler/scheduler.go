@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -72,6 +75,12 @@ type State interface {
 	// The type of each result is *structs.Node
 	Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 
+	// NodesByNodePool returns an iterator over all nodes in the node pool
+	NodesByNodePool(ws memdb.WatchSet, poolName string) (memdb.ResultIterator, error)
+
+	// NodePoolByName is used to lookup a node by ID.
+	NodePoolByName(ws memdb.WatchSet, poolName string) (*structs.NodePool, error)
+
 	// AllocsByJob returns the allocations by JobID
 	AllocsByJob(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Allocation, error)
 
@@ -84,7 +93,7 @@ type State interface {
 	// AllocsByNodeTerminal returns all the allocations by node filtering by terminal status
 	AllocsByNodeTerminal(ws memdb.WatchSet, node string, terminal bool) ([]*structs.Allocation, error)
 
-	// GetNodeByID is used to lookup a node by ID
+	// NodeByID is used to lookup a node by ID
 	NodeByID(ws memdb.WatchSet, nodeID string) (*structs.Node, error)
 
 	// GetJobByID is used to lookup a job by ID

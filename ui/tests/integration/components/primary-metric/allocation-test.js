@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { findAll, render } from '@ember/test-helpers';
@@ -22,6 +27,7 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
+    this.server.create('node-pool');
     this.server.create('node');
     this.server.create('job', {
       groupsCount: 1,

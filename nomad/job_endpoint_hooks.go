@@ -1,8 +1,12 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
 	"fmt"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -301,7 +305,47 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
+	for _, tg := range job.TaskGroups {
+		for _, s := range tg.Services {
+			serviceWarn, serviceErr := v.validateServiceIdentity(s)
+			if serviceErr != nil {
+				multierror.Append(validationErrors, serviceErr)
+			}
+			if len(serviceWarn) > 0 {
+				warnings = append(warnings, serviceWarn...)
+			}
+		}
+
+		for _, t := range tg.Tasks {
+			for _, s := range t.Services {
+				serviceWarn, serviceErr := v.validateServiceIdentity(s)
+				if serviceErr != nil {
+					multierror.Append(validationErrors, serviceErr)
+				}
+				if len(serviceWarn) > 0 {
+					warnings = append(warnings, serviceWarn...)
+				}
+			}
+		}
+	}
+
 	return warnings, validationErrors.ErrorOrNil()
+}
+
+func (v *jobValidate) validateServiceIdentity(s *structs.Service) (warnings []error, err error) {
+	if s.Identity != nil {
+		if !v.srv.config.UseConsulIdentity() {
+			return nil, fmt.Errorf("service %s defines an identity but server configuration for consul.use_identity is not true", s.Name)
+		}
+
+		if s.Identity.Name == "" {
+			return nil, fmt.Errorf("identity for service %s has an empty name", s.Name)
+		}
+	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
+		return nil, fmt.Errorf("service %s does not have an identity and no default service identity is provided", s.Name)
+	}
+
+	return nil, nil
 }
 
 type memoryOversubscriptionValidate struct {
@@ -318,7 +362,12 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 		return nil, err
 	}
 
-	if c != nil && c.MemoryOversubscriptionEnabled {
+	pool, err := v.srv.State().NodePoolByName(nil, job.NodePool)
+	if err != nil {
+		return nil, err
+	}
+
+	if pool.MemoryOversubscriptionEnabled(c) {
 		return nil, nil
 	}
 
@@ -331,4 +380,32 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 	}
 
 	return warnings, err
+}
+
+// submissionController is used to protect against job source sizes that exceed
+// the maximum as set in server config as job_max_source_size
+//
+// Such jobs will have their source discarded and emit a warning, but the job
+// itself will still continue with being registered.
+func (j *Job) submissionController(args *structs.JobRegisterRequest) error {
+	if args.Submission == nil {
+		return nil
+	}
+	maxSize := j.srv.GetConfig().JobMaxSourceSize
+	submission := args.Submission
+	// discard the submission if the source + variables is larger than the maximum
+	// allowable size as set by client config
+	totalSize := len(submission.Source)
+	totalSize += len(submission.Variables)
+	for key, value := range submission.VariableFlags {
+		totalSize += len(key)
+		totalSize += len(value)
+	}
+	if totalSize > maxSize {
+		args.Submission = nil
+		totalSizeHuman := humanize.Bytes(uint64(totalSize))
+		maxSizeHuman := humanize.Bytes(uint64(maxSize))
+		return fmt.Errorf("job source size of %s exceeds maximum of %s and will be discarded", totalSizeHuman, maxSizeHuman)
+	}
+	return nil
 }

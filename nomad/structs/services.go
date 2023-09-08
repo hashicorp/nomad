@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -7,9 +10,11 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,8 +27,6 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/mitchellh/copystructure"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -65,7 +68,8 @@ type ServiceCheck struct {
 	Interval               time.Duration       // Interval of the check
 	Timeout                time.Duration       // Timeout of the response from the check before consul fails the check
 	InitialStatus          string              // Initial status of the check
-	TLSSkipVerify          bool                // Skip TLS verification when Protocol=https
+	TLSServerName          string              // ServerName to use for SNI and TLS verification when (Type=https and Protocol=https) or (Type=grpc and GRPCUseTLS=true)
+	TLSSkipVerify          bool                // Skip TLS verification when (type=https and Protocol=https) or (type=grpc and grpc_use_tls=true)
 	Method                 string              // HTTP Method to use (GET by default)
 	Header                 map[string][]string // HTTP Headers for Consul to set when making HTTP checks
 	CheckRestart           *CheckRestart       // If and when a task should be restarted based on checks
@@ -177,6 +181,10 @@ func (sc *ServiceCheck) Equal(o *ServiceCheck) bool {
 	}
 
 	if sc.TLSSkipVerify != o.TLSSkipVerify {
+		return false
+	}
+
+	if sc.TLSServerName != o.TLSServerName {
 		return false
 	}
 
@@ -336,12 +344,12 @@ func (sc *ServiceCheck) validateNomad() error {
 
 	// expose is connect (consul) specific
 	if sc.Expose {
-		return fmt.Errorf("expose may only be set for Consul service checks")
+		return errors.New("expose may only be set for Consul service checks")
 	}
 
 	// nomad checks do not have warnings
 	if sc.OnUpdate == OnUpdateIgnoreWarn {
-		return fmt.Errorf("on_update may only be set to ignore_warnings for Consul service checks")
+		return errors.New("on_update may only be set to ignore_warnings for Consul service checks")
 	}
 
 	// below are temporary limitations on checks in nomad
@@ -350,13 +358,13 @@ func (sc *ServiceCheck) validateNomad() error {
 	// check_restart.ignore_warnings is not a thing in Nomad (which has no warnings in checks)
 	if sc.CheckRestart != nil {
 		if sc.CheckRestart.IgnoreWarnings {
-			return fmt.Errorf("ignore_warnings on check_restart only supported for Consul service checks")
+			return errors.New("ignore_warnings on check_restart only supported for Consul service checks")
 		}
 	}
 
 	// address_mode="driver" not yet supported on nomad
 	if sc.AddressMode == "driver" {
-		return fmt.Errorf("address_mode = driver may only be set for Consul service checks")
+		return errors.New("address_mode = driver may only be set for Consul service checks")
 	}
 
 	if sc.Type == "http" {
@@ -367,12 +375,22 @@ func (sc *ServiceCheck) validateNomad() error {
 
 	// success_before_passing is consul only
 	if sc.SuccessBeforePassing != 0 {
-		return fmt.Errorf("success_before_passing may only be set for Consul service checks")
+		return errors.New("success_before_passing may only be set for Consul service checks")
 	}
 
 	// failures_before_critical is consul only
 	if sc.FailuresBeforeCritical != 0 {
-		return fmt.Errorf("failures_before_critical may only be set for Consul service checks")
+		return errors.New("failures_before_critical may only be set for Consul service checks")
+	}
+
+	// tls_server_name is consul only
+	if sc.TLSServerName != "" {
+		return errors.New("tls_server_name may only be set for Consul service checks")
+	}
+
+	// tls_skip_verify is consul only
+	if sc.TLSSkipVerify {
+		return errors.New("tls_skip_verify may only be set for Consul service checks")
 	}
 
 	return nil
@@ -461,6 +479,9 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.TLSSkipVerify, "true")
+
+	// Only include TLSServerName if set to maintain ID stability with Nomad <1.6.0
+	hashStringIfNonEmpty(h, sc.TLSServerName)
 
 	// maintain artisanal map hashing to maintain ID stability
 	hashHeader(h, sc.Header)
@@ -593,6 +614,14 @@ type Service struct {
 	// either ServiceProviderConsul or ServiceProviderNomad and defaults to the former when
 	// left empty by the operator.
 	Provider string
+
+	// Consul Cluster (by name) to send API requests to
+	Cluster string
+
+	// Identity is a field populated automatically by the job mutating hook.
+	// Its name will be `consul-service/${service_name}`, and its contents will
+	// match the server's `consul.service_identity` configuration block.
+	Identity *WorkloadIdentity
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -618,6 +647,8 @@ func (s *Service) Copy() *Service {
 	ns.Meta = maps.Clone(s.Meta)
 	ns.CanaryMeta = maps.Clone(s.CanaryMeta)
 	ns.TaggedAddresses = maps.Clone(s.TaggedAddresses)
+
+	ns.Identity = s.Identity.Copy()
 
 	return ns
 }
@@ -720,6 +751,10 @@ func (s *Service) Validate() error {
 			ServiceProviderConsul, ServiceProviderNomad, s.Provider))
 	}
 
+	if err := s.validateIdentity(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -792,6 +827,20 @@ func (s *Service) validateNomadService(mErr *multierror.Error) {
 	}
 }
 
+// validateIdentity performs validation on workload identity field populated by
+// the job mutating hook
+func (s *Service) validateIdentity() error {
+	if s.Identity == nil {
+		return nil
+	}
+
+	if len(s.Identity.Audience) == 0 {
+		return fmt.Errorf("Service identity must provide at least one target aud value")
+	}
+
+	return nil
+}
+
 // ValidateName checks if the service Name is valid and should be called after
 // the name has been interpolated
 func (s *Service) ValidateName(name string) error {
@@ -830,6 +879,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
 	hashString(h, s.Namespace)
+	hashIdentity(h, s.Identity)
 
 	// Don't hash the provider parameter, so we don't cause churn of all
 	// registered services when upgrading Nomad versions. The provider is not
@@ -867,6 +917,22 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 	}
 }
 
+func hashIdentity(h hash.Hash, identity *WorkloadIdentity) {
+	if identity != nil {
+		hashString(h, identity.Name)
+		hashAud(h, identity.Audience)
+		hashBool(h, identity.Env, "Env")
+		hashBool(h, identity.File, "File")
+		hashString(h, identity.ServiceName)
+	}
+}
+
+func hashAud(h hash.Hash, aud []string) {
+	for _, a := range aud {
+		hashString(h, a)
+	}
+}
+
 func hashString(h hash.Hash, s string) {
 	_, _ = io.WriteString(h, s)
 }
@@ -898,6 +964,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if s.Provider != o.Provider {
+		return false
+	}
+
+	if s.Cluster != o.Cluster {
 		return false
 	}
 
@@ -954,6 +1024,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if s.EnableTagOverride != o.EnableTagOverride {
+		return false
+	}
+
+	if !s.Identity.Equal(o.Identity) {
 		return false
 	}
 

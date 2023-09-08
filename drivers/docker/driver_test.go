@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package docker
 
 import (
@@ -18,8 +21,10 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -50,6 +55,10 @@ var (
 			MemoryLimitBytes: 256 * 1024 * 1024,
 		},
 	}
+)
+
+var (
+	top = numalib.Scan(numalib.PlatformScanners())
 )
 
 func dockerIsRemote(t *testing.T) bool {
@@ -130,7 +139,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]interface{}) (*docker.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
 	client := newTestDockerClient(t)
 	driver := dockerDriverHarness(t, driverCfg)
-	cleanup := driver.MkAllocDir(task, true)
+	cleanup := driver.MkAllocDir(task, loggingIsEnabled(&DriverConfig{}, task))
 
 	copyImage(t, task.TaskDir(), "busybox.tar")
 	_, _, err := driver.StartTask(task)
@@ -178,7 +187,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 	logger := testlog.HCLogger(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
-	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, logger))
+	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, top, logger))
 	if cfg == nil {
 		cfg = map[string]interface{}{
 			"gc": map[string]interface{}{
@@ -187,6 +196,14 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 			},
 		}
 	}
+
+	// If on windows, "allow" (don't attempt to drop) linux capabilities.
+	// https://github.com/hashicorp/nomad/issues/15181
+	// TODO: this should instead get fixed properly in capabilities package.
+	if _, ok := cfg["allow_caps"]; !ok && runtime.GOOS == "windows" {
+		cfg["allow_caps"] = capabilities.DockerDefaults().Slice(false)
+	}
+
 	plugLoader, err := loader.NewPluginLoader(&loader.PluginLoaderConfig{
 		Logger:            logger,
 		PluginDir:         "./plugins",
@@ -838,6 +855,37 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
 }
 
+// TestDockerDriver_LogCollectionDisabled ensures that logmon isn't configured
+// when log collection is disable, but out-of-band Docker log shipping still
+// works as expected
+func TestDockerDriver_LogCollectionDisabled(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	task.StdoutPath = os.DevNull
+	task.StderrPath = os.DevNull
+
+	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
+
+	dockerClientConfig["logging"] = LoggingConfig{
+		Type:   "gelf",
+		Config: loggerConfig,
+	}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	t.Cleanup(cleanup)
+	must.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+	container, err := client.InspectContainer(handle.containerID)
+	must.NoError(t, err)
+	must.Nil(t, handle.dlogger)
+
+	must.Eq(t, "gelf", container.HostConfig.LogConfig.Type)
+	must.Eq(t, loggerConfig, container.HostConfig.LogConfig.Config)
+}
+
 func TestDockerDriver_HealthchecksDisable(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
@@ -1479,10 +1527,10 @@ func TestDockerDriver_DNS(t *testing.T) {
 		require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 		_, d, _, cleanup := dockerSetup(t, task, nil)
-		defer cleanup()
+		t.Cleanup(cleanup)
 
 		require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
-		defer d.DestroyTask(task.ID, true)
+		t.Cleanup(func() { _ = d.DestroyTask(task.ID, true) })
 
 		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
 	}
@@ -2042,7 +2090,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 		defer d.DestroyTask(task.ID, true)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		ch, err := handle.Stats(ctx, 1*time.Second)
+		ch, err := handle.Stats(ctx, 1*time.Second, top)
 		assert.NoError(t, err)
 		select {
 		case ru := <-ch:
@@ -2471,34 +2519,56 @@ func TestDockerDriver_Device_Success(t *testing.T) {
 		t.Skip("test device mounts only on linux")
 	}
 
-	hostPath := "/dev/random"
-	containerPath := "/dev/myrandom"
-	perms := "rwm"
-
-	expectedDevice := docker.Device{
-		PathOnHost:        hostPath,
-		PathInContainer:   containerPath,
-		CgroupPermissions: perms,
+	cases := []struct {
+		Name     string
+		Input    DockerDevice
+		Expected docker.Device
+	}{
+		{
+			Name: "AllSet",
+			Input: DockerDevice{
+				HostPath:          "/dev/random",
+				ContainerPath:     "/dev/hostrandom",
+				CgroupPermissions: "rwm",
+			},
+			Expected: docker.Device{
+				PathOnHost:        "/dev/random",
+				PathInContainer:   "/dev/hostrandom",
+				CgroupPermissions: "rwm",
+			},
+		},
+		{
+			Name: "OnlyHost",
+			Input: DockerDevice{
+				HostPath: "/dev/random",
+			},
+			Expected: docker.Device{
+				PathOnHost:        "/dev/random",
+				PathInContainer:   "/dev/random",
+				CgroupPermissions: "rwm",
+			},
+		},
 	}
-	config := DockerDevice{
-		HostPath:      hostPath,
-		ContainerPath: containerPath,
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			task, cfg, _ := dockerTask(t)
+
+			cfg.Devices = []DockerDevice{tc.Input}
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			client, driver, handle, cleanup := dockerSetup(t, task, nil)
+			defer cleanup()
+			require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
+
+			container, err := client.InspectContainer(handle.containerID)
+			require.NoError(t, err)
+
+			require.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
+			require.Equal(t, tc.Expected, container.HostConfig.Devices[0], "Incorrect device ")
+		})
 	}
-
-	task, cfg, _ := dockerTask(t)
-
-	cfg.Devices = []DockerDevice{config}
-	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
-
-	client, driver, handle, cleanup := dockerSetup(t, task, nil)
-	defer cleanup()
-	require.NoError(t, driver.WaitUntilStarted(task.ID, 5*time.Second))
-
-	container, err := client.InspectContainer(handle.containerID)
-	require.NoError(t, err)
-
-	require.NotEmpty(t, container.HostConfig.Devices, "Expected one device")
-	require.Equal(t, expectedDevice, container.HostConfig.Devices[0], "Incorrect device ")
 }
 
 func TestDockerDriver_Entrypoint(t *testing.T) {
@@ -2840,32 +2910,6 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 	}
 }
 
-func TestDockerDriver_cgroupParent(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("v1", func(t *testing.T) {
-		testutil.CgroupsCompatibleV1(t)
-
-		parent := cgroupParent(&drivers.Resources{
-			LinuxResources: &drivers.LinuxResources{
-				CpusetCgroupPath: "/sys/fs/cgroup/cpuset/nomad",
-			},
-		})
-		require.Equal(t, "", parent)
-	})
-
-	t.Run("v2", func(t *testing.T) {
-		testutil.CgroupsCompatibleV2(t)
-
-		parent := cgroupParent(&drivers.Resources{
-			LinuxResources: &drivers.LinuxResources{
-				CpusetCgroupPath: "/sys/fs/cgroup/nomad.slice",
-			},
-		})
-		require.Equal(t, "nomad.slice", parent)
-	})
-}
-
 func TestDockerDriver_parseSignal(t *testing.T) {
 	ci.Parallel(t)
 
@@ -3022,4 +3066,24 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDockerDriver_GroupAdd(t *testing.T) {
+	if !tu.IsCI() {
+		ci.Parallel(t)
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, _ := dockerTask(t)
+	cfg.GroupAdd = []string{"12345", "9999"}
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	client, d, handle, cleanup := dockerSetup(t, task, nil)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Exactly(t, cfg.GroupAdd, container.HostConfig.GroupAdd)
 }

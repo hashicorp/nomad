@@ -259,6 +259,14 @@ server {
 - `job_default_priority` `(int: 50)` - Specifies the default priority assigned to a job.
    A valid value must be between `50` and `job_max_priority`.
 
+- `job_max_source_size` `(string: "1M")` - Specifies the size limit of the associated
+  job source content when registering a job. Note this is not a limit on the actual
+  size of a job. If the limit is exceeded, the original source is simply discarded
+  and no error is returned from the job API.
+
+- `job_tracked_versions` `(int: 6)` - Specifies the number of historic job versions that
+  are kept.
+
 ### Deprecated Parameters
 
 - `retry_join` `(array<string>: [])` - Specifies a list of server addresses to

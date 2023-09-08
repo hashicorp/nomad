@@ -1,20 +1,23 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package allocrunner
 
 import (
 	"context"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocwatcher"
+	"github.com/hashicorp/nomad/client/config"
 )
 
 // upstreamAllocsHook waits for a PrevAllocWatcher to exit before allowing
 // an allocation to be executed
 type upstreamAllocsHook struct {
-	allocWatcher allocwatcher.PrevAllocWatcher
+	allocWatcher config.PrevAllocWatcher
 	logger       log.Logger
 }
 
-func newUpstreamAllocsHook(logger log.Logger, allocWatcher allocwatcher.PrevAllocWatcher) *upstreamAllocsHook {
+func newUpstreamAllocsHook(logger log.Logger, allocWatcher config.PrevAllocWatcher) *upstreamAllocsHook {
 	h := &upstreamAllocsHook{
 		allocWatcher: allocWatcher,
 	}

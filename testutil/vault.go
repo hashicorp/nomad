@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package testutil
 
 import (
@@ -69,6 +72,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		RootToken: token,
 		Client:    client,
 		Config: &config.VaultConfig{
+			Name:    "default",
 			Enabled: &enable,
 			Token:   token,
 			Addr:    http,

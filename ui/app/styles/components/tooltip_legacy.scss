@@ -1,0 +1,79 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.tooltip {
+  position: relative;
+  pointer-events: all;
+}
+
+.tooltip::after {
+  text-transform: none;
+  content: attr(aria-label);
+  background: $black;
+  border-radius: $radius;
+  display: inline-block;
+  opacity: 0;
+  max-width: 250px;
+  color: $white;
+  font-size: $size-7;
+  font-weight: $weight-normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+  white-space: nowrap;
+  vertical-align: middle;
+  padding: 5px 10px;
+  margin: 0;
+  position: absolute;
+  z-index: $z-tooltip;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition: bottom 0.1s ease-in-out;
+}
+
+.tooltip::before {
+  pointer-events: none;
+  display: block;
+  opacity: 0;
+  content: '';
+  width: 0;
+  height: 0;
+  border-top: 6px solid $black;
+  border-right: 6px solid transparent;
+  border-left: 6px solid transparent;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  margin-left: -6px;
+  z-index: $z-tooltip;
+  transition: top 0.1s ease-in-out;
+}
+
+.tooltip.is-right-aligned::after {
+  transform: translateX(-75%);
+}
+
+.tooltip:hover::after,
+.tooltip.always-active::after {
+  opacity: 1;
+  bottom: 120%;
+}
+
+.tooltip:hover::before,
+.tooltip.always-active::before {
+  opacity: 1;
+  top: -20%;
+}
+
+.tooltip.multiline::after {
+  width: 200px;
+  white-space: normal;
+}
+
+.tooltip.pad-left {
+  margin-left: 0.3em;
+}

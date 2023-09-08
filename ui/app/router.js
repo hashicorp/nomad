@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import EmberRouter from '@ember/routing/router';
 import config from 'nomad-ui/config/environment';
 
@@ -33,6 +38,7 @@ Router.map(function () {
       this.route('services', function () {
         this.route('service', { path: '/:name' });
       });
+      this.route('variables');
     });
   });
 

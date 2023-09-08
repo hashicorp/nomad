@@ -1,15 +1,21 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package csimanager
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -91,6 +97,41 @@ func TestManager_DeregisterPlugin(t *testing.T) {
 		im := instanceManagerByTypeAndName(pm, plugin.Type, plugin.Name)
 		return im == nil
 	}, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestManager_WaitForPlugin(t *testing.T) {
+	ci.Parallel(t)
+
+	registry := setupRegistry(nil)
+	t.Cleanup(registry.Shutdown)
+	pm := testManager(t, registry, 5*time.Second) // resync period can be long.
+	t.Cleanup(pm.Shutdown)
+	pm.Run()
+
+	t.Run("never happens", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		t.Cleanup(cancel)
+
+		err := pm.WaitForPlugin(ctx, "bad-type", "bad-name")
+		must.Error(t, err)
+		must.ErrorContains(t, err, "did not become ready: context deadline exceeded")
+	})
+
+	t.Run("ok after delay", func(t *testing.T) {
+		plugin := fakePlugin(0, dynamicplugins.PluginTypeCSIController)
+
+		// register the plugin in the near future
+		time.AfterFunc(100*time.Millisecond, func() {
+			err := registry.RegisterPlugin(plugin)
+			must.NoError(t, err)
+		})
+
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		t.Cleanup(cancel)
+
+		err := pm.WaitForPlugin(ctx, plugin.Type, plugin.Name)
+		must.NoError(t, err)
+	})
 }
 
 // TestManager_MultiplePlugins ensures that multiple plugins with the same

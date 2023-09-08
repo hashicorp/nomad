@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 .timeline {
   list-style: none;
   position: relative;
@@ -48,6 +53,10 @@
 
   .timeline-object {
     margin-bottom: 1em;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
 
     > .boxed-section {
       margin-bottom: 0;

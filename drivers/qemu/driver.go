@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package qemu
 
 import (
@@ -429,7 +432,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	mb := cfg.Resources.NomadResources.Memory.MemoryMB
 	if mb < 128 || mb > 4000000 {
-		return nil, nil, fmt.Errorf("Qemu memory assignment out of bounds")
+		return nil, nil, fmt.Errorf("QEMU memory assignment out of bounds")
 	}
 	mem := fmt.Sprintf("%dM", mb)
 
@@ -553,7 +556,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			)
 		}
 	}
-	d.logger.Debug("starting QemuVM command ", "args", strings.Join(args, " "))
+	d.logger.Debug("starting QEMU VM command ", "args", strings.Join(args, " "))
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-executor.out", cfg.Name))
 	executorConfig := &executor.ExecutorConfig{
@@ -583,7 +586,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		pluginClient.Kill()
 		return nil, nil, err
 	}
-	d.logger.Debug("started new QemuVM", "ID", vmID)
+	d.logger.Debug("started new QEMU VM", "id", vmID)
 
 	h := &taskHandle{
 		exec:         execImpl,
@@ -706,12 +709,12 @@ func (d *Driver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, err
 	return d.eventer.TaskEvents(ctx)
 }
 
-func (d *Driver) SignalTask(taskID string, signal string) error {
-	return fmt.Errorf("Qemu driver can't signal commands")
+func (d *Driver) SignalTask(_ string, _ string) error {
+	return fmt.Errorf("QEMU driver can't signal commands")
 }
 
-func (d *Driver) ExecTask(taskID string, cmdArgs []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
-	return nil, fmt.Errorf("Qemu driver can't execute commands")
+func (d *Driver) ExecTask(_ string, _ []string, _ time.Duration) (*drivers.ExecTaskResult, error) {
+	return nil, fmt.Errorf("QEMU driver can't execute commands")
 
 }
 

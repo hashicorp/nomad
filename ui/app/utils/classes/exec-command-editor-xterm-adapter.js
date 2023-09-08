@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import KEYS from 'nomad-ui/utils/keys';
 
 const REVERSE_WRAPAROUND_MODE = '\x1b[?45h';

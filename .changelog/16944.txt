@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fix panic on job plan when -diff=false
+```

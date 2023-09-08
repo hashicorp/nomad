@@ -1,0 +1,10 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#if this.isActivelyDeploying}}
+  <JobStatus::Panel::Deploying @job={{@job}} @handleError={{@handleError}} />
+{{else}}
+  <JobStatus::Panel::Steady @job={{@job}} @statusMode={{@statusMode}} @setStatusMode={{@setStatusMode}} @nodes={{this.nodes}} />
+{{/if}}

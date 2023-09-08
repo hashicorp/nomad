@@ -1,7 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package fingerprint
 
 import (
 	"runtime"
+	"strings"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/shirou/gopsutil/v3/host"
@@ -26,12 +30,21 @@ func (f *HostFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprint
 		return err
 	}
 
+	if runtime.GOOS == "windows" {
+		platformVersion := strings.Split(hostInfo.PlatformVersion, "Build")
+		if len(platformVersion) == 2 {
+			resp.AddAttribute("os.version", strings.TrimSpace(platformVersion[0]))
+			resp.AddAttribute("os.build", strings.TrimSpace(platformVersion[1]))
+		} else {
+			f.logger.Warn("unable to retrieve 'os.build' attribute", "platform_version", hostInfo.PlatformVersion)
+		}
+	} else {
+		resp.AddAttribute("os.version", hostInfo.PlatformVersion)
+		resp.AddAttribute("kernel.version", hostInfo.KernelVersion)
+	}
 	resp.AddAttribute("os.name", hostInfo.Platform)
-	resp.AddAttribute("os.version", hostInfo.PlatformVersion)
-
 	resp.AddAttribute("kernel.name", runtime.GOOS)
 	resp.AddAttribute("kernel.arch", hostInfo.KernelArch)
-	resp.AddAttribute("kernel.version", hostInfo.KernelVersion)
 
 	resp.AddAttribute("unique.hostname", hostInfo.Hostname)
 	resp.Detected = true

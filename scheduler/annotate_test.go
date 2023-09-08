@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -332,6 +335,27 @@ func TestAnnotateTask(t *testing.T) {
 			},
 			Parent:  &structs.TaskGroupDiff{Type: structs.DiffTypeEdited},
 			Desired: AnnotationForcesInplaceUpdate,
+		},
+		{
+			Diff: &structs.TaskDiff{
+				Type: structs.DiffTypeEdited,
+				Objects: []*structs.ObjectDiff{
+					{
+						Type: structs.DiffTypeAdded,
+						Name: "LogConfig",
+						Fields: []*structs.FieldDiff{
+							{
+								Type: structs.DiffTypeAdded,
+								Name: "Disabled",
+								Old:  "true",
+								New:  "false",
+							},
+						},
+					},
+				},
+			},
+			Parent:  &structs.TaskGroupDiff{Type: structs.DiffTypeEdited},
+			Desired: AnnotationForcesDestructiveUpdate,
 		},
 		{
 			Diff: &structs.TaskDiff{

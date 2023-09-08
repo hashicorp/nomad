@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package config
 
 import (
@@ -10,9 +13,11 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	sockaddr "github.com/hashicorp/go-sockaddr"
-	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 func TestMain(m *testing.M) {
@@ -88,7 +93,14 @@ func TestConsulConfig_Merge(t *testing.T) {
 		KeyFile:              "2",
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
-		ExtraKeysHCL:         []string{"b", "2"},
+		UseIdentity:          &yes,
+		ServiceIdentity: &WorkloadIdentityConfig{
+			Name:     "test",
+			Audience: []string{"consul.io", "nomad.dev"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
+		},
+		ExtraKeysHCL: []string{"b", "2"},
 	}
 
 	exp := &ConsulConfig{
@@ -116,7 +128,14 @@ func TestConsulConfig_Merge(t *testing.T) {
 		KeyFile:              "2",
 		ServerAutoJoin:       &yes,
 		ClientAutoJoin:       &yes,
-		ExtraKeysHCL:         []string{"a", "1"}, // not merged
+		UseIdentity:          &yes,
+		ServiceIdentity: &WorkloadIdentityConfig{
+			Name:     "test",
+			Audience: []string{"consul.io", "nomad.dev"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
+		},
+		ExtraKeysHCL: []string{"a", "1"}, // not merged
 	}
 
 	result := c1.Merge(c2)

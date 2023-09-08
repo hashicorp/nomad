@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package csi
 
 import (
@@ -64,7 +67,7 @@ func dumpLogs(pluginIDs []string) error {
 		}
 		for _, alloc := range allocs {
 			allocID := alloc["ID"]
-			out, err := e2e.AllocLogs(allocID, e2e.LogsStdErr)
+			out, err := e2e.AllocLogs(allocID, "", e2e.LogsStdErr)
 			if err != nil {
 				return fmt.Errorf("could not get logs for alloc: %v\n%s", err, out)
 			}

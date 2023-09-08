@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package api
 
 import (
@@ -209,6 +212,7 @@ type ServiceCheck struct {
 	Interval               time.Duration       `hcl:"interval,optional"`
 	Timeout                time.Duration       `hcl:"timeout,optional"`
 	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	TLSServerName          string              `mapstructure:"tls_server_name" hcl:"tls_server_name,optional"`
 	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
 	Header                 map[string][]string `hcl:"header,block"`
 	Method                 string              `hcl:"method,optional"`
@@ -239,10 +243,14 @@ type Service struct {
 	TaggedAddresses   map[string]string `hcl:"tagged_addresses,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
+	Identity          *WorkloadIdentity `hcl:"identity,block"`
 
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
 	Provider string `hcl:"provider,optional"`
+
+	// Cluster is valid only for Nomad Enterprise with provider: consul
+	Cluster string `hcl:"cluster,optional`
 }
 
 const (
@@ -279,6 +287,9 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default the service provider.
 	if s.Provider == "" {
 		s.Provider = ServiceProviderConsul
+	}
+	if s.Cluster == "" {
+		s.Cluster = "default"
 	}
 
 	if len(s.Meta) == 0 {

@@ -1,0 +1,3 @@
+```release-note:bug
+csi: fixed a bug that could case a panic when deleting volumes
+```

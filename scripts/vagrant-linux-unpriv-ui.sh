@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
 
-export NODE_VERSION=14.19.2
+
+export NODE_VERSION=18.16.1
 
 # Install NVM for simple node.js version management
 curl -sSL --fail -o- https://raw.githubusercontent.com/creationix/nvm/v0.36.0/install.sh | bash

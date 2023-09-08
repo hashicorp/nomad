@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package docker
 
 import (
@@ -22,7 +25,7 @@ func TestDockerDriver_FingerprintHealth(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDockerDriver(ctx, testlog.HCLogger(t)).(*Driver)
+	d := NewDockerDriver(ctx, top, testlog.HCLogger(t)).(*Driver)
 
 	fp := d.buildFingerprint()
 	must.Eq(t, drivers.HealthStateHealthy, fp.Health)
@@ -39,7 +42,7 @@ func TestDockerDriver_NonRoot_CGV2(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDockerDriver(ctx, testlog.HCLogger(t)).(*Driver)
+	d := NewDockerDriver(ctx, top, testlog.HCLogger(t)).(*Driver)
 
 	fp := d.buildFingerprint()
 	must.Eq(t, drivers.HealthStateUndetected, fp.Health)

@@ -1,7 +1,11 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +33,7 @@ func registerMockJob(s *Server, t *testing.T, prefix string, counter int) *struc
 
 func registerJob(s *Server, t *testing.T, job *structs.Job) {
 	fsmState := s.fsm.State()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 }
 
 func mockAlloc() *structs.Allocation {
@@ -81,10 +86,34 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
-	fsmState := s.fsm.State()
+	store := s.fsm.State()
+
+	ns := mock.Namespace()
+	ns.Name = "not-allowed"
+	must.NoError(t, store.UpsertNamespaces(10, []*structs.Namespace{ns}))
 
 	job := registerMockJob(s, t, jobID, 0)
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+
+	variable := mock.VariableEncrypted()
+	resp := store.VarSet(1001, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: variable,
+	})
+	must.NoError(t, resp.Error)
+
+	plugin := mock.CSIPlugin()
+	must.NoError(t, store.UpsertCSIPlugin(1002, plugin))
+
+	node := mock.Node()
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1003, node))
+
+	disallowedVariable := mock.VariableEncrypted()
+	disallowedVariable.Namespace = "not-allowed"
+	resp = store.VarSet(2001, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: disallowedVariable,
+	})
+	must.NoError(t, resp.Error)
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
@@ -99,83 +128,137 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	{
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with an invalid token and expect failure
 	{
-		invalidToken := mock.CreatePolicyAndToken(t, fsmState, 1003, "test-invalid",
+		invalidToken := mock.CreatePolicyAndToken(t, store, 1003, "test-invalid",
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 		req.AuthToken = invalidToken.SecretID
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect failure due to Jobs being the context
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
+		validToken := mock.CreatePolicyAndToken(t, store, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
 		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect success due to All context
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
+		validToken := mock.CreatePolicyAndToken(t, store, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
 		req.Context = structs.All
 		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Nodes], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-		// Jobs filtered out since token only has access to node:read
-		require.Len(t, resp.Matches[structs.Jobs], 0)
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+
+		// Jobs, Plugins, and Variables filtered out since token only has access
+		// to node:read
+		must.SliceEmpty(t, resp.Matches[structs.Jobs])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+		must.SliceEmpty(t, resp.Matches[structs.Variables])
+
+		must.Eq(t, uint64(1003), resp.Index) // index of node
 	}
 
 	// Try with a valid token for namespace:read-job
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1009, "test-valid2",
+		validToken := mock.CreatePolicyAndToken(t, store, 1009, "test-valid2",
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-		// Index of job - not node - because node context is filtered out
-		require.Equal(t, uint64(1000), resp.Index)
+		must.Eq(t, []string{job.ID}, resp.Matches[structs.Jobs])
 
-		// Nodes filtered out since token only has access to namespace:read-job
-		require.Len(t, resp.Matches[structs.Nodes], 0)
+		// Nodes, Plugins, and Variables filtered out since token only has
+		// access to namespace:read-job
+		must.SliceEmpty(t, resp.Matches[structs.Nodes])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+		must.SliceEmpty(t, resp.Matches[structs.Variables])
+
+		// Index of job because all other contexts are filtered out
+		must.Eq(t, uint64(1000), resp.Index)
 	}
 
 	// Try with a valid token for node:read and namespace:read-job
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1011, "test-valid3", strings.Join([]string{
+		validToken := mock.CreatePolicyAndToken(t, store, 1011, "test-valid3", strings.Join([]string{
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-		require.Len(t, resp.Matches[structs.Nodes], 1)
-		require.Equal(t, uint64(1001), resp.Index)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.Eq(t, []string{job.ID}, resp.Matches[structs.Jobs])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+		must.SliceEmpty(t, resp.Matches[structs.Variables])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, uint64(1003), resp.Index) // index of node
+	}
+
+	// Try with a valid token for node:read and namespace:variable:read
+	{
+		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
+			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
+				map[string][]string{"*": []string{"list"}}),
+			mock.NodePolicy(acl.PolicyRead),
+		}, "\n"))
+		req.AuthToken = validToken.SecretID
+		var resp structs.SearchResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.SliceEmpty(t, resp.Matches[structs.Jobs])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+		must.Eq(t, []string{variable.Path}, resp.Matches[structs.Variables])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, uint64(2001), resp.Index) // index of variables
+	}
+
+	// Try with a valid token for node:read and namespace:variable:read, wildcard ns
+	{
+		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
+			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
+				map[string][]string{"*": []string{"list"}}),
+			mock.NodePolicy(acl.PolicyRead),
+		}, "\n"))
+		req.AuthToken = validToken.SecretID
+		req.Namespace = structs.AllNamespacesSentinel
+		var resp structs.SearchResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.SliceEmpty(t, resp.Matches[structs.Jobs])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+		must.Eq(t, []string{variable.Path}, resp.Matches[structs.Variables])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, uint64(2001), resp.Index) // index of variables
 	}
 
 	// Try with a management token
 	{
 		req.AuthToken = root.SecretID
+		req.Namespace = structs.DefaultNamespace
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-		require.Len(t, resp.Matches[structs.Nodes], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.Eq(t, []string{job.ID}, resp.Matches[structs.Jobs])
+		must.Eq(t, []string{plugin.ID}, resp.Matches[structs.Plugins])
+
+		expectVars := []string{variable.Path, disallowedVariable.Path}
+		slices.Sort(expectVars)
+		slices.Sort(resp.Matches[structs.Variables])
+		must.Eq(t, expectVars, resp.Matches[structs.Variables])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, uint64(2001), resp.Index) // highest index
 	}
 }
 
@@ -478,6 +561,207 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	require.Equal(t, node.ID, resp.Matches[structs.Nodes][0])
 	require.False(t, resp.Truncations[structs.Nodes])
 	require.Equal(t, uint64(100), resp.Index)
+}
+
+func TestSearch_PrefixSearch_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server.
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools.
+	fsmState := s.fsm.State()
+	dev1 := &structs.NodePool{Name: "dev-1"}
+	dev2 := &structs.NodePool{Name: "dev-2"}
+	prod := &structs.NodePool{Name: "prod"}
+
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{dev1, dev2, prod})
+	must.NoError(t, err)
+
+	// Run test cases.
+	testCases := []struct {
+		name     string
+		prefix   string
+		context  structs.Context
+		expected []string
+	}{
+		{
+			name:     "prefix match",
+			prefix:   "dev",
+			context:  structs.NodePools,
+			expected: []string{dev1.Name, dev2.Name},
+		},
+		{
+			name:     "prefix match - all",
+			prefix:   "dev",
+			context:  structs.All,
+			expected: []string{dev1.Name, dev2.Name},
+		},
+		{
+			name:    "empty prefix",
+			prefix:  "",
+			context: structs.NodePools,
+			expected: []string{
+				structs.NodePoolAll, structs.NodePoolDefault,
+				dev1.Name, dev2.Name, prod.Name,
+			},
+		},
+		{
+			name:     "other context",
+			prefix:   "dev",
+			context:  structs.Jobs,
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.SearchRequest{
+				Prefix:  tc.prefix,
+				Context: tc.context,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			var resp structs.SearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					must.SliceContainsAll(t, v, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
+}
+
+func TestSearch_PrefixSearch_NodePool_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server with ACL.
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools and ACL policies.
+	fsmState := s.fsm.State()
+
+	dev1 := &structs.NodePool{Name: "dev-1"}
+	dev2 := &structs.NodePool{Name: "dev-2"}
+	prod := &structs.NodePool{Name: "prod"}
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{dev1, dev2, prod})
+	must.NoError(t, err)
+
+	devToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "dev-node-pools",
+		mock.NodePoolPolicy("dev-*", "read", nil),
+	)
+	noPolicyToken := mock.CreateToken(t, s.fsm.State(), 1003, nil)
+	allPoolsToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1005, "all-node-pools",
+		mock.NodePoolPolicy("*", "read", nil),
+	)
+	denyDevToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1007, "deny-dev-node-pools",
+		mock.NodePoolPolicy("dev-*", "deny", nil),
+	)
+
+	// Run test cases.
+	testCases := []struct {
+		name        string
+		token       string
+		prefix      string
+		expected    []string
+		expectedErr string
+	}{
+		{
+			name:   "management token has access to all",
+			token:  root.SecretID,
+			prefix: "",
+			expected: []string{
+				structs.NodePoolAll, structs.NodePoolDefault,
+				dev1.Name, dev2.Name, prod.Name,
+			},
+		},
+		{
+			name:   "all pools access",
+			token:  allPoolsToken.SecretID,
+			prefix: "",
+			expected: []string{
+				structs.NodePoolAll, structs.NodePoolDefault,
+				dev1.Name, dev2.Name, prod.Name,
+			},
+		},
+		{
+			name:     "only return what token has access",
+			token:    devToken.SecretID,
+			prefix:   "dev",
+			expected: []string{dev1.Name, dev2.Name},
+		},
+		{
+			name:     "no results if token doesn't have access",
+			token:    devToken.SecretID,
+			prefix:   "prod",
+			expected: []string{},
+		},
+		{
+			name:        "no results if token is denied",
+			token:       denyDevToken.SecretID,
+			prefix:      "dev",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "no policy",
+			token:       noPolicyToken.SecretID,
+			prefix:      "",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "no token",
+			token:       "",
+			prefix:      "",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.SearchRequest{
+				Prefix:  tc.prefix,
+				Context: structs.NodePools,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			var resp structs.SearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					must.SliceContainsAll(t, v, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
 }
 
 func TestSearch_PrefixSearch_Deployment(t *testing.T) {
@@ -797,19 +1081,20 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
-	fsmState := s.fsm.State()
+	store := s.fsm.State()
 
 	ns := mock.Namespace()
-	require.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{ns}))
+	must.NoError(t, store.UpsertNamespaces(500, []*structs.Namespace{ns}))
 
 	job1 := mock.Job()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, job1))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 502, nil, job1))
 
 	job2 := mock.Job()
 	job2.Namespace = ns.Name
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, job2))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 504, nil, job2))
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+	node := mock.Node()
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1001, node))
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
@@ -824,66 +1109,66 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 	{
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with an invalid token and expect failure
 	{
-		invalidToken := mock.CreatePolicyAndToken(t, fsmState, 1003, "test-invalid",
+		invalidToken := mock.CreatePolicyAndToken(t, store, 1003, "test-invalid",
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 		req.AuthToken = invalidToken.SecretID
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect failure due to Namespaces being the context
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
+		validToken := mock.CreatePolicyAndToken(t, store, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
 		req.Context = structs.Namespaces
 		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect success due to All context
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
+		validToken := mock.CreatePolicyAndToken(t, store, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
 		req.Context = structs.All
 		req.AuthToken = validToken.SecretID
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Nodes], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		must.Eq(t, uint64(1001), resp.Index)
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
 
 		// Jobs filtered out since token only has access to node:read
-		require.Len(t, resp.Matches[structs.Jobs], 0)
+		must.SliceEmpty(t, resp.Matches[structs.Jobs])
 	}
 
 	// Try with a valid token for non-default namespace:read-job
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1009, "test-valid2",
+		validToken := mock.CreatePolicyAndToken(t, store, 1009, "test-valid2",
 			mock.NamespacePolicy(job2.Namespace, "", []string{acl.NamespaceCapabilityReadJob}))
 		req.Context = structs.All
 		req.AuthToken = validToken.SecretID
 		req.Namespace = job2.Namespace
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job2.ID, resp.Matches[structs.Jobs][0])
-		require.Len(t, resp.Matches[structs.Namespaces], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.Eq(t, []string{job2.ID}, resp.Matches[structs.Jobs])
+		must.Eq(t, []string{ns.Name}, resp.Matches[structs.Namespaces])
 
 		// Index of job - not node - because node context is filtered out
-		require.Equal(t, uint64(504), resp.Index)
+		must.Eq(t, uint64(504), resp.Index)
 
 		// Nodes filtered out since token only has access to namespace:read-job
-		require.Len(t, resp.Matches[structs.Nodes], 0)
+		must.SliceEmpty(t, resp.Matches[structs.Nodes])
 	}
 
 	// Try with a valid token for node:read and default namespace:read-job
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1011, "test-valid3", strings.Join([]string{
+		validToken := mock.CreatePolicyAndToken(t, store, 1011, "test-valid3", strings.Join([]string{
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
@@ -891,12 +1176,14 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 		req.AuthToken = validToken.SecretID
 		req.Namespace = structs.DefaultNamespace
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job1.ID, resp.Matches[structs.Jobs][0])
-		require.Len(t, resp.Matches[structs.Nodes], 1)
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Namespaces], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.Eq(t, []string{job1.ID}, resp.Matches[structs.Jobs])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, []string{"default"}, resp.Matches[structs.Namespaces])
+
+		must.Eq(t, uint64(1001), resp.Index)
+
 	}
 
 	// Try with a management token
@@ -905,12 +1192,13 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 		req.AuthToken = root.SecretID
 		req.Namespace = structs.DefaultNamespace
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job1.ID, resp.Matches[structs.Jobs][0])
-		require.Len(t, resp.Matches[structs.Nodes], 1)
-		require.Len(t, resp.Matches[structs.Namespaces], 2)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.Eq(t, []string{job1.ID}, resp.Matches[structs.Jobs])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, []string{"default", ns.Name}, resp.Matches[structs.Namespaces])
+
+		must.Eq(t, uint64(1001), resp.Index)
 	}
 }
 
@@ -928,7 +1216,7 @@ func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
 	prefix := policy.ID
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -962,13 +1250,37 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
-	fsmState := s.fsm.State()
+	store := s.fsm.State()
+
+	ns := mock.Namespace()
+	ns.Name = "not-allowed"
+	must.NoError(t, store.UpsertNamespaces(10, []*structs.Namespace{ns}))
 
 	job := mock.Job()
 	registerJob(s, t, job)
 
+	variable := mock.VariableEncrypted()
+	variable.Path = "test-path/o"
+	resp := store.VarSet(1001, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: variable,
+	})
+	must.NoError(t, resp.Error)
+
+	plugin := mock.CSIPlugin()
+	plugin.ID = "mock.hashicorp.com"
+	must.NoError(t, store.UpsertCSIPlugin(1002, plugin))
+
 	node := mock.Node()
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, node))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1003, node))
+
+	disallowedVariable := mock.VariableEncrypted()
+	disallowedVariable.Namespace = "not-allowed"
+	resp = store.VarSet(2001, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: disallowedVariable,
+	})
+	must.NoError(t, resp.Error)
 
 	req := &structs.FuzzySearchRequest{
 		Text:         "set-this-in-test",
@@ -980,80 +1292,121 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 	{
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with an invalid token and expect failure
 	{
-		invalidToken := mock.CreatePolicyAndToken(t, fsmState, 1003, "test-invalid",
+		invalidToken := mock.CreatePolicyAndToken(t, store, 1003, "test-invalid",
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
 		req.AuthToken = invalidToken.SecretID
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect failure due to Jobs being the context
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
+		validToken := mock.CreatePolicyAndToken(t, store, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
 		req.AuthToken = validToken.SecretID
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect success due to All context
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
+		validToken := mock.CreatePolicyAndToken(t, store, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
 		req.Context = structs.All
 		req.AuthToken = validToken.SecretID
 		req.Text = "oo" // mock node ID is foobar
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Nodes], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-		// Jobs filtered out since token only has access to node:read
-		require.Len(t, resp.Matches[structs.Jobs], 0)
+		must.Eq(t, []structs.FuzzyMatch{{ID: node.Name, Scope: []string{node.ID}}},
+			resp.Matches[structs.Nodes])
+
+		// Jobs, Plugins, Variables filtered out since token only has access to
+		// node:read
+		must.SliceEmpty(t, resp.Matches[structs.Jobs])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+		must.SliceEmpty(t, resp.Matches[structs.Variables])
+
+		must.Eq(t, uint64(1003), resp.Index) // index of node
 	}
 
 	// Try with a valid token for namespace:read-job
 	{
-		validToken := mock.CreatePolicyAndToken(t, fsmState, 1009, "test-valid2",
+		validToken := mock.CreatePolicyAndToken(t, store, 1009, "test-valid2",
 			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 		req.AuthToken = validToken.SecretID
 		req.Text = "jo" // mock job Name is my-job
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, structs.FuzzyMatch{
+		must.Eq(t, structs.FuzzyMatch{
 			ID:    "my-job",
 			Scope: []string{"default", job.ID},
 		}, resp.Matches[structs.Jobs][0])
 
 		// Index of job - not node - because node context is filtered out
-		require.Equal(t, uint64(1000), resp.Index)
+		must.Eq(t, uint64(1000), resp.Index)
 
 		// Nodes filtered out since token only has access to namespace:read-job
-		require.Len(t, resp.Matches[structs.Nodes], 0)
+		must.SliceEmpty(t, resp.Matches[structs.Nodes])
+	}
+
+	// Try with a valid token for node:read and namespace:variable:read
+	{
+		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
+			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
+				map[string][]string{"*": []string{"list"}}),
+			mock.NodePolicy(acl.PolicyRead),
+		}, "\n"))
+		req.Text = "o" // matches Job:my-job, Node:foobar, Plugin, and Variables
+		req.AuthToken = validToken.SecretID
+		var resp structs.FuzzySearchResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+
+		must.SliceEmpty(t, resp.Matches[structs.Jobs])
+		must.SliceEmpty(t, resp.Matches[structs.Plugins])
+
+		must.Eq(t, []structs.FuzzyMatch{
+			{ID: node.Name, Scope: []string{node.ID}}},
+			resp.Matches[structs.Nodes])
+
+		must.Eq(t, []structs.FuzzyMatch{{
+			ID:    variable.Path,
+			Scope: []string{structs.DefaultNamespace, variable.Path}}},
+			resp.Matches[structs.Variables])
+
+		must.Eq(t, uint64(2001), resp.Index) // index of variables
 	}
 
 	// Try with a management token
 	{
 		req.AuthToken = root.SecretID
 		var resp structs.FuzzySearchResponse
-		req.Text = "o" // matches Job:my-job and Node:foobar
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, structs.FuzzyMatch{
-			ID: job.Name, Scope: []string{"default", job.ID},
-		}, resp.Matches[structs.Jobs][0])
-		require.Len(t, resp.Matches[structs.Nodes], 1)
-		require.Equal(t, structs.FuzzyMatch{
-			ID:    "foobar",
-			Scope: []string{node.ID},
-		}, resp.Matches[structs.Nodes][0])
+		req.Text = "o" // matches Job:my-job, Node:foobar, Plugin, and Variables
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+
+		must.Eq(t, []structs.FuzzyMatch{
+			{ID: job.Name, Scope: []string{"default", job.ID}}},
+			resp.Matches[structs.Jobs])
+
+		must.Eq(t, []structs.FuzzyMatch{
+			{ID: node.Name, Scope: []string{node.ID}}},
+			resp.Matches[structs.Nodes])
+
+		must.Eq(t, []structs.FuzzyMatch{{ID: plugin.ID}},
+			resp.Matches[structs.Plugins])
+
+		must.Eq(t, []structs.FuzzyMatch{{
+			ID:    variable.Path,
+			Scope: []string{structs.DefaultNamespace, variable.Path}}},
+			resp.Matches[structs.Variables])
+
+		must.Eq(t, uint64(2001), resp.Index) // index of variables
 	}
 }
 
@@ -1280,6 +1633,212 @@ func TestSearch_FuzzySearch_Node(t *testing.T) {
 	require.Equal(t, uint64(100), resp.Index)
 }
 
+func TestSearch_FuzzySearch_NodePool(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server.
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools.
+	fsmState := s.fsm.State()
+	devEng := &structs.NodePool{Name: "dev-eng"}
+	devInfra := &structs.NodePool{Name: "dev-infra"}
+	prodEng := &structs.NodePool{Name: "prod-eng"}
+
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{devEng, devInfra, prodEng})
+	must.NoError(t, err)
+
+	// Run test cases.
+	testCases := []struct {
+		name        string
+		text        string
+		context     structs.Context
+		expected    []string
+		expectedErr string
+	}{
+		{
+			name:     "fuzzy match",
+			text:     "eng",
+			context:  structs.NodePools,
+			expected: []string{devEng.Name, prodEng.Name},
+		},
+		{
+			name:     "fuzzy match - all",
+			text:     "eng",
+			context:  structs.All,
+			expected: []string{devEng.Name, prodEng.Name},
+		},
+		{
+			name:        "empty prefix",
+			text:        "",
+			context:     structs.NodePools,
+			expectedErr: "search query must be at least 2 characters",
+		},
+		{
+			name:     "other context",
+			text:     "eng",
+			context:  structs.Jobs,
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.FuzzySearchRequest{
+				Text:    tc.text,
+				Context: tc.context,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			var resp structs.FuzzySearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					got := make([]string, len(v))
+					for i, m := range v {
+						got[i] = m.ID
+					}
+					must.SliceContainsAll(t, got, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
+}
+
+func TestSearch_FuzzySearch_NodePool_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start test server with ACL.
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	// Populate state with test node pools and ACL policies.
+	fsmState := s.fsm.State()
+
+	devEng := &structs.NodePool{Name: "dev-eng"}
+	devInfra := &structs.NodePool{Name: "dev-infra"}
+	prodEng := &structs.NodePool{Name: "prod-eng"}
+
+	err := fsmState.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{devEng, devInfra, prodEng})
+	must.NoError(t, err)
+
+	engToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "eng-node-pools",
+		mock.NodePoolPolicy("*eng", "read", nil),
+	)
+	noPolicyToken := mock.CreateToken(t, s.fsm.State(), 1003, nil)
+	allPoolsToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1005, "all-node-pools",
+		mock.NodePoolPolicy("*", "read", nil),
+	)
+	denyEngToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1007, "deny-eng-node-pools",
+		mock.NodePoolPolicy("*eng", "deny", nil),
+	)
+
+	// Run test cases.
+	testCases := []struct {
+		name        string
+		token       string
+		text        string
+		expected    []string
+		expectedErr string
+	}{
+		{
+			name:     "management token has access to all",
+			token:    root.SecretID,
+			text:     "dev",
+			expected: []string{devEng.Name, devInfra.Name},
+		},
+		{
+			name:     "all pools access",
+			token:    allPoolsToken.SecretID,
+			text:     "dev",
+			expected: []string{devEng.Name, devInfra.Name},
+		},
+		{
+			name:     "only return what token has access",
+			token:    engToken.SecretID,
+			text:     "eng",
+			expected: []string{devEng.Name, prodEng.Name},
+		},
+		{
+			name:     "no results if token doesn't have access",
+			token:    engToken.SecretID,
+			text:     "infra",
+			expected: []string{},
+		},
+		{
+			name:        "no results if token is denied",
+			token:       denyEngToken.SecretID,
+			text:        "eng",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "no policy",
+			token:       noPolicyToken.SecretID,
+			text:        "dev",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name:        "no token",
+			token:       "",
+			text:        "dev",
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &structs.FuzzySearchRequest{
+				Text:    tc.text,
+				Context: structs.NodePools,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			var resp structs.FuzzySearchResponse
+			err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+
+			must.NoError(t, err)
+			must.Len(t, len(tc.expected), resp.Matches[structs.NodePools])
+
+			for k, v := range resp.Matches {
+				switch k {
+				case structs.NodePools:
+					got := make([]string, len(v))
+					for i, m := range v {
+						got[i] = m.ID
+					}
+					must.SliceContainsAll(t, got, tc.expected)
+				default:
+					must.Len(t, 0, v, must.Sprintf("found %d results in %v: %v", len(v), k, v))
+				}
+			}
+		})
+	}
+}
+
 func TestSearch_FuzzySearch_Deployment(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1447,7 +2006,7 @@ func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
 	job, policy := mock.JobWithScalingPolicy()
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    policy.ID[0:3], // scaling policies are prefix searched
@@ -1488,11 +2047,11 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 	require.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{ns}))
 
 	job1 := mock.Job()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, job1))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, nil, job1))
 
 	job2 := mock.Job()
 	job2.Namespace = ns.Name
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, job2))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, nil, job2))
 
 	node := mock.Node()
 	node.Name = "run-jobs"
@@ -1626,19 +2185,19 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 	job1.Name = "teamA-job1"
 	job1.ID = "job1"
 	job1.Namespace = "teamA"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), job1))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job1))
 
 	job2 := mock.Job()
 	job2.Name = "teamB-job2"
 	job2.ID = "job2"
 	job2.Namespace = "teamB"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), job2))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job2))
 
 	job3 := mock.Job()
 	job3.Name = "teamC-job3"
 	job3.ID = "job3"
 	job3.Namespace = "teamC"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), job3))
+	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job3))
 
 	// Upsert a node
 	node := mock.Node()

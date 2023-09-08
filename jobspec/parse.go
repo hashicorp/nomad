@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package jobspec
 
 import (
@@ -508,6 +511,7 @@ func parseVault(result *api.Vault, list *ast.ObjectList) error {
 		"namespace",
 		"policies",
 		"env",
+		"disable_file",
 		"change_mode",
 		"change_signal",
 	}

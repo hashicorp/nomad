@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package taskrunner
 
 import (
@@ -20,7 +23,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
@@ -39,6 +42,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,6 +63,22 @@ func (m *MockTaskStateUpdater) TaskStateUpdated() {
 	case m.ch <- struct{}{}:
 	default:
 	}
+}
+
+// MockWIDMgr allows TaskRunner unit tests to avoid having to setup a Server,
+// Client, and Allocation.
+type MockWIDMgr struct{}
+
+func (m MockWIDMgr) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
+	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
+	for _, idReq := range req {
+		swids = append(swids, &structs.SignedWorkloadIdentity{
+			WorkloadIdentityRequest: *idReq,
+			// Just the sample jwt from jwt.io so it "looks" like a jwt
+			JWT: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+		})
+	}
+	return swids, nil
 }
 
 // testTaskRunnerConfig returns a taskrunner.Config for the given alloc+task
@@ -93,26 +113,10 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 	taskDir := allocDir.NewTaskDir(taskName)
 
-	// Compute the name of the v2 cgroup in case we need it in creation, configuration, and cleanup
-	cgroup := filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(alloc.ID, taskName))
-
-	// Create the cgroup if we are in v2 mode
-	if cgutil.UseV2 {
-		if err := os.MkdirAll(cgroup, 0755); err != nil {
-			t.Fatalf("failed to setup v2 cgroup for test: %v:", err)
-		}
-	}
-
 	trCleanup := func() {
 		if err := allocDir.Destroy(); err != nil {
 			t.Logf("error destroying alloc dir: %v", err)
 		}
-
-		// Cleanup the cgroup if we are in v2 mode
-		if cgutil.UseV2 {
-			_ = os.RemoveAll(cgroup)
-		}
-
 		cleanup()
 	}
 
@@ -147,13 +151,8 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ShutdownDelayCancelFn: shutdownDelayCancelFn,
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
-	}
-
-	// Set the cgroup path getter if we are in v2 mode
-	if cgutil.UseV2 {
-		conf.CpusetCgroupPathGetter = func(context.Context) (string, error) {
-			return filepath.Join(cgutil.CgroupRoot, "testing.slice", alloc.ID, thisTask.Name), nil
-		}
+		Wranglers:             proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
+		WIDMgr:                MockWIDMgr{},
 	}
 
 	return conf, trCleanup
@@ -657,6 +656,61 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+}
+
+// TestTaskRunner_MarkFailedKill asserts that MarkFailedKill marks the task as failed
+// and cancels the killCtx so a subsequent Run() will do any necessary task cleanup.
+func TestTaskRunner_MarkFailedKill(t *testing.T) {
+	ci.Parallel(t)
+
+	// set up some taskrunner
+	alloc := mock.MinAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	t.Cleanup(cleanup)
+	tr, err := NewTaskRunner(conf)
+	must.NoError(t, err)
+
+	// side quest: set this lifecycle coordination channel,
+	// so early in tr MAIN, it doesn't randomly follow that route.
+	// test config creates this already closed, but not so in real life.
+	startCh := make(chan struct{})
+	t.Cleanup(func() { close(startCh) })
+	tr.startConditionMetCh = startCh
+
+	// function under test: should mark the task as failed and cancel kill context
+	reason := "because i said so"
+	tr.MarkFailedKill(reason)
+
+	// explicitly check kill context.
+	select {
+	case <-tr.killCtx.Done():
+	default:
+		t.Fatal("kill context should be done")
+	}
+
+	// Run() should now follow the kill path.
+	go tr.Run()
+
+	select { // it should finish up very quickly
+	case <-tr.WaitCh():
+	case <-time.After(time.Second):
+		t.Error("task not killed (or not as fast as expected)")
+	}
+
+	// check state for expected values and events
+	state := tr.TaskState()
+
+	// this gets set directly by MarkFailedKill()
+	test.True(t, state.Failed, test.Sprint("task should have failed"))
+	// this is set in Run()
+	test.Eq(t, structs.TaskStateDead, state.State, test.Sprint("task should be dead"))
+	// reason "because i said so" should be a task event message
+	foundMessages := make(map[string]bool)
+	for _, event := range state.Events {
+		foundMessages[event.DisplayMessage] = true
+	}
+	test.True(t, foundMessages[reason], test.Sprintf("expected '%s' in events: %#v", reason, foundMessages))
 }
 
 // TestTaskRunner_TaskEnv_Interpolated asserts driver configurations are
@@ -1584,8 +1638,13 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	require.False(t, finalState.Failed)
 
 	// Check that the token is on disk
-	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := os.ReadFile(tokenPath)
+	require.NoError(t, err)
+	require.Equal(t, token, string(data))
+
+	tokenPath = filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	data, err = os.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
 
@@ -1610,6 +1669,57 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	}, func(err error) {
 		require.Fail(t, err.Error())
 	})
+}
+
+func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create test allocation with a Vault block disabling the token file in
+	// the secrets dir.
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Config = map[string]any{
+		"run_for": "0s",
+	}
+	task.Vault = &structs.Vault{
+		Policies:    []string{"default"},
+		DisableFile: true,
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Setup a test Vault client
+	token := "1234"
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		return map[string]string{task.Name: token}, nil
+	}
+	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	// Start task runner and wait for it to complete.
+	tr, err := NewTaskRunner(conf)
+	must.NoError(t, err)
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+	go tr.Run()
+
+	testWaitForTaskToDie(t, tr)
+
+	// Verify task exited successfully.
+	finalState := tr.TaskState()
+	must.Eq(t, structs.TaskStateDead, finalState.State)
+	must.False(t, finalState.Failed)
+
+	// Verify token is in the private dir.
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
+	data, err := os.ReadFile(tokenPath)
+	must.NoError(t, err)
+	must.Eq(t, token, string(data))
+
+	// Verify token is not in secrets dir.
+	tokenPath = filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	_, err = os.Stat(tokenPath)
+	must.ErrorIs(t, err, os.ErrNotExist)
 }
 
 // TestTaskRunner_DeriveToken_Retry asserts that if a recoverable error is
@@ -1661,7 +1771,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	require.Equal(t, 1, count)
 
 	// Check that the token is on disk
-	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
+	tokenPath := filepath.Join(conf.TaskDir.PrivateDir, vaultTokenFile)
 	data, err := os.ReadFile(tokenPath)
 	require.NoError(t, err)
 	require.Equal(t, token, string(data))
@@ -2550,20 +2660,40 @@ func TestTaskRunner_IdentityHook_Enabled(t *testing.T) {
 		Env:  true,
 		File: true,
 	}
+	task.Identities = []*structs.WorkloadIdentity{
+		{
+			Name:     "consul",
+			Audience: []string{"a", "b"},
+			Env:      true,
+		},
+		{
+			Name: "vault",
+			File: true,
+		},
+	}
 
 	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
 	testWaitForTaskToDie(t, tr)
 
-	// Assert the token was written to the filesystem
+	// Assert tokens were written to the filesystem
 	tokenBytes, err := os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_token"))
 	must.NoError(t, err)
 	must.Eq(t, "foo", string(tokenBytes))
 
-	// Assert the token is built into the task env
+	tokenBytes, err = os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_consul.jwt"))
+	must.ErrorIs(t, err, os.ErrNotExist)
+
+	tokenBytes, err = os.ReadFile(filepath.Join(tr.taskDir.SecretsDir, "nomad_vault.jwt"))
+	must.NoError(t, err)
+	must.StrContains(t, string(tokenBytes), ".")
+
+	// Assert tokens are built into the task env
 	taskEnv := tr.envBuilder.Build()
 	must.Eq(t, "foo", taskEnv.EnvMap["NOMAD_TOKEN"])
+	must.StrContains(t, taskEnv.EnvMap["NOMAD_TOKEN_consul"], ".")
+	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN_vault")
 }
 
 // TestTaskRunner_IdentityHook_Disabled asserts that the identity hook does not

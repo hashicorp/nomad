@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { get } from '@ember/object';

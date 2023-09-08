@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package snapshot
 
 import (
@@ -107,7 +110,7 @@ func makeRaft(t *testing.T, dir string) (*raft.Raft, *MockFSM) {
 
 	timeout := time.After(10 * time.Second)
 	for {
-		if raft.Leader() != "" {
+		if leaderAddr, _ := raft.LeaderWithID(); leaderAddr != "" {
 			break
 		}
 

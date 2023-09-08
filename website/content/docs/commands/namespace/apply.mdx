@@ -9,8 +9,11 @@ description: |
 
 The `namespace apply` command is used create or update a namespace.
 
-~> Namespaces are open source in Nomad 1.0. Namespaces were Enterprise-only
-when introduced in Nomad 0.7.
+<Tip>
+  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
+    Nomad Namespaces tutorial
+  </a> for more information.
+</Tip>
 
 ## Usage
 
@@ -25,7 +28,9 @@ expected.
 Instead of a file, you may instead pass the namespace name to create
 or update as the only argument.
 
-If ACLs are enabled, this command requires a management ACL token.
+If ACLs are enabled, this command requires a management ACL token. In federated
+clusters, the namespace will be created in the authoritative region and will be
+replicated to all federated regions.
 
 ## General Options
 

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package client
 
 import (
@@ -5,6 +8,8 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
+
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -13,14 +18,14 @@ type heartbeatStop struct {
 	startupGrace  time.Time
 	allocInterval map[string]time.Duration
 	allocHookCh   chan *structs.Allocation
-	getRunner     func(string) (AllocRunner, error)
+	getRunner     func(string) (interfaces.AllocRunner, error)
 	logger        hclog.InterceptLogger
 	shutdownCh    chan struct{}
 	lock          *sync.RWMutex
 }
 
 func newHeartbeatStop(
-	getRunner func(string) (AllocRunner, error),
+	getRunner func(string) (interfaces.AllocRunner, error),
 	timeout time.Duration,
 	logger hclog.InterceptLogger,
 	shutdownCh chan struct{}) *heartbeatStop {

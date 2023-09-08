@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -170,8 +173,8 @@ func TestScalingEndpoint_ListPolicies(t *testing.T) {
 	j2polH.Type = "horizontal"
 	j2polH.TargetTaskGroup(j2, j2.TaskGroups[0])
 
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, j1)
-	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, j2)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j1)
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j2)
 
 	pols := []*structs.ScalingPolicy{j1polV, j1polH, j2polH}
 	s1.fsm.State().UpsertScalingPolicies(1000, pols)

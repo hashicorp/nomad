@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{page-title "Client " (or this.model.name this.model.shortId)}}
 <ClientSubnav @client={{this.model}} />
 <section class="section">
@@ -187,7 +192,7 @@
           class="tag is-hollow is-small no-text-transform"
         >
           {{this.model.id}}
-          <CopyButton @clipboardText={{this.model.id}} />
+          <CopyButton @clipboardText={{this.model.id}} @compact={{true}} @inset={{true}} />
         </span>
       </p>
     </div>
@@ -237,6 +242,12 @@
           Datacenter
         </span>
         {{this.model.datacenter}}
+      </span>
+      <span class="pair" data-test-node-pool>
+        <span class="term">
+          Node Pool
+        </span>
+        {{#if this.model.nodePool}}{{this.model.nodePool}}{{else}}-{{/if}}
       </span>
       {{#if this.model.nodeClass}}
         <span class="pair" data-test-node-class>
@@ -556,7 +567,7 @@
             </t.head>
             <t.body as |row|>
               <AllocationRow
-                {{keyboard-shortcut 
+                {{keyboard-shortcut
                   enumerated=true
                   action=(action "gotoAllocation" row.model)
                 }}
@@ -880,7 +891,7 @@
             type="button"
             class="button is-primary"
             {{on "click" (action (mut this.editingMetadata) true)}}
-            {{keyboard-shortcut 
+            {{keyboard-shortcut
               label="Add Dynamic Node Metadata"
               pattern=(array "m" "e" "t" "a")
               action=(action (mut this.editingMetadata) true)

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package getter
 
 import (
@@ -24,24 +27,19 @@ func TestSandbox(t *testing.T) *Sandbox {
 }
 
 // SetupDir creates a directory suitable for testing artifact - i.e. it is
-// owned by the nobody user as would be the case in a normal client operation.
+// owned by the user under which nomad runs.
 //
 // returns alloc_dir, task_dir
 func SetupDir(t *testing.T) (string, string) {
-	uid, gid := credentials()
-
 	allocDir := t.TempDir()
 	taskDir := filepath.Join(allocDir, "local")
 	topDir := filepath.Dir(allocDir)
 
-	must.NoError(t, os.Chown(topDir, int(uid), int(gid)))
 	must.NoError(t, os.Chmod(topDir, 0o755))
 
-	must.NoError(t, os.Chown(allocDir, int(uid), int(gid)))
 	must.NoError(t, os.Chmod(allocDir, 0o755))
 
 	must.NoError(t, os.Mkdir(taskDir, 0o755))
-	must.NoError(t, os.Chown(taskDir, int(uid), int(gid)))
 	must.NoError(t, os.Chmod(taskDir, 0o755))
 	return allocDir, taskDir
 }

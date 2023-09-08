@@ -1,0 +1,108 @@
+name: test-ui
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+      - test-ui
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'website/**'
+
+jobs:
+  pre-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ui
+    outputs:
+      nonce: ${{ steps.nonce.outputs.nonce }}
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: ./.github/actions/setup-js
+      - name: lint:js
+        run: yarn run lint:js
+      - name: lint:hbs
+        run: yarn run lint:hbs
+      - id: nonce
+        name: nonce
+        run: echo "nonce=${{ github.run_id }}-$(date +%s)" >> "$GITHUB_OUTPUT"
+
+  tests:
+    needs:
+      - pre-test
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: ui
+    strategy:
+      matrix:
+        partition: [1, 2, 3, 4]
+        split: [4]
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: ./.github/actions/setup-js
+      - uses: browser-actions/setup-chrome@c485fa3bab6be59dce18dbc18ef6ab7cbc8ff5f1 # v1.2.0
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/teams/nomad/ui PERCY_TOKEN ;
+      - name: ember exam
+        env:
+          PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
+          PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+        run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
+
+  finalize:
+    needs:
+      - pre-test
+      - tests
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: ./.github/actions/setup-js
+      - uses: ./.github/actions/vault-secrets
+        with:
+          paths: |-
+            kv/data/teams/nomad/ui PERCY_TOKEN ;
+      - name: finalize
+        env:
+          PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
+          PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+        run: yarn percy build:finalize
+permissions:
+  contents: read
+  id-token: write

@@ -1,0 +1,3 @@
+```release-note:bug
+replication: Fix a potential panic when a non-authoritative region is upgraded and a server with the new version becomes the leader.
+```

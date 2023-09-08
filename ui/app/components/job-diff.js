@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { equal } from '@ember/object/computed';
 import Component from '@ember/component';
 import { classNames, classNameBindings } from '@ember-decorators/component';

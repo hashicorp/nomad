@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package jobspec2
 
 import (
@@ -1082,4 +1085,43 @@ func TestErrMissingKey(t *testing.T) {
 	require.NotNil(t, tmpl)
 	require.NotNil(t, tmpl.ErrMissingKey)
 	require.True(t, *tmpl.ErrMissingKey)
+}
+
+func TestRestartRenderTemplates(t *testing.T) {
+	ci.Parallel(t)
+	hclBytes, err := os.ReadFile("test-fixtures/restart-render-templates.hcl")
+	require.NoError(t, err)
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/restart-render-templates.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+	require.NoError(t, err)
+	tg := job.TaskGroups[0]
+	require.NotNil(t, tg.RestartPolicy)
+	require.True(t, *tg.RestartPolicy.RenderTemplates)
+
+	require.Nil(t, tg.Tasks[0].RestartPolicy)
+	require.False(t, *tg.Tasks[1].RestartPolicy.RenderTemplates)
+}
+
+// TestIdentity asserts that the default identity will be moved from the
+// Identities slice to the pre-1.7 Identity field in case >=1.7 CLIs are used
+// with <1.7 APIs.
+func TestIdentity(t *testing.T) {
+	ci.Parallel(t)
+	hclBytes, err := os.ReadFile("test-fixtures/identity-compat.nomad.hcl")
+	must.NoError(t, err)
+	job, err := ParseWithConfig(&ParseConfig{
+		Path:    "test-fixtures/identity-compat.nomad.hcl",
+		Body:    hclBytes,
+		AllowFS: false,
+	})
+	must.NoError(t, err)
+	must.NotNil(t, job.TaskGroups[0].Tasks[0].Identity)
+	must.True(t, job.TaskGroups[0].Tasks[0].Identity.Env)
+	must.True(t, job.TaskGroups[0].Tasks[0].Identity.File)
+	must.Len(t, 1, job.TaskGroups[0].Tasks[0].Identities)
+	must.Eq(t, "foo", job.TaskGroups[0].Tasks[0].Identities[0].Name)
+	must.Eq(t, []string{"bar"}, job.TaskGroups[0].Tasks[0].Identities[0].Audience)
 }

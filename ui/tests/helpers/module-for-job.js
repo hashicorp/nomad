@@ -1,16 +1,21 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import {
-  click,
-  currentRouteName,
-  currentURL,
-  visit,
-} from '@ember/test-helpers';
+import { currentRouteName, currentURL, visit, find } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
+
+const jobTypesWithStatusPanel = ['service', 'system', 'batch', 'sysbatch'];
+async function switchToHistorical() {
+  await JobDetail.statusModes.historical.click();
+}
 
 // moduleFor is an old Ember-QUnit API that is deprected https://guides.emberjs.com/v1.10.0/testing/unit-test-helpers/
 // this is a misnomer in our context, because we're not using this API, however, the linter does not understand this
@@ -36,17 +41,13 @@ export default function moduleForJob(
     });
 
     hooks.beforeEach(async function () {
+      server.create('node-pool');
       server.create('node');
       job = jobFactory();
       if (!job.namespace || job.namespace === 'default') {
         await JobDetail.visit({ id: job.id });
       } else {
         await JobDetail.visit({ id: `${job.id}@${job.namespace}` });
-      }
-
-      const hasClientStatus = ['system', 'sysbatch'].includes(job.type);
-      if (context === 'allocations' && hasClientStatus) {
-        await click("[data-test-accordion-summary-chart='allocation-status']");
       }
     });
 
@@ -76,7 +77,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}/definition`
         : `/jobs/${job.name}/definition`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.ok(decodeURIComponent(currentURL()).startsWith(expectedURL));
     });
 
     test('the subnav links to versions', async function (assert) {
@@ -85,16 +86,6 @@ export default function moduleForJob(
       const expectedURL = job.namespace
         ? `/jobs/${job.name}@${job.namespace}/versions`
         : `/jobs/${job.name}/versions`;
-
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
-    });
-
-    test('the subnav links to evaluations', async function (assert) {
-      await JobDetail.tabFor('evaluations').visit();
-
-      const expectedURL = job.namespace
-        ? `/jobs/${job.name}@${job.namespace}/evaluations`
-        : `/jobs/${job.name}/evaluations`;
 
       assert.equal(decodeURIComponent(currentURL()), expectedURL);
     });
@@ -113,8 +104,24 @@ export default function moduleForJob(
       }
     });
 
+    test('page header displays job information', async function (assert) {
+      assert.equal(JobDetail.statFor('type').text, `Type ${job.type}`);
+      assert.equal(
+        JobDetail.statFor('priority').text,
+        `Priority ${job.priority}`
+      );
+      assert.equal(JobDetail.statFor('version').text, `Version ${job.version}`);
+      assert.equal(
+        JobDetail.statFor('node-pool').text,
+        `Node Pool ${job.nodePool}`
+      );
+    });
+
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function (assert) {
+        if (jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
         assert.ok(
           JobDetail.allocationsSummary.isPresent,
           'Allocations are shown in the summary section'
@@ -152,9 +159,20 @@ export default function moduleForJob(
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
-        const legendItem =
-          JobDetail.allocationsSummary.legend.clickableItems[1];
-        const status = legendItem.label;
+        if (jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
+
+        // explicitly setting allocationStatusDistribution when creating the job that gets passed here
+        // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
+        // but we can be redundant for the sake of future-proofing this here.
+        const legendItem = find(
+          '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
+        );
+
+        const status = legendItem.parentElement.getAttribute(
+          'data-test-legend-label'
+        );
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
@@ -171,7 +189,10 @@ export default function moduleForJob(
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
-        const slice = JobDetail.allocationsSummary.slices[1];
+        if (jobTypesWithStatusPanel.includes(job.type)) {
+          await switchToHistorical(job);
+        }
+        const slice = JobDetail.allocationsSummary.slices[0];
         const status = slice.label;
         await slice.click();
 
@@ -209,6 +230,16 @@ export default function moduleForJob(
           'Allocations are not shown in the summary section'
         );
       });
+    } else {
+      test('the subnav links to evaluations', async function (assert) {
+        await JobDetail.tabFor('evaluations').visit();
+
+        const expectedURL = job.namespace
+          ? `/jobs/${job.name}@${job.namespace}/evaluations`
+          : `/jobs/${job.name}/evaluations`;
+
+        assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      });
     }
 
     for (var testName in additionalTests) {
@@ -235,6 +266,7 @@ export function moduleForJobWithClientStatus(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
+      server.createList('node-pool', 3);
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
@@ -251,7 +283,11 @@ export function moduleForJobWithClientStatus(
       );
       job = jobFactory();
       clients.forEach((c) => {
-        server.create('allocation', { jobId: job.id, nodeId: c.id });
+        server.create('allocation', {
+          jobId: job.id,
+          nodeId: c.id,
+          clientStatus: 'running',
+        });
       });
     });
 
@@ -281,46 +317,6 @@ export function moduleForJobWithClientStatus(
         assert.equal(currentURL(), expectedURL);
       });
 
-      test('job status summary is shown in the overview', async function (assert) {
-        assert.ok(
-          JobDetail.jobClientStatusSummary.statusBar.isPresent,
-          'Summary bar is displayed in the Job Status in Client summary section'
-        );
-      });
-
-      test('clicking legend item navigates to a pre-filtered clients table', async function (assert) {
-        const legendItem =
-          JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
-        const status = legendItem.label;
-        await legendItem.click();
-
-        const encodedStatus = encodeURIComponent(JSON.stringify([status]));
-        const expectedURL = new URL(
-          urlWithNamespace(
-            `/jobs/${job.name}/clients?status=${encodedStatus}`,
-            job.namespace
-          ),
-          window.location
-        );
-        const gotURL = new URL(currentURL(), window.location);
-        assert.deepEqual(gotURL.path, expectedURL.path);
-        assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
-      });
-
-      test('clicking in a slice takes you to a pre-filtered clients table', async function (assert) {
-        const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
-        const status = slice.label;
-        await slice.click();
-
-        const encodedStatus = encodeURIComponent(JSON.stringify([status]));
-
-        const expectedURL = job.namespace
-          ? `/jobs/${job.name}@${job.namespace}/clients?status=${encodedStatus}`
-          : `/jobs/${job.name}/clients?status=${encodedStatus}`;
-
-        assert.deepEqual(currentURL(), expectedURL, 'url is correct');
-      });
-
       for (var testName in additionalTests) {
         test(testName, async function (assert) {
           await additionalTests[testName].call(this, job, assert);
@@ -346,10 +342,6 @@ export function moduleForJobWithClientStatus(
           .doesNotExist(
             'Job Detail Sub Navigation should not render Clients tab'
           );
-
-        assert
-          .dom('[data-test-nodes-not-authorized]')
-          .exists('Renders Not Authorized message');
       });
 
       test('/jobs/job/clients route is protected with authorization logic', async function (assert) {

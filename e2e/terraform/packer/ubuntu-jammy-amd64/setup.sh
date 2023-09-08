@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 
-set -e
+set -euo pipefail
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
 
@@ -26,6 +29,10 @@ sudo apt-get install -y \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
      apt-transport-https ca-certificates gnupg2
 
+# Install hc-install
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.5.2/hc-install_0.5.2_linux_amd64.zip
+sudo unzip -d /usr/local/bin /tmp/hc-install.zip
+
 # Install sockaddr
 aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
 sudo mv /tmp/sockaddr /usr/local/bin
@@ -36,8 +43,19 @@ sudo chown root:root /usr/local/bin/sockaddr
 sudo ufw disable || echo "ufw not installed"
 
 echo "Install HashiCorp apt repositories"
-curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+echo "Installing Docker apt repositories"
+sudo install -m 0755 -d /etc/apt/keyrings
+curl --insecure -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+echo "Refresh apt with third party repositories"
 sudo apt-get update
 
 echo "Install Consul and Nomad"
@@ -60,56 +78,40 @@ mkdir_for_root /opt/nomad
 mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
-echo "Installing third-party apt repositories"
+echo "Installing third-party tools"
 
 # Docker
-distro=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
-curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/${distro} $(lsb_release -cs) stable"
+echo "Installing Docker CE"
+sudo apt-get install -y docker-ce docker-ce-cli
 
 # Java
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-
-# Podman
-. /etc/os-release
-curl -fsSL "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/Release.key" | sudo apt-key add -
-sudo add-apt-repository "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /"
-
-sudo apt-get update
-
-echo "Installing Docker"
-sudo apt-get install -y docker-ce
-
 echo "Installing Java"
 sudo apt-get install -y openjdk-17-jdk-headless
 
+# CNI
 echo "Installing CNI plugins"
 sudo mkdir -p /opt/cni/bin
 wget -q -O - \
      https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
+# Podman
 echo "Installing Podman"
-sudo apt-get -y install podman
+sudo apt-get -y install podman catatonit
 
-# get catatonit (to check podman --init switch)
-wget -q -P /tmp https://github.com/openSUSE/catatonit/releases/download/v0.1.4/catatonit.x86_64
-mkdir -p /usr/libexec/podman
-sudo mv /tmp/catatonit* /usr/libexec/podman/catatonit
-sudo chmod +x /usr/libexec/podman/catatonit
+echo "Installing Podman Driver"
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.5.0 nomad-driver-podman
 
-echo "Installing latest podman task driver"
-# install nomad-podman-driver and move to plugin dir
-latest_podman=$(curl -s https://releases.hashicorp.com/nomad-driver-podman/index.json | jq --raw-output '.versions |= with_entries(select(.key|match("^\\d+\\.\\d+\\.\\d+$"))) | .versions | keys[]' | sort -rV | head -n1)
+# Pledge
+echo "Installing Pledge Driver"
+curl -k -fsSL -o /tmp/pledge-driver.tar.gz https://github.com/shoenig/nomad-pledge-driver/releases/download/v0.2.3/nomad-pledge-driver_0.2.3_linux_amd64.tar.gz
+curl -k -fsSL -o /tmp/pledge https://github.com/shoenig/nomad-pledge-driver/releases/download/pledge-1.8.com/pledge-1.8.com
+tar -C /tmp -xf /tmp/pledge-driver.tar.gz
+sudo mv /tmp/nomad-pledge-driver ${NOMAD_PLUGIN_DIR}
+sudo mv /tmp/pledge /usr/local/bin
+sudo chmod +x /usr/local/bin/pledge
 
-wget -q -P /tmp "https://releases.hashicorp.com/nomad-driver-podman/${latest_podman}/nomad-driver-podman_${latest_podman}_linux_amd64.zip"
-sudo unzip -q "/tmp/nomad-driver-podman_${latest_podman}_linux_amd64.zip" -d "$NOMAD_PLUGIN_DIR"
-sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
-
-# enable varlink socket (not included in ubuntu package)
-sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
-sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
-
+# ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
     echo "Installing nomad-driver-ecs"
     sudo install --mode=0755 --owner=ubuntu /tmp/linux/nomad-driver-ecs "$NOMAD_PLUGIN_DIR"

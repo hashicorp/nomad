@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package fingerprint
 
 import (
@@ -105,9 +108,9 @@ func (f *PluginsCNIFingerprint) detectOnePlugin(pluginPath string, entry os.DirE
 	// e.g.
 	//  /opt/cni/bin/bridge <no args>
 	//  CNI bridge plugin v1.0.0
+	//  (and optionally another line that contains the supported CNI protocol versions)
 	tokens := strings.Fields(string(output))
-	for i := len(tokens) - 1; i >= 0; i-- {
-		token := tokens[i]
+	for _, token := range tokens {
 		if _, parseErr := version.NewSemver(token); parseErr == nil {
 			return token, true
 		}

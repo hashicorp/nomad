@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "memstress" {
   datacenters = ["dc1", "dc2"]
   type        = "batch"

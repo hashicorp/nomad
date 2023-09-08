@@ -4,16 +4,16 @@
   "version": "1.0.0",
   "author": "HashiCorp",
   "engines": {
-    "node": "14.x - 16.x",
-    "npm": ">=7.0.0"
+    "npm": ">=7.0.0",
+    "node": ">=16.x <=18.x"
   },
   "devDependencies": {
     "@hashicorp/platform-cli": "^2.6.0",
-    "@hashicorp/platform-content-conformance": "^0.0.10",
+    "@hashicorp/platform-content-conformance": "^0.0.11",
     "dart-linkcheck": "^2.0.15",
     "husky": "4.3.8",
-    "next": "^12.3.1",
-    "prettier": "2.2.1"
+    "next": "^13.4.2",
+    "prettier": "2.8.8"
   },
   "husky": {
     "hooks": {

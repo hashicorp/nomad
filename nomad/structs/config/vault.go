@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package config
 
 import (
@@ -22,21 +25,22 @@ const (
 //
 // - Create child tokens with policy subsets of the Server's token.
 type VaultConfig struct {
+	Name string `mapstructure:"name"`
 
 	// Enabled enables or disables Vault support.
-	Enabled *bool `hcl:"enabled"`
+	Enabled *bool `mapstructure:"enabled"`
 
 	// Token is the Vault token given to Nomad such that it can
 	// derive child tokens. Nomad will renew this token at half its lease
 	// lifetime.
-	Token string `hcl:"token"`
+	Token string `mapstructure:"token"`
 
 	// Role sets the role in which to create tokens from. The Token given to
 	// Nomad does not have to be created from this role but must have "update"
 	// capability on "auth/token/create/<create_from_role>". If this value is
 	// unset and the token is created from a role, the value is defaulted to the
 	// role the token is from.
-	Role string `hcl:"create_from_role"`
+	Role string `mapstructure:"create_from_role"`
 
 	// Namespace sets the Vault namespace used for all calls against the
 	// Vault API. If this is unset, then Nomad does not use Vault namespaces.
@@ -45,16 +49,16 @@ type VaultConfig struct {
 	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
 	// without providing a Vault token proving they have access to these
 	// policies.
-	AllowUnauthenticated *bool `hcl:"allow_unauthenticated"`
+	AllowUnauthenticated *bool `mapstructure:"allow_unauthenticated"`
 
 	// TaskTokenTTL is the TTL of the tokens created by Nomad Servers and used
 	// by the client.  There should be a minimum time value such that the client
 	// does not have to renew with Vault at a very high frequency
-	TaskTokenTTL string `hcl:"task_token_ttl"`
+	TaskTokenTTL string `mapstructure:"task_token_ttl"`
 
 	// Addr is the address of the local Vault agent. This should be a complete
 	// URL such as "http://vault.example.com"
-	Addr string `hcl:"address"`
+	Addr string `mapstructure:"address"`
 
 	// ConnectionRetryIntv is the interval to wait before re-attempting to
 	// connect to Vault.
@@ -62,29 +66,30 @@ type VaultConfig struct {
 
 	// TLSCaFile is the path to a PEM-encoded CA cert file to use to verify the
 	// Vault server SSL certificate.
-	TLSCaFile string `hcl:"ca_file"`
+	TLSCaFile string `mapstructure:"ca_file"`
 
 	// TLSCaFile is the path to a directory of PEM-encoded CA cert files to
 	// verify the Vault server SSL certificate.
-	TLSCaPath string `hcl:"ca_path"`
+	TLSCaPath string `mapstructure:"ca_path"`
 
 	// TLSCertFile is the path to the certificate for Vault communication
-	TLSCertFile string `hcl:"cert_file"`
+	TLSCertFile string `mapstructure:"cert_file"`
 
 	// TLSKeyFile is the path to the private key for Vault communication
-	TLSKeyFile string `hcl:"key_file"`
+	TLSKeyFile string `mapstructure:"key_file"`
 
 	// TLSSkipVerify enables or disables SSL verification
-	TLSSkipVerify *bool `hcl:"tls_skip_verify"`
+	TLSSkipVerify *bool `mapstructure:"tls_skip_verify"`
 
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
-	TLSServerName string `hcl:"tls_server_name"`
+	TLSServerName string `mapstructure:"tls_server_name"`
 }
 
 // DefaultVaultConfig returns the canonical defaults for the Nomad
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
+		Name:                 "default",
 		Addr:                 "https://vault.service.consul:8200",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
@@ -106,6 +111,9 @@ func (c *VaultConfig) AllowsUnauthenticated() bool {
 func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *c
 
+	if b.Name != "" {
+		c.Name = b.Name
+	}
 	if b.Enabled != nil {
 		result.Enabled = b.Enabled
 	}

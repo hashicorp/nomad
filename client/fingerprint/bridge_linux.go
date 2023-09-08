@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 //go:build linux
 
 package fingerprint
@@ -53,6 +56,14 @@ func (f *BridgeFingerprint) detect(module string) error {
 	// accumulate errors from every place we might find the module
 	var errs error
 
+	// Check if the module is in /sys/modules
+	sysfsModulePath := fmt.Sprintf("/sys/module/%s", module)
+	if err := f.findDir(sysfsModulePath); err != nil {
+		errs = multierror.Append(errs, err)
+	} else {
+		return nil
+	}
+
 	// check if the module has been dynamically loaded
 	dynamicPath := "/proc/modules"
 	if err := f.searchFile(module, dynamicPath, f.regexp(dynamicModuleRe, module)); err != nil {
@@ -84,6 +95,14 @@ func (f *BridgeFingerprint) detect(module string) error {
 	}
 
 	return errs
+}
+
+func (f *BridgeFingerprint) findDir(dirname string) error {
+	if _, err := os.Stat(dirname); err != nil {
+		return fmt.Errorf("failed to find %s: %v", dirname, err)
+	} else {
+		return nil
+	}
 }
 
 func (f *BridgeFingerprint) searchFile(module, filename string, re *regexp.Regexp) error {

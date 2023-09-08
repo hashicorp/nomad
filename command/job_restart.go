@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -18,7 +21,6 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
 )
 
@@ -367,7 +369,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 				"[bold]==> %s: Restarting %s batch of %d allocations[reset]",
 				formatTime(time.Now()),
 				humanize.Ordinal(batchNumber),
-				helper.Min(c.batchSize, remaining),
+				min(c.batchSize, remaining),
 			)))
 		}
 
@@ -1042,7 +1044,7 @@ func (c *JobRestartCommand) monitorReplacementAlloc(
 
 		alloc, qm, err := c.client.Allocations().Info(currentAllocID, q)
 		if err != nil {
-			errCh <- fmt.Errorf("Failed to retrieve allocation %q: %w", limit(alloc.ID, c.length), err)
+			errCh <- fmt.Errorf("Failed to retrieve allocation %q: %w", limit(currentAllocID, c.length), err)
 			return
 		}
 

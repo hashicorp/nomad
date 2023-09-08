@@ -1,9 +1,9 @@
-'use strict';
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
 
-const MultiReporter = require('testem-multi-reporter');
-const TapReporter = require('testem/lib/reporters/tap_reporter');
-const XunitReporter = require('testem/lib/reporters/xunit_reporter');
-const fs = require('fs');
+'use strict';
 
 const config = {
   test_page: 'tests/index.html?hidepassed',
@@ -31,26 +31,5 @@ const config = {
     },
   },
 };
-
-if (process.env.CI) {
-  const reporters = [
-    {
-      ReporterClass: TapReporter,
-      args: [false, null, { get: () => false }],
-    },
-    {
-      ReporterClass: XunitReporter,
-      args: [
-        false,
-        fs.createWriteStream('/tmp/test-reports/ui.xml'),
-        { get: () => false },
-      ],
-    },
-  ];
-
-  const multiReporter = new MultiReporter({ reporters });
-
-  config.reporter = multiReporter;
-}
 
 module.exports = config;

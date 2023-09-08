@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package main
 
 import (
@@ -174,7 +177,7 @@ func skip(p string) bool {
 }
 
 func inCode(root string) ([]string, error) {
-	pkgs := set.New[string](100)
+	pkgs := set.NewTreeSet[string, set.Compare[string]](set.Cmp[string])
 
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
@@ -197,7 +200,5 @@ func inCode(root string) ([]string, error) {
 
 	pkgs.Remove(".") // main
 
-	packages := pkgs.List()
-	sort.Strings(packages)
-	return packages, nil
+	return pkgs.Slice(), nil
 }

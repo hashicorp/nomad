@@ -1,13 +1,18 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package helper
 
 import (
 	"crypto/sha512"
 	"fmt"
+	"maps"
 	"math"
 	"net/http"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -15,9 +20,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/hcl/hcl/ast"
-	"golang.org/x/exp/constraints"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // validUUID is used to check if a given string looks like a UUID
@@ -77,22 +79,6 @@ func HashUUID(input string) (output string, hashed bool) {
 		buf[10:16])
 
 	return output, true
-}
-
-// Min returns the minimum of a and b.
-func Min[T constraints.Ordered](a, b T) T {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// Max returns the maximum of a and b.
-func Max[T constraints.Ordered](a, b T) T {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // UniqueMapSliceValues returns the union of values from each slice in a map[K][]V.
@@ -405,6 +391,17 @@ func ConvertSlice[A, B any](original []A, conversion func(a A) B) []B {
 	result := make([]B, len(original))
 	for i, element := range original {
 		result[i] = conversion(element)
+	}
+	return result
+}
+
+// ConvertMap takes the input map and generates a new one using the supplied
+// conversion function to convert the values. This is useful when converting one
+// map to another using the same keys.
+func ConvertMap[K comparable, A, B any](original map[K]A, conversion func(a A) B) map[K]B {
+	result := make(map[K]B, len(original))
+	for k, a := range original {
+		result[k] = conversion(a)
 	}
 	return result
 }

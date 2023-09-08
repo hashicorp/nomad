@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 job "failed_sibling" {
   type        = "service"
   datacenters = ["dc1"]

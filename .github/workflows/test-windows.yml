@@ -1,0 +1,97 @@
+name: test-windows
+on:
+  pull_request:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+
+env:
+  VAULT_VERSION: 1.4.1
+jobs:
+  test-windows:
+    runs-on: 'windows-2019-16core'
+    env:
+      GOTESTSUM_PATH: c:\tmp\test-reports
+    steps:
+      - name: Docker Info
+        run: docker version
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Setup go
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        with:
+          go-version-file: ".go-version"
+      - name: Show installed Go version
+        shell: bash
+        run: |-
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          go version
+      - uses: "./.github/actions/install-vault"
+        with:
+          version: "$VAULT_VERSION"
+      - run: vault version
+      - run: choco install make
+      - name: Install golang dependencies
+        shell: bash
+        run: |-
+          make deps
+      - name: Pre-download docker test image
+        shell: bash
+        run: |-
+          docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:ltsc2019
+      - name: Build nomad
+        shell: bash
+        run: |-
+          go install .
+      - name: Run tests with gotestsum
+        shell: bash
+        env:
+          BUSYBOX_IMAGE: docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:ltsc2019
+        run: |-
+          # Only test docker driver tests for now
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          gotestsum --format=short-verbose \
+            --junitfile results.xml \
+            github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/client/lib/fifo \
+            github.com/hashicorp/nomad/client/logmon
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: results.xml
+          path: results.xml
+permissions:
+  contents: read

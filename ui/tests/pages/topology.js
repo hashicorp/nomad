@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import {
   attribute,
   clickable,
@@ -21,6 +26,7 @@ export default create({
   viz: TopoViz('[data-test-topo-viz]'),
 
   facets: {
+    nodePool: multiFacet('[data-test-node-pool-facet]'),
     datacenter: multiFacet('[data-test-datacenter-facet]'),
     class: multiFacet('[data-test-class-facet]'),
     state: multiFacet('[data-test-state-facet]'),
@@ -31,6 +37,7 @@ export default create({
     scope: '[data-test-info-panel]',
     nodeCount: text('[data-test-node-count]'),
     allocCount: text('[data-test-alloc-count]'),
+    nodePoolCount: text('[data-test-node-pool-count]'),
 
     memoryProgressValue: attribute('value', '[data-test-memory-progress-bar]'),
     memoryAbsoluteValue: text('[data-test-memory-absolute-value]'),

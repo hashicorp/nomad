@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
@@ -6,12 +9,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/mitchellh/mapstructure"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.
@@ -48,12 +54,17 @@ func ParseConfigFile(path string) (*Config, error) {
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
-		ACL:       &ACLConfig{},
-		Audit:     &config.AuditConfig{},
-		Consul:    &config.ConsulConfig{},
+		ACL:   &ACLConfig{},
+		Audit: &config.AuditConfig{},
+		Consul: &config.ConsulConfig{
+			ServiceIdentity:  &config.WorkloadIdentityConfig{},
+			TemplateIdentity: &config.WorkloadIdentityConfig{},
+		},
+		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
 		Vault:     &config.VaultConfig{},
+		Vaults:    map[string]*config.VaultConfig{},
 	}
 
 	err = hcl.Decode(c, buf.String())
@@ -153,6 +164,28 @@ func ParseConfigFile(path string) (*Config, error) {
 		return nil, err
 	}
 
+	// Re-parse the file to extract the multiple Vault configurations, which we
+	// need to parse by hand because we don't have a label on the block
+	root, err := hcl.Parse(buf.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HCL file %s: %w", path, err)
+	}
+	list, ok := root.Node.(*ast.ObjectList)
+	if !ok {
+		return nil, fmt.Errorf("error parsing: root should be an object")
+	}
+	matches := list.Filter("vault")
+	if len(matches.Items) > 0 {
+		if err := parseVaults(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'vault': %w", err)
+		}
+	}
+	matches = list.Filter("consul")
+	if len(matches.Items) > 0 {
+		if err := parseConsuls(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'consul': %w", err)
+		}
+	}
 	// report unexpected keys
 	err = extraKeys(c)
 	if err != nil {
@@ -249,9 +282,21 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "server")
 	}
 
+	for _, k := range []string{"preemption_config"} {
+		helper.RemoveEqualFold(&c.Server.ExtraKeysHCL, k)
+	}
+
 	for _, k := range []string{"datadog_tags"} {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
+	}
+
+	// The `vault` and `consul` blocks are parsed separately from the Decode method, so it
+	// will incorrectly report them as extra keys, of which there may be multiple
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+	if len(c.ExtraKeysHCL) == 0 {
+		c.ExtraKeysHCL = nil
 	}
 
 	return helper.UnusedKeys(c)
@@ -285,4 +330,116 @@ func finalizeClientTemplateConfig(config *Config) {
 	if config.Client.TemplateConfig.IsEmpty() {
 		config.Client.TemplateConfig = nil
 	}
+}
+
+// parseVaults decodes the `vault` blocks. The hcl.Decode method can't parse
+// these correctly as HCL1 because they don't have labels, which would result in
+// all the blocks getting merged regardless of name.
+func parseVaults(c *Config, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	for _, obj := range list.Items {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+		v := &config.VaultConfig{}
+		err := mapstructure.WeakDecode(m, v)
+		if err != nil {
+			return err
+		}
+		if v.Name == "" {
+			v.Name = "default"
+		}
+		if exist, ok := c.Vaults[v.Name]; ok {
+			c.Vaults[v.Name] = exist.Merge(v)
+		} else {
+			c.Vaults[v.Name] = v
+		}
+	}
+
+	c.Vault = c.Vaults["default"]
+	return nil
+}
+
+// parseConsuls decodes the `consul` blocks. The hcl.Decode method can't parse
+// these correctly as HCL1 because they don't have labels, which would result in
+// all the blocks getting merged regardless of name.
+func parseConsuls(c *Config, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	for _, obj := range list.Items {
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+
+		delete(m, "service_identity")
+		delete(m, "template_identity")
+
+		cc := &config.ConsulConfig{}
+		err := mapstructure.WeakDecode(m, cc)
+		if err != nil {
+			return err
+		}
+		if cc.Name == "" {
+			cc.Name = "default"
+		}
+		if cc.TimeoutHCL != "" {
+			d, err := time.ParseDuration(cc.TimeoutHCL)
+			if err != nil {
+				return err
+			}
+			cc.Timeout = d
+		}
+
+		if exist, ok := c.Consuls[cc.Name]; ok {
+			c.Consuls[cc.Name] = exist.Merge(cc)
+		} else {
+			c.Consuls[cc.Name] = cc
+		}
+
+		// decode service and template identity blocks
+		var listVal *ast.ObjectList
+		if ot, ok := obj.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
+		if o := listVal.Filter("service_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			serviceIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, serviceIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var serviceIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
+				return err
+			}
+			c.Consuls[cc.Name].ServiceIdentity = &serviceIdentity
+		}
+
+		if o := listVal.Filter("template_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			templateIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, templateIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var templateIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &templateIdentity); err != nil {
+				return err
+			}
+			c.Consuls[cc.Name].TemplateIdentity = &templateIdentity
+		}
+	}
+
+	c.Consul = c.Consuls["default"]
+	return nil
 }

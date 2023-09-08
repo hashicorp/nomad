@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package csimanager
 
 import (
@@ -91,7 +94,13 @@ func (i *instanceManager) setupVolumeManager() {
 	case <-i.shutdownCtx.Done():
 		return
 	case <-i.fp.hadFirstSuccessfulFingerprintCh:
-		i.volumeManager = newVolumeManager(i.logger, i.eventer, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging)
+
+		var externalID string
+		if i.fp.basicInfo != nil && i.fp.basicInfo.NodeInfo != nil {
+			externalID = i.fp.basicInfo.NodeInfo.ID
+		}
+
+		i.volumeManager = newVolumeManager(i.logger, i.eventer, i.client, i.mountPoint, i.containerMountPoint, i.fp.requiresStaging, externalID)
 		i.logger.Debug("volume manager setup complete")
 		close(i.volumeManagerSetupCh)
 		return

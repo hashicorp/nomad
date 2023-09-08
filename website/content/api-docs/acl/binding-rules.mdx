@@ -132,6 +132,10 @@ The table below shows this endpoint's support for
   require it to be encased in quotes and escaped such as
   `"\"project-developer\" in list.roles"`.
 
+  ~> **Caveat:** Selectors that operate on `ClaimMappings` (as opposed to
+  `ListClaimMappings`), the key that we match against has to be prefixed with
+  `value.` (e.g. `value.owner == username` for a claim mapping that has `owner`
+  as its key).
 
 - `BindType` `(string: <required>)` - Adjusts how this binding rule is applied
   at login time. Valid values are `role`, `policy`, and `management`.

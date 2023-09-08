@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -359,7 +362,7 @@ func TestNetworkIndex_yieldIP(t *testing.T) {
 func TestNetworkIndex_AssignPorts(t *testing.T) {
 	ci.Parallel(t)
 
-	// Create a node that only has one free port
+	// Create a node that only two free dynamic ports
 	idx := NewNetworkIndex()
 	n := &Node{
 		NodeResources: &NodeResources{
@@ -419,6 +422,84 @@ func TestNetworkIndex_AssignPorts(t *testing.T) {
 	must.Eq(t, 443, staticPortMapping.Value)
 	must.Between(t, idx.MaxDynamicPort-1, httpPortMapping.Value, idx.MaxDynamicPort)
 	must.Between(t, idx.MaxDynamicPort-1, adminPortMapping.Value, idx.MaxDynamicPort)
+}
+
+// TestNetworkIndex_AssignPorts_SmallRange exercises assigning ports on group
+// networks with small dynamic port ranges configured
+func TestNetworkIndex_AssignPortss_SmallRange(t *testing.T) {
+	ci.Parallel(t)
+
+	n := &Node{
+		NodeResources: &NodeResources{
+			NodeNetworks: []*NodeNetworkResource{
+				{
+					Mode:   "host",
+					Device: "eth0",
+					Speed:  1000,
+					Addresses: []NodeNetworkAddress{
+						{
+							Alias:   "default",
+							Address: "192.168.0.100",
+							Family:  NodeNetworkAF_IPv4,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name      string
+		min       int
+		max       int
+		ask       []Port
+		expectErr string
+	}{
+		{
+			name:      "1 dynamic port avail and 1 port requested",
+			min:       20000,
+			max:       20000,
+			ask:       []Port{{"http", 0, 80, "default"}},
+			expectErr: "",
+		},
+		{
+			name:      "1 dynamic port avail and 2 ports requested",
+			min:       20000,
+			max:       20000,
+			ask:       []Port{{"http", 0, 80, "default"}, {"admin", 0, 80, "default"}},
+			expectErr: "dynamic port selection failed",
+		},
+		{
+			name:      "2 dynamic ports avail and 2 ports requested",
+			min:       20000,
+			max:       20001,
+			ask:       []Port{{"http", 0, 80, "default"}, {"admin", 0, 80, "default"}},
+			expectErr: "",
+		},
+	}
+
+	for _, tc := range testCases {
+
+		idx := NewNetworkIndex()
+		idx.MinDynamicPort = tc.min
+		idx.MaxDynamicPort = tc.max
+		idx.SetNode(n)
+
+		ask := &NetworkResource{DynamicPorts: tc.ask}
+		offer, err := idx.AssignPorts(ask)
+		if tc.expectErr != "" {
+			must.EqError(t, err, tc.expectErr)
+		} else {
+			must.NoError(t, err)
+			must.NotNil(t, offer, must.Sprint("did not get an offer"))
+
+			for _, port := range tc.ask {
+				_, ok := offer.Get(port.Label)
+				must.True(t, ok)
+			}
+		}
+	}
+
 }
 
 func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
@@ -528,7 +609,7 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention(t *testing.T) {
 	ci.Parallel(t)
 
-	// Create a node that only has one free port
+	// Create a node that only has two free dynamic ports
 	idx := NewNetworkIndex()
 	n := &Node{
 		NodeResources: &NodeResources{
@@ -543,6 +624,7 @@ func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Networks: NodeReservedNetworkResources{
+				// leave only 2 available ports
 				ReservedHostPorts: fmt.Sprintf("%d-%d", idx.MinDynamicPort, idx.MaxDynamicPort-2),
 			},
 		},
@@ -558,7 +640,7 @@ func TestNetworkIndex_AssignTaskNetwork_Dynamic_Contention(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, offer, must.Sprint("did not get an offer"))
 	must.Eq(t, "192.168.0.100", offer.IP)
-	must.Len(t, 2, offer.DynamicPorts, must.Sprint("There should be one dynamic ports"))
+	must.Len(t, 2, offer.DynamicPorts, must.Sprint("There should be two dynamic ports"))
 
 	must.NotEq(t, offer.DynamicPorts[0].Value, offer.DynamicPorts[1].Value,
 		must.Sprint("assigned dynamic ports must not conflict"))

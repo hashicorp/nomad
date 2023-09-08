@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 const { test, expect } = require('@playwright/test');
 
 test('authenticated users can see their policies', async ({ page }) => {

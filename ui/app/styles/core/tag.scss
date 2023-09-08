@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 // Strange selector mirrors selector used in Bulma
 // https://github.com/jgthms/bulma/issues/912
 .tag:not(body) {
@@ -25,8 +30,8 @@
   }
 
   &.is-complete {
-    background: $nomad-green-dark;
-    color: findColorInvert($nomad-green-dark);
+    background: $nomad-green-pale;
+    color: findColorInvert($nomad-green-pale);
   }
 
   &.is-error {
@@ -82,13 +87,12 @@
     width: 1rem;
   }
 
-  
   $tagPadding: 0.75em;
 
   &.canary {
     overflow: hidden;
     &:before {
-      content: "Canary";
+      content: 'Canary';
       background-color: $blue-light;
       color: $black;
       line-height: 1.5em;

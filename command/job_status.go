@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -164,6 +167,11 @@ func (c *JobStatusCommand) Run(args []string) int {
 	periodic := job.IsPeriodic()
 	parameterized := job.IsParameterized()
 
+	nodePool := ""
+	if job.NodePool != nil {
+		nodePool = *job.NodePool
+	}
+
 	// Format the job info
 	basic := []string{
 		fmt.Sprintf("ID|%s", *job.ID),
@@ -173,6 +181,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Priority|%d", *job.Priority),
 		fmt.Sprintf("Datacenters|%s", strings.Join(job.Datacenters, ",")),
 		fmt.Sprintf("Namespace|%s", *job.Namespace),
+		fmt.Sprintf("Node Pool|%s", nodePool),
 		fmt.Sprintf("Status|%s", getStatusString(*job.Status, job.Stop)),
 		fmt.Sprintf("Periodic|%v", periodic),
 		fmt.Sprintf("Parameterized|%v", parameterized),

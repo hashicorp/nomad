@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -56,7 +59,7 @@ func TestJobRevertCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake job
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, j))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
@@ -155,7 +158,7 @@ namespace "default" {
 			// Create a job.
 			job := mock.MinJob()
 			state := srv.Agent.Server().State()
-			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), job)
+			err := state.UpsertJob(structs.MsgTypeTestSetup, uint64(300+i), nil, job)
 			must.NoError(t, err)
 			defer func() {
 				client.Jobs().Deregister(job.ID, true, &api.WriteOptions{
@@ -169,7 +172,7 @@ namespace "default" {
 				"test": tc.name,
 			}
 			newJob.Version = uint64(i)
-			err = state.UpsertJob(structs.MsgTypeTestSetup, uint64(301+i), newJob)
+			err = state.UpsertJob(structs.MsgTypeTestSetup, uint64(301+i), nil, newJob)
 			must.NoError(t, err)
 
 			if tc.aclPolicy != "" {

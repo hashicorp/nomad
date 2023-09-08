@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { assign } from '@ember/polyfills';
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
@@ -195,6 +200,11 @@ export default Factory.extend({
   shallow: false,
 
   afterCreate(job, server) {
+    Ember.assert(
+      '[Mirage] No node pools! make sure node pools are created before jobs',
+      server.db.nodePools.length
+    );
+
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length
         ? pickOne(server.db.namespaces).id
@@ -209,6 +219,12 @@ export default Factory.extend({
       });
     }
 
+    if (!job.nodePool) {
+      job.update({
+        nodePool: pickOne(server.db.nodePools).name,
+      });
+    }
+
     const groupProps = {
       job,
       createAllocations: job.createAllocations,
@@ -217,6 +233,7 @@ export default Factory.extend({
       withTaskServices: job.withTaskServices,
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
+      allocStatusDistribution: job.allocStatusDistribution,
     };
 
     if (job.groupTaskCount) {
@@ -339,6 +356,7 @@ export default Factory.extend({
         datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
+        noActiveDeployment: job.noActiveDeployment,
       });
     }
 
@@ -361,6 +379,7 @@ export default Factory.extend({
         datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
+        noActiveDeployment: job.noActiveDeployment,
       });
     }
   },

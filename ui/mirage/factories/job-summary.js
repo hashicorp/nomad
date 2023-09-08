@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { Factory, trait } from 'ember-cli-mirage';
 
 import faker from 'nomad-ui/mirage/faker';
@@ -22,6 +27,40 @@ export default Factory.extend({
         };
         return summary;
       }, {});
+    },
+    afterCreate(jobSummary, server) {
+      // Update the summary alloc types to match server allocations with same job ID
+      const jobAllocs = server.db.allocations.where({
+        jobId: jobSummary.jobId,
+      });
+      let summary = jobSummary.groupNames.reduce((summary, group) => {
+        summary[group] = {
+          Queued: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'pending').length,
+          Complete: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'complete').length,
+          Failed: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'failed').length,
+          Running: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'running').length,
+          Starting: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'starting').length,
+          Lost: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'lost').length,
+          Unknown: jobAllocs
+            .filterBy('taskGroup', group)
+            .filterBy('clientStatus', 'unknown').length,
+        };
+        return summary;
+      }, {});
+
+      jobSummary.update({ summary });
     },
   }),
 

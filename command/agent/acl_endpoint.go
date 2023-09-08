@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package agent
 
 import (
@@ -9,7 +12,7 @@ import (
 )
 
 func (s *HTTPServer) ACLPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -36,11 +39,11 @@ func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *htt
 		return nil, CodedError(400, "Missing Policy Name")
 	}
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.aclPolicyQuery(resp, req, name)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.aclPolicyUpdate(resp, req, name)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.aclPolicyDelete(resp, req, name)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -112,7 +115,7 @@ func (s *HTTPServer) aclPolicyDelete(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -184,11 +187,11 @@ func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,
 	}
 
 	switch req.Method {
-	case "GET":
+	case http.MethodGet:
 		return s.aclTokenQuery(resp, req, tokenAccessor)
-	case "PUT", "POST":
+	case http.MethodPut, http.MethodPost:
 		return s.aclTokenUpdate(resp, req, tokenAccessor)
-	case "DELETE":
+	case http.MethodDelete:
 		return s.aclTokenDelete(resp, req, tokenAccessor)
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -217,7 +220,7 @@ func (s *HTTPServer) aclTokenQuery(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if req.Method != "GET" {
+	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.ResolveACLTokenRequest{}

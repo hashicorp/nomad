@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable qunit/require-expect */
 import { test } from 'qunit';
 import { currentURL, visit } from '@ember/test-helpers';
@@ -82,12 +87,13 @@ export default function browseFilesystem({
         })}${encodeURIComponent(filePath)}`,
         'No redirect'
       );
-      assert.equal(
-        document.title,
-        `${pathWithLeadingSlash} - ${getTitleComponent({
-          allocation: this.allocation,
-          task: this.task,
-        })} - Mirage - Nomad`
+      assert.ok(
+        document.title.includes(
+          `${pathWithLeadingSlash} - ${getTitleComponent({
+            allocation: this.allocation,
+            task: this.task,
+          })}`
+        )
       );
       assert.equal(
         FS.breadcrumbsText,

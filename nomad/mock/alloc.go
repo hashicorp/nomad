@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package mock
 
 import (
@@ -81,6 +84,36 @@ func Alloc() *structs.Allocation {
 	alloc.JobID = alloc.Job.ID
 	alloc.Canonicalize()
 	return alloc
+}
+
+func MinAlloc() *structs.Allocation {
+	job := MinJob()
+	group := job.TaskGroups[0]
+	task := group.Tasks[0]
+	return &structs.Allocation{
+		ID:            uuid.Generate(),
+		EvalID:        uuid.Generate(),
+		NodeID:        uuid.Generate(),
+		Job:           job,
+		TaskGroup:     group.Name,
+		ClientStatus:  structs.AllocClientStatusPending,
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				task.Name: {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: 100,
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 256,
+					},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{
+				DiskMB: 150,
+			},
+		},
+	}
 }
 
 func AllocWithoutReservedPort() *structs.Allocation {

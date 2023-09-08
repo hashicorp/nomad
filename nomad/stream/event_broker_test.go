@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package stream
 
 import (
@@ -13,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 
 	"github.com/stretchr/testify/require"
 )
@@ -984,6 +988,88 @@ func TestEventBroker_handleACLUpdates_tokenExpiry(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEventBroker_NodePool_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	testCases := []struct {
+		name        string
+		token       *structs.ACLToken
+		policy      *structs.ACLPolicy
+		expectedErr string
+	}{
+		{
+			name: "management token",
+			token: &structs.ACLToken{
+				AccessorID: uuid.Generate(),
+				SecretID:   uuid.Generate(),
+				Type:       structs.ACLManagementToken,
+			},
+		},
+		{
+			name: "client token",
+			token: &structs.ACLToken{
+				AccessorID: uuid.Generate(),
+				SecretID:   uuid.Generate(),
+				Type:       structs.ACLClientToken,
+			},
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name: "node pool read",
+			token: &structs.ACLToken{
+				AccessorID: uuid.Generate(),
+				SecretID:   uuid.Generate(),
+				Type:       structs.ACLClientToken,
+				Policies:   []string{"node-pool-read"},
+			},
+			policy: &structs.ACLPolicy{
+				Name:  "node-pool-read",
+				Rules: `node_pool "*" { policy = "read" }`,
+			},
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+		{
+			name: "node pool write",
+			token: &structs.ACLToken{
+				AccessorID: uuid.Generate(),
+				SecretID:   uuid.Generate(),
+				Type:       structs.ACLClientToken,
+				Policies:   []string{"node-pool-write"},
+			},
+			policy: &structs.ACLPolicy{
+				Name:  "node-pool-write",
+				Rules: `node_pool "*" { policy = "write" }`,
+			},
+			expectedErr: structs.ErrPermissionDenied.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tokenProvider := &fakeACLTokenProvider{token: tc.token, policy: tc.policy}
+			aclDelegate := &fakeACLDelegate{tokenProvider: tokenProvider}
+
+			publisher, err := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
+			must.NoError(t, err)
+
+			_, _, err = publisher.SubscribeWithACLCheck(&SubscribeRequest{
+				Topics: map[structs.Topic][]string{structs.TopicNodePool: {"*"}},
+				Token:  tc.token.SecretID,
+			})
+
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
+
 }
 
 func consumeSubscription(ctx context.Context, sub *Subscription) <-chan subNextResult {

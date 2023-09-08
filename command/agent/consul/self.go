@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package consul
 
 import (
@@ -17,7 +20,7 @@ func SKU(info Self) (string, bool) {
 		return "", ok
 	}
 
-	ver, vErr := version.NewVersion(v)
+	ver, vErr := version.NewVersion(strings.TrimSpace(v))
 	if vErr != nil {
 		return "", false
 	}

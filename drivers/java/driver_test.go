@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package java
 
 import (
@@ -10,9 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgutil"
-
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -297,12 +299,9 @@ func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskC
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: 134217728,
 				CPUShares:        100,
+				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(allocID, name),
 			},
 		},
-	}
-
-	if cgutil.UseV2 {
-		task.Resources.LinuxResources.CpusetCgroupPath = filepath.Join(cgutil.CgroupRoot, "testing.slice", cgutil.CgroupScope(allocID, name))
 	}
 
 	require.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))

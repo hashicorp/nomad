@@ -1,12 +1,26 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/uuid"
+)
+
+const (
+	// PubKeyAlgEdDSA is the JWA (JSON Web Algorithm) for ed25519 public keys
+	// used for signatures.
+	PubKeyAlgEdDSA = "EdDSA"
+
+	// PubKeyUseSig is the JWK (JSON Web Key) "use" parameter value for
+	// signatures.
+	PubKeyUseSig = "sig"
 )
 
 // RootKey is used to encrypt and decrypt variables. It is never stored in raft.
@@ -239,4 +253,56 @@ type KeyringDeleteRootKeyRequest struct {
 
 type KeyringDeleteRootKeyResponse struct {
 	WriteMeta
+}
+
+// KeyringListPublicResponse lists public key components of signing keys. Used
+// to build a JWKS endpoint.
+type KeyringListPublicResponse struct {
+	PublicKeys []*KeyringPublicKey
+
+	// RotationThreshold exposes root_key_rotation_threshold so that HTTP
+	// endpoints may set a reasonable cache control header informing consumers
+	// when to expect a new key.
+	RotationThreshold time.Duration
+
+	QueryMeta
+}
+
+// KeyringPublicKey is the public key component of a signing key. Used to build
+// a JWKS endpoint.
+type KeyringPublicKey struct {
+	KeyID string
+
+	// PublicKey must be read via GetPublicKey for use with cryptographic
+	// functions such as go-jose's Claims(pubKey, claims) as those functions
+	// inspect the concrete type to vary behavior.
+	PublicKey []byte
+
+	// Algorithm should be the JWT "alg" parameter. So "EdDSA" for Ed25519 public
+	// keys used to validate signatures.
+	Algorithm string
+
+	// Use should be the JWK "use" parameter as defined in
+	// https://datatracker.ietf.org/doc/html/rfc7517#section-4.2.
+	//
+	// "sig" and "enc" being the two standard values with "sig" being the use for
+	// workload identity JWT signing.
+	Use string
+
+	// CreateTime + root_key_rotation_threshold = when consumers should look for
+	// a new key. Therefore this field can be used for cache control.
+	CreateTime int64
+}
+
+// GetPublicKey returns the concrete PublicKey type. This *must* be used to
+// retrieve the public key as functions such as go-jose's Claims(pubKey,
+// claims) inspect pubKey's concrete type.
+func (pubKey *KeyringPublicKey) GetPublicKey() (any, error) {
+	switch alg := pubKey.Algorithm; alg {
+	case PubKeyAlgEdDSA:
+		// Convert public key bytes to an ed25519 public key
+		return ed25519.PublicKey(pubKey.PublicKey), nil
+	default:
+		return nil, fmt.Errorf("unknown algorithm: %q", alg)
+	}
 }

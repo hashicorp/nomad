@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package fingerprint
 
 import (
@@ -85,7 +88,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 		}
 
 		if !found {
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
 	defer ts.Close()

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package resolvconf
 
 import (
@@ -5,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	dresolvconf "github.com/docker/libnetwork/resolvconf"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/docker/libnetwork/resolvconf"
+	"github.com/docker/docker/libnetwork/types"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -34,15 +37,15 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		return mount, nil
 	}
 
-	currRC, err := dresolvconf.Get()
+	currRC, err := resolvconf.Get()
 	if err != nil {
 		return nil, err
 	}
 
 	var (
-		dnsList        = dresolvconf.GetNameservers(currRC.Content, types.IP)
-		dnsSearchList  = dresolvconf.GetSearchDomains(currRC.Content)
-		dnsOptionsList = dresolvconf.GetOptions(currRC.Content)
+		dnsList        = resolvconf.GetNameservers(currRC.Content, types.IP)
+		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
+		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 	)
 	if nServers > 0 {
 		dnsList = conf.Servers
@@ -54,7 +57,7 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		dnsOptionsList = conf.Options
 	}
 
-	_, err = dresolvconf.Build(path, dnsList, dnsSearchList, dnsOptionsList)
+	_, err = resolvconf.Build(path, dnsList, dnsSearchList, dnsOptionsList)
 	if err != nil {
 		return nil, err
 	}
@@ -62,17 +65,19 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 	return mount, nil
 }
 
-func copySystemDNS(dest string) error {
-	in, err := os.Open(dresolvconf.Path())
+func copySystemDNS(filePath string) error {
+	in, err := os.Open(resolvconf.Path())
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		_ = in.Close()
+	}()
 
 	content, err := io.ReadAll(in)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(dest, content, 0644)
+	return os.WriteFile(filePath, content, 0644)
 }

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package tlsutil
 
 import (
@@ -11,6 +14,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -63,7 +67,13 @@ type CAOpts struct {
 	Serial              *big.Int
 	Days                int
 	PermittedDNSDomains []string
-	Domain              string
+	Country             string
+	PostalCode          string
+	Province            string
+	Locality            string
+	StreetAddress       string
+	Organization        string
+	OrganizationalUnit  string
 	Name                string
 }
 
@@ -78,10 +88,28 @@ type CertOpts struct {
 	ExtKeyUsage []x509.ExtKeyUsage
 }
 
+// IsNotCustom checks whether any of CAOpts parameters have been populated with
+// non-default values.
+func (c *CAOpts) IsNotCustom() bool {
+	return c.Country == "" &&
+		c.PostalCode == "" &&
+		c.Province == "" &&
+		c.Locality == "" &&
+		c.StreetAddress == "" &&
+		c.Organization == "" &&
+		c.OrganizationalUnit == "" &&
+		c.Name == ""
+}
+
 // GenerateCA generates a new CA for agent TLS (not to be confused with Connect TLS)
 func GenerateCA(opts CAOpts) (string, string, error) {
-	signer := opts.Signer
-	var pk string
+	var (
+		id     []byte
+		pk     string
+		err    error
+		signer = opts.Signer
+		sn     = opts.Serial
+	)
 	if signer == nil {
 		var err error
 		signer, pk, err = GeneratePrivateKey()
@@ -90,12 +118,11 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 		}
 	}
 
-	id, err := keyID(signer.Public())
+	id, err = keyID(signer.Public())
 	if err != nil {
 		return "", "", err
 	}
 
-	sn := opts.Serial
 	if sn == nil {
 		var err error
 		sn, err = GenerateSerialNumber()
@@ -103,32 +130,55 @@ func GenerateCA(opts CAOpts) (string, string, error) {
 			return "", "", err
 		}
 	}
-	name := opts.Name
-	if name == "" {
-		name = fmt.Sprintf("Nomad Agent CA %d", sn)
-	}
 
-	days := opts.Days
-	if opts.Days == 0 {
-		days = 365
+	if opts.IsNotCustom() {
+		opts.Name = fmt.Sprintf("Nomad Agent CA %d", sn)
+		if opts.Days == 0 {
+			opts.Days = 1825
+		}
+		opts.Country = "US"
+		opts.PostalCode = "94105"
+		opts.Province = "CA"
+		opts.Locality = "San Francisco"
+		opts.StreetAddress = "101 Second Street"
+		opts.Organization = "HashiCorp Inc."
+		opts.OrganizationalUnit = "Nomad"
+	} else {
+		if opts.Name == "" {
+			return "", "", errors.New("common name value not provided")
+		} else {
+			opts.Name = fmt.Sprintf("%s %d", opts.Name, sn)
+		}
+		if opts.Country == "" {
+			return "", "", errors.New("country value not provided")
+		}
+
+		if opts.Organization == "" {
+			return "", "", errors.New("organization value not provided")
+		}
+
+		if opts.OrganizationalUnit == "" {
+			return "", "", errors.New("organizational unit value not provided")
+		}
 	}
 
 	// Create the CA cert
 	template := x509.Certificate{
 		SerialNumber: sn,
 		Subject: pkix.Name{
-			Country:       []string{"US"},
-			PostalCode:    []string{"94105"},
-			Province:      []string{"CA"},
-			Locality:      []string{"San Francisco"},
-			StreetAddress: []string{"101 Second Street"},
-			Organization:  []string{"HashiCorp Inc."},
-			CommonName:    name,
+			Country:            []string{opts.Country},
+			PostalCode:         []string{opts.PostalCode},
+			Province:           []string{opts.Province},
+			Locality:           []string{opts.Locality},
+			StreetAddress:      []string{opts.StreetAddress},
+			Organization:       []string{opts.Organization},
+			OrganizationalUnit: []string{opts.OrganizationalUnit},
+			CommonName:         opts.Name,
 		},
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
 		IsCA:                  true,
-		NotAfter:              time.Now().AddDate(0, 0, days),
+		NotAfter:              time.Now().AddDate(0, 0, opts.Days),
 		NotBefore:             time.Now(),
 		AuthorityKeyId:        id,
 		SubjectKeyId:          id,

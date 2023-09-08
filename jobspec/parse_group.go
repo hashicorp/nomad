@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package jobspec
 
 import (
@@ -210,8 +213,9 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		// If we have a vault block, then parse that
 		if o := listVal.Filter("vault"); len(o.Items) > 0 {
 			tgVault := &api.Vault{
-				Env:        boolToPtr(true),
-				ChangeMode: stringToPtr("restart"),
+				Env:         boolToPtr(true),
+				DisableFile: boolToPtr(false),
+				ChangeMode:  stringToPtr("restart"),
 			}
 
 			if err := parseVault(tgVault, o); err != nil {
@@ -317,6 +321,7 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 		"interval",
 		"delay",
 		"mode",
+		"render_templates",
 	}
 	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err

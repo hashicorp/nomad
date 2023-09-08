@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package command
 
 import (
@@ -18,6 +21,10 @@ Usage: nomad namespace delete [options] <namespace>
   Delete is used to remove a namespace.
 
   If ACLs are enabled, this command requires a management ACL token.
+
+  You cannot delete a namespace that has non-terminal jobs. In federated
+  clusters, you cannot delete a namespace that has non-terminal jobs in any of
+  the federated regions.
 
 General Options:
 

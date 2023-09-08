@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package client
 
 import (
@@ -47,7 +50,27 @@ func (c *Client) StreamingRpcHandler(method string) (structs.StreamingRpcHandler
 }
 
 // RPC is used to forward an RPC call to a nomad server, or fail if no servers.
-func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
+func (c *Client) RPC(method string, args any, reply any) error {
+	// Block if we have not yet registered the node, to enforce that we only
+	// send authenticated calls after the node has been registered
+	select {
+	case <-c.registeredCh:
+	case <-c.shutdownCh:
+		return nil
+	}
+	return c.rpc(method, args, reply)
+}
+
+// UnauthenticatedRPC special-cases the Node.Register RPC call, forwarding the
+// call to a nomad server without blocking on the initial node registration.
+func (c *Client) UnauthenticatedRPC(method string, args any, reply any) error {
+	return c.rpc(method, args, reply)
+}
+
+// rpc implements the forwarding of a RPC call to a nomad server, or fail if
+// no servers.
+func (c *Client) rpc(method string, args any, reply any) error {
+
 	conf := c.GetConfig()
 
 	// Invoke the RPCHandler if it exists
@@ -434,13 +457,14 @@ func resolveServer(s string) (net.Addr, error) {
 	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }
 
-// Ping never mutates the request, so reuse a singleton to avoid the extra
-// malloc
-var pingRequest = &structs.GenericRequest{}
-
 // Ping is used to ping a particular server and returns whether it is healthy or
 // a potential error.
 func (c *Client) Ping(srv net.Addr) error {
+	pingRequest := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			AuthToken: c.secretNodeID(),
+		},
+	}
 	var reply struct{}
 	err := c.connPool.RPC(c.Region(), srv, "Status.Ping", pingRequest, &reply)
 	return err

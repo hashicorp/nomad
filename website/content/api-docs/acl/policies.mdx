@@ -82,13 +82,32 @@ The table below shows this endpoint's support for
 
 - `Rules` `(string: <required>)` - Specifies the Policy rules in HCL or JSON format.
 
+- `JobACL` `(JobACL: <optional>)` - Associates the policy with a given
+  namespace, job, group, or task. Refer to [Workload Associated ACL
+  Policies][concepts_workload_identity_acl] for more information.
+
+  - `Namespace` `(string: <optional>)` - The namespace to attach the policy.
+    Required if `JobID` is set.
+
+  - `JobID` `(string: <optional>)` - The job to attach to the policy. Required
+    if `Group` is set.
+
+  - `Group` `(string: <optional>)` - The group to attach to the policy.
+    Required if `Task` is set.
+
+  - `Task` `(string: <optional>)` - The task to attach to the policy.
+
 ### Sample Payload
 
 ```json
 {
   "Name": "my-policy",
   "Description": "This is a great policy",
-  "Rules": ""
+  "Rules": "",
+  "JobACL": {
+    "Namespace": "default",
+    "JobID": "example"
+  }
 }
 ```
 
@@ -165,3 +184,5 @@ $ curl \
     --request DELETE \
     https://localhost:4646/v1/acl/policy/foo
 ```
+
+[concepts_workload_identity_acl]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies

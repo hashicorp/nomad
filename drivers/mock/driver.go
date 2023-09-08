@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package mock
 
 import (
@@ -263,6 +266,15 @@ type TaskConfig struct {
 
 type MockTaskState struct {
 	StartedAt time.Time
+
+	// these are not strictly "state" but because there's no external
+	// reattachment we need somewhere to stash this config so we can properly
+	// restore mock tasks
+	Command         Command
+	ExecCommand     *Command
+	PluginExitAfter time.Duration
+	KillAfter       time.Duration
+	ProcState       drivers.TaskState
 }
 
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
@@ -355,21 +367,39 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to decode task state from handle: %v", err)
 	}
 
-	driverCfg, err := parseDriverConfig(handle.Config)
-	if err != nil {
-		d.logger.Error("failed to parse driver config from handle", "error", err, "task_id", handle.Config.ID, "config", hclog.Fmt("%+v", handle.Config))
-		return fmt.Errorf("failed to parse driver config from handle: %v", err)
+	taskState.Command.parseDurations()
+	if taskState.ExecCommand != nil {
+		taskState.ExecCommand.parseDurations()
 	}
-
-	// Remove the plugin exit time if set
-	driverCfg.pluginExitAfterDuration = 0
 
 	// Correct the run_for time based on how long it has already been running
 	now := time.Now()
-	driverCfg.runForDuration = driverCfg.runForDuration - now.Sub(taskState.StartedAt)
+	if !taskState.StartedAt.IsZero() {
+		taskState.Command.runForDuration = taskState.Command.runForDuration - now.Sub(taskState.StartedAt)
 
-	h := newTaskHandle(handle.Config, driverCfg, d.logger)
-	h.Recovered = true
+		if taskState.ExecCommand != nil {
+			taskState.ExecCommand.runForDuration = taskState.ExecCommand.runForDuration - now.Sub(taskState.StartedAt)
+		}
+	}
+
+	// Recreate the taskHandle. Because there's no real running process, we'll
+	// assume we're still running if we've recovered it at all.
+	killCtx, killCancel := context.WithCancel(context.Background())
+	h := &taskHandle{
+		logger:          d.logger.With("task_name", handle.Config.Name),
+		pluginExitAfter: taskState.PluginExitAfter,
+		killAfter:       taskState.KillAfter,
+		waitCh:          make(chan any),
+		taskConfig:      handle.Config,
+		command:         taskState.Command,
+		execCommand:     taskState.ExecCommand,
+		procState:       drivers.TaskStateRunning,
+		startedAt:       taskState.StartedAt,
+		kill:            killCancel,
+		killCh:          killCtx.Done(),
+		Recovered:       true,
+	}
+
 	d.tasks.Set(handle.Config.ID, h)
 	go h.run()
 	return nil
@@ -420,23 +450,6 @@ func parseDriverConfig(cfg *drivers.TaskConfig) (*TaskConfig, error) {
 	return &driverConfig, nil
 }
 
-func newTaskHandle(cfg *drivers.TaskConfig, driverConfig *TaskConfig, logger hclog.Logger) *taskHandle {
-	killCtx, killCancel := context.WithCancel(context.Background())
-	h := &taskHandle{
-		taskConfig:      cfg,
-		command:         driverConfig.Command,
-		execCommand:     driverConfig.ExecCommand,
-		pluginExitAfter: driverConfig.pluginExitAfterDuration,
-		killAfter:       driverConfig.killAfterDuration,
-		logger:          logger.With("task_name", cfg.Name),
-		waitCh:          make(chan interface{}),
-		killCh:          killCtx.Done(),
-		kill:            killCancel,
-		startedAt:       time.Now(),
-	}
-	return h
-}
-
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	driverConfig, err := parseDriverConfig(cfg)
 	if err != nil {
@@ -474,9 +487,26 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		net.PortMap = map[string]int{parts[0]: port}
 	}
 
-	h := newTaskHandle(cfg, driverConfig, d.logger)
+	killCtx, killCancel := context.WithCancel(context.Background())
+	h := &taskHandle{
+		taskConfig:      cfg,
+		command:         driverConfig.Command,
+		execCommand:     driverConfig.ExecCommand,
+		pluginExitAfter: driverConfig.pluginExitAfterDuration,
+		killAfter:       driverConfig.killAfterDuration,
+		logger:          d.logger.With("task_name", cfg.Name),
+		waitCh:          make(chan interface{}),
+		killCh:          killCtx.Done(),
+		kill:            killCancel,
+		startedAt:       time.Now(),
+	}
+
 	driverState := MockTaskState{
-		StartedAt: h.startedAt,
+		StartedAt:       h.startedAt,
+		Command:         driverConfig.Command,
+		ExecCommand:     driverConfig.ExecCommand,
+		PluginExitAfter: driverConfig.pluginExitAfterDuration,
+		KillAfter:       driverConfig.killAfterDuration,
 	}
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg

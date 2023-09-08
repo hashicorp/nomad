@@ -1,4 +1,7 @@
-# Allow creating tokens under "nomad-cluster" role. The role name should be
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
+# Allow creating tokens under "nomad-tasks" role. The role name should be
 # updated if "nomad-tasks" is not used.
 path "auth/token/create/nomad-tasks" {
   capabilities = ["update"]

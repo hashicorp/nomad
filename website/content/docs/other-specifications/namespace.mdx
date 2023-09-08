@@ -1,0 +1,96 @@
+---
+layout: docs
+page_title: Namespace Specification
+description: Learn about Nomad's Namespace specification.
+---
+
+# Namespace Specification
+
+<Tip>
+  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
+    Nomad Namespaces tutorial
+  </a> for more information.
+</Tip>
+
+
+Nomad Namespaces may be specified as HCL files and submitted by the [`nomad
+namespace apply`][cli_ns_apply] CLI command.
+
+Unlike [Job specifications][jobspecs], Namespace specifications do *not*
+support [HCL2][hcl2] features like functions.
+
+Example namespace specification:
+
+```hcl
+name        = "prod-eng"
+description = "Namespace for production workloads."
+
+# Quotas are a Nomad Enterprise feature.
+quota = "eng"
+
+meta {
+  owner = "eng"
+}
+
+capabilities {
+  enabled_task_drivers  = ["java", "docker"]
+  disabled_task_drivers = ["raw_exec"]
+}
+
+# Node Pool configuration is a Nomad Enterprise feature.
+node_pool_config {
+  default = "prod"
+  allowed = ["all", "default"]
+}
+```
+
+## Namespace Specification Parameters
+
+- `name` `(string: <required>)` - Specifies the namespace to create or update.
+
+- `description` `(string: "")` - Specifies an optional human-readable
+  description of the namespace.
+
+- `quota` `(string: "")` <EnterpriseAlert inline /> - Specifies a quota to
+  attach to the namespace.
+
+- `meta` `(object: null)` - Optional object with string keys and values of
+  metadata to attach to the namespace. Namespace metadata is not used by Nomad
+  and is intended for use by operators and third party tools.
+
+- `capabilities` <code>([Capabilities](#capabilities-parameters): &lt;optional&gt;)</code> -
+  Specifies capabilities allowed in the namespace. These values are checked at
+  job submission.
+
+- `node_pool_config` <code>([NodePoolConfiguration](#node_pool_config-parameters): &lt;optional&gt;)</code> <EnterpriseAlert inline /> -
+  Specifies node pool configurations. These values are checked at job
+  submission.
+
+### `capabilities` Parameters
+
+- `enabled_task_drivers` `(array<string>: [])` - List of task drivers allowed
+  in the namespace. If empty all task drivers are allowed.
+
+- `disabled_task_drivers` `(array<string>: [])` - List of task drivers disabled
+  in the namespace.
+
+### `node_pool_config` Parameters <EnterpriseAlert inline />
+
+- `default` `(string: "default")` - Specifies the node pool to use for jobs in
+  this namespace that don't define a node pool in their specification.
+
+- `allowed` `(array<string>: nil)` - Specifies the node pools that are allowed
+  to be used by jobs in this namespace. By default, all node pools are allowed.
+  If an empty list is provided only the namespace's default node pool is
+  allowed. This field supports wildcard globbing through the use of `*` for
+  multi-character matching. This field cannot be used with `denied`.
+
+- `denied` `(array<string>: nil)` - Specifies the node pools that are not
+  allowed to be used by jobs in this namespace. This field supports wildcard
+  globbing through the use of `*` for multi-character matching. If specified,
+  any node pool is allowed to be used, except for those that match any of these
+  patterns. This field cannot be used with `allowed`.
+
+[cli_ns_apply]: /nomad/docs/commands/namespace/apply
+[hcl2]: /nomad/docs/job-specification/hcl2
+[jobspecs]: /nomad/docs/job-specification

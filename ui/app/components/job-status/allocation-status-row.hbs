@@ -1,0 +1,54 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="allocation-status-row">
+  {{#if this.showSummaries}}
+    <div class="alloc-status-summaries"
+      {{did-insert this.captureElement}}
+      {{window-resize this.reflow}}
+    >
+      {{#each-in @allocBlocks as |status allocsByStatus|}}
+        {{#each-in allocsByStatus as |health allocsByHealth|}}
+          {{#each-in allocsByHealth as |canary allocsByCanary|}}
+            {{#if (gt allocsByCanary.length 0)}}
+              <JobStatus::AllocationStatusBlock
+                @status={{status}}
+                @health={{health}}
+                @canary={{canary}}
+                @steady={{@steady}}
+                @count={{allocsByCanary.length}}
+                @width={{compute (action this.calcPerc) allocsByCanary.length}}
+                @allocs={{allocsByCanary}} />
+            {{/if}}
+          {{/each-in}}
+        {{/each-in}}
+      {{/each-in}}
+    </div>
+  {{else}}
+    <div class="ungrouped-allocs"
+      {{did-insert this.captureElement}}
+      {{window-resize this.reflow}}
+    >
+      {{#each-in @allocBlocks as |status allocsByStatus|}}
+        {{#each-in allocsByStatus as |health allocsByHealth|}}
+          {{#each-in allocsByHealth as |canary allocsByCanary|}}
+            {{#if (gt allocsByCanary.length 0)}}
+              {{#each (range 0 allocsByCanary.length) as |i|}}
+                    <JobStatus::IndividualAllocation
+                      @allocation={{get allocsByCanary i}}
+                      @status={{status}}
+                      @health={{health}}
+                      @canary={{canary}}
+                      @steady={{@steady}}
+                    />
+              {{/each}}
+            {{/if}}
+          {{/each-in}}
+        {{/each-in}}
+      {{/each-in}}
+    </div>
+  {{/if}}
+</div>
+       

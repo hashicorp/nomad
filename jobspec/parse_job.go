@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package jobspec
 
 import (
@@ -191,8 +194,9 @@ func parseJob(result *api.Job, list *ast.ObjectList) error {
 	// If we have a vault block, then parse that
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		jobVault := &api.Vault{
-			Env:        boolToPtr(true),
-			ChangeMode: stringToPtr("restart"),
+			Env:         boolToPtr(true),
+			DisableFile: boolToPtr(false),
+			ChangeMode:  stringToPtr("restart"),
 		}
 
 		if err := parseVault(jobVault, o); err != nil {
@@ -230,6 +234,7 @@ func parsePeriodic(result **api.PeriodicConfig, list *ast.ObjectList) error {
 	valid := []string{
 		"enabled",
 		"cron",
+		"crons",
 		"prohibit_overlap",
 		"time_zone",
 	}
@@ -249,6 +254,12 @@ func parsePeriodic(result **api.PeriodicConfig, list *ast.ObjectList) error {
 	if cron, ok := m["cron"]; ok {
 		m["SpecType"] = api.PeriodicSpecCron
 		m["Spec"] = cron
+	}
+
+	// If "crons" is provided, set the type to "cron" and store the spec.
+	if cron, ok := m["crons"]; ok {
+		m["SpecType"] = api.PeriodicSpecCron
+		m["Specs"] = cron
 	}
 
 	// Build the constraint

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package nomad
 
 import (
@@ -101,16 +104,6 @@ func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity)
 	}
 
 	// At this point we either have an anonymous token or an invalid one.
-
-	// Previously-connected clients will have a NodeID set on the context, which
-	// is available for all yamux streams over the same yamux session (and TCP
-	// connection). This will be a large portion of the RPCs sent, but we can't
-	// fast-path this at the top of the method, because authenticated HTTP
-	// requests to the clients will come in over to the same session.
-	if ctx.NodeID != "" {
-		args.SetIdentity(&structs.AuthenticatedIdentity{ClientID: ctx.NodeID})
-		return nil
-	}
 
 	// Unlike clients that provide their Node ID on first connection, server
 	// RPCs don't include an ID for the server so we identify servers by cert
@@ -428,7 +421,11 @@ func (s *Server) resolvePoliciesForClaims(claims *structs.IdentityClaims) ([]*st
 	}
 
 	// Find any policies attached to the job
-	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, alloc.Job.ID)
+	jobId := alloc.Job.ID
+	if alloc.Job.ParentID != "" {
+		jobId = alloc.Job.ParentID
+	}
+	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, jobId)
 	if err != nil {
 		return nil, err
 	}

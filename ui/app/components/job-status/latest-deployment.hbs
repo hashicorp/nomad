@@ -1,0 +1,15 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="latest-deployment">
+  <LinkTo @route="jobs.job.deployments" @model={{@job}}>
+    <h4>
+      Latest Deployment
+      <FlightIcon @name="arrow-right" />
+    </h4>
+  </LinkTo>
+  <Hds::Badge @text={{capitalize this.status}} @size="small" @color={{this.statusColor}} @type="filled" />
+  <p>{{this.healthyAllocs}}/{{this.desiredTotal}} Healthy</p>
+</section>

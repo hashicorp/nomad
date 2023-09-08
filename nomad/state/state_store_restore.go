@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package state
 
 import (
@@ -31,8 +34,27 @@ func (r *StateRestore) NodeRestore(node *structs.Node) error {
 	return nil
 }
 
+// NodePoolRestore is used to restore a node pool
+func (r *StateRestore) NodePoolRestore(pool *structs.NodePool) error {
+	if err := r.txn.Insert(TableNodePools, pool); err != nil {
+		return fmt.Errorf("node pool insert failed: %v", err)
+	}
+	return nil
+}
+
 // JobRestore is used to restore a job
 func (r *StateRestore) JobRestore(job *structs.Job) error {
+
+	// When upgrading a cluster pre to post 1.6, the existing jobs will not
+	// have a node pool set. Inserting this into the table will fail, as this
+	// is indexed and cannot be empty.
+	//
+	// This cannot happen within the job canonicalize function, as it would
+	// break the node pools and governance feature.
+	if job.NodePool == "" {
+		job.NodePool = structs.NodePoolDefault
+	}
+
 	if err := r.txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
 	}
@@ -183,6 +205,8 @@ func (r *StateRestore) ScalingEventsRestore(jobEvents *structs.JobScalingEvents)
 
 // NamespaceRestore is used to restore a namespace
 func (r *StateRestore) NamespaceRestore(ns *structs.Namespace) error {
+	// Handle upgrade path.
+	ns.Canonicalize()
 	if err := r.txn.Insert(TableNamespaces, ns); err != nil {
 		return fmt.Errorf("namespace insert failed: %v", err)
 	}

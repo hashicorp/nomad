@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{#if this.noConnection}}
   <div data-test-connection-error class="notification is-error">
     <div class="columns">
@@ -11,12 +16,22 @@
     </div>
   </div>
 {{/if}}
-<div class="boxed-section-head">
+<div class="boxed-section-head task-log-head">
   <span>
     <button data-test-log-action="stdout" class="button {{if (eq this.mode "stdout") "is-info"}}" {{action "setMode" "stdout"}} type="button">stdout</button>
     <button data-test-log-action="stderr" class="button {{if (eq this.mode "stderr") "is-danger"}}" {{action "setMode" "stderr"}} type="button">stderr</button>
   </span>
   <span class="pull-right">
+    <span class="header-toggle">
+      <Hds::Form::Toggle::Field
+        {{keyboard-shortcut label="Toggle word wrap" action=(action "toggleWrap") pattern=(array "w" "w") menuLevel=true }}
+        checked={{this.wrapped}}
+        {{on "change" this.toggleWrap}}
+        data-test-word-wrap-toggle
+      as |F|>
+        <F.Label>Word Wrap</F.Label>
+      </Hds::Form::Toggle::Field>
+    </span>
     <button data-test-log-action="head" class="button is-white" onclick={{action "gotoHead"}} type="button">Head</button>
     <button data-test-log-action="tail" class="button is-white" onclick={{action "gotoTail"}} type="button">Tail</button>
     <button data-test-log-action="toggle-stream" class="button is-white" onclick={{action "toggleStream"}} type="button" title="{{if this.logger.isStreaming "Stop" "Start"}} log streaming">
@@ -25,5 +40,5 @@
   </span>
 </div>
 <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
-  <StreamingFile @logger={{this.logger}} @mode={{this.streamMode}} @isStreaming={{this.isStreaming}} @shouldFillHeight={{this.shouldFillHeight}} />
+  <StreamingFile @logger={{this.logger}} @mode={{this.streamMode}} @isStreaming={{this.isStreaming}} @shouldFillHeight={{this.shouldFillHeight}} @wrapped={{this.wrapped}} />
 </div>

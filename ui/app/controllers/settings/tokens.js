@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 // @ts-check
 import { inject as service } from '@ember/service';
 import Controller from '@ember/controller';
@@ -18,7 +23,6 @@ export default class Tokens extends Controller {
   @service token;
   @service store;
   @service router;
-  @service notifications;
 
   queryParams = ['code', 'state', 'jwtAuthMethod'];
 

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import Ember from 'ember';
 import Response from 'ember-cli-mirage/response';
 import { HOSTS } from './common';
@@ -105,6 +110,19 @@ export default function () {
 
     const job = server.create('job', { id: jobName });
     return new Response(200, {}, this.serialize(job));
+  });
+
+  this.get('/job/:id/submission', function (schema, req) {
+    return new Response(
+      200,
+      {},
+      JSON.stringify({
+        Source: `job "${req.params.id}" {`,
+        Format: 'hcl2',
+        VariableFlags: { X: 'x', Y: '42', Z: 'true' },
+        Variables: 'var file content',
+      })
+    );
   });
 
   this.post('/job/:id/plan', function (schema, req) {
@@ -318,6 +336,10 @@ export default function () {
 
   this.post('/node/:id/drain', function ({ nodes }, { params }) {
     return this.serialize(nodes.find(params.id));
+  });
+
+  this.get('/node/pools', function ({ nodePools }) {
+    return this.serialize(nodePools.all());
   });
 
   this.get('/allocations');
@@ -938,7 +960,11 @@ export default function () {
   });
 
   this.get('/var/:id', function ({ variables }, { params }) {
-    return variables.find(params.id);
+    let variable = variables.find(params.id);
+    if (!variable) {
+      return new Response(404, {}, {});
+    }
+    return variable;
   });
 
   this.put('/var/:id', function (schema, request) {

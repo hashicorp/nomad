@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 //go:generate codecgen -c github.com/hashicorp/go-msgpack/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go
@@ -6,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hashicorp/nomad/client/stats"
+	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -30,7 +33,7 @@ func (r *RpcError) Error() string {
 
 // ClientStatsResponse is used to return statistics about a node.
 type ClientStatsResponse struct {
-	HostStats *stats.HostStats
+	HostStats *hoststats.HostStats
 	structs.QueryMeta
 }
 
@@ -359,3 +362,8 @@ const CheckBufSize = 4 * 1024
 // DriverStatsNotImplemented is the error to be returned if a driver doesn't
 // implement stats.
 var DriverStatsNotImplemented = errors.New("stats not implemented for driver")
+
+// NodeRegistration stores data about the client's registration with the server
+type NodeRegistration struct {
+	HasRegistered bool
+}

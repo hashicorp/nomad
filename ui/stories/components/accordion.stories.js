@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import hbs from 'htmlbars-inline-precompile';
 import productMetadata from '../../app/utils/styleguide/product-metadata';
 

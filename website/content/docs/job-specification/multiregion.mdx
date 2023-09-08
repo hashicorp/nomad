@@ -147,6 +147,9 @@ The name of a region must match the name of one of the [federated regions].
   datacenters in the region which are eligible for task placement. If not
   provided, the `datacenters` field of the job will be used.
 
+- `node_pool` `(string: <optional>)` - The node pool to be used in this region.
+  It overrides the job-level `node_pool` and the namespace default node pool.
+
 - `meta` - `Meta: nil` - The meta block allows for user-defined arbitrary
   key-value pairs. The meta specified for each region will be merged with the
   meta block at the job level.

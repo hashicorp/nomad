@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import Controller from '@ember/controller';
 import { action } from '@ember/object';
@@ -187,7 +192,7 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (types.length && !types.includes(job.get('displayType'))) {
+      if (types.length && !types.includes(job.get('displayType.type'))) {
         return false;
       }
 

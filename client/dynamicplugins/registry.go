@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // dynamicplugins is a package that manages dynamic plugins in Nomad.
 // It exposes a registry that allows for plugins to be registered/deregistered
 // and also allows subscribers to receive real time updates of these events.
@@ -9,6 +12,9 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/hashicorp/nomad/helper"
 )
 
 const (
@@ -22,6 +28,7 @@ type Registry interface {
 	RegisterPlugin(info *PluginInfo) error
 	DeregisterPlugin(ptype, name, allocID string) error
 
+	WaitForPlugin(ctx context.Context, ptype, pname string) (*PluginInfo, error)
 	ListPlugins(ptype string) []*PluginInfo
 	DispensePlugin(ptype, name string) (interface{}, error)
 	PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error)
@@ -299,6 +306,62 @@ func (d *dynamicRegistry) ListPlugins(ptype string) []*PluginInfo {
 	}
 
 	return plugins
+}
+
+// WaitForPlugin repeatedly checks until a plugin with a given type and name
+// becomes available or its context is canceled or times out.
+// Callers should pass in a context with a sensible timeout
+// for the plugin they're expecting to find.
+func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string) (*PluginInfo, error) {
+	// this is our actual goal, which may be run repeatedly
+	findPlugin := func() *PluginInfo {
+		for _, p := range d.ListPlugins(ptype) {
+			if p.Name == name {
+				return p
+			}
+		}
+		return nil
+	}
+
+	// try immediately first, before any timers get involved
+	if p := findPlugin(); p != nil {
+		return p, nil
+	}
+
+	// next, loop until found or context is done
+
+	// these numbers are almost arbitrary...
+	delay := 200     // milliseconds between checks, will backoff
+	maxDelay := 5000 // up to 5 seconds between each check
+
+	// put a long upper bound on total time,
+	// just in case callers don't follow directions.
+	ctx, cancel := context.WithTimeout(ctx, 24*time.Hour)
+	defer cancel()
+
+	timer, stop := helper.NewSafeTimer(time.Duration(delay) * time.Millisecond)
+	defer stop()
+	for {
+		select {
+		case <-ctx.Done():
+			// an externally-defined timeout wins the day
+			return nil, ctx.Err()
+		case <-timer.C:
+			// continue after our internal delay
+		}
+
+		if p := findPlugin(); p != nil {
+			return p, nil
+		}
+
+		if delay < maxDelay {
+			delay += delay
+		}
+		if delay > maxDelay {
+			delay = maxDelay
+		}
+		timer.Reset(time.Duration(delay) * time.Millisecond)
+	}
 }
 
 func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}, error) {

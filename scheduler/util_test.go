@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -32,7 +35,7 @@ func newNode(name string) *structs.Node {
 	return n
 }
 
-func TestReadyNodesInDCs(t *testing.T) {
+func TestReadyNodesInDCsAndPool(t *testing.T) {
 	ci.Parallel(t)
 
 	state := state.TestStateStore(t)
@@ -45,39 +48,77 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node4 := mock.DrainNode()
 	node5 := mock.Node()
 	node5.Datacenter = "not-this-dc"
+	node6 := mock.Node()
+	node6.Datacenter = "dc1"
+	node6.NodePool = "other"
+	node7 := mock.Node()
+	node7.Datacenter = "dc2"
+	node7.NodePool = "other"
+	node8 := mock.Node()
+	node8.Datacenter = "dc1"
+	node8.NodePool = "other"
+	node8.Status = structs.NodeStatusDown
+	node9 := mock.DrainNode()
+	node9.Datacenter = "dc2"
+	node9.NodePool = "other"
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)) // dc1 ready
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)) // dc2 ready
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3)) // dc2 not ready
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4)) // dc2 not ready
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1004, node5)) // ready never match
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1005, node6)) // dc1 other pool
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1006, node7)) // dc2 other pool
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1007, node8)) // dc1 other not ready
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1008, node9)) // dc2 other not ready
 
 	testCases := []struct {
 		name           string
 		datacenters    []string
+		pool           string
 		expectReady    []*structs.Node
 		expectNotReady map[string]struct{}
 		expectIndex    map[string]int
 	}{
 		{
-			name:           "no wildcards",
+			name:        "no wildcards in all pool",
+			datacenters: []string{"dc1", "dc2"},
+			pool:        structs.NodePoolAll,
+			expectReady: []*structs.Node{node1, node2, node6, node7},
+			expectNotReady: map[string]struct{}{
+				node3.ID: {}, node4.ID: {}, node8.ID: {}, node9.ID: {}},
+			expectIndex: map[string]int{"dc1": 2, "dc2": 2},
+		},
+		{
+			name:        "with wildcard in all pool",
+			datacenters: []string{"dc*"},
+			pool:        structs.NodePoolAll,
+			expectReady: []*structs.Node{node1, node2, node6, node7},
+			expectNotReady: map[string]struct{}{
+				node3.ID: {}, node4.ID: {}, node8.ID: {}, node9.ID: {}},
+			expectIndex: map[string]int{"dc1": 2, "dc2": 2},
+		},
+		{
+			name:           "no wildcards in default pool",
 			datacenters:    []string{"dc1", "dc2"},
+			pool:           structs.NodePoolDefault,
 			expectReady:    []*structs.Node{node1, node2},
-			expectNotReady: map[string]struct{}{node3.ID: struct{}{}, node4.ID: struct{}{}},
+			expectNotReady: map[string]struct{}{node3.ID: {}, node4.ID: {}},
 			expectIndex:    map[string]int{"dc1": 1, "dc2": 1},
 		},
 		{
-			name:           "with wildcard",
+			name:           "with wildcard in default pool",
 			datacenters:    []string{"dc*"},
+			pool:           structs.NodePoolDefault,
 			expectReady:    []*structs.Node{node1, node2},
-			expectNotReady: map[string]struct{}{node3.ID: struct{}{}, node4.ID: struct{}{}},
+			expectNotReady: map[string]struct{}{node3.ID: {}, node4.ID: {}},
 			expectIndex:    map[string]int{"dc1": 1, "dc2": 1},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ready, notReady, dcIndex, err := readyNodesInDCs(state, tc.datacenters)
+			ready, notReady, dcIndex, err := readyNodesInDCsAndPool(state, tc.datacenters, tc.pool)
 			must.NoError(t, err)
 			must.SliceContainsAll(t, tc.expectReady, ready, must.Sprint("expected ready to match"))
 			must.Eq(t, tc.expectNotReady, notReady, must.Sprint("expected not-ready to match"))
@@ -1006,6 +1047,54 @@ func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
 		must.Sprintf("inplaceUpdate should have an inplace update"))
 }
 
+func TestInplaceUpdate_NodePools(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+	job.Datacenters = []string{"*"}
+
+	node1 := mock.Node()
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
+
+	node2 := mock.Node()
+	node2.NodePool = "other"
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
+
+	// Register an alloc
+	alloc1 := mock.AllocForNode(node1)
+	alloc1.Job = job
+	alloc1.JobID = job.ID
+	must.NoError(t, store.UpsertJobSummary(1002, mock.JobSummary(alloc1.JobID)))
+
+	alloc2 := mock.AllocForNode(node2)
+	alloc2.Job = job
+	alloc2.JobID = job.ID
+	must.NoError(t, store.UpsertJobSummary(1003, mock.JobSummary(alloc2.JobID)))
+
+	t.Logf("alloc1=%s alloc2=%s", alloc1.ID, alloc2.ID)
+
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1004,
+		[]*structs.Allocation{alloc1, alloc2}))
+
+	updates := []allocTuple{
+		{Alloc: alloc1, TaskGroup: job.TaskGroups[0]},
+		{Alloc: alloc2, TaskGroup: job.TaskGroups[0]},
+	}
+	stack := NewGenericStack(false, ctx)
+	destructive, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	must.Len(t, 1, inplace, must.Sprint("should have an inplace update"))
+	must.Eq(t, alloc1.ID, inplace[0].Alloc.ID)
+	must.Len(t, 1, ctx.plan.NodeAllocation[node1.ID],
+		must.Sprint("NodeAllocation should have an inplace update for node1"))
+
+	// note that NodeUpdate with the new alloc won't be populated here yet
+	must.Len(t, 1, destructive, must.Sprint("should have a destructive update"))
+	must.Eq(t, alloc2.ID, destructive[0].Alloc.ID)
+}
+
 func TestUtil_connectUpdated(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1317,4 +1406,20 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	}
 	expected = []string{}
 	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
+}
+
+func TestTaskGroupUpdated_Restart(t *testing.T) {
+	ci.Parallel(t)
+
+	j1 := mock.Job()
+	name := j1.TaskGroups[0].Name
+	j2 := j1.Copy()
+	j3 := j1.Copy()
+
+	must.False(t, tasksUpdated(j1, j2, name).modified)
+	j2.TaskGroups[0].RestartPolicy.RenderTemplates = true
+	must.True(t, tasksUpdated(j1, j2, name).modified)
+
+	j3.TaskGroups[0].Tasks[0].RestartPolicy.RenderTemplates = true
+	must.True(t, tasksUpdated(j1, j3, name).modified)
 }

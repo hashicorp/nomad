@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { helper } from '@ember/component/helper';
 import { inlineSvg } from 'ember-inline-svg/helpers/inline-svg';
 

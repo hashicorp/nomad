@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package state
 
 import (
@@ -9,6 +12,8 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.NodeRegisterRequestType:                      structs.TypeNodeRegistration,
 	structs.NodeDeregisterRequestType:                    structs.TypeNodeDeregistration,
 	structs.UpsertNodeEventsType:                         structs.TypeNodeEvent,
+	structs.NodePoolUpsertRequestType:                    structs.TypeNodePoolUpserted,
+	structs.NodePoolDeleteRequestType:                    structs.TypeNodePoolDeleted,
 	structs.EvalUpdateRequestType:                        structs.TypeEvalUpdated,
 	structs.AllocClientUpdateRequestType:                 structs.TypeAllocationUpdated,
 	structs.JobRegisterRequestType:                       structs.TypeJobRegistered,
@@ -132,6 +137,18 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Key:   before.ID,
 				Payload: &structs.NodeStreamEvent{
 					Node: before,
+				},
+			}, true
+		case TableNodePools:
+			before, ok := change.Before.(*structs.NodePool)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicNodePool,
+				Key:   before.Name,
+				Payload: &structs.NodePoolEvent{
+					NodePool: before,
 				},
 			}, true
 		case TableServiceRegistrations:
@@ -283,6 +300,18 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Key:   after.ID,
 			Payload: &structs.NodeStreamEvent{
 				Node: after,
+			},
+		}, true
+	case TableNodePools:
+		after, ok := change.After.(*structs.NodePool)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicNodePool,
+			Key:   after.Name,
+			Payload: &structs.NodePoolEvent{
+				NodePool: after,
 			},
 		}, true
 	case "deployment":

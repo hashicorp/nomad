@@ -1,3 +1,8 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
 {{page-title
   (if this.system.shouldShowRegions (concat this.system.activeRegion " - "))
   (if this.system.agent.config.UI.Label.Text (concat this.system.agent.config.UI.Label.Text " - "))
@@ -88,6 +93,11 @@
         data-test-error-clients-link
         class="button is-white"
       >Go to Clients</LinkTo>
+      <LinkTo
+        @route="settings.tokens"
+        data-test-error-signin-link
+        class="button is-white"
+      >Go to Sign In</LinkTo>
     </div>
   </div>
 {{else}}

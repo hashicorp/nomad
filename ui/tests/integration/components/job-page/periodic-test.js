@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
@@ -34,6 +39,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.store = this.owner.lookup('service:store');
     this.server = startMirage();
     this.server.create('namespace');
+    this.server.create('node-pool');
+    this.server.create('node');
   });
 
   hooks.afterEach(function () {
@@ -188,7 +195,7 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(2);
+    assert.expect(1);
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,

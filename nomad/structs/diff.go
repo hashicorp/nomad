@@ -1,9 +1,14 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/helper/flatmap"
@@ -131,7 +136,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	diff.TaskGroups = tgs
 
 	// Periodic diff
-	if pDiff := primitiveObjectDiff(j.Periodic, other.Periodic, nil, "Periodic", contextual); pDiff != nil {
+	if pDiff := periodicDiff(j.Periodic, other.Periodic, contextual); pDiff != nil {
 		diff.Objects = append(diff.Objects, pDiff)
 	}
 
@@ -336,6 +341,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 	// Network Resources diff
 	if nDiffs := networkResourceDiffs(tg.Networks, other.Networks, contextual); nDiffs != nil {
 		diff.Objects = append(diff.Objects, nDiffs...)
+	}
+
+	// Scaling diff
+	if scDiff := scalingDiff(tg.Scaling, other.Scaling, contextual); scDiff != nil {
+		diff.Objects = append(diff.Objects, scDiff)
 	}
 
 	// Services diff
@@ -550,6 +560,11 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, idDiffs)
 	}
 
+	// Alternate identities diff
+	if altIDDiffs := idSliceDiffs(t.Identities, other.Identities, contextual); altIDDiffs != nil {
+		diff.Objects = append(diff.Objects, altIDDiffs...)
+	}
+
 	return diff, nil
 }
 
@@ -616,6 +631,66 @@ func (t TaskDiffs) Len() int           { return len(t) }
 func (t TaskDiffs) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 func (t TaskDiffs) Less(i, j int) bool { return t[i].Name < t[j].Name }
 
+// scalingDiff returns the diff of two Scaling objects. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func scalingDiff(old, new *ScalingPolicy, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Scaling"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	filter := []string{"CreateIndex", "ModifyIndex", "ID", "Type", "Target[Job]", "Target[Group]", "Target[Namespace]"}
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &ScalingPolicy{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, filter, true)
+	} else if new == nil {
+		new = &ScalingPolicy{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, filter, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, filter, true)
+		newPrimitiveFlat = flatmap.Flatten(new, filter, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
+
+	// Diff Policy
+	if pDiff := policyDiff(old.Policy, new.Policy, contextual); pDiff != nil {
+		diff.Objects = append(diff.Objects, pDiff)
+	}
+
+	sort.Sort(FieldDiffs(diff.Fields))
+	sort.Sort(ObjectDiffs(diff.Objects))
+
+	return diff
+}
+
+// policyDiff returns the diff of two Scaling Policy objects. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func policyDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Policy"}
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if len(old) == 0 {
+		diff.Type = DiffTypeAdded
+	} else if len(new) == 0 {
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// Diff the primitive fields.
+	oldPrimitiveFlat := flatmap.Flatten(old, nil, false)
+	newPrimitiveFlat := flatmap.Flatten(new, nil, false)
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
+
+	return diff
+}
+
 // serviceDiff returns the diff of two service objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
 func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
@@ -658,6 +733,11 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 	// Consul Connect diffs
 	if conDiffs := connectDiffs(old.Connect, new.Connect, contextual); conDiffs != nil {
 		diff.Objects = append(diff.Objects, conDiffs)
+	}
+
+	// Workload Identity diffs
+	if wiDiffs := idDiff(old.Identity, new.Identity, contextual); wiDiffs != nil {
+		diff.Objects = append(diff.Objects, wiDiffs)
 	}
 
 	return diff
@@ -1366,11 +1446,11 @@ func connectGatewayProxyEnvoyBindAddrsDiff(prev, next map[string]*ConsulGatewayB
 	nextMap := make(map[string]string, len(next))
 
 	for k, v := range prev {
-		prevMap[k] = fmt.Sprintf("%s:%d", v.Address, v.Port)
+		prevMap[k] = net.JoinHostPort(v.Address, strconv.Itoa(v.Port))
 	}
 
 	for k, v := range next {
-		nextMap[k] = fmt.Sprintf("%s:%d", v.Address, v.Port)
+		nextMap[k] = net.JoinHostPort(v.Address, strconv.Itoa(v.Port))
 	}
 
 	oldPrimitiveFlat := flatmap.Flatten(prevMap, nil, false)
@@ -2376,6 +2456,40 @@ func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
 	return diff
 }
 
+// idSliceDiff returns the diff of two slices of identity objects. If
+// contextual diff is enabled, all fields will be returned, even if no diff
+// occurred.
+func idSliceDiffs(old, new []*WorkloadIdentity, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]*WorkloadIdentity, len(old))
+	newMap := make(map[string]*WorkloadIdentity, len(new))
+
+	for _, o := range old {
+		oldMap[o.Name] = o
+	}
+	for _, n := range new {
+		newMap[n.Name] = n
+	}
+
+	var diffs []*ObjectDiff
+	for index, oldID := range oldMap {
+		// Diff the same, deleted, and edited
+		if diff := idDiff(oldID, newMap[index], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for index, newID := range newMap {
+		// diff the added
+		if oldID, exists := oldMap[index]; !exists {
+			if diff := idDiff(oldID, newID, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
 // idDiff returns the diff of two identity objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
 func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
@@ -2385,15 +2499,22 @@ func idDiff(oldWI, newWI *WorkloadIdentity, contextual bool) *ObjectDiff {
 	if reflect.DeepEqual(oldWI, newWI) {
 		return nil
 	} else if oldWI == nil {
+		oldWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
 	} else if newWI == nil {
+		newWI = &WorkloadIdentity{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 	} else {
 		diff.Type = DiffTypeEdited
 		oldPrimitiveFlat = flatmap.Flatten(oldWI, nil, true)
 		newPrimitiveFlat = flatmap.Flatten(newWI, nil, true)
+	}
+
+	audDiff := stringSetDiff(oldWI.Audience, newWI.Audience, "Audience", contextual)
+	if audDiff != nil {
+		diff.Objects = append(diff.Objects, audDiff)
 	}
 
 	// Diff the primitive fields.
@@ -2620,6 +2741,37 @@ func stringSetDiff(old, new []string, name string, contextual bool) *ObjectDiff 
 		diff.Type = DiffTypeNone
 	}
 
+	return diff
+}
+
+func periodicDiff(old, new *PeriodicConfig, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Periodic"}
+	var oldPeriodicFlat, newPeriodicFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		old = &PeriodicConfig{}
+		diff.Type = DiffTypeAdded
+		newPeriodicFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		new = &PeriodicConfig{}
+		diff.Type = DiffTypeDeleted
+		oldPeriodicFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPeriodicFlat = flatmap.Flatten(old, nil, true)
+		newPeriodicFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPeriodicFlat, newPeriodicFlat, contextual)
+
+	if setDiff := stringSetDiff(old.Specs, new.Specs, "Specs", contextual); setDiff != nil && setDiff.Type != DiffTypeNone {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
+
+	sort.Sort(FieldDiffs(diff.Fields))
 	return diff
 }
 

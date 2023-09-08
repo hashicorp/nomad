@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 .page-layout {
   min-height: 100%;
   display: flex;
@@ -7,6 +12,7 @@
     position: fixed;
     width: 100%;
     z-index: $z-header;
+    top: 0;
 
     // Defensive styles in case header height goes over 100px, causing
     // the left gutter menu to be on top of the header.

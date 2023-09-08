@@ -1,0 +1,77 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="deployment-history {{if this.isHidden "hidden"}}">
+  <header>
+    <h4 class="title is-5">
+      <button
+        class="button"
+        {{on "click" (action (mut this.isHidden) (if this.isHidden false true))}}
+        type="button"
+      >
+        {{or @title "Deployment History"}}
+        {{#if this.isHidden}}
+          {{x-icon "chevron-down"}}
+        {{else}}
+          {{x-icon "chevron-up"}}
+        {{/if}}
+      </button>
+    </h4>
+    {{#unless this.isHidden}}
+      <SearchBox
+        data-test-history-search
+        @searchTerm={{mut this.searchTerm}}
+        @placeholder="Search events..."
+      />
+    {{/unless}}
+  </header>
+  {{#unless this.isHidden}}
+  <div class="timeline-container">
+    <ol class="timeline">
+      {{#each this.history as |deployment-log|}}
+        <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
+          <div class="boxed-section-head is-light">
+            <LinkTo @route="allocations.allocation" @model={{deployment-log.state.allocation.id}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
+            <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
+            <span class="pull-right">
+              {{format-ts deployment-log.time}}
+            </span>
+          </div>
+        </li>
+      {{else}}
+        {{#if this.errorState}}
+          <li class="timeline-object">
+            <div class="boxed-section-head is-light">
+              <span>Error loading deployment history</span>
+            </div>
+          </li>
+        {{else}}
+          {{#if this.deploymentAllocations.length}}
+            {{#if this.searchTerm}}
+              <li class="timeline-object" data-test-history-search-no-match>
+                <div class="boxed-section-head is-light">
+                  <span>No events match {{this.searchTerm}}</span>
+                </div>
+              </li>
+            {{else}}
+              <li class="timeline-object">
+                <div class="boxed-section-head is-light">
+                  <span>No deployment events yet</span>
+                </div>
+              </li>
+            {{/if}}
+          {{else}}
+            <li class="timeline-object">
+              <div class="boxed-section-head is-light">
+                <span>Loading deployment events</span>
+              </div>
+            </li>
+          {{/if}}
+        {{/if}}
+      {{/each}}
+    </ol>
+</div>
+  {{/unless}}
+</div>

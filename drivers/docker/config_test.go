@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package docker
 
 import (
@@ -6,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -216,6 +220,7 @@ config {
   devices = [
     {"host_path"="/dev/null", "container_path"="/tmp/container-null", cgroup_permissions="rwm"},
     {"host_path"="/dev/random", "container_path"="/tmp/container-random"},
+    {"host_path"="/dev/bus/usb"},
   ]
   dns_search_domains = ["sub.example.com", "sub2.example.com"]
   dns_options = ["debug", "attempts:10"]
@@ -223,6 +228,7 @@ config {
   entrypoint = ["/bin/bash", "-c"]
   extra_hosts = ["127.0.0.1  localhost.example.com"]
   force_pull = true
+  group_add = ["group1", "group2"]
   healthchecks {
     disable = true
   }
@@ -372,6 +378,11 @@ config {
 				ContainerPath:     "/tmp/container-random",
 				CgroupPermissions: "",
 			},
+			{
+				HostPath:          "/dev/bus/usb",
+				ContainerPath:     "",
+				CgroupPermissions: "",
+			},
 		},
 		DNSSearchDomains: []string{"sub.example.com", "sub2.example.com"},
 		DNSOptions:       []string{"debug", "attempts:10"},
@@ -379,6 +390,7 @@ config {
 		Entrypoint:       []string{"/bin/bash", "-c"},
 		ExtraHosts:       []string{"127.0.0.1  localhost.example.com"},
 		ForcePull:        true,
+		GroupAdd:         []string{"group1", "group2"},
 		Healthchecks:     DockerHealthchecks{Disable: true},
 		Hostname:         "self.example.com",
 		Interactive:      true,
@@ -612,28 +624,55 @@ func TestConfig_DriverConfig_GC(t *testing.T) {
 	}
 }
 
-func TestConfig_InternalCapabilities(t *testing.T) {
+func TestConfig_Capabilities(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
 		name     string
 		config   string
-		expected drivers.InternalCapabilities
+		expected *drivers.Capabilities
 	}{
 		{
-			name:     "pure default",
-			config:   `{}`,
-			expected: drivers.InternalCapabilities{},
+			name:   "pure default",
+			config: `{}`,
+			expected: &drivers.Capabilities{
+				SendSignals:          true,
+				Exec:                 true,
+				FSIsolation:          "image",
+				NetIsolationModes:    []drivers.NetIsolationMode{"host", "group", "task"},
+				MustInitiateNetwork:  true,
+				MountConfigs:         0,
+				RemoteTasks:          false,
+				DisableLogCollection: false,
+			},
 		},
 		{
-			name:     "disabled",
-			config:   `{ disable_log_collection = true }`,
-			expected: drivers.InternalCapabilities{DisableLogCollection: true},
+			name:   "disabled",
+			config: `{ disable_log_collection = true }`,
+			expected: &drivers.Capabilities{
+				SendSignals:          true,
+				Exec:                 true,
+				FSIsolation:          "image",
+				NetIsolationModes:    []drivers.NetIsolationMode{"host", "group", "task"},
+				MustInitiateNetwork:  true,
+				MountConfigs:         0,
+				RemoteTasks:          false,
+				DisableLogCollection: true,
+			},
 		},
 		{
-			name:     "enabled explicitly",
-			config:   `{ disable_log_collection = false }`,
-			expected: drivers.InternalCapabilities{},
+			name:   "enabled explicitly",
+			config: `{ disable_log_collection = false }`,
+			expected: &drivers.Capabilities{
+				SendSignals:          true,
+				Exec:                 true,
+				FSIsolation:          "image",
+				NetIsolationModes:    []drivers.NetIsolationMode{"host", "group", "task"},
+				MustInitiateNetwork:  true,
+				MountConfigs:         0,
+				RemoteTasks:          false,
+				DisableLogCollection: false,
+			},
 		},
 	}
 
@@ -643,7 +682,9 @@ func TestConfig_InternalCapabilities(t *testing.T) {
 			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
 
 			d := &Driver{config: &tc}
-			require.Equal(t, c.expected, d.InternalCapabilities())
+			caps, err := d.Capabilities()
+			must.NoError(t, err)
+			must.Eq(t, c.expected, caps)
 		})
 	}
 }

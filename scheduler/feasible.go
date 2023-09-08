@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package scheduler
 
 import (
@@ -569,7 +572,14 @@ func (iter *DistinctHostsIterator) SetJob(job *structs.Job) {
 func (iter *DistinctHostsIterator) hasDistinctHostsConstraint(constraints []*structs.Constraint) bool {
 	for _, con := range constraints {
 		if con.Operand == structs.ConstraintDistinctHosts {
-			return true
+			// distinct_hosts defaults to true
+			if con.RTarget == "" {
+				return true
+			}
+			enabled, err := strconv.ParseBool(con.RTarget)
+			// If the value is unparsable as a boolean, fall back to the old behavior
+			// of enforcing the constraint when it appears.
+			return err != nil || enabled
 		}
 	}
 
@@ -798,6 +808,9 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 
 	case "${node.class}" == target:
 		return node.NodeClass, true
+
+	case "${node.pool}" == target:
+		return node.NodePool, true
 
 	case strings.HasPrefix(target, "${attr."):
 		attr := strings.TrimSuffix(strings.TrimPrefix(target, "${attr."), "}")
