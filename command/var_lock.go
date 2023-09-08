@@ -60,7 +60,15 @@ Var lock Options:
      Provides additional information via standard error to preserve standard
      output (stdout) for redirected output.
 
-  -shell - Optional, use a shell to run the command (can set a custom shell via
+  -ttl
+	Optional, TTL for the lock, time the variable will be locked. Defaults to 15s
+
+  -delay
+    Optional, time the variable is blocked from locking when a lease is not renewed.
+	Defaults to 15s.
+
+  -shell
+  	Optional, use a shell to run the command (can set a custom shell via
 		the SHELL environment variable). The default value is true.
 `
 	return strings.TrimSpace(helpText)
@@ -92,7 +100,7 @@ func (c *VarLockCommand) Run(args []string) int {
 
 	flags.BoolVar(&doVerbose, "verbose", false, "")
 	flags.StringVar(&c.ttl, "ttl", "", "Time the variable will be locked")
-	flags.StringVar(&c.lockDelay, "delay", "", "Time to variable is blocked from locking when a lease is lost")
+	flags.StringVar(&c.lockDelay, "delay", "", "Time the variable is blocked from locking when a lease is not renewed")
 	flags.BoolVar(&c.shell, "shell", true, "Use a shell to run the command (can set a custom shell via the SHELL "+"environment variable).")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
@@ -246,6 +254,10 @@ func (c *VarLockCommand) readPathFromArgs(args []string) (string, []string, erro
 		// detect format based on file extension
 		specPath := arg[1:]
 		err = c.varPutCommand.setParserForFileArg(specPath)
+		if err != nil {
+			return "", args, err
+		}
+
 		c.varPutCommand.verbose(fmt.Sprintf("Reading whole variable specification from %q", specPath))
 		c.varPutCommand.contents, err = os.ReadFile(specPath)
 		if err != nil {
@@ -261,7 +273,12 @@ func (c *VarLockCommand) readPathFromArgs(args []string) (string, []string, erro
 	switch {
 	case isArgFileRef(args[0]):
 		arg := args[0]
+
 		err = c.varPutCommand.setParserForFileArg(arg)
+		if err != nil {
+			return "", args, err
+		}
+
 		c.varPutCommand.verbose(fmt.Sprintf("Creating variable %q from specification file %q", path, arg))
 		fPath := arg[1:]
 		c.varPutCommand.contents, err = os.ReadFile(fPath)
