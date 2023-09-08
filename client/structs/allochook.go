@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // AllocHookResources contains data that is provided by AllocRunner Hooks for
@@ -15,7 +16,8 @@ import (
 // AllocRunner and then only accessed via getters and setters that hold the
 // lock.
 type AllocHookResources struct {
-	csiMounts map[string]*csimanager.MountInfo
+	csiMounts            map[string]*csimanager.MountInfo
+	signedTaskIdentities map[string]string
 
 	mu sync.RWMutex
 }
@@ -42,4 +44,29 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 	defer a.mu.Unlock()
 
 	a.csiMounts = m
+}
+
+// GetSignedIdentitiesForTask returns a copy of the map of task names to
+// workload identities signed by the identity allocrunner hook
+func (a *AllocHookResources) GetSignedIdentitiesForTask(task *structs.Task) (map[string]string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	signedIdentitiesForTask := make(map[string]string, len(task.Identities))
+	for _, identity := range task.Identities {
+		if jwt, ok := a.signedTaskIdentities[identity.Name]; ok {
+			signedIdentitiesForTask[identity.Name] = jwt
+		}
+	}
+
+	return a.signedTaskIdentities, nil
+}
+
+// SetSignedTaskIdentities stores the map of identity names to JWT-encoded
+// workload identities signed by the identity allocrunner hook.
+func (a *AllocHookResources) SetSignedTaskIdentities(s map[string]string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.signedTaskIdentities = s
 }

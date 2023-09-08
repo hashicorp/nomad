@@ -25,7 +25,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var _ interfaces.TaskPrestartHook = (*identityHook)(nil)
+var _ interfaces.RunnerHook = (*identityHook)(nil)
 var _ interfaces.TaskStopHook = (*identityHook)(nil)
 var _ interfaces.ShutdownHook = (*identityHook)(nil)
 
