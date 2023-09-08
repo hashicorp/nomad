@@ -4,11 +4,15 @@
 package command
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVarLockCommand_Implements(t *testing.T) {
@@ -79,29 +83,36 @@ func TestVarLockCommand_Fails(t *testing.T) {
 	})
 }
 
-//func TestVarPutCommand_GoodJson(t *testing.T) {
-//	ci.Parallel(t)
-//
-//	// Create a server
-//	srv, client, url := testServer(t, true, nil)
-//	defer srv.Shutdown()
-//
-//	ui := cli.NewMockUi()
-//	cmd := &VarPutCommand{Meta: Meta{Ui: ui}}
-//
-//	// Get the variable
-//	code := cmd.Run([]string{"-address=" + url, "-out=json", "test/var", "k1=v1", "k2=v2"})
-//	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
-//
-//	t.Cleanup(func() {
-//		_, _ = client.Variables().Delete("test/var", nil)
-//	})
-//
-//	var outVar api.Variable
-//	b := ui.OutputWriter.Bytes()
-//	err := json.Unmarshal(b, &outVar)
-//	require.NoError(t, err, "error unmarshaling json: %v\nb: %s", err, b)
-//	require.Equal(t, "default", outVar.Namespace)
-//	require.Equal(t, "test/var", outVar.Path)
-//	require.Equal(t, api.VariableItems{"k1": "v1", "k2": "v2"}, outVar.Items)
-//}
+func TestVarLockCommand_Good(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a server
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &VarLockCommand{
+		varPutCommand: &VarPutCommand{Meta: Meta{Ui: ui}},
+	}
+
+	filePath := fmt.Sprintf("%v.txt", time.Now().Unix())
+
+	// Get the variable
+	code := cmd.Run([]string{"-address=" + url, "test/var/1", "touch " + filePath})
+	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
+
+	sv, _, err := srv.Client().Variables().Peek("test/var/1", nil)
+	must.NoError(t, err)
+
+	must.NotNil(t, sv)
+	must.Eq(t, "test/var/1", sv.Path)
+
+	// Check for the file
+	_, err = os.ReadFile(filePath)
+	must.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.Remove(filePath)
+		_, _ = client.Variables().Delete("test/var/1", nil)
+	})
+}
