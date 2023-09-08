@@ -701,6 +701,42 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 			upstream2(),
 		}
 	})
+
+	try(t, "different destination peer", func(p proxy) {
+		diff := upstream1()
+		diff.DestinationPeer = "foo"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
+
+	try(t, "different destination type", func(p proxy) {
+		diff := upstream1()
+		diff.DestinationType = "service"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
+
+	try(t, "different local bind socket path", func(p proxy) {
+		diff := upstream1()
+		diff.LocalBindSocketPath = "/var/run.sock"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
+
+	try(t, "different local bind socket mode", func(p proxy) {
+		diff := upstream1()
+		diff.LocalBindSocketMode = "foo"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
 }
 
 func TestSyncReason_String(t *testing.T) {

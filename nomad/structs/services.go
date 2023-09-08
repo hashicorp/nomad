@@ -857,6 +857,10 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
 				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
+				hashString(h, upstream.DestinationPeer)
+				hashString(h, upstream.DestinationType)
+				hashString(h, upstream.LocalBindSocketPath)
+				hashString(h, upstream.LocalBindSocketMode)
 				hashConfig(h, upstream.Config)
 			}
 		}
@@ -1461,8 +1465,6 @@ func (c *ConsulMeshGateway) Validate() error {
 	}
 }
 
-type UpstreamDestType string
-
 // ConsulUpstream represents a Consul Connect upstream jobspec block.
 type ConsulUpstream struct {
 	// DestinationName is the name of the upstream service.
@@ -1476,7 +1478,7 @@ type ConsulUpstream struct {
 
 	// DestinationType is the type of destination. It can be an IP address,
 	// a DNS hostname, or a service name.
-	DestinationType UpstreamDestType
+	DestinationType string
 
 	// LocalBindPort is the port the proxy will receive connections for the
 	// upstream on.

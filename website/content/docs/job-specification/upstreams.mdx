@@ -86,7 +86,7 @@ job "countdash" {
   for details. Keys and values support [runtime variable interpolation][interpolation].
 - `destination_name` `(string: <required>)` - Name of the upstream service.
 - `destination_namespace` `(string: <required>)` - Name of the upstream Consul namespace.
-- `destination_peer` `(string: "")` - Name of the name of the peer cluster containing the upstream service.
+- `destination_peer` `(string: "")` - Name of the peer cluster containing the upstream service.
 - `destination_type` - `(string: "service")` - The type of discovery query the proxy should use for finding service mesh instances.
 - `local_bind_port` - `(int: <required>)` - The port the proxy will receive
   connections for the upstream on.

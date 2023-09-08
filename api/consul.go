@@ -203,14 +203,12 @@ func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
 	}
 }
 
-type UpstreamDestType string
-
 // ConsulUpstream represents a Consul Connect upstream jobspec block.
 type ConsulUpstream struct {
 	DestinationName      string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
 	DestinationNamespace string             `mapstructure:"destination_namespace" hcl:"destination_namespace,optional"`
 	DestinationPeer      string             `mapstructure:"destination_peer" hcl:"destination_peer,optional"`
-	DestinationType      UpstreamDestType   `mapstructure:"destination_type" hcl:"destination_type,optional"`
+	DestinationType      string             `mapstructure:"destination_type" hcl:"destination_type,optional"`
 	LocalBindPort        int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
 	Datacenter           string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
 	LocalBindAddress     string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
