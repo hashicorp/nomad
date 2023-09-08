@@ -203,6 +203,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 		upstreams[i] = api.Upstream{
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
+			DestinationPartition: upstream.DestinationPartition,
 			LocalBindPort:        upstream.LocalBindPort,
 			Datacenter:           upstream.Datacenter,
 			LocalBindAddress:     upstream.LocalBindAddress,

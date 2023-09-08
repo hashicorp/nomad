@@ -83,6 +83,8 @@ job "countdash" {
 
 - `destination_name` `(string: <required>)` - Name of the upstream service.
 - `destination_namespace` `(string: <required>)` - Name of the upstream Consul namespace.
+- `destination_partition` `(string: "default")` - String value that specifies the name of the admin partition containing the upstream service. 
+  If destination_peer is set, destination_partition refers to the local admin partition in which the peering was established.
 - `local_bind_port` - `(int: <required>)` - The port the proxy will receive
   connections for the upstream on.
 - `datacenter` `(string: "")` - The Consul datacenter in which to issue the

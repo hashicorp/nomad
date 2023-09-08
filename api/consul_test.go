@@ -177,6 +177,7 @@ func TestConsulUpstream_Copy(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationPartition: "partition-1",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
@@ -201,6 +202,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationPartition: "partition-1",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
@@ -211,6 +213,7 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 		must.Eq(t, &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationPartition: "partition-1",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
@@ -365,10 +368,12 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 				Port:     9090,
 				Protocol: "http",
 				Services: []*ConsulIngressService{{
-					Name:  "service1",
-					Hosts: []string{"1.1.1.1"},
+					Name:      "service1",
+					Hosts:     []string{"1.1.1.1"},
+					Partition: "partition-1",
 				}},
 			}},
+			Partition: "partition-1",
 		}
 		c.Canonicalize()
 		must.Eq(t, &ConsulIngressConfigEntry{
@@ -377,10 +382,12 @@ func TestConsulIngressConfigEntry_Canonicalize(t *testing.T) {
 				Port:     9090,
 				Protocol: "http",
 				Services: []*ConsulIngressService{{
-					Name:  "service1",
-					Hosts: []string{"1.1.1.1"},
+					Name:      "service1",
+					Hosts:     []string{"1.1.1.1"},
+					Partition: "partition-1",
 				}},
 			}},
+			Partition: "partition-1",
 		}, c)
 	})
 }
@@ -408,6 +415,7 @@ func TestConsulIngressConfigEntry_Copy(t *testing.T) {
 				Hosts: []string{"2.2.2.2"},
 			}},
 		}},
+		Partition: "partition-1",
 	}
 
 	t.Run("complete", func(t *testing.T) {
@@ -452,6 +460,7 @@ func TestConsulTerminatingConfigEntry_Copy(t *testing.T) {
 			KeyFile:  "key_file.pem",
 			SNI:      "sni.terminating.consul",
 		}},
+		Partition: "partition-1",
 	}
 
 	t.Run("complete", func(t *testing.T) {

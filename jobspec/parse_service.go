@@ -429,6 +429,7 @@ func parseConsulIngressService(o *ast.ObjectItem) (*api.ConsulIngressService, er
 	valid := []string{
 		"name",
 		"hosts",
+		"partition",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -577,6 +578,7 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 	valid := []string{
 		"tls",
 		"listener",
+		"partition",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -591,6 +593,18 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 
 	delete(m, "tls")
 	delete(m, "listener")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &ingress,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("ingress: %v", err)
+	}
 
 	// Parse tls and listener(s)
 
@@ -628,6 +642,7 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 
 func parseTerminatingConfigEntry(o *ast.ObjectItem) (*api.ConsulTerminatingConfigEntry, error) {
 	valid := []string{
+		"partition",
 		"service",
 	}
 
@@ -636,6 +651,24 @@ func parseTerminatingConfigEntry(o *ast.ObjectItem) (*api.ConsulTerminatingConfi
 	}
 
 	var terminating api.ConsulTerminatingConfigEntry
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "service")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &terminating,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("terminating: %v", err)
+	}
 
 	// Parse service(s)
 
@@ -922,6 +955,7 @@ func parseExposePath(epo *ast.ObjectItem) (*api.ConsulExposePath, error) {
 func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	valid := []string{
 		"destination_name",
+		"destination_partition",
 		"local_bind_port",
 		"local_bind_address",
 		"datacenter",
