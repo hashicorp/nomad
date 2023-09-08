@@ -30,7 +30,7 @@ var (
 )
 
 // Locks returns a new handle on a lock for the given variable.
-func (c *Client) Locks(wo WriteOptions, v Variable) (*Locks, error) {
+func (c *Client) Locks(wo WriteOptions, v Variable, opts ...LocksOption) (*Locks, error) {
 
 	if v.Path == "" {
 		return nil, LockNoPathErr
@@ -46,11 +46,16 @@ func (c *Client) Locks(wo WriteOptions, v Variable) (*Locks, error) {
 		WriteOptions: wo,
 		variable:     v,
 		ttl:          ttl,
+		ro: retryOptions{
+			maxToLastCall: ttl,
+		},
 	}
 
-	l.c.configureRetries(&retryOptions{
-		maxToLastCall: ttl,
-	})
+	for _, opt := range opts {
+		opt(l)
+	}
+
+	l.c.configureRetries(&l.ro)
 
 	return l, nil
 }
@@ -66,8 +71,20 @@ type Locks struct {
 	c        *Client
 	variable Variable
 	ttl      time.Duration
+	ro       retryOptions
 
 	WriteOptions
+}
+
+type LocksOption = func(l *Locks)
+
+// WithMaxRetries allows access to configure the number of max retries the lock
+// handler will perform in case of an expected response while interacting with the
+// locks endpoint.
+func WithMaxRetries(maxRetries int64) LocksOption {
+	return func(l *Locks) {
+		l.ro.maxRetries = maxRetries
+	}
 }
 
 //	Acquire will make the actual call to acquire the lock over the variable using
