@@ -30,6 +30,7 @@ job "docs" {
   group "example" {
     task "server" {
       vault {
+        cluster  = "default"
         policies = ["cdn", "frontend"]
 
         change_mode   = "signal"
@@ -67,6 +68,11 @@ with Vault as well.
 - `change_signal` `(string: "")` - Specifies the signal to send to the task as a
   string like `"SIGUSR1"` or `"SIGINT"`. This option is required if the
   `change_mode` is `signal`.
+
+- `cluster` `(string: "default")` <EnterpriseAlert inline/> - Specifies the
+  Vault cluster to use. The Nomad client will retrieve a Vault token from the
+  cluster configured in the agent configuration with the same
+  [`vault.name`][]. In Nomad Community Edition, this field is ignored.
 
 - `env` `(bool: true)` - Specifies if the `VAULT_TOKEN` and `VAULT_NAMESPACE`
   environment variables should be set when starting the task.
@@ -199,3 +205,4 @@ vault {
 [restart]: /nomad/docs/job-specification/restart "Nomad restart Job Specification"
 [template]: /nomad/docs/job-specification/template "Nomad template Job Specification"
 [vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
+[`vault.name`]: /nomad/docs/configuration/vault#name

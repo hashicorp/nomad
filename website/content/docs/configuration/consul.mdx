@@ -38,6 +38,10 @@ Consul servers. If you are observing flapping services, you may have
 multiple Nomad agents talking to the same Consul agent. As such avoid
 configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
+In Nomad Enterprise, you may specify multiple `consul` blocks to configure
+access to multiple Consul clusters. Each Consul cluster must have a different
+value for the [`name`](#name) field.
+
 ## `consul` Parameters
 
 - `address` `(string: "127.0.0.1:8500")` - Specifies the address to the local
@@ -99,6 +103,12 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
+
+- `name` `(string: "default")` <EnterpriseAlert inline/> - Specifies a name for
+  the cluster so it can be referred to by job submitters in the job
+  specification's [`consul.cluster`][] or [`service.cluster`][] fields. In Nomad
+  Community Edition, only the `"default"` cluster will be used, so this field
+  should be omitted.
 
 - `namespace` `(string: "")` - Specifies the [Consul namespace](/consul/docs/enterprise/namespaces)
   used by the Consul integration. If non-empty, this namespace will be used on
@@ -234,3 +244,5 @@ namespace "nomad-ns" {
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [grpc_port]: /consul/docs/agent/config/config-files#grpc_port
 [grpctls_port]: /consul/docs/agent/config/config-files#grpc_tls_port
+[`consul.cluster`]: /nomad/docs/job-specification/group#cluster
+[`service.cluster`]: /nomad/docs/job-specification/service#cluster
