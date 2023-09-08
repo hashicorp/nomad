@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
@@ -24,6 +25,10 @@ var (
 	// perform different fingerprinting depending on which version of Consul it
 	// is communicating with.
 	consulGRPCPortChangeVersion = version.Must(version.NewVersion("1.14.0"))
+
+	// consulBaseFingerprintInterval is the initial interval for periodic
+	// fingerprinting
+	consulBaseFingerprintInterval = 15 * time.Second
 )
 
 // ConsulFingerprint is used to fingerprint for Consul
@@ -36,6 +41,7 @@ type consulFingerprintState struct {
 	client      *consulapi.Client
 	isAvailable bool
 	extractors  map[string]consulExtractor
+	nextCheck   time.Time
 }
 
 // consulExtractor is used to parse out one attribute from consulInfo. Returns
@@ -71,6 +77,9 @@ func (f *ConsulFingerprint) fingerprintImpl(cfg *config.ConsulConfig, resp *Fing
 		state = &consulFingerprintState{}
 		f.states[cfg.Name] = state
 	}
+	if state.nextCheck.After(time.Now()) {
+		return nil
+	}
 
 	if err := state.initialize(cfg, logger); err != nil {
 		return err
@@ -100,13 +109,30 @@ func (f *ConsulFingerprint) fingerprintImpl(cfg *config.ConsulConfig, resp *Fing
 		logger.Info("consul agent is available")
 	}
 
+	// Widen the minimum window to the next check so that if one out of a set of
+	// Consuls is unhealthy we don't greatly increase requests to the healthy
+	// ones. This is less than the minimum window if all Consuls are healthy so
+	// that we don't desync from the larger window provided by Periodic
+	state.nextCheck = time.Now().Add(29 * time.Second)
 	state.isAvailable = true
 	resp.Detected = true
 	return nil
 }
 
 func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {
-	return true, 15 * time.Second
+	if len(f.states) == 0 {
+		return true, consulBaseFingerprintInterval
+	}
+	for _, state := range f.states {
+		if !state.isAvailable {
+			return true, consulBaseFingerprintInterval
+		}
+	}
+
+	// Once all Consuls are initially discovered and healthy we fingerprint with
+	// a wide jitter to avoid thundering herds of fingerprints against central
+	// Consul servers.
+	return true, (30 * time.Second) + helper.RandomStagger(90*time.Second)
 }
 
 func (cfs *consulFingerprintState) initialize(cfg *config.ConsulConfig, logger hclog.Logger) error {
@@ -164,6 +190,7 @@ func (cfs *consulFingerprintState) query(logger hclog.Logger) agentconsul.Self {
 			logger.Info("consul agent is unavailable: %v", err)
 		}
 		cfs.isAvailable = false
+		cfs.nextCheck = time.Time{} // force check on next interval
 		return nil
 	}
 	return info
