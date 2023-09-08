@@ -154,7 +154,6 @@ func (c *VarLockCommand) Run(args []string) int {
 	}
 
 	if c.ttl != "" {
-		fmt.Println("what???")
 		c.varPutCommand.verbose("Using TTL for the lock of " + c.ttl)
 		_, err := time.ParseDuration(c.ttl)
 		if err != nil {
@@ -282,9 +281,11 @@ func (c *VarLockCommand) readPathFromArgs(args []string) (string, []string, erro
 // script returns a command to execute a script through a shell.
 func script(ctx context.Context, args []string) (*exec.Cmd, error) {
 	shell := "/bin/sh"
+
 	if other := os.Getenv("SHELL"); other != "" {
 		shell = other
 	}
+
 	return exec.CommandContext(ctx, shell, "-c", strings.Join(args, " ")), nil
 }
 

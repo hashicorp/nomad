@@ -98,14 +98,14 @@ func TestVarLockCommand_Good(t *testing.T) {
 	filePath := fmt.Sprintf("%v.txt", time.Now().Unix())
 
 	// Get the variable
-	code := cmd.Run([]string{"-address=" + url, "test/var/1", "touch " + filePath})
+	code := cmd.Run([]string{"-address=" + url, "test/var/shell", "touch ", filePath})
 	require.Equal(t, 0, code, "expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
 
-	sv, _, err := srv.Client().Variables().Peek("test/var/1", nil)
+	sv, _, err := srv.Client().Variables().Peek("test/var/shell", nil)
 	must.NoError(t, err)
 
 	must.NotNil(t, sv)
-	must.Eq(t, "test/var/1", sv.Path)
+	must.Eq(t, "test/var/shell", sv.Path)
 
 	// Check for the file
 	_, err = os.ReadFile(filePath)
@@ -113,6 +113,40 @@ func TestVarLockCommand_Good(t *testing.T) {
 
 	t.Cleanup(func() {
 		os.Remove(filePath)
-		_, _ = client.Variables().Delete("test/var/1", nil)
+		_, _ = client.Variables().Delete("test/var/shell", nil)
+	})
+}
+
+func TestVarLockCommand_Good_NoShell(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a server
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &VarLockCommand{
+		varPutCommand: &VarPutCommand{Meta: Meta{Ui: ui}},
+	}
+
+	filePath := fmt.Sprintf("%v.txt", time.Now().Unix())
+
+	// Get the variable
+	code := cmd.Run([]string{"-address=" + url, "-shell=false", "test/var/noShell", "touch", filePath})
+	require.Zero(t, 0, code)
+
+	sv, _, err := srv.Client().Variables().Peek("test/var/noShell", nil)
+	must.NoError(t, err)
+
+	must.NotNil(t, sv)
+	must.Eq(t, "test/var/noShell", sv.Path)
+
+	// Check for the file
+	_, err = os.ReadFile(filePath)
+	must.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.Remove(filePath)
+		_, _ = client.Variables().Delete("test/var/noShell", nil)
 	})
 }
