@@ -65,22 +65,6 @@ func (m *MockTaskStateUpdater) TaskStateUpdated() {
 	}
 }
 
-// MockWIDMgr allows TaskRunner unit tests to avoid having to setup a Server,
-// Client, and Allocation.
-type MockWIDMgr struct{}
-
-func (m MockWIDMgr) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
-	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
-	for _, idReq := range req {
-		swids = append(swids, &structs.SignedWorkloadIdentity{
-			WorkloadIdentityRequest: *idReq,
-			// Just the sample jwt from jwt.io so it "looks" like a jwt
-			JWT: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
-		})
-	}
-	return swids, nil
-}
-
 // testTaskRunnerConfig returns a taskrunner.Config for the given alloc+task
 // plus a cleanup func.
 func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName string) (*Config, func()) {
@@ -152,7 +136,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
-		WIDMgr:                MockWIDMgr{},
+		WIDMgr:                NewMockWIDMgr(nil),
 	}
 
 	return conf, trCleanup
