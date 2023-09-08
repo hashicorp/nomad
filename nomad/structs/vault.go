@@ -65,3 +65,11 @@ func DecodeVaultSecretData(s *vapi.Secret, out interface{}) error {
 
 	return nil
 }
+
+func ValidateVaultClusterName(cluster string) error {
+	if !validConsulVaultClusterName.MatchString(cluster) {
+		return fmt.Errorf("invalid name %q, must match regex %s", cluster, validConsulVaultClusterName)
+	}
+
+	return nil
+}
