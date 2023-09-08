@@ -257,12 +257,12 @@ func (c *csiHook) restoreMounts(results map[string]*volumePublishResult) error {
 			}
 			c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
 
-			mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
+			manager, err := c.csimanager.ManagerForPlugin(c.shutdownCtx, plugin)
 			if err != nil {
 				return err
 			}
 
-			isMounted, err := mounter.HasMount(c.shutdownCtx, result.stub.MountInfo)
+			isMounted, err := manager.HasMount(c.shutdownCtx, result.stub.MountInfo)
 			if err != nil {
 				return err
 			}
@@ -347,7 +347,7 @@ func (c *csiHook) mountVolumes(results map[string]*volumePublishResult) error {
 		}
 		c.logger.Debug("found CSI plugin", "type", pType, "name", plugin)
 
-		mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, plugin)
+		manager, err := c.csimanager.ManagerForPlugin(c.shutdownCtx, plugin)
 		if err != nil {
 			return err
 		}
@@ -359,7 +359,7 @@ func (c *csiHook) mountVolumes(results map[string]*volumePublishResult) error {
 			MountOptions:   result.request.MountOptions,
 		}
 
-		mountInfo, err := mounter.MountVolume(
+		mountInfo, err := manager.MountVolume(
 			c.shutdownCtx, result.volume, c.alloc, usageOpts, result.publishContext)
 		if err != nil {
 			return err
@@ -516,7 +516,7 @@ func (c *csiHook) unmountWithRetry(result *volumePublishResult) error {
 // NodeEvent
 func (c *csiHook) unmountImpl(result *volumePublishResult) error {
 
-	mounter, err := c.csimanager.MounterForPlugin(c.shutdownCtx, result.stub.PluginID)
+	manager, err := c.csimanager.ManagerForPlugin(c.shutdownCtx, result.stub.PluginID)
 	if err != nil {
 		return err
 	}
@@ -528,7 +528,7 @@ func (c *csiHook) unmountImpl(result *volumePublishResult) error {
 		MountOptions:   result.request.MountOptions,
 	}
 
-	return mounter.UnmountVolume(c.shutdownCtx,
+	return manager.UnmountVolume(c.shutdownCtx,
 		result.stub.VolumeID, result.stub.VolumeExternalID, c.alloc.ID, usageOpts)
 }
 
