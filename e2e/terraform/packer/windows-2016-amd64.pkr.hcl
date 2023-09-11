@@ -22,7 +22,7 @@ source "amazon-ebs" "latest_windows_2016" {
 
   source_ami_filter {
     filters = {
-      name                = "Windows_Server-2016-English-Full-Containers-*"
+      name                = "Windows_Server-2016-English-Full-ECS_Optimized-*"
       root-device-type    = "ebs"
       virtualization-type = "hvm"
     }
