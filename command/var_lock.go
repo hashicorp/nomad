@@ -66,6 +66,7 @@ Var lock Options:
   -delay
 	Optional, time the variable is blocked from locking when a lease is not renewed.	
 	Defaults to 15s.
+
   -max-retry
 	Optional, max-retry up to this number of times if Nomad returns a 500 error
 	while monitoring the lock. This allows riding out brief periods of
