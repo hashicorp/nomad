@@ -126,7 +126,7 @@ func (c *VarLockCommand) Run(args []string) int {
 
 	c.varPutCommand.verbose = verbose
 
-	if c.varPutCommand.Meta.namespace == "*" {
+	if c.varPutCommand.Meta.namespace == api.AllNamespacesNamespace {
 		c.varPutCommand.Ui.Error(errWildcardNamespaceNotAllowed)
 		return 1
 	}
