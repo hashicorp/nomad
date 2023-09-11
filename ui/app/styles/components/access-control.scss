@@ -32,3 +32,16 @@
     }
   }
 }
+
+.acl-table {
+  .tag-group {
+    display: flex;
+    gap: 0.5rem;
+    // repeat as many as you can. dont grow vertically
+    flex-wrap: wrap;
+
+    a {
+      white-space: nowrap;
+    }
+  }
+}

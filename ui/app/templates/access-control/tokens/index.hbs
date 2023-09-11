@@ -8,109 +8,89 @@
     <p class="toolbar-item">
       ACL Tokens are associated with one or more policies or roles to grant specific capabilities. Users can use these to sign into, and operate, Nomad with the permissions laid out in their policies.
     </p>
-    {{!-- <div class="toolbar-item is-right-aligned is-mobile-full-width">
-      <div class="button-bar">
-      {{#if (can "write policy")}}
-        <LinkTo
-          @route="access-control.policies.new"
-          class="button is-primary"
-          data-test-create-policy
-        >
-          Create Policy
-        </LinkTo>
-      {{else}}
-        <button
-          class="button is-primary is-disabled tooltip is-right-aligned"
-          aria-label="You don’t have sufficient permissions"
-          disabled
-          type="button"
-          data-test-disabled-create-policy
-        >
-          Create Policy
-        </button>
-      {{/if}}
-
-      </div>
-    </div> --}}
   </div>
   {{#if this.model.tokens.length}}
-    <ListTable
-      @source={{this.model.tokens}}
-      @class="tokens no-mobile-condense" as |t|>
-      <t.head>
-        <t.sort-by @prop="name">
-          Name
-        </t.sort-by>
-        <t.sort-by @prop="createTime">
-          Created
-        </t.sort-by>
-        <th>Expires</th>
-        <th>Roles</th>
-        <th>Policies</th>
-        {{#if (can "destroy token")}}
-          <th>Delete</th>
-        {{/if}}
-      </t.head>
-      <t.body as |row|>
-        <tr data-test-policy-token-row>
-          <td data-test-token-name>
-            <Tooltip @text={{row.model.id}}>
-              {{row.model.name}}
-            </Tooltip>
-          </td>
-          <td>
-            {{moment-from-now row.model.createTime interval=1000}}
-          </td>
-          <td>
-            {{#if row.model.expirationTime}}
-              <Tooltip @text={{row.model.expirationTime}}>
-                <span data-test-token-expiration-time class="{{if row.model.isExpired "has-text-danger"}}">{{moment-from-now row.model.expirationTime interval=1000}}</span>
+    <Hds::Table @caption="A list of tokens for this cluster" class="acl-table"
+      @model={{this.model.tokens}}
+      @columns={{array
+        (hash key="name" label="Name" isSortable=true)
+        (hash key="createTime" label="Created" isSortable=true)
+        (hash key="expirationTime" label="Expires" isSortable=true)
+        (hash key="roles" label="Roles")
+        (hash key="policies" label="Policies")
+        (hash key="delete" label="Delete")
+      }}
+      @sortBy="name"
+    >
+      <:body as |B|>
+        <B.Tr>
+          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td>{{moment-from-now B.data.createTime interval=1000}}</B.Td>
+          <B.Td>
+            {{#if B.data.expirationTime}}
+              <Tooltip @text={{B.data.expirationTime}}>
+                <span data-test-token-expiration-time class="{{if B.data.isExpired "has-text-danger"}}">{{moment-from-now B.data.expirationTime interval=1000}}</span>
               </Tooltip>
             {{else}}
               <span class="has-text-grey">Never</span>
             {{/if}}
-          </td>
-          <td>
-            {{#each row.model.roles as |role|}}
-              <LinkTo @route="access-control.roles.role" @model={{role.name}}>{{role.name}}</LinkTo>
-            {{else}}
-              No Roles
-            {{/each}}
-          </td>
-          <td>
-            {{#each row.model.policies as |policy|}}
-              <LinkTo @route="access-control.policies.policy" @model={{policy.name}}>{{policy.name}}</LinkTo>
-            {{else}}
-              No Policies
-            {{/each}}
-          </td>
-          {{#if (can "destroy token")}}
-            <td class="is-200px">
-              <TwoStepButton
-                data-test-delete-token-button
-                @idleText="Delete"
-                @cancelText="Cancel"
-                @confirmText="Yes, delete"
-                @confirmationMessage="Are you sure?"
-                @awaitingConfirmation={{row.model.isPendingDeletion}}
-                @onConfirm={{perform this.deleteToken row.model}}
-                @inlineText={{true}}
-                @classes={{hash
-                  idleButton="is-danger is-outlined"
-                  confirmButton="is-danger"
-                }}
-              />
-            </td>
-          {{/if}}
-        </tr>
-      </t.body>
+          </B.Td>
+
+            <B.Td>
+              <div class="tag-group">
+                {{!--
+                  We don't treat roles (roleNames) the same as policies, because Roles' names are currently
+                  returning blank on the /tokens endpoint: https://github.com/hashicorp/nomad/issues/18451
+                  TODO: when that's fixed, we can use an #each #let pattern like we do for policyNames.
+                 --}}
+                {{#each B.data.roles as |role|}}
+                  {{#if role.name}}
+                    <Hds::Tag @color="primary" @text="{{role.name}}" @route="access-control.roles.role" @model="{{role.name}}" />
+                  {{/if}}
+                {{else}}
+                  No Roles
+                {{/each}}
+              </div>
+            </B.Td>
+
+            <B.Td>
+              <div class="tag-group">
+                {{#each B.data.policyNames as |policyName|}}
+                  {{#let (find-by "name" policyName this.model.policies) as |policy|}}
+                    {{#if policy}}
+                      <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
+                    {{else}}
+                      <Hds::Tag @text="{{policyName}}" />
+                    {{/if}}
+                  {{/let}}
+                {{else}}
+                  No Policies
+                {{/each}}
+              </div>
+            </B.Td>
+
+            {{#if (can "destroy token")}}
+              <B.Td>
+                {{#if (eq B.data.type "management")}}
+                  <Hds::Button @text="Delete" disabled @size="small" @color="critical" />
+                {{else}}
+                  <Hds::Button @text="Delete" @size="small" @color="critical"
+                    {{on "click" (perform this.deleteToken B.data)}}
+                  />
+                {{/if}}
+              </B.Td>
+            {{/if}}
 
 
-    </ListTable>
+
+        </B.Tr>
+
+      </:body>
+    </Hds::Table>
   {{else}}
     <div class="empty-message">
       <h3 data-test-empty-policies-list-headline class="empty-message-headline">
-        No Policies
+        No Tokens
       </h3>
       <p class="empty-message-body">
         Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
