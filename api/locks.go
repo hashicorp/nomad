@@ -22,7 +22,7 @@ const (
 	// be renewed. The actual value comes from the experience with Consul.
 	DefaultLockTTL = 15 * time.Second
 
-	// defaultLockDelay is the default a lock will be blocked after the TTL
+	// DefaultLockDelay is the default a lock will be blocked after the TTL
 	// went by without any renews. It is intended to prevent split brain situations.
 	// The actual value comes from the experience with Consul.
 	DefaultLockDelay = 15 * time.Second
