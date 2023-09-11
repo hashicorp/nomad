@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"time"
+	"strings"
 )
 
 const (
@@ -47,12 +48,13 @@ func Print(format string, args ...any) {
 // f should be an HCLogger Print method (e.g. log.Debug)
 func Log(r io.Reader, f func(msg string, args ...any)) string {
 	scanner := bufio.NewScanner(r)
-	line := "unknown error"
+	lines := ""
 	for scanner.Scan() {
-		line = scanner.Text()
+		line := scanner.Text()
+		lines += line + "\n"
 		f("sub-process", "OUTPUT", line)
 	}
-	return line
+	return strings.TrimSuffix(lines, "\n")
 }
 
 // Context creates a context setup with the given timeout.
