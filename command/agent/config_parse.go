@@ -397,16 +397,16 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 
 		if o := listVal.Filter("default_identity"); len(o.Items) > 0 {
 			var m map[string]interface{}
-			defaultIdendityBlock := o.Items[0]
-			if err := hcl.DecodeObject(&m, defaultIdendityBlock.Val); err != nil {
+			defaultIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, defaultIdentityBlock.Val); err != nil {
 				return err
 			}
 
-			var defaultIdendity config.WorkloadIdentityConfig
-			if err := mapstructure.WeakDecode(m, &defaultIdendity); err != nil {
+			var defaultIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &defaultIdentity); err != nil {
 				return err
 			}
-			c.Vaults[v.Name].DefaultIdentity = &defaultIdendity
+			c.Vaults[v.Name].DefaultIdentity = &defaultIdentity
 		}
 	}
 

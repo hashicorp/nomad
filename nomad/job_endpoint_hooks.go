@@ -4,7 +4,6 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dustin/go-humanize"
@@ -308,16 +307,14 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			serviceWarns, serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task group %s", tg.Name))
+			serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task group %s", tg.Name))
 			multierror.Append(validationErrors, serviceErrs)
-			warnings = append(warnings, serviceWarns...)
 		}
 
 		for _, t := range tg.Tasks {
 			for _, s := range t.Services {
-				serviceWarns, serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task %s", t.Name))
+				serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task %s", t.Name))
 				multierror.Append(validationErrors, serviceErrs)
-				warnings = append(warnings, serviceWarns...)
 			}
 
 			vaultWarns, vaultErrs := v.validateVaultIdentity(t)
@@ -329,44 +326,33 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	return warnings, validationErrors.ErrorOrNil()
 }
 
-func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) (warnings []error, err error) {
+func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) error {
 	var mErr *multierror.Error
-
-	// Prefix errors and warnings.
-	defer func() {
-		prefix := fmt.Sprintf("Service %s in %s", s.Name, parent)
-		for i, w := range warnings {
-			warnings[i] = fmt.Errorf("%s %s", prefix, w)
-		}
-		err = multierror.Prefix(mErr, prefix)
-	}()
 
 	if s.Identity != nil {
 		if !v.srv.config.UseConsulIdentity() {
-			mErr = multierror.Append(mErr, errors.New("defines an identity but server is not configured to use Consul identities, set use_identity to true in the Consul server configuration"))
+			mErr = multierror.Append(mErr, fmt.Errorf(
+				"Service %s in %s defines an identity but server is not configured to use Consul identities, set use_identity to true in the Consul server configuration",
+				s.Name, parent,
+			))
 		}
 
 		if s.Identity.Name == "" {
-			mErr = multierror.Append(mErr, errors.New("has an identity with an empty name"))
+			mErr = multierror.Append(mErr, fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent))
 		}
 	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
-		mErr = multierror.Append(mErr, errors.New("expected to have an identity, add an identity block to the service or provide a default using the service_identity block in the server Consul configuration"))
+		mErr = multierror.Append(mErr, fmt.Errorf(
+			"Service %s in %s expected to have an identity, add an identity block to the service or provide a default using the service_identity block in the server Consul configuration",
+			s.Name, parent,
+		))
 	}
 
-	return
+	return mErr.ErrorOrNil()
 }
 
-func (v *jobValidate) validateVaultIdentity(t *structs.Task) (warnings []error, err error) {
+func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 	var mErr *multierror.Error
-
-	// Prefix errors and warnings.
-	defer func() {
-		prefix := fmt.Sprintf("Task %s", t.Name)
-		for i, w := range warnings {
-			warnings[i] = fmt.Errorf("%s %s", prefix, w)
-		}
-		err = multierror.Prefix(mErr, prefix)
-	}()
+	var warnings []error
 
 	hasVault := t.Vault != nil
 	hasTaskWID := t.GetIdentity(vaultIdentityName) != nil
@@ -377,26 +363,35 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) (warnings []error, 
 
 	if useIdentity {
 		if !hasWID {
-			mErr = multierror.Append(mErr, fmt.Errorf("expected to have a Vault identity, add an identity block called %s or provide a default using the default_identity block in the server Vault configuration", vaultIdentityName))
+			mErr = multierror.Append(mErr, fmt.Errorf(
+				"Task %s expected to have a Vault identity, add an identity block called %s or provide a default using the default_identity block in the server Vault configuration",
+				t.Name, vaultIdentityName,
+			))
 		}
 
 		if len(t.Vault.Policies) > 0 {
-			warnings = append(warnings, errors.New("has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored"))
+			warnings = append(warnings, fmt.Errorf(
+				"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
+				t.Name,
+			))
 		}
 	} else if hasVault && len(t.Vault.Policies) == 0 {
-		mErr = multierror.Append(mErr, errors.New("has a Vault block with an empty list of policies"))
+		mErr = multierror.Append(mErr, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name))
 	}
 
 	if hasTaskWID {
 		if !v.srv.config.UseVaultIdentity() {
-			warnings = append(warnings, fmt.Errorf("has an identity called %s but server is not configured to use Vault identities, set use_identity to true in the Vault server configuration", vaultIdentityName))
+			warnings = append(warnings, fmt.Errorf(
+				"Task %s has an identity called %s but server is not configured to use Vault identities, set use_identity to true in the Vault server configuration",
+				t.Name, vaultIdentityName,
+			))
 		}
 		if !hasVault {
-			warnings = append(warnings, fmt.Errorf("has an identity called %s but no vault block", vaultIdentityName))
+			warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, vaultIdentityName))
 		}
 	}
 
-	return
+	return warnings, mErr.ErrorOrNil()
 }
 
 type memoryOversubscriptionValidate struct {

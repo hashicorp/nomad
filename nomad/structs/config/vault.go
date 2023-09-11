@@ -21,11 +21,11 @@ const (
 //   - Renew Vault tokens/leases.
 //   - Pass a token for the Nomad Server to derive sub-tokens.
 //   - Create child tokens with policy subsets of the Server's token.
-//   - Create Vault ACL tokens from workload identity JTWs.
+//   - Create Vault ACL tokens from workload identity JWTs.
 type VaultConfig struct {
 	// Servers and clients fields.
 
-	// Name is used to identity the Vault cluster related to this
+	// Name is used to identify the Vault cluster related to this
 	// configuration.
 	Name string `mapstructure:"name"`
 
@@ -39,12 +39,12 @@ type VaultConfig struct {
 	// config value is also unset, the default auth method or cluster global
 	// role is used.
 	//
-	// When not using workload identities, the Nomad servers will derive toknes
-	// using this role. The token given to Nomad does not have to be created
-	// from this role but must have "update" capability on
-	// "auth/token/create/<create_from_role>". If this value is unset and the
-	// token is created from a role, the value is defaulted to the role the
-	// token is from.
+	// When not using workload identities, the Nomad servers will derive tokens
+	// using this role. The Vault token provided to the Nomad server config
+	// does not have to be created from this role but must have "update"
+	// capability on "auth/token/create/<create_from_role>". If this value is
+	// unset and the token is created from a role, the value is defaulted to
+	// the role the token is from.
 	//
 	// This used to be a server-only field, but it's a client-only field when
 	// workload identities are used, so it should be set in both places during
