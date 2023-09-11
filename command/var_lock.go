@@ -17,6 +17,8 @@ import (
 	"github.com/posener/complete"
 )
 
+const defaultMaxClientRetries = 5
+
 type VarLockCommand struct {
 	shell     bool
 	inFmt     string
@@ -64,6 +66,13 @@ Var lock Options:
   -delay
 	Optional, time the variable is blocked from locking when a lease is not renewed.	
 	Defaults to 15s.
+  -max-retry
+	Optional, max-retry up to this number of times if Nomad returns a 500 error
+	while monitoring the lock. This allows riding out brief periods of
+	unavailability without causing leader elections, but increases the amount of
+	time required to detect a lost lock in some cases. Defaults to 5. Set to 0 to
+	disable.
+
   -shell
 	Optional, use a shell to run the command (can set a custom shell via		
 	the SHELL environment variable). The default value is true.
@@ -91,6 +100,7 @@ func (c *VarLockCommand) Run(args []string) int {
 	var doVerbose bool
 	var err error
 	var path string
+	var maxRetry int64
 
 	flags := c.varPutCommand.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.varPutCommand.Ui.Output(c.Help()) }
@@ -99,6 +109,7 @@ func (c *VarLockCommand) Run(args []string) int {
 	flags.StringVar(&c.ttl, "ttl", "", "")
 	flags.StringVar(&c.lockDelay, "delay", "", "")
 	flags.BoolVar(&c.shell, "shell", true, "")
+	flags.Int64Var(&maxRetry, "max-retry", 5, "")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.varPutCommand.outFmt, "out", "none", "")
@@ -186,7 +197,12 @@ func (c *VarLockCommand) Run(args []string) int {
 	}
 
 	// Set up the locks handler
-	l, err := client.Locks(api.WriteOptions{}, *sv)
+	lo := []api.LocksOption{}
+	if maxRetry != defaultMaxClientRetries {
+		lo = append(lo, api.LocksOptionWithMaxRetries(maxRetry))
+	}
+
+	l, err := client.Locks(api.WriteOptions{}, *sv, lo...)
 	if err != nil {
 		c.varPutCommand.Ui.Error(fmt.Sprintf("Error initializing lock handler: %s", err))
 		return 1
