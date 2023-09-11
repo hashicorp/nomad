@@ -128,13 +128,13 @@ func TestClient_resolveTokenACLRoles(t *testing.T) {
 	defer cleanup()
 
 	// Create an ACL Role and a client token which is linked to this.
-	mockACLRole := mock.ACLRole()
+	mockACLRole1 := mock.ACLRole()
 
 	mockACLToken := mock.ACLToken()
 	mockACLToken.Policies = []string{}
-	mockACLToken.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole.ID}}
+	mockACLToken.Roles = []*structs.ACLTokenRoleLink{{ID: mockACLRole1.ID}}
 
-	err := testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, []*structs.ACLRole{mockACLRole}, true)
+	err := testServer.State().UpsertACLRoles(structs.MsgTypeTestSetup, 10, []*structs.ACLRole{mockACLRole1}, true)
 	must.NoError(t, err)
 	err = testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{mockACLToken})
 	must.NoError(t, err)
@@ -147,12 +147,32 @@ func TestClient_resolveTokenACLRoles(t *testing.T) {
 	// Test the cache directly and check that the ACL role previously queried
 	// is now cached.
 	must.Eq(t, 1, testClient.roleCache.Len())
-	must.True(t, testClient.roleCache.Contains(mockACLRole.ID))
+	must.True(t, testClient.roleCache.Contains(mockACLRole1.ID))
 
 	// Resolve the roles again to check we get the same results.
 	resolvedRoles2, err := testClient.resolveTokenACLRoles(rootACLToken.SecretID, mockACLToken.Roles)
 	must.NoError(t, err)
 	must.SliceContainsAll(t, resolvedRoles1, resolvedRoles2)
+
+	// Create another ACL role which will have the same ACL policy links as the
+	// previous
+	mockACLRole2 := mock.ACLRole()
+	must.NoError(t,
+		testServer.State().UpsertACLRoles(
+			structs.MsgTypeTestSetup, 30, []*structs.ACLRole{mockACLRole2}, true))
+
+	// Update the ACL token so that it links to two ACL roles, which include
+	// duplicate ACL policies.
+	mockACLToken.Roles = append(mockACLToken.Roles, &structs.ACLTokenRoleLink{ID: mockACLRole2.ID})
+	must.NoError(t,
+		testServer.State().UpsertACLTokens(
+			structs.MsgTypeTestSetup, 40, []*structs.ACLToken{mockACLToken}))
+
+	// Ensure when resolving the ACL token, we are returned a deduplicated list
+	// of ACL policy names.
+	resolvedRoles3, err := testClient.resolveTokenACLRoles(rootACLToken.SecretID, mockACLToken.Roles)
+	must.NoError(t, err)
+	must.SliceContainsAll(t, []string{"mocked-test-policy-1", "mocked-test-policy-2"}, resolvedRoles3)
 }
 
 func TestClient_ACL_ResolveToken_Disabled(t *testing.T) {
