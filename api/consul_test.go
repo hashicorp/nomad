@@ -177,9 +177,13 @@ func TestConsulUpstream_Copy(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationPeer:      "10.0.0.1:6379",
+			DestinationType:      "tcp",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
+			LocalBindSocketPath:  "/var/run/testsocket.sock",
+			LocalBindSocketMode:  "0666",
 			MeshGateway:          &ConsulMeshGateway{Mode: "remote"},
 			Config:               map[string]any{"connect_timeout_ms": 5000},
 		}
@@ -201,9 +205,13 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationPeer:      "10.0.0.1:6379",
+			DestinationType:      "tcp",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
+			LocalBindSocketPath:  "/var/run/testsocket.sock",
+			LocalBindSocketMode:  "0666",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
 			Config:               make(map[string]any),
 		}
@@ -211,9 +219,13 @@ func TestConsulUpstream_Canonicalize(t *testing.T) {
 		must.Eq(t, &ConsulUpstream{
 			DestinationName:      "dest1",
 			DestinationNamespace: "ns2",
+			DestinationPeer:      "10.0.0.1:6379",
+			DestinationType:      "tcp",
 			Datacenter:           "dc2",
 			LocalBindPort:        2000,
 			LocalBindAddress:     "10.0.0.1",
+			LocalBindSocketPath:  "/var/run/testsocket.sock",
+			LocalBindSocketMode:  "0666",
 			MeshGateway:          &ConsulMeshGateway{Mode: ""},
 			Config:               nil,
 		}, cu)
