@@ -1121,6 +1121,13 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"var lock": func() (cli.Command, error) {
+			return &VarLockCommand{
+				varPutCommand: &VarPutCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
 		"var get": func() (cli.Command, error) {
 			return &VarGetCommand{
 				Meta: meta,
