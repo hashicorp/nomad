@@ -45,7 +45,7 @@ func (c *Client) retryPut(ctx context.Context, endpoint string, in, out any, q *
 	t := time.NewTimer(attemptDelay)
 	defer t.Stop()
 
-	for attempt := int64(0); attempt < c.config.retryOptions.maxRetries; attempt++ {
+	for attempt := int64(0); attempt < c.config.retryOptions.maxRetries+1; attempt++ {
 		attemptDelay = c.calculateDelay(attempt)
 
 		t.Reset(attemptDelay)
