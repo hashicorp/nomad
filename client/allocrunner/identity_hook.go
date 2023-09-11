@@ -58,6 +58,10 @@ func (h *identityHook) Prerun() error {
 			return fmt.Errorf("error fetching alternate identities: %w", err)
 		}
 
+		// store task identities inside hookResources, so that taskrunner hooks
+		// can also use them.
+		h.hookResources.SetSignedTaskIdentities(signedWIDs)
+
 	}
 
 	return nil
@@ -66,7 +70,7 @@ func (h *identityHook) Prerun() error {
 // getIdentities calls Alloc.SignIdentities to get all of the identities for
 // this workload signed. If there are no identities to be signed then (nil,
 // nil) is returned.
-func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Task) (map[string]*structs.SignedWorkloadIdentity, error) {
+func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Task) (map[string]string, error) {
 
 	if len(task.Identities) == 0 {
 		return nil, nil
@@ -88,9 +92,9 @@ func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Ta
 	}
 
 	// Index initial workload identities by name
-	widMap := make(map[string]*structs.SignedWorkloadIdentity, len(signedWIDs))
+	widMap := make(map[string]string, len(signedWIDs))
 	for _, wid := range signedWIDs {
-		widMap[wid.IdentityName] = wid
+		widMap[wid.IdentityName] = wid.JWT
 	}
 
 	return widMap, nil
