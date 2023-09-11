@@ -4,6 +4,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/go-set"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -269,11 +270,6 @@ func (c *Client) resolvePolicies(secretID string, policies []string) ([]*structs
 func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLTokenRoleLink) ([]string, error) {
 
 	var (
-		// policyNames tracks the resolved ACL policies which are linked to the
-		// role. This is the output object and represents the authorisation
-		// this role provides token bearers.
-		policyNames []string
-
 		// missingRoleIDs are the roles linked which are not found within our
 		// cache. These must be looked up from the server via and RPC, so we
 		// can correctly identify the policy links.
@@ -284,6 +280,11 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 		// and RPC, so we can correctly identify the policy links.
 		expiredRoleIDs []string
 	)
+
+	// policyNames tracks the resolved ACL policies which are linked to the
+	// role as a deduplicated list. This is the output object and represents
+	// the authorisation this role provides token bearers.
+	policyNames := set.New[string](0)
 
 	for _, roleLink := range roleLinks {
 
@@ -302,7 +303,7 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 		cached := raw.(*cachedACLValue)
 		if cached.Age() <= c.GetConfig().ACLRoleTTL {
 			for _, policyLink := range cached.Role.Policies {
-				policyNames = append(policyNames, policyLink.Name)
+				policyNames.Insert(policyLink.Name)
 			}
 		} else {
 			expiredRoleIDs = append(expiredRoleIDs, cached.Role.ID)
@@ -313,7 +314,7 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 	// generate a list of linked policy names. Therefore, we can avoid making
 	// any RPC calls.
 	if len(missingRoleIDs)+len(expiredRoleIDs) == 0 {
-		return policyNames, nil
+		return policyNames.Slice(), nil
 	}
 
 	// Created a combined list of role IDs that we need to lookup from server
@@ -343,10 +344,10 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 			c.logger.Warn("failed to resolve ACL roles, using expired cached value", "error", err)
 			for _, aclRole := range roleByIDResp.ACLRoles {
 				for _, rolePolicyLink := range aclRole.Policies {
-					policyNames = append(policyNames, rolePolicyLink.Name)
+					policyNames.Insert(rolePolicyLink.Name)
 				}
 			}
-			return policyNames, nil
+			return policyNames.Slice(), nil
 		}
 		return nil, err
 	}
@@ -354,9 +355,7 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 	// Generate a timestamp for the cache entry. We do not need to use a
 	// timestamp per ACL role response integration.
 	now := time.Now()
-
 	for _, aclRole := range roleByIDResp.ACLRoles {
-
 		// Add an entry to the cache using the generated timestamp for future
 		// expiry calculations. Any existing, expired entry will be
 		// overwritten.
@@ -365,9 +364,9 @@ func (c *Client) resolveTokenACLRoles(secretID string, roleLinks []*structs.ACLT
 		// Iterate the role policy links, extracting the name and adding this
 		// to our return response tracking.
 		for _, rolePolicyLink := range aclRole.Policies {
-			policyNames = append(policyNames, rolePolicyLink.Name)
+			policyNames.Insert(rolePolicyLink.Name)
 		}
 	}
 
-	return policyNames, nil
+	return policyNames.Slice(), nil
 }
