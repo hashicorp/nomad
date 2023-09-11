@@ -584,6 +584,7 @@ func (c *Client) SetSecretID(secretID string) {
 }
 
 func (c *Client) configureRetries(ro *retryOptions) {
+
 	c.config.retryOptions = &retryOptions{
 		maxRetries:      defaultNumberOfRetries,
 		maxBackoffDelay: defaultMaxBackoffDelay,
@@ -594,7 +595,7 @@ func (c *Client) configureRetries(ro *retryOptions) {
 		c.config.retryOptions.delayBase = ro.delayBase
 	}
 
-	if ro.maxRetries != 0 {
+	if ro.maxRetries != defaultNumberOfRetries {
 		c.config.retryOptions.maxRetries = ro.maxRetries
 	}
 
