@@ -78,10 +78,10 @@ type Locks struct {
 
 type LocksOption = func(l *Locks)
 
-// WithMaxRetries allows access to configure the number of max retries the lock
+// LocksOptionWithMaxRetries allows access to configure the number of max retries the lock
 // handler will perform in case of an expected response while interacting with the
 // locks endpoint.
-func WithMaxRetries(maxRetries int64) LocksOption {
+func LocksOptionWithMaxRetries(maxRetries int64) LocksOption {
 	return func(l *Locks) {
 		l.ro.maxRetries = maxRetries
 	}
