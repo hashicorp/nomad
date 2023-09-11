@@ -18,7 +18,7 @@ const (
 	lockLeaseRenewalFactor = 0.7
 	lockRetryBackoffFactor = 1.1
 
-	// defaultLockTTL is the default value used to maintain a lock before it needs to
+	// DefaultLockTTL is the default value used to maintain a lock before it needs to
 	// be renewed. The actual value comes from the experience with Consul.
 	DefaultLockTTL = 15 * time.Second
 
