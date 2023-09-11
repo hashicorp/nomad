@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package command
 
@@ -57,19 +57,16 @@ General Options:
 
 Var lock Options:
   -verbose
-     Provides additional information via standard error to preserve standard
-     output (stdout) for redirected output.
-
-  -ttl
-	Optional, TTL for the lock, time the variable will be locked. Defaults to 15s
-
+	Provides additional information via standard error to preserve standard
+	output (stdout) for redirected output.
+  -ttl	
+	Optional, TTL for the lock, time the variable will be locked. Defaults to 15s.
   -delay
-    Optional, time the variable is blocked from locking when a lease is not renewed.
+	Optional, time the variable is blocked from locking when a lease is not renewed.	
 	Defaults to 15s.
-
   -shell
-  	Optional, use a shell to run the command (can set a custom shell via
-		the SHELL environment variable). The default value is true.
+	Optional, use a shell to run the command (can set a custom shell via		
+	the SHELL environment variable). The default value is true.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -99,9 +96,9 @@ func (c *VarLockCommand) Run(args []string) int {
 	flags.Usage = func() { c.varPutCommand.Ui.Output(c.Help()) }
 
 	flags.BoolVar(&doVerbose, "verbose", false, "")
-	flags.StringVar(&c.ttl, "ttl", "", "Time the variable will be locked")
-	flags.StringVar(&c.lockDelay, "delay", "", "Time the variable is blocked from locking when a lease is not renewed")
-	flags.BoolVar(&c.shell, "shell", true, "Use a shell to run the command (can set a custom shell via the SHELL "+"environment variable).")
+	flags.StringVar(&c.ttl, "ttl", "", "")
+	flags.StringVar(&c.lockDelay, "delay", "", "")
+	flags.BoolVar(&c.shell, "shell", true, "")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.varPutCommand.outFmt, "out", "none", "")
@@ -203,7 +200,9 @@ func (c *VarLockCommand) Run(args []string) int {
 
 	// Run the shell inside the protected function.
 	if err := ll.Start(ctx, func(ctx context.Context) error {
-		c.varPutCommand.verbose(fmt.Sprintf("Variable locked, ready to execute: %s", args[0]))
+		c.varPutCommand.verbose(fmt.Sprintf("Variable locked, ready to execute: %s",
+			strings.Join(args, " ")))
+
 		var newCommand func(ctx context.Context, args []string) (*exec.Cmd, error)
 		if !c.shell {
 			newCommand = subprocess
