@@ -3549,6 +3549,18 @@ func TestTaskGroupDiff(t *testing.T) {
 																New:  "ns2",
 															},
 															{
+																Type: DiffTypeNone,
+																Name: "DestinationPeer",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "DestinationType",
+																Old:  "",
+																New:  "",
+															},
+															{
 																Type: DiffTypeAdded,
 																Name: "LocalBindAddress",
 																Old:  "",
@@ -3559,6 +3571,18 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "LocalBindPort",
 																Old:  "",
 																New:  "8000",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "LocalBindSocketMode",
+																Old:  "",
+																New:  "",
+															},
+															{
+																Type: DiffTypeNone,
+																Name: "LocalBindSocketPath",
+																Old:  "",
+																New:  "",
 															},
 														},
 														Objects: []*ObjectDiff{
@@ -8948,7 +8972,132 @@ func TestServicesDiff(t *testing.T) {
 					},
 				},
 			},
-		}, {
+		},
+		{
+			Name:       "ConsulUpstream with different Upstreams",
+			Contextual: false,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						SidecarService: &ConsulSidecarService{
+							Port: "http",
+							Proxy: &ConsulProxy{
+								LocalServiceAddress: "127.0.0.1",
+								LocalServicePort:    8080,
+								Upstreams: []ConsulUpstream{
+									{
+										DestinationName:  "count-api",
+										LocalBindPort:    8080,
+										Datacenter:       "dc2",
+										LocalBindAddress: "127.0.0.1",
+										DestinationType:  "prepared_query",
+										MeshGateway: ConsulMeshGateway{
+											Mode: "remote",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					Provider:  "consul",
+					PortLabel: "http",
+					Connect: &ConsulConnect{
+						SidecarService: &ConsulSidecarService{
+							Port: "http",
+							Proxy: &ConsulProxy{
+								LocalServiceAddress: "127.0.0.1",
+								LocalServicePort:    8080,
+								Upstreams: []ConsulUpstream{
+									{
+										DestinationName:     "count-api",
+										LocalBindPort:       8080,
+										Datacenter:          "dc2",
+										LocalBindAddress:    "127.0.0.1",
+										LocalBindSocketMode: "0700",
+										LocalBindSocketPath: "/tmp/redis_5678.sock",
+										DestinationPeer:     "cloud-services",
+										DestinationType:     "service",
+										MeshGateway: ConsulMeshGateway{
+											Mode: "remote",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "ConsulConnect",
+							Objects: []*ObjectDiff{
+								{
+									Type: DiffTypeEdited,
+									Name: "SidecarService",
+									Objects: []*ObjectDiff{
+										{
+											Type: DiffTypeEdited,
+											Name: "ConsulProxy",
+											Objects: []*ObjectDiff{
+												{
+													Type: DiffTypeEdited,
+													Name: "ConsulUpstreams",
+													Fields: []*FieldDiff{
+														{
+															Type:        DiffTypeAdded,
+															Name:        "DestinationPeer",
+															Old:         "",
+															New:         "cloud-services",
+															Annotations: nil,
+														},
+														{
+															Type:        DiffTypeEdited,
+															Name:        "DestinationType",
+															Old:         "prepared_query",
+															New:         "service",
+															Annotations: nil,
+														},
+														{
+															Type:        DiffTypeAdded,
+															Name:        "LocalBindSocketMode",
+															Old:         "",
+															New:         "0700",
+															Annotations: nil,
+														},
+														{
+															Type:        DiffTypeAdded,
+															Name:        "LocalBindSocketPath",
+															Old:         "",
+															New:         "/tmp/redis_5678.sock",
+															Annotations: nil,
+														},
+													},
+													Objects: nil,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			Name:       "SidecarService with different meta",
 			Contextual: false,
 			Old: []*Service{

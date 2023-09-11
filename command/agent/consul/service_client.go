@@ -343,6 +343,14 @@ func proxyUpstreamsDifferent(wanted *api.AgentServiceConnect, sidecar *api.Agent
 				return true
 			case A.MeshGateway.Mode != B.MeshGateway.Mode:
 				return true
+			case A.DestinationPeer != B.DestinationPeer:
+				return true
+			case A.DestinationType != B.DestinationType:
+				return true
+			case A.LocalBindSocketPath != B.LocalBindSocketPath:
+				return true
+			case A.LocalBindSocketMode != B.LocalBindSocketMode:
+				return true
 			case !reflect.DeepEqual(A.Config, B.Config):
 				return true
 			}
