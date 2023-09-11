@@ -94,7 +94,7 @@ func Test_RetryPut_one_call(t *testing.T) {
 		must.Error(t, err)
 		must.Nil(t, md)
 
-		must.Len(t, 1, mh.callsCounter)
+		must.Len(t, 2, mh.callsCounter)
 	})
 }
 
@@ -120,7 +120,7 @@ func Test_RetryPut_capped_base_too_big(t *testing.T) {
 		md, err := cm.retryPut(context.TODO(), "/endpoint", nil, nil, &WriteOptions{})
 		must.Error(t, err)
 
-		must.Len(t, 3, mh.callsCounter)
+		must.Len(t, 4, mh.callsCounter)
 
 		must.Nil(t, md)
 		must.Greater(t, cm.config.retryOptions.maxBackoffDelay, mh.callsCounter[1].Sub(mh.callsCounter[0]))
