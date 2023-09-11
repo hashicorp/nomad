@@ -57,6 +57,7 @@ func (c *Client) Locks(wo WriteOptions, v Variable, opts ...LocksOption) (*Locks
 		ttl:          ttl,
 		ro: retryOptions{
 			maxToLastCall: ttl,
+			maxRetries:    defaultNumberOfRetries,
 		},
 	}
 
