@@ -90,7 +90,7 @@ export default class AccessControlPoliciesNewRoute extends Route {
 
   beforeModel() {
     if (this.can.cannot('write policy')) {
-      this.router.transitionTo('/policies');
+      this.router.transitionTo('/access-control/policies');
     }
   }
 
@@ -102,8 +102,6 @@ export default class AccessControlPoliciesNewRoute extends Route {
   }
 
   resetController(controller, isExiting) {
-    // If the user navigates away from /new, clear the path
-    controller.set('path', null);
     if (isExiting) {
       // If user didn't save, delete the freshly created model
       if (controller.model.isNew) {

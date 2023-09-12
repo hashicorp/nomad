@@ -72,7 +72,9 @@
             {{#if (can "destroy token")}}
               <B.Td>
                 {{#if (eq B.data.type "management")}}
-                  <Hds::Button @text="Delete" disabled @size="small" @color="critical" />
+                  <Tooltip @text="Can't delete a management token" @isFullText={{true}}>
+                    <Hds::Button @text="Delete" disabled @size="small" @color="critical" />
+                  </Tooltip>
                 {{else}}
                   <Hds::Button @text="Delete" @size="small" @color="critical"
                     {{on "click" (perform this.deleteToken B.data)}}

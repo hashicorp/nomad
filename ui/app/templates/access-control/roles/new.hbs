@@ -1,0 +1,16 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb @crumb={{hash label="New" args=(array "access-control.roles.new")}} />
+{{page-title "Create Role"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		Create Role
+	</h1>
+  <RoleEditor
+    @role={{this.model.role}}
+    @policies={{this.model.policies}}
+  />
+</section>

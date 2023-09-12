@@ -122,6 +122,7 @@ Router.map(function () {
       this.route('role', {
         path: '/:name',
       });
+      this.route('new');
     });
     this.route('tokens', function () {
       // this.route('policy', {

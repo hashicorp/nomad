@@ -10,11 +10,16 @@
     </p>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
-      {{#if (can "write policy")}}
+      {{#if (can "write role")}}
         <LinkTo
-          @route="access-control.policies.new"
+          @route="access-control.roles.new"
           class="button is-primary"
-          data-test-create-policy
+          data-test-create-role
+          {{keyboard-shortcut
+            pattern=(array "n" "r")
+            action=(action this.goToNewRole)
+            label="Create Role"
+          }}
         >
           Create Role
         </LinkTo>
@@ -24,7 +29,7 @@
           aria-label="You don’t have sufficient permissions"
           disabled
           type="button"
-          data-test-disabled-create-policy
+          data-test-disabled-create-role
         >
           Create Role
         </button>
@@ -49,15 +54,15 @@
           enumerated=true
           action=(action "openRole" row.model)
         }}>
-          <td data-test-policy-name>
+          <td data-test-role-name>
 						<LinkTo @route="access-control.roles.role" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
 					</td>
           {{#if (can "list token")}}
-            <td data-test-policy-token-count>
+            <td data-test-role-token-count>
               <span>
-                <span data-test-policy-total-tokens>{{row.model.tokens.length}}</span>
+                <span data-test-role-total-tokens>{{row.model.tokens.length}}</span>
                 {{#if (filter-by "isExpired" row.model.tokens)}}
-                  <span data-test-policy-expired-tokens class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+                  <span data-test-role-expired-tokens class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
                 {{/if}}
               </span>
             </td>
@@ -67,11 +72,11 @@
     </ListTable>
   {{else}}
     <div class="empty-message">
-      <h3 data-test-empty-policies-list-headline class="empty-message-headline">
-        No Policies
+      <h3 data-test-empty-role-list-headline class="empty-message-headline">
+        No Roles
       </h3>
       <p class="empty-message-body">
-        Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+        Get started by <LinkTo @route="access-control.roles.new">creating a new role</LinkTo>
       </p>
     </div>
   {{/if}}
