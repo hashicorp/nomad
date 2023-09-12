@@ -55,7 +55,7 @@
           action=(action "openRole" row.model)
         }}>
           <td data-test-role-name>
-						<LinkTo @route="access-control.roles.role" @model={{row.model.name}}>{{row.model.name}}</LinkTo>
+						<LinkTo @route="access-control.roles.role" @model={{row.model}}>{{row.model.name}}</LinkTo>
 					</td>
           {{#if (can "list token")}}
             <td data-test-role-token-count>

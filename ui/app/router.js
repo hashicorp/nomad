@@ -120,7 +120,7 @@ Router.map(function () {
     });
     this.route('roles', function () {
       this.route('role', {
-        path: '/:name',
+        path: '/:id',
       });
       this.route('new');
     });

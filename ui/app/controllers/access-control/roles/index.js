@@ -19,7 +19,7 @@ export default class AccessControlRolesIndexController extends Controller {
   }
 
   @action openRole(role) {
-    this.router.transitionTo('access-control.roles.role', role.name);
+    this.router.transitionTo('access-control.roles.role', role.id);
   }
 
   @action goToNewRole() {
