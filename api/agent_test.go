@@ -112,7 +112,7 @@ func TestAgent_ForceLeave(t *testing.T) {
 	a := c.Agent()
 
 	// Force-leave on a nonexistent node does not error
-	err := a.ForceLeave("nope")
+	err := a.ForceLeave("nope", false)
 	must.NoError(t, err)
 
 	// Force-leave on an existing node
@@ -126,9 +126,10 @@ func TestAgent_ForceLeave(t *testing.T) {
 	must.One(t, n)
 
 	membersBefore, err := a.MembersOpts(&QueryOptions{})
+	must.NoError(t, err)
 	must.Eq(t, membersBefore.Members[1].Status, "alive")
 
-	err = a.ForceLeave(membersBefore.Members[1].Name)
+	err = a.ForceLeave(membersBefore.Members[1].Name, false)
 	must.NoError(t, err)
 
 	time.Sleep(3 * time.Second)
@@ -152,6 +153,50 @@ func TestAgent_ForceLeave(t *testing.T) {
 		wait.Timeout(3*time.Second),
 		wait.Gap(100*time.Millisecond),
 	))
+
+}
+
+func TestAgent_ForceLeavePrune(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	nodeName := "foo.global"
+	_, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.NodeName = nodeName
+		c.Server.BootstrapExpect = 0
+	})
+	defer s2.Stop()
+
+	n, err := a.Join(s2.SerfAddr)
+	must.NoError(t, err)
+	must.One(t, n)
+
+	err = a.ForceLeave(nodeName, true)
+	must.NoError(t, err)
+
+	time.Sleep(3 * time.Second)
+
+	f := func() error {
+		membersAfter, err := a.MembersOpts(&QueryOptions{})
+		if err != nil {
+			return err
+		}
+		for _, node := range membersAfter.Members {
+			if node.Name == nodeName {
+				return fmt.Errorf("node did not get pruned")
+			}
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(3*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
+
 }
 
 func (a *AgentMember) String() string {

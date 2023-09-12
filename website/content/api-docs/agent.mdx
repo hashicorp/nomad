@@ -441,13 +441,16 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `node` `(string: <required>)` - Specifies the name of the node to force leave.
+- `prune` `(boolean: <optional>)` - Specifies whether to forcibly remove the node from
+the list of members. Pruning a node in the `left` or `failed` state removes it from the list altogether.
+
 
 ### Sample Request
 
 ```shell-session
 $ curl \
     --request POST \
-    https://localhost:4646/v1/agent/force-leave?node=client-ab2e23dc
+    https://localhost:4646/v1/agent/force-leave?node=client-ab2e23dc&prune=true
 ```
 
 ## Health

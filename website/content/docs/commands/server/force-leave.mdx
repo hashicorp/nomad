@@ -22,6 +22,9 @@ nomad server force-leave [options] <node>
 This command expects only one argument - the node which should be forced
 to enter the "left" state.
 
+Additionally, by specifying the `prune` flag, a node can be forcibly removed
+from the list of members entirely.
+
 If ACLs are enabled, this option requires a token with the `agent:write`
 capability.
 
@@ -29,11 +32,23 @@ capability.
 
 @include 'general_options_no_namespace.mdx'
 
+## Server Force-Leave Options
+
+- `-prune`: Specifies whether to forcibly remove the node from the list of members. 
+Pruning a node in the `left` or `failed` state removes it from the list altogether.
+
 ## Examples
 
 Force-leave the server "node1":
 
 ```shell-session
 $ nomad server force-leave node1
+
+```
+
+Force-leave the server "node1" and prune it:
+
+```shell-session
+$ nomad server force-leave -prune node1
 
 ```

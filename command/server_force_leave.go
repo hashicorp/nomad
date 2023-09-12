@@ -28,7 +28,13 @@ Usage: nomad server force-leave [options] <node>
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+  
+Server Force-Leave Options:
+
+  -prune
+    Removes failed or left server from the list of members entirely.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -37,7 +43,10 @@ func (c *ServerForceLeaveCommand) Synopsis() string {
 }
 
 func (c *ServerForceLeaveCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-prune": complete.PredictNothing,
+		})
 }
 
 func (c *ServerForceLeaveCommand) AutocompleteArgs() complete.Predictor {
@@ -47,8 +56,11 @@ func (c *ServerForceLeaveCommand) AutocompleteArgs() complete.Predictor {
 func (c *ServerForceLeaveCommand) Name() string { return "server force-leave" }
 
 func (c *ServerForceLeaveCommand) Run(args []string) int {
+	var prune bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&prune, "prune", false, "Remove server completely from list of members")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -70,7 +82,7 @@ func (c *ServerForceLeaveCommand) Run(args []string) int {
 	}
 
 	// Call force-leave on the node
-	if err := client.Agent().ForceLeave(node); err != nil {
+	if err := client.Agent().ForceLeave(node, prune); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error force-leaving server %s: %s", node, err))
 		return 1
 	}
