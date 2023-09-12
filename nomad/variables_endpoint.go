@@ -722,7 +722,7 @@ func (sv *Variables) RenewLock(args *structs.VariablesRenewLockRequest, reply *s
 		return err
 	}
 
-	_, encryptedVar, err := stateSnapshot.VarGet(nil, args.WriteRequest.Namespace, args.Path)
+	encryptedVar, err := stateSnapshot.GetVariable(nil, args.WriteRequest.Namespace, args.Path)
 	if err != nil {
 		return err
 	}
