@@ -6357,6 +6357,47 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 	return nil
 }
 
+type TaskGroupTimeout struct {
+	// TTL is the amount of time a task group can run before being killed
+	TTL       *time.Duration
+	Time      *string
+	StartFrom *string
+	TimeZone  *string
+}
+
+func (tgt *TaskGroupTimeout) Copy() *TaskGroupTimeout {
+	if tgt == nil {
+		return nil
+	}
+	return &TaskGroupTimeout{
+		TTL:       tgt.TTL,
+		Time:      tgt.Time,
+		StartFrom: tgt.StartFrom,
+		TimeZone:  tgt.TimeZone,
+	}
+}
+
+type TaskTimeout struct {
+	// TTL is the amount of time a task can run before being killed
+	TTL *time.Duration
+	// Time is the end time of the task. Cannot be used with TTL.
+	Time          *string
+	TimeZone      *string
+	FailOnTimeout bool
+}
+
+func (tt *TaskTimeout) Copy() *TaskTimeout {
+	if tt == nil {
+		return nil
+	}
+	return &TaskTimeout{
+		TTL:           tt.TTL,
+		Time:          tt.Time,
+		TimeZone:      tt.TimeZone,
+		FailOnTimeout: tt.FailOnTimeout,
+	}
+}
+
 const ReschedulePolicyMinInterval = 15 * time.Second
 const ReschedulePolicyMinDelay = 5 * time.Second
 
@@ -6699,6 +6740,10 @@ type TaskGroup struct {
 	// MaxClientDisconnect, if set, configures the client to allow placed
 	// allocations for tasks in this group to attempt to resume running without a restart.
 	MaxClientDisconnect *time.Duration
+
+	// Timeout, if set, configures the client to stop the task group
+	// after or at a specified time
+	Timeout *TaskGroupTimeout
 }
 
 func (tg *TaskGroup) Copy() *TaskGroup {
@@ -6757,6 +6802,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.MaxClientDisconnect != nil {
 		ntg.MaxClientDisconnect = tg.MaxClientDisconnect
+	}
+
+	if tg.Timeout != nil {
+		ntg.Timeout = tg.Timeout
 	}
 
 	return ntg
@@ -7595,6 +7644,9 @@ type Task struct {
 	// Identities are the alternate workload identities for use with 3rd party
 	// endpoints.
 	Identities []*WorkloadIdentity
+	// Timeout, if set, configures the client to stop the task group
+	// after or at a specified time
+	Timeout *TaskTimeout
 }
 
 // UsesConnect is for conveniently detecting if the Task is able to make use
@@ -7657,6 +7709,7 @@ func (t *Task) Copy() *Task {
 	nt.Lifecycle = nt.Lifecycle.Copy()
 	nt.Identity = nt.Identity.Copy()
 	nt.Identities = helper.CopySlice(nt.Identities)
+	nt.Timeout = nt.Timeout.Copy()
 
 	if t.Artifacts != nil {
 		artifacts := make([]*TaskArtifact, 0, len(t.Artifacts))
@@ -8866,6 +8919,9 @@ const (
 	// TaskSkippingShutdownDelay indicates that the task operation was
 	// configured to ignore the shutdown delay value set for the tas.
 	TaskSkippingShutdownDelay = "Skipping shutdown delay"
+
+	// TaskTimedout indicates that a timeout was reached for the task.
+	TaskTimedout = "Timed Out"
 )
 
 // TaskEvent is an event that effects the state of a task and contains meta-data

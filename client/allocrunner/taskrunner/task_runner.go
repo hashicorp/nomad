@@ -268,6 +268,9 @@ type TaskRunner struct {
 
 	// widmgr fetches workload identities
 	widmgr IdentitySigner
+	// rpcClient is the RPC Client that should be used by the taskrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient config.RPCer
 }
 
 type Config struct {
@@ -343,6 +346,9 @@ type Config struct {
 
 	// WIDMgr fetches workload identities
 	WIDMgr IdentitySigner
+	// RPCClient is the RPC Client that should be used by the taskrunner and its
+	// hooks to communicate with Nomad Servers.
+	RPCClient config.RPCer
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -405,6 +411,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		getter:                config.Getter,
 		wranglers:             config.Wranglers,
 		widmgr:                config.WIDMgr,
+		rpcClient:             config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID

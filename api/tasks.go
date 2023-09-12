@@ -459,6 +459,7 @@ type TaskGroup struct {
 	MaxClientDisconnect       *time.Duration            `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
 	Consul                    *Consul                   `hcl:"consul,block"`
+	Timeout                   *TaskGroupTimeout         `hcl:"timeout,block"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -723,13 +724,12 @@ type Task struct {
 	KillSignal      string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
 	Kind            string                 `hcl:"kind,optional"`
 	ScalingPolicies []*ScalingPolicy       `hcl:"scaling,block"`
-
 	// Identity is the default Nomad Workload Identity and will be added to
 	// Identities with the name "default"
 	Identity *WorkloadIdentity
-
 	// Workload Identities
 	Identities []*WorkloadIdentity `hcl:"identity,block"`
+	Timeout    *TaskTimeout        `hcl:"timeout,block"`
 }
 
 func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
@@ -1049,6 +1049,7 @@ const (
 	TaskStarted                = "Started"
 	TaskTerminated             = "Terminated"
 	TaskKilling                = "Killing"
+	TaskTimedout               = "Timed Out"
 	TaskKilled                 = "Killed"
 	TaskRestarting             = "Restarting"
 	TaskNotRestarting          = "Not Restarting"
@@ -1162,4 +1163,18 @@ type WorkloadIdentity struct {
 	File        bool          `hcl:"file,optional"`
 	ServiceName string        `hcl:"service_name,optional"`
 	TTL         time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+}
+
+type TaskTimeout struct {
+	TTL           *time.Duration `hcl:"ttl,optional"`
+	Time          *string        `hcl:"time,optional"`
+	TimeZone      *string        `mapstructure:"time_zone" hcl:"time_zone,optional"`
+	FailOnTimeout bool           `hcl:"fail_on_timeout,optional"`
+}
+
+type TaskGroupTimeout struct {
+	TTL       *time.Duration `hcl:"ttl,optional"`
+	Time      *string        `hcl:"time,optional"`
+	StartFrom *string        `hcl:"start_from,optional"`
+	TimeZone  *string        `mapstructure:"time_zone" hcl:"time_zone,optional"`
 }

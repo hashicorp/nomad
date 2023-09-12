@@ -304,6 +304,11 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
 			WIDMgr:              ar.widmgr,
+			RPCClient:           ar.rpcClient,
+		}
+
+		if ar.cpusetManager != nil {
+			trConfig.CpusetCgroupPathGetter = ar.cpusetManager.CgroupPathFor(ar.id, task.Name)
 		}
 
 		// Create, but do not Run, the task runner
