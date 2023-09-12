@@ -11,7 +11,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -32,17 +31,15 @@ type IdentitySigner interface {
 }
 
 type identityHook struct {
-	tr            *TaskRunner
-	hookResources *cstructs.AllocHookResources
-	tokenDir      string
-	logger        log.Logger
+	tr       *TaskRunner
+	tokenDir string
+	logger   log.Logger
 }
 
-func newIdentityHook(tr *TaskRunner, hookResources *cstructs.AllocHookResources, logger log.Logger) *identityHook {
+func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 	h := &identityHook{
-		tr:            tr,
-		hookResources: hookResources,
-		tokenDir:      tr.taskDir.SecretsDir,
+		tr:       tr,
+		tokenDir: tr.taskDir.SecretsDir,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -59,7 +56,7 @@ func (h *identityHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		return err
 	}
 
-	signedWIDs, err := h.hookResources.GetSignedTaskIdentities(req.Alloc, req.Task)
+	signedWIDs, err := h.tr.allocHookResources.GetSignedIdentitiesForTask(req.Task)
 	if err != nil {
 		return fmt.Errorf("error fetching alternate identities: %w", err)
 	}

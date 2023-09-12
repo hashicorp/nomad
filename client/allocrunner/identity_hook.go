@@ -61,7 +61,6 @@ func (h *identityHook) Prerun() error {
 		// store task identities inside hookResources, so that taskrunner hooks
 		// can also use them.
 		h.hookResources.SetSignedTaskIdentities(signedWIDs)
-
 	}
 
 	return nil

@@ -122,7 +122,7 @@ func (h *logmonHook) Prestart(ctx context.Context,
 	attempts := 0
 	for {
 		err := h.prestartOneLoop(ctx, req)
-		if err == bstructs.ErrPluginShutdown || grpc.Code(err) == codes.Unavailable {
+		if err == bstructs.ErrPluginShutdown || status.Code(err) == codes.Unavailable {
 			h.logger.Warn("logmon shutdown while making request", "error", err)
 
 			if attempts > 3 {
