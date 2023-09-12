@@ -1,0 +1,130 @@
+---
+layout: api
+page_title: Variable Locks - HTTP API
+description: The /var endpoints are used to query for and interact with variables and locks.
+---
+
+# Locks HTTP API
+
+The `/var` endpoint is used hold, renew and release a lock over a variable.
+
+## Lock Variable
+
+The endpoint to create a variable can also be used to hold a lock and interact with
+it throught the use of a parameter defining the operation to be performed.
+
+| Method | Path                                 | Produces           |
+|--------|--------------------------------------|--------------------|
+| `PUT`  | `/v1/var/:var_path?<lock-operation>` | `application/json` |
+
+### Parameters
+
+The lock operation parameter can be:
+- `lock-acquire`: When used, the call will introduce a lock over the variable if 
+it exists, or create a new one if it doesn't. The lock ID will be returned in the 
+response and it must be provided to perform any other operation over the lock. In
+the case of attempting to acquire a variable that is already locked, a conflict
+response will be returned. When creating a new variable, all the known 
+[restrictions][] regarding the path and size of the content apply, but unlike 
+regular variables, locked variables can be created with or without any itmes.
+
+#### Sample Request
+
+```shell-session
+$ curl \
+    -XPUT -d@spec.nsv.json \
+    https://localhost:4646/v1/var/example/first?lock-acquire
+```
+
+#### Sample Payload
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  },
+  "Lock": {
+    "TTL": "15s",
+    "LockDelay"
+  }
+}
+```
+
+- `lock-renew`: A valid call to lock renew needs to be placed before the lock's
+TTL is up in order to mantain the variable locked. A valid 
+
+- `lock-release`
+
+
+
+### Sample Request
+
+```shell-session
+$ curl \
+    -XPUT -d@spec.nsv.json \
+    https://localhost:4646/v1/var/example/first
+```
+
+### Sample Payload
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+### Sample Response
+
+The response body returns the created or updated variable along with metadata
+created by the server:
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000,
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+### Sample Response for Conflict
+
+In the case of a compare-and-set conflict, the API will return HTTP error code
+409 and a response body showing the conflicting variable. If the provided ACL
+token does not also have `read` permissions to the variable path, the response
+will include only metadata and not the `Items` field:
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "CreateIndex": 1457,
+  "ModifyIndex": 1457,
+  "CreateTime": 1662061225600373000,
+  "ModifyTime": 1662061225600373000,
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  }
+}
+```
+
+[Variables]: /nomad/docs/concepts/variables
+[`nomad var`]: /nomad/docs/commands/var
+[blocking queries]: /nomad/api-docs#blocking-queries
+[required ACLs]: /nomad/api-docs#acls
+[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2
