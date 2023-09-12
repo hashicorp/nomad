@@ -1,5 +1,5 @@
 // Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
@@ -77,7 +77,7 @@ func TestServer_invalidateVariableLock(t *testing.T) {
 
 	// Pull the variable out of state and check that the lock ID has been
 	// removed.
-	_, varGetResp, err := testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err := testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Nil(t, varGetResp.Lock)
 }
@@ -108,7 +108,7 @@ func TestServer_createVariableLockTimer(t *testing.T) {
 	// Check the timer is still present, meaning it didn't expired and the variable
 	// still holds a lock
 	must.NotNil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-	_, varGetResp, err := testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err := testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Eq(t, mockVar1.LockID(), varGetResp.LockID())
 
@@ -116,7 +116,7 @@ func TestServer_createVariableLockTimer(t *testing.T) {
 	// must still hold the lock.
 	time.Sleep(15 * time.Millisecond)
 	must.Nil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-	_, varGetResp, err = testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err = testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Eq(t, mockVar1.LockID(), varGetResp.LockID())
 
@@ -124,7 +124,7 @@ func TestServer_createVariableLockTimer(t *testing.T) {
 	// should not hold the lock
 	time.Sleep(10 * time.Millisecond)
 	must.Nil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-	_, varGetResp, err = testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err = testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Nil(t, varGetResp.Lock)
 }
@@ -163,7 +163,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 	// Check the timer is still present, meaning it didn't expired and the variable
 	// still holds a lock
 	must.NotNil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-	_, varGetResp, err := testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err := testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Eq(t, mockVar1.LockID(), varGetResp.LockID())
 
@@ -177,7 +177,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		must.NotNil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-		_, varGetResp, err = testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+		varGetResp, err = testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 		must.NoError(t, err)
 		must.Eq(t, mockVar1.LockID(), varGetResp.LockID())
 	}
@@ -187,7 +187,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 	time.Sleep(15 * time.Millisecond)
 
 	must.Nil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-	_, varGetResp, err = testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err = testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Eq(t, mockVar1.LockID(), varGetResp.LockID())
 
@@ -196,7 +196,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	must.Nil(t, testServer.lockTTLTimer.Get(mockVar1.LockID()))
-	_, varGetResp, err = testServer.fsm.State().VarGet(nil, mockVar1.Namespace, mockVar1.Path)
+	varGetResp, err = testServer.fsm.State().GetVariable(nil, mockVar1.Namespace, mockVar1.Path)
 	must.NoError(t, err)
 	must.Nil(t, varGetResp.Lock)
 }
