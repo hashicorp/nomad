@@ -51,6 +51,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					UseIdentity: pointer.Of(true),
 					ServiceIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
+						TTL:      pointer.Of(time.Hour),
 					},
 				},
 			},
@@ -62,7 +63,27 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
 					Name:        "consul-service/web",
-					Audience:    []string{"consul.io", "nomad.dev"},
+					Audience:    []string{"consul.io"},
+					File:        true,
+					Env:         false,
+					ServiceName: "web",
+					TTL:         time.Hour,
+				},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+				},
+			},
+		},
+		{
+			name: "warn when service identity has no TTL",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+				Identity: &structs.WorkloadIdentity{
+					Name:        "consul-service/web",
+					Audience:    []string{"consul.io"},
 					File:        true,
 					Env:         false,
 					ServiceName: "web",
@@ -73,6 +94,9 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					UseIdentity: pointer.Of(true),
 				},
 			},
+			expectedWarns: []string{
+				"identities without an expiration are insecure",
+			},
 		},
 		{
 			name: "error when consul identity is disabled and service has identity",
@@ -81,9 +105,10 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
 					Name:     fmt.Sprintf("%s/web", consulServiceIdentityNamePrefix),
-					Audience: []string{"consul.io", "nomad.dev"},
+					Audience: []string{"consul.io"},
 					File:     true,
 					Env:      false,
+					TTL:      time.Hour,
 				},
 			},
 			inputConfig: &Config{
