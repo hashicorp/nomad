@@ -130,8 +130,8 @@ parameters:
 inmediatly remove the lock over the variable, making it modifiable without 
 restrictions again. 
 
-The lock-release operation will override the variable items if new values are 
-present.
+The lock-release operation will not override the variable items, if new values 
+are present, they will be silently discarded.
 
 #### Sample Request
 
