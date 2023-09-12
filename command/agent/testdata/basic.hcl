@@ -277,6 +277,7 @@ vault {
     aud  = ["vault.io", "nomad.io"]
     env  = false
     file = true
+    ttl  = "3h"
   }
 }
 

@@ -392,7 +392,8 @@
       "default_identity": {
         "aud": ["vault.io", "nomad.io"],
         "env": false,
-        "file": true
+        "file": true,
+        "ttl": "3h"
       },
       "enabled": false,
       "key_file": "/path/to/key/file",

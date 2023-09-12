@@ -199,6 +199,17 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
+	for name, vaultConfig := range c.Vaults {
+		if vaultConfig.DefaultIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				fmt.Sprintf("vaults.%s.default_identity.ttl", name), nil, &vaultConfig.DefaultIdentity.TTLHCL,
+				func(d *time.Duration) {
+					vaultConfig.DefaultIdentity.TTL = d
+				},
+			})
+		}
+	}
+
 	// Add enterprise audit sinks for time.Duration parsing
 	for i, sink := range c.Audit.Sinks {
 		tds = append(tds, durationConversionMap{

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -127,6 +128,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				must.ErrorContains(t, err, tc.expectedErr)
 			}
 
+			must.Len(t, len(tc.expectedWarns), warns, must.Sprintf("got warnings: %v", warns))
 			for _, exp := range tc.expectedWarns {
 				hasWarn := false
 				for _, w := range warns {
@@ -170,6 +172,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				UseIdentity: pointer.Of(true),
 				DefaultIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"vault.io"},
+					TTL:      pointer.Of(time.Hour),
 				},
 			},
 		},
@@ -179,6 +182,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
 				Name:     vaultIdentityName,
 				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
 			}},
 			inputConfig: &config.VaultConfig{
 				UseIdentity: pointer.Of(true),
@@ -212,6 +216,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				UseIdentity: pointer.Of(true),
 				DefaultIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"vault.io"},
+					TTL:      pointer.Of(time.Hour),
 				},
 			},
 			expectedWarns: []string{"policies will be ignored"},
@@ -224,6 +229,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
 				Name:     vaultIdentityName,
 				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
 			}},
 			inputConfig: &config.VaultConfig{
 				UseIdentity: pointer.Of(false),
@@ -238,6 +244,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
 				Name:     vaultIdentityName,
 				Audience: []string{"vault.io"},
+				TTL:      time.Hour,
 			}},
 			inputConfig: &config.VaultConfig{
 				UseIdentity: pointer.Of(true),
@@ -275,7 +282,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				must.ErrorContains(t, err, tc.expectedErr)
 			}
 
-			must.Len(t, len(tc.expectedWarns), warns)
+			must.Len(t, len(tc.expectedWarns), warns, must.Sprintf("got warnings: %v", warns))
 			for _, exp := range tc.expectedWarns {
 				hasWarn := false
 				for _, w := range warns {
