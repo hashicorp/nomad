@@ -97,7 +97,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		CheckStore:         checkstore.NewStore(clientConf.Logger, stateDB),
 		Getter:             getter.TestSandbox(t),
 		Wranglers:          proclib.MockWranglers(t),
-		Partitions:         cgroupslib.MockPartition(),
+		Partitions:         cgroupslib.NoopPartition(),
 	}
 
 	return conf, cleanup

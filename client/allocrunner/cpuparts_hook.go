@@ -34,9 +34,8 @@ func newCPUPartsHook(
 	partitions cgroupslib.Partition,
 	alloc *structs.Allocation,
 ) *cpuPartsHook {
-
 	return &cpuPartsHook{
-		logger:       logger,
+		logger:       logger.Named(cpuPartsHookName),
 		allocID:      alloc.ID,
 		partitions:   partitions,
 		reservations: alloc.ReservedCores(),

@@ -91,9 +91,9 @@ func Factory(allocID, task string, cores bool) Lifecycle {
 	switch GetMode() {
 	case CG1:
 		return &lifeCG1{
-			allocID: allocID,
-			task:    task,
-			cores:   cores,
+			allocID:       allocID,
+			task:          task,
+			reservedCores: cores,
 		}
 	default:
 		return &lifeCG2{
@@ -115,9 +115,9 @@ type Lifecycle interface {
 // -------- cgroups v1 ---------
 
 type lifeCG1 struct {
-	allocID string
-	task    string
-	cores   bool // uses core reservation
+	allocID       string
+	task          string
+	reservedCores bool // uses core reservation
 }
 
 func (l *lifeCG1) Setup() error {
@@ -212,7 +212,7 @@ func (l *lifeCG1) paths() []string {
 		))
 	}
 
-	switch partition := GetPartitionFromBool(l.cores); partition {
+	switch partition := GetPartitionFromBool(l.reservedCores); partition {
 	case "reserve":
 		paths = append(paths, filepath.Join(root, "cpuset", NomadCgroupParent, partition, scope))
 	case "share":

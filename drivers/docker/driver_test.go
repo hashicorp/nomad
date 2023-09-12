@@ -1560,7 +1560,7 @@ func TestDockerDriver_Init(t *testing.T) {
 }
 
 func TestDockerDriver_CPUSetCPUs(t *testing.T) {
-	// The cpuset_cpus config option is ignored starting in Nomad 1.6
+	// The cpuset_cpus config option is ignored starting in Nomad 1.7
 
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)

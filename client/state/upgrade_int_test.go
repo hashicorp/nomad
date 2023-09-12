@@ -216,7 +216,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 		DeviceManager:     devicemanager.NoopMockManager(),
 		DriverManager:     drivermanager.TestDriverManager(t),
 		Wranglers:         proclib.MockWranglers(t),
-		Partitions:        cgroupslib.MockPartition(),
+		Partitions:        cgroupslib.NoopPartition(),
 	}
 	ar, err := allocrunner.NewAllocRunner(conf)
 	require.NoError(t, err)

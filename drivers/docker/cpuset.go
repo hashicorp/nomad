@@ -19,7 +19,8 @@ const (
 
 // cpuset is used to manage the cpuset.cpus interface file in the cgroup that
 // docker daemon creates for the container being run by the task driver. we
-// must do this hack because docker does not allow
+// must do this hack because docker does not allow specifying a pre-existing
+// cgroup in which to run the container (i.e. one that we control).
 type cpuset struct {
 	doneCh      <-chan bool
 	source      string
