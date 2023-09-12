@@ -250,6 +250,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		logger:                d.logger.With("container_id", container.ID),
 		task:                  handle.Config,
 		containerID:           container.ID,
+		containerCgroup:       container.HostConfig.Cgroup,
 		containerImage:        container.Image,
 		doneCh:                make(chan bool),
 		waitCh:                make(chan struct{}),
@@ -977,12 +978,13 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &docker.HostConfig{
-		// TODO(shoenig) set cgroup parent when we do partitioning
+		// do not set cgroup parent anymore
 
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
 
-		CPUShares: task.Resources.LinuxResources.CPUShares,
+		CPUShares:  task.Resources.LinuxResources.CPUShares,
+		CPUSetCPUs: task.Resources.LinuxResources.CpusetCpus,
 
 		// Binds are used to mount a host volume into the container. We mount a
 		// local directory for storage and a shared alloc directory that can be
@@ -999,12 +1001,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		GroupAdd: driverConfig.GroupAdd,
 	}
 
-	// This translates to docker create/run --cpuset-cpus option.
-	// --cpuset-cpus limit the specific CPUs or cores a container can use.
-	// Nomad natively manages cpusets, setting this option will override
-	// Nomad managed cpusets.
+	// Setting cpuset_cpus in driver config is no longer supported (it has
+	// not worked correctly since Nomad 0.12)
 	if driverConfig.CPUSetCPUs != "" {
-		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
+		d.logger.Warn("cpuset_cpus is no longer supported")
 	}
 
 	// Enable tini (docker-init) init system.

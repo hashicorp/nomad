@@ -170,7 +170,7 @@ func TestConsul_Integration(t *testing.T) {
 		DriverManager:       drivermanager.TestDriverManager(t),
 		StartConditionMetCh: closedCh,
 		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
-		Wranglers:           proclib.New(&proclib.Configs{Logger: testlog.HCLogger(t)}),
+		Wranglers:           proclib.MockWranglers(t),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

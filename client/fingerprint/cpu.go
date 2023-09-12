@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/klauspost/cpuid/v2"
@@ -77,14 +78,14 @@ func (*CPUFingerprint) reservedCompute(request *FingerprintRequest) structs.Node
 
 func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
 	var (
-		reservableCores *idset.Set[numalib.CoreID]
+		reservableCores *idset.Set[hw.CoreID]
 		totalCompute    = request.Config.CpuCompute
 		reservedCompute = f.reservedCompute(request)
-		reservedCores   = idset.From[numalib.CoreID](reservedCompute.ReservedCpuCores)
+		reservedCores   = idset.From[hw.CoreID](reservedCompute.ReservedCpuCores)
 	)
 
 	if rc := request.Config.ReservableCores; rc != nil {
-		reservableCores = idset.From[numalib.CoreID](rc)
+		reservableCores = idset.From[hw.CoreID](rc)
 	}
 
 	f.top = numalib.Scan(append(
@@ -157,7 +158,7 @@ func (f *CPUFingerprint) setReservableCores(response *FingerprintResponse) {
 		usable := f.top.UsableCores()
 		response.AddAttribute("cpu.reservablecores", f.cores(usable.Size()))
 		f.nodeResources.Cpu.ReservableCpuCores = helper.ConvertSlice(
-			usable.Slice(), func(id numalib.CoreID) uint16 {
+			usable.Slice(), func(id hw.CoreID) uint16 {
 				return uint16(id)
 			})
 	default:
@@ -189,7 +190,7 @@ func (f *CPUFingerprint) setNUMA(response *FingerprintResponse) {
 	nodes := f.top.Nodes()
 	response.AddAttribute("numa.node.count", f.nodes(nodes.Size()))
 
-	nodes.ForEach(func(id numalib.NodeID) error {
+	nodes.ForEach(func(id hw.NodeID) error {
 		key := fmt.Sprintf("numa.node%d.cores", id)
 		cores := f.top.NodeCores(id)
 		response.AddAttribute(key, cores.String())

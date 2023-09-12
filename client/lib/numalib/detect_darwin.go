@@ -7,6 +7,7 @@ package numalib
 
 import (
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/shoenig/go-m1cpu"
 	"golang.org/x/sys/unix"
 )
@@ -19,8 +20,8 @@ func PlatformScanners() []SystemScanner {
 }
 
 const (
-	nodeID   = NodeID(0)
-	socketID = SocketID(0)
+	nodeID   = hw.NodeID(0)
+	socketID = hw.SocketID(0)
 	maxSpeed = KHz(0)
 )
 
@@ -29,7 +30,7 @@ type MacOS struct{}
 
 func (m *MacOS) ScanSystem(top *Topology) {
 	// all apple hardware is non-numa; just assume as much
-	top.NodeIDs = idset.Empty[NodeID]()
+	top.NodeIDs = idset.Empty[hw.NodeID]()
 	top.NodeIDs.Insert(nodeID)
 
 	// arch specific detection
@@ -49,7 +50,7 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 	eCoreSpeed := KHz(m1cpu.ECoreHz() / 1000)
 
 	top.Cores = make([]Core, pCoreCount+eCoreCount)
-	nthCore := CoreID(0)
+	nthCore := hw.CoreID(0)
 
 	for i := 0; i < pCoreCount; i++ {
 		top.insert(nodeID, socketID, nthCore, performance, maxSpeed, pCoreSpeed)
@@ -69,6 +70,6 @@ func (m *MacOS) scanLegacyX86(top *Topology) {
 
 	top.Cores = make([]Core, coreCount)
 	for i := 0; i < int(coreCount); i++ {
-		top.insert(nodeID, socketID, CoreID(i), performance, maxSpeed, coreSpeed)
+		top.insert(nodeID, socketID, hw.CoreID(i), performance, maxSpeed, coreSpeed)
 	}
 }

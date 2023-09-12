@@ -36,6 +36,8 @@ import (
 	"github.com/hashicorp/go-set"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
@@ -3780,6 +3782,17 @@ type AllocatedResources struct {
 
 	// Shared is the set of resource that are shared by all tasks in the group.
 	Shared AllocatedSharedResources
+}
+
+// UsesCores returns true if any of the tasks in the allocation make use
+// of reserved cpu cores.
+func (a *AllocatedResources) UsesCores() bool {
+	for _, taskRes := range a.Tasks {
+		if len(taskRes.Cpu.ReservedCores) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *AllocatedResources) Copy() *AllocatedResources {
@@ -7597,6 +7610,10 @@ type Task struct {
 	Identities []*WorkloadIdentity
 }
 
+func (t *Task) UsesCores() bool {
+	return t.Resources.Cores > 0
+}
+
 // UsesConnect is for conveniently detecting if the Task is able to make use
 // of Consul Connect features. This will be indicated in the TaskKind of the
 // Task, which exports known types of Tasks. UsesConnect will be true if the
@@ -10650,6 +10667,22 @@ func (a *Allocation) GetCreateIndex() uint64 {
 		return 0
 	}
 	return a.CreateIndex
+}
+
+// ReservedCores returns the union of reserved cores across tasks in this alloc.
+func (a *Allocation) ReservedCores() *idset.Set[hw.CoreID] {
+	s := idset.Empty[hw.CoreID]()
+	if a == nil || a.AllocatedResources == nil {
+		return s
+	}
+	for _, taskResources := range a.AllocatedResources.Tasks {
+		if len(taskResources.Cpu.ReservedCores) > 0 {
+			for _, core := range taskResources.Cpu.ReservedCores {
+				s.Insert(hw.CoreID(core))
+			}
+		}
+	}
+	return s
 }
 
 // ConsulNamespace returns the Consul namespace of the task group associated

@@ -14,7 +14,7 @@ import (
 // exists, since Nomad client creates them. Why do we write tests that directly
 // invoke task drivers without any context of the Nomad client? Who knows.
 func (h *DriverHarness) MakeTaskCgroup(allocID, taskName string) {
-	f := cgroupslib.Factory(allocID, taskName)
+	f := cgroupslib.Factory(allocID, taskName, false)
 	must.NoError(h.t, f.Setup())
 
 	// ensure child procs are dead and remove the cgroup when the test is done

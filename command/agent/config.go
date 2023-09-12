@@ -261,7 +261,7 @@ type ClientConfig struct {
 	DiskFreeMB int `hcl:"disk_free_mb"`
 
 	// ReservableCores is used to override detected reservable cpu cores.
-	ReserveableCores string `hcl:"reservable_cores"`
+	ReservableCores string `hcl:"reservable_cores"`
 
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `hcl:"max_kill_timeout"`
@@ -1271,10 +1271,10 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = pointer.Of(true)
+	conf.Client.ReservableCores = "" // inherit all the cores
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
-
 	return conf
 }
 
@@ -2161,8 +2161,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	} else if b.Reserved != nil {
 		result.Reserved = result.Reserved.Merge(b.Reserved)
 	}
-	if b.ReserveableCores != "" {
-		result.ReserveableCores = b.ReserveableCores
+	if b.ReservableCores != "" {
+		result.ReservableCores = b.ReservableCores
 	}
 	if b.GCInterval != 0 {
 		result.GCInterval = b.GCInterval

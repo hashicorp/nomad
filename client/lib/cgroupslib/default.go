@@ -6,7 +6,7 @@
 package cgroupslib
 
 // LinuxResourcesPath does nothing on non-Linux systems
-func LinuxResourcesPath(string, string) string {
+func LinuxResourcesPath(string, string, bool) string {
 	return ""
 }
 

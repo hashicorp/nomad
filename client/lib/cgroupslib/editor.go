@@ -32,16 +32,14 @@ func OpenPath(dir string) Interface {
 	}
 }
 
-// OpenFromCpusetCG1 creates a handle for modifying cgroup interface files of
-// the given interface, given a path to the cpuset interface.
-//
-// This is useful because a Nomad task resources struct only keeps track of
-// the cpuset cgroup directory in the cgroups v1 regime, but nowadays we want
-// to modify more than the cpuset in some cases.
-func OpenFromCpusetCG1(dir, iface string) Interface {
-	return &editor{
-		dpath: strings.Replace(dir, "cpuset", iface, 1),
+// OpenFromFreezerCG1 creates a handle for modifying cgroup interface files
+// of the given interface, given a path to the freezer cgroup.
+func OpenFromFreezerCG1(orig, iface string) Interface {
+	if iface == "cpuset" {
+		panic("cannot open cpuset")
 	}
+	p := strings.Replace(orig, "/freezer/", "/"+iface+"/", 1)
+	return OpenPath(p)
 }
 
 // An Interface can be used to read and write the interface files of a cgroup.
@@ -89,16 +87,17 @@ func (e *editor) Write(filename, content string) error {
 // A Factory creates a Lifecycle which is an abstraction over the setup and
 // teardown routines used for creating and destroying cgroups used for
 // constraining Nomad tasks.
-func Factory(allocID, task string) Lifecycle {
+func Factory(allocID, task string, cores bool) Lifecycle {
 	switch GetMode() {
 	case CG1:
 		return &lifeCG1{
-			allocID: allocID,
-			task:    task,
+			allocID:       allocID,
+			task:          task,
+			reservedCores: cores,
 		}
 	default:
 		return &lifeCG2{
-			dpath: pathCG2(allocID, task),
+			dpath: pathCG2(allocID, task, cores),
 		}
 	}
 }
@@ -116,8 +115,9 @@ type Lifecycle interface {
 // -------- cgroups v1 ---------
 
 type lifeCG1 struct {
-	allocID string
-	task    string
+	allocID       string
+	task          string
+	reservedCores bool // uses core reservation
 }
 
 func (l *lifeCG1) Setup() error {
@@ -127,13 +127,32 @@ func (l *lifeCG1) Setup() error {
 		if err != nil {
 			return err
 		}
+		if strings.Contains(p, "/reserve/") {
+			if err = l.inheritMems(p); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
+}
+
+func (l *lifeCG1) inheritMems(destination string) error {
+	parent := filepath.Join(filepath.Dir(destination), "cpuset.mems")
+	b, err := os.ReadFile(parent)
+	if err != nil {
+		return err
+	}
+	destination = filepath.Join(destination, "cpuset.mems")
+	return os.WriteFile(destination, b, 0644)
 }
 
 func (l *lifeCG1) Teardown() error {
 	paths := l.paths()
 	for _, p := range paths {
+		if filepath.Base(p) == "share" {
+			// avoid removing the share cgroup
+			continue
+		}
 		err := os.RemoveAll(p)
 		if err != nil {
 			return err
@@ -162,7 +181,7 @@ func (l *lifeCG1) Kill() error {
 }
 
 func (l *lifeCG1) edit(iface string) *editor {
-	scope := scopeCG1(l.allocID, l.task)
+	scope := ScopeCG1(l.allocID, l.task)
 	return &editor{
 		dpath: filepath.Join(root, iface, NomadCgroupParent, scope),
 	}
@@ -184,14 +203,22 @@ func (l *lifeCG1) thaw() error {
 }
 
 func (l *lifeCG1) paths() []string {
-	scope := scopeCG1(l.allocID, l.task)
-	ifaces := []string{"freezer", "cpu", "memory", "cpuset"}
-	paths := make([]string, 0, len(ifaces))
+	scope := ScopeCG1(l.allocID, l.task)
+	ifaces := []string{"freezer", "cpu", "memory"}
+	paths := make([]string, 0, len(ifaces)+1)
 	for _, iface := range ifaces {
 		paths = append(paths, filepath.Join(
 			root, iface, NomadCgroupParent, scope,
 		))
 	}
+
+	switch partition := GetPartitionFromBool(l.reservedCores); partition {
+	case "reserve":
+		paths = append(paths, filepath.Join(root, "cpuset", NomadCgroupParent, partition, scope))
+	case "share":
+		paths = append(paths, filepath.Join(root, "cpuset", NomadCgroupParent, partition))
+	}
+
 	return paths
 }
 
@@ -235,7 +262,7 @@ func getPIDs(file string) (*set.Set[int], error) {
 	return result, nil
 }
 
-func scopeCG1(allocID, task string) string {
+func ScopeCG1(allocID, task string) string {
 	return fmt.Sprintf("%s.%s", allocID, task)
 }
 
@@ -243,6 +270,7 @@ func scopeCG2(allocID, task string) string {
 	return fmt.Sprintf("%s.%s.scope", allocID, task)
 }
 
-func pathCG2(allocID, task string) string {
-	return filepath.Join(root, NomadCgroupParent, scopeCG2(allocID, task))
+func pathCG2(allocID, task string, cores bool) string {
+	partition := GetPartitionFromBool(cores)
+	return filepath.Join(root, NomadCgroupParent, partition, scopeCG2(allocID, task))
 }

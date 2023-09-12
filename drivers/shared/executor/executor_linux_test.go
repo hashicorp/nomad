@@ -78,13 +78,18 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
 	td := allocDir.TaskDirs[task.Name]
+
 	cmd := &ExecCommand{
 		Env:     taskEnv.List(),
 		TaskDir: td.Dir,
 		Resources: &drivers.Resources{
 			NomadResources: alloc.AllocatedResources.Tasks[task.Name],
 			LinuxResources: &drivers.LinuxResources{
-				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(alloc.ID, task.Name),
+				CpusetCgroupPath: cgroupslib.LinuxResourcesPath(
+					alloc.ID,
+					task.Name,
+					alloc.AllocatedResources.UsesCores(),
+				),
 			},
 		},
 	}

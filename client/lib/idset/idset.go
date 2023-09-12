@@ -17,6 +17,8 @@ import (
 
 // An ID is representative of a non-negative identifier of something like
 // a CPU core ID, a NUMA node ID, etc.
+//
+// See the hwids package for typical use cases.
 type ID interface {
 	~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uint
 }
@@ -35,6 +37,11 @@ func Empty[T ID]() *Set[T] {
 	return &Set[T]{
 		items: set.New[T](0),
 	}
+}
+
+// Copy creates a deep copy of s.
+func (s *Set[T]) Copy() *Set[T] {
+	return &Set[T]{items: s.items.Copy()}
 }
 
 var (
@@ -108,10 +115,24 @@ func (s *Set[T]) Slice() []T {
 	return items
 }
 
+// InsertSet inserts all items of other into s.
+func (s *Set[T]) InsertSet(other *Set[T]) {
+	s.items.InsertSet(other.items)
+}
+
+// RemoveSet removes all items of other from s.
+func (s *Set[T]) RemoveSet(other *Set[T]) {
+	s.items.RemoveSet(other.items)
+}
+
 // String creates a well-formed cpuset string representation of the Set.
 func (s *Set[T]) String() string {
 	if s.items.Empty() {
-		return ""
+		// cgroups notation uses a space (or newline) to indicate
+		// "empty"; and this value is written to cgroups interface
+		// files
+		const empty = " "
+		return empty
 	}
 
 	var parts []string
