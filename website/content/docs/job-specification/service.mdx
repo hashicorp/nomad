@@ -77,6 +77,12 @@ Connect][connect] integration.
   `nomad`. All services within a single task group must utilise the same
   provider value.
 
+- `cluster` `(string: "default")` <EnterpriseAlert inline/> - Specifies the
+  Consul cluster to use, when the `provider` is `"consul"`. The Nomad client
+  will retrieve a Consul token from the cluster configured in the agent
+  configuration with the same [`consul.name`][]. In Nomad Community Edition,
+  this field is ignored.
+
 - `check` <code>([Check][check]: nil)</code> - Specifies a health
   check associated with the service. This can be specified multiple times to
   define multiple checks for the service. At this time, a check using the Nomad
@@ -517,3 +523,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [network_mode]: /nomad/docs/job-specification/network#mode
 [on_update]: /nomad/docs/job-specification/service#on_update
 [tagged_addresses]: /consul/docs/discovery/services#tagged-addresses
+[`consul.name`]: /nomad/docs/configuration/consul#name

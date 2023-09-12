@@ -117,6 +117,11 @@ job "docs" {
 
 ### `consul` Parameters
 
+- `cluster` `(string: "default")` <EnterpriseAlert inline/> - Specifies the
+  Consul cluster to use. The Nomad client will retrieve a Consul token from the
+  cluster configured in the agent configuration with the same
+  [`consul.name`][]. In Nomad Community Edition, this field is ignored.
+
 - `namespace` `(string: "")` <EnterpriseAlert inline/> - The Consul namespace in which
   group and task-level services within the group will be registered. Use of
   `template` to access Consul KV will read from the specified Consul namespace.
@@ -358,3 +363,4 @@ flag will be _ignored_. Deploying a job with `max_client_disconnect` to a
 [update]: /nomad/docs/job-specification/update 'Nomad update Job Specification'
 [vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
 [volume]: /nomad/docs/job-specification/volume 'Nomad volume Job Specification'
+[`consul.name`]: /nomad/docs/configuration/consul#name

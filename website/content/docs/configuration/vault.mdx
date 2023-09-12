@@ -23,6 +23,10 @@ vault {
 }
 ```
 
+In Nomad Enterprise, you may specify multiple `vault` blocks to configure access
+to multiple Vault clusters. Each Vault cluster must have a different value for
+the [`name`](#name) field.
+
 ## `vault` Parameters
 
 - `address` - `(string: "https://vault.service.consul:8200")` - Specifies the
@@ -68,6 +72,11 @@ vault {
   `cert_file`. This must be set if
   [tls_require_and_verify_client_cert](/vault/docs/configuration/listener/tcp#tls_require_and_verify_client_cert)
   is enabled in Vault.
+
+- `name` `(string: "default")` <EnterpriseAlert inline/> - Specifies a name for
+  the cluster so it can be referred to by job submitters in the job
+  specification's [`vault.cluster`][] field. In Nomad Community Edition, only
+  the `"default"` cluster will be used, so this field should be omitted.
 
 - `namespace` `(string: "")` - Specifies the [Vault namespace](/vault/docs/enterprise/namespaces)
   used by the Vault integration. If non-empty, this namespace will be used on
@@ -150,3 +159,4 @@ can be accomplished by sending the process a `SIGHUP` signal.
 
 [vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
 [nomad-vault]: /nomad/docs/integrations/vault-integration 'Nomad Vault Integration'
+[`vault.cluster`]: /nomad/docs/job-specification/vault#cluster
