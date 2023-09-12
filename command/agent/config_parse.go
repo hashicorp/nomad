@@ -199,6 +199,17 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
+	for name, vaultConfig := range c.Vaults {
+		if vaultConfig.DefaultIdentity != nil {
+			tds = append(tds, durationConversionMap{
+				fmt.Sprintf("vaults.%s.default_identity.ttl", name), nil, &vaultConfig.DefaultIdentity.TTLHCL,
+				func(d *time.Duration) {
+					vaultConfig.DefaultIdentity.TTL = d
+				},
+			})
+		}
+	}
+
 	// Add enterprise audit sinks for time.Duration parsing
 	for i, sink := range c.Audit.Sinks {
 		tds = append(tds, durationConversionMap{
@@ -370,6 +381,9 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
 			return err
 		}
+
+		delete(m, "default_identity")
+
 		v := &config.VaultConfig{}
 		err := mapstructure.WeakDecode(m, v)
 		if err != nil {
@@ -382,6 +396,28 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			c.Vaults[v.Name] = exist.Merge(v)
 		} else {
 			c.Vaults[v.Name] = v
+		}
+
+		// Decode the default identity.
+		var listVal *ast.ObjectList
+		if ot, ok := obj.Val.(*ast.ObjectType); ok {
+			listVal = ot.List
+		} else {
+			return fmt.Errorf("should be an object")
+		}
+
+		if o := listVal.Filter("default_identity"); len(o.Items) > 0 {
+			var m map[string]interface{}
+			defaultIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, defaultIdentityBlock.Val); err != nil {
+				return err
+			}
+
+			var defaultIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &defaultIdentity); err != nil {
+				return err
+			}
+			c.Vaults[v.Name].DefaultIdentity = &defaultIdentity
 		}
 	}
 

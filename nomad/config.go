@@ -483,11 +483,28 @@ func (c *Config) ConsulTemplateIdentity() *structs.WorkloadIdentity {
 	return workloadIdentityFromConfig(c.ConsulConfig.TemplateIdentity)
 }
 
+// VaultDefaultIdentity returns the workload identity to be used for accessing
+// the Vault API.
+func (c *Config) VaultDefaultIdentity() *structs.WorkloadIdentity {
+	if c.VaultConfig == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(c.VaultConfig.DefaultIdentity)
+}
+
 // UseConsulIdentity returns true when Consul workload identity is enabled.
 func (c *Config) UseConsulIdentity() bool {
 	return c.ConsulConfig != nil &&
 		c.ConsulConfig.UseIdentity != nil &&
 		*c.ConsulConfig.UseIdentity
+}
+
+// UseVaultIdentity returns true when Vault workload identity is enabled.
+func (c *Config) UseVaultIdentity() bool {
+	return c.VaultConfig != nil &&
+		c.VaultConfig.UseIdentity != nil &&
+		*c.VaultConfig.UseIdentity
 }
 
 // workloadIdentityFromConfig returns a structs.WorkloadIdentity to be used in

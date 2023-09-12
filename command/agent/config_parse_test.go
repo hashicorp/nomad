@@ -307,6 +307,14 @@ var basicConfig = &Config{
 		TLSSkipVerify:        &trueValue,
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
+		UseIdentity:          pointer.Of(true),
+		DefaultIdentity: &config.WorkloadIdentityConfig{
+			Audience: []string{"vault.io", "nomad.io"},
+			Env:      pointer.Of(false),
+			File:     pointer.Of(true),
+			TTL:      pointer.Of(3 * time.Hour),
+			TTLHCL:   "3h",
+		},
 	},
 	Vaults: map[string]*config.VaultConfig{
 		"default": {
@@ -324,6 +332,14 @@ var basicConfig = &Config{
 			TLSSkipVerify:        &trueValue,
 			TaskTokenTTL:         "1s",
 			Token:                "12345",
+			UseIdentity:          pointer.Of(true),
+			DefaultIdentity: &config.WorkloadIdentityConfig{
+				Audience: []string{"vault.io", "nomad.io"},
+				Env:      pointer.Of(false),
+				File:     pointer.Of(true),
+				TTL:      pointer.Of(3 * time.Hour),
+				TTLHCL:   "3h",
+			},
 		},
 	},
 	TLSConfig: &config.TLSConfig{
