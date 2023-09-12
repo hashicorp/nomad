@@ -173,7 +173,8 @@
           "nomad.dev"
         ],
         "env": false,
-        "file": true
+        "file": true,
+        "ttl": "1h"
       },
       "ssl": true,
       "template_identity": {
@@ -181,7 +182,8 @@
           "consul.io"
         ],
         "env": true,
-        "file": false
+        "file": false,
+        "ttl": "2h"
       },
       "timeout": "5s",
       "token": "token1",
