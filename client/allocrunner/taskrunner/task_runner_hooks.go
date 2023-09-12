@@ -11,7 +11,6 @@ import (
 
 	"github.com/LK4D4/joincontext"
 	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
