@@ -147,7 +147,7 @@ func (s *Sandbox) runCmd(env *parameters) error {
 
 		return &Error{
 			URL:         env.Source,
-			Err:         fmt.Errorf("getter subprocess failed: %v [%v]", err, msg),
+			Err:         fmt.Errorf("getter subprocess failed: %v: %v", err, msg),
 			Recoverable: true,
 		}
 	}
