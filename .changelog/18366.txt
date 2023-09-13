@@ -1,0 +1,3 @@
+```release-note:improvement
+jobspec: add `node_pool` as a valid field
+```
