@@ -360,15 +360,17 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 			// Setup the output
 			reply.Data = nil
 			if out != nil {
+
+				if !(aclObj != nil && aclObj.IsManagement()) {
+					out.Lock = nil
+				}
+
 				dv, err := sv.decrypt(out)
 				if err != nil {
 					return err
 				}
 
 				ov := dv.Copy()
-				if aclObj != nil && !aclObj.IsManagement() {
-					ov.Lock = nil
-				}
 
 				reply.Data = &ov
 				reply.Index = out.ModifyIndex
@@ -460,7 +462,7 @@ func (sv *Variables) List(
 					sv := raw.(*structs.VariableEncrypted)
 					svStub := sv.VariableMetadata
 
-					if aclObj != nil && !aclObj.IsManagement() {
+					if !(aclObj != nil && aclObj.IsManagement()) {
 						svStub.Lock = nil
 					}
 
@@ -553,6 +555,11 @@ func (sv *Variables) listAllVariables(
 				func(raw interface{}) error {
 					v := raw.(*structs.VariableEncrypted)
 					svStub := v.VariableMetadata
+
+					if !(aclObj != nil && aclObj.IsManagement()) {
+						svStub.Lock = nil
+					}
+
 					svs = append(svs, &svStub)
 					return nil
 				})

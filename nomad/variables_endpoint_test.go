@@ -996,6 +996,10 @@ func writeVar(t *testing.T, s *Server, idx uint64, ns, path string) {
 	sv := mock.Variable()
 	sv.Namespace = ns
 	sv.Path = path
+	sv.Lock = &structs.VariableLock{
+		ID: "lockID",
+	}
+
 	bPlain, err := json.Marshal(sv.Items)
 	must.NoError(t, err)
 	bEnc, kID, err := s.encrypter.Encrypt(bPlain)
