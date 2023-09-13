@@ -73,7 +73,7 @@ func (*identityHook) Name() string {
 }
 
 func (h *identityHook) Prerun() error {
-	signedWIDs := map[string]string{}
+	signedWIDs := map[string]*structs.SignedWorkloadIdentity{}
 
 	for _, t := range h.ar.tasks {
 		task := t.Task()
@@ -82,7 +82,8 @@ func (h *identityHook) Prerun() error {
 			continue
 		}
 
-		signedWIDs, err := h.getIdentities(h.ar.Alloc(), task)
+		var err error
+		signedWIDs, err = h.getIdentities(h.ar.Alloc(), task)
 		if err != nil {
 			return fmt.Errorf("error fetching alternate identities: %w", err)
 		}
@@ -112,7 +113,7 @@ func (h *identityHook) Shutdown() {
 // getIdentities calls Alloc.SignIdentities to get all of the identities for
 // this workload signed. If there are no identities to be signed then (nil,
 // nil) is returned.
-func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Task) (map[string]string, error) {
+func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Task) (map[string]*structs.SignedWorkloadIdentity, error) {
 
 	if len(task.Identities) == 0 {
 		return nil, nil
@@ -134,9 +135,9 @@ func (h *identityHook) getIdentities(alloc *structs.Allocation, task *structs.Ta
 	}
 
 	// Index initial workload identities by name
-	widMap := make(map[string]string, len(signedWIDs))
+	widMap := make(map[string]*structs.SignedWorkloadIdentity, len(signedWIDs))
 	for _, wid := range signedWIDs {
-		widMap[wid.IdentityName] = wid.JWT
+		widMap[wid.IdentityName] = wid
 	}
 
 	return widMap, nil

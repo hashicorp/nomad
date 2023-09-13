@@ -17,7 +17,7 @@ import (
 // lock.
 type AllocHookResources struct {
 	csiMounts            map[string]*csimanager.MountInfo
-	signedTaskIdentities map[string]string
+	signedTaskIdentities map[string]*structs.SignedWorkloadIdentity
 
 	mu sync.RWMutex
 }
@@ -48,14 +48,14 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 
 // GetSignedIdentitiesForTask returns a copy of the map of task names to
 // workload identities signed by the identity allocrunner hook
-func (a *AllocHookResources) GetSignedIdentitiesForTask(task *structs.Task) (map[string]string, error) {
+func (a *AllocHookResources) GetSignedIdentitiesForTask(task *structs.Task) (map[string]*structs.SignedWorkloadIdentity, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	signedIdentitiesForTask := make(map[string]string, len(task.Identities))
 	for _, identity := range task.Identities {
 		if jwt, ok := a.signedTaskIdentities[identity.Name]; ok {
-			signedIdentitiesForTask[identity.Name] = jwt
+			signedIdentitiesForTask[identity.Name] = jwt.JWT
 		}
 	}
 
@@ -64,7 +64,7 @@ func (a *AllocHookResources) GetSignedIdentitiesForTask(task *structs.Task) (map
 
 // SetSignedTaskIdentities stores the map of identity names to JWT-encoded
 // workload identities signed by the identity allocrunner hook.
-func (a *AllocHookResources) SetSignedTaskIdentities(s map[string]string) {
+func (a *AllocHookResources) SetSignedTaskIdentities(s map[string]*structs.SignedWorkloadIdentity) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
