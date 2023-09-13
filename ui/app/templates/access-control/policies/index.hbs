@@ -15,6 +15,11 @@
           @route="access-control.policies.new"
           class="button is-primary"
           data-test-create-policy
+          {{keyboard-shortcut
+            pattern=(array "n" "p")
+            action=(action this.goToNewPolicy)
+            label="Create Policy"
+          }}
         >
           Create Policy
         </LinkTo>
