@@ -560,8 +560,6 @@ func (s *StateStore) VarLockRelease(idx uint64,
 	updated.Lock = nil
 	updated.ModifyIndex = idx
 
-	//updated.Data = sv.Data
-
 	err = s.updateVarsAndIndexTxn(tx, idx, &updated)
 	if err != nil {
 		req.ErrorResponse(idx, fmt.Errorf("failed lock release: %s", err))

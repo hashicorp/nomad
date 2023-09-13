@@ -158,7 +158,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	*reply = *r
 	reply.Index = index
 
-	if out.Result == structs.VarOpResultOk {
+	if out.IsOk() {
 		switch args.Op {
 		case structs.VarOpLockAcquire:
 			sv.timers.CreateVariableLockTTLTimer(ev.Copy())
