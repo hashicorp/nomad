@@ -29,8 +29,8 @@ export default class AccessControlRolesNewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.isNew) {
-        controller.model.destroyRecord();
+      if (controller.model.role.isNew) {
+        controller.model.role.destroyRecord();
       }
     }
   }

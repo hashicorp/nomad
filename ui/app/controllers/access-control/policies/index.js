@@ -7,7 +7,7 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 
-export default class PoliciesIndexController extends Controller {
+export default class AccessControlPoliciesIndexController extends Controller {
   @service router;
   get policies() {
     return this.model.policies.map((policy) => {
