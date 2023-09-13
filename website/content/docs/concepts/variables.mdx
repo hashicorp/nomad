@@ -7,12 +7,13 @@ description: Learn about the Nomad Variables feature
 # Nomad Variables
 
 Most Nomad workloads need access to config values or secrets. Nomad has a
-`template` block to provide such configuration to tasks, but prior to Nomad 1.4
-has left the role of storing that configuration to external services such as
-[HashiCorp Consul] and [HashiCorp Vault].
+`template` block to [provide such configuration to tasks](/nomad/docs/job-specification/template#nomad-variables),
+but prior to Nomad 1.4 has left the role of storing that configuration to
+external services such as [HashiCorp Consul] and [HashiCorp Vault].
 
 Nomad Variables provide the option to store configuration at file-like paths
-directly in Nomad's state store. The contents of these variables are encrypted
+directly in Nomad's state store. You can [access these variables](/nomad/docs/job-specification/template#nomad-variables) directly from
+your task `template`s. The contents of these variables are encrypted
 and replicated between servers via raft. Access to variables is controlled by
 ACL policies, and tasks have implicit ACL policies that allow them to access
 their own variables. You can create, read, update, or delete variables via the
@@ -189,7 +190,7 @@ See [Workload Associated ACL Policies] for more details.
 [HashiCorp Vault]: https://www.vaultproject.io/
 [Key Management]: /nomad/docs/operations/key-management
 [ACL policy specification]: /nomad/docs/other-specifications/acl-policy
-[`template`]: /nomad/docs/job-specification/template
+[`template`]: /nomad/docs/job-specification/template#nomad-variables
 [workload identity]: /nomad/docs/concepts/workload-identity
 [Workload Associated ACL Policies]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies
 [ACL policy namespace rules]: /nomad/docs/other-specifications/acl-policy#namespace-rules
