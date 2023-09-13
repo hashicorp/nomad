@@ -20,8 +20,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
