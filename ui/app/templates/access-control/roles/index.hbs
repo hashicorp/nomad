@@ -39,37 +39,51 @@
     </div>
   </div>
   {{#if this.roles.length}}
-    <ListTable
-      @source={{this.roles}}
-      @class="roles no-mobile-condense" as |t|>
-      <t.head>
-        <th>Role Name</th>
-        {{#if (can "list token")}}
-          <th>Tokens</th>
-        {{/if}}
-      </t.head>
-      <t.body as |row|>
-        <tr data-test-role-row {{on "click" (action "openRole" row.model)}}
-        {{keyboard-shortcut 
-          enumerated=true
-          action=(action "openRole" row.model)
-        }}>
-          <td data-test-role-name>
-						<LinkTo @route="access-control.roles.role" @model={{row.model}}>{{row.model.name}}</LinkTo>
-					</td>
-          {{#if (can "list token")}}
-            <td data-test-role-token-count>
-              <span>
-                <span data-test-role-total-tokens>{{row.model.tokens.length}}</span>
-                {{#if (filter-by "isExpired" row.model.tokens)}}
-                  <span data-test-role-expired-tokens class="number-expired">({{get (filter-by "isExpired" row.model.tokens) "length"}} expired)</span>
+    <Hds::Table @caption="A list of tokens for this cluster" class="acl-table"
+      @model={{this.roles}}
+      @columns={{array
+        (hash key="name" label="Name" isSortable=true)
+        (hash key="description" label="Description")
+        (hash key="tokens.length" label="Tokens" isSortable=true)
+        (hash key="policies" label="Policies")
+        (hash key="delete" label="Delete")
+      }}
+      @sortBy="name"
+    >
+      <:body as |B|>
+        <B.Tr>
+          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td>{{B.data.description}}</B.Td>
+          <B.Td>
+            <span data-test-role-total-tokens>{{B.data.tokens.length}}</span>
+            {{#if (filter-by "isExpired" B.data.tokens)}}
+              <span data-test-role-expired-tokens class="number-expired">({{get (filter-by "isExpired" B.data.tokens) "length"}} expired)</span>
+            {{/if}}
+          </B.Td>
+          <B.Td>
+            <div class="tag-group">
+              {{#each B.data.policies as |policy|}}
+                {{#if policy.name}}
+                  <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
                 {{/if}}
-              </span>
-            </td>
+              {{else}}
+                No Roles
+              {{/each}}
+            </div>
+          </B.Td>
+          {{#if (can "destroy role")}}
+          {{!-- TODO: --}}
+          {{!-- ALSO TODO: make column conditional for this and list-tokens! --}}
+            <B.Td>
+              <Hds::Button @text="Delete" @size="small" @color="critical"
+                {{on "click" (perform this.deleteRole B.data)}}
+              />
+            </B.Td>
           {{/if}}
-        </tr>
-      </t.body>
-    </ListTable>
+        </B.Tr>
+      </:body>
+    </Hds::Table>
+
   {{else}}
     <div class="empty-message">
       <h3 data-test-empty-role-list-headline class="empty-message-headline">

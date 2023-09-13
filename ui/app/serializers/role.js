@@ -16,12 +16,15 @@ export default class RoleSerializer extends ApplicationSerializer {
   }
   serialize(snapshot, options) {
     const hash = super.serialize(snapshot, options);
+    // required for update/PUT requests
+    if (snapshot.id) {
+      hash.ID = snapshot.id;
+    }
     hash.Policies = hash.PolicyIDs.map((policy) => {
       return {
         Name: policy,
       };
     });
-    delete hash.ID;
     delete hash.PolicyIDs;
     return hash;
   }

@@ -45,3 +45,21 @@
     }
   }
 }
+
+.acl-form {
+  display: grid;
+  gap: 1rem;
+
+  .selection-checkbox {
+    position: relative;
+    label {
+      cursor: pointer;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 12px 16px;
+    }
+  }
+}

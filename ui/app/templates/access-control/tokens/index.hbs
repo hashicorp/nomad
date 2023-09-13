@@ -45,7 +45,7 @@
                  --}}
                 {{#each B.data.roles as |role|}}
                   {{#if role.name}}
-                    <Hds::Tag @color="primary" @text="{{role.name}}" @route="access-control.roles.role" @model="{{role.name}}" />
+                    <Hds::Tag @color="primary" @text="{{role.name}}" @route="access-control.roles.role" @model="{{role.id}}" />
                   {{/if}}
                 {{else}}
                   No Roles
@@ -83,10 +83,7 @@
               </B.Td>
             {{/if}}
 
-
-
         </B.Tr>
-
       </:body>
     </Hds::Table>
   {{else}}

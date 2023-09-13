@@ -3,21 +3,19 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<form class="edit-role" autocomplete="off" {{on "submit" this.save}}>
-	{{#if @role.isNew }}
-		<label>
-			<span>
-				Role Name
-			</span>
-			<Input
-				data-test-role-name-input
-				@type="text"
-				@value={{@role.name}}
-				class="input"
-        {{autofocus}}
-			/>
-		</label>
-	{{/if}}
+<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+	<label>
+		<span>
+			Role Name
+		</span>
+		<Input
+			data-test-role-name-input
+			@type="text"
+			@value={{@role.name}}
+			class="input"
+			{{autofocus}}
+		/>
+	</label>
 
 	<div>
 		<label>
@@ -33,40 +31,46 @@
 	</div>
 
   <div>
-    <Hds::Form::Checkbox::Group @layout="vertical"
-    as |G|>
-      <G.Legend>Policies</G.Legend>
-      {{#each @policies as |policy|}}
-        <G.Checkbox::Field name="datacenter1" @id="{{policy.name}}" @value="{{policy.name}}"
-        {{on "change" (action this.updateRolePolicies policy)}}
-        as |F|>
-          <F.Label>{{policy.name}}</F.Label>
-          <F.HelperText>{{policy.description}}</F.HelperText>
-        </G.Checkbox::Field>
-      {{/each}}
-      {{!-- <G.Checkbox::Field name="datacenter2" @id="datacenter-DC1" checked @value="DC1" {{on "change" this.yourOnChangeFunction}} as |F|>
-        <F.Label>DC1</F.Label>
-        <F.HelperText>CoreSite- K Street</F.HelperText>
-      </G.Checkbox::Field>
-      <G.Checkbox::Field name="datacenter3" @id="datacenter-NYC2" checked @value="NYC2" {{on "change" this.yourOnChangeFunction}} as |F|>
-        <F.Label>NYC2</F.Label>
-        <F.HelperText>H5 Data Center - 325 Hudson Street</F.HelperText>
-      </G.Checkbox::Field>
-      <G.Checkbox::Field name="datacenter4" @id="datacenter-SF1" @value="SF1" {{on "change" this.yourOnChangeFunction}} as |F|>
-        <F.Label>SF1</F.Label>
-        <F.HelperText>INAP - 650 Townsend Street</F.HelperText>
-      </G.Checkbox::Field> --}}
-    </Hds::Form::Checkbox::Group>
+		<label>
+			Policies
+		</label>
+    <Hds::Table @caption="A list of policies available to this role" class="acl-table"
+      @model={{@policies}}
+      @columns={{array
+				(hash key="selected" width="80px")
+        (hash key="name" label="Name" isSortable=true)
+        (hash key="description" label="Description")
+				(hash key="definition" label="View Policy Definition")
+      }}
+      @sortBy="name"
+    >
+      <:body as |B|>
+        <B.Tr>
+					<B.Td class="selection-checkbox">
+						<label>
+							<input type="checkbox"
+								checked={{find-by "name" B.data.name @role.policies}}
+								{{on "change" (action this.updateRolePolicies B.data)}}
+							/>
+						</label>
+					</B.Td>
+          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td>{{B.data.description}}</B.Td>
+					<B.Td>
+						<LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
+							View Policy Definition
+						</LinkTo>
+					</B.Td>
+				</B.Tr>
+			</:body>
+		</Hds::Table>
   </div>
 
 	<footer>
 		{{#if (can "update role")}}
-			<button
-				class="button is-primary"
-				type="submit"
-			>
-				Save Role
-			</button>
+      <Hds::Button @text="Save Role" @color="primary"
+        {{on "click" this.save}}
+      />
 		{{/if}}
 	</footer>
 </form>

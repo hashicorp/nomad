@@ -2,32 +2,22 @@
   Copyright (c) HashiCorp, Inc.
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-{{log "WHAT DO I HAVE" this.model}}
-<Breadcrumb @crumb={{hash label=this.role.name args=(array "access-control.roles.role" this.role.name)}} />
+<Breadcrumb @crumb={{hash label=this.role.name args=(array "access-control.roles.role" this.role.id)}} />
 {{page-title "Role"}}
 <section class="section">
 	<h1 class="title with-flex" data-test-title>
 		<div>
-			{{this.role.name}}
+			Edit Role
 		</div>
 		{{#if (can "destroy role")}}
-			<div>
-				<TwoStepButton
-					data-test-delete-button
-					@idleText="Delete role"
-					@cancelText="Cancel"
-					@confirmText="Yes, delete"
-					@confirmationMessage="Are you sure?"
-					@awaitingConfirmation={{this.deleteRole.isRunning}}
-					@onConfirm={{perform this.deleteRole}}
-					@onPrompt={{this.onDeletePrompt}}
-					@onCancel={{this.onDeleteCancel}}
-				/>
-			</div>
+      <Hds::Button @text="Delete Role" @color="critical"
+        {{on "click" (perform this.deleteRole)}}
+      />
 		{{/if}}
 	</h1>
 	<RoleEditor
 		@role={{this.role}}
+    @policies={{this.policies}}
 	/>
 
   {{#if (can "list token")}}
@@ -46,12 +36,11 @@
           <div class="boxed-section-body">
             <p class="is-info">Create a test token that expires in 10 minutes for testing purposes.</p>
             <label>
-              <button
-                type="button"
-                class="button is-info is-outlined create-test-token"
+              <Hds::Button @text="Create Test Token" @color="secondary"
                 data-test-create-test-token
+                class="create-test-token"
                 {{on "click" (perform this.createTestToken)}}
-                >Create Test Token</button>
+              />
             </label>
           </div>
         </div>
@@ -109,19 +98,9 @@
             </td>
             {{#if (can "destroy token")}}
               <td class="is-200px">
-                <TwoStepButton
+                <Hds::Button @text="Delete Token" @color="critical"
                   data-test-delete-token-button
-                  @idleText="Delete"
-                  @cancelText="Cancel"
-                  @confirmText="Yes, delete"
-                  @confirmationMessage="Are you sure?"
-                  @awaitingConfirmation={{row.model.isPendingDeletion}}
-                  @onConfirm={{perform this.deleteToken row.model}}
-                  @inlineText={{true}}
-                  @classes={{hash
-                    idleButton="is-danger is-outlined"
-                    confirmButton="is-danger"
-                  }}
+                  {{on "click" (perform this.deleteToken row.model)}}
                 />
               </td>
             {{/if}}
@@ -130,7 +109,7 @@
       </ListTable>
     {{else}}
       <div class="empty-message">
-        <h3 data-test-empty-policies-list-headline class="empty-message-headline">
+        <h3 data-test-empty-role-list-headline class="empty-message-headline">
           No Tokens
         </h3>
         <p class="empty-message-body">

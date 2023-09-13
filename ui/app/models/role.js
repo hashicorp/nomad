@@ -11,4 +11,5 @@ export default class Role extends Model {
   @attr('string') name;
   @attr('string') description;
   @hasMany('policy', { defaultValue: () => [] }) policies;
+  @attr() policyNames;
 }

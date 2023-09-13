@@ -30,9 +30,7 @@ export default class PolicyEditorComponent extends Component {
           `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
         );
       }
-
       const shouldRedirectAfterSave = this.policy.isNew;
-
       if (
         this.policy.isNew &&
         this.store.peekRecord('policy', this.policy.name)
@@ -41,10 +39,10 @@ export default class PolicyEditorComponent extends Component {
           `A policy with name ${this.policy.name} already exists.`
         );
       }
-
-      this.policy.id = this.policy.name;
-
+      this.policy.set('id', this.policy.name);
+      // TODO: WEIRD THING: I can't save a policy with the same name as a previously-created role that has since been deleted and now just exists as a .policy on a diff role.
       await this.policy.save();
+      console.log('postsave');
 
       this.notifications.add({
         title: 'Policy Saved',

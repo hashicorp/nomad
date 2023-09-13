@@ -18,6 +18,7 @@ export default class AccessControlRolesRoleController extends Controller {
 
   @alias('model.role') role;
   @alias('model.tokens') tokens;
+  @alias('model.policies') policies;
 
   @tracked
   error = null;
@@ -25,8 +26,7 @@ export default class AccessControlRolesRoleController extends Controller {
   @tracked isDeleting = false;
 
   get newTokenString() {
-    // TODO:
-    return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.role.name}" -type=client -ttl=<8h>`;
+    return `nomad acl token create -name="<TOKEN_NAME>" -role-name="${this.role.name}" -type=client -ttl=8h`;
   }
 
   @action
@@ -71,11 +71,10 @@ export default class AccessControlRolesRoleController extends Controller {
   }
 
   @task(function* () {
-    // TODO:
     try {
       const newToken = this.store.createRecord('token', {
         name: `Example Token for ${this.role.name}`,
-        policies: [this.policy],
+        roles: [this.role],
         // New date 10 minutes into the future
         expirationTime: new Date(Date.now() + 10 * 60 * 1000),
         type: 'client',
@@ -106,7 +105,6 @@ export default class AccessControlRolesRoleController extends Controller {
   createTestToken;
 
   @task(function* (token) {
-    // TODO:
     try {
       yield token.deleteRecord();
       yield token.save();

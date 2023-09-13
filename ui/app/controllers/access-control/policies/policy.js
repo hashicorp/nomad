@@ -25,7 +25,7 @@ export default class AccessControlPoliciesPolicyController extends Controller {
   @tracked isDeleting = false;
 
   get newTokenString() {
-    return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=<8h>`;
+    return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=8h`;
   }
 
   @action
