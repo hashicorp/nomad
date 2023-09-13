@@ -106,11 +106,16 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
 	}
 
+	// If the operation is a lock release, discard the variable items, they will
+	// be ignored on saving and should not be returned on the response.
+	if args.Op == structs.VarOpLockRelease {
+		args.Var.Items = nil
+	}
+
 	var ev *structs.VariableEncrypted
 
 	switch args.Op {
-	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
-		structs.VarOpLockRelease:
+	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire:
 		ev, err = sv.encrypt(args.Var)
 		if err != nil {
 			return fmt.Errorf("variable error: encrypt: %w", err)
@@ -119,7 +124,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		ev.CreateTime = now // existing will override if it exists
 		ev.ModifyTime = now
 
-	case structs.VarOpDelete, structs.VarOpDeleteCAS:
+	case structs.VarOpDelete, structs.VarOpDeleteCAS, structs.VarOpLockRelease:
 		ev = &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
 				Namespace:   args.Var.Namespace,
@@ -153,7 +158,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	*reply = *r
 	reply.Index = index
 
-	if !out.IsConflict() {
+	if out.Result == structs.VarOpResultOk {
 		switch args.Op {
 		case structs.VarOpLockAcquire:
 			sv.timers.CreateVariableLockTTLTimer(ev.Copy())
@@ -204,9 +209,20 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 		}
 
 		args.Var.Canonicalize()
-		return args.Var.ValidateForLock()
+
+		err := args.Var.ValidateForLock()
+		if err != nil {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
+		}
+		return nil
 
 	case structs.VarOpSet, structs.VarOpCAS:
+		// Discard lock parameters if provided to avoid creating a lock when
+		//specified on the variable definition
+		if args.Var.VariableMetadata.Lock != nil {
+			args.Var.VariableMetadata.Lock = nil
+		}
+
 		args.Var.Canonicalize()
 
 		err := args.Var.Validate()

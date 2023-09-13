@@ -84,7 +84,7 @@ type VariableMetadata struct {
 	Path      string
 
 	// Lock represents a variable which is used for locking functionality.
-	Lock *VariableLock
+	Lock *VariableLock `json:",omitempty"`
 
 	CreateIndex uint64
 	CreateTime  int64
@@ -110,7 +110,7 @@ type VariableData struct {
 // persisted to disk.
 type VariableDecrypted struct {
 	VariableMetadata
-	Items VariableItems
+	Items VariableItems `json:",omitempty"`
 }
 
 // VariableItems are the actual secrets stored in a variable. They are always

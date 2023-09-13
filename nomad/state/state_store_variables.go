@@ -117,6 +117,9 @@ func (s *StateStore) GetVariable(
 	}
 
 	sv := raw.(*structs.VariableEncrypted)
+
+	// Remove lock information
+	sv.Lock = nil
 	return sv, nil
 }
 
@@ -553,14 +556,14 @@ func (s *StateStore) VarLockRelease(idx uint64,
 		return req.ConflictResponse(idx, zeroVal)
 	}
 
+	// Avoid overwriting the variable data when releasing the lock, to prevent
+	// a delay release to remove customer data.
+
 	updated := sv.Copy()
 	updated.Lock = nil
 	updated.ModifyIndex = idx
 
-	// Avoid overwriting the variable data when releasing the lock, to prevent
-	// a delay release to remove customer data.
-
-	updated.Data = sv.Data
+	//updated.Data = sv.Data
 
 	err = s.updateVarsAndIndexTxn(tx, idx, &updated)
 	if err != nil {

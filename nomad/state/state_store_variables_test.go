@@ -38,6 +38,10 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		mock.VariableEncrypted(),
 	}
 	svs[0].Path = "aaaaa"
+	svs[0].Lock = &structs.VariableLock{
+		ID: "lock ID",
+	}
+
 	svs[1].Path = "bbbbb"
 
 	insertIndex := uint64(20)
@@ -89,6 +93,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		sve, err := testState.GetVariable(ws, svs[0].Namespace, svs[0].Path)
 		must.NoError(t, err)
 		must.NotNil(t, sve)
+		must.Nil(t, sve.Lock)
 	})
 
 	// Upsert the exact same variables without any modification. In this
