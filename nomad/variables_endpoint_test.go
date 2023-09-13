@@ -1132,6 +1132,9 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 			"item1": "very important info",
 		}
 
+		sv.Lock.TTL = 0
+		sv.Lock.LockDelay = 0
+
 		applyReq := structs.VariablesApplyRequest{
 			Op:           structs.VarOpSet,
 			Var:          &sv,
@@ -1196,6 +1199,8 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 			"item2": "not so important info",
 		}
 
+		sv.Lock.LockDelay = 0
+		sv.Lock.TTL = 0
 		sv.ModifyIndex = sv.ModifyIndex + 30
 
 		applyReq := structs.VariablesApplyRequest{
@@ -1235,11 +1240,36 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 		latest = applyResp.Output.Copy()
 	})
 
+	t.Run("release locked variable without the lock", func(t *testing.T) {
+		sv := mockVar.Copy()
+		sv.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "wrongID",
+		}
+
+		sv.Items = nil
+		sv.Lock = nil
+
+		applyReq := structs.VariablesApplyRequest{
+			Op:           structs.VarOpLockRelease,
+			Var:          &sv,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+
+		runningTimers := srv.lockTTLTimer.TimerNum()
+
+		applyResp := new(structs.VariablesApplyResponse)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+		must.Error(t, err)
+		must.Eq(t, runningTimers, srv.lockTTLTimer.TimerNum())
+
+	})
 	t.Run("release locked variable without the lockID", func(t *testing.T) {
 		sv := mockVar.Copy()
 		sv.VariableMetadata.Lock = &structs.VariableLock{
 			ID: "wrongID",
 		}
+		sv.Items = nil
 
 		applyReq := structs.VariablesApplyRequest{
 			Op:           structs.VarOpLockRelease,
@@ -1267,6 +1297,8 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 
+		sv.Items = nil
+
 		runningTimers := srv.lockTTLTimer.TimerNum()
 		applyResp := new(structs.VariablesApplyResponse)
 		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
@@ -1274,8 +1306,9 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
 		must.Eq(t, runningTimers-1, srv.lockTTLTimer.TimerNum())
+
 		must.Nil(t, applyResp.Output.Lock)
-		must.Eq(t, latest.Items, applyResp.Output.Items)
+		must.Zero(t, len(applyResp.Output.Items))
 
 		latest = applyResp.Output.Copy()
 	})
@@ -1315,6 +1348,7 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 
 func TestVariablesEndpoint_List_Lock_ACL(t *testing.T) {
 	ci.Parallel(t)
+
 	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})

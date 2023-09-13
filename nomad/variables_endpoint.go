@@ -25,11 +25,13 @@ const (
 )
 
 var (
-	errVarAlreadyLocked = structs.NewErrRPCCoded(http.StatusBadRequest, "variable already holds a lock")
-	errVarNotFound      = structs.NewErrRPCCoded(http.StatusNotFound, "variable doesn't exist")
-	errLockNotFound     = structs.NewErrRPCCoded(http.StatusConflict, "variable doesn't hold a lock")
-	errVarIsLocked      = structs.NewErrRPCCoded(http.StatusConflict, "attempting to modify locked variable")
-	errMissingLockInfo  = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
+	errVarAlreadyLocked  = structs.NewErrRPCCoded(http.StatusBadRequest, "variable already holds a lock")
+	errVarNotFound       = structs.NewErrRPCCoded(http.StatusNotFound, "variable doesn't exist")
+	errLockNotFound      = structs.NewErrRPCCoded(http.StatusConflict, "variable doesn't hold a lock")
+	errVarIsLocked       = structs.NewErrRPCCoded(http.StatusConflict, "attempting to modify locked variable")
+	errMissingLockInfo   = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
+	errLockOnVarCreation = structs.NewErrRPCCoded(http.StatusBadRequest, "variable should not contain lock definition")
+	errItemsOnRelease    = structs.NewErrRPCCoded(http.StatusBadRequest, "lock release operation doesn't take variable items")
 )
 
 type variableTimers interface {
@@ -106,16 +108,11 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
 	}
 
-	// If the operation is a lock release, discard the variable items, they will
-	// be ignored on saving and should not be returned on the response.
-	if args.Op == structs.VarOpLockRelease {
-		args.Var.Items = nil
-	}
-
 	var ev *structs.VariableEncrypted
 
 	switch args.Op {
-	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire:
+	case structs.VarOpSet, structs.VarOpCAS, structs.VarOpLockAcquire,
+		structs.VarOpLockRelease:
 		ev, err = sv.encrypt(args.Var)
 		if err != nil {
 			return fmt.Errorf("variable error: encrypt: %w", err)
@@ -124,7 +121,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 		ev.CreateTime = now // existing will override if it exists
 		ev.ModifyTime = now
 
-	case structs.VarOpDelete, structs.VarOpDeleteCAS, structs.VarOpLockRelease:
+	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		ev = &structs.VariableEncrypted{
 			VariableMetadata: structs.VariableMetadata{
 				Namespace:   args.Var.Namespace,
@@ -201,6 +198,7 @@ func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs
 }
 
 func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
+
 	switch args.Op {
 	case structs.VarOpLockAcquire:
 		// In case the user wants to use the default values so no lock data was provided.
@@ -217,10 +215,10 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 		return nil
 
 	case structs.VarOpSet, structs.VarOpCAS:
-		// Discard lock parameters if provided to avoid creating a lock when
-		//specified on the variable definition
-		if args.Var.VariableMetadata.Lock != nil {
-			args.Var.VariableMetadata.Lock = nil
+		// Avoid creating a variable with a lock that is not actionable
+		if args.Var.VariableMetadata.Lock != nil &&
+			(args.Var.VariableMetadata.Lock.LockDelay != 0 || args.Var.VariableMetadata.Lock.TTL != 0) {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, errLockOnVarCreation.Error())
 		}
 
 		args.Var.Canonicalize()
@@ -240,6 +238,12 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 		if args.Var == nil || args.Var.Lock == nil ||
 			args.Var.Lock.ID == "" {
 			return errMissingLockInfo
+		}
+
+		// If the operation is a lock release and there are items on the variable
+		// reject the request, release doesn't update the variable.
+		if args.Var.Items != nil {
+			return errItemsOnRelease
 		}
 
 		return structs.ValidatePath(args.Var.Path)
