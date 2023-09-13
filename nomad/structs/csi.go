@@ -130,15 +130,6 @@ const (
 	CSIVolumeAttachmentModeFilesystem  CSIVolumeAttachmentMode = "file-system"
 )
 
-func ValidCSIVolumeAttachmentMode(attachmentMode CSIVolumeAttachmentMode) bool {
-	switch attachmentMode {
-	case CSIVolumeAttachmentModeBlockDevice, CSIVolumeAttachmentModeFilesystem:
-		return true
-	default:
-		return false
-	}
-}
-
 // CSIVolumeAccessMode indicates how a volume should be used in a storage topology
 // e.g whether the provider should make the volume available concurrently.
 type CSIVolumeAccessMode string
@@ -153,31 +144,6 @@ const (
 	CSIVolumeAccessModeMultiNodeSingleWriter CSIVolumeAccessMode = "multi-node-single-writer"
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
-
-// ValidCSIVolumeAccessMode checks to see that the provided access mode is a valid,
-// non-empty access mode.
-func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
-	switch accessMode {
-	case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeSingleNodeWriter,
-		CSIVolumeAccessModeMultiNodeReader, CSIVolumeAccessModeMultiNodeSingleWriter,
-		CSIVolumeAccessModeMultiNodeMultiWriter:
-		return true
-	default:
-		return false
-	}
-}
-
-// ValidCSIVolumeWriteAccessMode checks for a writable access mode.
-func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
-	switch accessMode {
-	case CSIVolumeAccessModeSingleNodeWriter,
-		CSIVolumeAccessModeMultiNodeSingleWriter,
-		CSIVolumeAccessModeMultiNodeMultiWriter:
-		return true
-	default:
-		return false
-	}
-}
 
 // CSIMountOptions contain optional additional configuration that can be used
 // when specifying that a Volume should be used with VolumeAccessTypeMount.
