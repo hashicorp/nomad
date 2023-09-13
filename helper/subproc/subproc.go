@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 	"strings"
+	"time"
 )
 
 const (
