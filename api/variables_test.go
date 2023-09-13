@@ -361,13 +361,12 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 
 	t.Run("5 release lock on sv1", func(t *testing.T) {
 		sv1.Items = nil
+
 		get, _, err := nsv.ReleaseLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
 		must.NotEq(t, sv1.ModifyIndex, get.ModifyIndex)
 		must.Nil(t, get.Items)
 		must.Nil(t, get.Lock)
-
-		*sv1 = *get
 	})
 }
