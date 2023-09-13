@@ -117,9 +117,6 @@ func (s *StateStore) GetVariable(
 	}
 
 	sv := raw.(*structs.VariableEncrypted)
-
-	// Remove lock information
-	sv.Lock = nil
 	return sv, nil
 }
 
