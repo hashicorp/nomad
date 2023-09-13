@@ -707,6 +707,20 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 	}
 }
 
+// Warnings returns a list of warnings that may be from dubious settings or
+// deprecation warnings.
+func (s *Service) Warnings() error {
+	var mErr *multierror.Error
+
+	if s.Identity != nil {
+		if err := s.Identity.Warnings(); err != nil {
+			mErr = multierror.Append(mErr, err)
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
 // Validate checks if the Service definition is valid
 func (s *Service) Validate() error {
 	var mErr multierror.Error
