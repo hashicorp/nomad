@@ -309,7 +309,6 @@ func TestVariable_CreateReturnsContent(t *testing.T) {
 }
 
 func TestVariables_LockRenewRelease(t *testing.T) {
-	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
