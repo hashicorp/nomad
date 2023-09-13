@@ -54,7 +54,7 @@ func Log(r io.Reader, f func(msg string, args ...any)) string {
 		lines += line + "\n"
 		f("sub-process", "OUTPUT", line)
 	}
-	return strings.TrimSuffix(lines, "\n")
+	return strings.TrimSpace(lines)
 }
 
 // Context creates a context setup with the given timeout.
