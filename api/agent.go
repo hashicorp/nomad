@@ -35,6 +35,12 @@ type KeyringRequest struct {
 	Key string
 }
 
+// ForceLeaveOpts are used to configure the ForceLeave method.
+type ForceLeaveOpts struct {
+	// Prune indicates whether to remove a node from the list of members
+	Prune bool
+}
+
 // Agent returns a new agent which can be used to query
 // the agent-specific endpoints.
 func (c *Client) Agent() *Agent {
@@ -162,10 +168,19 @@ func (a *Agent) MembersOpts(opts *QueryOptions) (*ServerMembers, error) {
 }
 
 // ForceLeave is used to eject an existing node from the cluster.
-func (a *Agent) ForceLeave(node string, prune bool) error {
+func (a *Agent) ForceLeave(node string) error {
+	_, err := a.client.put("/v1/agent/force-leave?node="+node, nil, nil, nil)
+	return err
+}
+
+// ForceLeaveWithOptions is used to eject an existing node from the cluster
+// with additional options such as prune.
+func (a *Agent) ForceLeaveWithOptions(node string, opts ForceLeaveOpts) error {
 	v := url.Values{}
 	v.Add("node", node)
-	v.Add("prune", strconv.FormatBool(prune))
+	if opts.Prune {
+		v.Add("prune", "1")
+	}
 	_, err := a.client.put("/v1/agent/force-leave?"+v.Encode(), nil, nil, nil)
 	return err
 }

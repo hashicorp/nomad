@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
@@ -21,7 +22,8 @@ Usage: nomad server force-leave [options] <node>
   Forces an server to enter the "left" state. This can be used to
   eject nodes which have failed and will not rejoin the cluster.
   Note that if the member is actually still alive, it will
-  eventually rejoin the cluster again.
+  eventually rejoin the cluster again. The failed or left server will
+  be garbage collected after 24h.
 
   If ACLs are enabled, this option requires a token with the 'agent:write'
   capability.
@@ -33,7 +35,8 @@ General Options:
 Server Force-Leave Options:
 
   -prune
-    Removes failed or left server from the list of members entirely.
+    Removes failed or left server from the Serf member list immediately.
+	This will not work with alive server.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -82,7 +85,10 @@ func (c *ServerForceLeaveCommand) Run(args []string) int {
 	}
 
 	// Call force-leave on the node
-	if err := client.Agent().ForceLeave(node, prune); err != nil {
+	forceLeaveOpts := api.ForceLeaveOpts{
+		Prune: prune,
+	}
+	if err := client.Agent().ForceLeaveWithOptions(node, forceLeaveOpts); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error force-leaving server %s: %s", node, err))
 		return 1
 	}

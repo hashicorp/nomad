@@ -332,11 +332,11 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 		return nil, CodedError(400, "missing node to force leave")
 	}
 
-	_, prune := req.URL.Query()["prune"]
+	prune, _ := parseBool(req, "prune")
 
 	// Attempt remove
 	var err error
-	if prune {
+	if prune != nil && *prune {
 		err = srv.RemoveFailedNodePrune(node)
 	} else {
 		err = srv.RemoveFailedNode(node)
