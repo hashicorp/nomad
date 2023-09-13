@@ -51,8 +51,14 @@
       @sortBy="name"
     >
       <:body as |B|>
-        <B.Tr>
-          <B.Td>{{B.data.name}}</B.Td>
+        <B.Tr 
+          {{keyboard-shortcut 
+            enumerated=true
+            action=(action "openRole" B.data)
+          }}
+        >
+          <B.Td>
+            <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>{{B.data.name}}</LinkTo></B.Td>
           <B.Td>{{B.data.description}}</B.Td>
           <B.Td>
             <span data-test-role-total-tokens>{{B.data.tokens.length}}</span>
