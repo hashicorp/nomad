@@ -309,6 +309,7 @@ func TestVariable_CreateReturnsContent(t *testing.T) {
 }
 
 func TestVariables_LockRenewRelease(t *testing.T) {
+	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
@@ -319,7 +320,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
 
-	t.Run("2 create sv1", func(t *testing.T) {
+	t.Run("1 create sv1", func(t *testing.T) {
 		get, _, err := nsv.Create(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
@@ -331,7 +332,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		*sv1 = *get
 	})
 
-	t.Run("3 acquire lock on sv1", func(t *testing.T) {
+	t.Run("2 acquire lock on sv1", func(t *testing.T) {
 		get, _, err := nsv.AcquireLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
@@ -342,7 +343,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		*sv1 = *get
 	})
 
-	t.Run("4 renew lock on sv1", func(t *testing.T) {
+	t.Run("3 renew lock on sv1", func(t *testing.T) {
 		get, _, err := nsv.RenewLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
@@ -351,14 +352,14 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		must.Eq(t, sv1.Lock.ID, get.Lock.ID)
 	})
 
-	t.Run("5 list vars", func(t *testing.T) {
+	t.Run("4 list vars", func(t *testing.T) {
 		l, _, err := nsv.List(nil)
 		must.NoError(t, err)
 		must.Len(t, 1, l)
 		must.Nil(t, l[0].Lock)
 	})
 
-	t.Run("6 release lock on sv1", func(t *testing.T) {
+	t.Run("5 release lock on sv1", func(t *testing.T) {
 		get, _, err := nsv.ReleaseLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
