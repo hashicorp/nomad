@@ -189,8 +189,6 @@ func TestAgent_ForceLeavePrune(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		t.Log("membersBefore", membersBefore.Members)
-		t.Log("membersAfter", membersAfter.Members)
 		if len(membersAfter.Members) == len(membersBefore.Members) {
 			return fmt.Errorf("node did not get pruned")
 		}
@@ -199,7 +197,7 @@ func TestAgent_ForceLeavePrune(t *testing.T) {
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(f),
 		wait.Timeout(5*time.Second),
-		wait.Gap(1*time.Second),
+		wait.Gap(100*time.Millisecond),
 	))
 
 }

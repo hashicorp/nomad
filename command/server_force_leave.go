@@ -36,7 +36,7 @@ Server Force-Leave Options:
 
   -prune
     Removes failed or left server from the Serf member list immediately.
-	This will not work with alive server.
+	If member is actually still alive, it will eventually rejoin the cluster again.
 `
 	return strings.TrimSpace(helpText)
 }
