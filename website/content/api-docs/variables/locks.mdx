@@ -24,7 +24,7 @@ The lock operation parameter can be:
 - `lock-acquire`: When used, the call will introduce a lock over the variable if 
 it exists, or create a new one if it doesn't. The lock ID will be returned in the 
 response and it must be provided to perform any other operation over the lock. 
-The variable items can be udpated at any time using the lock ID, but the lock
+The variable items can be updated at any time using the lock ID, but the lock
 parametes are unmmutable, attempting to modify them while a lock is present will
 generate an error. 
 
