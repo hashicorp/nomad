@@ -313,9 +313,9 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
-
+	path := fmt.Sprintf("%s-%v", "/first/variable", time.Now().UnixMilli())
 	nsv := c.Variables()
-	sv1 := NewVariable("my/first/variable")
+	sv1 := NewVariable(path)
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
@@ -345,20 +345,23 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 
 	t.Run("3 renew lock on sv1", func(t *testing.T) {
 		rlsv := *sv1
+		fmt.Println(" ****** renew 1", sv1, rlsv)
 		get, _, err := nsv.RenewLock(&rlsv, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
 		must.Eq(t, sv1.ModifyIndex, get.ModifyIndex)
 		must.NotNil(t, get.Lock)
 		must.Eq(t, sv1.Lock.ID, get.Lock.ID)
+		fmt.Println(" ****** renew 2", sv1, rlsv)
 	})
 
 	t.Run("4 list vars", func(t *testing.T) {
 		l, _, err := nsv.List(nil)
+		fmt.Println(" ****** list 1 ", sv1, l)
 		must.NoError(t, err)
 		must.Len(t, 1, l)
 		must.Nil(t, l[0].Lock)
-		fmt.Println(" ****** list ", sv1, l)
+		fmt.Println(" ****** list 2", sv1, l)
 	})
 
 	t.Run("5 release lock on sv1", func(t *testing.T) {
