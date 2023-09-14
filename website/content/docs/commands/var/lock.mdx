@@ -78,7 +78,7 @@ taking the sum of the length in bytes of all of the unencrypted keys and values.
 ## Examples
 
 Attempts to acquire a lock over the variable at path "secret/creds" for a time of 
-15s and executes  `nomad job run webapp.nomad.hcl` if it succeds:
+15s and executes  `nomad job run webapp.nomad.hcl` if it succeeds:
 
 ```shell-session
 $ nomad var lock -ttl=15s secret/creds "nomad job run webapp.nomad.hcl"
