@@ -39,7 +39,7 @@ func (c *Client) retryPut(ctx context.Context, endpoint string, in, out any, q *
 	var err error
 	var wm *WriteMeta
 
-	attemptDelay := time.Duration(0)
+	attemptDelay := time.Duration(100 * time.Second) // Avoid a tick before starting
 	startTime := time.Now()
 
 	t := time.NewTimer(attemptDelay)
