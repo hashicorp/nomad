@@ -16,12 +16,14 @@ Vault][vault]. When configured, tasks can use [workload
 identities][workload_id] to receive Vault ACL tokens automatically.
 
 Alternatively, Nomad servers may be configured with a high-privileged Vault
-token that is used to derive fine-grained tokens for tasks, but using workload
-identities is highly recommended as the token-based flow is deprecated as it
-can be less secure and harder to manage.
+token that is used to derive fine-grained tokens for tasks. Refer to
+[Token-based Authentication](#token-based-authentication) for configuration
+details. This workflow is deprecated and will be removed in a future version of
+Nomad. Using using workload identities is strongly recommended as it is easier
+to manage and more secure.
 
-Refer to the [Nomad and Vault  Integration][nomad-vault] page for more
-information.
+Refer to the [Nomad and Vault Integration][nomad-vault] page for more
+information about the Vault integration.
 
 ```hcl
 vault {
@@ -135,7 +137,7 @@ agents with [`server.enabled`] set to `true`.
   identities to generate Vault ACL tokens. If `false` the deprecated
   token-based flow is used.
 
-- `default_identity` <code>([Identity](#identity-parameters): nil)</code> -
+- `default_identity` <code>([Identity](#default_identity-parameters): nil)</code> -
   Specifies the default workload identity configuration to use when a task with
   a `vault` block does not specify an [`identity`][jobspec_identity] block
   named `vault`.
@@ -164,7 +166,7 @@ will be removed in a future release.
   accidentally. Users should set the `VAULT_TOKEN` environment variable when
   starting the agent instead.
 
-### `identity` Parameters
+### `default_identity` Parameters
 
 - `aud` `(array<string>: [])` - List of valid recipients for this workload
   identity. This value must match the [`bound_audiences`][vault_bound_aud]
