@@ -1,0 +1,3 @@
+```release-note:bug
+bug: Fixed merge logic for raft server configuration
+```
