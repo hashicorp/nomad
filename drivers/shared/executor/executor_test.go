@@ -21,11 +21,14 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	tu "github.com/hashicorp/nomad/testutil"
 	ps "github.com/mitchellh/go-ps"
@@ -37,7 +40,7 @@ import (
 var executorFactories = map[string]executorFactory{}
 
 type executorFactory struct {
-	new              func(hclog.Logger) Executor
+	new              func(hclog.Logger, cpustats.Compute) Executor
 	configureExecCmd func(*testing.T, *ExecCommand)
 }
 
@@ -49,6 +52,11 @@ var universalFactory = executorFactory{
 func init() {
 	executorFactories["UniversalExecutor"] = universalFactory
 }
+
+var (
+	topology = numalib.Scan(numalib.PlatformScanners())
+	compute  = topology.Compute()
+)
 
 type testExecCmd struct {
 	command  *ExecCommand
@@ -158,7 +166,7 @@ func TestExecutor_Start_Invalid(t *testing.T) {
 			execCmd.Args = []string{"1"}
 			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			_, err := executor.Launch(execCmd)
@@ -178,7 +186,7 @@ func TestExecutor_Start_Wait_Failure_Code(t *testing.T) {
 			execCmd.Args = []string{"-c", "sleep 1; /bin/date fail"}
 			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -203,7 +211,7 @@ func TestExecutor_Start_Wait(t *testing.T) {
 			factory.configureExecCmd(t, execCmd)
 
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -240,7 +248,7 @@ func TestExecutor_Start_Wait_Children(t *testing.T) {
 			factory.configureExecCmd(t, execCmd)
 
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("SIGKILL", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -281,7 +289,7 @@ func TestExecutor_WaitExitSignal(t *testing.T) {
 			factory.configureExecCmd(t, execCmd)
 
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			pState, err := executor.Launch(execCmd)
@@ -339,7 +347,7 @@ func TestExecutor_Start_Kill(t *testing.T) {
 			factory.configureExecCmd(t, execCmd)
 
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -361,15 +369,22 @@ func TestExecutor_Start_Kill(t *testing.T) {
 
 func TestExecutor_Shutdown_Exit(t *testing.T) {
 	ci.Parallel(t)
+
 	require := require.New(t)
 	testExecCmd := testExecutorCommand(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/sleep"
 	execCmd.Args = []string{"100"}
+
 	cfg := &ExecutorConfig{
 		LogFile: "/dev/null",
 	}
-	executor, pluginClient, err := CreateExecutor(testlog.HCLogger(t), nil, cfg)
+
+	driverCfg := &base.ClientDriverConfig{
+		Topology: numalib.Scan(numalib.PlatformScanners()),
+	}
+
+	executor, pluginClient, err := CreateExecutor(testlog.HCLogger(t), driverCfg, cfg)
 	require.NoError(err)
 
 	proc, err := executor.Launch(execCmd)
@@ -544,7 +559,7 @@ func TestExecutor_Start_Kill_Immediately_NoGrace(t *testing.T) {
 			execCmd.Args = []string{"100"}
 			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -580,7 +595,7 @@ func TestExecutor_Start_Kill_Immediately_WithGrace(t *testing.T) {
 			execCmd.Args = []string{"100"}
 			factory.configureExecCmd(t, execCmd)
 			defer allocDir.Destroy()
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			ps, err := executor.Launch(execCmd)
@@ -626,7 +641,7 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 			execCmd.Cmd = nonExecutablePath
 			factory.configureExecCmd(t, execCmd)
 
-			executor := factory.new(testlog.HCLogger(t))
+			executor := factory.new(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("", 0)
 
 			// need to configure path in chroot with that file if using isolation executor

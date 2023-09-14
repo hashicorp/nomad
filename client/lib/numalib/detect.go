@@ -45,7 +45,7 @@ type ConfigScanner struct {
 	// task / alloc / client resource utilization. Therefor this value:
 	//  - Should NOT be set if Nomad was able to fingerprint a value.
 	//  - Should NOT be used to over/under provision compute resources.
-	TotalCompute MHz
+	TotalCompute hw.MHz
 
 	// ReservedCores comes from client.reserved.cores.
 	//
@@ -56,7 +56,7 @@ type ConfigScanner struct {
 	//
 	// Used to withhold an amount of MHz of CPU bandwidth from being used by
 	// Nomad for scheduling.
-	ReservedCompute MHz
+	ReservedCompute hw.MHz
 }
 
 func (cs *ConfigScanner) ScanSystem(top *Topology) {

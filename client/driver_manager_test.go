@@ -10,11 +10,16 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	topology = numalib.Scan(numalib.PlatformScanners())
 )
 
 // TestDriverManager_Fingerprint_Run asserts that node is populated with
@@ -29,7 +34,7 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 	dm := drivermanager.New(&drivermanager.Config{
 		Logger:              testClient.logger,
 		Loader:              conf.PluginSingletonLoader,
-		PluginConfig:        conf.NomadPluginConfig(),
+		PluginConfig:        conf.NomadPluginConfig(topology),
 		Updater:             testClient.updateNodeFromDriver,
 		EventHandlerFactory: testClient.GetTaskEventHandler,
 		State:               testClient.stateDB,
@@ -81,7 +86,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 	dm := drivermanager.New(&drivermanager.Config{
 		Logger:              testClient.logger,
 		Loader:              conf.PluginSingletonLoader,
-		PluginConfig:        conf.NomadPluginConfig(),
+		PluginConfig:        conf.NomadPluginConfig(topology),
 		Updater:             testClient.updateNodeFromDriver,
 		EventHandlerFactory: testClient.GetTaskEventHandler,
 		State:               testClient.stateDB,
@@ -143,7 +148,7 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 	dm := drivermanager.New(&drivermanager.Config{
 		Logger:              testClient.logger,
 		Loader:              conf.PluginSingletonLoader,
-		PluginConfig:        conf.NomadPluginConfig(),
+		PluginConfig:        conf.NomadPluginConfig(topology),
 		Updater:             testClient.updateNodeFromDriver,
 		EventHandlerFactory: testClient.GetTaskEventHandler,
 		State:               testClient.stateDB,

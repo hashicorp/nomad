@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -23,6 +24,10 @@ type testManager struct {
 	logger log.Logger
 	loader loader.PluginCatalog
 }
+
+var (
+	topology = numalib.Scan(numalib.PlatformScanners())
+)
 
 func TestDriverManager(t *testing.T) Manager {
 	logger := testlog.HCLogger(t).Named("driver_mgr")
@@ -38,7 +43,12 @@ func (m *testManager) Shutdown()          {}
 func (m *testManager) PluginType() string { return base.PluginTypeDriver }
 
 func (m *testManager) Dispense(driver string) (drivers.DriverPlugin, error) {
-	instance, err := m.loader.Dispense(driver, base.PluginTypeDriver, nil, m.logger)
+	baseConfig := &base.AgentConfig{
+		Driver: &base.ClientDriverConfig{
+			Topology: topology,
+		},
+	}
+	instance, err := m.loader.Dispense(driver, base.PluginTypeDriver, baseConfig, m.logger)
 	if err != nil {
 		return nil, err
 	}

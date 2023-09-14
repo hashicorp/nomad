@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
-	"github.com/hashicorp/nomad/client/lib/numalib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
@@ -61,7 +60,7 @@ type LibcontainerExecutor struct {
 
 	logger hclog.Logger
 
-	top            cpustats.Topology
+	compute        cpustats.Compute
 	totalCpuStats  *cpustats.Tracker
 	userCpuStats   *cpustats.Tracker
 	systemCpuStats *cpustats.Tracker
@@ -73,17 +72,16 @@ type LibcontainerExecutor struct {
 	exitState      *ProcessState
 }
 
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
-	top := numalib.Scan(numalib.PlatformScanners()) // TODO(shoenig) grpc plumbing
+func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Executor {
 	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger.Named("isolated_executor"),
-		totalCpuStats:  cpustats.New(top),
-		userCpuStats:   cpustats.New(top),
-		systemCpuStats: cpustats.New(top),
-		top:            top,
+		compute:        compute,
+		totalCpuStats:  cpustats.New(compute),
+		userCpuStats:   cpustats.New(compute),
+		systemCpuStats: cpustats.New(compute),
 	}
-	le.processStats = procstats.New(top, le)
+	le.processStats = procstats.New(compute, le)
 	return le
 }
 
@@ -162,9 +160,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 	l.userProc = process
 
-	l.totalCpuStats = cpustats.New(l.top)
-	l.userCpuStats = cpustats.New(l.top)
-	l.systemCpuStats = cpustats.New(l.top)
+	l.totalCpuStats = cpustats.New(l.compute)
+	l.userCpuStats = cpustats.New(l.compute)
+	l.systemCpuStats = cpustats.New(l.compute)
 
 	// Starts the task
 	if err := container.Run(process); err != nil {

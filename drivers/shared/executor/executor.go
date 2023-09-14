@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/fifo"
-	"github.com/hashicorp/nomad/client/lib/numalib"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -285,7 +284,6 @@ type UniversalExecutor struct {
 	exitState     *ProcessState
 	processExited chan interface{}
 
-	top            cpustats.Topology
 	totalCpuStats  *cpustats.Tracker
 	userCpuStats   *cpustats.Tracker
 	systemCpuStats *cpustats.Tracker
@@ -295,17 +293,15 @@ type UniversalExecutor struct {
 }
 
 // NewExecutor returns an Executor
-func NewExecutor(logger hclog.Logger) Executor {
-	top := numalib.Scan(numalib.PlatformScanners()) // TODO(shoenig) grpc plumbing
+func NewExecutor(logger hclog.Logger, compute cpustats.Compute) Executor {
 	ue := &UniversalExecutor{
 		logger:         logger.Named("executor"),
-		top:            top,
 		processExited:  make(chan interface{}),
-		totalCpuStats:  cpustats.New(top),
-		userCpuStats:   cpustats.New(top),
-		systemCpuStats: cpustats.New(top),
+		totalCpuStats:  cpustats.New(compute),
+		userCpuStats:   cpustats.New(compute),
+		systemCpuStats: cpustats.New(compute),
 	}
-	ue.processStats = procstats.New(top, ue)
+	ue.processStats = procstats.New(compute, ue)
 	return ue
 }
 

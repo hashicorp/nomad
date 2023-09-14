@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
@@ -133,8 +133,8 @@ type Driver struct {
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 
-	// topology contains cpu / memory info
-	topology *numalib.Topology
+	// compute contains cpu compute information
+	compute cpustats.Compute
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
@@ -167,12 +167,11 @@ type TaskState struct {
 func NewRawExecDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:  eventer.NewEventer(ctx, logger),
-		config:   &Config{},
-		tasks:    newTaskStore(),
-		ctx:      ctx,
-		logger:   logger,
-		topology: numalib.Scan(numalib.PlatformScanners()),
+		eventer: eventer.NewEventer(ctx, logger),
+		config:  &Config{},
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -195,6 +194,7 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	d.config = &config
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
+		d.compute = cfg.AgentConfig.Compute()
 	}
 	return nil
 }
@@ -277,8 +277,11 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	// Create client for reattached executor
-	exec, pluginClient, err := executor.ReattachToExecutor(plugRC,
-		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
+	exec, pluginClient, err := executor.ReattachToExecutor(
+		plugRC,
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.compute,
+	)
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -324,6 +327,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	executorConfig := &executor.ExecutorConfig{
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
+		Compute:  d.compute,
 	}
 
 	logger := d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID)

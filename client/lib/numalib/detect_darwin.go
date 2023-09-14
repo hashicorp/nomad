@@ -22,7 +22,7 @@ func PlatformScanners() []SystemScanner {
 const (
 	nodeID   = hw.NodeID(0)
 	socketID = hw.SocketID(0)
-	maxSpeed = KHz(0)
+	maxSpeed = hw.KHz(0)
 )
 
 // MacOS implements SystemScanner for macOS systems (both arm64 and x86).
@@ -44,21 +44,21 @@ func (m *MacOS) ScanSystem(top *Topology) {
 
 func (m *MacOS) scanAppleSilicon(top *Topology) {
 	pCoreCount := m1cpu.PCoreCount()
-	pCoreSpeed := KHz(m1cpu.PCoreHz() / 1000)
+	pCoreSpeed := hw.KHz(m1cpu.PCoreHz() / 1000)
 
 	eCoreCount := m1cpu.ECoreCount()
-	eCoreSpeed := KHz(m1cpu.ECoreHz() / 1000)
+	eCoreSpeed := hw.KHz(m1cpu.ECoreHz() / 1000)
 
 	top.Cores = make([]Core, pCoreCount+eCoreCount)
 	nthCore := hw.CoreID(0)
 
 	for i := 0; i < pCoreCount; i++ {
-		top.insert(nodeID, socketID, nthCore, performance, maxSpeed, pCoreSpeed)
+		top.insert(nodeID, socketID, nthCore, Performance, maxSpeed, pCoreSpeed)
 		nthCore++
 	}
 
 	for i := 0; i < eCoreCount; i++ {
-		top.insert(nodeID, socketID, nthCore, efficiency, maxSpeed, eCoreSpeed)
+		top.insert(nodeID, socketID, nthCore, Efficiency, maxSpeed, eCoreSpeed)
 		nthCore++
 	}
 }
@@ -66,10 +66,10 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 func (m *MacOS) scanLegacyX86(top *Topology) {
 	coreCount, _ := unix.SysctlUint32("machdep.cpu.core_count")
 	hz, _ := unix.SysctlUint64("hw.cpufrequency")
-	coreSpeed := KHz(hz / 1_000_000)
+	coreSpeed := hw.KHz(hz / 1_000_000)
 
 	top.Cores = make([]Core, coreCount)
 	for i := 0; i < int(coreCount); i++ {
-		top.insert(nodeID, socketID, hw.CoreID(i), performance, maxSpeed, coreSpeed)
+		top.insert(nodeID, socketID, hw.CoreID(i), Performance, maxSpeed, coreSpeed)
 	}
 }

@@ -10,9 +10,9 @@ package numalib
 import (
 	"fmt"
 	"runtime"
-	"strconv"
 	"strings"
 
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
@@ -23,22 +23,22 @@ import (
 type CoreGrade bool
 
 const (
-	performance CoreGrade = true
-	efficiency  CoreGrade = false
+	Performance CoreGrade = true
+	Efficiency  CoreGrade = false
 )
 
 func gradeOf(siblings *idset.Set[hw.CoreID]) CoreGrade {
 	switch siblings.Size() {
 	case 0, 1:
-		return efficiency
+		return Efficiency
 	default:
-		return performance
+		return Performance
 	}
 }
 
 func (g CoreGrade) String() string {
 	switch g {
-	case performance:
+	case Performance:
 		return "performance"
 	default:
 		return "efficiency"
@@ -46,45 +46,34 @@ func (g CoreGrade) String() string {
 }
 
 type (
-	KHz  uint64
-	MHz  uint64
-	GHz  float64
 	Cost uint8
 )
-
-func (khz KHz) MHz() MHz {
-	return MHz(khz / 1000)
-}
-
-func (khz KHz) String() string {
-	return strconv.FormatUint(uint64(khz.MHz()), 10)
-}
 
 // A Topology provides a bird-eye view of the system NUMA topology.
 //
 // The JSON encoding is not used yet but my be part of the gRPC plumbing
 // in the future.
 type Topology struct {
-	NodeIDs   *idset.Set[hw.NodeID] `json:"node_ids"`
-	Distances SLIT                  `json:"distances"`
-	Cores     []Core                `json:"cores"`
+	NodeIDs   *idset.Set[hw.NodeID]
+	Distances SLIT
+	Cores     []Core
 
 	// explicit overrides from client configuration
-	OverrideTotalCompute   MHz `json:"override_total_compute"`
-	OverrideWitholdCompute MHz `json:"override_withhold_compute"`
+	OverrideTotalCompute   hw.MHz
+	OverrideWitholdCompute hw.MHz
 }
 
 // A Core represents one logical (vCPU) core on a processor. Basically the slice
 // of cores detected should match up with the vCPU description in cloud providers.
 type Core struct {
-	NodeID     hw.NodeID   `json:"node_id"`
-	SocketID   hw.SocketID `json:"socket_id"`
-	ID         hw.CoreID   `json:"id"`
-	Grade      CoreGrade   `json:"grade"`
-	Disable    bool        `json:"disable"`     // indicates whether Nomad must not use this core
-	BaseSpeed  MHz         `json:"base_speed"`  // cpuinfo_base_freq (primary choice)
-	MaxSpeed   MHz         `json:"max_speed"`   // cpuinfo_max_freq (second choice)
-	GuessSpeed MHz         `json:"guess_speed"` // best effort (fallback)
+	SocketID   hw.SocketID
+	NodeID     hw.NodeID
+	ID         hw.CoreID
+	Grade      CoreGrade
+	Disable    bool   // indicates whether Nomad must not use this core
+	BaseSpeed  hw.MHz // cpuinfo_base_freq (primary choice)
+	MaxSpeed   hw.MHz // cpuinfo_max_freq (second choice)
+	GuessSpeed hw.MHz // best effort (fallback)
 }
 
 func (c Core) String() string {
@@ -94,7 +83,7 @@ func (c Core) String() string {
 	)
 }
 
-func (c Core) MHz() MHz {
+func (c Core) MHz() hw.MHz {
 	switch {
 	case c.BaseSpeed > 0:
 		return c.BaseSpeed
@@ -142,7 +131,7 @@ func (st *Topology) NodeCores(node hw.NodeID) *idset.Set[hw.CoreID] {
 	return result
 }
 
-func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base KHz) {
+func (st *Topology) insert(node hw.NodeID, socket hw.SocketID, core hw.CoreID, grade CoreGrade, max, base hw.KHz) {
 	st.Cores[core] = Core{
 		NodeID:    node,
 		SocketID:  socket,
@@ -167,12 +156,12 @@ func (st *Topology) String() string {
 //
 // If the client configuration includes an override for total compute, that
 // value is used instead even if it violates the above invariant.
-func (st *Topology) TotalCompute() MHz {
+func (st *Topology) TotalCompute() hw.MHz {
 	if st.OverrideTotalCompute > 0 {
 		return st.OverrideTotalCompute
 	}
 
-	var total MHz
+	var total hw.MHz
 	for _, cpu := range st.Cores {
 		total += cpu.MHz()
 	}
@@ -183,8 +172,8 @@ func (st *Topology) TotalCompute() MHz {
 // to make use of for running tasks. This value will be less than or equal to
 // the TotalCompute of the system. Nomad must subtract off any reserved compute
 // (reserved.cpu or reserved.cores) from the total hardware compute.
-func (st *Topology) UsableCompute() MHz {
-	var total MHz
+func (st *Topology) UsableCompute() hw.MHz {
+	var total hw.MHz
 	for _, cpu := range st.Cores {
 		if !cpu.Disable {
 			total += cpu.MHz()
@@ -203,7 +192,7 @@ func (st *Topology) NumCores() int {
 func (st *Topology) NumPCores() int {
 	var total int
 	for _, cpu := range st.Cores {
-		if cpu.Grade == performance {
+		if cpu.Grade == Performance {
 			total++
 		}
 	}
@@ -214,7 +203,7 @@ func (st *Topology) NumPCores() int {
 func (st *Topology) NumECores() int {
 	var total int
 	for _, cpu := range st.Cores {
-		if cpu.Grade == efficiency {
+		if cpu.Grade == Efficiency {
 			total++
 		}
 	}
@@ -236,15 +225,22 @@ func (st *Topology) UsableCores() *idset.Set[hw.CoreID] {
 
 // CoreSpeeds returns the frequency in MHz of the performance and efficiency
 // core types. If the CPU does not have effiency cores that value will be zero.
-func (st *Topology) CoreSpeeds() (MHz, MHz) {
-	var pCore, eCore MHz
+func (st *Topology) CoreSpeeds() (hw.MHz, hw.MHz) {
+	var pCore, eCore hw.MHz
 	for _, cpu := range st.Cores {
 		switch cpu.Grade {
-		case performance:
+		case Performance:
 			pCore = cpu.MHz()
-		case efficiency:
+		case Efficiency:
 			eCore = cpu.MHz()
 		}
 	}
 	return pCore, eCore
+}
+
+func (st *Topology) Compute() cpustats.Compute {
+	return cpustats.Compute{
+		TotalCompute: st.TotalCompute(),
+		NumCores:     st.NumCores(),
+	}
 }

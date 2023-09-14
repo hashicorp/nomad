@@ -104,8 +104,8 @@ func (*Sysfs) discoverCores(st *Topology) {
 		_ = cores.ForEach(func(core hw.CoreID) error {
 			// best effort, zero values are defaults
 			socket, _ := getNumeric[hw.SocketID](cpuSocketFile, core)
-			max, _ := getNumeric[KHz](cpuMaxFile, core)
-			base, _ := getNumeric[KHz](cpuBaseFile, core)
+			max, _ := getNumeric[hw.KHz](cpuMaxFile, core)
+			base, _ := getNumeric[hw.KHz](cpuBaseFile, core)
 			siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, core)
 			st.insert(node, socket, core, gradeOf(siblings), max, base)
 			return nil

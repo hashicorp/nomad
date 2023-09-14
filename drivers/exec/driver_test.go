@@ -20,6 +20,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -27,7 +28,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	basePlug "github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -64,6 +65,13 @@ func testResources(allocID, task string) *drivers.Resources {
 	return r
 }
 
+func newExecDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
+	topology := numalib.Scan(numalib.PlatformScanners())
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
+	return d
+}
+
 func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -74,7 +82,7 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -96,7 +104,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -117,9 +125,7 @@ func TestExecDriver_StartWait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := testlog.HCLogger(t)
-
-	d := NewExecDriver(ctx, logger)
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -155,7 +161,7 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -220,7 +226,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	dCtx, dCancel := context.WithCancel(context.Background())
 	defer dCancel()
 
-	d := NewExecDriver(dCtx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, dCtx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -296,7 +302,7 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -307,8 +313,15 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 	}
 
 	var data []byte
-	require.NoError(t, basePlug.MsgPackEncode(&data, config))
-	baseConfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(t, base.MsgPackEncode(&data, config))
+	baseConfig := &base.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.(*Driver).nomadConfig.Topology,
+			},
+		},
+	}
 	require.NoError(t, harness.SetConfig(baseConfig))
 
 	allocID := uuid.Generate()
@@ -415,7 +428,7 @@ func TestExecDriver_Stats(t *testing.T) {
 	dctx, dcancel := context.WithCancel(context.Background())
 	defer dcancel()
 
-	d := NewExecDriver(dctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, dctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	allocID := uuid.Generate()
@@ -463,7 +476,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -516,7 +529,7 @@ func TestExecDriver_User(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -554,7 +567,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -624,7 +637,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -732,7 +745,7 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	config := &Config{
@@ -742,8 +755,15 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	}
 
 	var data []byte
-	require.NoError(t, basePlug.MsgPackEncode(&data, config))
-	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(t, base.MsgPackEncode(&data, config))
+	bconfig := &base.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.(*Driver).nomadConfig.Topology,
+			},
+		},
+	}
 	require.NoError(t, harness.SetConfig(bconfig))
 
 	allocID := uuid.Generate()

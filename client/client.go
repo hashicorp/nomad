@@ -501,7 +501,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	driverConfig := &drivermanager.Config{
 		Logger:              c.logger,
 		Loader:              cfg.PluginSingletonLoader,
-		PluginConfig:        cfg.NomadPluginConfig(),
+		PluginConfig:        cfg.NomadPluginConfig(c.topology),
 		Updater:             c.batchNodeUpdates.updateNodeFromDriver,
 		EventHandlerFactory: c.GetTaskEventHandler,
 		State:               c.stateDB,
@@ -516,7 +516,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	devConfig := &devicemanager.Config{
 		Logger:        c.logger,
 		Loader:        cfg.PluginSingletonLoader,
-		PluginConfig:  cfg.NomadPluginConfig(),
+		PluginConfig:  cfg.NomadPluginConfig(c.topology),
 		Updater:       c.batchNodeUpdates.updateNodeFromDevices,
 		StatsInterval: cfg.StatsCollectionInterval,
 		State:         c.stateDB,

@@ -124,7 +124,7 @@ var (
 	// PluginConfig is the docker config factory function registered in the plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, nil, l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC.
@@ -707,6 +707,7 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		}
 	}
 
+	d.compute = c.AgentConfig.Compute()
 	d.config = &config
 	d.config.InfraImage = strings.TrimPrefix(d.config.InfraImage, "https://")
 
