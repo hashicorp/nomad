@@ -441,8 +441,9 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `node` `(string: <required>)` - Specifies the name of the node to force leave.
-- `prune` `(boolean: <optional>)` - Specifies whether to forcibly remove the node from
-the list of members. Pruning a node in the `left` or `failed` state removes it from the list altogether.
+- `prune` `(boolean: <optional>)` -  Removes failed or left server from the Serf 
+  member list immediately. If member is actually still alive, it will eventually rejoin 
+  the cluster again.
 
 
 ### Sample Request
