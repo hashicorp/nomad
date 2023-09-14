@@ -32,6 +32,7 @@ var (
 	errMissingLockInfo   = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
 	errLockOnVarCreation = structs.NewErrRPCCoded(http.StatusBadRequest, "variable should not contain lock definition")
 	errItemsOnRelease    = structs.NewErrRPCCoded(http.StatusBadRequest, "lock release operation doesn't take variable items")
+	errNoPath            = structs.NewErrRPCCoded(http.StatusBadRequest, "delete requires a Path")
 )
 
 type variableTimers interface {
@@ -231,7 +232,7 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			return errMissingLockInfo
+			return errNoPath
 		}
 
 	case structs.VarOpLockRelease:
