@@ -9,9 +9,10 @@ import (
 	"fmt"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
-	"google.golang.org/grpc"
 )
 
 // CSIPlugin implements a lightweight abstraction layer around a CSI Plugin.
@@ -60,6 +61,9 @@ type CSIPlugin interface {
 	// external storage provider
 	ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error)
 
+	// ControllerExpandVolume is used to expand a volume's size
+	ControllerExpandVolume(ctx context.Context, req *ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*ControllerExpandVolumeResponse, error)
+
 	// ControllerCreateSnapshot is used to create a volume snapshot in the
 	// external storage provider
 	ControllerCreateSnapshot(ctx context.Context, req *ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*ControllerCreateSnapshotResponse, error)
@@ -100,6 +104,11 @@ type CSIPlugin interface {
 	// MUST be called before calling NodeUnstageVolume or ControllerUnpublishVolume
 	// for the given volume.
 	NodeUnpublishVolume(ctx context.Context, volumeID, targetPath string, opts ...grpc.CallOption) error
+
+	// NodeExpandVolume is used to expand a volume. This MUST be called after
+	// any ControllerExpandVolume is called, but only if that RPC indicates
+	// that node expansion is required
+	NodeExpandVolume(ctx context.Context, req *NodeExpandVolumeRequest, opts ...grpc.CallOption) (*NodeExpandVolumeResponse, error)
 
 	// Shutdown the client and ensure any connections are cleaned up.
 	Close() error
@@ -492,7 +501,8 @@ func (r *ControllerCreateVolumeRequest) Validate() error {
 			return errors.New(
 				"one of LimitBytes or RequiredBytes must be set if CapacityRange is set")
 		}
-		if r.CapacityRange.LimitBytes < r.CapacityRange.RequiredBytes {
+		if r.CapacityRange.LimitBytes > 0 &&
+			r.CapacityRange.LimitBytes < r.CapacityRange.RequiredBytes {
 			return errors.New("LimitBytes cannot be less than RequiredBytes")
 		}
 	}
@@ -623,6 +633,49 @@ func (r *ControllerDeleteVolumeRequest) Validate() error {
 		return errors.New("missing ExternalVolumeID")
 	}
 	return nil
+}
+
+type ControllerExpandVolumeRequest struct {
+	ExternalVolumeID string
+	RequiredBytes    int64
+	LimitBytes       int64
+	Capability       *VolumeCapability
+	Secrets          structs.CSISecrets
+}
+
+func (r *ControllerExpandVolumeRequest) Validate() error {
+	if r.ExternalVolumeID == "" {
+		return errors.New("missing ExternalVolumeID")
+	}
+	if r.LimitBytes == 0 && r.RequiredBytes == 0 {
+		return errors.New("one of LimitBytes or RequiredBytes must be set")
+	}
+	// per the spec: "A value of 0 is equal to an unspecified field value."
+	// so in this case, only error if both are set.
+	if r.LimitBytes > 0 && (r.LimitBytes < r.RequiredBytes) {
+		return errors.New("LimitBytes cannot be less than RequiredBytes")
+	}
+	return nil
+}
+
+func (r *ControllerExpandVolumeRequest) ToCSIRepresentation() *csipbv1.ControllerExpandVolumeRequest {
+	if r == nil {
+		return nil
+	}
+	return &csipbv1.ControllerExpandVolumeRequest{
+		VolumeId: r.ExternalVolumeID,
+		CapacityRange: &csipbv1.CapacityRange{
+			RequiredBytes: r.RequiredBytes,
+			LimitBytes:    r.LimitBytes,
+		},
+		Secrets:          r.Secrets,
+		VolumeCapability: r.Capability.ToCSIRepresentation(),
+	}
+}
+
+type ControllerExpandVolumeResponse struct {
+	CapacityBytes         int64
+	NodeExpansionRequired bool
 }
 
 type ControllerListVolumesRequest struct {
@@ -975,4 +1028,33 @@ func (c *CapacityRange) ToCSIRepresentation() *csipbv1.CapacityRange {
 		RequiredBytes: c.RequiredBytes,
 		LimitBytes:    c.LimitBytes,
 	}
+}
+
+type NodeExpandVolumeRequest struct {
+	ExternalVolumeID string
+	RequiredBytes    int64
+	LimitBytes       int64
+	TargetPath       string
+	StagingPath      string
+	Capability       *VolumeCapability
+}
+
+func (r *NodeExpandVolumeRequest) ToCSIRepresentation() *csipbv1.NodeExpandVolumeRequest {
+	if r == nil {
+		return nil
+	}
+	return &csipbv1.NodeExpandVolumeRequest{
+		VolumeId:   r.ExternalVolumeID,
+		VolumePath: r.TargetPath,
+		CapacityRange: &csipbv1.CapacityRange{
+			RequiredBytes: r.RequiredBytes,
+			LimitBytes:    r.LimitBytes,
+		},
+		StagingTargetPath: r.StagingPath,
+		VolumeCapability:  r.Capability.ToCSIRepresentation(),
+	}
+}
+
+type NodeExpandVolumeResponse struct {
+	CapacityBytes int64
 }
