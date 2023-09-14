@@ -9,8 +9,19 @@
 	<h1 class="title with-flex" data-test-title>
 		Create Role
 	</h1>
+  {{#if this.model.policies.length}}
   <RoleEditor
     @role={{this.model.role}}
     @policies={{this.model.policies}}
   />
+  {{else}}
+    <div class="empty-message">
+      <h3 class="empty-message-headline">
+        No Policies
+      </h3>
+      <p class="empty-message-body">
+        At least one Policy is required to create a Role; <LinkTo @route="access-control.policies.new">create a new policy</LinkTo>
+      </p>
+    </div>
+  {{/if}}
 </section>

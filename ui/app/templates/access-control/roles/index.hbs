@@ -14,7 +14,6 @@
           @text="Create Role"
           @icon="plus"
           @route="access-control.roles.new"
-          @iconPosition="trailing"
           {{keyboard-shortcut
             pattern=(array "n" "r")
             action=(action this.goToNewRole)
@@ -26,7 +25,6 @@
         <Hds::Button
           @text="Create Role"
           @icon="plus"
-          @iconPosition="trailing"
           disabled
           data-test-disabled-create-role
         />

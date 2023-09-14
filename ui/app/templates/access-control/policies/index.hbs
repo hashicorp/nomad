@@ -15,7 +15,6 @@
           @text="Create Policy"
           @icon="plus"
           @route="access-control.policies.new"
-          @iconPosition="trailing"
           {{keyboard-shortcut
             pattern=(array "n" "p")
             action=(action this.goToNewPolicy)
@@ -27,7 +26,6 @@
         <Hds::Button
           @text="Create Policy"
           @icon="plus"
-          @iconPosition="trailing"
           disabled
           data-test-disabled-create-policy
         />
