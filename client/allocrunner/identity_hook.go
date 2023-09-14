@@ -246,7 +246,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 			// Publish updates for taskrunner consumers
 			for identityName, signature := range signedWIDs {
 				ti.IdentityName = identityName
-			h.hookResources.SignedTaskIdentities[ti] <- signature
+				h.hookResources.SignedTaskIdentities[ti] <- signature
 			}
 
 			// Success! Set next renewal and reset retries
