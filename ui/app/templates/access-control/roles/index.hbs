@@ -9,33 +9,29 @@
       ACL Roles group one or more Policies into higher-level sets of permissions. A user token can have any number of roles or policies.
     </p>
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
-      <div class="button-bar">
       {{#if (can "write role")}}
-        <LinkTo
+        <Hds::Button
+          @text="Create Role"
+          @icon="plus"
           @route="access-control.roles.new"
-          class="button is-primary"
-          data-test-create-role
+          @iconPosition="trailing"
           {{keyboard-shortcut
             pattern=(array "n" "r")
             action=(action this.goToNewRole)
             label="Create Role"
           }}
-        >
-          Create Role
-        </LinkTo>
+          data-test-create-role
+        />
       {{else}}
-        <button
-          class="button is-primary is-disabled tooltip is-right-aligned"
-          aria-label="You don’t have sufficient permissions"
+        <Hds::Button
+          @text="Create Role"
+          @icon="plus"
+          @iconPosition="trailing"
           disabled
-          type="button"
           data-test-disabled-create-role
-        >
-          Create Role
-        </button>
+        />
       {{/if}}
 
-      </div>
     </div>
   </div>
   {{#if this.roles.length}}

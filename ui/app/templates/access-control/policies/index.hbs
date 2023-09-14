@@ -11,30 +11,27 @@
     <div class="toolbar-item is-right-aligned is-mobile-full-width">
       <div class="button-bar">
       {{#if (can "write policy")}}
-        <LinkTo
+        <Hds::Button
+          @text="Create Policy"
+          @icon="plus"
           @route="access-control.policies.new"
-          class="button is-primary"
-          data-test-create-policy
+          @iconPosition="trailing"
           {{keyboard-shortcut
             pattern=(array "n" "p")
             action=(action this.goToNewPolicy)
             label="Create Policy"
           }}
-        >
-          Create Policy
-        </LinkTo>
+          data-test-create-policy
+        />
       {{else}}
-        <button
-          class="button is-primary is-disabled tooltip is-right-aligned"
-          aria-label="You don’t have sufficient permissions"
+        <Hds::Button
+          @text="Create Policy"
+          @icon="plus"
+          @iconPosition="trailing"
           disabled
-          type="button"
           data-test-disabled-create-policy
-        >
-          Create Policy
-        </button>
+        />
       {{/if}}
-
       </div>
     </div>
   </div>
