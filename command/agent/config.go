@@ -2038,6 +2038,18 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		}
 	}
 
+	if b.RaftSnapshotThreshold != nil {
+		result.RaftSnapshotThreshold = pointer.Of(*b.RaftSnapshotThreshold)
+	}
+
+	if b.RaftSnapshotInterval != nil {
+		result.RaftSnapshotInterval = pointer.Of(*b.RaftSnapshotInterval)
+	}
+
+	if b.RaftTrailingLogs != nil {
+		result.RaftTrailingLogs = pointer.Of(*b.RaftTrailingLogs)
+	}
+
 	if b.JobTrackedVersions != nil {
 		result.JobTrackedVersions = b.JobTrackedVersions
 	}
