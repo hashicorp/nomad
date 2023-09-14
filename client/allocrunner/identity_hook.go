@@ -58,16 +58,17 @@ func (*identityHook) Name() string {
 func (h *identityHook) Prerun() error {
 	signedWIDs := map[string]*structs.SignedWorkloadIdentity{}
 
-	// we need to know the amount of tasks to create a buffered
-	// SignedTaskIdentities channel
-	numberOfTasks := len(h.ar.tasks)
-
 	for _, t := range h.ar.tasks {
 		task := t.Task()
+
 		if task == nil {
 			// hitting this means a bug, but better safe than sorry
 			continue
 		}
+
+		// helper struct for creating channels used for communication with the
+		// taskrunner hooks
+		ti := &cstructs.TaskIdentity{TaskName: task.Name}
 
 		var err error
 		signedWIDs, err = h.getIdentities(h.ar.Alloc(), task)
@@ -77,8 +78,12 @@ func (h *identityHook) Prerun() error {
 
 		// publish task identities inside hookResources, so that taskrunner
 		// hooks can also use them.
-		h.hookResources.SignedTaskIdentities = make(chan map[string]*structs.SignedWorkloadIdentity, numberOfTasks)
-		h.hookResources.SignedTaskIdentities <- signedWIDs
+		numberOfIdentities := len(task.Identities)
+		for _, i := range task.Identities {
+			ti.IdentityName = i.Name
+			h.hookResources.SignedTaskIdentities[ti] = make(chan *structs.SignedWorkloadIdentity, numberOfIdentities)
+			h.hookResources.SignedTaskIdentities[ti] <- signedWIDs[i.Name]
+		}
 	}
 
 	// Start token renewal loop
@@ -137,6 +142,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 	for _, t := range h.ar.tasks {
 		alloc := h.ar.Alloc()
 		task := t.Task()
+		ti := &cstructs.TaskIdentity{TaskName: task.Name}
 
 		wids := task.Identities
 		if len(wids) == 0 {
@@ -195,7 +201,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 		for {
 			// we need to handle stopCtx.Err() and manually stop the subscribers
 			if err := h.stopCtx.Err(); err != nil {
-				h.hookResources.StopChan <- struct{}{}
+				h.hookResources.StopChanForTask[task.Name] <- struct{}{}
 				return
 			}
 
@@ -205,7 +211,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 			case <-timer.C:
 				h.logger.Trace("getting new signed identities", "num", len(reqs))
 			case <-h.stopCtx.Done():
-				h.hookResources.StopChan <- struct{}{}
+				h.hookResources.StopChanForTask[task.Name] <- struct{}{}
 				return
 			}
 
@@ -238,7 +244,10 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 			}
 
 			// Publish updates for taskrunner consumers
-			h.hookResources.SignedTaskIdentities <- signedWIDs
+			for identityName, signature := range signedWIDs {
+				ti.IdentityName = identityName
+			h.hookResources.SignedTaskIdentities[ti] <- signature
+			}
 
 			// Success! Set next renewal and reset retries
 			wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)

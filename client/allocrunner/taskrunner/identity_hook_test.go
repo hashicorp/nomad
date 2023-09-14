@@ -16,6 +16,7 @@ import (
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -164,15 +165,16 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	t.Cleanup(stop)
 
 	h := &identityHook{
-		alloc:      alloc,
-		task:       task,
-		tokenDir:   secretsDir,
-		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
-		ts:         mockTR,
-		minWait:    time.Second,
-		logger:     testlog.HCLogger(t),
-		stopCtx:    stopCtx,
-		stop:       stop,
+		alloc:          alloc,
+		task:           task,
+		tokenDir:       secretsDir,
+		envBuilder:     taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
+		ts:             mockTR,
+		minWait:        time.Second,
+		allocResources: &cstructs.AllocHookResources{},
+		logger:         testlog.HCLogger(t),
+		stopCtx:        stopCtx,
+		stop:           stop,
 	}
 
 	start := time.Now()

@@ -309,7 +309,6 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Getter:              ar.getter,
 			Wranglers:           ar.wranglers,
 			AllocHookResources:  ar.hookResources,
-			WIDMgr:              ar.widmgr,
 		}
 
 		// Create, but do not Run, the task runner

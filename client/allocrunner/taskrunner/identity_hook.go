@@ -81,37 +81,38 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 
 	signedWIDs := make(map[string]*structs.SignedWorkloadIdentity)
 
-	// Start token watcher loop
-	go h.watchForTokenUpdates(signedWIDs)
+	// Start token watcher loops
+	for _, i := range h.task.Identities {
+		ti := &cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: i.Name}
+		go h.watchForTokenUpdates(ti, signedWIDs)
+	}
 
 	return nil
 }
 
-func (h *identityHook) watchForTokenUpdates(tokens map[string]*structs.SignedWorkloadIdentity) {
+func (h *identityHook) watchForTokenUpdates(ti *cstructs.TaskIdentity, tokens map[string]*structs.SignedWorkloadIdentity) {
 	for err := h.stopCtx.Err(); err == nil; {
 		select {
-		case updates := <-h.allocResources.SignedTaskIdentities:
+		case updates := <-h.allocResources.SignedTaskIdentities[ti]:
 			for _, widspec := range h.task.Identities {
-				signedWID := updates[widspec.Name]
-				if signedWID == nil {
-					// The only way to hit this should be a bug as it indicates the server
-					// did not sign an identity for a task on this alloc.
+				if updates == nil {
+					// The only way to hit this should be a bug as it indicates
+					// the server did not sign an identity for a task on this
+					// alloc.
 					h.logger.Error("missing workload identity %q", widspec.Name)
 				}
 
-				if err := h.setAltToken(widspec, signedWID.JWT); err != nil {
+				if err := h.setAltToken(widspec, updates.JWT); err != nil {
 					h.logger.Error("error setting token: %v", err)
 					continue
 				}
 			}
-
-		case <-h.allocResources.StopChan:
+		case <-h.allocResources.StopChanForTask[h.task.Name]:
 			return
 		case <-h.stopCtx.Done():
 			return
 		}
 	}
-
 }
 
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a

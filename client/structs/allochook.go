@@ -11,27 +11,33 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type TaskIdentity struct {
+	TaskName     string
+	IdentityName string
+}
+
 // AllocHookResources contains data that is provided by AllocRunner Hooks for
 // consumption by TaskRunners. This should be instantiated once in the
 // AllocRunner and then only accessed via getters and setters that hold the
 // lock.
-//
-// WARNING: create a SignedTaskIdentities channel manually before use. The
-// constructor will not create it, because it has to be a buffered channel
-// (size of the amount of task in an allocation).
 type AllocHookResources struct {
-	csiMounts            map[string]*csimanager.MountInfo
-	SignedTaskIdentities chan map[string]*structs.SignedWorkloadIdentity
-	StopChan             chan struct{}
+	csiMounts map[string]*csimanager.MountInfo
+
+	// SignedTaskIdentities is a map of task names to channels that contain maps of
+	// identity names to signed WI.
+	// WARNING: these maps or channels are *not* allocated in the AllocHookResources
+	// constructor, but in the allocrunner identity_hook instead.
+	SignedTaskIdentities map[*TaskIdentity]chan *structs.SignedWorkloadIdentity
+	StopChanForTask      map[string]chan struct{}
 
 	mu sync.RWMutex
 }
 
 func NewAllocHookResources() *AllocHookResources {
-	stop := make(chan struct{})
+	stop := make(map[string]chan struct{})
 	return &AllocHookResources{
-		csiMounts: map[string]*csimanager.MountInfo{},
-		StopChan:  stop,
+		csiMounts:       map[string]*csimanager.MountInfo{},
+		StopChanForTask: stop,
 	}
 }
 
@@ -52,3 +58,5 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 
 	a.csiMounts = m
 }
+
+// func (a *AllocHookResources) GetSignedIdentitiesForTask(taskname string)
