@@ -36,8 +36,8 @@ capability.
 
 ## Server Force-Leave Options
 
-- `-prune`: Specifies whether to forcibly remove the node from the list of members. 
-Pruning a node in the `left` or `failed` state removes it from the list altogether.
+- `-prune`: Removes failed or left server from the Serf member list immediately.
+	If member is actually still alive, it will eventually rejoin the cluster again.
 
 ## Examples
 
