@@ -15,25 +15,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// identityHook sets the task runner's Nomad workload identity token
-// based on the signed identity stored on the Allocation
-
 // IdentitySigner is the interface needed to retrieve signed identities for
 // workload identities. At runtime it is implemented by *widmgr.WIDMgr.
 type IdentitySigner interface {
 	SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error)
 }
 
-// tokenSetter provides methods for exposing workload identities to other
-// internal Nomad components.
-type tokenSetter interface {
-	setNomadToken(token string)
-}
-
 type identityHook struct {
 	ar            *allocRunner
 	hookResources *cstructs.AllocHookResources
-	ts            tokenSetter
 	widmgr        IdentitySigner
 	logger        log.Logger
 
@@ -47,8 +37,7 @@ type identityHook struct {
 
 func newIdentityHook(ar *allocRunner, hookResources *cstructs.AllocHookResources, logger log.Logger) *identityHook {
 	// Create a context for the renew loop. This context will be canceled when
-	// the task is stopped or agent is shutting down, unlike Prestart's ctx
-	// which is not intended for use after Prestart is returns.
+	// the allocation is stopped or agent is shutting down
 	stopCtx, stop := context.WithCancel(context.Background())
 
 	h := &identityHook{
@@ -203,7 +192,13 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 
 		var retry uint64
 
-		for err := h.stopCtx.Err(); err == nil; {
+		for {
+			// we need to handle stopCtx.Err() and manually stop the subscribers
+			if err := h.stopCtx.Err(); err != nil {
+				h.hookResources.StopChan <- struct{}{}
+				return
+			}
+
 			h.logger.Debug("waiting to renew identities", "num", len(reqs), "wait", wait)
 			timer.Reset(wait)
 			select {
@@ -241,6 +236,9 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 					minExp = token.Expiration
 				}
 			}
+
+			// Publish updates for taskrunner consumers
+			h.hookResources.SignedTaskIdentities <- signedWIDs
 
 			// Success! Set next renewal and reset retries
 			wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
