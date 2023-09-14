@@ -62,16 +62,22 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 	for name, op := range opMap {
 		t.Run(name+"/no token", func(t *testing.T) {
-			sv1 := sv1
+			sv := *sv1
 			applyReq := structs.VariablesApplyRequest{
 				Op:           op,
-				Var:          sv1,
+				Var:          &sv,
 				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
+
+			if op == "lock-release" {
+				sv.Items = nil
+			}
+
 			applyResp := new(structs.VariablesApplyResponse)
 			err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
 			must.EqError(t, err, structs.ErrPermissionDenied.Error())
 		})
+
 	}
 
 	t.Run("cas/management token/new", func(t *testing.T) {
@@ -246,8 +252,15 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 		sv := svHold
 
 		applyReq := structs.VariablesApplyRequest{
-			Op:  structs.VarOpLockRelease,
-			Var: sv,
+			Op: structs.VarOpLockRelease,
+			Var: &structs.VariableDecrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Path: sv.Path,
+					Lock: &structs.VariableLock{
+						ID: sv.LockID(),
+					},
+				},
+			},
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: rootToken.SecretID,
