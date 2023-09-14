@@ -50,9 +50,16 @@ type identityHook struct {
 	// minWait is the minimum amount of time to wait before renewing. Settable to
 	// ease testing.
 	minWait time.Duration
+
+	stopCtx context.Context
+	stop    context.CancelFunc
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
+	// Create a context for the renew loop. This context will be canceled when
+	// the task is stopped or agent is shutting down.
+	stopCtx, stop := context.WithCancel(context.Background())
+
 	h := &identityHook{
 		alloc:      tr.Alloc(),
 		task:       tr.Task(),
@@ -60,6 +67,8 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		envBuilder: tr.envBuilder,
 		ts:         tr,
 		minWait:    10 * time.Second,
+		stopCtx:    stopCtx,
+		stop:       stop,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -78,21 +87,14 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 
 	signedWIDs := make(map[string]*structs.SignedWorkloadIdentity)
 
-	errorChan := make(chan error)
 	// Start token watcher loop
-	go h.watchForTokenUpdates(signedWIDs, errorChan)
-
-	select {
-	case err := <-errorChan:
-		return err
-	default:
-	}
+	go h.watchForTokenUpdates(signedWIDs)
 
 	return nil
 }
 
-func (h *identityHook) watchForTokenUpdates(tokens map[string]*structs.SignedWorkloadIdentity, errors chan error) {
-	for {
+func (h *identityHook) watchForTokenUpdates(tokens map[string]*structs.SignedWorkloadIdentity) {
+	for err := h.stopCtx.Err(); err == nil; {
 		select {
 		case updates := <-h.allocResources.SignedTaskIdentities:
 			for _, widspec := range h.task.Identities {
@@ -104,11 +106,14 @@ func (h *identityHook) watchForTokenUpdates(tokens map[string]*structs.SignedWor
 				}
 
 				if err := h.setAltToken(widspec, signedWID.JWT); err != nil {
-					errors <- err
+					h.logger.Error("error setting token: %v", err)
+					continue
 				}
 			}
 
 		case <-h.allocResources.StopChan:
+			return
+		case <-h.stopCtx.Done():
 			return
 		}
 	}
@@ -153,4 +158,15 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 	}
 
 	return nil
+}
+
+// Stop implements interfaces.TaskStopHook
+func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
+	h.stop()
+	return nil
+}
+
+// Shutdown implements interfaces.ShutdownHook
+func (h *identityHook) Shutdown() {
+	h.stop()
 }

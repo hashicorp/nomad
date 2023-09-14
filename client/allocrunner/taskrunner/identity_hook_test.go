@@ -158,8 +158,6 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 
 	secretsDir := t.TempDir()
 
-	widmgr := NewMockWIDMgr(task.Identities)
-
 	mockTR := &MockTokenSetter{}
 
 	stopCtx, stop := context.WithCancel(context.Background())
@@ -171,7 +169,6 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 		tokenDir:   secretsDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
-		widmgr:     widmgr,
 		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
@@ -242,8 +239,6 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 
 	secretsDir := t.TempDir()
 
-	widmgr := NewMockWIDMgr(task.Identities)
-
 	mockTR := &MockTokenSetter{}
 
 	stopCtx, stop := context.WithCancel(context.Background())
@@ -255,7 +250,6 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 		tokenDir:   secretsDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
-		widmgr:     widmgr,
 		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
@@ -318,7 +312,6 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 		tokenDir:   "/this-should-not-exist",
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         &MockTokenSetter{},
-		widmgr:     NewMockWIDMgr(nil),
 		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
@@ -348,18 +341,12 @@ func TestIdentityHook_GetIdentitiesMismatch(t *testing.T) {
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
-	wids := []*structs.WorkloadIdentity{
-		{
-			Name: "not-consul",
-		},
-	}
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
 		tokenDir:   t.TempDir(),
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         &MockTokenSetter{},
-		widmgr:     NewMockWIDMgr(wids),
 		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
