@@ -169,7 +169,9 @@ func (a *Agent) MembersOpts(opts *QueryOptions) (*ServerMembers, error) {
 
 // ForceLeave is used to eject an existing node from the cluster.
 func (a *Agent) ForceLeave(node string) error {
-	_, err := a.client.put("/v1/agent/force-leave?node="+node, nil, nil, nil)
+	v := url.Values{}
+	v.Add("node", node)
+	_, err := a.client.put("/v1/agent/force-leave?"+v.Encode(), nil, nil, nil)
 	return err
 }
 
