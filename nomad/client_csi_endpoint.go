@@ -13,6 +13,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -81,6 +82,20 @@ func (a *ClientCSI) ControllerCreateVolume(args *cstructs.ClientCSIControllerCre
 		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller create volume: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerExpandVolume(args *cstructs.ClientCSIControllerExpandVolumeRequest, reply *cstructs.ClientCSIControllerExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "expand_volume"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerExpandVolume",
+		"ClientCSI.ControllerExpandVolume",
+		structs.RateMetricWrite,
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller expand volume: %v", err)
 	}
 	return nil
 }

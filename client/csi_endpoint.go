@@ -11,6 +11,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/structs"
@@ -229,6 +230,47 @@ func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolum
 			&nstructs.CSITopology{Segments: topo.Segments})
 	}
 
+	return nil
+}
+
+func (c *CSI) ControllerExpandVolume(req *structs.ClientCSIControllerExpandVolumeRequest, resp *structs.ClientCSIControllerExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "expand_volume"}, time.Now())
+
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("CSI.ControllerExpandVolume could not find plugin: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
+	}
+	defer plugin.Close()
+
+	csiReq := req.ToCSIRequest()
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+
+	// CSI ControllerExpandVolume errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	cresp, err := plugin.ControllerExpandVolume(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
+	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		// if the volume was deleted out-of-band, we'll get an error from
+		// the plugin but can safely ignore it
+		c.c.logger.Debug("could not expand volume", "error", err)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerExpandVolume: %v", err)
+	}
+	if cresp == nil {
+		c.c.logger.Warn("plugin did not return error or response; this is a bug in the plugin and should be reported to the plugin author")
+		return fmt.Errorf("CSI.ControllerExpandVolume: plugin did not return error or response")
+	}
+	resp.CapacityBytes = cresp.CapacityBytes
+	resp.NodeExpansionRequired = cresp.NodeExpansionRequired
 	return nil
 }
 
