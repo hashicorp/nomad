@@ -596,17 +596,6 @@ func TestCSIVolume_Merge(t *testing.T) {
 		expectFn func(t *testing.T, v *CSIVolume)
 	}{
 		{
-			name: "invalid capacity update",
-			v:    &CSIVolume{Capacity: 100},
-			update: &CSIVolume{
-				RequestedCapacityMax: 300, RequestedCapacityMin: 200},
-			expected: "volume requested capacity update was not compatible with existing capacity",
-			expectFn: func(t *testing.T, v *CSIVolume) {
-				require.NotEqual(t, 300, v.RequestedCapacityMax)
-				require.NotEqual(t, 200, v.RequestedCapacityMin)
-			},
-		},
-		{
 			name: "invalid capability update",
 			v: &CSIVolume{
 				AccessMode:     CSIVolumeAccessModeMultiNodeReader,

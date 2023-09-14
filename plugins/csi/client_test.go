@@ -13,14 +13,16 @@ import (
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/nomad/structs"
-	fake "github.com/hashicorp/nomad/plugins/csi/testing"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/structs"
+	fake "github.com/hashicorp/nomad/plugins/csi/testing"
 )
 
 func newTestClient(t *testing.T) (*fake.IdentityClient, *fake.ControllerClient, *fake.NodeClient, CSIPlugin) {
@@ -42,6 +44,9 @@ func newTestClient(t *testing.T) (*fake.IdentityClient, *fake.ControllerClient, 
 		controllerClient: cc,
 		nodeClient:       nc,
 	}
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
 
 	return ic, cc, nc, client
 }
@@ -1168,6 +1173,155 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 				time.Unix(resp.Entries[0].Snapshot.CreateTime, 0).Second())
 		})
 	}
+}
+
+func TestClient_RPC_ControllerExpandVolume(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerExpandVolumeRequest
+		ExpectCall  *csipbv1.ControllerExpandVolumeRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name: "success",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1",
+				RequiredBytes:    1,
+				LimitBytes:       2,
+				Capability: &VolumeCapability{
+					AccessMode: VolumeAccessModeMultiNodeSingleWriter,
+				},
+				Secrets: map[string]string{"super": "secret"},
+			},
+			ExpectCall: &csipbv1.ControllerExpandVolumeRequest{
+				VolumeId: "vol-1",
+				CapacityRange: &csipbv1.CapacityRange{
+					RequiredBytes: 1,
+					LimitBytes:    2,
+				},
+				VolumeCapability: &csipbv1.VolumeCapability{
+					AccessMode: &csipbv1.VolumeCapability_AccessMode{
+						Mode: csipbv1.VolumeCapability_AccessMode_Mode(csipbv1.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER),
+					},
+					AccessType: &csipbv1.VolumeCapability_Block{Block: &csipbv1.VolumeCapability_BlockVolume{}},
+				},
+				Secrets: map[string]string{"super": "secret"},
+			},
+		},
+
+		{
+			Name: "validate only min set",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1",
+				RequiredBytes:    4,
+			},
+			ExpectCall: &csipbv1.ControllerExpandVolumeRequest{
+				VolumeId: "vol-1",
+				CapacityRange: &csipbv1.CapacityRange{
+					RequiredBytes: 4,
+				},
+			},
+		},
+		{
+			Name:        "validate missing volume ID",
+			Request:     &ControllerExpandVolumeRequest{},
+			ExpectedErr: errors.New("missing ExternalVolumeID"),
+		},
+		{
+			Name: "validate missing max/min size",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1",
+			},
+			ExpectedErr: errors.New("one of LimitBytes or RequiredBytes must be set"),
+		},
+		{
+			Name: "validate min greater than max",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1",
+				RequiredBytes:    4,
+				LimitBytes:       2,
+			},
+			ExpectedErr: errors.New("LimitBytes cannot be less than RequiredBytes"),
+		},
+
+		{
+			Name: "grpc error InvalidArgument",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.InvalidArgument, "sad args"),
+			ExpectedErr: errors.New("requested capabilities not compatible with volume \"vol-1\": rpc error: code = InvalidArgument desc = sad args"),
+		},
+
+		{
+			Name: "grpc error NotFound",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.NotFound, "does not exist"),
+			ExpectedErr: errors.New("volume \"vol-1\" could not be found: rpc error: code = NotFound desc = does not exist"),
+		},
+		{
+			Name: "grpc error FailedPrecondition",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.FailedPrecondition, "unsupported"),
+			ExpectedErr: errors.New("volume \"vol-1\" cannot be expanded online: rpc error: code = FailedPrecondition desc = unsupported"),
+		},
+		{
+			Name: "grpc error OutOfRange",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.OutOfRange, "too small"),
+			ExpectedErr: errors.New("unsupported capacity_range for volume \"vol-1\": rpc error: code = OutOfRange desc = too small"),
+		},
+		{
+			Name: "grpc error Internal",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: errors.New("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+		{
+			Name: "grpc error default case",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.DataLoss, "misc unspecified error"),
+			ExpectedErr: errors.New("controller plugin returned an error: rpc error: code = DataLoss desc = misc unspecified error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient(t)
+
+			cc.NextErr = tc.ResponseErr
+			// the fake client should take ~no time, but set a timeout just in case
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+			defer cancel()
+			resp, err := client.ControllerExpandVolume(ctx, tc.Request)
+			if tc.ExpectedErr != nil {
+				must.EqError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, resp)
+			must.Eq(t, tc.ExpectCall, cc.LastExpandVolumeRequest)
+
+		})
+	}
+
+	t.Run("connection error", func(t *testing.T) {
+		c := &client{} // induce c.ensureConnected() error
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+		defer cancel()
+		resp, err := c.ControllerExpandVolume(ctx, &ControllerExpandVolumeRequest{
+			ExternalVolumeID: "valid-id",
+			RequiredBytes:    1,
+		})
+		must.Nil(t, resp)
+		must.EqError(t, err, "address is empty")
+	})
 }
 
 func TestClient_RPC_NodeStageVolume(t *testing.T) {

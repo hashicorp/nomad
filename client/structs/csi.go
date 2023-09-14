@@ -287,6 +287,36 @@ type ClientCSIControllerCreateVolumeResponse struct {
 	Topologies       []*structs.CSITopology
 }
 
+// ClientCSIControllerExpandVolumeRequest is the RPC made from the server to a
+// Nomad client to tell a CSI controller plugin on that client to perform
+// ControllerExpandVolume
+type ClientCSIControllerExpandVolumeRequest struct {
+	ExternalVolumeID string
+	CapacityRange    *csi.CapacityRange
+	Secrets          structs.CSISecrets
+	VolumeCapability *csi.VolumeCapability
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerExpandVolumeRequest) ToCSIRequest() *csi.ControllerExpandVolumeRequest {
+	csiReq := &csi.ControllerExpandVolumeRequest{
+		ExternalVolumeID: req.ExternalVolumeID,
+		Capability:       req.VolumeCapability,
+		Secrets:          req.Secrets,
+	}
+	if req.CapacityRange != nil {
+		csiReq.RequiredBytes = req.CapacityRange.RequiredBytes
+		csiReq.LimitBytes = req.CapacityRange.LimitBytes
+	}
+	return csiReq
+}
+
+type ClientCSIControllerExpandVolumeResponse struct {
+	CapacityBytes         int64
+	NodeExpansionRequired bool
+}
+
 // ClientCSIControllerDeleteVolumeRequest the RPC made from the server to a
 // Nomad client to tell a CSI controller plugin on that client to perform
 // DeleteVolume
