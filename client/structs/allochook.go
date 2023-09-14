@@ -15,16 +15,23 @@ import (
 // consumption by TaskRunners. This should be instantiated once in the
 // AllocRunner and then only accessed via getters and setters that hold the
 // lock.
+//
+// WARNING: create a SignedTaskIdentities channel manually before use. The
+// constructor will not create it, because it has to be a buffered channel
+// (size of the amount of task in an allocation).
 type AllocHookResources struct {
 	csiMounts            map[string]*csimanager.MountInfo
-	signedTaskIdentities map[string]*structs.SignedWorkloadIdentity
+	SignedTaskIdentities chan map[string]*structs.SignedWorkloadIdentity
+	StopChan             chan struct{}
 
 	mu sync.RWMutex
 }
 
 func NewAllocHookResources() *AllocHookResources {
+	stop := make(chan struct{})
 	return &AllocHookResources{
 		csiMounts: map[string]*csimanager.MountInfo{},
+		StopChan:  stop,
 	}
 }
 
@@ -44,29 +51,4 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 	defer a.mu.Unlock()
 
 	a.csiMounts = m
-}
-
-// GetSignedIdentitiesForTask returns a copy of the map of task names to
-// workload identities signed by the identity allocrunner hook
-func (a *AllocHookResources) GetSignedIdentitiesForTask(task *structs.Task) (map[string]*structs.SignedWorkloadIdentity, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	signedIdentitiesForTask := make(map[string]string, len(task.Identities))
-	for _, identity := range task.Identities {
-		if jwt, ok := a.signedTaskIdentities[identity.Name]; ok {
-			signedIdentitiesForTask[identity.Name] = jwt.JWT
-		}
-	}
-
-	return a.signedTaskIdentities, nil
-}
-
-// SetSignedTaskIdentities stores the map of identity names to JWT-encoded
-// workload identities signed by the identity allocrunner hook.
-func (a *AllocHookResources) SetSignedTaskIdentities(s map[string]*structs.SignedWorkloadIdentity) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	a.signedTaskIdentities = s
 }

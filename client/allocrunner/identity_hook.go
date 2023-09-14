@@ -18,12 +18,6 @@ import (
 // identityHook sets the task runner's Nomad workload identity token
 // based on the signed identity stored on the Allocation
 
-const (
-	// wiTokenFile is the name of the file holding the Nomad token inside the
-	// task's secret directory
-	wiTokenFile = "nomad_token"
-)
-
 // IdentitySigner is the interface needed to retrieve signed identities for
 // workload identities. At runtime it is implemented by *widmgr.WIDMgr.
 type IdentitySigner interface {
@@ -75,6 +69,10 @@ func (*identityHook) Name() string {
 func (h *identityHook) Prerun() error {
 	signedWIDs := map[string]*structs.SignedWorkloadIdentity{}
 
+	// we need to know the amount of tasks to create a buffered
+	// SignedTaskIdentities channel
+	numberOfTasks := len(h.ar.tasks)
+
 	for _, t := range h.ar.tasks {
 		task := t.Task()
 		if task == nil {
@@ -88,9 +86,10 @@ func (h *identityHook) Prerun() error {
 			return fmt.Errorf("error fetching alternate identities: %w", err)
 		}
 
-		// store task identities inside hookResources, so that taskrunner hooks
-		// can also use them.
-		h.hookResources.SetSignedTaskIdentities(signedWIDs)
+		// publish task identities inside hookResources, so that taskrunner
+		// hooks can also use them.
+		h.hookResources.SignedTaskIdentities = make(chan map[string]*structs.SignedWorkloadIdentity, numberOfTasks)
+		h.hookResources.SignedTaskIdentities <- signedWIDs
 	}
 
 	// Start token renewal loop
@@ -211,6 +210,7 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 			case <-timer.C:
 				h.logger.Trace("getting new signed identities", "num", len(reqs))
 			case <-h.stopCtx.Done():
+				h.hookResources.StopChan <- struct{}{}
 				return
 			}
 
@@ -234,21 +234,6 @@ func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.
 			minExp = time.Time{}
 
 			for _, token := range tokens {
-				widspec, ok := widMap[token.IdentityName]
-				if !ok {
-					// Bug: Every requested workload identity should either have a signed
-					// identity or rejection.
-					h.logger.Warn("bug: unexpected workload identity received", "identity", token.IdentityName)
-					continue
-				}
-
-				if err := h.setAltToken(widspec, token.JWT); err != nil {
-					// Set minExp using retry's backoff logic
-					minExp = time.Now().Add(helper.Backoff(h.minWait, time.Hour, retry+1) + helper.RandomStagger(h.minWait))
-					h.logger.Error("error setting new workload identity", "error", err, "identity", token.IdentityName)
-					continue
-				}
-
 				// Set next expiration time
 				if minExp.IsZero() {
 					minExp = token.Expiration

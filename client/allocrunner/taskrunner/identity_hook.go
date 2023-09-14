@@ -10,10 +10,9 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -40,38 +39,27 @@ type tokenSetter interface {
 }
 
 type identityHook struct {
-	alloc      *structs.Allocation
-	task       *structs.Task
-	tokenDir   string
-	envBuilder *taskenv.Builder
-	ts         tokenSetter
-	widmgr     IdentitySigner
-	logger     log.Logger
+	alloc          *structs.Allocation
+	task           *structs.Task
+	tokenDir       string
+	envBuilder     *taskenv.Builder
+	ts             tokenSetter
+	allocResources *cstructs.AllocHookResources
+	logger         log.Logger
 
 	// minWait is the minimum amount of time to wait before renewing. Settable to
 	// ease testing.
 	minWait time.Duration
-
-	stopCtx context.Context
-	stop    context.CancelFunc
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
-	// Create a context for the renew loop. This context will be canceled when
-	// the task is stopped or agent is shutting down, unlike Prestart's ctx which
-	// is not intended for use after Prestart is returns.
-	stopCtx, stop := context.WithCancel(context.Background())
-
 	h := &identityHook{
 		alloc:      tr.Alloc(),
 		task:       tr.Task(),
 		tokenDir:   tr.taskDir.SecretsDir,
 		envBuilder: tr.envBuilder,
 		ts:         tr,
-		widmgr:     tr.widmgr,
 		minWait:    10 * time.Second,
-		stopCtx:    stopCtx,
-		stop:       stop,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -88,39 +76,43 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 		return err
 	}
 
-	signedWIDs, err := h.getIdentities()
-	if err != nil {
-		return fmt.Errorf("error fetching alternate identities: %w", err)
+	signedWIDs := make(map[string]*structs.SignedWorkloadIdentity)
+
+	errorChan := make(chan error)
+	// Start token watcher loop
+	go h.watchForTokenUpdates(signedWIDs, errorChan)
+
+	select {
+	case err := <-errorChan:
+		return err
+	default:
 	}
-
-	for _, widspec := range h.task.Identities {
-		signedWID := signedWIDs[widspec.Name]
-		if signedWID == nil {
-			// The only way to hit this should be a bug as it indicates the server
-			// did not sign an identity for a task on this alloc.
-			return fmt.Errorf("missing workload identity %q", widspec.Name)
-		}
-
-		if err := h.setAltToken(widspec, signedWID.JWT); err != nil {
-			return err
-		}
-	}
-
-	// Start token renewal loop
-	go h.renew(h.alloc.CreateIndex, signedWIDs)
 
 	return nil
 }
 
-// Stop implements interfaces.TaskStopHook
-func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
-	h.stop()
-	return nil
-}
+func (h *identityHook) watchForTokenUpdates(tokens map[string]*structs.SignedWorkloadIdentity, errors chan error) {
+	for {
+		select {
+		case updates := <-h.allocResources.SignedTaskIdentities:
+			for _, widspec := range h.task.Identities {
+				signedWID := updates[widspec.Name]
+				if signedWID == nil {
+					// The only way to hit this should be a bug as it indicates the server
+					// did not sign an identity for a task on this alloc.
+					h.logger.Error("missing workload identity %q", widspec.Name)
+				}
 
-// Shutdown implements interfaces.ShutdownHook
-func (h *identityHook) Shutdown() {
-	h.stop()
+				if err := h.setAltToken(widspec, signedWID.JWT); err != nil {
+					errors <- err
+				}
+			}
+
+		case <-h.allocResources.StopChan:
+			return
+		}
+	}
+
 }
 
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a
@@ -161,153 +153,4 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 	}
 
 	return nil
-}
-
-// getIdentities calls Alloc.SignIdentities to get all of the identities for
-// this workload signed. If there are no identities to be signed then (nil,
-// nil) is returned.
-func (h *identityHook) getIdentities() (map[string]*structs.SignedWorkloadIdentity, error) {
-
-	if len(h.task.Identities) == 0 {
-		return nil, nil
-	}
-
-	req := make([]*structs.WorkloadIdentityRequest, len(h.task.Identities))
-	for i, widspec := range h.task.Identities {
-		req[i] = &structs.WorkloadIdentityRequest{
-			AllocID:      h.alloc.ID,
-			TaskName:     h.task.Name,
-			IdentityName: widspec.Name,
-		}
-	}
-
-	// Get signed workload identities
-	signedWIDs, err := h.widmgr.SignIdentities(h.alloc.CreateIndex, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Index initial workload identities by name
-	widMap := make(map[string]*structs.SignedWorkloadIdentity, len(signedWIDs))
-	for _, wid := range signedWIDs {
-		widMap[wid.IdentityName] = wid
-	}
-
-	return widMap, nil
-}
-
-// renew fetches new signed workload identity tokens before the existing tokens
-// expire.
-func (h *identityHook) renew(createIndex uint64, signedWIDs map[string]*structs.SignedWorkloadIdentity) {
-	wids := h.task.Identities
-	if len(wids) == 0 {
-		h.logger.Trace("no workload identities to renew")
-		return
-	}
-
-	var reqs []*structs.WorkloadIdentityRequest
-	renewNow := false
-	minExp := time.Now().Add(30 * time.Hour)                        // set high default expiration
-	widMap := make(map[string]*structs.WorkloadIdentity, len(wids)) // Identity.Name -> Identity
-
-	for _, wid := range wids {
-		if wid.TTL == 0 {
-			// No ttl, so no need to renew it
-			continue
-		}
-
-		widMap[wid.Name] = wid
-
-		reqs = append(reqs, &structs.WorkloadIdentityRequest{
-			AllocID:      h.alloc.ID,
-			TaskName:     h.task.Name,
-			IdentityName: wid.Name,
-		})
-
-		sid, ok := signedWIDs[wid.Name]
-		if !ok {
-			// Missing a signature, treat this case as already expired so we get a
-			// token ASAP
-			h.logger.Trace("missing token for identity", "identity", wid.Name)
-			renewNow = true
-			continue
-		}
-
-		if sid.Expiration.Before(minExp) {
-			minExp = sid.Expiration
-		}
-	}
-
-	if len(reqs) == 0 {
-		h.logger.Trace("no workload identities expire")
-		return
-	}
-
-	var wait time.Duration
-	if !renewNow {
-		wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
-	}
-
-	timer, timerStop := helper.NewStoppedTimer()
-	defer timerStop()
-
-	var retry uint64
-
-	for err := h.stopCtx.Err(); err == nil; {
-		h.logger.Debug("waiting to renew identities", "num", len(reqs), "wait", wait)
-		timer.Reset(wait)
-		select {
-		case <-timer.C:
-			h.logger.Trace("getting new signed identities", "num", len(reqs))
-		case <-h.stopCtx.Done():
-			return
-		}
-
-		// Renew all tokens together since its cheap
-		tokens, err := h.widmgr.SignIdentities(createIndex, reqs)
-		if err != nil {
-			retry++
-			wait = helper.Backoff(h.minWait, time.Hour, retry) + helper.RandomStagger(h.minWait)
-			h.logger.Error("error renewing workload identities", "error", err, "next", wait)
-			continue
-		}
-
-		if len(tokens) == 0 {
-			retry++
-			wait = helper.Backoff(h.minWait, time.Hour, retry) + helper.RandomStagger(h.minWait)
-			h.logger.Error("error renewing workload identities", "error", "no tokens", "next", wait)
-			continue
-		}
-
-		// Reset next expiration time
-		minExp = time.Time{}
-
-		for _, token := range tokens {
-			widspec, ok := widMap[token.IdentityName]
-			if !ok {
-				// Bug: Every requested workload identity should either have a signed
-				// identity or rejection.
-				h.logger.Warn("bug: unexpected workload identity received", "identity", token.IdentityName)
-				continue
-			}
-
-			if err := h.setAltToken(widspec, token.JWT); err != nil {
-				// Set minExp using retry's backoff logic
-				minExp = time.Now().Add(helper.Backoff(h.minWait, time.Hour, retry+1) + helper.RandomStagger(h.minWait))
-				h.logger.Error("error setting new workload identity", "error", err, "identity", token.IdentityName)
-				continue
-			}
-
-			// Set next expiration time
-			if minExp.IsZero() {
-				minExp = token.Expiration
-			} else if token.Expiration.Before(minExp) {
-				minExp = token.Expiration
-			}
-		}
-
-		// Success! Set next renewal and reset retries
-		wait = helper.ExpiryToRenewTime(minExp, time.Now, h.minWait)
-		retry = 0
-	}
 }
