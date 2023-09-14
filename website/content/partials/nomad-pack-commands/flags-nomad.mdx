@@ -1,0 +1,32 @@
+#### Nomad API client options
+
+- `-address=<string>` - The address of the Nomad server. Overrides the
+  `NOMAD_ADDR` environment variable if set.
+
+- `-namespace=<string>` - The target namespace for queries and actions bound to
+  a namespace. Overrides the NOMAD_NAMESPACE environment variable if set.
+
+- `-region=<string>` - The region of the Nomad servers to forward commands to.
+  Overrides the `NOMAD_REGION` environment variable if set.
+
+- `-ca-cert=<string>` - Path to a PEM encoded CA cert file to use to verify the
+  Nomad server SSL certificate. Overrides the `NOMAD_CACERT` environment
+  variable if set.
+
+- `-client-cert=<string>` - Path to a PEM encoded client certificate for TLS
+  authentication to the Nomad server. Must also specify `--client-key`.
+  Overrides the `NOMAD_CLIENT_CERT` environment variable if set.
+
+- `-client-key=<string>` - Path to an unencrypted PEM encoded private key
+  matching the client certificate from `--client-cert`. Overrides the
+  `NOMAD_CLIENT_KEY` environment variable if set.
+
+- `-tls-server-name=<string>` - The server name to use as the SNI host when
+  connecting via TLS. Overrides the `NOMAD_TLS_SERVER_NAME` environment variable
+  if set.
+
+- `-token=<string>` - The SecretID of an ACL token to use to authenticate API
+  requests with. Overrides the `NOMAD_TOKEN` environment variable if set.
+
+- `-tls-skip-verify` - Do not verify TLS certificate. This is highly not
+  recommended. Verification will also be skipped if `NOMAD_SKIP_VERIFY` is set.

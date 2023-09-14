@@ -1,0 +1,40 @@
+---
+layout: commands
+page_title: "Commands: Generate pack"
+sidebar_title: "generate pack"
+description: "Generate a new pack."
+---
+
+# Nomad-Pack Generate pack
+
+Command: `nomad-pack generate pack`
+
+Generate a new pack.
+
+@include "nomad-pack-commands/generate-pack_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack generate pack <name>`
+
+Generate a new pack.
+
+### Examples
+
+#### Create a new pack named "my-new-pack" in the current directory
+
+```shell-session
+nomad-pack generate pack my-new-pack
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-approval.mdx"
+
+#### Output options
+
+@include "nomad-pack-commands/flag-output-dir.mdx"
+
+- `-overwrite` - If the output directory is not empty, should we overwrite?
+
+@include "nomad-pack-commands/generate-pack_more.mdx"

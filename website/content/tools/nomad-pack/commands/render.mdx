@@ -1,0 +1,82 @@
+---
+layout: commands
+page_title: "Commands: Render"
+sidebar_title: "render"
+description: "Render the templates within a pack"
+---
+
+# Nomad-Pack Render
+
+Command: `nomad-pack render`
+
+Render the templates within a pack
+
+@include "nomad-pack-commands/render_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack render <pack-name> [options]`
+
+Render the specified Nomad Pack and view the results.
+
+### Examples
+
+#### Render an example pack with variable overrides from a variable file
+
+```shell-session
+nomad-pack render example --var-file="./overrides.hcl"
+```
+
+#### Render an example pack with variable overrides via CLI flags
+
+```shell-session
+nomad-pack render example --var="redis_image_version=latest" \
+  --var="redis_resources={"cpu": "1000", "memory": "512"}"
+```
+
+#### Render an example pack including the outputs template file.
+
+```shell-session
+nomad-pack render example --render-output-template
+```
+
+#### Render an example pack to file and the terminal
+
+Render an example pack to file and the terminal, outputting the rendered
+templates to file in addition to the terminal. Setting auto-approve allows the
+command to overwrite existing files.
+
+```shell-session
+nomad-pack render example --to-dir ~/out --auto-approve
+```
+
+#### Render a pack under development from the filesystem
+
+This supports current working directory or a relative path
+
+```shell-session
+nomad-pack render .
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+@include "nomad-pack-commands/flags-approval.mdx"
+
+#### Render options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+- `-render-output-template` - Controls whether the output template file within
+  the pack is rendered and displayed.
+
+- `-skip-aux-files` - Controls whether the rendered output contains auxiliary
+files found in the `templates` folder.
+
+- `-no-format` - Controls whether to format templates before outputting.
+
+@include "nomad-pack-commands/flags-output-dir.mdx"
+
+
+@include "nomad-pack-commands/render_more.mdx"

@@ -1,0 +1,68 @@
+---
+layout: commands
+page_title: "Commands: Stop"
+sidebar_title: "stop"
+description: "Stop a running pack"
+---
+
+# Nomad-Pack Stop
+
+Command: `nomad-pack stop`
+
+Stop a running pack
+
+@include "nomad-pack-commands/stop_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack stop <pack name> [options]`
+
+Stop the specified Nomad Pack in the configured Nomad cluster. To delete the
+pack from the cluster, specify `--purge`, or use the `nomad-pack destroy`
+command.
+
+By default, the stop command will stop ALL jobs in the pack deployment. If a
+pack was run using variable overrides to specify the job names, the same
+variable overrides MUST be provided when stopping the pack to guarantee that
+nomad-pack targets the correct jobs in the pack deployment.
+
+## Examples
+
+### Stop an example pack in deployment `dev`
+
+```shell-session
+nomad-pack stop example --name=dev
+```
+
+### Stop an example pack in deployment `dev` and purge it from the system
+
+```shell-session
+nomad-pack stop example --name=dev --purge
+```
+
+### Stop an example pack in deployment `dev` that has a job named `test`
+
+If the same pack has been installed in deployment `dev` but overriding the
+job name to `hello`, only `test` will be stopped
+
+```shell-session
+nomad-pack stop example --name=dev --var=job_name=test
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+@include "nomad-pack-commands/flags-nomad.mdx"
+
+#### Stop options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+- `-purge` - Stop packs and purge them from the system. If not set, packs will
+  remain able to be queried and will be purged later by the garbage collector.
+
+- `-global` - Stop multi-region pack in all its regions. By default, pack will
+  stop a single region at a time. Ignored for single-region jobs.
+
+@include "nomad-pack-commands/stop_more.mdx"

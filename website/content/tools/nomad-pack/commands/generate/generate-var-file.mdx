@@ -1,0 +1,60 @@
+---
+layout: commands
+page_title: "Commands: Generate var-file"
+sidebar_title: "generate var-file"
+description: "Render the templates within a pack"
+---
+
+# Nomad-Pack Generate var-file
+
+Command: `nomad-pack generate var-file`
+
+Render the templates within a pack
+
+@include "nomad-pack-commands/generate-var-file_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack generate var-file <pack-name> [options]`
+
+Render a variables file for the specified Nomad Pack.
+
+### Examples
+
+#### Render a variables override file for the given pack to standard output
+
+```shell-session
+nomad-pack generate var-file example
+```
+
+#### Render override file for the example pack, saving render to file
+
+```shell-session
+nomad-pack generate var-file example --to-file ./overrides.hcl
+```
+
+#### Render override file, saving render and overwriting existing files
+
+```shell-session
+nomad-pack generate var-file example --to-file ./overrides.hcl --auto-approve
+```
+
+#### Render a variable override pack under development from the filesystem
+
+This supports current working directory or relative path
+
+```shell-session
+nomad-pack generate var-file .
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-approval.mdx"
+
+#### Render options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+@include "nomad-pack-commands/flags-output-file.mdx"
+
+@include "nomad-pack-commands/generate-var-file_more.mdx"

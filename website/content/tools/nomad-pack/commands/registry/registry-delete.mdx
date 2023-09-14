@@ -1,0 +1,38 @@
+---
+layout: commands
+page_title: "Commands: Registry delete"
+sidebar_title: "registry delete"
+description: "Delete registries or packs from the local environment."
+---
+
+# Nomad-Pack Registry delete
+
+Command: `nomad-pack registry delete`
+
+Delete registries or packs from the local environment.
+
+@include "nomad-pack-commands/registry-delete_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack registry delete <name> [options]`
+
+Delete registries or specific packs from the cache.
+
+### Examples
+
+#### Delete a pack registry, optionally at a specific tag/release/SHA
+
+If no target or tag/release/SHA defined, will delete the entire registry.
+
+```shell-session
+nomad-pack registry delete community --target=traefik --ref=v0.0.1
+```
+
+### Flags
+
+#### Registry options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+@include "nomad-pack-commands/registry-delete_more.mdx"

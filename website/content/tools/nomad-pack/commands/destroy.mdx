@@ -1,0 +1,58 @@
+---
+layout: commands
+page_title: "Commands: Destroy"
+sidebar_title: "destroy"
+description: "Delete an existing pack"
+---
+
+# Nomad-Pack Destroy
+
+Command: `nomad-pack destroy`
+
+Delete an existing pack
+
+@include "nomad-pack-commands/destroy_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack destroy <pack name> [options]`
+
+Stop and delete the specified Nomad Pack from the configured Nomad cluster.
+This is the same as using the command `nomad-pack stop <pack name> --purge`.
+
+By default, the `destroy`` command will stop ALL jobs in the pack deployment.
+If a pack was run using variable overrides to specify the job names, the same
+variable overrides **MUST** be provided when stopping the pack to guarantee that
+nomad-pack targets the correct jobs in the pack deployment.
+
+### Examples
+
+#### Stop an example pack in deployment "dev" and delete it from the cluster
+
+```shell-session
+nomad-pack destroy example --name=dev
+```
+
+#### Stop and delete an example pack in deployment "dev" that has a job named "test"
+
+If the same pack has been installed in deployment "dev" but overriding the job
+name to `hello`, only "test" will be deleted
+
+```shell-session
+nomad-pack destroy example --name=dev --var=job_name=test
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+@include "nomad-pack-commands/flags-nomad.mdx"
+
+#### Destroy options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+- `-global` - Stop multi-region pack in all its regions. By default, pack will
+  stop a single region at a time. Ignored for single-region jobs.
+
+@include "nomad-pack-commands/destroy_more.mdx"

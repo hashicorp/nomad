@@ -1,0 +1,58 @@
+---
+layout: commands
+page_title: "Commands: Registry add"
+sidebar_title: "registry add"
+description: "Add registries or packs to the local environment."
+---
+
+# Nomad-Pack Registry add
+
+Command: `nomad-pack registry add`
+
+Add registries or packs to the local environment.
+
+@include "nomad-pack-commands/registry-add_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack registry add <name> <source> [options]`
+
+Add pack registries to the cache
+
+Running `nomad registry add` multiple times for the same ref is idempotent;
+however, running `nomad-pack registry add` without specifying a ref, or when
+specifying `latest`, is destructive, and will overwrite current `latest` in
+your cache.
+
+### Examples
+
+#### Download the latest ref of the pack registry to cache
+
+```shell-session
+nomad-pack registry add community \
+  github.com/hashicorp/nomad-pack-community-registry
+```
+
+#### Download the latest ref of a specific pack from the registry to cache
+
+```shell-session
+nomad-pack registry add community \
+  github.com/hashicorp/nomad-pack-community-registry \
+  --target=nomad_example
+```
+
+#### Download packs from a registry at a specific tag/release/SHA
+
+```shell-session
+nomad-pack registry add community \
+  github.com/hashicorp/nomad-pack-community-registry \
+  --ref=v0.1.0
+```
+
+### Flags
+
+#### Registry options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+@include "nomad-pack-commands/registry-add_more.mdx"

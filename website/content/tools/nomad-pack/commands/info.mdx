@@ -1,0 +1,38 @@
+---
+layout: commands
+page_title: "Commands: Info"
+sidebar_title: "info"
+description: "Get information on a pack"
+---
+
+# Nomad-Pack Info
+
+Command: `nomad-pack info`
+
+Get information on a pack
+
+@include "nomad-pack-commands/info_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack info <pack-name>`
+
+Returns information on the given pack including name, description, and variable details.
+
+### Examples
+
+#### Get information on the "hello-world" Pack
+
+```shell-session
+nomad-pack info hello-world
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+#### Render options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+@include "nomad-pack-commands/info_more.mdx"

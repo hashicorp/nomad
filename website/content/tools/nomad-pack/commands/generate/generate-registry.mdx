@@ -1,0 +1,40 @@
+---
+layout: commands
+page_title: "Commands: Generate registry"
+sidebar_title: "generate registry"
+description: "Generate a new registry."
+---
+
+# Nomad-Pack Generate registry
+
+Command: `nomad-pack generate registry`
+
+Generate a new registry.
+
+@include "nomad-pack-commands/generate-registry_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack generate registry <name>`
+
+Generate a new registry.
+
+### Examples
+
+#### Create a new registry named "my-new-registry" in the current directory.
+
+```shell-session
+nomad-pack generate registry my-new-registry
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-approval.mdx"
+
+#### Output Options
+
+@include "nomad-pack-commands/flag-output-dir.mdx"
+
+- `-with-sample-pack` - Generate a sample "hello-world" pack in the registry.
+
+@include "nomad-pack-commands/generate-registry_more.mdx"

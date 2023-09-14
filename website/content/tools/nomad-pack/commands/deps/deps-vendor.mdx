@@ -1,0 +1,38 @@
+---
+layout: commands
+page_title: "Commands: Deps vendor"
+sidebar_title: "deps vendor"
+description: "Vendor dependencies for a pack."
+---
+
+# Nomad-Pack Deps vendor
+
+Command: `nomad-pack deps vendor`
+
+Vendor dependencies for a pack.
+
+@include "nomad-pack-commands/deps-vendor_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack deps vendor`
+
+Vendor dependencies for a pack into its `deps` directory.
+
+### Examples
+
+#### Create a new pack named "my-new-pack" in the current directory
+
+```shell-session
+nomad-pack vendor
+```
+
+#### Vendoring options
+
+- `--path=<string>` - Full path to the pack which contains dependencies to be
+  vendored. All the dependencies will then be downloaded into a `deps/`
+  subdirectory of that path.
+
+- `-timeout=<int>` - Timeout (in seconds) for downloading dependencies.
+
+@include "nomad-pack-commands/deps-vendor_more.mdx"

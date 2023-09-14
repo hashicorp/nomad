@@ -1,0 +1,25 @@
+#### Operation options
+
+- `-var-file=<string>` - Specifies the path to a variable override file. This
+  can be provided multiple times on a single command to result in a list of
+  files.
+
+- `-ignore-missing-vars` - Determines whether override variables not present in
+  the pack should be ignored or produce an error.
+
+- `-var=<key=value>` - Specifies single override variables in the form of HCL
+  syntax and can be specified multiple times per command.
+
+- `-name=<string>` - If set, this will be the unique identifier of this deployed
+  instance of the specified pack. If not set, the pack name will be used. This
+  is useful for running more than one instance of a pack within the same
+  cluster. Note that this name must be globally unique within a cluster. Running
+  the run command multiple times with the same name, will re-submit the same
+  pack, and apply changes if you have made any to the underlying pack. Be
+  mindful that, whether you have made changes or not, the underlying Allocations
+  will be replaced. When managing packs, the name specified here is the name
+  that should be passed to nomad-pack's `plan` and `destroy` commands.
+
+- `-parser-v1` - Use the legacy syntax parser to parse your job. This enables
+  pack to run packs for earlier versions while you are migrating them to the new
+  syntax

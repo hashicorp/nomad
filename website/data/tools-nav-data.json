@@ -223,5 +223,103 @@
         ]
       }
     ]
+  },
+  {
+    "title": "Nomad Pack",
+    "routes": [
+      { "title": "Overview", "path": "nomad-pack" },
+      {
+        "title": "Quick starts",
+        "routes": [
+          { "title": "Overview", "path": "nomad-pack/quickstarts" },
+          {
+            "title": "Run your first pack",
+            "path": "nomad-pack/quickstarts/run-your-first-pack"
+          },
+          {
+            "title": "Author your first pack",
+            "path": "nomad-pack/quickstarts/author-your-first-pack"
+          }
+        ]
+      },
+      {
+        "title": "Authoring",
+        "routes": [
+          { "title": "Overview", "path": "nomad-pack/authoring" },
+          { "title": "Pack Concepts", "path": "nomad-pack/authoring/concepts" }
+        ]
+      },
+      {
+        "title": "Function Reference",
+        "routes": [
+          { "title": "Overview", "path": "nomad-pack/functions" },
+          {
+            "title": "Sprig Functions",
+            "path": "nomad-pack/functions/sprig_funcs"
+          }
+        ]
+      },
+      {
+        "title": "Commands (CLI)",
+        "routes": [
+          { "title": "Overview", "path": "nomad-pack/commands" },
+          {
+            "title": "deps",
+            "routes": [
+              { "title": "Overview", "path": "nomad-pack/commands/deps" },
+              {
+                "title": "vendor",
+                "path": "nomad-pack/commands/deps/deps-vendor"
+              }
+            ]
+          },
+          { "title": "destroy", "path": "nomad-pack/commands/destroy" },
+          {
+            "title": "generate",
+            "routes": [
+              { "title": "Overview", "path": "nomad-pack/commands/generate" },
+              {
+                "title": "pack",
+                "path": "nomad-pack/commands/generate/generate-pack"
+              },
+              {
+                "title": "registry",
+                "path": "nomad-pack/commands/generate/generate-registry"
+              },
+              {
+                "title": "var-file",
+                "path": "nomad-pack/commands/generate/generate-var-file"
+              }
+            ]
+          },
+          {
+            "title": "registry",
+            "routes": [
+              { "title": "Overview", "path": "nomad-pack/commands/registry" },
+              {
+                "title": "add",
+                "path": "nomad-pack/commands/registry/registry-add"
+              },
+              {
+                "title": "delete",
+                "path": "nomad-pack/commands/registry/registry-delete"
+              },
+              {
+                "title": "list",
+                "path": "nomad-pack/commands/registry/registry-list"
+              }
+            ]
+          },
+          { "title": "info", "path": "nomad-pack/commands/info" },
+          { "title": "list", "path": "nomad-pack/commands/list" },
+          { "title": "plan", "path": "nomad-pack/commands/plan" },
+          { "title": "render", "path": "nomad-pack/commands/render" },
+          { "title": "run", "path": "nomad-pack/commands/run" },
+          { "title": "status", "path": "nomad-pack/commands/status" },
+          { "title": "stop", "path": "nomad-pack/commands/stop" },
+          { "title": "version", "path": "nomad-pack/commands/version" }
+        ]
+      }
+    ]
   }
 ]

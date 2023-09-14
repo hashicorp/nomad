@@ -1,0 +1,94 @@
+---
+layout: commands
+page_title: "Commands: Plan"
+sidebar_title: "plan"
+description: "Dry-run a pack update to determine its effects"
+---
+
+# Nomad-Pack Plan
+
+Command: `nomad-pack plan`
+
+Dry-run a pack update to determine its effects
+
+@include "nomad-pack-commands/plan_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack plan <pack-name> [options]`
+
+Determine the effects of submitting a new or updated Nomad Pack
+
+Plan will return one of the following exit codes.
+
+| Exit Code | Meaning |
+| ---: | --- |
+| 0 | No objects will be created or destroyed. |
+| 1 | Objects will be created or destroyed. |
+| 255 |  An error occurred determining the plan. |
+
+### Examples
+
+#### Plan an example pack with the default deployment name
+
+```shell-session
+nomad-pack plan example
+```
+
+#### Plan an example pack at a specific ref
+
+```shell-session
+nomad-pack plan example --ref=v0.0.1
+```
+
+#### Plan a pack from a registry other than the default registry
+
+```shell-session
+nomad-pack plan traefik --registry=community --ref=v0.0.1
+```
+
+#### Plan an example pack without showing the diff
+
+```shell-session
+nomad-pack plan example --diff=false
+```
+
+#### Plan a pack under development from the filesystem
+
+This supports the current working directory or relative path
+
+```shell-session
+nomad-pack plan .
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+@include "nomad-pack-commands/flags-nomad.mdx"
+
+#### Plan options
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+@include "nomad-pack-commands/flags-nomad.mdx"
+
+- `-diff` - Determines whether the diff between the remote job and planned job
+  is shown. Defaults to true.
+
+- `-policy-override` - Sets the flag to force override any soft mandatory
+  Sentinel policies.
+
+- `-hcl1` - If set, HCL1 parser is used for parsing the job spec.
+
+- `-verbose` - Increase diff verbosity.
+
+- `-exit-code-no-changes=<int>` - Override exit code returned when the plan
+  shown no changes.
+
+- `-exit-code-makes-changes=<int>` - Override exit code returned when the plan
+  shows changes.
+
+- `-exit-code-error=<int>` - Override exit code returned when there is an error.
+
+@include "nomad-pack-commands/plan_more.mdx"

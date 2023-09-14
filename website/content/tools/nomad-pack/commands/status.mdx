@@ -1,0 +1,61 @@
+---
+layout: commands
+page_title: "Commands: Status"
+sidebar_title: "status"
+description: "Get information on deployed packs"
+---
+
+# Nomad-Pack Status
+
+Command: `nomad-pack status`
+
+Get information on deployed packs
+
+@include "nomad-pack-commands/status_desc.mdx"
+
+## Usage
+
+Usage: `nomad-pack status <name> [options]`
+
+Get information on deployed Nomad Packs. If no pack name is specified, it
+will return	a list of all deployed packs. If pack name is specified, it will
+return a list of all deployed jobs belonging to that pack, along with their
+status and deployment names.
+
+## Examples
+
+### Get a list of all deployed packs and their registries
+
+```shell-session
+nomad-pack status
+```
+
+### Get a list of all deployed jobs in pack example, along with their status and deployment names
+
+```shell-session
+nomad-pack status example
+```
+
+### Get the status of jobs created by the example pack for the `dev` deployment
+
+```shell-session
+nomad-pack status example --name=dev
+```
+
+### Get the status for the `dev` deployment of a pack from a non-default registry
+
+```shell-session
+nomad-pack status example --name=dev --registry=community
+```
+
+### Flags
+
+@include "nomad-pack-commands/flags-operations.mdx"
+
+@include "nomad-pack-commands/flags-nomad.mdx"
+
+#### Status options
+
+@include "nomad-pack-commands/flags-reg-ref.mdx"
+
+@include "nomad-pack-commands/status_more.mdx"
