@@ -2416,7 +2416,7 @@ func TestJobRegister_ACL_RejectedBySchedulerConfig(t *testing.T) {
 			name:          "reject enabled, without a token",
 			token:         "",
 			rejectEnabled: true,
-			errExpected:   structs.ErrPermissionDenied.Error(),
+			errExpected:   structs.ErrJobRegistrationDisabled.Error(),
 		},
 		{
 			name:          "reject enabled, with a management token",

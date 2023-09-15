@@ -102,6 +102,15 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "register"}, time.Now())
 
+	aclObj, err := j.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job registration is currently disabled for non-management ACL")
+		return structs.ErrJobRegistrationDisabled
+	}
+
 	// Validate the arguments
 	if args.Job == nil {
 		return fmt.Errorf("missing job for registration")
@@ -136,10 +145,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = helper.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions
-	aclObj, err := j.srv.ResolveACL(args)
-	if err != nil {
-		return err
-	} else if aclObj != nil {
+	if aclObj != nil {
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
 			return structs.ErrPermissionDenied
 		}
@@ -196,11 +202,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 			j.logger.Warn("policy override set for job", "job", args.Job.ID)
 		}
-	}
-
-	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
-		j.logger.Warn("job registration is currently disabled for non-management ACL")
-		return structs.ErrJobRegistrationDisabled
 	}
 
 	// Lookup the job
