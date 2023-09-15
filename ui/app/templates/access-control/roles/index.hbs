@@ -33,7 +33,7 @@
     </div>
   </div>
   {{#if this.roles.length}}
-    <Hds::Table @caption="A list of tokens for this cluster" class="acl-table"
+    <Hds::Table @caption="A list of roles for this cluster" class="acl-table"
       @model={{this.roles}}
       @columns={{array
         (hash key="name" label="Name" isSortable=true)
@@ -72,7 +72,6 @@
             </div>
           </B.Td>
           {{#if (can "destroy role")}}
-          {{!-- TODO: --}}
           {{!-- ALSO TODO: make column conditional for this and list-tokens! --}}
             <B.Td>
               <Hds::Button @text="Delete" @size="small" @color="critical"

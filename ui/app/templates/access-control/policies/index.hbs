@@ -34,6 +34,48 @@
     </div>
   </div>
   {{#if this.policies.length}}
+
+    <Hds::Table @caption="A list of policies for this cluster" class="acl-table"
+      @model={{this.policies}}
+      @columns={{array
+        (hash key="name" label="Name" isSortable=true)
+        (hash key="description" label="Description")
+        (hash key="tokens.length" label="Tokens" isSortable=true)
+        (hash key="delete" label="Delete")
+      }}
+      @sortBy="name"
+    >
+      <:body as |B|>
+        <B.Tr 
+          {{keyboard-shortcut 
+            enumerated=true
+            action=(action "openPolicy" B.data)
+          }}
+        >
+          <B.Td>
+            <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>{{B.data.name}}</LinkTo></B.Td>
+          <B.Td>{{B.data.description}}</B.Td>
+          <B.Td>
+            <span data-test-policy-total-tokens>{{B.data.tokens.length}}</span>
+            {{#if (filter-by "isExpired" B.data.tokens)}}
+              <span data-test-policy-expired-tokens class="number-expired">({{get (filter-by "isExpired" B.data.tokens) "length"}} expired)</span>
+            {{/if}}
+          </B.Td>
+          {{#if (can "destroy policy")}}
+          {{!-- TODO: --}}
+          {{!-- ALSO TODO: make column conditional for this and list-tokens! --}}
+            <B.Td>
+              <Hds::Button @text="Delete" @size="small" @color="critical"
+                {{on "click" (perform this.deletePolicy B.data)}}
+              />
+            </B.Td>
+          {{/if}}
+        </B.Tr>
+      </:body>
+    </Hds::Table>
+
+
+
     <ListTable
       @source={{this.policies}}
       @class="policies no-mobile-condense" as |t|>
