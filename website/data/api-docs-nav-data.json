@@ -185,7 +185,20 @@
   },
   {
     "title": "Variables",
-    "path": "variables"
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "variables"
+      },
+      {
+        "title": "Variables",
+        "path": "variables/variables"
+      },
+      {
+        "title": "Locks",
+        "path": "variables/locks"
+      }
+    ]
   },
   {
     "title": "Volumes",

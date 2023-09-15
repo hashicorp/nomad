@@ -1,0 +1,210 @@
+---
+layout: api
+page_title: Variable Locks - HTTP API
+description: The /var endpoints are used to query for and interact with variables and locks.
+---
+
+# Locks HTTP API
+
+The `/var` endpoint is used to hold, renew and release a lock over a variable.
+
+## Lock Variable
+
+The endpoint to create a variable can also be used to hold a lock and interact with
+it through the use of a parameter defining the operation to be performed.
+
+| Method | Path                                 | Produces           |
+|--------|--------------------------------------|--------------------|
+| `PUT`  | `/v1/var/:var_path?<lock-operation>` | `application/json` |
+
+### Parameters
+
+The lock operation parameter can be:
+
+- `lock-acquire`: When used, the call will introduce a lock over the variable if 
+it exists, or create a new one if it doesn't. The lock ID will be returned in the 
+response and it must be provided to perform any other operation over the lock. 
+The variable items can be updated at any time using the lock ID, but the lock
+parameters are unmmutable, attempting to modify them while a lock is present will
+generate an error. 
+
+In the case of attempting to acquire a variable that is already locked, a conflict
+response will be returned. 
+
+The lock-acquire operation will override the variable items if new values are 
+present.
+
+
+#### Sample Request
+
+```shell-session
+$ curl \
+    -XPUT -d@spec.nsv.json \
+    https://localhost:4646/v1/var/example/first?lock-acquire
+```
+
+#### Sample Payload
+
+```json
+{
+  "Namespace": "prod",
+  "Path": "example/first",
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  },
+  "Lock": {
+    "TTL": "15s",
+    "LockDelay": "1m"
+  }
+}
+```
+
+#### Sample Response
+
+The response body returns the created or updated variable including the lock 
+parameters and ID, along with metadata created by the server:
+
+```json
+{
+  "CreateIndex": 15,
+  "CreateTime": 1694552155379696000,
+  "Items": {
+    "user": "me",
+    "password": "passw0rd1"
+  },
+  "Lock": {
+    "TTL": "15s",
+    "LockDelay": "15s",
+    "ID": "670c7248-e2ef-f982-e4c5-f4437f75f1e4"
+  },
+  "ModifyIndex": 16,
+  "ModifyTime": 1694552206138804000,
+  "Namespace": "prod",
+  "Path": "example/first"
+}
+```
+
+- `lock-renew`: A valid call to lock renew needs to be placed before the lock's
+TTL is up in order to mantain the variable locked. A valid call must include the
+lock ID as part of the request body. If the lock TTL is up without a renewal or
+release calls, the variable will remain unlockable for at least the lock delay. 
+
+#### Sample Request
+
+```shell-session
+$ curl \
+    -XPUT -d@spec.nsv.json \
+    https://localhost:4646/v1/var/example/first?lock-renew
+```
+
+#### Sample Payload
+
+```json
+{
+  "Path": "example/first",
+  "Namespace": "prod",
+  "Lock": {
+    "ID": "670c7248-e2ef-f982-e4c5-f4437f75f1e4"
+  }
+}
+```
+
+#### Sample Response
+
+The response body only returns metadata created by the server and the lock
+parameters:
+
+```json
+{
+  "CreateIndex": 11,
+  "CreateTime": 1694555280887153000,
+  "Lock": {
+    "TTL": "15s",
+    "LockDelay": "15s",
+    "ID": "670c7248-e2ef-f982-e4c5-f4437f75f1e4"
+  },
+  "ModifyIndex": 43,
+  "ModifyTime": 1694556175092779000,
+  "Namespace": "prod",
+  "Path": "example/first"
+}
+```
+
+- `lock-release`: A call to the endpoint with the `lock-release` operation will
+immediately remove the lock over the variable, making it modifiable without 
+restrictions again. 
+
+The lock-release operation will not override the variable items, if the request
+body contains any item, it will generate a bad request response.
+
+#### Sample Request
+
+```shell-session
+$ curl \
+    -XPUT -d@spec.nsv.json \
+    https://localhost:4646/v1/var/example/first?lock-release
+```
+
+#### Sample Payload
+
+```json
+{
+  "Path": "example/first",
+  "Namespace": "prod",
+  "Lock": {
+    "ID": "670c7248-e2ef-f982-e4c5-f4437f75f1e4"
+  }
+}
+```
+
+#### Sample Response
+
+The response body returns the released variable along with metadata
+created by the server:
+
+```json
+{
+  "CreateIndex": 11,
+  "CreateTime": 1694555280887153000,
+  "ModifyIndex": 66,
+  "ModifyTime": 1694556922600469000,
+  "Namespace": "prod",
+  "Path": "example/first"
+}
+```
+
+### Sample Response for Conflict
+
+In the case of an attempt to lock, renew or modify a locked variable
+without the correct ID, the API will return HTTP error code
+409 and a response body showing the conflicting variable. If the provided ACL
+token does not also have `read` permissions to the variable path, the response
+will include only metadata and not the `Items` field:
+
+```json
+{
+  "CreateIndex": 0,
+  "CreateTime": 0,
+  "Items": null,
+  "Lock": null,
+  "ModifyIndex": 0,
+  "ModifyTime": 0,
+  "Namespace": "default",
+  "Path": "example/first"
+}
+```
+
+## Restrictions
+
+When creating a new variable using the lock-acquire operation, all the known 
+[restrictions][] regarding the path and size of the content apply, but unlike 
+regular variables, locked variables can be created with or without any items.
+
+The lock TTL and Delay must be values between 10 seconds and 24 hours.
+
+[Variables]: /nomad/docs/concepts/variables
+[`nomad var`]: /nomad/docs/commands/var
+[blocking queries]: /nomad/api-docs#blocking-queries
+[required ACLs]: /nomad/api-docs#acls
+[RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2
