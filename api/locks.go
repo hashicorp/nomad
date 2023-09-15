@@ -133,7 +133,7 @@ func (l *Locks) Release(ctx context.Context) error {
 
 	rv := &Variable{
 		Lock: &VariableLock{
-			ID: l.variable.Lock.ID,
+			ID: l.variable.LockID(),
 		},
 	}
 
