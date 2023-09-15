@@ -40,9 +40,13 @@ type identityHook struct {
 	ts         tokenSetter
 	widmgr     widmgr.IdentityManager
 	logger     log.Logger
+
+	stopCtx context.Context
+	stop    context.CancelFunc
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
+	stopCtx, stop := context.WithCancel(context.Background())
 	h := &identityHook{
 		alloc:      tr.Alloc(),
 		task:       tr.Task(),
@@ -50,6 +54,8 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		envBuilder: tr.envBuilder,
 		ts:         tr,
 		widmgr:     tr.widmgr,
+		stopCtx:    stopCtx,
+		stop:       stop,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -67,12 +73,34 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 	}
 
 	// Start token watcher loops
-	for _, i := range h.task.Identities {
-		id := cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: i.Name}
-		signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
+	for _, widspec := range h.task.Identities {
+		go h.watchIdentity(widspec)
 	}
 
 	return nil
+}
+
+func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
+	id := cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: wid.Name}
+	signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
+
+	for {
+		select {
+		case signedWID := <-signedIdentitiesChan:
+			if signedWID == nil {
+				// The only way to hit this should be a bug as it indicates the server
+				// did not sign an identity for a task on this alloc.
+				h.logger.Error("missing workload identity %q", wid.Name)
+			}
+
+			if err := h.setAltToken(wid, signedWID.JWT); err != nil {
+				h.logger.Error(err.Error())
+			}
+		case <-h.stopCtx.Done():
+			stopWatching()
+			return
+		}
+	}
 }
 
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a
@@ -117,11 +145,11 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 
 // Stop implements interfaces.TaskStopHook
 func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
-	h.widmgr.Shutdown()
+	h.stop()
 	return nil
 }
 
 // Shutdown implements interfaces.ShutdownHook
 func (h *identityHook) Shutdown() {
-	h.widmgr.Shutdown()
+	h.stop()
 }
