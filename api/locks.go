@@ -209,24 +209,49 @@ type LockLeaser struct {
 	renewalPeriod time.Duration
 	waitPeriod    time.Duration
 	randomDelay   time.Duration
+	earlyReturn   bool
+	locked        bool
 
 	locker Locker
 }
 
+type LockLeaserOption = func(l *LockLeaser)
+
+// LockLeaserOptionWithEarlyReturn informs the leaser to return after the lock
+// acquire fails and to not wait to attempt again.
+func LockLeaserOptionWithEarlyReturn(er bool) LockLeaserOption {
+	return func(l *LockLeaser) {
+		l.earlyReturn = er
+	}
+}
+
+// LockLeaserOptionWithWaitPeriod is used to set a back off period between
+// calls to attempt tp acquire the lock. By default it is set to 1.1 * TTLs.
+func LockLeaserOptionWithWaitPeriod(wp time.Duration) LockLeaserOption {
+	return func(l *LockLeaser) {
+		l.waitPeriod = wp
+	}
+}
+
 // NewLockLeaser returns an instance of LockLeaser. callerID
 // is optional, in case they it is not provided, internal one will be created.
-func (c *Client) NewLockLeaser(l Locker) *LockLeaser {
+func (c *Client) NewLockLeaser(l Locker, opts ...LockLeaserOption) *LockLeaser {
 
 	rn := rand.New(rand.NewSource(time.Now().Unix())).Intn(100)
 
-	ll := LockLeaser{
+	ll := &LockLeaser{
 		renewalPeriod: time.Duration(float64(l.LockTTL()) * lockLeaseRenewalFactor),
 		waitPeriod:    time.Duration(float64(l.LockTTL()) * lockRetryBackoffFactor),
 		randomDelay:   time.Duration(rn) * time.Millisecond,
 		locker:        l,
+		earlyReturn:   false,
 	}
 
-	return &ll
+	for _, opt := range opts {
+		opt(ll)
+	}
+
+	return ll
 }
 
 // Start wraps the start function in charge of executing the protected
@@ -240,9 +265,11 @@ func (ll *LockLeaser) Start(ctx context.Context, protectedFuncs ...func(ctx cont
 		mErr.Errors = append(mErr.Errors, err)
 	}
 
-	err = ll.locker.Release(ctx)
-	if err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("lock release: %w", err))
+	if ll.locked {
+		err = ll.locker.Release(ctx)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("lock release: %w", err))
+		}
 	}
 
 	return mErr.ErrorOrNil()
@@ -269,11 +296,21 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 	for {
 		lockID, err := ll.locker.Acquire(ctx)
-		if err != nil && !errors.Is(err, ErrLockConflict) {
-			errChannel <- err
+		if err != nil {
+
+			if errors.Is(err, ErrLockConflict) && ll.earlyReturn {
+
+				return nil
+			}
+
+			if !errors.Is(err, ErrLockConflict) {
+				errChannel <- err
+			}
 		}
 
 		if lockID != "" {
+			ll.locked = true
+
 			funcCtx, funcCancel := context.WithCancel(ctx)
 			defer funcCancel()
 
@@ -292,7 +329,7 @@ func (ll *LockLeaser) start(ctx context.Context, protectedFuncs ...func(ctx cont
 
 			// Maintain lease is a blocking function, it will return if there is
 			// an error maintaining the lease or the protected function returned.
-			err := ll.maintainLease(funcCtx)
+			err = ll.maintainLease(funcCtx)
 			if err != nil && !errors.Is(err, ErrLockConflict) {
 				errChannel <- fmt.Errorf("error renewing the lease: %w", err)
 			}
