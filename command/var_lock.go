@@ -79,8 +79,8 @@ Var lock Options:
 	acquired instead of waiting on stand by to try again. Defaults to false.
 
   -backoff
-	Optional, by default the lease algorithm waits for 1.1 times the lock TTL, 
-	using the backoff flag, this backoff period can be modified.
+	Optional, indicates how long to wait between attempts to obtain the lock. 
+	By default the lease algorithm waits for 1.1 times the lock TTL.
    
   -shell
 	Optional, use a shell to run the command (can set a custom shell via		
