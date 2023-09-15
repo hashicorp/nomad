@@ -22,6 +22,152 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
+func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// First create an unrelated variable.
+	delay := 100 * time.Millisecond
+	time.AfterFunc(delay, func() {
+		writeVarGet(t, s1, 100, "default", "aaa")
+	})
+
+	// Upsert the variable we are watching later
+	delay = 200 * time.Millisecond
+	time.AfterFunc(delay, func() {
+		writeVarGet(t, s1, 200, "default", "bbb")
+	})
+
+	// Lookup the variable
+	req := &structs.VariablesReadRequest{
+		Path: "bbb",
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: 150,
+			MaxQueryTime:  500 * time.Millisecond,
+		},
+	}
+
+	var resp structs.VariablesReadResponse
+
+	start := time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	elapsed := time.Since(start)
+
+	if elapsed < delay {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	if elapsed > req.MaxQueryTime {
+		t.Fatalf("blocking query timed out %#v", resp)
+	}
+
+	if resp.Index != 200 {
+		t.Fatalf("Bad index: %d %d", resp.Index, 200)
+	}
+
+	if resp.Data == nil || resp.Data.Path != "bbb" {
+		t.Fatalf("bad: %#v", resp.Data)
+	}
+
+	// Variable update triggers watches
+	delay = 100 * time.Millisecond
+
+	time.AfterFunc(delay, func() {
+		writeVarGet(t, s1, 300, "default", "bbb")
+	})
+
+	req.QueryOptions.MinQueryIndex = 250
+	var resp2 structs.VariablesReadResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp2); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	elapsed = time.Since(start)
+
+	if elapsed < delay {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
+	}
+
+	if elapsed > req.MaxQueryTime {
+		t.Fatal("blocking query timed out")
+	}
+
+	if resp2.Index != 300 {
+		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
+	}
+
+	if resp2.Data == nil || resp2.Data.Path != "bbb" {
+		t.Fatalf("bad: %#v", resp2.Data)
+	}
+
+	// Variable delete triggers watches
+	delay = 100 * time.Millisecond
+	time.AfterFunc(delay, func() {
+		sv := mock.VariableEncrypted()
+		sv.Path = "bbb"
+		if resp := state.VarDelete(400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
+			fmt.Println("\n *** resp", resp.Result, resp.Conflict.VariableMetadata)
+			t.Fatalf("err: %v", resp.Error)
+		}
+	})
+	fmt.Println("\n\n start", elapsed)
+	req.QueryOptions.MinQueryIndex = 350
+	var resp3 structs.VariablesReadResponse
+	start = time.Now()
+	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp3); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	elapsed = time.Since(start)
+	fmt.Println("\n\n problematic", elapsed)
+	if elapsed < delay {
+		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
+	}
+
+	if elapsed > req.MaxQueryTime {
+		t.Fatal("blocking query timed out")
+	}
+
+	if resp3.Index != 400 {
+		t.Fatalf("Bad index: %d %d", resp3.Index, 400)
+	}
+	if resp3.Data != nil {
+		t.Fatalf("bad: %#v", resp3.Data)
+	}
+}
+
+func writeVarGet(t *testing.T, s *Server, idx uint64, ns, path string) {
+	store := s.fsm.State()
+	sv := mock.Variable()
+	sv.Namespace = ns
+	sv.Path = path
+
+	bPlain, err := json.Marshal(sv.Items)
+	must.NoError(t, err)
+	bEnc, kID, err := s.encrypter.Encrypt(bPlain)
+	must.NoError(t, err)
+	sve := &structs.VariableEncrypted{
+		VariableMetadata: sv.VariableMetadata,
+		VariableData: structs.VariableData{
+			Data:  bEnc,
+			KeyID: kID,
+		},
+	}
+	resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+		Op:  structs.VarOpSet,
+		Var: sve,
+	})
+	must.NoError(t, resp.Error)
+}
+
 func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 	ci.Parallel(t)
 	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
@@ -62,16 +208,22 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 
 	for name, op := range opMap {
 		t.Run(name+"/no token", func(t *testing.T) {
-			sv1 := sv1
+			sv := *sv1
 			applyReq := structs.VariablesApplyRequest{
 				Op:           op,
-				Var:          sv1,
+				Var:          &sv,
 				WriteRequest: structs.WriteRequest{Region: "global"},
 			}
+
+			if op == "lock-release" {
+				sv.Items = nil
+			}
+
 			applyResp := new(structs.VariablesApplyResponse)
 			err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
 			must.EqError(t, err, structs.ErrPermissionDenied.Error())
 		})
+
 	}
 
 	t.Run("cas/management token/new", func(t *testing.T) {
@@ -246,8 +398,15 @@ func TestVariablesEndpoint_Apply_ACL(t *testing.T) {
 		sv := svHold
 
 		applyReq := structs.VariablesApplyRequest{
-			Op:  structs.VarOpLockRelease,
-			Var: sv,
+			Op: structs.VarOpLockRelease,
+			Var: &structs.VariableDecrypted{
+				VariableMetadata: structs.VariableMetadata{
+					Path: sv.Path,
+					Lock: &structs.VariableLock{
+						ID: sv.LockID(),
+					},
+				},
+			},
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: rootToken.SecretID,
@@ -881,139 +1040,6 @@ namespace "*" {}
 	testListPrefix("*", "", 6, nil)
 }
 
-func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-	state := s1.fsm.State()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// First create an unrelated variable.
-	delay := 100 * time.Millisecond
-	time.AfterFunc(delay, func() {
-		writeVar(t, s1, 100, "default", "aaa")
-	})
-
-	// Upsert the variable we are watching later
-	delay = 200 * time.Millisecond
-	time.AfterFunc(delay, func() {
-		writeVar(t, s1, 200, "default", "bbb")
-	})
-
-	// Lookup the variable
-	req := &structs.VariablesReadRequest{
-		Path: "bbb",
-		QueryOptions: structs.QueryOptions{
-			Region:        "global",
-			MinQueryIndex: 150,
-			MaxQueryTime:  500 * time.Millisecond,
-		},
-	}
-	var resp structs.VariablesReadResponse
-	start := time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	elapsed := time.Since(start)
-
-	if elapsed < delay {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
-	}
-	if elapsed > req.MaxQueryTime {
-		t.Fatalf("blocking query timed out %#v", resp)
-	}
-	if resp.Index != 200 {
-		t.Fatalf("Bad index: %d %d", resp.Index, 200)
-	}
-	if resp.Data == nil || resp.Data.Path != "bbb" {
-		t.Fatalf("bad: %#v", resp.Data)
-	}
-
-	// Variable update triggers watches
-	delay = 100 * time.Millisecond
-
-	time.AfterFunc(delay, func() {
-		writeVar(t, s1, 300, "default", "bbb")
-	})
-
-	req.QueryOptions.MinQueryIndex = 250
-	var resp2 structs.VariablesReadResponse
-	start = time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	elapsed = time.Since(start)
-
-	if elapsed < delay {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp2)
-	}
-	if elapsed > req.MaxQueryTime {
-		t.Fatal("blocking query timed out")
-	}
-	if resp2.Index != 300 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 300)
-	}
-	if resp2.Data == nil || resp2.Data.Path != "bbb" {
-		t.Fatalf("bad: %#v", resp2.Data)
-	}
-
-	// Variable delete triggers watches
-	delay = 100 * time.Millisecond
-	time.AfterFunc(delay, func() {
-		sv := mock.VariableEncrypted()
-		sv.Path = "bbb"
-		if resp := state.VarDelete(400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
-			t.Fatalf("err: %v", resp.Error)
-		}
-	})
-
-	req.QueryOptions.MinQueryIndex = 350
-	var resp3 structs.VariablesReadResponse
-	start = time.Now()
-	if err := msgpackrpc.CallWithCodec(codec, "Variables.Read", req, &resp3); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	elapsed = time.Since(start)
-
-	if elapsed < delay {
-		t.Fatalf("should block (returned in %s) %#v", elapsed, resp)
-	}
-	if elapsed > req.MaxQueryTime {
-		t.Fatal("blocking query timed out")
-	}
-	if resp3.Index != 400 {
-		t.Fatalf("Bad index: %d %d", resp3.Index, 400)
-	}
-	if resp3.Data != nil {
-		t.Fatalf("bad: %#v", resp3.Data)
-	}
-}
-
-func writeVar(t *testing.T, s *Server, idx uint64, ns, path string) {
-	store := s.fsm.State()
-	sv := mock.Variable()
-	sv.Namespace = ns
-	sv.Path = path
-	bPlain, err := json.Marshal(sv.Items)
-	must.NoError(t, err)
-	bEnc, kID, err := s.encrypter.Encrypt(bPlain)
-	must.NoError(t, err)
-	sve := &structs.VariableEncrypted{
-		VariableMetadata: sv.VariableMetadata,
-		VariableData: structs.VariableData{
-			Data:  bEnc,
-			KeyID: kID,
-		},
-	}
-	resp := store.VarSet(idx, &structs.VarApplyStateRequest{
-		Op:  structs.VarOpSet,
-		Var: sve,
-	})
-	must.NoError(t, resp.Error)
-}
-
 func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {
@@ -1128,6 +1154,9 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 			"item1": "very important info",
 		}
 
+		sv.Lock.TTL = 0
+		sv.Lock.LockDelay = 0
+
 		applyReq := structs.VariablesApplyRequest{
 			Op:           structs.VarOpSet,
 			Var:          &sv,
@@ -1192,6 +1221,8 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 			"item2": "not so important info",
 		}
 
+		sv.Lock.LockDelay = 0
+		sv.Lock.TTL = 0
 		sv.ModifyIndex = sv.ModifyIndex + 30
 
 		applyReq := structs.VariablesApplyRequest{
@@ -1231,11 +1262,36 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 		latest = applyResp.Output.Copy()
 	})
 
+	t.Run("release locked variable without the lock", func(t *testing.T) {
+		sv := mockVar.Copy()
+		sv.VariableMetadata.Lock = &structs.VariableLock{
+			ID: "wrongID",
+		}
+
+		sv.Items = nil
+		sv.Lock = nil
+
+		applyReq := structs.VariablesApplyRequest{
+			Op:           structs.VarOpLockRelease,
+			Var:          &sv,
+			WriteRequest: structs.WriteRequest{Region: "global"},
+		}
+
+		runningTimers := srv.lockTTLTimer.TimerNum()
+
+		applyResp := new(structs.VariablesApplyResponse)
+		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
+
+		must.Error(t, err)
+		must.Eq(t, runningTimers, srv.lockTTLTimer.TimerNum())
+
+	})
 	t.Run("release locked variable without the lockID", func(t *testing.T) {
 		sv := mockVar.Copy()
 		sv.VariableMetadata.Lock = &structs.VariableLock{
 			ID: "wrongID",
 		}
+		sv.Items = nil
 
 		applyReq := structs.VariablesApplyRequest{
 			Op:           structs.VarOpLockRelease,
@@ -1263,6 +1319,8 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 			WriteRequest: structs.WriteRequest{Region: "global"},
 		}
 
+		sv.Items = nil
+
 		runningTimers := srv.lockTTLTimer.TimerNum()
 		applyResp := new(structs.VariablesApplyResponse)
 		err := msgpackrpc.CallWithCodec(codec, structs.VariablesApplyRPCMethod, &applyReq, applyResp)
@@ -1270,8 +1328,9 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, structs.VarOpResultOk, applyResp.Result)
 		must.Eq(t, runningTimers-1, srv.lockTTLTimer.TimerNum())
+
 		must.Nil(t, applyResp.Output.Lock)
-		must.Eq(t, latest.Items, applyResp.Output.Items)
+		must.Zero(t, len(applyResp.Output.Items))
 
 		latest = applyResp.Output.Copy()
 	})
@@ -1311,6 +1370,7 @@ func TestVariablesEndpoint_Apply_LockAcquireUpsertAndRelease(t *testing.T) {
 
 func TestVariablesEndpoint_List_Lock_ACL(t *testing.T) {
 	ci.Parallel(t)
+
 	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})

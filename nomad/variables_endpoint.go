@@ -25,11 +25,14 @@ const (
 )
 
 var (
-	errVarAlreadyLocked = structs.NewErrRPCCoded(http.StatusBadRequest, "variable already holds a lock")
-	errVarNotFound      = structs.NewErrRPCCoded(http.StatusNotFound, "variable doesn't exist")
-	errLockNotFound     = structs.NewErrRPCCoded(http.StatusConflict, "variable doesn't hold a lock")
-	errVarIsLocked      = structs.NewErrRPCCoded(http.StatusConflict, "attempting to modify locked variable")
-	errMissingLockInfo  = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
+	errVarAlreadyLocked  = structs.NewErrRPCCoded(http.StatusBadRequest, "variable already holds a lock")
+	errVarNotFound       = structs.NewErrRPCCoded(http.StatusNotFound, "variable doesn't exist")
+	errLockNotFound      = structs.NewErrRPCCoded(http.StatusConflict, "variable doesn't hold a lock")
+	errVarIsLocked       = structs.NewErrRPCCoded(http.StatusConflict, "attempting to modify locked variable")
+	errMissingLockInfo   = structs.NewErrRPCCoded(http.StatusBadRequest, "missing lock information")
+	errLockOnVarCreation = structs.NewErrRPCCoded(http.StatusBadRequest, "variable should not contain lock definition")
+	errItemsOnRelease    = structs.NewErrRPCCoded(http.StatusBadRequest, "lock release operation doesn't take variable items")
+	errNoPath            = structs.NewErrRPCCoded(http.StatusBadRequest, "delete requires a Path")
 )
 
 type variableTimers interface {
@@ -153,7 +156,7 @@ func (sv *Variables) Apply(args *structs.VariablesApplyRequest, reply *structs.V
 	*reply = *r
 	reply.Index = index
 
-	if !out.IsConflict() {
+	if out.IsOk() {
 		switch args.Op {
 		case structs.VarOpLockAcquire:
 			sv.timers.CreateVariableLockTTLTimer(ev.Copy())
@@ -196,6 +199,7 @@ func hasOperationPermissions(aclObj *acl.ACL, namespace, path string, op structs
 }
 
 func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
+
 	switch args.Op {
 	case structs.VarOpLockAcquire:
 		// In case the user wants to use the default values so no lock data was provided.
@@ -204,9 +208,20 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 		}
 
 		args.Var.Canonicalize()
-		return args.Var.ValidateForLock()
+
+		err := args.Var.ValidateForLock()
+		if err != nil {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
+		}
+		return nil
 
 	case structs.VarOpSet, structs.VarOpCAS:
+		// Avoid creating a variable with a lock that is not actionable
+		if args.Var.VariableMetadata.Lock != nil &&
+			(args.Var.VariableMetadata.Lock.LockDelay != 0 || args.Var.VariableMetadata.Lock.TTL != 0) {
+			return structs.NewErrRPCCoded(http.StatusBadRequest, errLockOnVarCreation.Error())
+		}
+
 		args.Var.Canonicalize()
 
 		err := args.Var.Validate()
@@ -217,13 +232,19 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 
 	case structs.VarOpDelete, structs.VarOpDeleteCAS:
 		if args.Var == nil || args.Var.Path == "" {
-			return errMissingLockInfo
+			return errNoPath
 		}
 
 	case structs.VarOpLockRelease:
 		if args.Var == nil || args.Var.Lock == nil ||
 			args.Var.Lock.ID == "" {
 			return errMissingLockInfo
+		}
+
+		// If the operation is a lock release and there are items on the variable
+		// reject the request, release doesn't update the variable.
+		if args.Var.Items != nil || len(args.Var.Items) != 0 {
+			return errItemsOnRelease
 		}
 
 		return structs.ValidatePath(args.Var.Path)
@@ -344,13 +365,14 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 			// Setup the output
 			reply.Data = nil
 			if out != nil {
+
 				dv, err := sv.decrypt(out)
 				if err != nil {
 					return err
 				}
 
 				ov := dv.Copy()
-				if aclObj != nil && !aclObj.IsManagement() {
+				if !(aclObj != nil && aclObj.IsManagement()) {
 					ov.Lock = nil
 				}
 
@@ -444,7 +466,7 @@ func (sv *Variables) List(
 					sv := raw.(*structs.VariableEncrypted)
 					svStub := sv.VariableMetadata
 
-					if aclObj != nil && !aclObj.IsManagement() {
+					if !(aclObj != nil && aclObj.IsManagement()) {
 						svStub.Lock = nil
 					}
 
@@ -537,6 +559,11 @@ func (sv *Variables) listAllVariables(
 				func(raw interface{}) error {
 					v := raw.(*structs.VariableEncrypted)
 					svStub := v.VariableMetadata
+
+					if !(aclObj != nil && aclObj.IsManagement()) {
+						svStub.Lock = nil
+					}
+
 					svs = append(svs, &svStub)
 					return nil
 				})

@@ -20,7 +20,7 @@ func TestVariables_SimpleCRUD(t *testing.T) {
 	defer s.Stop()
 
 	nsv := c.Variables()
-	sv1 := NewVariable("my/first/variable")
+	sv1 := NewVariable("my/first/variable/SimpleCRUD")
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
@@ -297,7 +297,7 @@ func TestVariable_CreateReturnsContent(t *testing.T) {
 	defer s.Stop()
 
 	nsv := c.Variables()
-	sv1 := NewVariable("my/first/variable")
+	sv1 := NewVariable("my/first/variable/create")
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
@@ -313,14 +313,14 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
-
+	path := fmt.Sprintf("%s-%v", "/first/variable", time.Now().UnixMilli())
 	nsv := c.Variables()
-	sv1 := NewVariable("my/first/variable")
+	sv1 := NewVariable(path)
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
 
-	t.Run("2 create sv1", func(t *testing.T) {
+	t.Run("1 create sv1", func(t *testing.T) {
 		get, _, err := nsv.Create(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
@@ -332,7 +332,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		*sv1 = *get
 	})
 
-	t.Run("3 acquire lock on sv1", func(t *testing.T) {
+	t.Run("2 acquire lock on sv1", func(t *testing.T) {
 		get, _, err := nsv.AcquireLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
@@ -343,8 +343,9 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		*sv1 = *get
 	})
 
-	t.Run("4 renew lock on sv1", func(t *testing.T) {
-		get, _, err := nsv.RenewLock(sv1, nil)
+	t.Run("3 renew lock on sv1", func(t *testing.T) {
+		rlsv := *sv1
+		get, _, err := nsv.RenewLock(&rlsv, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
 		must.Eq(t, sv1.ModifyIndex, get.ModifyIndex)
@@ -352,22 +353,20 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		must.Eq(t, sv1.Lock.ID, get.Lock.ID)
 	})
 
-	t.Run("5 list vars", func(t *testing.T) {
+	t.Run("4 list vars", func(t *testing.T) {
 		l, _, err := nsv.List(nil)
 		must.NoError(t, err)
 		must.Len(t, 1, l)
-		must.NotNil(t, l[0].Lock)
-		must.Eq(t, sv1.Lock.ID, l[0].Lock.ID)
+		must.Nil(t, l[0].Lock)
 	})
 
-	t.Run("6 release lock on sv1", func(t *testing.T) {
+	t.Run("5 release lock on sv1", func(t *testing.T) {
+		sv1.Items = nil
 		get, _, err := nsv.ReleaseLock(sv1, nil)
 		must.NoError(t, err)
 		must.NotNil(t, get)
 		must.NotEq(t, sv1.ModifyIndex, get.ModifyIndex)
-		must.Eq(t, sv1.Items, get.Items)
+		must.Zero(t, len(get.Items))
 		must.Nil(t, get.Lock)
-
-		*sv1 = *get
 	})
 }

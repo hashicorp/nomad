@@ -517,11 +517,12 @@ func TestHTTP_Variables(t *testing.T) {
 		})
 
 		t.Run("release_lock", func(t *testing.T) {
-			svLR := sv1
+			svLR := *sv1
 
-			svLR.Items["new"] = "new"
+			svLR.Items = nil
 			// Make the HTTP request
 			buf := encodeReq(&svLR)
+
 			req, err := http.NewRequest("PUT", "/v1/var/"+svLR.Path+"?"+releaseLockQueryParam, buf)
 			must.NoError(t, err)
 			respW := httptest.NewRecorder()
@@ -540,10 +541,9 @@ func TestHTTP_Variables(t *testing.T) {
 
 			// Check for the lock
 			must.Nil(t, out.VariableMetadata.Lock)
-			must.Zero(t, len(out.LockID()))
 
 			// Check that written variable is equal the input
-			must.Eq(t, sv1.Items, out.Items)
+			must.Zero(t, len(out.Items))
 
 			// Remove the lock information from the mock variable for the following tests
 			sv1.VariableMetadata = out.VariableMetadata

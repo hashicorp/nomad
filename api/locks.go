@@ -131,7 +131,14 @@ func (l *Locks) Acquire(ctx context.Context) (string, error) {
 func (l *Locks) Release(ctx context.Context) error {
 	var out Variable
 
-	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-release", l.variable, &out, &l.WriteOptions)
+	rv := &Variable{
+		Lock: &VariableLock{
+			ID: l.variable.Lock.ID,
+		},
+	}
+
+	_, err := l.c.retryPut(ctx, "/v1/var/"+l.variable.Path+"?lock-release", rv,
+		&out, &l.WriteOptions)
 	if err != nil {
 		callErr, ok := err.(UnexpectedResponseError)
 
