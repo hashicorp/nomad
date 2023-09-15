@@ -366,16 +366,15 @@ func (sv *Variables) Read(args *structs.VariablesReadRequest, reply *structs.Var
 			reply.Data = nil
 			if out != nil {
 
-				if !(aclObj != nil && aclObj.IsManagement()) {
-					out.Lock = nil
-				}
-
 				dv, err := sv.decrypt(out)
 				if err != nil {
 					return err
 				}
 
 				ov := dv.Copy()
+				if !(aclObj != nil && aclObj.IsManagement()) {
+					ov.Lock = nil
+				}
 
 				reply.Data = &ov
 				reply.Index = out.ModifyIndex
