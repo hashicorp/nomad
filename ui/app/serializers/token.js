@@ -30,7 +30,7 @@ export default class TokenSerializer extends ApplicationSerializer {
       hash.AccessorID = snapshot.id;
     }
 
-    delete hash.ExpirationTime;
+    // delete hash.ExpirationTime;
     delete hash.CreateTime;
     delete hash.SecretID;
 

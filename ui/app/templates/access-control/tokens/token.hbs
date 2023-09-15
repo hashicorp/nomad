@@ -2,8 +2,8 @@
   Copyright (c) HashiCorp, Inc.
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-<Breadcrumb @crumb={{hash label=this.role.name args=(array "access-control.roles.role" this.role.id)}} />
-{{page-title "Role"}}
+<Breadcrumb @crumb={{hash label=this.activeToken.name args=(array "access-control.tokens.token" this.activeToken.id)}} />
+{{page-title "Token"}}
 <section class="section">
 	<h1 class="title with-flex" data-test-title>
 		<div>

@@ -12,6 +12,7 @@ import { action } from '@ember/object';
 export default class AccessControlTokensIndexController extends Controller {
   @service notifications;
   @service router;
+  @service token;
 
   @task(function* (token) {
     try {
@@ -31,6 +32,10 @@ export default class AccessControlTokensIndexController extends Controller {
     }
   })
   deleteToken;
+
+  get selfToken() {
+    return this.token.selfToken;
+  }
 
   @action openToken(token) {
     this.router.transitionTo('access-control.tokens.token', token.id);

@@ -37,10 +37,12 @@
       @model={{this.model.tokens}}
       @columns={{array
         (hash key="name" label="Name" isSortable=true)
+        (hash key="type" label="Type" isSortable=true)
         (hash key="createTime" label="Created" isSortable=true)
         (hash key="expirationTime" label="Expires" isSortable=true)
         (hash key="roles" label="Roles")
         (hash key="policies" label="Policies")
+        
         (hash key="delete" label="Delete")
       }}
       @sortBy="name"
@@ -53,7 +55,7 @@
           }}
         >
           <B.Td>
-            {{#if (eq B.data.type "management")}}
+            {{#if (eq B.data.id this.selfToken.id)}}
               <strong>{{B.data.name}}</strong>
             {{else}}
               <LinkTo @route="access-control.tokens.token" @model={{B.data.id}}>
@@ -61,6 +63,7 @@
               </LinkTo>
             {{/if}}
           </B.Td>
+          <B.Td>{{B.data.type}}</B.Td>
           <B.Td>{{moment-from-now B.data.createTime interval=1000}}</B.Td>
           <B.Td>
             {{#if B.data.expirationTime}}
@@ -107,8 +110,8 @@
 
             {{#if (can "destroy token")}}
               <B.Td>
-                {{#if (eq B.data.type "management")}}
-                  <Tooltip @text="Can't delete a management token" @isFullText={{true}}>
+                {{#if (eq B.data.id this.selfToken.id)}}
+                  <Tooltip @text="Can't delete your own token" @isFullText={{true}}>
                     <Hds::Button @text="Delete" disabled @size="small" @color="critical" />
                   </Tooltip>
                 {{else}}
