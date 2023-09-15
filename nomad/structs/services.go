@@ -1048,6 +1048,11 @@ func (s *Service) Equal(o *Service) bool {
 	return true
 }
 
+func (s *Service) IsConsul() bool {
+	return s.Provider == ServiceProviderConsul || s.Provider == ""
+
+}
+
 // ConsulConnect represents a Consul Connect jobspec block.
 type ConsulConnect struct {
 	// Native indicates whether the service is Consul Connect Native enabled.

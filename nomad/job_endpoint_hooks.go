@@ -5,11 +5,13 @@ package nomad
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -182,8 +184,11 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	for _, tg := range j.TaskGroups {
 
 		// If the task group utilises Vault, run the mutator.
-		if _, ok := vaultBlocks[tg.Name]; ok {
-			mutateConstraint(constraintMatcherLeft, tg, vaultConstraint)
+		vaultTasks := maps.Keys(vaultBlocks[tg.Name])
+		sort.Strings(vaultTasks)
+		for _, vaultTask := range vaultTasks {
+			vaultBlock := vaultBlocks[tg.Name][vaultTask]
+			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
 		}
 
 		// Check whether the task group is using signals. In the case that it
@@ -206,12 +211,56 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		}
 
 		// If the task group utilises Consul service discovery, run the mutator.
-		if ok := consulServiceDisco[tg.Name]; ok {
-			mutateConstraint(constraintMatcherLeft, tg, consulServiceDiscoveryConstraint)
+		if consulServiceDisco[tg.Name] {
+			for _, service := range tg.Services {
+				if service.IsConsul() {
+					mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
+				}
+
+				for _, task := range tg.Tasks {
+					for _, service := range task.Services {
+						if service.IsConsul() {
+							mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
+						}
+					}
+				}
+			}
 		}
+
 	}
 
 	return j, nil, nil
+}
+
+// vaultConstraintFn returns a constraint that matches the fingerprint of the
+// requested Vault cluster. This is to support Nomad Enterprise but neither the
+// fingerprint or non-default cluster are allowed well before we get here, so no
+// need to split out the behavior to ENT-specific code.
+func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
+	if vault.Cluster != "default" && vault.Cluster != "" {
+		return &structs.Constraint{
+			LTarget: fmt.Sprintf("${attr.vault.%s.version}", vault.Cluster),
+			RTarget: ">= 0.6.1",
+			Operand: structs.ConstraintSemver,
+		}
+	}
+	return vaultConstraint
+}
+
+// consulConstraintFn returns a service discovery constraint that matches the
+// fingerprint of the requested Consul cluster. This is to support Nomad
+// Enterprise but neither the fingerprint or non-default cluster are allowed
+// well before we get here, so no need to split out the behavior to ENT-specific
+// code.
+func consulConstraintFn(service *structs.Service) *structs.Constraint {
+	if service.Cluster != "default" && service.Cluster != "" {
+		return &structs.Constraint{
+			LTarget: fmt.Sprintf("${attr.consul.%s.version}", service.Cluster),
+			RTarget: ">= 1.7.0",
+			Operand: structs.ConstraintSemver,
+		}
+	}
+	return consulServiceDiscoveryConstraint
 }
 
 // constraintMatcher is a custom type which helps control how constraints are

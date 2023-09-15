@@ -59,14 +59,14 @@ func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 		}
 
 		for _, service := range group.Services {
-			if service.Provider == structs.ServiceProviderConsul && service.Cluster == "" {
+			if service.IsConsul() && service.Cluster == "" {
 				service.Cluster = "default"
 			}
 		}
 
 		for _, task := range group.Tasks {
 			for _, service := range task.Services {
-				if service.Provider == structs.ServiceProviderConsul && service.Cluster == "" {
+				if service.IsConsul() && service.Cluster == "" {
 					service.Cluster = "default"
 				}
 			}
