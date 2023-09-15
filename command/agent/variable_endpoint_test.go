@@ -522,6 +522,7 @@ func TestHTTP_Variables(t *testing.T) {
 			svLR.Items = nil
 			// Make the HTTP request
 			buf := encodeReq(&svLR)
+
 			req, err := http.NewRequest("PUT", "/v1/var/"+svLR.Path+"?"+releaseLockQueryParam, buf)
 			must.NoError(t, err)
 			respW := httptest.NewRecorder()

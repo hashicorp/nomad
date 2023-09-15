@@ -243,7 +243,7 @@ func canonicalizeAndValidate(args *structs.VariablesApplyRequest) error {
 
 		// If the operation is a lock release and there are items on the variable
 		// reject the request, release doesn't update the variable.
-		if args.Var.Items != nil || len(args.Var.Items) == 0 {
+		if args.Var.Items != nil || len(args.Var.Items) != 0 {
 			return errItemsOnRelease
 		}
 
