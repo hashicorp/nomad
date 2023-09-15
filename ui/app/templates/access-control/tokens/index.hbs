@@ -24,7 +24,15 @@
     >
       <:body as |B|>
         <B.Tr>
-          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td>
+            {{#if (eq B.data.type "management")}}
+              <strong>{{B.data.name}}</strong>
+            {{else}}
+              <LinkTo @route="access-control.tokens.token" @model={{B.data.id}}>
+                {{B.data.name}}
+              </LinkTo>
+            {{/if}}
+          </B.Td>
           <B.Td>{{moment-from-now B.data.createTime interval=1000}}</B.Td>
           <B.Td>
             {{#if B.data.expirationTime}}

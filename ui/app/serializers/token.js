@@ -25,11 +25,25 @@ export default class TokenSerializer extends ApplicationSerializer {
 
   serialize(snapshot, options) {
     const hash = super.serialize(snapshot, options);
+
+    if (snapshot.id) {
+      hash.AccessorID = snapshot.id;
+    }
+
+    delete hash.ExpirationTime;
+    delete hash.CreateTime;
+    delete hash.SecretID;
+
+    hash.Policies = hash.PolicyIDs || [];
+    delete hash.PolicyIDs;
+    delete hash.PolicyNames;
+
     hash.Roles =
       (hash.RoleIDs || []).map((id) => {
         return { ID: id };
       }) || [];
     delete hash.RoleIDs;
+
     return hash;
   }
 }
