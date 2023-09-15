@@ -17,6 +17,8 @@
 		/>
 	</label>
 
+{{!-- TODO: add expiration time here --}}
+
   {{#unless @token.isNew}}
   <div>
     <Hds::Form::MaskedInput::Field @isMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly as |F|>

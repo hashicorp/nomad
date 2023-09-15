@@ -10,6 +10,8 @@ import { task } from 'ember-concurrency';
 
 export default class AccessControlPoliciesIndexController extends Controller {
   @service router;
+  @service notifications;
+
   get policies() {
     return this.model.policies.map((policy) => {
       policy.tokens = (this.model.tokens || []).filter((token) => {
