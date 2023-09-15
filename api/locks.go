@@ -226,7 +226,7 @@ func LockLeaserOptionWithEarlyReturn(er bool) LockLeaserOption {
 }
 
 // LockLeaserOptionWithWaitPeriod is used to set a back off period between
-// calls to attempt tp acquire the lock. By default it is set to 1.1 * TTLs.
+// calls to attempt to acquire the lock. By default it is set to 1.1 * TTLs.
 func LockLeaserOptionWithWaitPeriod(wp time.Duration) LockLeaserOption {
 	return func(l *LockLeaser) {
 		l.waitPeriod = wp
