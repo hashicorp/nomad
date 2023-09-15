@@ -86,6 +86,18 @@ periodic {
 }
 ```
 
+### Run multiple crons
+
+```hcl
+periodic {
+  crons = [
+    "*/5 * * *",
+    "*/7 * * *"
+  ]
+  time_zone = "America/New_York"
+}
+```
+
 ## Daylight Saving Time
 
 Though Nomad supports configuring `time_zone`, we strongly recommend that periodic
