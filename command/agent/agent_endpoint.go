@@ -332,8 +332,17 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 		return nil, CodedError(400, "missing node to force leave")
 	}
 
+	prune, err := parseBool(req, "prune")
+	if err != nil {
+		return nil, CodedError(400, "invalid prune value")
+	}
+
 	// Attempt remove
-	err := srv.RemoveFailedNode(node)
+	if prune != nil && *prune {
+		err = srv.RemoveFailedNodePrune(node)
+	} else {
+		err = srv.RemoveFailedNode(node)
+	}
 	return nil, err
 }
 

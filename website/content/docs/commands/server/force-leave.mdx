@@ -10,7 +10,9 @@ description: >
 
 The `server force-leave` command forces a server to enter the "left" state.
 This can be used to eject server nodes which have failed and will not rejoin
-the cluster. Note that if the server is actually still alive, it will
+the cluster. The failed or left server will be garbage collected after `24h`. 
+
+~> Note that if the server is actually still alive, it will
 eventually rejoin the cluster again.
 
 ## Usage
@@ -22,6 +24,9 @@ nomad server force-leave [options] <node>
 This command expects only one argument - the node which should be forced
 to enter the "left" state.
 
+Additionally, by specifying the `prune` flag, a failed or left node can be forcibly removed
+from the list of members immediately.
+
 If ACLs are enabled, this option requires a token with the `agent:write`
 capability.
 
@@ -29,11 +34,23 @@ capability.
 
 @include 'general_options_no_namespace.mdx'
 
+## Server Force-Leave Options
+
+- `-prune`: Removes failed or left server from the Serf member list immediately.
+	If member is actually still alive, it will eventually rejoin the cluster again.
+
 ## Examples
 
 Force-leave the server "node1":
 
 ```shell-session
 $ nomad server force-leave node1
+
+```
+
+Force-leave the server "node1" and prune it:
+
+```shell-session
+$ nomad server force-leave -prune node1
 
 ```
