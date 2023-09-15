@@ -143,6 +143,7 @@ func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkload
 
 // Shutdown stops renewal and closes all watch chans.
 func (m *WIDMgr) Shutdown() {
+	m.stop()
 }
 
 // getIdentities fetches all signed identities or returns an error.

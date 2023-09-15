@@ -40,7 +40,6 @@ func (*identityHook) Name() string {
 }
 
 func (h *identityHook) Prerun() error {
-
 	// run the renewal
 	if err := h.widmgr.Run(); err != nil {
 		return err
