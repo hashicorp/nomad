@@ -537,6 +537,45 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 	return nil
 }
 
+// NodeExpandVolume instructs the node plugin to complete a volume expansion
+// for a particular claim held by an allocation.
+func (c *CSI) NodeExpandVolume(req *structs.ClientCSINodeExpandVolumeRequest, resp *structs.ClientCSINodeExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_node", "expand_volume"}, time.Now())
+
+	if err := req.Validate(); err != nil {
+		return err
+	}
+	usageOpts := &csimanager.UsageOptions{
+		// Claim will not be nil here, per req.Validate() above.
+		ReadOnly:       req.Claim.Mode == nstructs.CSIVolumeClaimRead,
+		AttachmentMode: req.Claim.AttachmentMode,
+		AccessMode:     req.Claim.AccessMode,
+	}
+
+	ctx, cancel := c.requestContext() // note: this has a 2-minute timeout
+	defer cancel()
+
+	err := c.c.csimanager.WaitForPlugin(ctx, dynamicplugins.PluginTypeCSINode, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	manager, err := c.c.csimanager.ManagerForPlugin(ctx, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	newCapacity, err := manager.ExpandVolume(ctx,
+		req.VolumeID, req.ExternalID, req.Claim.AllocationID, usageOpts, req.Capacity)
+
+	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		return err
+	}
+	resp.CapacityBytes = newCapacity
+
+	return nil
+}
+
 func (c *CSI) findControllerPlugin(name string) (csi.CSIPlugin, error) {
 	return c.findPlugin(dynamicplugins.PluginTypeCSIController, name)
 }

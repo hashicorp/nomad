@@ -926,5 +926,37 @@ func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 }
 
 func (c *client) NodeExpandVolume(ctx context.Context, req *NodeExpandVolumeRequest, opts ...grpc.CallOption) (*NodeExpandVolumeResponse, error) {
-	return nil, nil
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
+	exReq := req.ToCSIRepresentation()
+	resp, err := c.nodeClient.NodeExpandVolume(ctx, exReq, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.InvalidArgument:
+			return nil, fmt.Errorf(
+				"requested capabilities not compatible with volume %q: %v",
+				req.ExternalVolumeID, err)
+		case codes.NotFound:
+			return nil, fmt.Errorf("%w: volume %q could not be found: %v",
+				structs.ErrCSIClientRPCIgnorable, req.ExternalVolumeID, err)
+		case codes.FailedPrecondition:
+			return nil, fmt.Errorf("volume %q cannot be expanded while in use: %v", req.ExternalVolumeID, err)
+		case codes.OutOfRange:
+			return nil, fmt.Errorf(
+				"unsupported capacity_range for volume %q: %v", req.ExternalVolumeID, err)
+		case codes.Internal:
+			return nil, fmt.Errorf(
+				"node plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		default:
+			return nil, fmt.Errorf("node plugin returned an error: %v", err)
+		}
+	}
+
+	return &NodeExpandVolumeResponse{resp.GetCapacityBytes()}, nil
 }

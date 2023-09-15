@@ -1272,10 +1272,55 @@ func (v *CSIVolume) expandVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	logger.Info("controller done expanding volume")
 
 	if cResp.NodeExpansionRequired {
-		v.logger.Warn("TODO: also do node volume expansion if needed") // TODO
+		return v.nodeExpandVolume(vol, plugin, capacity)
 	}
 
 	return nil
+}
+
+// nodeExpandVolume sends NodeExpandVolume requests to the appropriate client
+// for each allocation that has a claim on the volume. The client will then
+// send a gRPC call to the CSI node plugin colocated with the allocation.
+func (v *CSIVolume) nodeExpandVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, capacity *csi.CapacityRange) error {
+	var mErr multierror.Error
+	logger := v.logger.Named("nodeExpandVolume").
+		With("volume", vol.ID, "plugin", plugin.ID)
+
+	expand := func(claim *structs.CSIVolumeClaim) {
+		if claim == nil {
+			return
+		}
+
+		logger.Debug("starting volume expansion on node",
+			"node_id", claim.NodeID, "alloc_id", claim.AllocationID)
+
+		resp := &cstructs.ClientCSINodeExpandVolumeResponse{}
+		req := &cstructs.ClientCSINodeExpandVolumeRequest{
+			PluginID:   plugin.ID,
+			VolumeID:   vol.ID,
+			ExternalID: vol.ExternalID,
+			Capacity:   capacity,
+			Claim:      claim,
+		}
+		if err := v.srv.RPC("ClientCSI.NodeExpandVolume", req, resp); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		if resp.CapacityBytes != vol.Capacity {
+			// not necessarily an error, but maybe notable
+			logger.Warn("unexpected capacity from NodeExpandVolume",
+				"expected", vol.Capacity, "resp", resp.CapacityBytes)
+		}
+	}
+
+	for _, claim := range vol.ReadClaims {
+		expand(claim)
+	}
+	for _, claim := range vol.WriteClaims {
+		expand(claim)
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {

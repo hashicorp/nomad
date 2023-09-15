@@ -224,12 +224,34 @@ func (a *ClientCSI) isRetryable(err error) bool {
 
 func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeRequest, reply *cstructs.ClientCSINodeDetachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_node", "detach_volume"}, time.Now())
+	return a.sendCSINodeRPC(
+		args.NodeID,
+		"CSI.NodeDetachVolume",
+		"ClientCSI.NodeDetachVolume",
+		structs.RateMetricWrite,
+		args,
+		reply,
+	)
+}
 
+func (a *ClientCSI) NodeExpandVolume(args *cstructs.ClientCSINodeExpandVolumeRequest, reply *cstructs.ClientCSINodeExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_node", "expand_volume"}, time.Now())
+	return a.sendCSINodeRPC(
+		args.Claim.NodeID,
+		"CSI.NodeExpandVolume",
+		"ClientCSI.NodeExpandVolume",
+		structs.RateMetricWrite,
+		args,
+		reply,
+	)
+}
+
+func (a *ClientCSI) sendCSINodeRPC(nodeID, method, fwdMethod, op string, args any, reply any) error {
 	// client requests aren't RequestWithIdentity, so we use a placeholder here
 	// to populate the identity data for metrics
 	identityReq := &structs.GenericRequest{}
 	authErr := a.srv.Authenticate(a.ctx, identityReq)
-	a.srv.MeasureRPCRate("client_csi", structs.RateMetricWrite, identityReq)
+	a.srv.MeasureRPCRate("client_csi", op, identityReq)
 
 	// only servers can send these client RPCs
 	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelServer)
@@ -243,24 +265,22 @@ func (a *ClientCSI) NodeDetachVolume(args *cstructs.ClientCSINodeDetachVolumeReq
 		return err
 	}
 
-	_, err = getNodeForRpc(snap, args.NodeID)
+	_, err = getNodeForRpc(snap, nodeID)
 	if err != nil {
 		return err
 	}
 
 	// Get the connection to the client
-	state, ok := a.srv.getNodeConn(args.NodeID)
+	state, ok := a.srv.getNodeConn(nodeID)
 	if !ok {
-		return findNodeConnAndForward(a.srv, args.NodeID, "ClientCSI.NodeDetachVolume", args, reply)
+		return findNodeConnAndForward(a.srv, nodeID, fwdMethod, args, reply)
 	}
 
 	// Make the RPC
-	err = NodeRpc(state.Session, "CSI.NodeDetachVolume", args, reply)
-	if err != nil {
-		return fmt.Errorf("node detach volume: %v", err)
+	if err := NodeRpc(state.Session, method, args, reply); err != nil {
+		return fmt.Errorf("%s error: %w", method, err)
 	}
 	return nil
-
 }
 
 // clientIDsForController returns a shuffled list of client IDs where the
