@@ -267,8 +267,11 @@ type TaskRunner struct {
 	// system features like cgroups
 	wranglers cinterfaces.ProcessWranglers
 
-	// widmgr signs workload identities
+	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
+
+	// widmgr manages workload identities
+	widmgr widmgr.IdentityManager
 }
 
 type Config struct {
@@ -344,6 +347,9 @@ type Config struct {
 
 	// WIDSigner signs workload identities
 	WIDSigner widmgr.IdentitySigner
+
+	// WIDMgr manages workload identities
+	WIDMgr widmgr.IdentityManager
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -406,6 +412,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		getter:                config.Getter,
 		wranglers:             config.Wranglers,
 		widsigner:             config.WIDSigner,
+		widmgr:                config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID

@@ -113,8 +113,11 @@ type AllocRunnerConfig struct {
 	// Partitions is an interface for managing cpuset partitions.
 	Partitions interfaces.CPUPartitions
 
-	// WIDMgr fetches workload identities
-	WIDMgr *widmgr.Signer
+	// WIDSigner fetches workload identities
+	WIDSigner widmgr.IdentitySigner
+
+	// WIDMgr manages workload identities
+	WIDMgr widmgr.IdentityManager
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to

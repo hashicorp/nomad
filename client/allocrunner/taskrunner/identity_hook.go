@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -41,10 +40,6 @@ type identityHook struct {
 	ts         tokenSetter
 	widmgr     widmgr.IdentityManager
 	logger     log.Logger
-
-	// minWait is the minimum amount of time to wait before renewing. Settable to
-	// ease testing.
-	minWait time.Duration
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
@@ -54,11 +49,9 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		tokenDir:   tr.taskDir.SecretsDir,
 		envBuilder: tr.envBuilder,
 		ts:         tr,
-		minWait:    10 * time.Second,
+		widmgr:     tr.widmgr,
 	}
 	h.logger = logger.Named(h.Name())
-	widmgr := widmgr.NewWIDMgr(tr.widsigner, tr.Alloc(), logger)
-	h.widmgr = widmgr
 	return h
 }
 
