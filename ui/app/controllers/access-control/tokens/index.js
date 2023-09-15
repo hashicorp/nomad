@@ -1,9 +1,17 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+// @ts-check
 import Controller from '@ember/controller';
 import { task } from 'ember-concurrency';
 import { inject as service } from '@ember/service';
+import { action } from '@ember/object';
 
 export default class AccessControlTokensIndexController extends Controller {
   @service notifications;
+  @service router;
 
   @task(function* (token) {
     try {
@@ -23,4 +31,12 @@ export default class AccessControlTokensIndexController extends Controller {
     }
   })
   deleteToken;
+
+  @action openToken(token) {
+    this.router.transitionTo('access-control.tokens.token', token.id);
+  }
+
+  @action goToNewToken() {
+    this.router.transitionTo('access-control.tokens.new');
+  }
 }

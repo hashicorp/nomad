@@ -17,11 +17,19 @@
 		/>
 	</label>
 
+  {{#unless @token.isNew}}
+  <div>
+    <Hds::Form::MaskedInput::Field @isMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly as |F|>
+      <F.Label>Token Accessor</F.Label>
+    </Hds::Form::MaskedInput::Field>
+  </div>
+
   <div>
     <Hds::Form::MaskedInput::Field @hasCopyButton={{true}} @value={{@token.secret}} readonly as |F|>
       <F.Label>Token Secret</F.Label>
     </Hds::Form::MaskedInput::Field>
   </div>
+  {{/unless}}
 
   <div>
     <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>

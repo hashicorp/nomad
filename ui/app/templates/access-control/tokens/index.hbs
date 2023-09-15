@@ -8,6 +8,29 @@
     <p class="toolbar-item">
       ACL Tokens are associated with one or more policies or roles to grant specific capabilities. Users can use these to sign into, and operate, Nomad with the permissions laid out in their policies.
     </p>
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      {{#if (can "write token")}}
+        <Hds::Button
+          @text="Create Token"
+          @icon="plus"
+          @route="access-control.tokens.new"
+          {{keyboard-shortcut
+            pattern=(array "n" "t")
+            action=(action this.goToNewToken)
+            label="Create Token"
+          }}
+          data-test-create-token
+        />
+      {{else}}
+        <Hds::Button
+          @text="Create Token"
+          @icon="plus"
+          disabled
+          data-test-disabled-create-token
+        />
+      {{/if}}
+    </div>
+
   </div>
   {{#if this.model.tokens.length}}
     <Hds::Table @caption="A list of tokens for this cluster" class="acl-table"
@@ -23,7 +46,12 @@
       @sortBy="name"
     >
       <:body as |B|>
-        <B.Tr>
+        <B.Tr
+          {{keyboard-shortcut 
+            enumerated=true
+            action=(action "openToken" B.data)
+          }}
+        >
           <B.Td>
             {{#if (eq B.data.type "management")}}
               <strong>{{B.data.name}}</strong>
