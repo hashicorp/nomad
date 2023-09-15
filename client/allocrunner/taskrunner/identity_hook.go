@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -33,27 +34,20 @@ type tokenSetter interface {
 }
 
 type identityHook struct {
-	alloc          *structs.Allocation
-	task           *structs.Task
-	tokenDir       string
-	envBuilder     *taskenv.Builder
-	ts             tokenSetter
-	allocResources *cstructs.AllocHookResources
-	logger         log.Logger
+	alloc      *structs.Allocation
+	task       *structs.Task
+	tokenDir   string
+	envBuilder *taskenv.Builder
+	ts         tokenSetter
+	widmgr     widmgr.IdentityManager
+	logger     log.Logger
 
 	// minWait is the minimum amount of time to wait before renewing. Settable to
 	// ease testing.
 	minWait time.Duration
-
-	stopCtx context.Context
-	stop    context.CancelFunc
 }
 
 func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
-	// Create a context for the renew loop. This context will be canceled when
-	// the task is stopped or agent is shutting down.
-	stopCtx, stop := context.WithCancel(context.Background())
-
 	h := &identityHook{
 		alloc:      tr.Alloc(),
 		task:       tr.Task(),
@@ -61,10 +55,10 @@ func newIdentityHook(tr *TaskRunner, logger log.Logger) *identityHook {
 		envBuilder: tr.envBuilder,
 		ts:         tr,
 		minWait:    10 * time.Second,
-		stopCtx:    stopCtx,
-		stop:       stop,
 	}
 	h.logger = logger.Named(h.Name())
+	widmgr := widmgr.NewWIDMgr(tr.widsigner, tr.Alloc(), logger)
+	h.widmgr = widmgr
 	return h
 }
 
@@ -79,40 +73,13 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 		return err
 	}
 
-	signedWIDs := make(map[string]*structs.SignedWorkloadIdentity)
-
 	// Start token watcher loops
 	for _, i := range h.task.Identities {
-		ti := &cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: i.Name}
-		go h.watchForTokenUpdates(ti, signedWIDs)
+		id := cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: i.Name}
+		signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
 	}
 
 	return nil
-}
-
-func (h *identityHook) watchForTokenUpdates(ti *cstructs.TaskIdentity, tokens map[string]*structs.SignedWorkloadIdentity) {
-	for err := h.stopCtx.Err(); err == nil; {
-		select {
-		case updates := <-h.allocResources.SignedTaskIdentities[ti]:
-			for _, widspec := range h.task.Identities {
-				if updates == nil {
-					// The only way to hit this should be a bug as it indicates
-					// the server did not sign an identity for a task on this
-					// alloc.
-					h.logger.Error("missing workload identity %q", widspec.Name)
-				}
-
-				if err := h.setAltToken(widspec, updates.JWT); err != nil {
-					h.logger.Error("error setting token: %v", err)
-					continue
-				}
-			}
-		case <-h.allocResources.StopChanForTask[h.task.Name]:
-			return
-		case <-h.stopCtx.Done():
-			return
-		}
-	}
 }
 
 // setDefaultToken adds the Nomad token to the task's environment and writes it to a
@@ -157,11 +124,11 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 
 // Stop implements interfaces.TaskStopHook
 func (h *identityHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
-	h.stop()
+	h.widmgr.Shutdown()
 	return nil
 }
 
 // Shutdown implements interfaces.ShutdownHook
 func (h *identityHook) Shutdown() {
-	h.stop()
+	h.widmgr.Shutdown()
 }

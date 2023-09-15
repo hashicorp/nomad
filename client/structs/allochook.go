@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type TaskIdentity struct {
@@ -23,21 +22,12 @@ type TaskIdentity struct {
 type AllocHookResources struct {
 	csiMounts map[string]*csimanager.MountInfo
 
-	// SignedTaskIdentities is a map of task names to channels that contain maps of
-	// identity names to signed WI.
-	// WARNING: these maps or channels are *not* allocated in the AllocHookResources
-	// constructor, but in the allocrunner identity_hook instead.
-	SignedTaskIdentities map[*TaskIdentity]chan *structs.SignedWorkloadIdentity
-	StopChanForTask      map[string]chan struct{}
-
 	mu sync.RWMutex
 }
 
 func NewAllocHookResources() *AllocHookResources {
-	stop := make(map[string]chan struct{})
 	return &AllocHookResources{
-		csiMounts:       map[string]*csimanager.MountInfo{},
-		StopChanForTask: stop,
+		csiMounts: map[string]*csimanager.MountInfo{},
 	}
 }
 
@@ -58,5 +48,3 @@ func (a *AllocHookResources) SetCSIMounts(m map[string]*csimanager.MountInfo) {
 
 	a.csiMounts = m
 }
-
-// func (a *AllocHookResources) GetSignedIdentitiesForTask(taskname string)

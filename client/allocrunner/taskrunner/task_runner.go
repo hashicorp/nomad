@@ -34,6 +34,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -265,6 +266,9 @@ type TaskRunner struct {
 	// wranglers manage unix/windows processes leveraging operating
 	// system features like cgroups
 	wranglers cinterfaces.ProcessWranglers
+
+	// widmgr signs workload identities
+	widsigner widmgr.IdentitySigner
 }
 
 type Config struct {
@@ -337,6 +341,9 @@ type Config struct {
 	// AllocHookResources is how taskrunner hooks can get state written by
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
+
+	// WIDSigner signs workload identities
+	WIDSigner widmgr.IdentitySigner
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -398,6 +405,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		serviceRegWrapper:     config.ServiceRegWrapper,
 		getter:                config.Getter,
 		wranglers:             config.Wranglers,
+		widsigner:             config.WIDSigner,
 	}
 
 	// Create the logger based on the allocation ID
