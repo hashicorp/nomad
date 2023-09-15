@@ -7,6 +7,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -26,4 +27,29 @@ func (jobVaultHook) validateNamespaces(
 		return fmt.Errorf("%w, Namespaces: %s", ErrMultipleNamespaces, strings.Join(requestedNamespaces, ", "))
 	}
 	return nil
+}
+
+func (h jobVaultHook) validateClustersForNamespace(_ *structs.Job, blocks map[string]map[string]*structs.Vault) error {
+	for _, tg := range blocks {
+		for _, vault := range tg {
+			if vault.Cluster != "default" {
+				return errors.New("non-default Vault cluster requires Nomad Enterprise")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (j jobVaultHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			if task.Vault == nil || task.Vault.Cluster != "" {
+				continue
+			}
+			task.Vault.Cluster = "default"
+		}
+	}
+
+	return job, nil, nil
 }
