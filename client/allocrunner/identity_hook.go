@@ -11,20 +11,15 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// IdentitySigner is the interface needed to retrieve signed identities for
-// workload identities. At runtime it is implemented by *widmgr.WIDMgr.
-type IdentitySigner interface {
-	SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error)
-}
-
 type identityHook struct {
 	ar            *allocRunner
 	hookResources *cstructs.AllocHookResources
-	widmgr        IdentitySigner
+	widmgr        widmgr.IdentitySigner
 	logger        log.Logger
 
 	// minWait is the minimum amount of time to wait before renewing. Settable to

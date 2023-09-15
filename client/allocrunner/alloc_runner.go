@@ -207,7 +207,7 @@ type allocRunner struct {
 	partitions cinterfaces.CPUPartitions
 
 	// widmgr fetches workload identities
-	widmgr *widmgr.WIDMgr
+	widmgr *widmgr.Signer
 }
 
 // NewAllocRunner returns a new allocation runner.

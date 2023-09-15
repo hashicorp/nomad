@@ -336,7 +336,7 @@ type Client struct {
 	partitions cgroupslib.Partition
 
 	// widmgr retrieves workload identities
-	widmgr *widmgr.WIDMgr
+	widmgr *widmgr.Signer
 }
 
 var (
@@ -446,7 +446,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// Add workload identity manager after node secret has been generated/loaded
-	c.widmgr = widmgr.New(widmgr.Config{
+	c.widmgr = widmgr.NewSigner(widmgr.SignerConfig{
 		NodeSecret: c.secretNodeID(),
 		Region:     cfg.Region,
 		RPC:        c,
