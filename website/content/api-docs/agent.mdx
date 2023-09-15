@@ -441,13 +441,17 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `node` `(string: <required>)` - Specifies the name of the node to force leave.
+- `prune` `(boolean: <optional>)` -  Removes failed or left server from the Serf 
+  member list immediately. If member is actually still alive, it will eventually rejoin 
+  the cluster again.
+
 
 ### Sample Request
 
 ```shell-session
 $ curl \
     --request POST \
-    https://localhost:4646/v1/agent/force-leave?node=client-ab2e23dc
+    https://localhost:4646/v1/agent/force-leave?node=client-ab2e23dc&prune=true
 ```
 
 ## Health

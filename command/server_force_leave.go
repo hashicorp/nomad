@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
@@ -21,14 +22,22 @@ Usage: nomad server force-leave [options] <node>
   Forces an server to enter the "left" state. This can be used to
   eject nodes which have failed and will not rejoin the cluster.
   Note that if the member is actually still alive, it will
-  eventually rejoin the cluster again.
+  eventually rejoin the cluster again. The failed or left server will
+  be garbage collected after 24h.
 
   If ACLs are enabled, this option requires a token with the 'agent:write'
   capability.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+  
+Server Force-Leave Options:
+
+  -prune
+    Removes failed or left server from the Serf member list immediately.
+	If member is actually still alive, it will eventually rejoin the cluster again.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -37,7 +46,10 @@ func (c *ServerForceLeaveCommand) Synopsis() string {
 }
 
 func (c *ServerForceLeaveCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-prune": complete.PredictNothing,
+		})
 }
 
 func (c *ServerForceLeaveCommand) AutocompleteArgs() complete.Predictor {
@@ -47,8 +59,11 @@ func (c *ServerForceLeaveCommand) AutocompleteArgs() complete.Predictor {
 func (c *ServerForceLeaveCommand) Name() string { return "server force-leave" }
 
 func (c *ServerForceLeaveCommand) Run(args []string) int {
+	var prune bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&prune, "prune", false, "Remove server completely from list of members")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -70,7 +85,10 @@ func (c *ServerForceLeaveCommand) Run(args []string) int {
 	}
 
 	// Call force-leave on the node
-	if err := client.Agent().ForceLeave(node); err != nil {
+	forceLeaveOpts := api.ForceLeaveOpts{
+		Prune: prune,
+	}
+	if err := client.Agent().ForceLeaveWithOptions(node, forceLeaveOpts); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error force-leaving server %s: %s", node, err))
 		return 1
 	}

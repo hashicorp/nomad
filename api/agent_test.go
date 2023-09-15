@@ -126,6 +126,7 @@ func TestAgent_ForceLeave(t *testing.T) {
 	must.One(t, n)
 
 	membersBefore, err := a.MembersOpts(&QueryOptions{})
+	must.NoError(t, err)
 	must.Eq(t, membersBefore.Members[1].Status, "alive")
 
 	err = a.ForceLeave(membersBefore.Members[1].Name)
@@ -152,6 +153,53 @@ func TestAgent_ForceLeave(t *testing.T) {
 		wait.Timeout(3*time.Second),
 		wait.Gap(100*time.Millisecond),
 	))
+
+}
+
+func TestAgent_ForceLeavePrune(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	nodeName := "foo"
+	_, s2 := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.NodeName = nodeName
+		c.Server.BootstrapExpect = 0
+	})
+
+	n, err := a.Join(s2.SerfAddr)
+	must.NoError(t, err)
+	must.One(t, n)
+	membersBefore, err := a.MembersOpts(&QueryOptions{})
+	must.NoError(t, err)
+
+	s2.Stop()
+
+	forceLeaveOpts := ForceLeaveOpts{
+		Prune: true,
+	}
+	nodeName = nodeName + ".global"
+	err = a.ForceLeaveWithOptions(nodeName, forceLeaveOpts)
+	must.NoError(t, err)
+
+	f := func() error {
+		membersAfter, err := a.MembersOpts(&QueryOptions{})
+		if err != nil {
+			return err
+		}
+		if len(membersAfter.Members) == len(membersBefore.Members) {
+			return fmt.Errorf("node did not get pruned")
+		}
+		return nil
+	}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(f),
+		wait.Timeout(5*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
+
 }
 
 func (a *AgentMember) String() string {

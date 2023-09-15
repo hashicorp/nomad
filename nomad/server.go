@@ -1866,6 +1866,11 @@ func (s *Server) RemoveFailedNode(node string) error {
 	return s.serf.RemoveFailedNode(node)
 }
 
+// RemoveFailedNodePrune immediately removes a failed node from the list of members
+func (s *Server) RemoveFailedNodePrune(node string) error {
+	return s.serf.RemoveFailedNodePrune(node)
+}
+
 // KeyManager returns the Serf keyring manager
 func (s *Server) KeyManager() *serf.KeyManager {
 	return s.serf.KeyManager()
