@@ -267,9 +267,6 @@ type TaskRunner struct {
 	// system features like cgroups
 	wranglers cinterfaces.ProcessWranglers
 
-	// widsigner signs workload identities
-	widsigner widmgr.IdentitySigner
-
 	// widmgr manages workload identities
 	widmgr widmgr.IdentityManager
 }
@@ -345,9 +342,6 @@ type Config struct {
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
 
-	// WIDSigner signs workload identities
-	WIDSigner widmgr.IdentitySigner
-
 	// WIDMgr manages workload identities
 	WIDMgr widmgr.IdentityManager
 }
@@ -411,7 +405,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		serviceRegWrapper:     config.ServiceRegWrapper,
 		getter:                config.Getter,
 		wranglers:             config.Wranglers,
-		widsigner:             config.WIDSigner,
 		widmgr:                config.WIDMgr,
 	}
 

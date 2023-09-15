@@ -118,6 +118,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
+		newIdentityHook(hookLogger, ar),
 		newAllocDirHook(hookLogger, ar.allocDir),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),

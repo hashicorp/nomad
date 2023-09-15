@@ -9,6 +9,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type RPCer interface {
+	RPC(method string, args any, reply any) error
+}
+
 // IdentitySigner is the interface needed to retrieve signed identities for
 // workload identities. At runtime it is implemented by *widmgr.Signer.
 type IdentitySigner interface {
@@ -28,7 +32,6 @@ type SignerConfig struct {
 }
 
 // Signer fetches and validates workload identities.
-// TODO Move to widmgr/signer.go
 type Signer struct {
 	nodeSecret string
 	region     string

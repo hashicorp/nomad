@@ -83,10 +83,17 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
 	id := cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: wid.Name}
 	signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
+	defer stopWatching()
 
 	for {
 		select {
-		case signedWID := <-signedIdentitiesChan:
+		case signedWID, ok := <-signedIdentitiesChan:
+			if !ok {
+				// Chan was closed, stop watching
+				h.logger.Trace("identity watch closed", "task", h.task.Name, "identity", wid.Name)
+				return
+			}
+
 			if signedWID == nil {
 				// The only way to hit this should be a bug as it indicates the server
 				// did not sign an identity for a task on this alloc.
@@ -97,7 +104,6 @@ func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
 				h.logger.Error(err.Error())
 			}
 		case <-h.stopCtx.Done():
-			stopWatching()
 			return
 		}
 	}

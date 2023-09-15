@@ -17,7 +17,7 @@ type identityHook struct {
 	logger log.Logger
 }
 
-func newIdentityHook(ar *allocRunner, logger log.Logger) *identityHook {
+func newIdentityHook(logger log.Logger, ar *allocRunner) *identityHook {
 	h := &identityHook{
 		ar:     ar,
 		widmgr: ar.widmgr,
