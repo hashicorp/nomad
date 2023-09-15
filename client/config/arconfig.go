@@ -114,7 +114,7 @@ type AllocRunnerConfig struct {
 	Partitions interfaces.CPUPartitions
 
 	// WIDMgr fetches workload identities
-	WIDMgr *widmgr.WIDMgr
+	WIDMgr *widmgr.Signer
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to
