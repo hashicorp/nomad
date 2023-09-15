@@ -20,7 +20,7 @@ func TestVariables_SimpleCRUD(t *testing.T) {
 	defer s.Stop()
 
 	nsv := c.Variables()
-	sv1 := NewVariable("my/first/variable")
+	sv1 := NewVariable("my/first/variable/SimpleCRUD")
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
@@ -297,7 +297,7 @@ func TestVariable_CreateReturnsContent(t *testing.T) {
 	defer s.Stop()
 
 	nsv := c.Variables()
-	sv1 := NewVariable("my/first/variable")
+	sv1 := NewVariable("my/first/variable/create")
 	sv1.Namespace = "default"
 	sv1.Items["k1"] = "v1"
 	sv1.Items["k2"] = "v2"
@@ -371,7 +371,7 @@ func TestVariables_LockRenewRelease(t *testing.T) {
 		must.NoError(t, err)
 		must.NotNil(t, get)
 		must.NotEq(t, sv1.ModifyIndex, get.ModifyIndex)
-		must.Nil(t, get.Items)
+		must.Zero(t, len(get.Items))
 		must.Nil(t, get.Lock)
 	})
 }
