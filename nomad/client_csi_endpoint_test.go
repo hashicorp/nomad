@@ -45,6 +45,8 @@ type MockClientCSI struct {
 	NextControllerExpandVolumeError    error
 	NextControllerExpandVolumeResponse *cstructs.ClientCSIControllerExpandVolumeResponse
 	NextNodeDetachError                error
+	NextNodeExpandError                error
+	LastNodeExpandRequest              *cstructs.ClientCSINodeExpandVolumeRequest
 }
 
 func newMockClientCSI() *MockClientCSI {
@@ -106,6 +108,11 @@ func (c *MockClientCSI) ControllerExpandVolume(req *cstructs.ClientCSIController
 
 func (c *MockClientCSI) NodeDetachVolume(req *cstructs.ClientCSINodeDetachVolumeRequest, resp *cstructs.ClientCSINodeDetachVolumeResponse) error {
 	return c.NextNodeDetachError
+}
+
+func (c *MockClientCSI) NodeExpandVolume(req *cstructs.ClientCSINodeExpandVolumeRequest, resp *cstructs.ClientCSINodeExpandVolumeResponse) error {
+	c.LastNodeExpandRequest = req
+	return c.NextNodeExpandError
 }
 
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {

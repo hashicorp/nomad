@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -496,6 +497,10 @@ func (vm mockVolumeManager) UnmountVolume(ctx context.Context, volID, remoteID, 
 func (vm mockVolumeManager) HasMount(_ context.Context, mountInfo *csimanager.MountInfo) (bool, error) {
 	vm.callCounts.inc("hasMount")
 	return mountInfo != nil && vm.hasMounts, nil
+}
+
+func (vm mockVolumeManager) ExpandVolume(_ context.Context, _, _, _ string, _ *csimanager.UsageOptions, _ *csi.CapacityRange) (int64, error) {
+	return 0, nil
 }
 
 func (vm mockVolumeManager) ExternalID() string {
