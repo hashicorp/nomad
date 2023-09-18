@@ -59,8 +59,9 @@ type AllocRunnerConfig struct {
 	// ConsulSI is the Consul client used to manage service identity tokens.
 	ConsulSI consul.ServiceIdentityAPI
 
-	// Vault is the Vault client to use to retrieve Vault tokens
-	Vault vaultclient.VaultClient
+	// VaultFunc is the function to get a Vault client to use to retrieve Vault
+	// tokens
+	VaultFunc vaultclient.VaultClientFunc
 
 	// StateUpdater is used to emit updated task state
 	StateUpdater interfaces.AllocStateHandler

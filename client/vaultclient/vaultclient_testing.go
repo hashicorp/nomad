@@ -38,7 +38,7 @@ type MockVaultClient struct {
 }
 
 // NewMockVaultClient returns a MockVaultClient for testing
-func NewMockVaultClient() *MockVaultClient { return &MockVaultClient{} }
+func NewMockVaultClient(_ string) (VaultClient, error) { return &MockVaultClient{}, nil }
 
 func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (map[string]string, error) {
 	vc.mu.Lock()
