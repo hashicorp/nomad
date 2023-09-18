@@ -337,9 +337,6 @@ type Client struct {
 
 	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
-
-	// widmgr manages workload identities
-	widmgr widmgr.IdentityManager
 }
 
 var (
@@ -2766,7 +2763,6 @@ func (c *Client) newAllocRunnerConfig(
 		StateUpdater:        c,
 		Vault:               c.vaultClient,
 		WIDSigner:           c.widsigner,
-		WIDMgr:              c.widmgr,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
 	}
