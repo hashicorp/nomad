@@ -15,12 +15,12 @@ import (
 	"oss.indeed.com/go/libtime"
 )
 
-func New(top cpustats.Topology, pl ProcessList) ProcessStats {
+func New(compute cpustats.Compute, pl ProcessList) ProcessStats {
 	const cacheTTL = 5 * time.Second
 	return &linuxProcStats{
 		cacheTTL: cacheTTL,
 		procList: pl,
-		top:      top,
+		compute:  compute,
 		clock:    libtime.SystemClock(),
 		latest:   make(map[ProcessID]*stats),
 		cache:    make(ProcUsages),
@@ -37,7 +37,7 @@ type linuxProcStats struct {
 	cacheTTL time.Duration
 	procList ProcessList
 	clock    libtime.Clock
-	top      cpustats.Topology
+	compute  cpustats.Compute
 
 	lock   sync.Mutex
 	latest map[ProcessID]*stats
@@ -66,9 +66,9 @@ func (lps *linuxProcStats) scanPIDs() {
 	for _, pid := range currentPIDs.Slice() {
 		if _, exists := lps.latest[pid]; !exists {
 			lps.latest[pid] = &stats{
-				TotalCPU:  cpustats.New(lps.top),
-				UserCPU:   cpustats.New(lps.top),
-				SystemCPU: cpustats.New(lps.top),
+				TotalCPU:  cpustats.New(lps.compute),
+				UserCPU:   cpustats.New(lps.compute),
+				SystemCPU: cpustats.New(lps.compute),
 			}
 		}
 	}

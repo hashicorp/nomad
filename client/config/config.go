@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/host"
@@ -948,11 +949,12 @@ func splitValue(val string) map[string]struct{} {
 }
 
 // NomadPluginConfig produces the NomadConfig struct which is sent to Nomad plugins
-func (c *Config) NomadPluginConfig() *base.AgentConfig {
+func (c *Config) NomadPluginConfig(topology *numalib.Topology) *base.AgentConfig {
 	return &base.AgentConfig{
 		Driver: &base.ClientDriverConfig{
 			ClientMinPort: c.ClientMinPort,
 			ClientMaxPort: c.ClientMaxPort,
+			Topology:      topology,
 		},
 	}
 }

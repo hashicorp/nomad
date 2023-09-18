@@ -16,9 +16,8 @@ import (
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
-	basePlug "github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -33,7 +32,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
@@ -96,7 +95,7 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -133,7 +132,7 @@ func TestExec_dnsConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -260,7 +259,7 @@ func TestExecDriver_Capabilities(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			d := NewExecDriver(ctx, testlog.HCLogger(t))
+			d := newExecDriverTest(t, ctx)
 			harness := dtestutil.NewDriverHarness(t, d)
 			defer harness.Kill()
 
@@ -278,8 +277,15 @@ func TestExecDriver_Capabilities(t *testing.T) {
 			}
 
 			var data []byte
-			require.NoError(t, basePlug.MsgPackEncode(&data, config))
-			baseConfig := &basePlug.Config{PluginConfig: data}
+			require.NoError(t, base.MsgPackEncode(&data, config))
+			baseConfig := &base.Config{
+				PluginConfig: data,
+				AgentConfig: &base.AgentConfig{
+					Driver: &base.ClientDriverConfig{
+						Topology: d.(*Driver).nomadConfig.Topology,
+					},
+				},
+			}
 			require.NoError(t, harness.SetConfig(baseConfig))
 
 			cleanup := harness.MkAllocDir(task, false)

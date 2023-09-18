@@ -25,7 +25,7 @@ func PlatformScanners() []SystemScanner {
 const (
 	nodeID   = hw.NodeID(0)
 	socketID = hw.SocketID(0)
-	maxSpeed = KHz(0)
+	maxSpeed = hw.KHz(0)
 )
 
 // Generic implements SystemScanner as a fallback for operating systems without
@@ -55,7 +55,7 @@ func (g *Generic) ScanSystem(top *Topology) {
 
 	for i := 0; i < count; i++ {
 		info := infos[0]
-		speed := KHz(MHz(info.Mhz) * 1000)
-		top.insert(nodeID, socketID, hw.CoreID(i), performance, maxSpeed, speed)
+		speed := hw.KHz(hw.MHz(info.Mhz) * 1000)
+		top.insert(nodeID, socketID, hw.CoreID(i), Performance, maxSpeed, speed)
 	}
 }

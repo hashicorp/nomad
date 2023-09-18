@@ -19,12 +19,14 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
@@ -71,6 +73,10 @@ func TestMain(m *testing.M) {
 	}
 }
 
+var (
+	topology = numalib.Scan(numalib.PlatformScanners())
+)
+
 func newEnabledRawExecDriver(t *testing.T) *Driver {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -78,6 +84,9 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 	logger := testlog.HCLogger(t)
 	d := NewRawExecDriver(ctx, logger).(*Driver)
 	d.config.Enabled = true
+	d.nomadConfig = &base.ClientDriverConfig{
+		Topology: topology,
+	}
 
 	return d
 }
@@ -249,7 +258,14 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	config := &Config{NoCgroups: true, Enabled: true}
 	var data []byte
 	require.NoError(basePlug.MsgPackEncode(&data, config))
-	bconfig := &basePlug.Config{PluginConfig: data}
+	bconfig := &basePlug.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.nomadConfig.Topology,
+			},
+		},
+	}
 	require.NoError(harness.SetConfig(bconfig))
 
 	allocID := uuid.Generate()

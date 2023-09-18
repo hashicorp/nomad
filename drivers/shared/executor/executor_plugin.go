@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"google.golang.org/grpc"
 )
@@ -17,13 +18,14 @@ type ExecutorPlugin struct {
 	plugin.NetRPCUnsupportedPlugin
 	logger      hclog.Logger
 	fsIsolation bool
+	compute     cpustats.Compute
 }
 
 func (p *ExecutorPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	if p.fsIsolation {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutorWithIsolation(p.logger, p.compute)})
 	} else {
-		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger)})
+		proto.RegisterExecutorServer(s, &grpcExecutorServer{impl: NewExecutor(p.logger, p.compute)})
 	}
 	return nil
 }

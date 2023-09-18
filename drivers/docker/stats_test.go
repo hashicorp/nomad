@@ -38,7 +38,7 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 	stats.MemoryStats.CommitPeak = 321323
 	stats.MemoryStats.PrivateWorkingSet = 62222
 
-	go dockerStatsCollector(dst, src, time.Second, top)
+	go dockerStatsCollector(dst, src, time.Second, top.Compute())
 
 	select {
 	case src <- stats:

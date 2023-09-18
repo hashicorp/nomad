@@ -39,6 +39,14 @@ func Empty[T ID]() *Set[T] {
 	}
 }
 
+// FromFunc creates a Set from the given values by first applying
+// the conversion function.
+func FromFunc[T ID, A any](values []A, convert func(value A) T) *Set[T] {
+	return &Set[T]{
+		items: set.FromFunc(values, convert),
+	}
+}
+
 // Copy creates a deep copy of s.
 func (s *Set[T]) Copy() *Set[T] {
 	return &Set[T]{items: s.items.Copy()}

@@ -8,10 +8,15 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test/must"
+)
+
+var (
+	topology = numalib.Scan(numalib.PlatformScanners())
 )
 
 // TestDockerDriver_FingerprintHealth asserts that docker reports healthy
@@ -25,7 +30,7 @@ func TestDockerDriver_FingerprintHealth(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDockerDriver(ctx, top, testlog.HCLogger(t)).(*Driver)
+	d := NewDockerDriver(ctx, testlog.HCLogger(t)).(*Driver)
 
 	fp := d.buildFingerprint()
 	must.Eq(t, drivers.HealthStateHealthy, fp.Health)
@@ -42,7 +47,7 @@ func TestDockerDriver_NonRoot_CGV2(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDockerDriver(ctx, top, testlog.HCLogger(t)).(*Driver)
+	d := NewDockerDriver(ctx, testlog.HCLogger(t)).(*Driver)
 
 	fp := d.buildFingerprint()
 	must.Eq(t, drivers.HealthStateUndetected, fp.Health)

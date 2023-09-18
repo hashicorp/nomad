@@ -19,10 +19,10 @@ var (
 	DockerCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *docker.Stats, top cpustats.Topology) *cstructs.TaskResourceUsage {
+func DockerStatsToTaskResourceUsage(s *docker.Stats, compute cpustats.Compute) *cstructs.TaskResourceUsage {
 	var (
-		totalCompute = top.TotalCompute()
-		totalCores   = top.NumCores()
+		totalCompute = compute.TotalCompute
+		totalCores   = compute.NumCores
 	)
 
 	measuredMems := DockerCgroupV1MeasuredMemStats

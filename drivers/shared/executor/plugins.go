@@ -6,8 +6,9 @@ package executor
 import (
 	"net"
 
-	hclog "github.com/hashicorp/go-hclog"
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 )
 
 // ExecutorConfig is the config that Nomad passes to the executor
@@ -22,13 +23,17 @@ type ExecutorConfig struct {
 	// FSIsolation if set will use an executor implementation that support
 	// filesystem isolation
 	FSIsolation bool
+
+	// Compute contains system cpu compute information
+	Compute cpustats.Compute
 }
 
-func GetPluginMap(logger hclog.Logger, fsIsolation bool) map[string]plugin.Plugin {
+func GetPluginMap(logger hclog.Logger, fsIsolation bool, compute cpustats.Compute) map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{
 		"executor": &ExecutorPlugin{
 			logger:      logger,
 			fsIsolation: fsIsolation,
+			compute:     compute,
 		},
 	}
 }

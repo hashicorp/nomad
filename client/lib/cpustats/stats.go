@@ -7,15 +7,18 @@ package cpustats
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"oss.indeed.com/go/libtime"
 )
 
-// Topology is an interface of what is needed from numalib.Topology for computing
-// the CPU resource utilization of a process.
-type Topology interface {
-	TotalCompute() numalib.MHz
-	NumCores() int
+// Compute is the cpu related fields of a numa.Topology needed for computing
+// performance / utilization of tasks.
+//
+// Note that this is serialized and passed to executor.Executor as a CLI
+// argument and so we use small json field names to minimize ps spam.
+type Compute struct {
+	TotalCompute hw.MHz `json:"tc"`
+	NumCores     int    `json:"nc"`
 }
 
 // A Tracker keeps track of one aspect of CPU utilization (i.e. one of system,
@@ -24,17 +27,17 @@ type Tracker struct {
 	prevCPUTime float64
 	prevTime    time.Time
 
-	totalCompute numalib.MHz
+	totalCompute hw.MHz
 	numCPUs      int
 
 	clock libtime.Clock
 }
 
 // New creates a fresh Tracker with no data.
-func New(top Topology) *Tracker {
+func New(c Compute) *Tracker {
 	return &Tracker{
-		totalCompute: top.TotalCompute(),
-		numCPUs:      top.NumCores(),
+		totalCompute: c.TotalCompute,
+		numCPUs:      c.NumCores,
 		clock:        libtime.SystemClock(),
 	}
 }

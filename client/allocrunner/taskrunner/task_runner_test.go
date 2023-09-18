@@ -249,6 +249,7 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 
 	// Run the first TaskRunner
 	tr, err := NewTaskRunner(conf)
+
 	require.NoError(t, err)
 	go tr.Run()
 

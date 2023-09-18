@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/executor/proto"
 	"github.com/hashicorp/nomad/plugins/base"
 )
@@ -46,6 +47,7 @@ func CreateExecutor(
 	p := &ExecutorPlugin{
 		logger:      logger,
 		fsIsolation: executorConfig.FSIsolation,
+		compute:     driverConfig.Topology.Compute(),
 	}
 
 	config := &plugin.ClientConfig{
@@ -74,15 +76,14 @@ func CreateExecutor(
 }
 
 // ReattachToExecutor launches a plugin with a given plugin config
-func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
+func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger, compute cpustats.Compute) (Executor, *plugin.Client, error) {
 	config := &plugin.ClientConfig{
 		HandshakeConfig:  base.Handshake,
 		Reattach:         reattachConfig,
-		Plugins:          GetPluginMap(logger, false),
+		Plugins:          GetPluginMap(logger, false, compute),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           logger.Named("executor"),
 	}
-
 	return newExecutorClient(config, logger)
 }
 
