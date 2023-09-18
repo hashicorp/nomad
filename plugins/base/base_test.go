@@ -16,7 +16,7 @@ import (
 func Test_nomadTopologyToProto(t *testing.T) {
 	top := &numalib.Topology{
 		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
-		Distances: numalib.SLIT{{10}},
+		Distances: numalib.SLIT{{10, 20}, {20, 10}},
 		Cores: []numalib.Core{
 			{
 				SocketID:   0,
@@ -37,8 +37,8 @@ func Test_nomadTopologyToProto(t *testing.T) {
 	must.Eq(t, &proto.ClientTopology{
 		NodeIds: []uint32{0, 1},
 		Distances: &proto.ClientTopologySLIT{
-			Dimension: 1,
-			Values:    []uint32{10},
+			Dimension: 2,
+			Values:    []uint32{10, 20, 20, 10},
 		},
 		Cores: []*proto.ClientTopologyCore{
 			{
@@ -61,8 +61,8 @@ func Test_nomadTopologyFromProto(t *testing.T) {
 	pb := &proto.ClientTopology{
 		NodeIds: []uint32{0, 1},
 		Distances: &proto.ClientTopologySLIT{
-			Dimension: 1,
-			Values:    []uint32{10},
+			Dimension: 2,
+			Values:    []uint32{10, 20, 20, 10},
 		},
 		Cores: []*proto.ClientTopologyCore{
 			{
@@ -82,7 +82,7 @@ func Test_nomadTopologyFromProto(t *testing.T) {
 	top := nomadTopologyFromProto(pb)
 	must.Eq(t, &numalib.Topology{
 		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0, 1}),
-		Distances: numalib.SLIT{{10}},
+		Distances: numalib.SLIT{{10, 20}, {20, 10}},
 		Cores: []numalib.Core{
 			{
 				SocketID:   0,
