@@ -592,9 +592,22 @@ export default function () {
     return new Response(403, {}, null);
   });
 
+  this.get('/acl/roles', function ({ roles }, req) {
+    return this.serialize(roles.all());
+  });
+
   this.get('/acl/role/:id', function ({ roles }, req) {
     const role = roles.findBy({ id: req.params.id });
     return this.serialize(role);
+  });
+
+  this.post('/acl/role', function (schema, request) {
+    console.log('ROLEPOST', request, JSON.parse(request.requestBody));
+    const { Name, Description } = JSON.parse(request.requestBody);
+    return server.create('role', {
+      name: Name,
+      description: Description,
+    });
   });
 
   this.get('/acl/policies', function ({ policies }, req) {
