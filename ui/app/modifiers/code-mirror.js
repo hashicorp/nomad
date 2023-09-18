@@ -29,12 +29,12 @@ export default class CodeMirrorModifier extends Modifier {
   element = null;
   args = {};
 
-  // TODO: validate that this shim for didInstall works as expected.
   modify(element, positional, named) {
-    this.element = element;
-    this.args = { positional, named };
-
-    this._setup();
+    if (!this.element) {
+      this.element = element;
+      this.args = { positional, named };
+      this._setup();
+    }
   }
 
   didUpdateArguments() {
