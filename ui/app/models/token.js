@@ -18,6 +18,7 @@ export default class Token extends Model {
   @hasMany('role') roles;
   @attr() policyNames;
   @attr('date') expirationTime;
+  @attr() expirationTTL;
 
   @alias('id') accessor;
 

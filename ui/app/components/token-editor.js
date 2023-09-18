@@ -25,38 +25,49 @@ export default class TokenEditorComponent extends Component {
   // when this renders, set up tokenPolicies
   constructor() {
     super(...arguments);
-    console.log('tokpol', this.activeToken, this.activeToken.policies);
     this.tokenPolicies = this.activeToken.policies.toArray() || [];
     this.tokenRoles = this.activeToken.roles.toArray() || [];
-    console.log('tp;', this.tokenPolicies, this.tokenRoles);
+    this.activeToken.expirationTTL = 'never';
   }
 
   @action updateTokenPolicies(policy, event) {
     let { value, checked } = event.target;
-    console.log('updating token policies and', policy, value, checked);
     if (checked) {
       this.tokenPolicies.push(policy);
     } else {
       this.tokenPolicies = this.tokenPolicies.filter((p) => p !== policy);
     }
-    console.log('thus, rolePolicies', this.tokenPolicies);
   }
 
   @action updateTokenRoles(role, event) {
     let { value, checked } = event.target;
-    console.log('updating token roles and', role, value, checked);
     if (checked) {
       this.tokenRoles.push(role);
     } else {
       this.tokenRoles = this.tokenRoles.filter((p) => p !== role);
     }
-    console.log('thus, tokenRoles', this.tokenRoles);
   }
 
   @action updateTokenType(event) {
-    console.log('updating token type', event, event.target.id);
     let tokenType = event.target.id;
     this.activeToken.type = tokenType;
+  }
+
+  @action updateTokenExpirationTime(event) {
+    // Override expirationTTL if user selects a time
+    this.activeToken.expirationTTL = null;
+    this.activeToken.expirationTime = new Date(event.target.value);
+  }
+  @action updateTokenExpirationTTL(event) {
+    // Override expirationTime if user selects a TTL
+    this.activeToken.expirationTime = null;
+    if (event.target.value === 'never') {
+      this.activeToken.expirationTTL = null;
+    } else if (event.target.value === 'custom') {
+      this.activeToken.expirationTime = new Date();
+    } else {
+      this.activeToken.expirationTTL = event.target.value;
+    }
   }
 
   @action async save(e) {

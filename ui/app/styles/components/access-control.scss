@@ -48,7 +48,7 @@
 
 .acl-form {
   display: grid;
-  gap: 1rem;
+  gap: 2rem;
 
   .selection-checkbox {
     position: relative;
@@ -61,5 +61,9 @@
       height: 100%;
       padding: 12px 16px;
     }
+  }
+
+  .expiration-time fieldset {
+    margin-bottom: 1rem;
   }
 }

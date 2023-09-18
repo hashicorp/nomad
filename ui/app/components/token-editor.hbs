@@ -5,9 +5,9 @@
 
 <form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
 	<label>
-		<span>
-			Token Name
-		</span>
+    <Hds::Form::Label>
+      Token Name
+    </Hds::Form::Label>
 		<Input
 			data-test-token-name-input
 			@type="text"
@@ -18,6 +18,69 @@
 	</label>
 
 {{!-- TODO: add expiration time here --}}
+
+<div class="expiration-time">
+  {{#if @token.isNew}}
+    <Hds::Form::Label>
+      Expiration time
+    </Hds::Form::Label>
+
+    {{!-- Radio to select between 1, 4, 8, 24, or never --}}
+    <Hds::Form::Radio::Group @layout="horizontal" @name="expiration-time" {{on "change" this.updateTokenExpirationTTL}} as |G|>
+      <G.Radio::Field
+        @id="10m"
+        @value="10m"
+      as |F|>
+        <F.Label>10 minutes</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="8h"
+        @value="8h"
+      as |F|>
+        <F.Label>8 hours</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="24h"
+        @value="24h"
+      as |F|>
+        <F.Label>24 hours</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="never"
+        @value="never"
+        checked={{eq @token.expirationTTL "never"}}
+      as |F|>
+        <F.Label>Never</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="custom"
+        @value="custom"
+      as |F|>
+        <F.Label>Custom</F.Label>
+      </G.Radio::Field>
+    </Hds::Form::Radio::Group>
+
+    {{#if @token.expirationTime}}
+      <Hds::Form::TextInput::Field
+        @type="datetime-local"
+        @id="token-expiration-time"
+        {{on "change" this.updateTokenExpirationTime}}>
+      </Hds::Form::TextInput::Field>
+    {{/if}}
+    
+  {{else}}
+    <Hds::Form::Label>
+      {{#if @token.expirationTime}}
+      Token {{#if @token.isExpired}}expired{{else}}expires{{/if}}
+      <Tooltip @text={{@token.expirationTime}}  @isFullText={{true}}>
+        <span data-test-token-expiration-time class="{{if @token.isExpired "has-text-danger"}}">{{moment-from-now @token.expirationTime interval=1000}}</span>
+      </Tooltip>
+      {{else}}
+      Token never expires
+      {{/if}}
+    </Hds::Form::Label>
+  {{/if}}
+</div>
 
   {{#unless @token.isNew}}
   <div>
