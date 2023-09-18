@@ -12,6 +12,9 @@ import (
 
 type ACLTokenUpdateCommand struct {
 	Meta
+
+	roleNames []string
+	roleIDs   []string
 }
 
 func (c *ACLTokenUpdateCommand) Help() string {
@@ -38,6 +41,12 @@ Update Options:
   -policy=""
     Specifies a policy to associate with the token. Can be specified multiple times,
     but only with client type tokens.
+
+  -role-id=""
+     ID of a role to use for this token. May be specified multiple times.
+
+  -role-name=""
+     Name of a role to use for this token. May be specified multiple times.
 `
 
 	return strings.TrimSpace(helpText)
@@ -46,10 +55,12 @@ Update Options:
 func (c *ACLTokenUpdateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"name":   complete.PredictAnything,
-			"type":   complete.PredictAnything,
-			"global": complete.PredictNothing,
-			"policy": complete.PredictAnything,
+			"name":      complete.PredictAnything,
+			"type":      complete.PredictAnything,
+			"global":    complete.PredictNothing,
+			"policy":    complete.PredictAnything,
+			"role-id":   complete.PredictAnything,
+			"role-name": complete.PredictAnything,
 		})
 }
 
@@ -76,6 +87,14 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 		policies = append(policies, s)
 		return nil
 	}), "policy", "")
+	flags.Var((funcVar)(func(s string) error {
+		c.roleNames = append(c.roleNames, s)
+		return nil
+	}), "role-name", "")
+	flags.Var((funcVar)(func(s string) error {
+		c.roleIDs = append(c.roleIDs, s)
+		return nil
+	}), "role-id", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -120,6 +139,10 @@ func (c *ACLTokenUpdateCommand) Run(args []string) int {
 
 	if len(policies) != 0 {
 		token.Policies = policies
+	}
+
+	if len(c.roleNames) != 0 || len(c.roleIDs) != 0 {
+		token.Roles = generateACLTokenRoleLinks(c.roleNames, c.roleIDs)
 	}
 
 	// Update the token
