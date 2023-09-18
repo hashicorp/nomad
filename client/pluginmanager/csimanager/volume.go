@@ -383,6 +383,36 @@ func (v *volumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allo
 	return err
 }
 
+// ExpandVolume sends a NodeExpandVolume request to the node plugin
+func (v *volumeManager) ExpandVolume(ctx context.Context, volID, remoteID, allocID string, usage *UsageOptions, capacity *csi.CapacityRange) (newCapacity int64, err error) {
+	capability, err := csi.VolumeCapabilityFromStructs(usage.AttachmentMode, usage.AccessMode, usage.MountOptions)
+	if err != nil {
+		// nil may be acceptable, so let the node plugin decide.
+		v.logger.Warn("ExpandVolume: unable to detect volume capability",
+			"volume_id", volID, "alloc_id", allocID, "error", err)
+	}
+
+	req := &csi.NodeExpandVolumeRequest{
+		ExternalVolumeID: remoteID,
+		CapacityRange:    capacity,
+		Capability:       capability,
+		TargetPath:       v.targetForVolume(v.containerMountPoint, volID, allocID, usage),
+		StagingPath:      v.stagingDirForVolume(v.containerMountPoint, volID, usage),
+	}
+	resp, err := v.plugin.NodeExpandVolume(ctx, req,
+		grpc_retry.WithPerRetryTimeout(DefaultMountActionTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)),
+	)
+	if err != nil {
+		return 0, err
+	}
+	if resp == nil {
+		return 0, errors.New("nil response from plugin.NodeExpandVolume")
+	}
+	return resp.CapacityBytes, nil
+}
+
 func (v *volumeManager) ExternalID() string {
 	return v.externalNodeID
 }
