@@ -1518,3 +1518,163 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_RPC_NodeExpandVolume(t *testing.T) {
+	// minimum valid request
+	minRequest := &NodeExpandVolumeRequest{
+		ExternalVolumeID: "test-vol",
+		TargetPath:       "/test-path",
+	}
+
+	cases := []struct {
+		Name        string
+		Request     *NodeExpandVolumeRequest
+		ExpectCall  *csipbv1.NodeExpandVolumeRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name:    "success min",
+			Request: minRequest,
+			ExpectCall: &csipbv1.NodeExpandVolumeRequest{
+				VolumeId:   "test-vol",
+				VolumePath: "/test-path",
+			},
+		},
+		{
+			Name: "success full",
+			Request: &NodeExpandVolumeRequest{
+				ExternalVolumeID: "test-vol",
+				TargetPath:       "/test-path",
+				StagingPath:      "/test-staging-path",
+				CapacityRange: &CapacityRange{
+					RequiredBytes: 5,
+					LimitBytes:    10,
+				},
+				Capability: &VolumeCapability{
+					AccessType: VolumeAccessTypeMount,
+					AccessMode: VolumeAccessModeMultiNodeSingleWriter,
+					MountVolume: &structs.CSIMountOptions{
+						FSType:     "test-fstype",
+						MountFlags: []string{"test-flags"},
+					},
+				},
+			},
+			ExpectCall: &csipbv1.NodeExpandVolumeRequest{
+				VolumeId:          "test-vol",
+				VolumePath:        "/test-path",
+				StagingTargetPath: "/test-staging-path",
+				CapacityRange: &csipbv1.CapacityRange{
+					RequiredBytes: 5,
+					LimitBytes:    10,
+				},
+				VolumeCapability: &csipbv1.VolumeCapability{
+					AccessType: &csipbv1.VolumeCapability_Mount{
+						Mount: &csipbv1.VolumeCapability_MountVolume{
+							FsType:           "test-fstype",
+							MountFlags:       []string{"test-flags"},
+							VolumeMountGroup: "",
+						}},
+					AccessMode: &csipbv1.VolumeCapability_AccessMode{
+						Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER},
+				},
+			},
+		},
+
+		{
+			Name: "validate missing volume id",
+			Request: &NodeExpandVolumeRequest{
+				TargetPath: "/test-path",
+			},
+			ExpectedErr: errors.New("ExternalVolumeID is required"),
+		},
+		{
+			Name: "validate missing target path",
+			Request: &NodeExpandVolumeRequest{
+				ExternalVolumeID: "test-volume",
+			},
+			ExpectedErr: errors.New("TargetPath is required"),
+		},
+		{
+			Name: "validate min greater than max",
+			Request: &NodeExpandVolumeRequest{
+				ExternalVolumeID: "test-vol",
+				TargetPath:       "/test-path",
+				CapacityRange: &CapacityRange{
+					RequiredBytes: 4,
+					LimitBytes:    2,
+				},
+			},
+			ExpectedErr: errors.New("LimitBytes cannot be less than RequiredBytes"),
+		},
+
+		{
+			Name:        "grpc error default case",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.DataLoss, "misc unspecified error"),
+			ExpectedErr: errors.New("node plugin returned an error: rpc error: code = DataLoss desc = misc unspecified error"),
+		},
+		{
+			Name:        "grpc error invalid argument",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.InvalidArgument, "sad args"),
+			ExpectedErr: errors.New("requested capabilities not compatible with volume \"test-vol\": rpc error: code = InvalidArgument desc = sad args"),
+		},
+		{
+			Name:        "grpc error NotFound",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.NotFound, "does not exist"),
+			ExpectedErr: errors.New("CSI client error (ignorable): volume \"test-vol\" could not be found: rpc error: code = NotFound desc = does not exist"),
+		},
+		{
+			Name:        "grpc error FailedPrecondition",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.FailedPrecondition, "unsupported"),
+			ExpectedErr: errors.New("volume \"test-vol\" cannot be expanded while in use: rpc error: code = FailedPrecondition desc = unsupported"),
+		},
+		{
+			Name:        "grpc error OutOfRange",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.OutOfRange, "too small"),
+			ExpectedErr: errors.New("unsupported capacity_range for volume \"test-vol\": rpc error: code = OutOfRange desc = too small"),
+		},
+		{
+			Name:        "grpc error Internal",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: errors.New("node plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, _, nc, client := newTestClient(t)
+
+			nc.NextErr = tc.ResponseErr
+			// the fake client should take ~no time, but set a timeout just in case
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+			defer cancel()
+			resp, err := client.NodeExpandVolume(ctx, tc.Request)
+			if tc.ExpectedErr != nil {
+				must.EqError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, resp)
+			must.Eq(t, tc.ExpectCall, nc.LastExpandVolumeRequest)
+
+		})
+	}
+
+	t.Run("connection error", func(t *testing.T) {
+		c := &client{} // induce c.ensureConnected() error
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+		defer cancel()
+		resp, err := c.NodeExpandVolume(ctx, &NodeExpandVolumeRequest{
+			ExternalVolumeID: "valid-id",
+			TargetPath:       "/some-path",
+		})
+		must.Nil(t, resp)
+		must.EqError(t, err, "address is empty")
+	})
+}

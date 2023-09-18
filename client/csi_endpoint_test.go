@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
@@ -1066,6 +1067,104 @@ func TestCSINode_DetachVolume(t *testing.T) {
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
 			}
+		})
+	}
+}
+
+func TestCSINode_ExpandVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	client, cleanup := TestClient(t, nil)
+	t.Cleanup(func() { test.NoError(t, cleanup()) })
+
+	cases := []struct {
+		Name       string
+		ModRequest func(r *structs.ClientCSINodeExpandVolumeRequest)
+		ModManager func(m *csimanager.MockCSIManager)
+		ExpectErr  error
+	}{
+		{
+			Name: "success",
+		},
+		{
+			Name: "invalid request",
+			ModRequest: func(r *structs.ClientCSINodeExpandVolumeRequest) {
+				r.Claim = nil
+			},
+			ExpectErr: errors.New("Claim is required"),
+		},
+		{
+			Name: "error waiting for plugin",
+			ModManager: func(m *csimanager.MockCSIManager) {
+				m.NextWaitForPluginErr = errors.New("sad plugin")
+			},
+			ExpectErr: errors.New("sad plugin"),
+		},
+		{
+			Name: "error from manager expand",
+			ModManager: func(m *csimanager.MockCSIManager) {
+				m.VM.NextExpandVolumeErr = errors.New("no expand, so sad")
+			},
+			ExpectErr: errors.New("no expand, so sad"),
+		},
+		{
+			Name: "ignorable error from manager expand",
+			ModManager: func(m *csimanager.MockCSIManager) {
+				m.VM.NextExpandVolumeErr = fmt.Errorf("%w: not found", nstructs.ErrCSIClientRPCIgnorable)
+			},
+			ExpectErr: nil, // explicitly expecting no error
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			mockManager := &csimanager.MockCSIManager{
+				VM: &csimanager.MockVolumeManager{},
+			}
+			if tc.ModManager != nil {
+				tc.ModManager(mockManager)
+			}
+			client.csimanager = mockManager
+
+			req := &structs.ClientCSINodeExpandVolumeRequest{
+				PluginID:   "fake-plug",
+				VolumeID:   "fake-vol",
+				ExternalID: "fake-external",
+				Capacity: &csi.CapacityRange{
+					RequiredBytes: 5,
+				},
+				Claim: &nstructs.CSIVolumeClaim{
+					// minimal claim to pass validation
+					AllocationID: "fake-alloc",
+				},
+			}
+			if tc.ModRequest != nil {
+				tc.ModRequest(req)
+			}
+
+			var resp structs.ClientCSINodeExpandVolumeResponse
+			err := client.ClientRPC("CSI.NodeExpandVolume", req, &resp)
+
+			if tc.ExpectErr != nil {
+				test.EqError(t, tc.ExpectErr, err.Error())
+				return
+			}
+			test.NoError(t, err)
+
+			expect := csimanager.MockExpandVolumeCall{
+				VolID:    req.VolumeID,
+				RemoteID: req.ExternalID,
+				AllocID:  req.Claim.AllocationID,
+				Capacity: req.Capacity,
+				UsageOpts: &csimanager.UsageOptions{
+					ReadOnly: true,
+				},
+			}
+			test.Eq(t, req.Capacity.RequiredBytes, resp.CapacityBytes)
+			test.NotNil(t, mockManager.VM.LastExpandVolumeCall)
+			test.Eq(t, &expect, mockManager.VM.LastExpandVolumeCall)
+
 		})
 	}
 }
