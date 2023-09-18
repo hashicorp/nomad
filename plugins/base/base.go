@@ -152,7 +152,7 @@ func nomadTopologyCoresFromProto(pb []*proto.ClientTopologyCore) []numalib.Core 
 			SocketID:   hw.SocketID(pbcore.SocketId),
 			NodeID:     hw.NodeID(pbcore.NodeId),
 			ID:         hw.CoreID(pbcore.CoreId),
-			Grade:      numalib.CoreGrade(pbcore.CoreGrade),
+			Grade:      nomadCoreGradeFromProto(pbcore.CoreGrade),
 			Disable:    pbcore.Disable,
 			BaseSpeed:  hw.MHz(pbcore.BaseSpeed),
 			MaxSpeed:   hw.MHz(pbcore.MaxSpeed),
@@ -197,11 +197,25 @@ func nomadTopologyCoresToProto(cores []numalib.Core) []*proto.ClientTopologyCore
 			SocketId:   uint32(core.SocketID),
 			NodeId:     uint32(core.NodeID),
 			CoreId:     uint32(core.ID),
-			CoreGrade:  bool(core.Grade),
+			CoreGrade:  nomadCoreGradeToProto(core.Grade),
 			Disable:    core.Disable,
 			BaseSpeed:  uint64(core.BaseSpeed),
 			MaxSpeed:   uint64(core.MaxSpeed),
 			GuessSpeed: uint64(core.GuessSpeed),
 		}
 	})
+}
+
+func nomadCoreGradeFromProto(grade proto.CoreGrade) numalib.CoreGrade {
+	if grade == proto.CoreGrade_Performance {
+		return numalib.Performance
+	}
+	return numalib.Efficiency
+}
+
+func nomadCoreGradeToProto(grade numalib.CoreGrade) proto.CoreGrade {
+	if grade == numalib.Performance {
+		return proto.CoreGrade_Performance
+	}
+	return proto.CoreGrade_Efficiency
 }

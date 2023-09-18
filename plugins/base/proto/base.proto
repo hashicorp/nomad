@@ -111,12 +111,17 @@ message ClientTopologySLIT {
     repeated uint32 values = 2 [packed=true];
 }
 
+enum CoreGrade {
+  Performance = 0;
+  Efficiency = 1;
+}
+
 // numalib/Core
 message ClientTopologyCore {
   uint32 socket_id = 1;
   uint32 node_id = 2;
   uint32 core_id = 3;
-  bool core_grade = 4; // p=true, e=false
+  CoreGrade core_grade = 4;
   bool disable = 5;
   uint64 base_speed = 6;
   uint64 max_speed = 7;
