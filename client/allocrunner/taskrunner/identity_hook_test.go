@@ -5,21 +5,14 @@ package taskrunner
 
 import (
 	"context"
-	"crypto/ed25519"
-	"fmt"
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -31,92 +24,6 @@ var _ interfaces.TaskStopHook = (*identityHook)(nil)
 var _ interfaces.ShutdownHook = (*identityHook)(nil)
 
 // See task_runner_test.go:TestTaskRunner_IdentityHook
-
-// MockWIDMgr allows TaskRunner unit tests to avoid having to setup a Server,
-// Client, and Allocation.
-type MockWIDMgr struct {
-	// wids maps identity names to workload identities. If wids is non-nil then
-	// SignIdentities will use it to find expirations or reject invalid identity
-	// names
-	wids map[string]*structs.WorkloadIdentity
-
-	key   ed25519.PrivateKey
-	keyID string
-}
-
-func NewMockWIDMgr(wids []*structs.WorkloadIdentity) *MockWIDMgr {
-	_, privKey, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		panic(err)
-	}
-	m := &MockWIDMgr{
-		key:   privKey,
-		keyID: uuid.Generate(),
-	}
-
-	if wids != nil {
-		m.setWIDs(wids)
-	}
-
-	return m
-}
-
-// setWIDs is a test helper to use Task.Identities in the MockWIDMgr for
-// sharing TTLs and validating names.
-func (m *MockWIDMgr) setWIDs(wids []*structs.WorkloadIdentity) {
-	m.wids = make(map[string]*structs.WorkloadIdentity, len(wids))
-	for _, wid := range wids {
-		m.wids[wid.Name] = wid
-	}
-}
-
-func (m *MockWIDMgr) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
-	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
-	for _, idReq := range req {
-		// Set test values for default claims
-		claims := &structs.IdentityClaims{
-			Namespace:    "default",
-			JobID:        "test",
-			AllocationID: idReq.AllocID,
-			TaskName:     idReq.TaskName,
-		}
-		claims.ID = uuid.Generate()
-
-		// If test has set workload identities. Lookup claims or reject unknown
-		// identity.
-		if m.wids != nil {
-			wid, ok := m.wids[idReq.IdentityName]
-			if !ok {
-				return nil, fmt.Errorf("unknown identity: %q", idReq.IdentityName)
-			}
-
-			claims.Audience = slices.Clone(wid.Audience)
-
-			if wid.TTL > 0 {
-				claims.Expiry = jwt.NewNumericDate(time.Now().Add(wid.TTL))
-			}
-		}
-
-		opts := (&jose.SignerOptions{}).WithHeader("kid", m.keyID).WithType("JWT")
-		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: m.key}, opts)
-		if err != nil {
-			return nil, fmt.Errorf("error creating signer: %w", err)
-		}
-		token, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
-		if err != nil {
-			return nil, fmt.Errorf("error signing: %w", err)
-		}
-
-		swid := &structs.SignedWorkloadIdentity{
-			WorkloadIdentityRequest: *idReq,
-			JWT:                     token,
-			Expiration:              claims.Expiry.Time(),
-		}
-
-		swids = append(swids, swid)
-	}
-	return swids, nil
-}
 
 // MockTokenSetter is a mock implementation of tokenSetter which is satisfied
 // by TaskRunner at runtime.
@@ -165,16 +72,14 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	t.Cleanup(stop)
 
 	h := &identityHook{
-		alloc:          alloc,
-		task:           task,
-		tokenDir:       secretsDir,
-		envBuilder:     taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
-		ts:             mockTR,
-		minWait:        time.Second,
-		allocResources: &cstructs.AllocHookResources{},
-		logger:         testlog.HCLogger(t),
-		stopCtx:        stopCtx,
-		stop:           stop,
+		alloc:      alloc,
+		task:       task,
+		tokenDir:   secretsDir,
+		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
+		ts:         mockTR,
+		logger:     testlog.HCLogger(t),
+		stopCtx:    stopCtx,
+		stop:       stop,
 	}
 
 	start := time.Now()
@@ -252,7 +157,6 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 		tokenDir:   secretsDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
-		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
@@ -314,7 +218,6 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 		tokenDir:   "/this-should-not-exist",
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         &MockTokenSetter{},
-		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
@@ -349,7 +252,6 @@ func TestIdentityHook_GetIdentitiesMismatch(t *testing.T) {
 		tokenDir:   t.TempDir(),
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         &MockTokenSetter{},
-		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
