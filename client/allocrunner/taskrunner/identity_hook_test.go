@@ -9,14 +9,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shoenig/test/must"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
 )
 
 var _ interfaces.TaskPrestartHook = (*identityHook)(nil)
@@ -71,12 +73,29 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
+	// setup mock signer and WIDMgr
+	mockSigner := widmgr.NewMockWIDMgr(task.Identities)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, testlog.HCLogger(t))
+
+	// do the initial signing
+	for _, i := range task.Identities {
+		_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
+			{
+				AllocID:      alloc.ID,
+				TaskName:     task.Name,
+				IdentityName: i.Name,
+			},
+		})
+		must.NoError(t, err)
+	}
+
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
 		tokenDir:   secretsDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
+		widmgr:     mockWIDMgr,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
