@@ -18,6 +18,13 @@ export default class Token extends Model {
   @hasMany('role') roles;
   @attr() policyNames;
   @attr('date') expirationTime;
+
+  // Note on verbatim: updating a token requires passing in its expiration time, where
+  // the API performs an equality check. However, we want to display it as a nicely
+  // formatted date in the UI. @attr('date') does this for us, but it strips the
+  // nanoseconds. Thus, our serializer retains the original value in a separate field
+  // that gets used on PUT requests when needed.
+  @attr() expirationTimeVerbatim;
   @attr() expirationTTL;
 
   @alias('id') accessor;

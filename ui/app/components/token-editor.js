@@ -27,7 +27,9 @@ export default class TokenEditorComponent extends Component {
     super(...arguments);
     this.tokenPolicies = this.activeToken.policies.toArray() || [];
     this.tokenRoles = this.activeToken.roles.toArray() || [];
-    this.activeToken.expirationTTL = 'never';
+    if (this.activeToken.isNew) {
+      this.activeToken.expirationTTL = 'never';
+    }
   }
 
   @action updateTokenPolicies(policy, event) {
@@ -84,6 +86,12 @@ export default class TokenEditorComponent extends Component {
         this.activeToken.policies = [];
         this.activeToken.roles = [];
       }
+
+      console.log(
+        'token ttl or time',
+        this.activeToken.expirationTTL,
+        this.activeToken.expirationTime
+      );
 
       await this.activeToken.save();
 

@@ -55,12 +55,12 @@
 
 	<footer>
 		{{#if (can "update policy")}}
-			<button
-				class="button is-primary"
-				type="submit"
-			>
-				Save Policy
-			</button>
+		<Hds::Button
+			@text="Save Policy"
+			@type="submit"
+			data-test-save-policy
+			{{on "click" this.save}}
+		/>
 		{{/if}}
 	</footer>
 </form>

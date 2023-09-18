@@ -120,84 +120,106 @@
       <label>
         Policies
       </label>
-      <Hds::Table @caption="A list of policies available to this token" class="acl-table"
-        @model={{@policies}}
-        @columns={{array
-          (hash key="selected" width="80px")
-          (hash key="name" label="Name" isSortable=true)
-          (hash key="description" label="Description")
-          (hash key="definition" label="View Policy Definition")
-        }}
-        @sortBy="name"
-      >
-        <:body as |B|>
-          <B.Tr>
-            <B.Td class="selection-checkbox">
-              <label>
-                <input type="checkbox"
-                  checked={{find-by "name" B.data.name @token.policies}}
-                  {{on "change" (action this.updateTokenPolicies B.data)}}
-                />
-              </label>
-            </B.Td>
-            <B.Td>{{B.data.name}}</B.Td>
-            <B.Td>{{B.data.description}}</B.Td>
-            <B.Td>
-              <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
-                View Policy Definition
-              </LinkTo>
-            </B.Td>
-          </B.Tr>
-        </:body>
-      </Hds::Table>
+      {{#if @policies.length}}
+        <Hds::Table @caption="A list of policies available to this token" class="acl-table"
+          @model={{@policies}}
+          @columns={{array
+            (hash key="selected" width="80px")
+            (hash key="name" label="Name" isSortable=true)
+            (hash key="description" label="Description")
+            (hash key="definition" label="View Policy Definition")
+          }}
+          @sortBy="name"
+        >
+          <:body as |B|>
+            <B.Tr>
+              <B.Td class="selection-checkbox">
+                <label>
+                  <input type="checkbox"
+                    checked={{find-by "name" B.data.name @token.policies}}
+                    {{on "change" (action this.updateTokenPolicies B.data)}}
+                  />
+                </label>
+              </B.Td>
+              <B.Td>{{B.data.name}}</B.Td>
+              <B.Td>{{B.data.description}}</B.Td>
+              <B.Td>
+                <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
+                  View Policy Definition
+                </LinkTo>
+              </B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{else}}
+        <div class="empty-message">
+          <h3 data-test-empty-role-list-headline class="empty-message-headline">
+            No Policies
+          </h3>
+          <p class="empty-message-body">
+            Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+          </p>
+        </div>
+      {{/if}}
     </div>
 
     <div>
       <label>
         Roles
       </label>
-      <Hds::Table @caption="A list of roles available to this token" class="acl-table"
-        @model={{@roles}}
-        @columns={{array
-          (hash key="selected" width="80px")
-          (hash key="name" label="Name" isSortable=true)
-          (hash key="description" label="Description")
-          (hash key="policies" label="Policies")
-          (hash key="definition" label="View Role Info")
-        }}
-        @sortBy="name"
-      >
-        <:body as |B|>
-          <B.Tr>
-            <B.Td class="selection-checkbox">
-              <label>
-                <input type="checkbox"
-                  checked={{find-by "name" B.data.name @token.roles}}
-                  {{on "change" (action this.updateTokenRoles B.data)}}
-                />
-              </label>
-            </B.Td>
-            <B.Td>{{B.data.name}}</B.Td>
-            <B.Td>{{B.data.description}}</B.Td>
-            <B.Td>
-              <div class="tag-group">
-                {{#each B.data.policies as |policy|}}
-                  {{#if policy.name}}
-                    <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
-                  {{/if}}
-                {{else}}
-                  Role contains no policies
-                {{/each}}
-              </div>
-            </B.Td>
-            <B.Td>
-              <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>
-                View Role Info
-              </LinkTo>
-            </B.Td>
-          </B.Tr>
-        </:body>
-      </Hds::Table>
+      {{#if @roles.length}}
+        <Hds::Table @caption="A list of roles available to this token" class="acl-table"
+          @model={{@roles}}
+          @columns={{array
+            (hash key="selected" width="80px")
+            (hash key="name" label="Name" isSortable=true)
+            (hash key="description" label="Description")
+            (hash key="policies" label="Policies")
+            (hash key="definition" label="View Role Info")
+          }}
+          @sortBy="name"
+        >
+          <:body as |B|>
+            <B.Tr>
+              <B.Td class="selection-checkbox">
+                <label>
+                  <input type="checkbox"
+                    checked={{find-by "name" B.data.name @token.roles}}
+                    {{on "change" (action this.updateTokenRoles B.data)}}
+                  />
+                </label>
+              </B.Td>
+              <B.Td>{{B.data.name}}</B.Td>
+              <B.Td>{{B.data.description}}</B.Td>
+              <B.Td>
+                <div class="tag-group">
+                  {{#each B.data.policies as |policy|}}
+                    {{#if policy.name}}
+                      <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
+                    {{/if}}
+                  {{else}}
+                    Role contains no policies
+                  {{/each}}
+                </div>
+              </B.Td>
+              <B.Td>
+                <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>
+                  View Role Info
+                </LinkTo>
+              </B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{else}}
+        <div class="empty-message">
+          <h3 data-test-empty-role-list-headline class="empty-message-headline">
+            No Roles
+          </h3>
+          <p class="empty-message-body">
+            Get started by <LinkTo @route="access-control.roles.new">creating a new role</LinkTo>
+          </p>
+        </div>
+      {{/if}}
     </div>
 
 

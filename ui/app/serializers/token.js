@@ -20,6 +20,7 @@ export default class TokenSerializer extends ApplicationSerializer {
     hash.PolicyNames = copy(hash.Policies);
     hash.Roles = hash.Roles || [];
     hash.RoleIDs = hash.Roles.map((role) => role.ID);
+    hash.ExpirationTimeVerbatim = hash.ExpirationTime;
     return super.normalize(typeHash, hash);
   }
 
@@ -28,6 +29,9 @@ export default class TokenSerializer extends ApplicationSerializer {
 
     if (snapshot.id) {
       hash.AccessorID = snapshot.id;
+      // If expirationTimeNanos exists, use that when saving expirationTime for equality check reasons;
+      // see note in token model.
+      hash.ExpirationTime = hash.ExpirationTimeVerbatim || hash.ExpirationTime;
     }
 
     // delete hash.ExpirationTime;

@@ -363,7 +363,7 @@ func (a *ACLToken) Validate(minTTL, maxTTL time.Duration, existing *ACLToken) er
 		if existing.ExpirationTTL != a.ExpirationTTL {
 			mErr.Errors = append(mErr.Errors, errors.New("cannot update expiration TTL"))
 		}
-		if existing.ExpirationTime != a.ExpirationTime {
+		if !existing.ExpirationTime.Equal(*a.ExpirationTime) {
 			mErr.Errors = append(mErr.Errors, errors.New("cannot update expiration time"))
 		}
 	}
