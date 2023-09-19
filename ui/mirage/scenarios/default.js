@@ -97,6 +97,102 @@ function smallCluster(server) {
     activeDeployment: true,
   });
 
+  server.create('policy', {
+    id: 'client-reader',
+    name: 'client-reader',
+    description: "Can read nodes and that's about it",
+    rulesJSON: {
+      Node: {
+        Policy: 'read',
+      },
+    },
+    rules: `# Allow node read access`,
+  });
+
+  server.create('policy', {
+    id: 'client-writer',
+    name: 'client-writer',
+    description: 'Can write to nodes',
+    rulesJSON: {
+      Node: {
+        Policy: 'write',
+      },
+    },
+    rules: `# Allow node write access`,
+  });
+
+  server.create('policy', {
+    id: 'job-reader',
+    name: 'job-reader',
+    description: "Can read jobs and that's about it",
+    rulesJSON: {
+      namespace: {
+        '*': {
+          policy: 'read',
+        },
+      },
+    },
+    rules: `# Job read access`,
+  });
+
+  server.create('policy', {
+    id: 'job-writer',
+    name: 'job-writer',
+    description: 'Can write jobs',
+    rulesJSON: {
+      Namespaces: [
+        {
+          Name: '*',
+          Policy: '',
+          Capabilities: ['submit-job'],
+          Variables: null,
+        },
+      ],
+    },
+    rules: `# Job write access`,
+  });
+
+  server.create('policy', {
+    id: 'variable-lister',
+    name: 'variable-lister',
+    description: 'Can list variables',
+    rulesJSON: {
+      namespace: {
+        '*': {
+          variables: {
+            path: {
+              capabilities: ['list'],
+              pathspec: '*',
+            },
+          },
+        },
+      },
+    },
+    rules: `# Variable list access`,
+  });
+
+  server.create('role', {
+    id: 'operator',
+    name: 'operator',
+    description: 'Can operate',
+    policyIds: ['client-reader', 'client-writer', 'job-reader', 'job-writer'],
+  });
+
+  server.create('role', {
+    id: 'sysadmin',
+    name: 'sysadmin',
+    description: 'Can modify nodes',
+    policyIds: ['client-reader', 'client-writer'],
+  });
+
+  server.create('token', {
+    type: 'client',
+    name: 'Tiarna Riarthóir',
+    id: 'administrator-token',
+    roleIds: ['operator', 'sysadmin'],
+    policyIds: ['variable-lister'],
+  });
+
   //#region Active Deployment
 
   const activelyDeployingJobGroups = 2;

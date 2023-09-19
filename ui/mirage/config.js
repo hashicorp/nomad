@@ -610,6 +610,12 @@ export default function () {
     });
   });
 
+  this.delete('/acl/role/:id', function (schema, request) {
+    const { id } = request.params;
+    server.db.roles.remove(id);
+    return '';
+  });
+
   this.get('/acl/policies', function ({ policies }, req) {
     return this.serialize(policies.all());
   });
