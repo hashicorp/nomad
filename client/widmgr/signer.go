@@ -57,6 +57,10 @@ func NewSigner(c SignerConfig) *Signer {
 // should currently only be used when requesting signed identities for a single
 // allocation.
 func (s *Signer) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
+	if len(req) == 0 {
+		return nil, fmt.Errorf("no identities to sign")
+	}
+
 	args := structs.AllocIdentitiesRequest{
 		Identities: req,
 		QueryOptions: structs.QueryOptions{
