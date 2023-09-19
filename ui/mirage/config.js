@@ -602,7 +602,6 @@ export default function () {
   });
 
   this.post('/acl/role', function (schema, request) {
-    console.log('ROLEPOST', request, JSON.parse(request.requestBody));
     const { Name, Description } = JSON.parse(request.requestBody);
     return server.create('role', {
       name: Name,

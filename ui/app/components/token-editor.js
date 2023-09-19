@@ -33,7 +33,7 @@ export default class TokenEditorComponent extends Component {
   }
 
   @action updateTokenPolicies(policy, event) {
-    let { value, checked } = event.target;
+    let { checked } = event.target;
     if (checked) {
       this.tokenPolicies.push(policy);
     } else {
@@ -42,7 +42,7 @@ export default class TokenEditorComponent extends Component {
   }
 
   @action updateTokenRoles(role, event) {
-    let { value, checked } = event.target;
+    let { checked } = event.target;
     if (checked) {
       this.tokenRoles.push(role);
     } else {
@@ -72,7 +72,7 @@ export default class TokenEditorComponent extends Component {
     }
   }
 
-  @action async save(e) {
+  @action async save() {
     try {
       const shouldRedirectAfterSave = this.activeToken.isNew;
 
@@ -86,12 +86,6 @@ export default class TokenEditorComponent extends Component {
         this.activeToken.policies = [];
         this.activeToken.roles = [];
       }
-
-      console.log(
-        'token ttl or time',
-        this.activeToken.expirationTTL,
-        this.activeToken.expirationTime
-      );
 
       await this.activeToken.save();
 

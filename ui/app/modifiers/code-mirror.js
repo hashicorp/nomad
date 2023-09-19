@@ -7,7 +7,6 @@ import { action } from '@ember/object';
 import { bind } from '@ember/runloop';
 import codemirror from 'codemirror';
 import Modifier from 'ember-modifier';
-console.log('is Modifier a thing anymore', Modifier);
 
 import 'codemirror/addon/edit/matchbrackets';
 import 'codemirror/addon/selection/active-line';
@@ -58,7 +57,6 @@ export default class CodeMirrorModifier extends Modifier {
   }
 
   _setup() {
-    console.log('setup called', this.element);
     if (this.element) {
       const editor = codemirror(this.element, {
         gutters: this.args.named.gutters || ['CodeMirror-lint-markers'],

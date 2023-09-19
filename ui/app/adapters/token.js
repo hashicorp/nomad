@@ -16,7 +16,6 @@ export default class TokenAdapter extends ApplicationAdapter {
   namespace = namespace + '/acl';
 
   methodForRequest(params) {
-    console.log('token methodForRequest', params);
     if (params.requestType === 'updateRecord') {
       return 'POST';
     }

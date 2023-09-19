@@ -23,20 +23,16 @@ export default class RoleEditorComponent extends Component {
   // when this renders, set up rolePOlicies
   constructor() {
     super(...arguments);
-    console.log('roles policies?', this.role.policies);
     this.rolePolicies = this.role.policies.toArray() || [];
-    console.log('rp;', this.rolePolicies);
   }
 
   @action updateRolePolicies(policy, event) {
-    let { value, checked } = event.target;
-    console.log('updating role policies and', policy, value, checked);
+    let { checked } = event.target;
     if (checked) {
       this.rolePolicies.push(policy);
     } else {
       this.rolePolicies = this.rolePolicies.filter((p) => p !== policy);
     }
-    console.log('thus, rolePolicies', this.rolePolicies);
   }
 
   @action async save(e) {

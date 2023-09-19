@@ -24,13 +24,6 @@ export default class AccessControlRolesRoleRoute extends Route.extend(
         reload: true,
       }
     );
-    console.log('role', role);
-
-    // let policies = role.policyNames.map((policyName) => {
-    //   return this.store.peekRecord('policy', policyName);
-    // });
-
-    // console.log('policies thus', policies);
 
     let policies = this.store.peekAll('policy');
 

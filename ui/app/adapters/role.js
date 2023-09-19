@@ -11,7 +11,7 @@ import { singularize } from 'ember-inflector';
 export default class RoleAdapter extends ApplicationAdapter {
   namespace = namespace + '/acl';
 
-  urlForCreateRecord(modelName, snapshot) {
+  urlForCreateRecord(modelName) {
     let baseUrl = this.buildURL(modelName);
     return singularize(baseUrl);
   }
