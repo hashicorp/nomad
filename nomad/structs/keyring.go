@@ -255,6 +255,15 @@ type KeyringDeleteRootKeyResponse struct {
 	WriteMeta
 }
 
+// OIDCDiscoveryResponse defines the OIDC Discovery response.
+//
+// Not specific to Nomad's keyring, but included here since public signing keys
+// are exposed in an OIDC compliant way for validation of workload identity
+// JWTs.
+//
+// See https://openid.net/specs/openid-connect-discovery-1_0.html
+type OIDCDiscovery struct{}
+
 // KeyringListPublicResponse lists public key components of signing keys. Used
 // to build a JWKS endpoint.
 type KeyringListPublicResponse struct {

@@ -202,6 +202,9 @@ type Config struct {
 	// Reporting is used to enable go census reporting
 	Reporting *config.ReportingConfig `hcl:"reporting,block"`
 
+	//FIXME(schmichael) where should this live
+	OIDCIssuer string `hcl:"oidc_issuer"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -1381,6 +1384,16 @@ func DefaultConfig() *Config {
 	return cfg
 }
 
+// HTTPAddr returns a URL with the proper scheme (HTTP vs HTTPS) for the
+// advertise address.
+func (c *Config) HTTPAddr() string {
+	if c.TLSConfig.EnableHTTP {
+		return "https://" + c.AdvertiseAddrs.HTTP
+	} else {
+		return "http://" + c.AdvertiseAddrs.HTTP
+	}
+}
+
 // Listener can be used to get a new listener using a custom bind address.
 // If the bind provided address is empty, the BindAddr is used instead.
 func (c *Config) Listener(proto, addr string, port int) (net.Listener, error) {
@@ -1599,6 +1612,10 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 
 	result.Limits = c.Limits.Merge(b.Limits)
+
+	if b.OIDCIssuer != "" {
+		result.OIDCIssuer = b.OIDCIssuer
+	}
 
 	return &result
 }

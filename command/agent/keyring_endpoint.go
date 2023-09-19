@@ -6,6 +6,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -75,6 +76,67 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 	}
 
 	return out, nil
+}
+
+// OIDCDiscoveryRequest implements the OIDC Discovery protocol for using
+// workload identity JWTs with external services.
+//
+// See https://openid.net/specs/openid-connect-discovery-1_0.html for details.
+func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.GenericRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	conf := s.agent.GetConfig()
+
+	//FIXME(schmichael) should we bother implementing an RPC just to get region
+	//forwarding? I think *not* since consumers of this endpoint are code that is
+	//intended to be talking to a specific region directly.
+	if args.Region != conf.Region {
+		return nil, CodedError(400, "Region mismatch")
+	}
+
+	issuer := conf.HTTPAddr()
+	if conf.OIDCIssuer != "" {
+		issuer = conf.OIDCIssuer
+	}
+
+	//FIXME(schmichael) make a real struct
+	// stolen from vault/identity_store_oidc_provider.go
+	type providerDiscovery struct {
+		Issuer                string   `json:"issuer,omitempty"`
+		Keys                  string   `json:"jwks_uri"`
+		AuthorizationEndpoint string   `json:"authorization_endpoint,omitempty"`
+		RequestParameter      bool     `json:"request_parameter_supported"`
+		RequestURIParameter   bool     `json:"request_uri_parameter_supported"`
+		IDTokenAlgs           []string `json:"id_token_signing_alg_values_supported,omitempty"`
+		ResponseTypes         []string `json:"response_types_supported,omitempty"`
+		Subjects              []string `json:"subject_types_supported,omitempty"`
+		//Scopes                []string `json:"scopes_supported,omitempty"`
+		//UserinfoEndpoint      string   `json:"userinfo_endpoint,omitempty"`
+		//TokenEndpoint         string   `json:"token_endpoint,omitempty"`
+		//Claims                []string `json:"claims_supported,omitempty"`
+		//GrantTypes            []string `json:"grant_types_supported,omitempty"`
+		//AuthMethods           []string `json:"token_endpoint_auth_methods_supported,omitempty"`
+	}
+
+	disc := providerDiscovery{
+		Issuer:                issuer,
+		Keys:                  path.Join(issuer, "/.well-known/jwks.json"),
+		AuthorizationEndpoint: "openid:", //FIXME(schmichael) ???????
+		RequestParameter:      false,
+		RequestURIParameter:   false,
+		IDTokenAlgs:           []string{structs.PubKeyAlgEdDSA},
+		ResponseTypes:         []string{"code"},
+		Subjects:              []string{"public"},
+	}
+
+	return disc, nil
 }
 
 // KeyringRequest is used route operator/raft API requests to the implementing
