@@ -73,6 +73,11 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 	}
 }
 
+// SetMinWait sets the minimum time for renewals
+func (m *WIDMgr) SetMinWait(t time.Duration) {
+	m.minWait = t
+}
+
 // Run blocks until identities are initially signed and then renews them in a
 // goroutine. The goroutine is stopped when WIDMgr.Shutdown is called.
 //
@@ -225,6 +230,9 @@ func (m *WIDMgr) renew() {
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
 	for taskName, widspecs := range m.widSpecs {
 		for _, widspec := range widspecs {
+			if widspec.TTL == 0 {
+				continue
+			}
 			reqs = append(reqs, &structs.WorkloadIdentityRequest{
 				AllocID:      m.allocID,
 				TaskName:     taskName,

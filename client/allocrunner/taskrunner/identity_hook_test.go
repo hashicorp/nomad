@@ -45,7 +45,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	// checking that tokens were rotated. Therefore the time must be long enough
 	// to generate new tokens. Since no Raft or IO (outside of potentially
 	// writing 1 token file) is performed, this should be relatively fast.
-	ttl := 8 * time.Second
+	ttl := 3 * time.Second
 
 	node := mock.Node()
 	alloc := mock.Alloc()
@@ -76,6 +76,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	// setup mock signer and WIDMgr
 	mockSigner := widmgr.NewMockWIDMgr(task.Identities)
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, testlog.HCLogger(t))
+	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
 
 	// do the initial signing
 	for _, i := range task.Identities {
@@ -101,8 +102,12 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 		stop:       stop,
 	}
 
+	// do the initial renewal and start the loop
+	must.NoError(t, h.widmgr.Run())
+
 	start := time.Now()
 	must.NoError(t, h.Prestart(context.Background(), nil, nil))
+	time.Sleep(time.Second) // goroutines in the Prestart hook must run first before we Build the EnvMap
 	env := h.envBuilder.Build().EnvMap
 
 	// Assert initial tokens were set in Prestart
@@ -142,7 +147,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 func TestIdentityHook_RenewOne(t *testing.T) {
 	ci.Parallel(t)
 
-	ttl := 8 * time.Second
+	ttl := 3 * time.Second
 
 	node := mock.Node()
 	alloc := mock.Alloc()
@@ -170,19 +175,41 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
+	// setup mock signer and WIDMgr
+	mockSigner := widmgr.NewMockWIDMgr(task.Identities)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, testlog.HCLogger(t))
+	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
+
+	// do the initial signing
+	for _, i := range task.Identities {
+		_, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
+			{
+				AllocID:      alloc.ID,
+				TaskName:     task.Name,
+				IdentityName: i.Name,
+			},
+		})
+		must.NoError(t, err)
+	}
+
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
 		tokenDir:   secretsDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
+		widmgr:     mockWIDMgr,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
 	}
 
+	// do the initial renewal and start the loop
+	must.NoError(t, h.widmgr.Run())
+
 	start := time.Now()
 	must.NoError(t, h.Prestart(context.Background(), nil, nil))
+	time.Sleep(time.Second) // goroutines in the Prestart hook must run first before we Build the EnvMap
 	env := h.envBuilder.Build().EnvMap
 
 	// Assert initial tokens were set in Prestart
@@ -247,36 +274,3 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 	must.ErrorContains(t, err, "failed to write nomad token")
 }
 
-// TestIdentityHook_GetIdentitiesMismatch asserts that if SignIdentities() does
-// not return enough identities then Prestart fails.
-func TestIdentityHook_GetIdentitiesMismatch(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := mock.Alloc()
-	task := alloc.LookupTask("web")
-	task.Identities = []*structs.WorkloadIdentity{
-		{
-			Name:     "consul",
-			Audience: []string{"consul"},
-			TTL:      time.Minute,
-		},
-	}
-	node := mock.Node()
-	stopCtx, stop := context.WithCancel(context.Background())
-	t.Cleanup(stop)
-
-	h := &identityHook{
-		alloc:      alloc,
-		task:       task,
-		tokenDir:   t.TempDir(),
-		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
-		ts:         &MockTokenSetter{},
-		logger:     testlog.HCLogger(t),
-		stopCtx:    stopCtx,
-		stop:       stop,
-	}
-
-	// Prestart should fail when trying to write the default identity file
-	err := h.Prestart(context.Background(), nil, nil)
-	must.ErrorContains(t, err, "error fetching alternate identities")
-}

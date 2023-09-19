@@ -88,6 +88,7 @@ func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
 	for {
 		select {
 		case signedWID, ok := <-signedIdentitiesChan:
+			h.logger.Trace("receiving renewed identity", "identity_name", wid.Name)
 			if !ok {
 				// Chan was closed, stop watching
 				h.logger.Trace("identity watch closed", "task", h.task.Name, "identity", wid.Name)
