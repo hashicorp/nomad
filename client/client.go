@@ -264,8 +264,8 @@ type Client struct {
 	// Service Identity tokens through Nomad Server.
 	tokensClient consulApi.ServiceIdentityAPI
 
-	// vaultClient is used to interact with Vault for token and secret renewals
-	vaultClient vaultclient.VaultClient
+	// vaultClients is used to interact with Vault for token and secret renewals
+	vaultClients map[string]vaultclient.VaultClient
 
 	// garbageCollector is used to garbage collect terminal allocations present
 	// in the node automatically
@@ -580,7 +580,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	// Setup the vault client for token and secret renewals
-	if err := c.setupVaultClient(); err != nil {
+	if err := c.setupVaultClients(); err != nil {
 		return nil, fmt.Errorf("failed to setup vault client: %v", err)
 	}
 
@@ -868,8 +868,8 @@ func (c *Client) Shutdown() error {
 	c.logger.Info("shutting down")
 
 	// Stop renewing tokens and secrets
-	if c.vaultClient != nil {
-		c.vaultClient.Stop()
+	for _, vaultClient := range c.vaultClients {
+		vaultClient.Stop()
 	}
 
 	// Stop Garbage collector
@@ -2761,7 +2761,7 @@ func (c *Client) newAllocRunnerConfig(
 		ServiceRegWrapper:   c.serviceRegWrapper,
 		StateDB:             c.stateDB,
 		StateUpdater:        c,
-		Vault:               c.vaultClient,
+		VaultFunc:           c.VaultClient,
 		WIDMgr:              c.widmgr,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
@@ -2776,24 +2776,41 @@ func (c *Client) setupConsulTokenClient() error {
 	return nil
 }
 
-// setupVaultClient creates an object to periodically renew tokens and secrets
-// with vault.
-func (c *Client) setupVaultClient() error {
-	var err error
-	c.vaultClient, err = vaultclient.NewVaultClient(c.GetConfig().VaultConfig, c.logger, c.deriveToken)
-	if err != nil {
-		return err
+// setupVaultClients creates the objects that periodically renew tokens and
+// secrets with vault.
+func (c *Client) setupVaultClients() error {
+
+	c.vaultClients = map[string]vaultclient.VaultClient{}
+	vaultConfigs := c.GetConfig().GetVaultConfigs(c.logger)
+	for _, vaultConfig := range vaultConfigs {
+		vaultClient, err := vaultclient.NewVaultClient(c.GetConfig().VaultConfig, c.logger, c.deriveToken)
+		if err != nil {
+			return err
+		}
+		if vaultClient == nil {
+			c.logger.Error("failed to create vault client", "name", vaultConfig.Name)
+			return fmt.Errorf("failed to create vault client for cluster %q", vaultConfig.Name)
+		}
+		c.vaultClients[vaultConfig.Name] = vaultClient
+
 	}
 
-	if c.vaultClient == nil {
-		c.logger.Error("failed to create vault client")
-		return fmt.Errorf("failed to create vault client")
+	// Start renewing tokens and secrets only once we've ensured we have created
+	// all the clients
+	for _, vaultClient := range c.vaultClients {
+		vaultClient.Start()
 	}
-
-	// Start renewing tokens and secrets
-	c.vaultClient.Start()
 
 	return nil
+}
+
+func (c *Client) VaultClient(cluster string) (vaultclient.VaultClient, error) {
+	vaultClient, ok := c.vaultClients[cluster]
+	if !ok {
+		return nil, fmt.Errorf("no Vault cluster named: %q", cluster)
+	}
+
+	return vaultClient, nil
 }
 
 // setupNomadServiceRegistrationHandler sets up the registration handler to use

@@ -27,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -137,7 +138,8 @@ func TestConsul_Integration(t *testing.T) {
 		r.NoError(allocDir.Destroy())
 	})
 	taskDir := allocDir.NewTaskDir(task.Name)
-	vclient := vaultclient.NewMockVaultClient()
+	vclient, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
 	consulClient, err := consulapi.NewClient(consulConfig)
 	r.Nil(err)
 
@@ -163,7 +165,7 @@ func TestConsul_Integration(t *testing.T) {
 		Task:                task,
 		TaskDir:             taskDir,
 		Logger:              logger,
-		Vault:               vclient,
+		VaultFunc:           func(string) (vaultclient.VaultClient, error) { return vclient, nil },
 		StateDB:             state.NoopDB{},
 		StateUpdater:        logUpdate,
 		DeviceManager:       devicemanager.NoopMockManager(),

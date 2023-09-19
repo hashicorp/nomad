@@ -268,7 +268,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 		"run_for": "0s",
 	}
 
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// make the si_token file un-writable, triggering a failure after a

@@ -32,12 +32,22 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 		Policies: []string{"default"},
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	// Setup a test Vault client.
+	token := "1234"
+	handler := func(*structs.Allocation, []string) (map[string]string, error) {
+		return map[string]string{task.Name: token}, nil
+	}
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
+	vaultClient.DeriveTokenFn = handler
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
 	defer cleanup()
 
 	// Remove private dir and write the Vault token to the secrets dir to
 	// simulate an old task.
-	err := conf.TaskDir.Build(false, nil)
+	err = conf.TaskDir.Build(false, nil)
 	must.NoError(t, err)
 
 	err = syscall.Unmount(conf.TaskDir.PrivateDir, 0)
@@ -45,17 +55,9 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 	err = os.Remove(conf.TaskDir.PrivateDir)
 	must.NoError(t, err)
 
-	token := "1234"
 	tokenPath := filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
 	err = os.WriteFile(tokenPath, []byte(token), 0666)
 	must.NoError(t, err)
-
-	// Setup a test Vault client.
-	handler := func(*structs.Allocation, []string) (map[string]string, error) {
-		return map[string]string{task.Name: token}, nil
-	}
-	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
-	vaultClient.DeriveTokenFn = handler
 
 	// Start task runner and wait for task to finish.
 	tr, err := NewTaskRunner(conf)
