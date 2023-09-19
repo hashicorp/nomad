@@ -222,7 +222,11 @@ As soon as any instance starts, it tries to lock the sync variable. If it succee
 it continues to execute while a secondary thread is in charge of keeping track of
 the lock and renewing it when necessary. If by any chance the renewal fails,
 the main process is forced to return, and the instance goes into standby until it
-attempts to acquire the lock over the sync variable.
+attempts to acquire the lock over the sync variable. 
+
+Only threads 1 and 3 or thread 2 is running at any given time, because every 
+intance is either executing as normal while renewing the lock or waiting for a 
+chance to acquire it and run.
 
 When the main process, or protected function, returns, the helper releases the 
 lock, allowing a second instance to start running.
