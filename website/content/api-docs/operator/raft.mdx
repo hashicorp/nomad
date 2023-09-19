@@ -196,11 +196,13 @@ The table below shows this endpoint's support for
   as provided in the output of `/v1/operator/raft/configuration` API endpoint or
   the `nomad operator raft list-peers` command.
 
-  <Note>
+<Note>
 
-  Either `address` or `id` must be provided, but not both.
+- The cluster must be running Raft protocol v3 or greater on all server members.
 
-  </Note>
+- Either `address` or `id` must be provided, but not both.
+
+</Note>
 
 ### Sample Requests
 

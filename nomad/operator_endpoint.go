@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 
-	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/snapshot"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -234,8 +233,8 @@ REMOVE:
 // current leader to a specific target peer. This can help prevent leadership
 // flapping during a rolling upgrade by allowing the cluster operator to target
 // an already upgraded node before upgrading the remainder of the cluster.
-func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply *api.LeadershipTransferResponse) error {
-	reply.To.Address, reply.To.ID = string(req.Address), string(req.ID)
+func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply *structs.LeadershipTransferResponse) error {
+	reply.To.Address, reply.To.ID = raft.ServerAddress(req.Address), raft.ServerID(req.ID)
 	tgtAddr, tgtID := req.Address, req.ID
 
 	authErr := op.srv.Authenticate(op.ctx, req)
@@ -263,7 +262,7 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 	// running. We need the leader's raft info to populate the response struct
 	// anyway, so we have a chance to check again here
 	lAddr, lID := op.srv.raft.LeaderWithID()
-	reply.From.Address, reply.From.ID = string(lAddr), string(lID)
+	reply.From.Address, reply.From.ID = lAddr, lID
 
 	// If the leader information comes back empty, that signals that there is
 	// currently no leader.
@@ -314,7 +313,7 @@ func (op *Operator) TransferLeadershipToPeer(req *structs.RaftPeerRequest, reply
 		}
 
 		// Otherwise, this is a no-op, respond accordingly.
-		reply.From.Address, reply.From.ID = string(lAddr), string(lID)
+		reply.From.Address, reply.From.ID = lAddr, lID
 		op.logger.Debug("leadership transfer to current leader is a no-op")
 		reply.Noop = true
 		return nil

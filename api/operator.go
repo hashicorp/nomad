@@ -410,5 +410,5 @@ type LeadershipTransferResponse struct {
 	Noop bool
 	Err  error
 
-	QueryMeta
+	WriteMeta
 }

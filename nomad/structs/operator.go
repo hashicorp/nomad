@@ -52,6 +52,8 @@ type RaftConfigurationResponse struct {
 
 // RaftPeerByAddressRequest is used by the Operator endpoint to apply a Raft
 // operation on a specific Raft peer by address in the form of "IP:port".
+//
+// Deprecated: Use RaftPeerRequest with an Address instead.
 type RaftPeerByAddressRequest struct {
 	// Address is the peer to remove, in the form "IP:port".
 	Address raft.ServerAddress
@@ -62,6 +64,8 @@ type RaftPeerByAddressRequest struct {
 
 // RaftPeerByIDRequest is used by the Operator endpoint to apply a Raft
 // operation on a specific Raft peer by ID.
+//
+// Deprecated: Use RaftPeerRequest with an ID instead.
 type RaftPeerByIDRequest struct {
 	// ID is the peer ID to remove.
 	ID raft.ServerID
@@ -106,6 +110,15 @@ func (r *RaftPeerRequest) validateAddress() error {
 		return fmt.Errorf("address must be in IP:port format: %w", err)
 	}
 	return nil
+}
+
+type LeadershipTransferResponse struct {
+	From RaftServer // Server yielding leadership
+	To   RaftServer // Server obtaining leadership
+	Noop bool       // Was the transfer a non-operation
+	Err  error      // Non-nil if there was an error while transferring leadership
+
+	WriteMeta
 }
 
 // AutopilotSetConfigRequest is used by the Operator endpoint to update the

@@ -21,11 +21,13 @@ Usage: nomad operator raft transfer-leadership [options]
 
   Transfer leadership to the Nomad server with given -peer-address or
   -peer-id in the Raft configuration. All server nodes in the cluster
-	must be running at least Raft protocol v3 in order to use this command.
+  must be running at least Raft protocol v3 in order to use this command.
 
   There are cases where you might desire transferring leadership from one
   cluster member to another, for example, during a rolling upgrade. This
   command allows you to designate a new server to be cluster leader.
+
+  Note: This command requires a currently established leader to function.
 
   If ACLs are enabled, this command requires a management token.
 
@@ -41,6 +43,7 @@ Remove Peer Options:
   -peer-id="id"
     Transfer leadership to the Nomad server with given Raft ID.
 `
+
 	return strings.TrimSpace(helpText)
 }
 
