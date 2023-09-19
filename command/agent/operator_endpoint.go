@@ -127,7 +127,7 @@ func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, re
 		return nil, CodedError(http.StatusBadRequest, "must specify only one address")
 	}
 
-	var reply api.LeadershipTransferResponse
+	var out structs.LeadershipTransferResponse
 	args := &structs.RaftPeerRequest{}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -141,8 +141,13 @@ func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, re
 		return nil, CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	err := s.agent.RPC("Operator.TransferLeadershipToPeer", &args, &reply)
-	return nil, err
+	err := s.agent.RPC("Operator.TransferLeadershipToPeer", &args, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	setIndex(resp, out.Index)
+	return out, nil
 }
 
 // OperatorAutopilotConfiguration is used to inspect the current Autopilot configuration.
