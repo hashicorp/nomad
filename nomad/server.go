@@ -1143,8 +1143,14 @@ func (s *Server) setupConsul(consulConfigEntries consul.ConfigAPI, consulACLs co
 
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
+	vconfig := s.config.VaultConfig
+	if vconfig != nil && vconfig.UseIdentity != nil && *vconfig.UseIdentity {
+		s.vault = &NoopVault{}
+		return nil
+	}
+
 	delegate := s.entVaultDelegate()
-	v, err := NewVaultClient(s.config.VaultConfig, s.logger, s.purgeVaultAccessors, delegate)
+	v, err := NewVaultClient(vconfig, s.logger, s.purgeVaultAccessors, delegate)
 	if err != nil {
 		return err
 	}
