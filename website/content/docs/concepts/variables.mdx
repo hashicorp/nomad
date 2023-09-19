@@ -189,7 +189,7 @@ See [Workload Associated ACL Policies] for more details.
 ## Locks
 
 Nomad provides the ability to block a variable from being updated for a period
-of time by using a lock over it. Once a variable is locked, it can be read by
+of time by setting a lock on it. Once a variable is locked, it can be read by
 everyone, but it can only be updated by the lock holder.
 
 The locks are designed to provide granular locking and are heavily inspired by
