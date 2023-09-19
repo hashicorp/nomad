@@ -431,6 +431,10 @@ type Config struct {
 	JobTrackedVersions int
 
 	Reporting *config.ReportingConfig
+
+	// OIDCIssuer is the URL for the OIDC Issuer field in Workload Identity JWTs
+	//FIXME(schmichael) is this the best way to pass it in?
+	OIDCIssuer string
 }
 
 func (c *Config) Copy() *Config {

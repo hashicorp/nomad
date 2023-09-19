@@ -583,6 +583,10 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 
 			widFound = true
 			claims := structs.NewIdentityClaims(out.Job, out, idReq.TaskName, wid, now)
+
+			//FIXME(schmichael) its weird to inject this outside of NewIdentityClaims
+			claims.Issuer = a.srv.GetConfig().OIDCIssuer
+
 			token, _, err := a.srv.encrypter.SignClaims(claims)
 			if err != nil {
 				return err
