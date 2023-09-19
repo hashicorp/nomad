@@ -73,7 +73,15 @@ Var lock Options:
 	unavailability without causing leader elections, but increases the amount of
 	time required to detect a lost lock in some cases. Defaults to 5. Set to 0 to
 	disable.
+  
+  -early-return 
+	Optional, early-return indicates the command to return if the lock is not 
+	acquired instead of waiting on stand by to try again. Defaults to false.
 
+  -backoff
+	Optional, indicates how long to wait between attempts to obtain the lock. 
+	By default the lease algorithm waits for 1.1 times the lock TTL.
+   
   -shell
 	Optional, use a shell to run the command (can set a custom shell via		
 	the SHELL environment variable). The default value is true.
@@ -102,6 +110,8 @@ func (c *VarLockCommand) Run(args []string) int {
 	var err error
 	var path string
 	var maxRetry int64
+	var earlyReturn bool
+	var backoff time.Duration
 
 	flags := c.varPutCommand.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.varPutCommand.Ui.Output(c.Help()) }
@@ -110,7 +120,9 @@ func (c *VarLockCommand) Run(args []string) int {
 	flags.StringVar(&c.ttl, "ttl", "", "")
 	flags.StringVar(&c.lockDelay, "delay", "", "")
 	flags.BoolVar(&c.shell, "shell", true, "")
+	flags.BoolVar(&earlyReturn, "early-return", false, "")
 	flags.Int64Var(&maxRetry, "max-retry", 5, "")
+	flags.DurationVar(&backoff, "backoff", 0, "")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.varPutCommand.outFmt, "out", "none", "")
@@ -211,8 +223,20 @@ func (c *VarLockCommand) Run(args []string) int {
 
 	ctx := context.Background()
 
-	// Set up the lease handler
-	ll := client.NewLockLeaser(l)
+	// Set up the locks handler
+	llo := []api.LockLeaserOption{}
+	if earlyReturn {
+		c.varPutCommand.verbose("Setting up early return")
+		llo = append(llo, api.LockLeaserOptionWithEarlyReturn(true))
+	}
+
+	if backoff != 0 {
+		c.varPutCommand.verbose("Setting up backoff period")
+		llo = append(llo, api.LockLeaserOptionWithWaitPeriod(backoff))
+	}
+
+	ll := client.NewLockLeaser(l, llo...)
+
 	c.varPutCommand.verbose("Attempting to acquire lock")
 
 	// Run the shell inside the protected function.

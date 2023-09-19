@@ -28,6 +28,10 @@ func (ml *mockLock) acquire(_ context.Context, callerID string) (string, error) 
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
 
+	if callerID == "hac-early-return" {
+		return "", ErrLockConflict
+	}
+
 	ml.acquireCalls[callerID] += 1
 	if ml.locked {
 		return "", nil
@@ -461,4 +465,35 @@ func copyMap(originalMap map[string]int) map[string]int {
 		newMap[k] = v
 	}
 	return newMap
+}
+
+func Test_EarlyReturn(t *testing.T) {
+	l := mockLock{
+		acquireCalls: map[string]int{},
+	}
+
+	testCtx := context.Background()
+
+	hac := LockLeaser{
+		locker: &lockHandler{
+			mockLock: &l,
+			callerID: "hac-early-return",
+		},
+		renewalPeriod: time.Duration(float64(testLease) * lockLeaseRenewalFactor),
+		waitPeriod:    time.Duration(float64(testLease) * lockRetryBackoffFactor),
+		earlyReturn:   true,
+	}
+
+	lock := l.getLockState()
+	must.False(t, lock.locked)
+
+	err := hac.Start(testCtx, func(ctx context.Context) error {
+		return errors.New("error")
+	})
+
+	must.NoError(t, err)
+
+	lock = l.getLockState()
+	must.False(t, lock.locked)
+	must.Zero(t, lock.renewsCounter)
 }

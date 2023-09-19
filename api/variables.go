@@ -505,6 +505,16 @@ func (v *Variable) AsPrettyJSON() string {
 	return string(b)
 }
 
+// AsPrettyJSON returns the Variable as a JSON-formatted string with
+// indentation
+func (v *Variable) LockID() string {
+	if v.Lock == nil {
+		return ""
+	}
+
+	return v.Lock.ID
+}
+
 type ErrCASConflict struct {
 	CheckIndex uint64
 	Conflict   *Variable
