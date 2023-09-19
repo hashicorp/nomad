@@ -505,8 +505,8 @@ func (v *Variable) AsPrettyJSON() string {
 	return string(b)
 }
 
-// AsPrettyJSON returns the Variable as a JSON-formatted string with
-// indentation
+// LockID returns the ID of the lock. In the event this is not held, or the
+// variable is not a lock, this string will be empty.
 func (v *Variable) LockID() string {
 	if v.Lock == nil {
 		return ""
