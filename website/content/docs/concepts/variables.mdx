@@ -210,7 +210,7 @@ there are two holders at the same time.
 
 For some applications, like HDFS or the Nomad Autoscaler, it is necessary to
 have multiple instances running to ensure redundancy in case of a failure, but
-only one of them must set one instance as a leader.
+only one of them may be active at a time as a leader.
 
 Nomad offers, as part of the API, a helper that takes one variable and uses a lock
 over it as a sync mechanism to run multiple instances but always keeping just one
