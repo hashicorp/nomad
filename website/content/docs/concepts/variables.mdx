@@ -212,9 +212,9 @@ For some applications, like HDFS or the Nomad Autoscaler, it is necessary to
 have multiple instances running to ensure redundancy in case of a failure, but
 only one of them may be active at a time as a leader.
 
-Nomad offers, as part of the API, a helper that takes one variable and uses a lock
-over it as a sync mechanism to run multiple instances but always keeping just one
-running at any given time, using the following algorithm:
+As part of the [Go Package][], Nomad offers a helper that takes one variable and
+uses a lock over it as a sync mechanism to run multiple instances but always
+keeping just one running at any given time, using the following algorithm:
 
 [![Leader Election Helper](/img/nomad-vars-leader-election-sdk.png)](/img/nomad-vars-leader-election-sdk.png)
 
@@ -224,7 +224,12 @@ the lock and renewing it when necessary. If by any chance the renewal fails,
 the main process is forced to return, and the instance goes into standby until it
 attempts to acquire the lock over the sync variable.
 
-To see a live implementation, look for the [`nomad var lock`][] command.
+When the main process, or protected function, returns, the helper releases the 
+lock, allowing a second instance to start running.
+
+To see it implemented live, look for the [`nomad var lock`][] command 
+implementation or the [Nomad Autoscaler High Availability] implementation.
+
 
 [HashiCorp Consul]: https://www.consul.io/
 [HashiCorp Vault]: https://www.vaultproject.io/
@@ -236,3 +241,6 @@ To see a live implementation, look for the [`nomad var lock`][] command.
 [ACL policy namespace rules]: /nomad/docs/other-specifications/acl-policy#namespace-rules
 [The Chubby Lock Service for Loosely-Coupled Distributed Systems]: https://research.google/pubs/pub27897/
 [`nomad var lock`]: /nomad/docs/commands/var
+[Go Package]: https://pkg.go.dev/github.com/hashicorp/nomad/api
+[implementation]: https://github.com/hashicorp/nomad/blob/release/1.7.0/command/var_lock.go#L240
+[Nomad Autoscaler High Availability][]: https://github.com/hashicorp/nomad-autoscaler/release/0.3.7command/agent.go#L368
