@@ -14,7 +14,6 @@
 				@type="text"
 				@value={{@policy.name}}
 				class="input"
-        {{autofocus}}
 			/>
 		</label>
 	{{/if}}
@@ -34,7 +33,7 @@
           mode="ruby"
           content=@policy.rules
           onUpdate=this.updatePolicyRules
-          autofocus=(not @policy.isNew)
+          autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>
