@@ -53,7 +53,9 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 	for _, task := range tg.Tasks {
 		// Omit default identity as it does not expire
-		widspecs[task.Name] = helper.CopySlice(task.Identities)
+		if len(task.Identities) > 0 {
+			widspecs[task.Name] = helper.CopySlice(task.Identities)
+		}
 	}
 
 	// Create a context for the renew loop. This context will be canceled when

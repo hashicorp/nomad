@@ -30,6 +30,7 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/drivers/rawexec"
@@ -116,6 +117,9 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	nomadRegMock := regMock.NewServiceRegistrationHandler(logger)
 	wrapperMock := wrapper.NewHandlerWrapper(logger, consulRegMock, nomadRegMock)
 
+	task := alloc.LookupTask(taskName)
+	widsigner := widmgr.NewMockWIDMgr(task.Identities)
+
 	conf := &Config{
 		Alloc:                 alloc,
 		ClientConfig:          clientConf,
@@ -136,6 +140,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
+		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, logger),
 	}
 
 	return conf, trCleanup
@@ -146,6 +151,13 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 // which need to change the Config *must* use testTaskRunnerConfig instead.
 func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string) (*TaskRunner, *Config, func()) {
 	config, cleanup := testTaskRunnerConfig(t, alloc, taskName)
+
+	// This is usually handled by the identity hook in the alloc runner, so it
+	// must be called manually when testing a task runner in isolation.
+	if config.WIDMgr != nil {
+		err := config.WIDMgr.Run()
+		must.NoError(t, err)
+	}
 
 	tr, err := NewTaskRunner(config)
 	require.NoError(t, err)

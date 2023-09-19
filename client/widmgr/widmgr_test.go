@@ -36,7 +36,7 @@ func TestWIDMgr(t *testing.T) {
 	})
 
 	_, err := mgr.SignIdentities(1, nil)
-	must.ErrorContains(t, err, "no identities requested")
+	must.ErrorContains(t, err, "no identities to sign")
 
 	_, err = mgr.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{
