@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -373,8 +374,5 @@ func (m *WIDMgr) send(id cstructs.TaskIdentity, token *structs.SignedWorkloadIde
 
 	// Send new token, should never block since this is the only sender and
 	// watchersLock is held
-	select {
-	case c <- token:
-	default:
-	}
+	c <- token
 }
