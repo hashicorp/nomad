@@ -63,15 +63,16 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 	stopCtx, stop := context.WithCancel(context.Background())
 
 	return &WIDMgr{
-		allocID:  a.ID,
-		minIndex: a.CreateIndex,
-		widSpecs: widspecs,
-		signer:   signer,
-		minWait:  10 * time.Second,
-		watchers: map[cstructs.TaskIdentity]chan *structs.SignedWorkloadIdentity{},
-		stopCtx:  stopCtx,
-		stop:     stop,
-		logger:   logger.Named("identity"),
+		allocID:   a.ID,
+		minIndex:  a.CreateIndex,
+		widSpecs:  widspecs,
+		signer:    signer,
+		minWait:   10 * time.Second,
+		lastToken: map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{},
+		watchers:  map[cstructs.TaskIdentity]chan *structs.SignedWorkloadIdentity{},
+		stopCtx:   stopCtx,
+		stop:      stop,
+		logger:    logger.Named("identity"),
 	}
 }
 

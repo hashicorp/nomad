@@ -6,6 +6,7 @@ package widmgr
 import (
 	"fmt"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -81,9 +82,20 @@ func (s *Signer) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentity
 	}
 
 	if n := len(reply.Rejections); n == 1 {
-		return nil, fmt.Errorf("%d/%d signing request was rejected", n, len(req))
+		return nil, fmt.Errorf(
+			"%d/%d signing request was rejected: %v",
+			n, len(req), reply.Rejections[0].Reason,
+		)
 	} else if n > 1 {
-		return nil, fmt.Errorf("%d/%d signing requests were rejected", n, len(req))
+		var mErr *multierror.Error
+		for _, r := range reply.Rejections {
+			mErr = multierror.Append(
+				fmt.Errorf(
+					"%d/%d signing request was rejected: %v",
+					n, len(req), r.Reason,
+				))
+		}
+		return nil, mErr
 	}
 
 	if len(reply.SignedIdentities) == 0 {
