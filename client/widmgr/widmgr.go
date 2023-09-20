@@ -126,10 +126,10 @@ func (m *WIDMgr) get(id cstructs.TaskIdentity) *structs.SignedWorkloadIdentity {
 	return m.lastToken[id]
 }
 
-// Watch sends new signed identities until it is closed due to shutdown. Must
+// Watch returns a channel that sends new signed identities until it is closed due to shutdown. Must
 // be called after Run.
 //
-// The caller must call the returned func to stop watching.
+// The caller must call the returned func to stop watching and ensure the watched id actually exists, otherwise the channel never returns a result.
 func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkloadIdentity, func()) {
 	m.watchersLock.Lock()
 	defer m.watchersLock.Unlock()
@@ -215,7 +215,7 @@ func (m *WIDMgr) getIdentities() error {
 
 		m.lastToken[id] = swid
 	}
-
+//TODO Persist signed identity token to client state
 	return nil
 }
 
@@ -337,9 +337,7 @@ func (m *WIDMgr) renew() {
 			m.watchersLock.Unlock()
 
 			// Set next expiration time
-			if minExp.IsZero() {
-				minExp = token.Expiration
-			} else if token.Expiration.Before(minExp) {
+			if minExp.IsZero() || token.Expiration.Before(minExp) {
 				minExp = token.Expiration
 			}
 		}
