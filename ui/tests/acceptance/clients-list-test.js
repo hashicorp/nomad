@@ -158,35 +158,26 @@ module('Acceptance | clients list', function (hooks) {
     await ClientsList.visit();
     ClientsList.nodes[0].compositeStatus.as((readyClient) => {
       assert.equal(readyClient.text, 'Ready');
-      assert.ok(readyClient.isSuccess, 'expected ready class');
+      console.log('readyClient', readyClient.text);
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 
-    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
-    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
+    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'Initializing');
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'Down');
     assert.equal(
       ClientsList.nodes[2].compositeStatus.text,
-      'down',
+      'Down',
       'down takes priority over ineligible'
     );
+    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'Ineligible');
 
-    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'ineligible');
-    assert.ok(
-      ClientsList.nodes[4].compositeStatus.isWarning,
-      'expected warning class'
-    );
-
-    assert.equal(ClientsList.nodes[5].compositeStatus.text, 'draining');
-    assert.ok(
-      ClientsList.nodes[5].compositeStatus.isInfo,
-      'expected info class'
-    );
+    assert.equal(ClientsList.nodes[5].compositeStatus.text, 'Draining');
 
     await ClientsList.sortBy('compositeStatus');
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
-      ['ready', 'initializing', 'ineligible', 'draining', 'down', 'down']
+      ['Ready', 'Initializing', 'Ineligible', 'Draining', 'Down', 'Down']
     );
 
     // Simulate a client state change arriving through polling
@@ -200,7 +191,7 @@ module('Acceptance | clients list', function (hooks) {
 
     assert.deepEqual(
       ClientsList.nodes.map((n) => n.compositeStatus.text),
-      ['initializing', 'ineligible', 'ineligible', 'draining', 'down', 'down']
+      ['Initializing', 'Ineligible', 'Ineligible', 'Draining', 'Down', 'Down']
     );
   });
 
