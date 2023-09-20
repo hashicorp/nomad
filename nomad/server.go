@@ -305,7 +305,7 @@ type Server struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
 
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
@@ -384,7 +384,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
 	// Setup Consul (more)
-	s.setupConsul(consulConfigEntries, consulACLs)
+	s.setupConsul(consulConfigFunc, consulACLs)
 
 	// Setup Vault
 	if err := s.setupVaultClient(); err != nil {
@@ -1143,8 +1143,8 @@ func (s *Server) setupNodeDrainer() {
 }
 
 // setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulConfigEntries consul.ConfigAPI, consulACLs consul.ACLsAPI) {
-	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigEntries, s.logger)
+func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) {
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
 	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 

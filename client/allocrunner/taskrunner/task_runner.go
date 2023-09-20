@@ -185,10 +185,10 @@ type TaskRunner struct {
 	// registering services and checks
 	consulServiceClient serviceregistration.Handler
 
-	// consulProxiesClient is the client used by the envoy version hook for
+	// consulProxiesClientFunc gets a client used by the envoy version hook for
 	// asking consul what version of envoy nomad should inject into the connect
 	// sidecar or gateway task.
-	consulProxiesClient consul.SupportedProxiesAPI
+	consulProxiesClientFunc consul.SupportedProxiesAPIFunc
 
 	// sidsClient is the client used by the service identity hook for managing
 	// service identity tokens
@@ -282,9 +282,9 @@ type Config struct {
 	// Consul is the client to use for managing Consul service registrations
 	Consul serviceregistration.Handler
 
-	// ConsulProxies is the client to use for looking up supported envoy versions
+	// ConsulProxiesFunc gets a client to use for looking up supported envoy versions
 	// from Consul.
-	ConsulProxies consul.SupportedProxiesAPI
+	ConsulProxiesFunc consul.SupportedProxiesAPIFunc
 
 	// ConsulSI is the client to use for managing Consul SI tokens
 	ConsulSI consul.ServiceIdentityAPI
@@ -369,44 +369,44 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                 config.Alloc,
-		allocID:               config.Alloc.ID,
-		clientConfig:          config.ClientConfig,
-		task:                  config.Task,
-		taskDir:               config.TaskDir,
-		taskName:              config.Task.Name,
-		taskLeader:            config.Task.Leader,
-		envBuilder:            envBuilder,
-		dynamicRegistry:       config.DynamicRegistry,
-		consulServiceClient:   config.Consul,
-		consulProxiesClient:   config.ConsulProxies,
-		siClient:              config.ConsulSI,
-		vaultClientFunc:       config.VaultFunc,
-		state:                 tstate,
-		localState:            state.NewLocalState(),
-		allocHookResources:    config.AllocHookResources,
-		stateDB:               config.StateDB,
-		stateUpdater:          config.StateUpdater,
-		deviceStatsReporter:   config.DeviceStatsReporter,
-		killCtx:               killCtx,
-		killCtxCancel:         killCancel,
-		shutdownCtx:           trCtx,
-		shutdownCtxCancel:     trCancel,
-		triggerUpdateCh:       make(chan struct{}, triggerUpdateChCap),
-		restartCh:             make(chan struct{}, restartChCap),
-		waitCh:                make(chan struct{}),
-		csiManager:            config.CSIManager,
-		devicemanager:         config.DeviceManager,
-		driverManager:         config.DriverManager,
-		maxEvents:             defaultMaxEvents,
-		serversContactedCh:    config.ServersContactedCh,
-		startConditionMetCh:   config.StartConditionMetCh,
-		shutdownDelayCtx:      config.ShutdownDelayCtx,
-		shutdownDelayCancelFn: config.ShutdownDelayCancelFn,
-		serviceRegWrapper:     config.ServiceRegWrapper,
-		getter:                config.Getter,
-		wranglers:             config.Wranglers,
-		widmgr:                config.WIDMgr,
+		alloc:                   config.Alloc,
+		allocID:                 config.Alloc.ID,
+		clientConfig:            config.ClientConfig,
+		task:                    config.Task,
+		taskDir:                 config.TaskDir,
+		taskName:                config.Task.Name,
+		taskLeader:              config.Task.Leader,
+		envBuilder:              envBuilder,
+		dynamicRegistry:         config.DynamicRegistry,
+		consulServiceClient:     config.Consul,
+		consulProxiesClientFunc: config.ConsulProxiesFunc,
+		siClient:                config.ConsulSI,
+		vaultClientFunc:         config.VaultFunc,
+		state:                   tstate,
+		localState:              state.NewLocalState(),
+		allocHookResources:      config.AllocHookResources,
+		stateDB:                 config.StateDB,
+		stateUpdater:            config.StateUpdater,
+		deviceStatsReporter:     config.DeviceStatsReporter,
+		killCtx:                 killCtx,
+		killCtxCancel:           killCancel,
+		shutdownCtx:             trCtx,
+		shutdownCtxCancel:       trCancel,
+		triggerUpdateCh:         make(chan struct{}, triggerUpdateChCap),
+		restartCh:               make(chan struct{}, restartChCap),
+		waitCh:                  make(chan struct{}),
+		csiManager:              config.CSIManager,
+		devicemanager:           config.DeviceManager,
+		driverManager:           config.DriverManager,
+		maxEvents:               defaultMaxEvents,
+		serversContactedCh:      config.ServersContactedCh,
+		startConditionMetCh:     config.StartConditionMetCh,
+		shutdownDelayCtx:        config.ShutdownDelayCtx,
+		shutdownDelayCancelFn:   config.ShutdownDelayCancelFn,
+		serviceRegWrapper:       config.ServiceRegWrapper,
+		getter:                  config.Getter,
+		wranglers:               config.Wranglers,
+		widmgr:                  config.WIDMgr,
 	}
 
 	// Create the logger based on the allocation ID

@@ -2108,7 +2108,7 @@ func TestClient_AllocPrerunErrorDuringRestore(t *testing.T) {
 		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
 
 		// actually make and start the client
-		c2, err := NewClient(conf, c1.consulCatalog, nil, c1.consulService, nil)
+		c2, err := NewClient(conf, c1.consulCatalog, nil, c1.consulServices, nil)
 		must.NoError(t, err)
 		t.Cleanup(func() {
 			test.NoError(t, c2.Shutdown())

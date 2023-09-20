@@ -24,16 +24,16 @@ const (
 )
 
 type envoyVersionHookConfig struct {
-	alloc         *structs.Allocation
-	proxiesClient consul.SupportedProxiesAPI
-	logger        hclog.Logger
+	alloc             *structs.Allocation
+	proxiesClientFunc consul.SupportedProxiesAPIFunc
+	logger            hclog.Logger
 }
 
-func newEnvoyVersionHookConfig(alloc *structs.Allocation, proxiesClient consul.SupportedProxiesAPI, logger hclog.Logger) *envoyVersionHookConfig {
+func newEnvoyVersionHookConfig(alloc *structs.Allocation, proxiesClientFunc consul.SupportedProxiesAPIFunc, logger hclog.Logger) *envoyVersionHookConfig {
 	return &envoyVersionHookConfig{
-		alloc:         alloc,
-		logger:        logger,
-		proxiesClient: proxiesClient,
+		alloc:             alloc,
+		logger:            logger,
+		proxiesClientFunc: proxiesClientFunc,
 	}
 }
 
@@ -45,9 +45,9 @@ type envoyVersionHook struct {
 	// alloc is the allocation with the envoy task being rewritten.
 	alloc *structs.Allocation
 
-	// proxiesClient is the subset of the Consul API for getting information
-	// from Consul about the versions of Envoy it supports.
-	proxiesClient consul.SupportedProxiesAPI
+	// proxiesClientFunc gets an interface for the subset of the Consul API for
+	// getting information from Consul about the versions of Envoy it supports.
+	proxiesClientFunc consul.SupportedProxiesAPIFunc
 
 	// logger is used to log things.
 	logger hclog.Logger
@@ -55,9 +55,9 @@ type envoyVersionHook struct {
 
 func newEnvoyVersionHook(c *envoyVersionHookConfig) *envoyVersionHook {
 	return &envoyVersionHook{
-		alloc:         c.alloc,
-		proxiesClient: c.proxiesClient,
-		logger:        c.logger.Named(envoyVersionHookName),
+		alloc:             c.alloc,
+		proxiesClientFunc: c.proxiesClientFunc,
+		logger:            c.logger.Named(envoyVersionHookName),
 	}
 }
 
@@ -81,7 +81,10 @@ func (h *envoyVersionHook) Prestart(_ context.Context, request *ifs.TaskPrestart
 
 	// We either need to acquire Consul's preferred Envoy version or fallback
 	// to the legacy default. Query Consul and use the (possibly empty) result.
-	proxies, err := h.proxiesClient.Proxies()
+	//
+	// TODO: how do we select the right cluster here if we have multiple
+	// services which could have their own cluster field value?
+	proxies, err := h.proxiesClientFunc("default").Proxies()
 	if err != nil {
 		return fmt.Errorf("error retrieving supported Envoy versions from Consul: %w", err)
 	}

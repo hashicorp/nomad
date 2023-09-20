@@ -38,6 +38,10 @@ type SupportedProxiesAPI interface {
 	Proxies() (map[string][]string, error)
 }
 
+// SupportedProxiesAPIFunc returns an interface that the Nomad client uses for
+// requesting the set of supported proxies from Consul.
+type SupportedProxiesAPIFunc func(string) SupportedProxiesAPI
+
 // JWTLoginRequest is an object representing a login request with JWT
 type JWTLoginRequest struct {
 	JWT            string

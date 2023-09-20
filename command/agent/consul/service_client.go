@@ -5,6 +5,7 @@ package consul
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net"
@@ -136,6 +137,9 @@ type ConfigAPI interface {
 	Set(entry api.ConfigEntry, w *api.WriteOptions) (bool, *api.WriteMeta, error)
 	// Delete(kind, name string, w *api.WriteOptions) (*api.WriteMeta, error) (not used)
 }
+
+// ConfigAPIFunc returns a ConfigAPI interface for the specific cluster
+type ConfigAPIFunc func(clusterName string) ConfigAPI
 
 // ACLsAPI is the consul/api.ACL API subset used by Nomad Server.
 //
@@ -423,6 +427,212 @@ func (o *operations) String() string {
 	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
 }
 
+type ServiceClientWrapper struct {
+	serviceClients map[string]*ServiceClient // cluster name -> client
+
+	// lock controls access to serviceClients so that we can gracefully reload
+	// Consul configuration
+	lock sync.RWMutex
+}
+
+func NewServiceClientWrapper() *ServiceClientWrapper {
+	return &ServiceClientWrapper{
+		serviceClients: map[string]*ServiceClient{},
+	}
+}
+
+func (scw *ServiceClientWrapper) AddClient(name string, client *ServiceClient) {
+	scw.lock.Lock()
+	defer scw.lock.Unlock()
+	scw.serviceClients[name] = client
+}
+
+func (scw *ServiceClientWrapper) Run() {
+	scw.lock.Lock()
+	defer scw.lock.Unlock()
+
+	for _, serviceClient := range scw.serviceClients {
+		go serviceClient.Run()
+	}
+}
+
+func (scw *ServiceClientWrapper) Shutdown() error {
+	scw.lock.Lock()
+	defer scw.lock.Unlock()
+
+	for _, serviceClient := range scw.serviceClients {
+		// TODO(tgross): we never return error from ServiceClient.Shutdown, so
+		// there's no point in returning it here either
+		_ = serviceClient.Shutdown()
+	}
+
+	return nil
+}
+
+func (scw *ServiceClientWrapper) RegisterAgent(role string, services []*structs.Service) error {
+	scw.lock.RLock()
+	defer scw.lock.RUnlock()
+
+	serviceClient, ok := scw.serviceClients[structs.ConsulDefaultCluster]
+	if !ok {
+		return errors.New("no default Consul services client")
+	}
+	return serviceClient.RegisterAgent(role, services)
+}
+
+func (scw *ServiceClientWrapper) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
+	scw.lock.RLock()
+	defer scw.lock.RUnlock()
+
+	clusters := scw.clustersInWorkload(workload)
+	if len(clusters) == 1 {
+		return scw.serviceClients[clusters[0]].RegisterWorkload(workload)
+	}
+
+	workloadsByCluster := scw.sliceWorkloadsByCluster(workload, clusters)
+	for cluster, workload := range workloadsByCluster {
+		err := scw.serviceClients[cluster].RegisterWorkload(workload)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (scw *ServiceClientWrapper) RemoveWorkload(workload *serviceregistration.WorkloadServices) {
+	scw.lock.RLock()
+	defer scw.lock.RUnlock()
+
+	clusters := scw.clustersInWorkload(workload)
+	if len(clusters) == 1 {
+		scw.serviceClients[clusters[0]].RemoveWorkload(workload)
+		return
+	}
+
+	workloadsByCluster := scw.sliceWorkloadsByCluster(workload, clusters)
+	for cluster, workload := range workloadsByCluster {
+		scw.serviceClients[cluster].RemoveWorkload(workload)
+	}
+}
+
+func (scw *ServiceClientWrapper) UpdateWorkload(
+	old, newTask *serviceregistration.WorkloadServices) error {
+	scw.lock.RLock()
+	defer scw.lock.RUnlock()
+
+	clusters := scw.clustersInWorkload(newTask)
+	if len(clusters) == 1 {
+		return scw.serviceClients[clusters[0]].UpdateWorkload(old, newTask)
+	}
+
+	newWorkloadsByCluster := scw.sliceWorkloadsByCluster(newTask, clusters)
+	oldWorkloadsByCluster := scw.sliceWorkloadsByCluster(old, clusters)
+	for cluster, old := range oldWorkloadsByCluster {
+		newTask := newWorkloadsByCluster[cluster]
+		err := scw.serviceClients[cluster].UpdateWorkload(old, newTask)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (scw *ServiceClientWrapper) AllocRegistrations(allocID string) (
+	*serviceregistration.AllocRegistration, error) {
+	scw.lock.RLock()
+	defer scw.lock.RUnlock()
+
+	// shortcut for non-ENT clients which will never have multiple Consul
+	// clusters
+	if len(scw.serviceClients) == 1 {
+		return scw.serviceClients[structs.ConsulDefaultCluster].AllocRegistrations(allocID)
+	}
+
+	allocReg := &serviceregistration.AllocRegistration{
+		Tasks: map[string]*serviceregistration.ServiceRegistrations{},
+	}
+	for _, serviceClient := range scw.serviceClients {
+		reg, err := serviceClient.AllocRegistrations(allocID)
+		if err != nil {
+			return nil, err
+		}
+		if reg != nil {
+			for t, task := range reg.Tasks {
+				if a, ok := allocReg.Tasks[t]; !ok {
+					allocReg.Tasks[t] = task
+				} else {
+					for serviceName, service := range task.Services {
+						a.Services[serviceName] = service
+					}
+				}
+			}
+		}
+	}
+	return allocReg, nil
+}
+
+func (scw *ServiceClientWrapper) UpdateTTL(id, namespace, output, status string) error {
+	scw.lock.RLock()
+	defer scw.lock.RUnlock()
+
+	// shortcut for non-ENT clients which will never have multiple Consul
+	// clusters
+	if len(scw.serviceClients) == 1 {
+		return scw.serviceClients[structs.ConsulDefaultCluster].UpdateTTL(id, namespace, output, status)
+	}
+
+	for _, serviceClient := range scw.serviceClients {
+		if serviceClient.agentServices.Contains(id) {
+			return serviceClient.UpdateTTL(id, namespace, output, status)
+		}
+	}
+
+	return nil
+}
+
+// clustersInWorkload returns a de-duplicated set of clusters in the workload,
+// always returning at least the default workload
+func (scw *ServiceClientWrapper) clustersInWorkload(workload *serviceregistration.WorkloadServices) []string {
+	clusters := set.From([]string{structs.ConsulDefaultCluster})
+	for _, service := range workload.Services {
+		if service.IsConsul() && service.Cluster != "" {
+			clusters.Insert(service.Cluster)
+		}
+	}
+
+	return clusters.Slice()
+}
+
+// sliceWorkloadsByCluster returns a map of clusters to WorkloadServices. This
+// does some expensive copying of the services so callers should check there's
+// actually multiple clusters first with clustersInWorkload
+func (scw *ServiceClientWrapper) sliceWorkloadsByCluster(workload *serviceregistration.WorkloadServices, clusters []string) map[string]*serviceregistration.WorkloadServices {
+
+	workloadsByCluster := make(map[string]*serviceregistration.WorkloadServices, len(clusters))
+	for _, cluster := range clusters {
+		clusterWorkload := workload.Copy()
+		clusterWorkload.Services = slices.DeleteFunc(
+			clusterWorkload.Services, func(service *structs.Service) bool {
+				if !service.IsConsul() {
+					return true
+				}
+				if service.Cluster == "" && cluster != structs.ConsulDefaultCluster {
+					return true
+				}
+				if service.Cluster != cluster {
+					return true
+				}
+				return false
+			})
+		if len(clusterWorkload.Services) > 0 {
+			workloadsByCluster[cluster] = clusterWorkload
+		}
+	}
+	return workloadsByCluster
+}
+
 // ServiceClient handles task and agent service registration with Consul.
 type ServiceClient struct {
 	agentAPI         AgentAPI
@@ -594,6 +804,9 @@ func (sr syncReason) String() string {
 func (c *ServiceClient) Run() {
 	defer close(c.exitCh)
 
+	// when Run is shutdown, it needs to complete its current sync before
+	// shutting down any child goroutines, so we don't use a context from the
+	// caller to coordinate shutdown of those children here
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
