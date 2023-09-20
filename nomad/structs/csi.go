@@ -12,6 +12,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -782,20 +783,6 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 			"volume snapshot ID cannot be updated"))
 	}
 
-	// must be compatible with capacity range
-	// TODO: when ExpandVolume is implemented we'll need to update
-	// this logic https://github.com/hashicorp/nomad/issues/10324
-	if v.Capacity != 0 {
-		if other.RequestedCapacityMax < v.Capacity ||
-			other.RequestedCapacityMin > v.Capacity {
-			errs = multierror.Append(errs, errors.New(
-				"volume requested capacity update was not compatible with existing capacity"))
-		} else {
-			v.RequestedCapacityMin = other.RequestedCapacityMin
-			v.RequestedCapacityMax = other.RequestedCapacityMax
-		}
-	}
-
 	// must be compatible with volume_capabilities
 	if v.AccessMode != CSIVolumeAccessModeUnknown ||
 		v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
@@ -846,6 +833,20 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 	return errs.ErrorOrNil()
 }
 
+// UpdateSafeFields updates fields that may be mutated while the volume is in use.
+func (v *CSIVolume) UpdateSafeFields(other *CSIVolume) error {
+	if v == nil || other == nil {
+		return errors.New("unexpected nil volume (this is a bug)")
+	}
+
+	// Expand operation can sometimes happen while in-use.
+	v.Capacity = other.Capacity
+	v.RequestedCapacityMin = other.RequestedCapacityMin
+	v.RequestedCapacityMax = other.RequestedCapacityMax
+
+	return nil
+}
+
 // Request and response wrappers
 type CSIVolumeRegisterRequest struct {
 	Volumes []*CSIVolume
@@ -883,6 +884,19 @@ type CSIVolumeDeleteRequest struct {
 }
 
 type CSIVolumeDeleteResponse struct {
+	QueryMeta
+}
+
+type CSIVolumeExpandRequest struct {
+	VolumeID             string
+	RequestedCapacityMin int64
+	RequestedCapacityMax int64
+	Secrets              CSISecrets
+	WriteRequest
+}
+
+type CSIVolumeExpandResponse struct {
+	CapacityBytes int64
 	QueryMeta
 }
 

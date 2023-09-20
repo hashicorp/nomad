@@ -187,7 +187,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 	logger := testlog.HCLogger(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
-	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, top, logger))
+	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, logger))
 	if cfg == nil {
 		cfg = map[string]interface{}{
 			"gc": map[string]interface{}{
@@ -2092,7 +2092,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 		defer d.DestroyTask(task.ID, true)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		ch, err := handle.Stats(ctx, 1*time.Second, top)
+		ch, err := handle.Stats(ctx, 1*time.Second, top.Compute())
 		assert.NoError(t, err)
 		select {
 		case ru := <-ch:

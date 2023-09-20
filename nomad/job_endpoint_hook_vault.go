@@ -34,6 +34,11 @@ func (h jobVaultHook) Validate(job *structs.Job) ([]error, error) {
 		return nil, fmt.Errorf("Vault not enabled but used in the job")
 	}
 
+	err := h.validateClustersForNamespace(job, vaultBlocks)
+	if err != nil {
+		return nil, err
+	}
+
 	// Return early if Vault configuration doesn't require authentication.
 	if vconf.AllowsUnauthenticated() {
 		return nil, nil

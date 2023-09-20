@@ -28,30 +28,35 @@ import (
 // responses that have no bodies have no "Next*Response" field and will always
 // return an empty response body.
 type MockClientCSI struct {
-	NextValidateError                 error
-	NextAttachError                   error
-	NextAttachResponse                *cstructs.ClientCSIControllerAttachVolumeResponse
-	NextDetachError                   error
-	NextCreateError                   error
-	NextCreateResponse                *cstructs.ClientCSIControllerCreateVolumeResponse
-	NextDeleteError                   error
-	NextListExternalError             error
-	NextListExternalResponse          *cstructs.ClientCSIControllerListVolumesResponse
-	NextCreateSnapshotError           error
-	NextCreateSnapshotResponse        *cstructs.ClientCSIControllerCreateSnapshotResponse
-	NextDeleteSnapshotError           error
-	NextListExternalSnapshotsError    error
-	NextListExternalSnapshotsResponse *cstructs.ClientCSIControllerListSnapshotsResponse
-	NextNodeDetachError               error
+	NextValidateError                  error
+	NextAttachError                    error
+	NextAttachResponse                 *cstructs.ClientCSIControllerAttachVolumeResponse
+	NextDetachError                    error
+	NextCreateError                    error
+	NextCreateResponse                 *cstructs.ClientCSIControllerCreateVolumeResponse
+	NextDeleteError                    error
+	NextListExternalError              error
+	NextListExternalResponse           *cstructs.ClientCSIControllerListVolumesResponse
+	NextCreateSnapshotError            error
+	NextCreateSnapshotResponse         *cstructs.ClientCSIControllerCreateSnapshotResponse
+	NextDeleteSnapshotError            error
+	NextListExternalSnapshotsError     error
+	NextListExternalSnapshotsResponse  *cstructs.ClientCSIControllerListSnapshotsResponse
+	NextControllerExpandVolumeError    error
+	NextControllerExpandVolumeResponse *cstructs.ClientCSIControllerExpandVolumeResponse
+	NextNodeDetachError                error
+	NextNodeExpandError                error
+	LastNodeExpandRequest              *cstructs.ClientCSINodeExpandVolumeRequest
 }
 
 func newMockClientCSI() *MockClientCSI {
 	return &MockClientCSI{
-		NextAttachResponse:                &cstructs.ClientCSIControllerAttachVolumeResponse{},
-		NextCreateResponse:                &cstructs.ClientCSIControllerCreateVolumeResponse{},
-		NextListExternalResponse:          &cstructs.ClientCSIControllerListVolumesResponse{},
-		NextCreateSnapshotResponse:        &cstructs.ClientCSIControllerCreateSnapshotResponse{},
-		NextListExternalSnapshotsResponse: &cstructs.ClientCSIControllerListSnapshotsResponse{},
+		NextAttachResponse:                 &cstructs.ClientCSIControllerAttachVolumeResponse{},
+		NextCreateResponse:                 &cstructs.ClientCSIControllerCreateVolumeResponse{},
+		NextListExternalResponse:           &cstructs.ClientCSIControllerListVolumesResponse{},
+		NextCreateSnapshotResponse:         &cstructs.ClientCSIControllerCreateSnapshotResponse{},
+		NextListExternalSnapshotsResponse:  &cstructs.ClientCSIControllerListSnapshotsResponse{},
+		NextControllerExpandVolumeResponse: &cstructs.ClientCSIControllerExpandVolumeResponse{},
 	}
 }
 
@@ -96,8 +101,18 @@ func (c *MockClientCSI) ControllerListSnapshots(req *cstructs.ClientCSIControlle
 	return c.NextListExternalSnapshotsError
 }
 
+func (c *MockClientCSI) ControllerExpandVolume(req *cstructs.ClientCSIControllerExpandVolumeRequest, resp *cstructs.ClientCSIControllerExpandVolumeResponse) error {
+	*resp = *c.NextControllerExpandVolumeResponse
+	return c.NextControllerExpandVolumeError
+}
+
 func (c *MockClientCSI) NodeDetachVolume(req *cstructs.ClientCSINodeDetachVolumeRequest, resp *cstructs.ClientCSINodeDetachVolumeResponse) error {
 	return c.NextNodeDetachError
+}
+
+func (c *MockClientCSI) NodeExpandVolume(req *cstructs.ClientCSINodeExpandVolumeRequest, resp *cstructs.ClientCSINodeExpandVolumeResponse) error {
+	c.LastNodeExpandRequest = req
+	return c.NextNodeExpandError
 }
 
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {

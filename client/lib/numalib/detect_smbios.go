@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
 
 const (
@@ -76,6 +78,6 @@ func (s *Smbios) discoverCores(top *Topology) {
 
 	// set the guess speed to the highest detected current speed
 	for i := 0; i < len(top.Cores); i++ {
-		top.Cores[i].GuessSpeed = MHz(maxCurSpeed)
+		top.Cores[i].GuessSpeed = hw.MHz(maxCurSpeed)
 	}
 }

@@ -5,15 +5,20 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"testing"
+
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/csi/fake"
-	"github.com/stretchr/testify/require"
 )
 
 var fakePlugin = &dynamicplugins.PluginInfo{
@@ -461,6 +466,95 @@ func TestCSIController_CreateVolume(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCSIController_ExpandVolume(t *testing.T) {
+	cases := []struct {
+		Name       string
+		ModRequest func(request *structs.ClientCSIControllerExpandVolumeRequest)
+		NextResp   *csi.ControllerExpandVolumeResponse
+		NextErr    error
+		ExpectErr  string
+	}{
+		{
+			Name: "success",
+			NextResp: &csi.ControllerExpandVolumeResponse{
+				CapacityBytes:         99,
+				NodeExpansionRequired: true,
+			},
+		},
+		{
+			Name: "plugin not found",
+			ModRequest: func(r *structs.ClientCSIControllerExpandVolumeRequest) {
+				r.CSIControllerQuery.PluginID = "nonexistent"
+			},
+			ExpectErr: "CSI.ControllerExpandVolume could not find plugin: CSI client error (retryable): plugin nonexistent for type csi-controller not found",
+		},
+		{
+			Name:      "ignorable error",
+			NextResp:  &csi.ControllerExpandVolumeResponse{},
+			NextErr:   fmt.Errorf("you can ignore me (%w)", nstructs.ErrCSIClientRPCIgnorable),
+			ExpectErr: "", // explicitly empty here for clarity.
+		},
+		{
+			Name:      "controller error",
+			NextErr:   errors.New("sad plugin"),
+			ExpectErr: "CSI.ControllerExpandVolume: sad plugin",
+		},
+		{
+			Name:      "nil response from plugin",
+			NextResp:  nil, // again explicit for clarity.
+			ExpectErr: "CSI.ControllerExpandVolume: plugin did not return error or response",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			client, cleanup := TestClient(t, nil)
+			t.Cleanup(func() { test.NoError(t, cleanup()) })
+
+			fakeClient := &fake.Client{
+				NextControllerExpandVolumeResponse: tc.NextResp,
+				NextControllerExpandVolumeErr:      tc.NextErr,
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			must.NoError(t, err)
+
+			req := &structs.ClientCSIControllerExpandVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+
+				ExternalVolumeID: "some-volume-id",
+				CapacityRange: &csi.CapacityRange{
+					RequiredBytes: 99,
+				},
+				Secrets: map[string]string{"super": "secret"},
+			}
+			if tc.ModRequest != nil {
+				tc.ModRequest(req)
+			}
+
+			var resp structs.ClientCSIControllerExpandVolumeResponse
+			err = client.ClientRPC("CSI.ControllerExpandVolume", req, &resp)
+
+			if tc.ExpectErr != "" {
+				must.EqError(t, err, tc.ExpectErr)
+				return
+			}
+			must.NoError(t, err)
+			must.Eq(t, tc.NextResp.CapacityBytes, resp.CapacityBytes)
+			must.Eq(t, tc.NextResp.NodeExpansionRequired, resp.NodeExpansionRequired)
+
+		})
+	}
+
 }
 
 func TestCSIController_DeleteVolume(t *testing.T) {
@@ -973,6 +1067,104 @@ func TestCSINode_DetachVolume(t *testing.T) {
 			if tc.ExpectedResponse != nil {
 				require.Equal(tc.ExpectedResponse, &resp)
 			}
+		})
+	}
+}
+
+func TestCSINode_ExpandVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	client, cleanup := TestClient(t, nil)
+	t.Cleanup(func() { test.NoError(t, cleanup()) })
+
+	cases := []struct {
+		Name       string
+		ModRequest func(r *structs.ClientCSINodeExpandVolumeRequest)
+		ModManager func(m *csimanager.MockCSIManager)
+		ExpectErr  error
+	}{
+		{
+			Name: "success",
+		},
+		{
+			Name: "invalid request",
+			ModRequest: func(r *structs.ClientCSINodeExpandVolumeRequest) {
+				r.Claim = nil
+			},
+			ExpectErr: errors.New("Claim is required"),
+		},
+		{
+			Name: "error waiting for plugin",
+			ModManager: func(m *csimanager.MockCSIManager) {
+				m.NextWaitForPluginErr = errors.New("sad plugin")
+			},
+			ExpectErr: errors.New("sad plugin"),
+		},
+		{
+			Name: "error from manager expand",
+			ModManager: func(m *csimanager.MockCSIManager) {
+				m.VM.NextExpandVolumeErr = errors.New("no expand, so sad")
+			},
+			ExpectErr: errors.New("no expand, so sad"),
+		},
+		{
+			Name: "ignorable error from manager expand",
+			ModManager: func(m *csimanager.MockCSIManager) {
+				m.VM.NextExpandVolumeErr = fmt.Errorf("%w: not found", nstructs.ErrCSIClientRPCIgnorable)
+			},
+			ExpectErr: nil, // explicitly expecting no error
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			mockManager := &csimanager.MockCSIManager{
+				VM: &csimanager.MockVolumeManager{},
+			}
+			if tc.ModManager != nil {
+				tc.ModManager(mockManager)
+			}
+			client.csimanager = mockManager
+
+			req := &structs.ClientCSINodeExpandVolumeRequest{
+				PluginID:   "fake-plug",
+				VolumeID:   "fake-vol",
+				ExternalID: "fake-external",
+				Capacity: &csi.CapacityRange{
+					RequiredBytes: 5,
+				},
+				Claim: &nstructs.CSIVolumeClaim{
+					// minimal claim to pass validation
+					AllocationID: "fake-alloc",
+				},
+			}
+			if tc.ModRequest != nil {
+				tc.ModRequest(req)
+			}
+
+			var resp structs.ClientCSINodeExpandVolumeResponse
+			err := client.ClientRPC("CSI.NodeExpandVolume", req, &resp)
+
+			if tc.ExpectErr != nil {
+				test.EqError(t, tc.ExpectErr, err.Error())
+				return
+			}
+			test.NoError(t, err)
+
+			expect := csimanager.MockExpandVolumeCall{
+				VolID:    req.VolumeID,
+				RemoteID: req.ExternalID,
+				AllocID:  req.Claim.AllocationID,
+				Capacity: req.Capacity,
+				UsageOpts: &csimanager.UsageOptions{
+					ReadOnly: true,
+				},
+			}
+			test.Eq(t, req.Capacity.RequiredBytes, resp.CapacityBytes)
+			test.NotNil(t, mockManager.VM.LastExpandVolumeCall)
+			test.Eq(t, &expect, mockManager.VM.LastExpandVolumeCall)
+
 		})
 	}
 }

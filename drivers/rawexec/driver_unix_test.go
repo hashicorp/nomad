@@ -22,7 +22,7 @@ import (
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
-	basePlug "github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -150,8 +150,15 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 
 	config := &Config{NoCgroups: false, Enabled: true}
 	var data []byte
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(base.MsgPackEncode(&data, config))
+	bconfig := &base.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.nomadConfig.Topology,
+			},
+		},
+	}
 	require.NoError(harness.SetConfig(bconfig))
 
 	allocID := uuid.Generate()

@@ -50,7 +50,7 @@ func (tr *TaskRunner) updatedVaultToken(token string) {
 
 type vaultHookConfig struct {
 	vaultBlock *structs.Vault
-	client     vaultclient.VaultClient
+	clientFunc vaultclient.VaultClientFunc
 	events     ti.EventEmitter
 	lifecycle  ti.TaskLifecycle
 	updater    vaultTokenUpdateHandler
@@ -72,8 +72,10 @@ type vaultHook struct {
 	// updater is used to update the Vault token
 	updater vaultTokenUpdateHandler
 
-	// client is the Vault client to retrieve and renew the Vault token
-	client vaultclient.VaultClient
+	// client is the Vault client to retrieve and renew the Vault token, and
+	// clientFunc is the injected function that retrieves it
+	client     vaultclient.VaultClient
+	clientFunc vaultclient.VaultClientFunc
 
 	// logger is used to log
 	logger log.Logger
@@ -105,9 +107,10 @@ type vaultHook struct {
 
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	h := &vaultHook{
 		vaultBlock:   config.vaultBlock,
-		client:       config.client,
+		clientFunc:   config.clientFunc,
 		eventEmitter: config.events,
 		lifecycle:    config.lifecycle,
 		updater:      config.updater,
@@ -134,6 +137,12 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	if !first {
 		return nil
 	}
+
+	vclient, err := h.clientFunc(h.vaultBlock.Cluster)
+	if err != nil {
+		return err
+	}
+	h.client = vclient
 
 	// Try to recover a token if it was previously written in the secrets
 	// directory

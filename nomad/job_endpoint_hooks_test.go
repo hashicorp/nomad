@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
@@ -51,6 +50,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					UseIdentity: pointer.Of(true),
 					ServiceIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"consul.io"},
+						TTL:      pointer.Of(time.Hour),
 					},
 				},
 			},
@@ -62,7 +62,27 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
 					Name:        "consul-service/web",
-					Audience:    []string{"consul.io", "nomad.dev"},
+					Audience:    []string{"consul.io"},
+					File:        true,
+					Env:         false,
+					ServiceName: "web",
+					TTL:         time.Hour,
+				},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+				},
+			},
+		},
+		{
+			name: "warn when service identity has no TTL",
+			inputService: &structs.Service{
+				Provider: "consul",
+				Name:     "web",
+				Identity: &structs.WorkloadIdentity{
+					Name:        "consul-service/web",
+					Audience:    []string{"consul.io"},
 					File:        true,
 					Env:         false,
 					ServiceName: "web",
@@ -73,6 +93,9 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					UseIdentity: pointer.Of(true),
 				},
 			},
+			expectedWarns: []string{
+				"identities without an expiration are insecure",
+			},
 		},
 		{
 			name: "error when consul identity is disabled and service has identity",
@@ -81,9 +104,10 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 				Name:     "web",
 				Identity: &structs.WorkloadIdentity{
 					Name:     fmt.Sprintf("%s/web", consulServiceIdentityNamePrefix),
-					Audience: []string{"consul.io", "nomad.dev"},
+					Audience: []string{"consul.io"},
 					File:     true,
 					Env:      false,
+					TTL:      time.Hour,
 				},
 			},
 			inputConfig: &Config{
@@ -301,13 +325,14 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
+		name                   string
 		inputJob               *structs.Job
 		expectedOutputJob      *structs.Job
 		expectedOutputWarnings []error
 		expectedOutputError    error
-		name                   string
 	}{
 		{
+			name: "no needed constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -326,9 +351,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "no needed constraints",
 		},
 		{
+			name: "task with vault",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -360,9 +385,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task with vault",
 		},
 		{
+			name: "group with multiple tasks with vault",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -410,9 +435,66 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "group with multiple tasks with vault",
 		},
 		{
+			name: "group with multiple vault clusters",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task1",
+							},
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task2",
+							},
+							{
+								Vault: &structs.Vault{},
+								Name:  "group1-task3",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*structs.Task{
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task1",
+							},
+							{
+								Vault: &structs.Vault{Cluster: "infra"},
+								Name:  "group1-task2",
+							},
+							{
+								Vault: &structs.Vault{},
+								Name:  "group1-task3",
+							},
+						},
+						Constraints: []*structs.Constraint{
+							&structs.Constraint{
+								LTarget: "${attr.vault.infra.version}",
+								RTarget: ">= 0.6.1",
+								Operand: structs.ConstraintSemver,
+							},
+							vaultConstraint,
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+		{
+			name: "multiple groups only one with vault",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -476,9 +558,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "multiple groups only one with vault",
 		},
 		{
+			name: "existing vault version constraint",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -523,9 +605,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "existing vault version constraint",
 		},
 		{
+			name: "vault with other constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -571,9 +653,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "vault with other constraints",
 		},
 		{
+			name: "task with vault signal change",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -618,9 +700,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task with vault signal change",
 		},
 		{
+			name: "task with kill signal",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -658,9 +740,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task with kill signal",
 		},
 		{
+			name: "multiple tasks with template signal change",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -726,9 +808,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "multiple tasks with template signal change",
 		},
 		{
+			name: "task group nomad discovery",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -760,9 +842,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group nomad discovery",
 		},
 		{
+			name: "task group nomad discovery constraint found",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -795,9 +877,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group nomad discovery constraint found",
 		},
 		{
+			name: "task group nomad discovery other constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -843,9 +925,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group nomad discovery other constraints",
 		},
 		{
+			name: "task group Consul discovery",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -877,9 +959,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group Consul discovery",
 		},
 		{
+			name: "task group Consul discovery constraint found",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -912,9 +994,61 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group Consul discovery constraint found",
 		},
 		{
+			name: "task group Consul discovery with multiple clusters",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+							{
+								Name:     "example-group-service-2",
+								Provider: structs.ServiceProviderConsul,
+								Cluster:  "infra",
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "example-group-1",
+						Services: []*structs.Service{
+							{
+								Name:     "example-group-service-1",
+								Provider: structs.ServiceProviderConsul,
+							},
+							{
+								Name:     "example-group-service-2",
+								Provider: structs.ServiceProviderConsul,
+								Cluster:  "infra",
+							},
+						},
+						Constraints: []*structs.Constraint{
+							consulServiceDiscoveryConstraint,
+							&structs.Constraint{
+								LTarget: "${attr.consul.infra.version}",
+								RTarget: ">= 1.7.0",
+								Operand: structs.ConstraintSemver,
+							},
+						},
+					},
+				},
+			},
+			expectedOutputWarnings: nil,
+			expectedOutputError:    nil,
+		},
+
+		{
+			name: "task group Consul discovery other constraints",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -960,9 +1094,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group Consul discovery other constraints",
 		},
 		{
+			name: "task group with empty provider",
 			inputJob: &structs.Job{
 				Name: "example",
 				TaskGroups: []*structs.TaskGroup{
@@ -992,7 +1126,6 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
-			name:                   "task group with empty provider",
 		},
 	}
 
@@ -1000,9 +1133,9 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			impl := jobImpliedConstraints{}
 			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
-			require.Equal(t, tc.expectedOutputJob, actualJob)
-			require.ElementsMatch(t, tc.expectedOutputWarnings, actualWarnings)
-			require.Equal(t, tc.expectedOutputError, actualError)
+			must.Eq(t, tc.expectedOutputJob, actualJob)
+			must.SliceContainsAll(t, actualWarnings, tc.expectedOutputWarnings)
+			must.Eq(t, tc.expectedOutputError, actualError)
 		})
 	}
 }

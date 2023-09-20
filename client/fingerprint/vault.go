@@ -41,7 +41,9 @@ func NewVaultFingerprint(logger log.Logger) Fingerprint {
 
 func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	var mErr *multierror.Error
-	for _, cfg := range f.vaultConfigs(req) {
+	vaultConfigs := req.Config.GetVaultConfigs(f.logger)
+
+	for _, cfg := range vaultConfigs {
 		err := f.fingerprintImpl(cfg, resp)
 		if err != nil {
 			mErr = multierror.Append(mErr, err)

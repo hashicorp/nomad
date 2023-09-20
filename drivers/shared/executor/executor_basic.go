@@ -10,14 +10,15 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func NewExecutorWithIsolation(logger hclog.Logger) Executor {
+func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Executor {
 	logger = logger.Named("executor")
 	logger.Error("isolation executor is not supported on this platform, using default")
-	return NewExecutor(logger)
+	return NewExecutor(logger, compute)
 }
 
 func (e *UniversalExecutor) configureResourceContainer(_ *ExecCommand, _ int) (func(), error) {

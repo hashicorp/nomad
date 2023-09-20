@@ -87,6 +87,45 @@ message NomadDriverConfig {
     // communicating with plugin subsystems over loopback
     // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
     uint32 ClientMinPort = 2;
+
+    // Topology is the complex hardware topology detected by the client
+    // combined with client configuration.
+    ClientTopology Topology = 3;
+}
+
+// numalib/Topology
+message ClientTopology {
+    repeated uint32 node_ids = 1;
+    ClientTopologySLIT distances = 2;
+    repeated ClientTopologyCore cores = 3;
+    uint64 override_total_compute = 4;
+    uint64 override_withold_compute = 5;
+}
+
+// numalib/SLIT
+message ClientTopologySLIT {
+    // dimension is the row and column size of the slit matrix
+    uint32 dimension = 1;
+
+    // values is the flattened matrix of slit values
+    repeated uint32 values = 2 [packed=true];
+}
+
+enum CoreGrade {
+  Performance = 0;
+  Efficiency = 1;
+}
+
+// numalib/Core
+message ClientTopologyCore {
+  uint32 socket_id = 1;
+  uint32 node_id = 2;
+  uint32 core_id = 3;
+  CoreGrade core_grade = 4;
+  bool disable = 5;
+  uint64 base_speed = 6;
+  uint64 max_speed = 7;
+  uint64 guess_speed = 8;
 }
 
 // SetConfigResponse is used to respond to setting the configuration

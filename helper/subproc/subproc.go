@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -45,12 +46,15 @@ func Print(format string, args ...any) {
 //
 // r should be a buffer containing output (typically combined stdin + stdout)
 // f should be an HCLogger Print method (e.g. log.Debug)
-func Log(r io.Reader, f func(msg string, args ...any)) {
+func Log(r io.Reader, f func(msg string, args ...any)) string {
 	scanner := bufio.NewScanner(r)
+	lines := ""
 	for scanner.Scan() {
 		line := scanner.Text()
+		lines += line + "\n"
 		f("sub-process", "OUTPUT", line)
 	}
+	return strings.TrimSpace(lines)
 }
 
 // Context creates a context setup with the given timeout.

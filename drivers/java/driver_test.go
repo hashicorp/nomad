@@ -15,11 +15,13 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -35,6 +37,13 @@ func javaCompatible(t *testing.T) {
 	}
 }
 
+func newJavaDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
+	topology := numalib.Scan(numalib.PlatformScanners())
+	d := NewDriver(ctx, testlog.HCLogger(t))
+	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
+	return d
+}
+
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
@@ -42,7 +51,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDriver(ctx, testlog.HCLogger(t))
+	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fpCh, err := harness.Fingerprint(context.Background())
@@ -65,7 +74,8 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDriver(ctx, testlog.HCLogger(t))
+	d := newJavaDriverTest(t, ctx)
+
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	tc := &TaskConfig{
@@ -106,7 +116,7 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDriver(ctx, testlog.HCLogger(t))
+	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	tc := &TaskConfig{
@@ -167,7 +177,7 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDriver(ctx, testlog.HCLogger(t))
+	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	tc := &TaskConfig{
@@ -257,7 +267,7 @@ func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDriver(ctx, testlog.HCLogger(t))
+	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -364,7 +374,7 @@ func Test_dnsConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewDriver(ctx, testlog.HCLogger(t))
+	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 

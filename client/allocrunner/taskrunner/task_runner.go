@@ -194,8 +194,9 @@ type TaskRunner struct {
 	// service identity tokens
 	siClient consul.ServiceIdentityAPI
 
-	// vaultClient is the client to use to derive and renew Vault tokens
-	vaultClient vaultclient.VaultClient
+	// vaultClientFunc is the function to get a client to use to derive and
+	// renew Vault tokens
+	vaultClientFunc vaultclient.VaultClientFunc
 
 	// vaultToken is the current Vault token. It should be accessed with the
 	// getter.
@@ -291,8 +292,8 @@ type Config struct {
 	// DynamicRegistry is where dynamic plugins should be registered.
 	DynamicRegistry dynamicplugins.Registry
 
-	// Vault is the client to use to derive and renew Vault tokens
-	Vault vaultclient.VaultClient
+	// VaultFunc is function to get the client to use to derive and renew Vault tokens
+	VaultFunc vaultclient.VaultClientFunc
 
 	// StateDB is used to store and restore state.
 	StateDB cstate.StateDB
@@ -380,7 +381,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		consulServiceClient:   config.Consul,
 		consulProxiesClient:   config.ConsulProxies,
 		siClient:              config.ConsulSI,
-		vaultClient:           config.Vault,
+		vaultClientFunc:       config.VaultFunc,
 		state:                 tstate,
 		localState:            state.NewLocalState(),
 		allocHookResources:    config.AllocHookResources,

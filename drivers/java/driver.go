@@ -393,8 +393,12 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to build ReattachConfig from taskConfig state: %v", err)
 	}
 
-	execImpl, pluginClient, err := executor.ReattachToExecutor(plugRC,
-		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID))
+	execImpl, pluginClient, err := executor.ReattachToExecutor(
+		plugRC,
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig.Topology.Compute(),
+	)
+
 	if err != nil {
 		d.logger.Error("failed to reattach to executor", "error", err, "task_id", handle.Config.ID)
 		return fmt.Errorf("failed to reattach to executor: %v", err)
@@ -452,6 +456,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
 		FSIsolation: driverCapabilities.FSIsolation == drivers.FSIsolationChroot,
+		Compute:     d.nomadConfig.Topology.Compute(),
 	}
 
 	exec, pluginClient, err := executor.CreateExecutor(

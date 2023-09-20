@@ -7331,10 +7331,18 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("mbits has been deprecated as of Nomad 0.12.0. Please remove mbits from the network block"))
 	}
 
+	// Validate group-level services.
+	for _, s := range tg.Services {
+		if err := s.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Service %q:", s.Name))
+			mErr = *multierror.Append(&mErr, err)
+		}
+	}
+
 	for _, t := range tg.Tasks {
 		if err := t.Warnings(); err != nil {
-			err = multierror.Prefix(err, fmt.Sprintf("Task %q:", t.Name))
-			mErr.Errors = append(mErr.Errors, err)
+			outer := fmt.Errorf("Task %q has warnings: %v", t.Name, err)
+			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
 
@@ -8136,7 +8144,15 @@ func (t *Task) Warnings() error {
 	for idx, tmpl := range t.Templates {
 		if err := tmpl.Warnings(); err != nil {
 			err = multierror.Prefix(err, fmt.Sprintf("Template[%d]", idx))
-			mErr.Errors = append(mErr.Errors, err)
+			mErr = *multierror.Append(&mErr, err)
+		}
+	}
+
+	// Validate task-level services.
+	for _, s := range t.Services {
+		if err := s.Warnings(); err != nil {
+			err = multierror.Prefix(err, fmt.Sprintf("Service %q:", s.Name))
+			mErr = *multierror.Append(&mErr, err)
 		}
 	}
 

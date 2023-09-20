@@ -42,7 +42,7 @@ consistent evaluation when Nomad spans multiple time zones.
   launched at. The job runs at the next earliest time that matches any of the
   expressions. Supports predefined expressions such as `@daily` and
   `@weekly`. Refer to [the
-  documentation](https://github.com/gorhill/cronexpr#implementation) for full
+  documentation](https://github.com/hashicorp/cronexpr#implementation) for full
   details about the supported cron specs and the predefined expressions.
   Conflicts with `cron`.
 
@@ -82,6 +82,18 @@ This example shows setting a time zone for the periodic job to evaluate in:
 ```hcl
 periodic {
   cron      = "*/15 * * * * *"
+  time_zone = "America/New_York"
+}
+```
+
+### Run multiple crons
+
+```hcl
+periodic {
+  crons = [
+    "*/5 * * *",
+    "*/7 * * *"
+  ]
   time_zone = "America/New_York"
 }
 ```

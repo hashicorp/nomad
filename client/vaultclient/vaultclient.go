@@ -13,11 +13,16 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
+
+// VaultClientFunc is the interface of a function that retreives the VaultClient
+// by cluster name. This function is injected into the allocrunner/taskrunner
+type VaultClientFunc func(string) (VaultClient, error)
 
 // TokenDeriverFunc takes in an allocation and a set of tasks and derives a
 // wrapped token for all the tasks, from the nomad server. All the derived

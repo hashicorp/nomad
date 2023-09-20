@@ -68,7 +68,7 @@ func (m *MockTaskStateUpdater) TaskStateUpdated() {
 
 // testTaskRunnerConfig returns a taskrunner.Config for the given alloc+task
 // plus a cleanup func.
-func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName string) (*Config, func()) {
+func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName string, vault vaultclient.VaultClient) (*Config, func()) {
 	logger := testlog.HCLogger(t)
 	clientConf, cleanup := config.TestClientConfig(t)
 
@@ -120,6 +120,11 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	task := alloc.LookupTask(taskName)
 	widsigner := widmgr.NewMockWIDSigner(task.Identities)
 
+	var vaultFunc vaultclient.VaultClientFunc
+	if vault != nil {
+		vaultFunc = func(_ string) (vaultclient.VaultClient, error) { return vault, nil }
+	}
+
 	conf := &Config{
 		Alloc:                 alloc,
 		ClientConfig:          clientConf,
@@ -128,7 +133,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		Logger:                clientConf.Logger,
 		Consul:                consulRegMock,
 		ConsulSI:              consulapi.NewMockServiceIdentitiesClient(),
-		Vault:                 vaultclient.NewMockVaultClient(),
+		VaultFunc:             vaultFunc,
 		StateDB:               cstate.NoopDB{},
 		StateUpdater:          NewMockTaskStateUpdater(),
 		DeviceManager:         devicemanager.NoopMockManager(),
@@ -150,7 +155,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 // a cleanup function that ensures the runner is stopped and cleaned up. Tests
 // which need to change the Config *must* use testTaskRunnerConfig instead.
 func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string) (*TaskRunner, *Config, func()) {
-	config, cleanup := testTaskRunnerConfig(t, alloc, taskName)
+	config, cleanup := testTaskRunnerConfig(t, alloc, taskName, nil)
 
 	// This is usually handled by the identity hook in the alloc runner, so it
 	// must be called manually when testing a task runner in isolation.
@@ -216,7 +221,7 @@ func TestTaskRunner_BuildTaskConfig_CPU_Memory(t *testing.T) {
 			res.Memory.MemoryMB = c.memoryMB
 			res.Memory.MemoryMaxMB = c.memoryMaxMB
 
-			conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+			conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 			conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 			defer cleanup()
 
@@ -255,11 +260,12 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 		"NOMAD_TASK_NAME":     task.Name,
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// Run the first TaskRunner
 	tr, err := NewTaskRunner(conf)
+
 	require.NoError(t, err)
 	go tr.Run()
 
@@ -302,7 +308,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "2s",
 	}
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
 
@@ -356,7 +362,7 @@ func TestTaskRunner_Restore_Dead(t *testing.T) {
 	task.Config = map[string]interface{}{
 		"run_for": "2s",
 	}
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
 
@@ -440,7 +446,7 @@ func setupRestoreFailureTest(t *testing.T, alloc *structs.Allocation) (*TaskRunn
 		"NOMAD_ALLOC_ID":      alloc.ID,
 		"NOMAD_TASK_NAME":     task.Name,
 	}
-	conf, cleanup1 := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup1 := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between runs
 
 	// Run the first TaskRunner
@@ -593,7 +599,7 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 		"NOMAD_ALLOC_ID":      alloc.ID,
 		"NOMAD_TASK_NAME":     task.Name,
 	}
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between runs
 
@@ -661,7 +667,7 @@ func TestTaskRunner_MarkFailedKill(t *testing.T) {
 	// set up some taskrunner
 	alloc := mock.MinAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	t.Cleanup(cleanup)
 	tr, err := NewTaskRunner(conf)
 	must.NoError(t, err)
@@ -812,7 +818,7 @@ func TestTaskRunner_DevicePropogation(t *testing.T) {
 	tRes := alloc.AllocatedResources.Tasks[task.Name]
 	tRes.Devices = append(tRes.Devices, &structs.AllocatedDeviceResource{Type: "mock"})
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
 	defer cleanup()
 
@@ -897,7 +903,7 @@ func TestTaskRunner_Restore_HookEnv(t *testing.T) {
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between prestart calls
 	defer cleanup()
 
@@ -942,7 +948,7 @@ func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
 		"run_for":           "5s",
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between prestart calls
 	defer cleanup()
 
@@ -1320,7 +1326,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	}
 	task.Services[0].Provider = structs.ServiceProviderConsul
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// Replace mock Consul ServiceClient, with the real ServiceClient
@@ -1416,7 +1422,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 		"run_for": "0s",
 	}
 
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// set a consul token on the Nomad client's consul config, because that is
@@ -1480,7 +1486,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 		"run_for": "0s",
 	}
 
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// set a consul token on the Nomad client's consul config, because that is
@@ -1540,7 +1546,7 @@ func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
 		"run_for": "0s",
 	}
 
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// set a consul token on the Nomad client's consul config, because that is
@@ -1592,9 +1598,6 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
 	// Control when we get a Vault token
 	token := "1234"
 	waitCh := make(chan struct{})
@@ -1602,8 +1605,14 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 		<-waitCh
 		return map[string]string{task.Name: token}, nil
 	}
-	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
+	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -1681,16 +1690,18 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 		DisableFile: true,
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
 	// Setup a test Vault client
 	token := "1234"
 	handler := func(*structs.Allocation, []string) (map[string]string, error) {
 		return map[string]string{task.Name: token}, nil
 	}
-	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
+	defer cleanup()
 
 	// Start task runner and wait for it to complete.
 	tr, err := NewTaskRunner(conf)
@@ -1726,9 +1737,6 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
 	// Fail on the first attempt to derive a vault token
 	token := "1234"
 	count := 0
@@ -1740,8 +1748,13 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 		count++
 		return nil, structs.NewRecoverableError(fmt.Errorf("Want a retry"), true)
 	}
-	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
+	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -1804,12 +1817,15 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
 	// Error the token derivation
-	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
-	vaultClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, fmt.Errorf("Non recoverable"))
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
+	vaultClient.SetDeriveTokenError(
+		alloc.ID, []string{task.Name}, fmt.Errorf("Non recoverable"))
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
+	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -2013,7 +2029,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 		},
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	// Use a mock agent to test for services
@@ -2115,9 +2131,6 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	// Use vault to block the start
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
-	defer cleanup()
-
 	// Control when we get a Vault token
 	waitCh := make(chan struct{}, 1)
 	defer close(waitCh)
@@ -2125,8 +2138,13 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 		<-waitCh
 		return map[string]string{task.Name: "1234"}, nil
 	}
-	vaultClient := conf.Vault.(*vaultclient.MockVaultClient)
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
+	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -2225,7 +2243,7 @@ func TestTaskRunner_Template_Artifact(t *testing.T) {
 		},
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -2275,7 +2293,7 @@ func TestTaskRunner_Template_BlockingPreStart(t *testing.T) {
 
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -2336,7 +2354,11 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -2358,8 +2380,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	vault := conf.Vault.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vault.RenewTokens()[token]
+	renewalCh, ok := vaultClient.RenewTokens()[token]
 	require.True(t, ok, "no renewal channel for token")
 
 	renewalCh <- fmt.Errorf("Test killing")
@@ -2384,11 +2405,11 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 
 	// Check the token was revoked
 	testutil.WaitForResult(func() (bool, error) {
-		if len(vault.StoppedTokens()) != 1 {
-			return false, fmt.Errorf("Expected a stopped token: %v", vault.StoppedTokens())
+		if len(vaultClient.StoppedTokens()) != 1 {
+			return false, fmt.Errorf("Expected a stopped token: %v", vaultClient.StoppedTokens())
 		}
 
-		if a := vault.StoppedTokens()[0]; a != token {
+		if a := vaultClient.StoppedTokens()[0]; a != token {
 			return false, fmt.Errorf("got stopped token %q; want %q", a, token)
 		}
 
@@ -2414,7 +2435,11 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	vc, err := vaultclient.NewMockVaultClient("default")
+	vaultClient := vc.(*vaultclient.MockVaultClient)
+	must.NoError(t, err)
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -2430,8 +2455,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 
 	require.NotEmpty(t, token)
 
-	vault := conf.Vault.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vault.RenewTokens()[token]
+	renewalCh, ok := vaultClient.RenewTokens()[token]
 	require.True(t, ok, "no renewal channel for token")
 
 	renewalCh <- fmt.Errorf("Test killing")
@@ -2487,8 +2511,11 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 		ChangeMode:   structs.VaultChangeModeSignal,
 		ChangeSignal: "SIGUSR1",
 	}
+	vc, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
+	vaultClient := vc.(*vaultclient.MockVaultClient)
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -2504,8 +2531,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 
 	require.NotEmpty(t, token)
 
-	vault := conf.Vault.(*vaultclient.MockVaultClient)
-	renewalCh, ok := vault.RenewTokens()[token]
+	renewalCh, ok := vaultClient.RenewTokens()[token]
 	require.True(t, ok, "no renewal channel for token")
 
 	renewalCh <- fmt.Errorf("Test killing")
@@ -2558,7 +2584,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 		"run_for":   "1ns",
 	}
 
-	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(conf)
@@ -2622,7 +2648,7 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 		"command": "whoami",
 	}
 
-	config, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	config, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
 	defer cleanup()
 
 	tr, err := NewTaskRunner(config)

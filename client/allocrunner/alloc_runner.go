@@ -82,8 +82,8 @@ type allocRunner struct {
 	// managing SI tokens
 	sidsClient consul.ServiceIdentityAPI
 
-	// vaultClient is the used to manage Vault tokens
-	vaultClient vaultclient.VaultClient
+	// vaultClientFunc is used to get the client used to manage Vault tokens
+	vaultClientFunc vaultclient.VaultClientFunc
 
 	// waitCh is closed when the Run loop has exited
 	waitCh chan struct{}
@@ -228,7 +228,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		consulClient:             config.Consul,
 		consulProxiesClient:      config.ConsulProxies,
 		sidsClient:               config.ConsulSI,
-		vaultClient:              config.Vault,
+		vaultClientFunc:          config.VaultFunc,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:                   make(chan struct{}),
 		destroyCh:                make(chan struct{}),
@@ -304,7 +304,7 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			Consul:              ar.consulClient,
 			ConsulProxies:       ar.consulProxiesClient,
 			ConsulSI:            ar.sidsClient,
-			Vault:               ar.vaultClient,
+			VaultFunc:           ar.vaultClientFunc,
 			DeviceStatsReporter: ar.deviceStatsReporter,
 			CSIManager:          ar.csiManager,
 			DeviceManager:       ar.devicemanager,

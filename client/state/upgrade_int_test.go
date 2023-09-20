@@ -209,7 +209,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 		ClientConfig:      clientConf,
 		StateDB:           db,
 		Consul:            regMock.NewServiceRegistrationHandler(clientConf.Logger),
-		Vault:             vaultclient.NewMockVaultClient(),
+		VaultFunc:         vaultclient.NewMockVaultClient,
 		StateUpdater:      &allocrunner.MockStateUpdater{},
 		PrevAllocWatcher:  allocwatcher.NoopPrevAlloc{},
 		PrevAllocMigrator: allocwatcher.NoopPrevAlloc{},

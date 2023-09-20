@@ -148,7 +148,7 @@ func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
 	execCmd.ModePID = "host" // disable PID namespace
 	execCmd.ModeIPC = "host" // disable IPC namespace
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -191,7 +191,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	execCmd.ModePID = "private"
 	execCmd.ModeIPC = "private"
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -283,7 +283,7 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 
 	execCmd.ResourceLimits = true
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
@@ -461,7 +461,7 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 
 	execCmd.ResourceLimits = true
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
 
 	_, err := executor.Launch(execCmd)
@@ -511,7 +511,7 @@ func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
 	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "cat /proc/self/oom_score_adj"}
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
 
 	_, err = executor.Launch(execCmd)
@@ -605,7 +605,7 @@ CapAmb: 0000000000000400`,
 				execCmd.Capabilities = capsAllowed
 			}
 
-			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+			executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 			defer executor.Shutdown("SIGKILL", 0)
 
 			_, err := executor.Launch(execCmd)
@@ -653,7 +653,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	defer allocDir.Destroy()
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("", 0)
 
 	// Need to run a command which will produce continuous output but not

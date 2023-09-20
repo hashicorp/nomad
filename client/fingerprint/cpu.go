@@ -93,8 +93,8 @@ func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
 		&numalib.ConfigScanner{
 			ReservableCores: reservableCores,
 			ReservedCores:   reservedCores,
-			TotalCompute:    numalib.MHz(totalCompute),
-			ReservedCompute: numalib.MHz(reservedCompute.CpuShares),
+			TotalCompute:    hw.MHz(totalCompute),
+			ReservedCompute: hw.MHz(reservedCompute.CpuShares),
 		},
 	))
 }
@@ -106,7 +106,7 @@ func (f *CPUFingerprint) setModelName(response *FingerprintResponse) {
 	}
 }
 
-func (*CPUFingerprint) frequency(mhz numalib.MHz) string {
+func (*CPUFingerprint) frequency(mhz hw.MHz) string {
 	return strconv.FormatUint(uint64(mhz), 10)
 }
 

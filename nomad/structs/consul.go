@@ -100,7 +100,7 @@ func (j *Job) ConsulUsages() map[string]*ConsulUsage {
 
 		// Gather group services
 		for _, service := range tg.Services {
-			if service.Provider == ServiceProviderConsul {
+			if service.IsConsul() {
 				m[namespace].Services = append(m[namespace].Services, service.Name)
 			}
 		}
@@ -108,7 +108,7 @@ func (j *Job) ConsulUsages() map[string]*ConsulUsage {
 		// Gather task services and KV usage
 		for _, task := range tg.Tasks {
 			for _, service := range task.Services {
-				if service.Provider == ServiceProviderConsul {
+				if service.IsConsul() {
 					m[namespace].Services = append(m[namespace].Services, service.Name)
 				}
 			}
