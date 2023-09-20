@@ -156,7 +156,7 @@ type ConsulConfig struct {
 	// ServiceIdentity is set on the server.
 	ServiceIdentity *WorkloadIdentityConfig `mapstructure:"service_identity"`
 
-	// TemplateIdentity is intended to reduce overhead for jobspec authors and make
+	// TaskIdentity is intended to reduce overhead for jobspec authors and make
 	// for graceful upgrades without forcing rewrite of all jobspecs. If set, when a
 	// job has both a template block and a consul block, the Nomad server will sign a
 	// Workload Identity for that task. The client will use this identity rather than
@@ -164,8 +164,8 @@ type ConsulConfig struct {
 	//
 	// The name field of the identity is always set to "consul".
 	//
-	// TemplateIdentity is set on the server.
-	TemplateIdentity *WorkloadIdentityConfig `mapstructure:"template_identity"`
+	// TaskIdentity is set on the server.
+	TaskIdentity *WorkloadIdentityConfig `mapstructure:"task_identity"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `mapstructure:",unusedKeys" json:"-"`
@@ -304,11 +304,11 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.ServiceIdentity = result.ServiceIdentity.Merge(b.ServiceIdentity)
 	}
 
-	if result.TemplateIdentity == nil && b.TemplateIdentity != nil {
-		tID := *b.TemplateIdentity
-		result.TemplateIdentity = &tID
-	} else if b.TemplateIdentity != nil {
-		result.TemplateIdentity = result.TemplateIdentity.Merge(b.TemplateIdentity)
+	if result.TaskIdentity == nil && b.TaskIdentity != nil {
+		tID := *b.TaskIdentity
+		result.TaskIdentity = &tID
+	} else if b.TaskIdentity != nil {
+		result.TaskIdentity = result.TaskIdentity.Merge(b.TaskIdentity)
 	}
 
 	return result
@@ -412,7 +412,7 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 		Namespace:            c.Namespace,
 		UseIdentity:          c.UseIdentity,
 		ServiceIdentity:      c.ServiceIdentity.Copy(),
-		TemplateIdentity:     c.TemplateIdentity.Copy(),
+		TaskIdentity:         c.TaskIdentity.Copy(),
 		ExtraKeysHCL:         slices.Clone(c.ExtraKeysHCL),
 	}
 }

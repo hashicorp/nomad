@@ -250,7 +250,7 @@ consul {
     file = true
     ttl  = "1h"
   }
-  template_identity {
+  task_identity {
     aud  = ["consul.io"]
     env  = true
     file = false

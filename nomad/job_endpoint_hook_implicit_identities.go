@@ -11,6 +11,7 @@ import (
 
 const (
 	consulServiceIdentityNamePrefix = "consul-service"
+	consulTaskIdentityNamePrefix    = "consul"
 	vaultIdentityName               = "vault"
 )
 
@@ -33,6 +34,9 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 		for _, t := range tg.Tasks {
 			for _, s := range t.Services {
 				h.handleConsulService(s)
+			}
+			if len(t.Templates) > 0 {
+				h.handleConsulTasks(t, tg.Consul)
 			}
 			h.handleVault(t)
 		}
@@ -75,6 +79,32 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service) {
 	serviceWID.ServiceName = s.Name
 
 	s.Identity = serviceWID
+}
+
+func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, consul *structs.Consul) {
+	if !h.srv.config.UseConsulIdentity() {
+		return
+	}
+
+	widName := fmt.Sprintf("%s/%s", consulTaskIdentityNamePrefix, t.Name)
+
+	// Use the Consul identity specified in the task if present
+	for _, wid := range t.Identities {
+		if wid.Name == widName {
+			return
+		}
+	}
+
+	// If task doesn't specify an identity for Consul, fallback to the
+	// default identity defined in the server configuration.
+	taskWID := h.srv.config.ConsulTaskIdentity()
+	if taskWID == nil {
+		// If no identity is found skip inject the implicit identity and
+		// fallback to the legacy flow.
+		return
+	}
+	taskWID.Name = widName
+	t.Identities = append(t.Identities, taskWID)
 }
 
 // handleVault injects a workload identity to the task if:
