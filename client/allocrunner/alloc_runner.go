@@ -206,7 +206,7 @@ type allocRunner struct {
 	// partitions is an interface for managing cpuset partitions
 	partitions cinterfaces.CPUPartitions
 
-	// widsigner signes workload identities
+	// widsigner signs workload identities
 	widsigner widmgr.IdentitySigner
 
 	// widmgr manages workload identity signatures
