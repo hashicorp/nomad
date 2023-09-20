@@ -289,7 +289,10 @@ func (m *WIDMgr) renew() {
 	for {
 		// we need to handle stopCtx.Err() and manually stop the subscribers
 		if err := m.stopCtx.Err(); err != nil {
-			//TODO Close watchers
+			// close watchers
+			for _, w := range m.watchers {
+				close(w)
+			}
 			return
 		}
 
@@ -299,7 +302,10 @@ func (m *WIDMgr) renew() {
 		case <-timer.C:
 			m.logger.Trace("getting new signed identities", "num", len(reqs))
 		case <-m.stopCtx.Done():
-			//TODO Close watchers
+			// close watchers
+			for _, w := range m.watchers {
+				close(w)
+			}
 			return
 		}
 
