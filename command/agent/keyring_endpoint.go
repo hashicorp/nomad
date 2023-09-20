@@ -6,7 +6,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
-	"path"
+	"net/url"
 	"strings"
 	"time"
 
@@ -109,14 +109,14 @@ func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Re
 	//FIXME(schmichael) make a real struct
 	// stolen from vault/identity_store_oidc_provider.go
 	type providerDiscovery struct {
-		Issuer                string   `json:"issuer,omitempty"`
-		Keys                  string   `json:"jwks_uri"`
-		AuthorizationEndpoint string   `json:"authorization_endpoint,omitempty"`
-		RequestParameter      bool     `json:"request_parameter_supported"`
-		RequestURIParameter   bool     `json:"request_uri_parameter_supported"`
-		IDTokenAlgs           []string `json:"id_token_signing_alg_values_supported,omitempty"`
-		ResponseTypes         []string `json:"response_types_supported,omitempty"`
-		Subjects              []string `json:"subject_types_supported,omitempty"`
+		Issuer              string   `json:"issuer,omitempty"`
+		Keys                string   `json:"jwks_uri"`
+		RequestParameter    bool     `json:"request_parameter_supported"`
+		RequestURIParameter bool     `json:"request_uri_parameter_supported"`
+		IDTokenAlgs         []string `json:"id_token_signing_alg_values_supported,omitempty"`
+		ResponseTypes       []string `json:"response_types_supported,omitempty"`
+		Subjects            []string `json:"subject_types_supported,omitempty"`
+		//AuthorizationEndpoint string   `json:"authorization_endpoint,omitempty"`
 		//Scopes                []string `json:"scopes_supported,omitempty"`
 		//UserinfoEndpoint      string   `json:"userinfo_endpoint,omitempty"`
 		//TokenEndpoint         string   `json:"token_endpoint,omitempty"`
@@ -125,15 +125,19 @@ func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Re
 		//AuthMethods           []string `json:"token_endpoint_auth_methods_supported,omitempty"`
 	}
 
+	jwksPath, err := url.JoinPath(issuer, "/.well-known/jwks.json")
+	if err != nil {
+		return nil, fmt.Errorf("error determining jwks path: %w", err)
+	}
+
 	disc := providerDiscovery{
-		Issuer:                issuer,
-		Keys:                  path.Join(issuer, "/.well-known/jwks.json"),
-		AuthorizationEndpoint: "openid:", //FIXME(schmichael) ???????
-		RequestParameter:      false,
-		RequestURIParameter:   false,
-		IDTokenAlgs:           []string{structs.PubKeyAlgEdDSA},
-		ResponseTypes:         []string{"code"},
-		Subjects:              []string{"public"},
+		Issuer:              issuer,
+		Keys:                jwksPath,
+		RequestParameter:    false,
+		RequestURIParameter: false,
+		IDTokenAlgs:         []string{structs.PubKeyAlgEdDSA},
+		ResponseTypes:       []string{"code"},
+		Subjects:            []string{"public"},
 	}
 
 	return disc, nil
