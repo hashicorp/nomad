@@ -8,28 +8,31 @@
   </section>
   <div class="section-cards">
     <Hds::Card::Container @level="mid" @hasBorder={{true}}>
-      <LinkTo
-        @route="access-control.tokens"
-      >
-        <h2 class="title">{{this.model.tokens.length}} {{pluralize "Token" this.model.tokens.length}}</h2>
+        <LinkTo
+          @route="access-control.tokens"
+        >
+          {{this.model.tokens.length}} {{pluralize "Token" this.model.tokens.length}}
+        </LinkTo>
         <p>User access tokens are associated with one or more policies or roles to grant specific capabilities.</p>
-      </LinkTo>
+        <Hds::Button @text="Create Token" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.tokens.new" />
     </Hds::Card::Container>
     <Hds::Card::Container @level="mid" @hasBorder={{true}}>
       <LinkTo
         @route="access-control.roles"
       >
-        <h2 class="title">{{this.model.roles.length}} {{pluralize "Role" this.model.roles.length}}</h2>
-        <p>Roles group one or more Policies into higher-level sets of permissions.</p>
+        {{this.model.roles.length}} {{pluralize "Role" this.model.roles.length}}
       </LinkTo>
+      <p>Roles group one or more Policies into higher-level sets of permissions.</p>
+      <Hds::Button @text="Create Role" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.roles.new" />
     </Hds::Card::Container>
     <Hds::Card::Container @level="mid" @hasBorder={{true}}>
       <LinkTo
         @route="access-control.policies"
       >
-        <h2 class="title">{{this.model.policies.length}} {{pluralize "Policy" this.model.policies.length}}</h2>
-        <p>Sets of rules defining the capabilities granted to adhering tokens.</p>
+        {{this.model.policies.length}} {{pluralize "Policy" this.model.policies.length}}
       </LinkTo>
+      <p>Sets of rules defining the capabilities granted to adhering tokens.</p>
+      <Hds::Button @text="Create Policy" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.policies.new" />
     </Hds::Card::Container>
   </div>
 </section>

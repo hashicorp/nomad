@@ -12,21 +12,25 @@
 
   .section-cards {
     display: grid;
-    // grid-template-columns: repeat(3, 1fr);
-    // Repeat 3 but minimum width is 200px;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     & > div {
-      display: flex;
-      flex-direction: row;
-      & > a {
-        padding: 1rem;
-        text-decoration: none;
-        color: $black;
-        display: block;
+      padding: 1rem;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 0.5rem;
 
-        &:hover {
-          background-color: var(--token-color-surface-interactive-hover);
+      & > p {
+        margin-bottom: 0.5rem;
+      }
+      & > a {
+        font-weight: bold;
+        font-size: 1.5rem;
+        text-decoration: none;
+
+        &.hds-button {
+          font-weight: normal;
+          font-size: inherit;
         }
       }
     }
@@ -37,7 +41,6 @@
   .tag-group {
     display: flex;
     gap: 0.5rem;
-    // repeat as many as you can. dont grow vertically
     flex-wrap: wrap;
 
     a {
@@ -66,4 +69,11 @@
   .expiration-time fieldset {
     margin-bottom: 1rem;
   }
+}
+
+.acl-explainer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  margin-bottom: 2rem;
 }

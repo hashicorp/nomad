@@ -4,11 +4,11 @@
 ~}}
 
 <section class="section">
-  <div class="toolbar">
-    <p class="toolbar-item">
+  <header class="acl-explainer">
+    <p>
       ACL Tokens are associated with one or more policies or roles to grant specific capabilities. Users can use these to sign into, and operate, Nomad with the permissions laid out in their policies.
     </p>
-    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+    <div>
       {{#if (can "write token")}}
         <Hds::Button
           @text="Create Token"
@@ -30,8 +30,7 @@
         />
       {{/if}}
     </div>
-
-  </div>
+  </header>
   {{#if this.model.tokens.length}}
     <Hds::Table @caption="A list of tokens for this cluster" class="acl-table"
       @model={{this.model.tokens}}
