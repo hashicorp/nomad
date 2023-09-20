@@ -77,7 +77,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(nodeRow.nodePool, node.nodePool, 'Node Pool');
     assert.equal(
       nodeRow.compositeStatus.text,
-      'draining',
+      'Draining',
       'Combined status, draining, and eligbility'
     );
     assert.equal(nodeRow.address, node.httpAddr);
@@ -111,7 +111,7 @@ module('Acceptance | clients list', function (hooks) {
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(
       nodeRow.compositeStatus.text,
-      'ready',
+      'Ready',
       'Combined status, draining, and eligbility'
     );
     assert.equal(nodeRow.allocations, running.length, '# Allocations');
@@ -156,9 +156,8 @@ module('Acceptance | clients list', function (hooks) {
     });
 
     await ClientsList.visit();
-
     ClientsList.nodes[0].compositeStatus.as((readyClient) => {
-      assert.equal(readyClient.text, 'ready');
+      assert.equal(readyClient.text, 'Ready');
       assert.ok(readyClient.isSuccess, 'expected ready class');
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
