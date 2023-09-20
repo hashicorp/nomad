@@ -12,15 +12,13 @@ import (
 )
 
 type identityHook struct {
-	ar     *allocRunner
 	widmgr widmgr.IdentityManager
 	logger log.Logger
 }
 
-func newIdentityHook(logger log.Logger, ar *allocRunner) *identityHook {
+func newIdentityHook(logger log.Logger, widmgr widmgr.IdentityManager) *identityHook {
 	h := &identityHook{
-		ar:     ar,
-		widmgr: ar.widmgr,
+		widmgr: widmgr,
 	}
 	h.logger = logger.Named(h.Name())
 	return h

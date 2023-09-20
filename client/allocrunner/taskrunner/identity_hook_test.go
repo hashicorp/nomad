@@ -74,7 +74,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	t.Cleanup(stop)
 
 	// setup mock signer and WIDMgr
-	mockSigner := widmgr.NewMockWIDMgr(task.Identities)
+	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, testlog.HCLogger(t))
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
 
@@ -176,7 +176,7 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	t.Cleanup(stop)
 
 	// setup mock signer and WIDMgr
-	mockSigner := widmgr.NewMockWIDMgr(task.Identities)
+	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, testlog.HCLogger(t))
 	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
 
@@ -273,4 +273,3 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 	err := h.Prestart(context.Background(), nil, nil)
 	must.ErrorContains(t, err, "failed to write nomad token")
 }
-

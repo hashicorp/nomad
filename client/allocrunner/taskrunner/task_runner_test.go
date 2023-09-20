@@ -118,7 +118,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	wrapperMock := wrapper.NewHandlerWrapper(logger, consulRegMock, nomadRegMock)
 
 	task := alloc.LookupTask(taskName)
-	widsigner := widmgr.NewMockWIDMgr(task.Identities)
+	widsigner := widmgr.NewMockWIDSigner(task.Identities)
 
 	conf := &Config{
 		Alloc:                 alloc,

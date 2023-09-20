@@ -16,9 +16,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// MockWIDMgr allows TaskRunner unit tests to avoid having to setup a Server,
+// MockWIDSigner allows TaskRunner unit tests to avoid having to setup a Server,
 // Client, and Allocation.
-type MockWIDMgr struct {
+type MockWIDSigner struct {
 	// wids maps identity names to workload identities. If wids is non-nil then
 	// SignIdentities will use it to find expirations or reject invalid identity
 	// names
@@ -27,12 +27,12 @@ type MockWIDMgr struct {
 	keyID string
 }
 
-func NewMockWIDMgr(wids []*structs.WorkloadIdentity) *MockWIDMgr {
+func NewMockWIDSigner(wids []*structs.WorkloadIdentity) *MockWIDSigner {
 	_, privKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
 	}
-	m := &MockWIDMgr{
+	m := &MockWIDSigner{
 		key:   privKey,
 		keyID: uuid.Generate(),
 	}
@@ -42,15 +42,15 @@ func NewMockWIDMgr(wids []*structs.WorkloadIdentity) *MockWIDMgr {
 	return m
 }
 
-// setWIDs is a test helper to use Task.Identities in the MockWIDMgr for
+// setWIDs is a test helper to use Task.Identities in the MockWIDSigner for
 // sharing TTLs and validating names.
-func (m *MockWIDMgr) setWIDs(wids []*structs.WorkloadIdentity) {
+func (m *MockWIDSigner) setWIDs(wids []*structs.WorkloadIdentity) {
 	m.wids = make(map[string]*structs.WorkloadIdentity, len(wids))
 	for _, wid := range wids {
 		m.wids[wid.Name] = wid
 	}
 }
-func (m *MockWIDMgr) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
+func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
 	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
 	for _, idReq := range req {
 		// Set test values for default claims

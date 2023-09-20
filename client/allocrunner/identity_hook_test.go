@@ -48,7 +48,7 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	// setup mock signer and WIDMgr
-	mockSigner := widmgr.NewMockWIDMgr(task.Identities)
+	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
 	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, logger)
 	allocrunner.widmgr = mockWIDMgr
 	allocrunner.widsigner = mockSigner
@@ -64,22 +64,25 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	must.NoError(t, err)
 
 	start := time.Now()
-	hook := newIdentityHook(logger, allocrunner)
+	hook := newIdentityHook(logger, mockWIDMgr)
 	must.Eq(t, hook.Name(), "identity")
 	must.NoError(t, hook.Prerun())
 
 	time.Sleep(time.Second) // give goroutines a moment to run
-	sid, err := hook.widmgr.Get(cstructs.TaskIdentity{TaskName: task.Name, IdentityName: task.Identities[0].Name})
+	sid, err := hook.widmgr.Get(cstructs.TaskIdentity{
+		TaskName:     task.Name,
+		IdentityName: task.Identities[0].Name},
+	)
 	must.Nil(t, err)
 	must.Eq(t, sid.IdentityName, task.Identity.Name)
 	must.NotEq(t, sid.JWT, "")
 
 	// pad expiry time with a second to be safe
-	must.True(t, inTimeSpan(start.Add(ttl).Add(-1*time.Second), start.Add(ttl).Add(1*time.Second), sid.Expiration))
+	must.Between(t,
+		start.Add(ttl).Add(-1*time.Second).Unix(),
+		sid.Expiration.Unix(),
+		start.Add(ttl).Add(1*time.Second).Unix(),
+	)
 
 	must.NoError(t, hook.Stop(context.Background(), nil, nil))
-}
-
-func inTimeSpan(start, end, check time.Time) bool {
-	return check.After(start) && check.Before(end)
 }
