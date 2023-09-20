@@ -141,7 +141,7 @@ func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkload
 		return c, func() {}
 	}
 
-	//TODO I think we only want 1 watcher per id, so let's just close on double watches?
+	// we only want 1 watcher per id, so let's just close on double watches
 	if existing, ok := m.watchers[id]; ok {
 		close(existing)
 	}
@@ -156,9 +156,6 @@ func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkload
 		defer m.watchersLock.Unlock()
 
 		delete(m.watchers, id)
-
-		//TODO should we close(c) here? seems sketchy... caller shouldn't try to
-		//recv on c after calling cancel
 	}
 
 	// Prime chan with latest token to avoid a race condition where consumers
@@ -335,7 +332,9 @@ func (m *WIDMgr) renew() {
 			m.lastTokenLock.Unlock()
 
 			// Send to watchers
+			m.watchersLock.Lock()
 			m.send(id, token)
+			m.watchersLock.Unlock()
 
 			// Set next expiration time
 			if minExp.IsZero() {
@@ -351,10 +350,8 @@ func (m *WIDMgr) renew() {
 	}
 }
 
+// send must be called while holding the m.watchersLock
 func (m *WIDMgr) send(id cstructs.TaskIdentity, token *structs.SignedWorkloadIdentity) {
-	m.watchersLock.Lock()
-	defer m.watchersLock.Unlock()
-
 	c, ok := m.watchers[id]
 	if !ok {
 		// No watchers

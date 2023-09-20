@@ -64,7 +64,12 @@ func (s *Signer) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentity
 	args := structs.AllocIdentitiesRequest{
 		Identities: req,
 		QueryOptions: structs.QueryOptions{
-			Region:        s.region,
+			Region: s.region,
+
+			// Unlike other RPCs, this one doesn't care about "subsequent
+			// modifications" after an index. We only want to ensure the state
+			// isn't too stale to know about this alloc, so we instruct the
+			// Server to block at least until the Allocation is created.
 			MinQueryIndex: minIndex - 1,
 			AllowStale:    true,
 			AuthToken:     s.nodeSecret,

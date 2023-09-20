@@ -68,6 +68,7 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	must.Eq(t, hook.Name(), "identity")
 	must.NoError(t, hook.Prerun())
 
+	time.Sleep(time.Second) // give goroutines a moment to run
 	sid, err := hook.widmgr.Get(cstructs.TaskIdentity{TaskName: task.Name, IdentityName: task.Identities[0].Name})
 	must.Nil(t, err)
 	must.Eq(t, sid.IdentityName, task.Identity.Name)
