@@ -33,7 +33,7 @@ type WIDMgr struct {
 	// lastToken are the last retrieved signed workload identifiers keyed by
 	// TaskIdentity
 	lastToken     map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity
-	lastTokenLock sync.Mutex
+	lastTokenLock sync.RWMutex
 
 	watchers     map[cstructs.TaskIdentity]chan *structs.SignedWorkloadIdentity
 	watchersLock sync.Mutex
@@ -121,8 +121,8 @@ func (m *WIDMgr) Get(id cstructs.TaskIdentity) (*structs.SignedWorkloadIdentity,
 }
 
 func (m *WIDMgr) get(id cstructs.TaskIdentity) *structs.SignedWorkloadIdentity {
-	m.lastTokenLock.Lock()
-	defer m.lastTokenLock.Unlock()
+	m.lastTokenLock.RLock()
+	defer m.lastTokenLock.RUnlock()
 
 	return m.lastToken[id]
 }
@@ -304,6 +304,7 @@ func (m *WIDMgr) renew() {
 		}
 
 		// Renew all tokens together since its cheap
+		// FIXME this will have to be revisited once we support identity change modes
 		tokens, err := m.signer.SignIdentities(m.minIndex, reqs)
 		if err != nil {
 			retry++
@@ -364,6 +365,10 @@ func (m *WIDMgr) send(id cstructs.TaskIdentity, token *structs.SignedWorkloadIde
 	default:
 	}
 
-	// Send new token, should never block since this is the only sender and watchersLock is held
-	c <- token
+	// Send new token, should never block since this is the only sender and
+	// watchersLock is held
+	select {
+	case c <- token:
+	default:
+	}
 }
