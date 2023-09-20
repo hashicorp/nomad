@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -74,7 +75,8 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 
 	// Start token watcher loops
 	for _, widspec := range h.task.Identities {
-		go h.watchIdentity(widspec)
+		w := widspec
+		go h.watchIdentity(w)
 	}
 
 	return nil
