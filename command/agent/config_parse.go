@@ -57,8 +57,8 @@ func ParseConfigFile(path string) (*Config, error) {
 		ACL:   &ACLConfig{},
 		Audit: &config.AuditConfig{},
 		Consul: &config.ConsulConfig{
-			ServiceIdentity:  &config.WorkloadIdentityConfig{},
-			TemplateIdentity: &config.WorkloadIdentityConfig{},
+			ServiceIdentity: &config.WorkloadIdentityConfig{},
+			TaskIdentity:    &config.WorkloadIdentityConfig{},
 		},
 		Consuls:   map[string]*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
@@ -189,11 +189,11 @@ func ParseConfigFile(path string) (*Config, error) {
 			})
 		}
 
-		if consulConfig.TemplateIdentity != nil {
+		if consulConfig.TaskIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("consuls.%s.template_identity.ttl", name), nil, &consulConfig.TemplateIdentity.TTLHCL,
+				fmt.Sprintf("consuls.%s.task_identity.ttl", name), nil, &consulConfig.TaskIdentity.TTLHCL,
 				func(d *time.Duration) {
-					consulConfig.TemplateIdentity.TTL = d
+					consulConfig.TaskIdentity.TTL = d
 				},
 			})
 		}
@@ -440,7 +440,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 
 		delete(m, "service_identity")
-		delete(m, "template_identity")
+		delete(m, "task_identity")
 
 		cc := &config.ConsulConfig{}
 		err := mapstructure.WeakDecode(m, cc)
@@ -486,18 +486,18 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			c.Consuls[cc.Name].ServiceIdentity = &serviceIdentity
 		}
 
-		if o := listVal.Filter("template_identity"); len(o.Items) > 0 {
+		if o := listVal.Filter("task_identity"); len(o.Items) > 0 {
 			var m map[string]interface{}
-			templateIdentityBlock := o.Items[0]
-			if err := hcl.DecodeObject(&m, templateIdentityBlock.Val); err != nil {
+			taskIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, taskIdentityBlock.Val); err != nil {
 				return err
 			}
 
-			var templateIdentity config.WorkloadIdentityConfig
-			if err := mapstructure.WeakDecode(m, &templateIdentity); err != nil {
+			var taskIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &taskIdentity); err != nil {
 				return err
 			}
-			c.Consuls[cc.Name].TemplateIdentity = &templateIdentity
+			c.Consuls[cc.Name].TaskIdentity = &taskIdentity
 		}
 	}
 

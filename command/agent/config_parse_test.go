@@ -243,7 +243,7 @@ var basicConfig = &Config{
 			TTL:      pointer.Of(1 * time.Hour),
 			TTLHCL:   "1h",
 		},
-		TemplateIdentity: &config.WorkloadIdentityConfig{
+		TaskIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
 			Env:      pointer.Of(true),
 			File:     pointer.Of(false),
@@ -283,7 +283,7 @@ var basicConfig = &Config{
 				TTL:      pointer.Of(1 * time.Hour),
 				TTLHCL:   "1h",
 			},
-			TemplateIdentity: &config.WorkloadIdentityConfig{
+			TaskIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),

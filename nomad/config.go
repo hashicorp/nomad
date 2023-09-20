@@ -473,14 +473,14 @@ func (c *Config) ConsulServiceIdentity() *structs.WorkloadIdentity {
 	return workloadIdentityFromConfig(c.ConsulConfig.ServiceIdentity)
 }
 
-// ConsulTemplateIdentity returns the workload identity to be used for
-// accessing the Consul API from templates.
-func (c *Config) ConsulTemplateIdentity() *structs.WorkloadIdentity {
+// ConsulTaskIdentity returns the workload identity to be used for accessing the
+// Consul API from task hooks not supporting services (ex templates).
+func (c *Config) ConsulTaskIdentity() *structs.WorkloadIdentity {
 	if c.ConsulConfig == nil {
 		return nil
 	}
 
-	return workloadIdentityFromConfig(c.ConsulConfig.TemplateIdentity)
+	return workloadIdentityFromConfig(c.ConsulConfig.TaskIdentity)
 }
 
 // VaultDefaultIdentity returns the workload identity to be used for accessing

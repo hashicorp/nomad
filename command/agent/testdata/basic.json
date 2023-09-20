@@ -177,7 +177,7 @@
         "ttl": "1h"
       },
       "ssl": true,
-      "template_identity": {
+      "task_identity": {
         "aud": [
           "consul.io"
         ],

@@ -225,6 +225,88 @@ func Test_jobImplicitIndentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 		},
+		{
+			name: "mutate task to inject identity for templates",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:      "web-task",
+						Templates: []*structs.Template{{}},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+					TaskIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"consul.io"},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:      "web-task",
+						Templates: []*structs.Template{{}},
+						Identities: []*structs.WorkloadIdentity{{
+							Name:     "consul/web-task",
+							Audience: []string{"consul.io"},
+						}},
+					}},
+				}},
+			},
+		},
+		{
+			name: "no mutation for templates when identity is enabled but no task identity is configured",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:      "web-task",
+						Templates: []*structs.Template{{}},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(true),
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:      "web-task",
+						Templates: []*structs.Template{{}},
+					}},
+				}},
+			},
+		},
+		{
+			name: "no task mutation for templates when identity is disabled",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:      "web-task",
+						Templates: []*structs.Template{{}},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfig: &config.ConsulConfig{
+					UseIdentity: pointer.Of(false),
+					TaskIdentity: &config.WorkloadIdentityConfig{
+						Audience: []string{"consul.io"},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:      "web-task",
+						Templates: []*structs.Template{{}},
+					}},
+				}},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
