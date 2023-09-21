@@ -5,9 +5,7 @@
 
 // @ts-check
 import Controller from '@ember/controller';
-import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
@@ -20,23 +18,8 @@ export default class AccessControlRolesRoleController extends Controller {
   @alias('model.tokens') tokens;
   @alias('model.policies') policies;
 
-  @tracked
-  error = null;
-
-  @tracked isDeleting = false;
-
   get newTokenString() {
     return `nomad acl token create -name="<TOKEN_NAME>" -role-name="${this.role.name}" -type=client -ttl=8h`;
-  }
-
-  @action
-  onDeletePrompt() {
-    this.isDeleting = true;
-  }
-
-  @action
-  onDeleteCancel() {
-    this.isDeleting = false;
   }
 
   @task(function* () {
@@ -63,7 +46,6 @@ export default class AccessControlRolesRoleController extends Controller {
 
   async refreshTokens() {
     this.tokens = this.store.peekAll('token').filter((token) =>
-      // token.policyNames?.includes(decodeURIComponent(this.policy.name))
       token.roles.any((role) => {
         return role.id === decodeURIComponent(this.role.id);
       })
@@ -72,7 +54,7 @@ export default class AccessControlRolesRoleController extends Controller {
 
   @task(function* () {
     try {
-      const newToken = this.store.createRecord('token', {
+      const newToken = this.astore.createRecord('token', {
         name: `Example Token for ${this.role.name}`,
         roles: [this.role],
         // New date 10 minutes into the future
@@ -94,12 +76,12 @@ export default class AccessControlRolesRoleController extends Controller {
         },
       });
     } catch (err) {
-      this.error = {
-        title: 'Error creating new token',
-        description: err,
-      };
-
-      throw err;
+      this.notifications.add({
+        title: 'Error creating test token',
+        message: err,
+        color: 'critical',
+        sticky: true,
+      });
     }
   })
   createTestToken;
@@ -114,12 +96,12 @@ export default class AccessControlRolesRoleController extends Controller {
         color: 'success',
       });
     } catch (err) {
-      this.error = {
+      this.notifications.add({
         title: 'Error deleting token',
-        description: err,
-      };
-
-      throw err;
+        message: err,
+        color: 'critical',
+        sticky: true,
+      });
     }
   })
   deleteToken;

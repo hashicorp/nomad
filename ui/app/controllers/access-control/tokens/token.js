@@ -5,9 +5,7 @@
 
 // @ts-check
 import Controller from '@ember/controller';
-import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
@@ -19,21 +17,6 @@ export default class AccessControlTokensTokenController extends Controller {
   @alias('model.roles') roles;
   @alias('model.token') activeToken; // looks like .token is an Ember reserved name?
   @alias('model.policies') policies;
-
-  @tracked
-  error = null;
-
-  @tracked isDeleting = false;
-
-  @action
-  onDeletePrompt() {
-    this.isDeleting = true;
-  }
-
-  @action
-  onDeleteCancel() {
-    this.isDeleting = false;
-  }
 
   @task(function* () {
     try {

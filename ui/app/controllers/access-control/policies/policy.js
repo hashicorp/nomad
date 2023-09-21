@@ -5,9 +5,7 @@
 
 // @ts-check
 import Controller from '@ember/controller';
-import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
-import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
@@ -19,25 +17,9 @@ export default class AccessControlPoliciesPolicyController extends Controller {
   @alias('model.policy') policy;
   @alias('model.tokens') tokens;
 
-  @tracked
-  error = null;
-
-  @tracked isDeleting = false;
-
   get newTokenString() {
     return `nomad acl token create -name="<TOKEN_NAME>" -policy="${this.policy.name}" -type=client -ttl=8h`;
   }
-
-  @action
-  onDeletePrompt() {
-    this.isDeleting = true;
-  }
-
-  @action
-  onDeleteCancel() {
-    this.isDeleting = false;
-  }
-
   @task(function* () {
     try {
       yield this.policy.deleteRecord();
@@ -92,12 +74,12 @@ export default class AccessControlPoliciesPolicyController extends Controller {
         },
       });
     } catch (err) {
-      this.error = {
-        title: 'Error creating new token',
-        description: err,
-      };
-
-      throw err;
+      this.notifications.add({
+        title: 'Error creating test token',
+        message: err,
+        color: 'critical',
+        sticky: true,
+      });
     }
   })
   createTestToken;
@@ -112,12 +94,12 @@ export default class AccessControlPoliciesPolicyController extends Controller {
         color: 'success',
       });
     } catch (err) {
-      this.error = {
+      this.notifications.add({
         title: 'Error deleting token',
-        description: err,
-      };
-
-      throw err;
+        message: err,
+        color: 'critical',
+        sticky: true,
+      });
     }
   })
   deleteToken;
