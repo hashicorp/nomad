@@ -247,7 +247,7 @@ func (m *WIDMgr) renew() {
 	}
 
 	renewNow := false
-	minExp := time.Now().Add(30 * time.Hour) // set high default expiration
+	minExp := time.Time{}
 
 	for taskName, wids := range m.widSpecs {
 		for _, wid := range wids {
@@ -269,7 +269,7 @@ func (m *WIDMgr) renew() {
 				continue
 			}
 
-			if token.Expiration.Before(minExp) {
+			if minExp.IsZero() || token.Expiration.Before(minExp) {
 				minExp = token.Expiration
 			}
 		}
