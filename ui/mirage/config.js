@@ -494,6 +494,10 @@ export default function () {
     });
   });
 
+  this.post('/acl/token/:id', function (schema, request) {
+    return new Response(200, {}, {});
+  });
+
   this.get('/acl/token/self', function ({ tokens }, req) {
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
