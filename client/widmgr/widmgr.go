@@ -75,7 +75,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 		watchers:  map[cstructs.TaskIdentity][]chan *structs.SignedWorkloadIdentity{},
 		stopCtx:   stopCtx,
 		stop:      stop,
-		logger:    logger.Named("identity"),
+		logger:    logger.Named("widmgr"),
 	}
 }
 
