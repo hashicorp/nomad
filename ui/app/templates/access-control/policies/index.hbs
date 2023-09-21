@@ -50,9 +50,10 @@
             enumerated=true
             action=(action "openPolicy" B.data)
           }}
+          data-test-policy-row
         >
           <B.Td>
-            <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>{{B.data.name}}</LinkTo></B.Td>
+            <LinkTo data-test-policy-name @route="access-control.policies.policy" @model={{B.data.name}}>{{B.data.name}}</LinkTo></B.Td>
           <B.Td>{{B.data.description}}</B.Td>
           <B.Td>
             <span data-test-policy-total-tokens>{{B.data.tokens.length}}</span>

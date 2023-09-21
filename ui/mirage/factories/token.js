@@ -26,7 +26,7 @@ export default Factory.extend({
     ) {
       const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
         .fill(0)
-        .map(() => faker.hacker.verb())
+        .map(() => faker.hacker.verb().replace(/\s/g, '-'))
         .uniq();
 
       policyIds.forEach((policy) => {

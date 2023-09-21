@@ -13,6 +13,7 @@
 		{{#if (can "destroy policy")}}
 			<div>
         <Hds::Button @text="Delete Policy" @color="critical"
+          data-test-delete-policy
           {{on "click" (perform this.deletePolicy)}}
         />
 			</div>
