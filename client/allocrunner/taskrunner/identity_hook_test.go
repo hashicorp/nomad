@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shoenig/test/must"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -19,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 var _ interfaces.TaskPrestartHook = (*identityHook)(nil)

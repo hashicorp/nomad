@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -36,7 +36,9 @@ type WIDMgr struct {
 	lastToken     map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity
 	lastTokenLock sync.RWMutex
 
-	watchers     map[cstructs.TaskIdentity]chan *structs.SignedWorkloadIdentity
+	// watchers is a map of task identities to watcher IDs to channels (each identity
+	// can have multiple watchers)
+	watchers     map[cstructs.TaskIdentity]map[string]chan *structs.SignedWorkloadIdentity
 	watchersLock sync.Mutex
 
 	// minWait is the minimum amount of time to wait before renewing. Settable to
@@ -70,7 +72,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 		signer:    signer,
 		minWait:   10 * time.Second,
 		lastToken: map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{},
-		watchers:  map[cstructs.TaskIdentity]chan *structs.SignedWorkloadIdentity{},
+		watchers:  map[cstructs.TaskIdentity]map[string]chan *structs.SignedWorkloadIdentity{},
 		stopCtx:   stopCtx,
 		stop:      stop,
 		logger:    logger.Named("identity"),
@@ -144,21 +146,18 @@ func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkload
 		return c, func() {}
 	}
 
-	// we only want 1 watcher per id, so let's just close on double watches
-	if existing, ok := m.watchers[id]; ok {
-		close(existing)
-	}
-
 	// Buffer of 1 so sends don't block on receives
 	c := make(chan *structs.SignedWorkloadIdentity, 1)
-	m.watchers[id] = c
+	u := uuid.Generate()
+	m.watchers[id] = make(map[string]chan *structs.SignedWorkloadIdentity)
+	m.watchers[id][u] = c
 
 	// Create a cancel func for watchers to deregister when they exit.
 	cancel := func() {
 		m.watchersLock.Lock()
 		defer m.watchersLock.Unlock()
 
-		delete(m.watchers, id)
+		delete(m.watchers[id], u)
 	}
 
 	// Prime chan with latest token to avoid a race condition where consumers
@@ -177,8 +176,10 @@ func (m *WIDMgr) Shutdown() {
 
 	m.stop()
 
-	for _, c := range m.watchers {
-		close(c)
+	for _, w := range m.watchers {
+		for _, c := range w {
+			close(c)
+		}
 	}
 }
 
@@ -292,7 +293,9 @@ func (m *WIDMgr) renew() {
 		if err := m.stopCtx.Err(); err != nil {
 			// close watchers
 			for _, w := range m.watchers {
-				close(w)
+				for _, c := range w {
+					close(c)
+				}
 			}
 			return
 		}
@@ -305,7 +308,9 @@ func (m *WIDMgr) renew() {
 		case <-m.stopCtx.Done():
 			// close watchers
 			for _, w := range m.watchers {
-				close(w)
+				for _, c := range w {
+					close(c)
+				}
 			}
 			return
 		}
@@ -360,19 +365,21 @@ func (m *WIDMgr) renew() {
 
 // send must be called while holding the m.watchersLock
 func (m *WIDMgr) send(id cstructs.TaskIdentity, token *structs.SignedWorkloadIdentity) {
-	c, ok := m.watchers[id]
+	w, ok := m.watchers[id]
 	if !ok {
 		// No watchers
 		return
 	}
 
-	// Pop any unreceived tokens
-	select {
-	case <-c:
-	default:
-	}
+	for _, c := range w {
+		// Pop any unreceived tokens
+		select {
+		case <-c:
+		default:
+		}
 
-	// Send new token, should never block since this is the only sender and
-	// watchersLock is held
-	c <- token
+		// Send new token, should never block since this is the only sender and
+		// watchersLock is held
+		c <- token
+	}
 }
