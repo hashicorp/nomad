@@ -6,13 +6,13 @@ package widmgr
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -36,9 +36,9 @@ type WIDMgr struct {
 	lastToken     map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity
 	lastTokenLock sync.RWMutex
 
-	// watchers is a map of task identities to watcher IDs to channels (each identity
+	// watchers is a map of task identities to slices of channels (each identity
 	// can have multiple watchers)
-	watchers     map[cstructs.TaskIdentity]map[string]chan *structs.SignedWorkloadIdentity
+	watchers     map[cstructs.TaskIdentity][]chan *structs.SignedWorkloadIdentity
 	watchersLock sync.Mutex
 
 	// minWait is the minimum amount of time to wait before renewing. Settable to
@@ -72,7 +72,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, logger hclog.Logger
 		signer:    signer,
 		minWait:   10 * time.Second,
 		lastToken: map[cstructs.TaskIdentity]*structs.SignedWorkloadIdentity{},
-		watchers:  map[cstructs.TaskIdentity]map[string]chan *structs.SignedWorkloadIdentity{},
+		watchers:  map[cstructs.TaskIdentity][]chan *structs.SignedWorkloadIdentity{},
 		stopCtx:   stopCtx,
 		stop:      stop,
 		logger:    logger.Named("identity"),
@@ -148,16 +148,18 @@ func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkload
 
 	// Buffer of 1 so sends don't block on receives
 	c := make(chan *structs.SignedWorkloadIdentity, 1)
-	u := uuid.Generate()
-	m.watchers[id] = make(map[string]chan *structs.SignedWorkloadIdentity)
-	m.watchers[id][u] = c
+	m.watchers[id] = make([]chan *structs.SignedWorkloadIdentity, 0)
+	m.watchers[id] = append(m.watchers[id], c)
 
 	// Create a cancel func for watchers to deregister when they exit.
 	cancel := func() {
 		m.watchersLock.Lock()
 		defer m.watchersLock.Unlock()
 
-		delete(m.watchers[id], u)
+		m.watchers[id] = slices.DeleteFunc(
+			m.watchers[id],
+			func(ch chan *structs.SignedWorkloadIdentity) bool { return ch == c },
+		)
 	}
 
 	// Prime chan with latest token to avoid a race condition where consumers
