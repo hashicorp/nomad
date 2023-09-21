@@ -31,6 +31,9 @@ func (m *MockCSIManager) WaitForPlugin(_ context.Context, pluginType, pluginID s
 }
 
 func (m *MockCSIManager) ManagerForPlugin(_ context.Context, pluginID string) (VolumeManager, error) {
+	if m.VM == nil {
+		m.VM = &MockVolumeManager{}
+	}
 	return m.VM, m.NextManagerForPluginErr
 }
 
