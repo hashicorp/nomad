@@ -73,7 +73,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Apply Options:
+Var put Options:
 
   -check-index
      If set, the variable is only acted upon if the server-side version's index
@@ -376,6 +376,7 @@ func (c *VarPutCommand) makeVariable(path string) (*api.Variable, error) {
 		out.Items = make(map[string]string)
 		return out, nil
 	}
+
 	switch c.inFmt {
 	case "json":
 		err = json.Unmarshal(c.contents, out)

@@ -36,6 +36,7 @@
     "lib/...",
     "nomad/deploymentwatcher/...",
     "nomad/drainer/...",
+    "nomad/lock/...",
     "nomad/state/...",
     "nomad/stream/...",
     "nomad/structs/...",

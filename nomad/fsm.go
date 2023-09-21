@@ -2254,7 +2254,8 @@ func (f *FSMFilter) Include(item interface{}) bool {
 	return true
 }
 
-func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte,
+	index uint64) any {
 	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -2270,6 +2271,10 @@ func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byt
 		return n.state.VarDeleteCAS(index, &req)
 	case structs.VarOpCAS:
 		return n.state.VarSetCAS(index, &req)
+	case structs.VarOpLockAcquire:
+		return n.state.VarLockAcquire(index, &req)
+	case structs.VarOpLockRelease:
+		return n.state.VarLockRelease(index, &req)
 	default:
 		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
 		n.logger.Warn("Invalid variable operation", "operation", req.Op)
