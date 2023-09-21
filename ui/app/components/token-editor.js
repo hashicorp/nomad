@@ -87,6 +87,14 @@ export default class TokenEditorComponent extends Component {
         this.activeToken.roles = [];
       }
 
+      // Sets to "never" for auto-selecting the radio button;
+      // if it gets updated by the user, will fall back to "" to represent
+      // no expiration. However, if the user never updates it,
+      // it stays as the string "never", where the API expects a null value.
+      if (this.activeToken.expirationTTL === 'never') {
+        this.activeToken.expirationTTL = null;
+      }
+
       await this.activeToken.save();
 
       this.notifications.add({
