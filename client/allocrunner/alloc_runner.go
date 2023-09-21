@@ -206,8 +206,11 @@ type allocRunner struct {
 	// partitions is an interface for managing cpuset partitions
 	partitions cinterfaces.CPUPartitions
 
-	// widmgr fetches workload identities
-	widmgr *widmgr.WIDMgr
+	// widsigner signs workload identities
+	widsigner widmgr.IdentitySigner
+
+	// widmgr manages workload identity signatures
+	widmgr widmgr.IdentityManager
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -251,7 +254,7 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		wranglers:                config.Wranglers,
 		partitions:               config.Partitions,
 		hookResources:            cstructs.NewAllocHookResources(),
-		widmgr:                   config.WIDMgr,
+		widsigner:                config.WIDSigner,
 	}
 
 	// Create the logger based on the allocation ID
@@ -268,6 +271,10 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	shutdownDelayCtx, shutdownDelayCancel := context.WithCancel(context.Background())
 	ar.shutdownDelayCtx = shutdownDelayCtx
 	ar.shutdownDelayCancelFn = shutdownDelayCancel
+
+	// initialize the workload identity manager
+	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.logger)
+	ar.widmgr = widmgr
 
 	// Initialize the runners hooks.
 	if err := ar.initRunnerHooks(config.ClientConfig); err != nil {

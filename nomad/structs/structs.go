@@ -11337,6 +11337,10 @@ func NewIdentityClaims(job *Job, alloc *Allocation, taskName string, wid *Worklo
 		return nil
 	}
 
+	if wid == nil {
+		return nil
+	}
+
 	jwtnow := jwt.NewNumericDate(now.UTC())
 	claims := &IdentityClaims{
 		Namespace:    alloc.Namespace,

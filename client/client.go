@@ -335,8 +335,8 @@ type Client struct {
 	// partitions is used for managing cpuset partitioning on linux systems
 	partitions cgroupslib.Partition
 
-	// widmgr retrieves workload identities
-	widmgr *widmgr.WIDMgr
+	// widsigner signs workload identities
+	widsigner widmgr.IdentitySigner
 }
 
 var (
@@ -445,8 +445,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		return nil, fmt.Errorf("node setup failed: %v", err)
 	}
 
-	// Add workload identity manager after node secret has been generated/loaded
-	c.widmgr = widmgr.New(widmgr.Config{
+	// Add workload identity signer after node secret has been generated/loaded
+	c.widsigner = widmgr.NewSigner(widmgr.SignerConfig{
 		NodeSecret: c.secretNodeID(),
 		Region:     cfg.Region,
 		RPC:        c,
@@ -2762,7 +2762,7 @@ func (c *Client) newAllocRunnerConfig(
 		StateDB:             c.stateDB,
 		StateUpdater:        c,
 		VaultFunc:           c.VaultClient,
-		WIDMgr:              c.widmgr,
+		WIDSigner:           c.widsigner,
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
 	}

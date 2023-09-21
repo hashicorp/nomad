@@ -29,14 +29,14 @@ func TestWIDMgr(t *testing.T) {
 	})
 	t.Cleanup(ta.Shutdown)
 
-	mgr := widmgr.New(widmgr.Config{
+	mgr := widmgr.NewSigner(widmgr.SignerConfig{
 		NodeSecret: uuid.Generate(), // not checked when ACLs disabled
 		Region:     "global",
 		RPC:        ta,
 	})
 
 	_, err := mgr.SignIdentities(1, nil)
-	must.ErrorContains(t, err, "no identities requested")
+	must.ErrorContains(t, err, "no identities to sign")
 
 	_, err = mgr.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{

@@ -10,6 +10,11 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
+type TaskIdentity struct {
+	TaskName     string
+	IdentityName string
+}
+
 // AllocHookResources contains data that is provided by AllocRunner Hooks for
 // consumption by TaskRunners. This should be instantiated once in the
 // AllocRunner and then only accessed via getters and setters that hold the

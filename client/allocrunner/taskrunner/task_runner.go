@@ -34,6 +34,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -267,8 +268,8 @@ type TaskRunner struct {
 	// system features like cgroups
 	wranglers cinterfaces.ProcessWranglers
 
-	// widmgr fetches workload identities
-	widmgr IdentitySigner
+	// widmgr manages workload identities
+	widmgr widmgr.IdentityManager
 }
 
 type Config struct {
@@ -342,8 +343,8 @@ type Config struct {
 	// allocrunner hooks
 	AllocHookResources *cstructs.AllocHookResources
 
-	// WIDMgr fetches workload identities
-	WIDMgr IdentitySigner
+	// WIDMgr manages workload identities
+	WIDMgr widmgr.IdentityManager
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
