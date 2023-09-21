@@ -298,7 +298,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy(), nomadACLToken, ns)
+
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy(), existingJob, nomadACLToken, ns)
 	if err != nil {
 		return err
 	}
@@ -1780,7 +1781,15 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	if err != nil {
 		return err
 	}
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, nomadACLToken, ns)
+
+	// Get the original job
+	ws := memdb.NewWatchSet()
+	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+	if err != nil {
+		return err
+	}
+
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, existingJob, nomadACLToken, ns)
 	if err != nil {
 		return err
 	}
@@ -1795,34 +1804,27 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
-	// Get the original job
-	ws := memdb.NewWatchSet()
-	oldJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
-	if err != nil {
-		return err
-	}
-
 	// Ensure that all scaling policies have an appropriate ID
-	if err := propagateScalingPolicyIDs(oldJob, args.Job); err != nil {
+	if err := propagateScalingPolicyIDs(existingJob, args.Job); err != nil {
 		return err
 	}
 
 	var index uint64
 	var updatedIndex uint64
 
-	if oldJob != nil {
-		index = oldJob.JobModifyIndex
+	if existingJob != nil {
+		index = existingJob.JobModifyIndex
 
 		// We want to reuse deployments where possible, so only insert the job if
 		// it has changed or the job didn't exist
-		if oldJob.SpecChanged(args.Job) {
+		if existingJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
-			updatedIndex = oldJob.JobModifyIndex + 1
+			updatedIndex = existingJob.JobModifyIndex + 1
 			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, nil, args.Job); err != nil {
 				return err
 			}
 		}
-	} else if oldJob == nil {
+	} else if existingJob == nil {
 		// Insert the updated Job into the snapshot
 		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, nil, args.Job)
 		if err != nil {
@@ -1872,7 +1874,7 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 	}
 	annotations := planner.Plans[0].Annotations
 	if args.Diff {
-		jobDiff, err := oldJob.Diff(args.Job, true)
+		jobDiff, err := existingJob.Diff(args.Job, true)
 		if err != nil {
 			return fmt.Errorf("failed to create job diff: %v", err)
 		}
