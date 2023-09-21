@@ -9,9 +9,8 @@ description: The /var endpoints are used to query for and interact with variable
 The `/var` and `/vars` endpoints are used to query for and interact with
 variables.
 
-See the [Variables] documentation for information how these capabilities are
-used. For a CLI to perform these operations manually, please see the
-documentation for the [`nomad var`] commands.
+See the [Variables][] documentation for information how these capabilities are
+used. 
 
 ## List Variables
 
@@ -149,6 +148,10 @@ The table below shows this endpoint's support for [blocking queries] and
   `cas` value matches the current variables `ModifyIndex`. If the `cas` value is
   0, the variable is only created if it does not already exist. This paradigm
   allows check-and-set style updates.
+
+- `lock-operation` `(string: <unset>)` - This endpoint can also be used to create 
+and hold a lock over a variable, refer to the [locks section][] for more
+information.
 
 ## Restrictions
 
@@ -290,9 +293,8 @@ the response will include only metadata and not the `Items` field:
 }
 ```
 
-
 [Variables]: /nomad/docs/concepts/variables
-[`nomad var`]: /nomad/docs/commands/var
+[locks section]:/nomad/api-docs/variables/locks
 [blocking queries]: /nomad/api-docs#blocking-queries
 [required ACLs]: /nomad/api-docs#acls
 [RFC3986]: https://www.rfc-editor.org/rfc/rfc3986#section-2

@@ -397,6 +397,17 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
 
+	// Populate the variable lock TTL timers, so we can start tracking renewals
+	// and expirations.
+	if err := s.restoreLockTTLTimers(); err != nil {
+		return err
+	}
+
+	// Periodically publish metrics for the lock timer trackers which are only
+	// run on the leader.
+	go s.lockTTLTimer.EmitMetrics(1*time.Second, stopCh)
+	go s.lockDelayTimer.EmitMetrics(1*time.Second, stopCh)
+
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
 	// node, effectively this means all the timers are renewed at the time of failover.
@@ -1464,6 +1475,10 @@ func (s *Server) revokeLeadership() error {
 	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
 	}
+
+	// Stop all the tracked variable lock TTL and delay timers.
+	s.lockTTLTimer.StopAndRemoveAll()
+	s.lockDelayTimer.RemoveAll()
 
 	// Clear the heartbeat timers on either shutdown or step down,
 	// since we are no longer responsible for TTL expirations.
