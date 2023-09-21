@@ -1,18 +1,14 @@
 package allocrunner
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
-	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -20,9 +16,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 var _ interfaces.RunnerPrerunHook = (*csiHook)(nil)
@@ -67,7 +63,7 @@ func TestCSIHook(t *testing.T) {
 				"vol0": &csimanager.MountInfo{Source: testMountSrc},
 			},
 			expectedCalls: map[string]int{
-				"claim": 1, "mount": 1, "unmount": 1, "unpublish": 1},
+				"claim": 1, "MountVolume": 1, "UnmountVolume": 1, "unpublish": 1},
 		},
 
 		{
@@ -88,7 +84,7 @@ func TestCSIHook(t *testing.T) {
 				"vol0": &csimanager.MountInfo{Source: testMountSrc},
 			},
 			expectedCalls: map[string]int{
-				"claim": 1, "mount": 1, "unmount": 1, "unpublish": 1},
+				"claim": 1, "MountVolume": 1, "UnmountVolume": 1, "unpublish": 1},
 		},
 
 		{
@@ -133,7 +129,7 @@ func TestCSIHook(t *testing.T) {
 				"vol0": &csimanager.MountInfo{Source: testMountSrc},
 			},
 			expectedCalls: map[string]int{
-				"claim": 2, "mount": 1, "unmount": 1, "unpublish": 1},
+				"claim": 2, "MountVolume": 1, "UnmountVolume": 1, "unpublish": 1},
 		},
 		{
 			name: "already mounted",
@@ -159,7 +155,7 @@ func TestCSIHook(t *testing.T) {
 			expectedMounts: map[string]*csimanager.MountInfo{
 				"vol0": &csimanager.MountInfo{Source: testMountSrc},
 			},
-			expectedCalls: map[string]int{"hasMount": 1, "unmount": 1, "unpublish": 1},
+			expectedCalls: map[string]int{"HasMount": 1, "UnmountVolume": 1, "unpublish": 1},
 		},
 		{
 			name: "existing but invalid mounts",
@@ -186,7 +182,7 @@ func TestCSIHook(t *testing.T) {
 				"vol0": &csimanager.MountInfo{Source: testMountSrc},
 			},
 			expectedCalls: map[string]int{
-				"hasMount": 1, "claim": 1, "mount": 1, "unmount": 1, "unpublish": 1},
+				"HasMount": 1, "claim": 1, "MountVolume": 1, "UnmountVolume": 1, "unpublish": 1},
 		},
 
 		{
@@ -208,7 +204,7 @@ func TestCSIHook(t *testing.T) {
 				"vol0": &csimanager.MountInfo{Source: testMountSrc},
 			},
 			expectedCalls: map[string]int{
-				"claim": 1, "mount": 1, "unmount": 2, "unpublish": 2},
+				"claim": 1, "MountVolume": 1, "UnmountVolume": 2, "unpublish": 2},
 		},
 
 		{
@@ -223,12 +219,11 @@ func TestCSIHook(t *testing.T) {
 
 			alloc.Job.TaskGroups[0].Volumes = tc.volumeRequests
 
-			callCounts := &callCounter{counts: map[string]int{}}
-			mgr := mockPluginManager{mounter: mockVolumeManager{
-				hasMounts:         tc.startsWithValidMounts,
-				callCounts:        callCounts,
-				failsFirstUnmount: pointer.Of(tc.failsFirstUnmount),
-			}}
+			callCounts := testutil.NewCallCounter()
+			vm := &csimanager.MockVolumeManager{
+				CallCounter: callCounts,
+			}
+			mgr := &csimanager.MockCSIManager{VM: vm}
 			rpcer := mockRPCer{
 				alloc:            alloc,
 				callCounts:       callCounts,
@@ -251,6 +246,17 @@ func TestCSIHook(t *testing.T) {
 
 			must.NotNil(t, hook)
 
+			if tc.startsWithValidMounts {
+				// TODO: this works, but it requires knowledge of how the mock works.  would rather vm.MountVolume()
+				vm.Mounts = map[string]bool{
+					tc.expectedMounts["vol0"].Source: true,
+				}
+			}
+
+			if tc.failsFirstUnmount {
+				vm.NextUnmountVolumeErr = errors.New("bad first attempt")
+			}
+
 			if tc.expectedClaimErr != nil {
 				must.EqError(t, hook.Prerun(), tc.expectedClaimErr.Error())
 				mounts := ar.res.GetCSIMounts()
@@ -270,7 +276,7 @@ func TestCSIHook(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			counts := callCounts.get()
+			counts := callCounts.Get()
 			must.MapEq(t, tc.expectedCalls, counts,
 				must.Sprintf("got calls: %v", counts))
 
@@ -338,14 +344,12 @@ func TestCSIHook_Prerun_Validation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			alloc.Job.TaskGroups[0].Volumes = volumeRequests
 
-			callCounts := &callCounter{counts: map[string]int{}}
-			mgr := mockPluginManager{mounter: mockVolumeManager{
-				callCounts:        callCounts,
-				failsFirstUnmount: pointer.Of(false),
-			}}
+			mgr := &csimanager.MockCSIManager{
+				VM: &csimanager.MockVolumeManager{},
+			}
 			rpcer := mockRPCer{
 				alloc:            alloc,
-				callCounts:       callCounts,
+				callCounts:       testutil.NewCallCounter(),
 				hasExistingClaim: pointer.Of(false),
 				schedulable:      pointer.Of(true),
 			}
@@ -375,26 +379,9 @@ func TestCSIHook_Prerun_Validation(t *testing.T) {
 
 // HELPERS AND MOCKS
 
-type callCounter struct {
-	lock   sync.Mutex
-	counts map[string]int
-}
-
-func (c *callCounter) inc(name string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.counts[name]++
-}
-
-func (c *callCounter) get() map[string]int {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	return maps.Clone(c.counts)
-}
-
 type mockRPCer struct {
 	alloc            *structs.Allocation
-	callCounts       *callCounter
+	callCounts       *testutil.CallCounter
 	hasExistingClaim *bool
 	schedulable      *bool
 }
@@ -403,7 +390,7 @@ type mockRPCer struct {
 func (r mockRPCer) RPC(method string, args any, reply any) error {
 	switch method {
 	case "CSIVolume.Claim":
-		r.callCounts.inc("claim")
+		r.callCounts.Inc("claim")
 		req := args.(*structs.CSIVolumeClaimRequest)
 		vol := r.testVolume(req.VolumeID)
 		err := vol.Claim(req.ToClaim(), r.alloc)
@@ -423,7 +410,7 @@ func (r mockRPCer) RPC(method string, args any, reply any) error {
 		resp.QueryMeta = structs.QueryMeta{}
 
 	case "CSIVolume.Unpublish":
-		r.callCounts.inc("unpublish")
+		r.callCounts.Inc("unpublish")
 		resp := reply.(*structs.CSIVolumeUnpublishResponse)
 		resp.QueryMeta = structs.QueryMeta{}
 
@@ -465,55 +452,6 @@ func (r mockRPCer) testVolume(id string) *structs.CSIVolume {
 
 	return vol
 }
-
-type mockVolumeManager struct {
-	hasMounts         bool
-	failsFirstUnmount *bool
-	callCounts        *callCounter
-}
-
-func (vm mockVolumeManager) MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *csimanager.UsageOptions, publishContext map[string]string) (*csimanager.MountInfo, error) {
-	vm.callCounts.inc("mount")
-	return &csimanager.MountInfo{
-		Source: filepath.Join("test-alloc-dir", alloc.ID, vol.ID, usageOpts.ToFS()),
-	}, nil
-}
-
-func (vm mockVolumeManager) UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usageOpts *csimanager.UsageOptions) error {
-	vm.callCounts.inc("unmount")
-
-	if *vm.failsFirstUnmount {
-		*vm.failsFirstUnmount = false
-		return fmt.Errorf("could not unmount")
-	}
-
-	return nil
-}
-
-func (vm mockVolumeManager) HasMount(_ context.Context, mountInfo *csimanager.MountInfo) (bool, error) {
-	vm.callCounts.inc("hasMount")
-	return mountInfo != nil && vm.hasMounts, nil
-}
-
-func (vm mockVolumeManager) ExternalID() string {
-	return "i-example"
-}
-
-type mockPluginManager struct {
-	mounter mockVolumeManager
-}
-
-func (mgr mockPluginManager) WaitForPlugin(ctx context.Context, pluginType, pluginID string) error {
-	return nil
-}
-
-func (mgr mockPluginManager) ManagerForPlugin(ctx context.Context, pluginID string) (csimanager.VolumeManager, error) {
-	return mgr.mounter, nil
-}
-
-// no-op methods to fulfill the interface
-func (mgr mockPluginManager) PluginManager() pluginmanager.PluginManager { return nil }
-func (mgr mockPluginManager) Shutdown()                                  {}
 
 type mockAllocRunner struct {
 	res     *cstructs.AllocHookResources
