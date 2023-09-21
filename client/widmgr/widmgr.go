@@ -136,15 +136,15 @@ func (m *WIDMgr) get(id cstructs.TaskIdentity) *structs.SignedWorkloadIdentity {
 // The caller must call the returned func to stop watching and ensure the
 // watched id actually exists, otherwise the channel never returns a result.
 func (m *WIDMgr) Watch(id cstructs.TaskIdentity) (<-chan *structs.SignedWorkloadIdentity, func()) {
-	m.watchersLock.Lock()
-	defer m.watchersLock.Unlock()
-
 	// If Shutdown has been called return a closed chan
 	if m.stopCtx.Err() != nil {
 		c := make(chan *structs.SignedWorkloadIdentity)
 		close(c)
 		return c, func() {}
 	}
+
+	m.watchersLock.Lock()
+	defer m.watchersLock.Unlock()
 
 	// Buffer of 1 so sends don't block on receives
 	c := make(chan *structs.SignedWorkloadIdentity, 1)
@@ -187,12 +187,12 @@ func (m *WIDMgr) Shutdown() {
 
 // getIdentities fetches all signed identities or returns an error.
 func (m *WIDMgr) getIdentities() error {
-	m.lastTokenLock.Lock()
-	defer m.lastTokenLock.Unlock()
-
 	if len(m.widSpecs) == 0 {
 		return nil
 	}
+
+	m.lastTokenLock.Lock()
+	defer m.lastTokenLock.Unlock()
 
 	reqs := make([]*structs.WorkloadIdentityRequest, 0, len(m.widSpecs))
 	for taskName, widspecs := range m.widSpecs {
@@ -246,6 +246,11 @@ func (m *WIDMgr) renew() {
 		}
 	}
 
+	if len(reqs) == 0 {
+		m.logger.Trace("no workload identities expire")
+		return
+	}
+
 	renewNow := false
 	minExp := time.Time{}
 
@@ -275,11 +280,6 @@ func (m *WIDMgr) renew() {
 		}
 	}
 
-	if len(reqs) == 0 {
-		m.logger.Trace("no workload identities expire")
-		return
-	}
-
 	var wait time.Duration
 	if !renewNow {
 		wait = helper.ExpiryToRenewTime(minExp, time.Now, m.minWait)
@@ -293,12 +293,8 @@ func (m *WIDMgr) renew() {
 	for {
 		// we need to handle stopCtx.Err() and manually stop the subscribers
 		if err := m.stopCtx.Err(); err != nil {
-			// close watchers
-			for _, w := range m.watchers {
-				for _, c := range w {
-					close(c)
-				}
-			}
+			// close watchers and shutdown
+			m.Shutdown()
 			return
 		}
 
@@ -308,12 +304,8 @@ func (m *WIDMgr) renew() {
 		case <-timer.C:
 			m.logger.Trace("getting new signed identities", "num", len(reqs))
 		case <-m.stopCtx.Done():
-			// close watchers
-			for _, w := range m.watchers {
-				for _, c := range w {
-					close(c)
-				}
-			}
+			// close watchers and shutdown
+			m.Shutdown()
 			return
 		}
 
