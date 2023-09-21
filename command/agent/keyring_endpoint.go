@@ -135,7 +135,7 @@ func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Re
 		Keys:                jwksPath,
 		RequestParameter:    false,
 		RequestURIParameter: false,
-		IDTokenAlgs:         []string{structs.PubKeyAlgEdDSA},
+		IDTokenAlgs:         []string{structs.PubKeyAlgRS256, structs.PubKeyAlgEdDSA},
 		ResponseTypes:       []string{"code"},
 		Subjects:            []string{"public"},
 	}

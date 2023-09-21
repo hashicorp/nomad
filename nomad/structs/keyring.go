@@ -5,6 +5,7 @@ package structs
 
 import (
 	"crypto/ed25519"
+	"crypto/x509"
 	"fmt"
 	"time"
 
@@ -17,6 +18,10 @@ const (
 	// PubKeyAlgEdDSA is the JWA (JSON Web Algorithm) for ed25519 public keys
 	// used for signatures.
 	PubKeyAlgEdDSA = "EdDSA"
+
+	// PubKeyAlgRS256 is the JWA for RSA public keys used for signatures. Support
+	// is required by AWS OIDC IAM Provider.
+	PubKeyAlgRS256 = "RS256"
 
 	// PubKeyUseSig is the JWK (JSON Web Key) "use" parameter value for
 	// signatures.
@@ -308,6 +313,13 @@ type KeyringPublicKey struct {
 // claims) inspect pubKey's concrete type.
 func (pubKey *KeyringPublicKey) GetPublicKey() (any, error) {
 	switch alg := pubKey.Algorithm; alg {
+	case PubKeyAlgRS256:
+		// PEM -> rsa.PublickKey
+		rsaPubKey, err := x509.ParsePKCS1PublicKey(pubKey.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing %s public key: %w", alg, err)
+		}
+		return rsaPubKey, nil
 	case PubKeyAlgEdDSA:
 		// Convert public key bytes to an ed25519 public key
 		return ed25519.PublicKey(pubKey.PublicKey), nil

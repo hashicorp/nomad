@@ -8,6 +8,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -43,9 +46,10 @@ type Encrypter struct {
 }
 
 type keyset struct {
-	rootKey    *structs.RootKey
-	cipher     cipher.AEAD
-	privateKey ed25519.PrivateKey
+	rootKey         *structs.RootKey
+	cipher          cipher.AEAD
+	eddsaPrivateKey ed25519.PrivateKey
+	rsaPrivateKey   *rsa.PrivateKey
 }
 
 // NewEncrypter loads or creates a new local keystore and returns an
@@ -182,7 +186,7 @@ func (e *Encrypter) SignClaims(claim *structs.IdentityClaims) (string, string, e
 	}
 
 	opts := (&jose.SignerOptions{}).WithHeader("kid", keyset.rootKey.Meta.KeyID).WithType("JWT")
-	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: keyset.privateKey}, opts)
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: keyset.rsaPrivateKey}, opts)
 	if err != nil {
 		return "", "", err
 	}
@@ -274,14 +278,19 @@ func (e *Encrypter) addCipher(rootKey *structs.RootKey) error {
 		return fmt.Errorf("invalid algorithm %s", rootKey.Meta.Algorithm)
 	}
 
-	privateKey := ed25519.NewKeyFromSeed(rootKey.Key)
+	eddsaPrivateKey := ed25519.NewKeyFromSeed(rootKey.Key)
+	rsaPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return fmt.Errorf("error generating rsa key: %w", err)
+	}
 
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	e.keyring[rootKey.Meta.KeyID] = &keyset{
-		rootKey:    rootKey,
-		cipher:     aead,
-		privateKey: privateKey,
+		rootKey:         rootKey,
+		cipher:          aead,
+		eddsaPrivateKey: eddsaPrivateKey,
+		rsaPrivateKey:   rsaPrivateKey,
 	}
 	return nil
 }
@@ -416,13 +425,21 @@ func (e *Encrypter) GetPublicKey(keyID string) (*structs.KeyringPublicKey, error
 		return nil, err
 	}
 
-	return &structs.KeyringPublicKey{
+	pubKey := &structs.KeyringPublicKey{
 		KeyID:      ks.rootKey.Meta.KeyID,
-		PublicKey:  ks.privateKey.Public().(ed25519.PublicKey),
-		Algorithm:  structs.PubKeyAlgEdDSA,
 		Use:        structs.PubKeyUseSig,
 		CreateTime: ks.rootKey.Meta.CreateTime,
-	}, nil
+	}
+
+	if ks.rsaPrivateKey != nil {
+		pubKey.PublicKey = x509.MarshalPKCS1PublicKey(&ks.rsaPrivateKey.PublicKey)
+		pubKey.Algorithm = structs.PubKeyAlgRS256
+	} else {
+		pubKey.PublicKey = ks.eddsaPrivateKey.Public().(ed25519.PublicKey)
+		pubKey.Algorithm = structs.PubKeyAlgEdDSA
+	}
+
+	return pubKey, nil
 }
 
 // newKMSWrapper returns a go-kms-wrapping interface the caller can use to
