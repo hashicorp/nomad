@@ -99,7 +99,10 @@
                     {{#if policy}}
                       <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
                     {{else}}
-                      <Hds::Tag @text="{{policyName}}" />
+                      <Hds::Tag
+                        {{hds-tooltip "This policy has been deleted"}}
+                        @text="{{policyName}}"
+                      />
                     {{/if}}
                   {{/let}}
                 {{else}}
