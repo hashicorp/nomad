@@ -878,7 +878,7 @@ module('Acceptance | tokens', function (hooks) {
 
     test('Tokens index, management token handling', async function (assert) {
       // two management tokens, one of which is yours; yours cannot be deleted or clicked into.
-      assert.dom('[data-test-token-type="management"').exists({ count: 2 });
+      assert.dom('[data-test-token-type="management"]').exists({ count: 2 });
       const managementToken = server.db.tokens.findBy(
         (t) => t.type === 'management'
       );
