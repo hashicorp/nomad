@@ -87,7 +87,7 @@
     "ember-cli-sri": "^2.1.1",
     "ember-cli-string-helpers": "^6.1.0",
     "ember-cli-terser": "^4.0.2",
-    "ember-click-outside": "^3.0.0",
+    "ember-click-outside": "^5.0.0",
     "ember-composable-helpers": "^5.0.0",
     "ember-concurrency": "^2.2.1",
     "ember-copy": "^2.0.1",
