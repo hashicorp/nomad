@@ -58,7 +58,8 @@ func NewConsulFingerprint(logger log.Logger) Fingerprint {
 
 func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	var mErr *multierror.Error
-	for _, cfg := range f.consulConfigs(req) {
+	consulConfigs := req.Config.GetConsulConfigs(f.logger)
+	for _, cfg := range consulConfigs {
 		err := f.fingerprintImpl(cfg, resp)
 		if err != nil {
 			mErr = multierror.Append(mErr, err)
