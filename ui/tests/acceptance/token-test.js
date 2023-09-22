@@ -846,12 +846,10 @@ module('Acceptance | tokens', function (hooks) {
     });
   });
 
-  module('Access Control Tokens section', function (hooks) {
+  module('Access Control Tokens section', function () {
     test('Tokens index', async function (assert) {
       await AccessControl.visit();
-      await this.pauseTest();
       assert.equal(currentURL(), '/access-control');
-      1;
     });
   });
 });

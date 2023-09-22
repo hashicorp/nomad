@@ -10,6 +10,8 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import AccessControl from 'nomad-ui/tests/pages/access-control';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+
 // Several related tests within Access Control are contained in the Tokens, Roles,
 // and Policies acceptance tests.
 
@@ -25,7 +27,9 @@ module('Acceptance | access control', function (hooks) {
   });
 
   test('Access Control is only accessible by a management user', async function (assert) {
+    assert.expect(7);
     await AccessControl.visit();
+
     assert.equal(
       currentURL(),
       '/jobs',
@@ -56,6 +60,8 @@ module('Acceptance | access control', function (hooks) {
       '/access-control',
       'management token can access /access-control'
     );
+
+    await a11yAudit(assert);
 
     await AccessControl.visitTokens();
     assert.equal(
