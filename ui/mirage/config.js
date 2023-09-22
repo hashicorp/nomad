@@ -569,7 +569,6 @@ export default function () {
     const policy = policies.findBy({ name: req.params.id });
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
-
     if (req.params.id === 'anonymous') {
       if (policy) {
         return this.serialize(policy);
@@ -577,7 +576,6 @@ export default function () {
         return new Response(404, {}, null);
       }
     }
-
     // Return the policy only if the token that matches the request header
     // includes the policy or if the token that matches the request header
     // is of type management
@@ -625,7 +623,17 @@ export default function () {
 
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
+
+    // Also update any tokens whose policyIDs include this policy
+    const tokens =
+      server.schema.tokens.where((token) => token.policyIds.includes(id)) || [];
+    tokens.models.forEach((token) => {
+      token.update({
+        policyIds: token.policyIds.filter((policyId) => policyId !== id),
+      });
+    });
     server.db.policies.remove(id);
+
     return '';
   });
 

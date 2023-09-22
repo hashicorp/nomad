@@ -7,7 +7,12 @@ import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
-  id: () => faker.hacker.verb().replace(/\s/g, '-'),
+  // Extra randomness appended to not conflict with the otherwise-uniq'd policies generated
+  // in factories.token.afterCreate
+  id: () =>
+    `${faker.hacker.verb().replace(/\s/g, '-')}-${faker.random.alphaNumeric(
+      5
+    )}`,
   name() {
     return this.id;
   },

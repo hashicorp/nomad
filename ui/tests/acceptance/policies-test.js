@@ -112,7 +112,6 @@ module('Acceptance | policies', function (hooks) {
     )[0];
     await click(firstPolicyLink);
     assert.equal(currentURL(), `/access-control/policies/${firstPolicyName}`);
-    await this.pauseTest();
     await click('[data-test-delete-policy]');
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/access-control/policies');
