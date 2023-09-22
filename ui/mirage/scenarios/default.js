@@ -671,13 +671,13 @@ function rolesTestCluster(server) {
 
   let clientReaderToken = server.create('token', {
     type: 'client',
-    name: "N. O'dereader",
+    name: "N. O'DeReader",
     policyIds: [clientReaderPolicy.id],
   });
 
   let clientWriterToken = server.create('token', {
     type: 'client',
-    name: 'N. O. DeWriter',
+    name: "N. O'DeWriter",
     policyIds: [clientWriterPolicy.id],
   });
 

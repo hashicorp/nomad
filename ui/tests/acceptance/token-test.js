@@ -846,10 +846,188 @@ module('Acceptance | tokens', function (hooks) {
     });
   });
 
-  module('Access Control Tokens section', function () {
-    test('Tokens index', async function (assert) {
-      await AccessControl.visit();
-      assert.equal(currentURL(), '/access-control');
+  module('Access Control Tokens section', function (hooks) {
+    hooks.beforeEach(async function () {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      faker.seed(1);
+      allScenarios.rolesTestCluster(server);
+      await Tokens.visit();
+      const managementToken = server.db.tokens.findBy(
+        (t) => t.type === 'management'
+      );
+      const { secretId } = managementToken;
+      await Tokens.secret(secretId).submit();
+      await AccessControl.visitTokens();
+    });
+
+    hooks.afterEach(async function () {
+      await Tokens.visit();
+      await Tokens.clear();
+    });
+
+    test('Tokens index, general', async function (assert) {
+      assert.equal(currentURL(), '/access-control/tokens');
+      // Number of token rows equivalent to number in db
+      assert
+        .dom('[data-test-token-row]')
+        .exists({ count: server.db.tokens.length });
+
+      await percySnapshot(assert);
+    });
+
+    test('Tokens index, management token handling', async function (assert) {
+      // two management tokens, one of which is yours; yours cannot be deleted or clicked into.
+      assert.dom('[data-test-token-type="management"').exists({ count: 2 });
+      const managementToken = server.db.tokens.findBy(
+        (t) => t.type === 'management'
+      );
+      const managementTokenRow = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(managementToken.name)
+      );
+      const otherManagerRow = [...findAll('[data-test-token-row]')].find(
+        (row) =>
+          row.textContent.includes('management') &&
+          !row.textContent.includes(managementToken.name)
+      );
+      assert
+        .dom(managementTokenRow.querySelector('[data-test-token-name] a'))
+        .doesNotExist('Cannot click into and edit your own token');
+      assert
+        .dom(otherManagerRow.querySelector('[data-test-token-name] a'))
+        .exists('Can click into and edit another manager token');
+      assert
+        .dom(
+          managementTokenRow.querySelector('[data-test-delete-token] button')
+        )
+        .isDisabled('Cannot delete your own token');
+      assert
+        .dom(otherManagerRow.querySelector('[data-test-delete-token] button'))
+        .isNotDisabled('Can delete another manager token');
+    });
+
+    test('Tokens index, table sorting', async function (assert) {
+      const nameCells = findAll('[data-test-token-name]');
+      const nameCellText = nameCells.map((cell) => cell.textContent.trim());
+      const sortedNameCellText = nameCellText.slice().sort();
+      assert.deepEqual(
+        nameCellText,
+        sortedNameCellText,
+        'Names are sorted alphabetically'
+      );
+
+      // Click on the first thead tr th to reverse
+      assert
+        .dom('table.acl-table thead tr th')
+        .hasAttribute('aria-sort', 'ascending');
+      await click('table.acl-table thead tr th button');
+      assert
+        .dom('table.acl-table thead tr th')
+        .hasAttribute('aria-sort', 'descending');
+
+      const reversedNameCells = findAll('[data-test-token-name]');
+      const reversedNameCellText = reversedNameCells.map((cell) =>
+        cell.textContent.trim()
+      );
+      const reversedSortedNameCellText = nameCellText.slice().sort().reverse();
+
+      assert.deepEqual(
+        reversedNameCellText,
+        reversedSortedNameCellText,
+        'Names are reversed alphabetically'
+      );
+    });
+
+    test('Tokens index, deletion', async function (assert) {
+      const numberOfTokens = server.db.tokens.length;
+      assert
+        .dom('[data-test-token-row]')
+        .exists(
+          { count: numberOfTokens },
+          'Number of tokens matches number in db'
+        );
+      const tokenToDelete = server.db.tokens.findBy((t) => t.type === 'client');
+      const tokenRowToDelete = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(tokenToDelete.name)
+      );
+      await click(
+        tokenRowToDelete.querySelector('[data-test-delete-token] button')
+      );
+      assert.dom('.flash-message.alert-success').exists();
+      assert
+        .dom('[data-test-token-row]')
+        .exists(
+          { count: numberOfTokens - 1 },
+          'Number of token rows decreased after deletion'
+        );
+
+      const nameCells = findAll('[data-test-token-name]');
+      const nameCellText = nameCells.map((cell) => cell.textContent.trim());
+      assert.notOk(
+        nameCellText.includes(tokenToDelete.name),
+        'Deleted token name not found among name cells'
+      );
+    });
+
+    test('Tokens index, clicking into a token page', async function (assert) {
+      const tokenToClick = server.db.tokens.findBy((t) => t.type === 'client');
+      const tokenRowToClick = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(tokenToClick.name)
+      );
+      await click(tokenRowToClick.querySelector('[data-test-token-name] a'));
+      assert.equal(currentURL(), `/access-control/tokens/${tokenToClick.id}`);
+      assert.dom('[data-test-token-name-input]').hasValue(tokenToClick.name);
+    });
+
+    test('Tokens index, roles and policies attached to a token show up as links', async function (assert) {
+      // Staying on the index page, Rows should have a Roles column with either "No Roles" or a bunch of links to roles. Ditto policies.
+      const tokenWithRolesAndPolicies = server.db.tokens.findBy(
+        (t) => t.name === 'Multi Role And Policy Token'
+      );
+      const tokenRowWithRolesAndPolicies = [
+        ...findAll('[data-test-token-row]'),
+      ].find((row) => row.textContent.includes(tokenWithRolesAndPolicies.name));
+      const rolesCell = tokenRowWithRolesAndPolicies.querySelector(
+        '[data-test-token-roles]'
+      );
+      const policiesCell = tokenRowWithRolesAndPolicies.querySelector(
+        '[data-test-token-policies]'
+      );
+      assert.dom(rolesCell).exists();
+      assert.dom(policiesCell).exists();
+
+      const rolesCellTags = rolesCell
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      const policiesCellTags = policiesCell
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      assert.equal(rolesCellTags.length, 2);
+      assert.equal(policiesCellTags.length, 1);
+
+      const policyLessToken = server.db.tokens.findBy(
+        (t) => t.name === 'High Level Role Token'
+      );
+      const policyLessTokenRow = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes(policyLessToken.name)
+      );
+      const rolesCell2 = policyLessTokenRow.querySelector(
+        '[data-test-token-roles]'
+      );
+      const policiesCell2 = policyLessTokenRow.querySelector(
+        '[data-test-token-policies]'
+      );
+      assert.dom(rolesCell2).exists();
+      assert.dom(policiesCell2).exists();
+
+      const rolesCellTags2 = rolesCell2
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      const policiesCellTags2 = policiesCell2
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      assert.equal(rolesCellTags2.length, 1);
+      assert.equal(policiesCellTags2.length, 0);
     });
   });
 });

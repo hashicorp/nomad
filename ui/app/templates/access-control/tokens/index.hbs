@@ -53,8 +53,9 @@
             enumerated=true
             action=(action "openToken" B.data)
           }}
+          data-test-token-row
         >
-          <B.Td>
+          <B.Td data-test-token-name>
             {{#if (eq B.data.id this.selfToken.id)}}
               <strong>{{B.data.name}}</strong>
             {{else}}
@@ -63,7 +64,7 @@
               </LinkTo>
             {{/if}}
           </B.Td>
-          <B.Td>{{B.data.type}}</B.Td>
+          <B.Td data-test-token-type={{B.data.type}}>{{B.data.type}}</B.Td>
           <B.Td>{{moment-from-now B.data.createTime interval=1000}}</B.Td>
           <B.Td>
             {{#if B.data.expirationTime}}
@@ -75,7 +76,7 @@
             {{/if}}
           </B.Td>
 
-            <B.Td>
+            <B.Td data-test-token-roles>
               <div class="tag-group">
                 {{!--
                   We don't treat roles (roleNames) the same as policies, because Roles' names are currently
@@ -92,7 +93,7 @@
               </div>
             </B.Td>
 
-            <B.Td>
+            <B.Td data-test-token-policies>
               <div class="tag-group">
                 {{#each B.data.policyNames as |policyName|}}
                   {{#let (find-by "name" policyName this.model.policies) as |policy|}}
@@ -112,7 +113,7 @@
             </B.Td>
 
             {{#if (can "destroy token")}}
-              <B.Td>
+              <B.Td data-test-delete-token>
                 {{#if (eq B.data.id this.selfToken.id)}}
                   <Tooltip @text="Can't delete your own token" @isFullText={{true}}>
                     <Hds::Button @text="Delete" disabled @size="small" @color="critical" />
