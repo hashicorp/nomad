@@ -588,19 +588,22 @@ module('Acceptance | tokens', function (hooks) {
 
   test('Tokens are shown on the policies index page', async function (assert) {
     allScenarios.policiesTestCluster(server);
+    let firstPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
     // Create an expired token
     server.create('token', {
       name: 'Expired Token',
       id: 'just-expired',
-      policyIds: [server.db.policies[0].name],
+      policyIds: [firstPolicy.name],
       expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/access-control/policies');
-    assert.dom('[data-test-policy-token-count]').exists();
+    assert.dom('[data-test-policy-total-tokens]').exists();
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
-      return token.policyIds.includes(server.db.policies[0].name);
+      return token.policyIds.includes(firstPolicy.name);
     });
     assert
       .dom('[data-test-policy-total-tokens]')
@@ -611,25 +614,25 @@ module('Acceptance | tokens', function (hooks) {
 
   test('Tokens are shown on a policy page', async function (assert) {
     allScenarios.policiesTestCluster(server);
+    let firstPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
+
     // Create an expired token
     server.create('token', {
       name: 'Expired Token',
       id: 'just-expired',
-      policyIds: [server.db.policies[0].name],
+      policyIds: [firstPolicy.name],
       expirationTime: new Date(new Date().getTime() - 10 * 60 * 1000), // 10 minutes ago
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/access-control/policies');
-
-    await click('[data-test-policy-row]:first-child');
-    assert.equal(
-      currentURL(),
-      `/access-control/policies/${server.db.policies[0].name}`
-    );
+    await click('[data-test-policy-name]');
+    assert.equal(currentURL(), `/access-control/policies/${firstPolicy.name}`);
 
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
-      return token.policyIds.includes(server.db.policies[0].name);
+      return token.policyIds.includes(firstPolicy.name);
     });
 
     assert
@@ -645,7 +648,10 @@ module('Acceptance | tokens', function (hooks) {
 
   test('Tokens Deletion', async function (assert) {
     allScenarios.policiesTestCluster(server);
-    const testPolicy = server.db.policies[0];
+    let testPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
+
     const existingTokens = server.db.tokens.filter((t) =>
       t.policyIds.includes(testPolicy.name)
     );
@@ -659,7 +665,7 @@ module('Acceptance | tokens', function (hooks) {
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/access-control/policies');
 
-    await click('[data-test-policy-row]:first-child');
+    await click('[data-test-policy-name]:first-child');
     assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
     assert
       .dom('[data-test-policy-token-row]')
@@ -667,18 +673,13 @@ module('Acceptance | tokens', function (hooks) {
         { count: existingTokens.length + 1 },
         'Expected number of tokens are shown'
       );
-
     const doomedTokenRow = [...findAll('[data-test-policy-token-row]')].find(
       (a) => a.textContent.includes('Doomed Token')
     );
-
+    console.log('doomed', doomedTokenRow);
     assert.dom(doomedTokenRow).exists();
 
     await click(doomedTokenRow.querySelector('button'));
-    assert
-      .dom(doomedTokenRow.querySelector('[data-test-confirm-button]'))
-      .exists();
-    await click(doomedTokenRow.querySelector('[data-test-confirm-button]'));
     assert.dom('.flash-message.alert-success').exists();
     assert
       .dom('[data-test-policy-token-row]')
@@ -692,7 +693,10 @@ module('Acceptance | tokens', function (hooks) {
 
   test('Test Token Creation', async function (assert) {
     allScenarios.policiesTestCluster(server);
-    const testPolicy = server.db.policies[0];
+    let testPolicy = server.db.policies.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    })[0];
+
     const existingTokens = server.db.tokens.filter((t) =>
       t.policyIds.includes(testPolicy.name)
     );
@@ -700,7 +704,7 @@ module('Acceptance | tokens', function (hooks) {
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
     await visit('/access-control/policies');
 
-    await click('[data-test-policy-row]:first-child');
+    await click('[data-test-policy-name]');
     assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
 
     assert
