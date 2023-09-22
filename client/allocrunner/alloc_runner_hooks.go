@@ -114,8 +114,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// newNetworkHook.
 	builtTaskEnv := newEnvBuilder().Build()
 
-	// Create a new consul client that works with workload identity based
-	// authentication (Nomad 1.7+)
+	// Create a consul client
 	newConsulClient, err := consul.NewConsulClient(ar.clientConfig.ConsulConfig, hookLogger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize consul client: %v", err)
@@ -127,7 +126,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newConsulHook(hookLogger, ar.alloc, ar.allocDir, ar.widmgr, newConsulClient, ar.hookResources, "nomad-workloads"), // FIXME: this should not be hard-coded
+		newConsulHook(hookLogger, ar.alloc, ar.widmgr, newConsulClient, builtTaskEnv, ar.hookResources, "nomad-workloads"), // FIXME: this should not be hard-coded
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),

@@ -6,53 +6,41 @@ package allocrunner
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	// consulTokenFilePrefix is the begging of the name of the file holding the
-	// Consul SI token inside the task's secret directory. Full name of the file is
-	// always consulTokenFilePrefix_identityName
-	consulTokenFilePrefix = "nomad_consul_"
-
-	// consulTokenFilePerms is the level of file permissions granted on the file in
-	// the secrets directory for the task
-	consulTokenFilePerms = 0440
-)
-
 type consulHook struct {
 	alloc         *structs.Allocation
-	allocdir      *allocdir.AllocDir
 	widmgr        widmgr.IdentityManager
 	client        consul.Client
+	env           *taskenv.TaskEnv
 	hookResources *cstructs.AllocHookResources
 	authMethod    string
 
 	logger log.Logger
 }
 
-func newConsulHook(logger log.Logger, alloc *structs.Allocation,
-	allocdir *allocdir.AllocDir,
+func newConsulHook(logger log.Logger,
+	alloc *structs.Allocation,
 	widmgr widmgr.IdentityManager,
 	client consul.Client,
+	env *taskenv.TaskEnv,
 	hookResources *cstructs.AllocHookResources,
 	authMethod string,
 ) *consulHook {
 	h := &consulHook{
 		alloc:         alloc,
-		allocdir:      allocdir,
 		widmgr:        widmgr,
 		client:        client,
+		env:           env,
 		hookResources: hookResources,
 		authMethod:    authMethod,
 	}
@@ -79,78 +67,67 @@ func (h *consulHook) Prerun() error {
 
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
-			req, err := h.prepareConsulClientReq(task)
-			if err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-				continue
+			req := map[string]consul.JWTLoginRequest{}
+
+			// handle default identity
+			if task.Identity != nil {
+				ti := widmgr.TaskIdentity{
+					TaskName:     task.Name,
+					IdentityName: task.Identity.Name,
+				}
+
+				jwt, err := h.widmgr.Get(ti)
+				if err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+					h.logger.Error("error getting signed identity", "error", err)
+					continue
+				}
+
+				req[task.Identity.Name] = consul.JWTLoginRequest{
+					JWT:            jwt.JWT,
+					AuthMethodName: h.authMethod,
+				}
 			}
 
-			// in case no service needs a consul token in this task
-			if len(req) == 0 {
-				continue
+			// handle alt identities
+			for _, t := range task.Identities {
+				ti := widmgr.TaskIdentity{
+					TaskName:     task.Name,
+					IdentityName: t.Name,
+				}
+
+				jwt, err := h.widmgr.Get(ti)
+				if err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+					h.logger.Error("error getting signed identity", "error", err)
+					continue
+				}
+
+				req[t.Name] = consul.JWTLoginRequest{
+					JWT:            jwt.JWT,
+					AuthMethodName: h.authMethod,
+				}
 			}
 
 			// Consul auth
-			tokens, err := h.client.DeriveSITokenWithJWT(req)
+			var err error
+			tokens, err = h.client.DeriveSITokenWithJWT(req)
 			if err != nil {
 				h.logger.Error("error authenticating with Consul", "error", err)
 				return err
 			}
-
-			// Write tokens to tasks' secret dirs
-			secretsDir := h.allocdir.TaskDirs[task.Name].SecretsDir
-			for identity, token := range tokens {
-				tokenPath := filepath.Join(secretsDir, consulTokenFilePrefix+identity)
-				if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
-					mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
-				}
-			}
 		}
 	}
 
-	// store the tokens in hookResources
+	// store the tokens
 	h.hookResources.SetConsulTokens(tokens)
 
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulClientReq(task *structs.Task) (map[string]consul.JWTLoginRequest, error) {
-	req := map[string]consul.JWTLoginRequest{}
+func (h *consulHook) authWithConsul(req map[string]consul.JWTLoginRequest, task *structs.Task) (map[string]string, error) {
 
-	// see if maybe we can quit early
-	if task.Services == nil {
-		return req, nil
-	}
-	for _, s := range task.Services {
-		if !s.IsConsul() {
-			return req, nil
-		}
-
-		if s.Identity == nil {
-			return req, nil
-		}
-	}
-
-	// handle default identity
-	if task.Identity != nil {
-		ti := widmgr.TaskIdentity{
-			TaskName:     task.Name,
-			IdentityName: task.Identity.Name,
-		}
-
-		jwt, err := h.widmgr.Get(ti)
-		if err != nil {
-			h.logger.Error("error getting signed identity", "error", err)
-			return req, err
-		}
-
-		req[task.Identity.Name] = consul.JWTLoginRequest{
-			JWT:            jwt.JWT,
-			AuthMethodName: h.authMethod,
-		}
-	}
-
-	return req, nil
+	return h.client.DeriveSITokenWithJWT(req)
 }
 
 // Stop implements interfaces.TaskStopHook
