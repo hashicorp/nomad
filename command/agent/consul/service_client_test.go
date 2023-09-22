@@ -824,3 +824,48 @@ func TestSyncLogic_parseTaggedAddresses(t *testing.T) {
 		}, result)
 	})
 }
+
+func TestSyncLogic_ConsulTokens(t *testing.T) {
+	ci.Parallel(t)
+
+	mockAgent := NewMockAgent(ossFeatures)
+	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), mockAgent)
+	logger := testlog.HCLogger(t)
+	sc := NewServiceClient(mockAgent, namespacesClient, logger, true)
+	sc.shutdownWait = time.Millisecond
+
+	allocID := uuid.Generate()
+	serviceToken := uuid.Generate()
+
+	ws := &serviceregistration.WorkloadServices{
+		AllocInfo: structs.AllocInfo{
+			AllocID: allocID,
+			Task:    "taskname",
+		},
+		Services: []*structs.Service{
+			{Name: "taskname-service", PortLabel: "x"},
+		},
+		Networks: []*structs.NetworkResource{
+			{DynamicPorts: []structs.Port{{Label: "x", Value: xPort}}},
+		},
+		Tokens: map[string]string{"taskname-service": serviceToken},
+	}
+
+	must.NoError(t, sc.RegisterWorkload(ws))
+
+	id := serviceregistration.MakeAllocServiceID(allocID, ws.Name(), ws.Services[0])
+
+	token := sc.getServiceToken(id)
+	must.Eq(t, serviceToken, token)
+
+	// Removing the workload doesn't remove the token until the service is
+	// confirmed deregistered
+	sc.RemoveWorkload(ws)
+	sc.explicitlyDeregisteredServices.Insert(id)
+	token = sc.getServiceToken(id)
+	must.Eq(t, serviceToken, token)
+
+	sc.clearExplicitlyDeregistered()
+	token = sc.getServiceToken(id)
+	must.Eq(t, "", token)
+}
