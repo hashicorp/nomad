@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -68,7 +67,7 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	must.NoError(t, hook.Prerun())
 
 	time.Sleep(time.Second) // give goroutines a moment to run
-	sid, err := hook.widmgr.Get(cstructs.TaskIdentity{
+	sid, err := hook.widmgr.Get(widmgr.TaskIdentity{
 		TaskName:     task.Name,
 		IdentityName: task.Identities[0].Name},
 	)

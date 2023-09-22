@@ -11,7 +11,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/users"
@@ -83,7 +82,7 @@ func (h *identityHook) Prestart(context.Context, *interfaces.TaskPrestartRequest
 }
 
 func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity) {
-	id := cstructs.TaskIdentity{TaskName: h.task.Name, IdentityName: wid.Name}
+	id := widmgr.TaskIdentity{TaskName: h.task.Name, IdentityName: wid.Name}
 	signedIdentitiesChan, stopWatching := h.widmgr.Watch(id)
 	defer stopWatching()
 

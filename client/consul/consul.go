@@ -41,13 +41,12 @@ type SupportedProxiesAPI interface {
 // JWTLoginRequest is an object representing a login request with JWT
 type JWTLoginRequest struct {
 	JWT            string
-	Role           string
 	AuthMethodName string
 }
 
-// ConsulClient is the interface that the nomad client uses to interact with
+// Client is the interface that the nomad client uses to interact with
 // Consul.
-type ConsulClient interface {
+type Client interface {
 	// DeriveSITokenWithJWT logs into Consul using JWT and retrieves a Consul
 	// SI ACL token.
 	DeriveSITokenWithJWT(map[string]JWTLoginRequest) (map[string]string, error)
