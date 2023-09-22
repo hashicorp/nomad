@@ -12,7 +12,7 @@
     </footer>
   </section>
   <div class="section-cards">
-    <Hds::Card::Container @level="mid" @hasBorder={{true}}>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-tokens-card>
         <LinkTo
           @route="access-control.tokens"
         >
@@ -21,7 +21,7 @@
         <p>User access tokens are associated with one or more policies or roles to grant specific capabilities.</p>
         <Hds::Button @text="Create Token" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.tokens.new" />
     </Hds::Card::Container>
-    <Hds::Card::Container @level="mid" @hasBorder={{true}}>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-roles-card>
       <LinkTo
         @route="access-control.roles"
       >
@@ -30,7 +30,7 @@
       <p>Roles group one or more Policies into higher-level sets of permissions.</p>
       <Hds::Button @text="Create Role" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.roles.new" />
     </Hds::Card::Container>
-    <Hds::Card::Container @level="mid" @hasBorder={{true}}>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-policies-card>
       <LinkTo
         @route="access-control.policies"
       >

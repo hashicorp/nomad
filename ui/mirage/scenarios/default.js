@@ -664,6 +664,11 @@ function rolesTestCluster(server) {
 
   // Create tokens
 
+  let managementToken = server.create('token', {
+    type: 'management',
+    name: 'Management Token',
+  });
+
   let clientReaderToken = server.create('token', {
     type: 'client',
     name: "N. O'dereader",

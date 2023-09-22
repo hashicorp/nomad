@@ -14,6 +14,7 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
+import AccessControl from 'nomad-ui/tests/pages/access-control';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
@@ -586,7 +587,7 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
-  test('Tokens are shown on the policies index page', async function (assert) {
+  test('Tokens are shown on the Access Control Policies index page', async function (assert) {
     allScenarios.policiesTestCluster(server);
     let firstPolicy = server.db.policies.sort((a, b) => {
       return a.name.localeCompare(b.name);
@@ -646,7 +647,7 @@ module('Acceptance | tokens', function (hooks) {
     window.localStorage.nomadTokenSecret = null;
   });
 
-  test('Tokens Deletion', async function (assert) {
+  test('Tokens Deletion from Policy page', async function (assert) {
     allScenarios.policiesTestCluster(server);
     let testPolicy = server.db.policies.sort((a, b) => {
       return a.name.localeCompare(b.name);
@@ -691,7 +692,7 @@ module('Acceptance | tokens', function (hooks) {
     window.localStorage.nomadTokenSecret = null;
   });
 
-  test('Test Token Creation', async function (assert) {
+  test('Test Token Creation from Policy Page', async function (assert) {
     allScenarios.policiesTestCluster(server);
     let testPolicy = server.db.policies.sort((a, b) => {
       return a.name.localeCompare(b.name);
@@ -842,6 +843,15 @@ module('Acceptance | tokens', function (hooks) {
       // Expect the Run button/link to work now
       assert.dom('[data-test-run-job]').hasTagName('a');
       assert.dom('[data-test-run-job]').hasAttribute('href', '/ui/jobs/run');
+    });
+  });
+
+  module('Access Control Tokens section', function (hooks) {
+    test('Tokens index', async function (assert) {
+      await AccessControl.visit();
+      await this.pauseTest();
+      assert.equal(currentURL(), '/access-control');
+      1;
     });
   });
 });
