@@ -7,13 +7,16 @@ section.notifications {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 100;
+  z-index: 200;
   justify-items: right;
   display: grid;
 
   .flash-message {
     &:not(:last-child) {
       margin-bottom: 1rem;
+    }
+    .hds-toast {
+      width: min(500px, 80vw);
     }
   }
 }

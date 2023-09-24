@@ -660,7 +660,12 @@
           </th>
         </t.head>
         <t.body as |row|>
-          <tr data-test-client-event>
+          <tr data-test-client-event
+            {{event-subscribable
+              label="Subscribe to Updates"
+              action=(action this.events.subscribeToEvent row.model)
+            }}
+          >
             <td data-test-client-event-time>
               {{format-ts row.model.time}}
             </td>

@@ -5,6 +5,7 @@
 
 // @ts-check
 import { default as FlashService } from 'ember-cli-flash/services/flash-messages';
+import { action } from '@ember/object';
 
 /**
  * @typedef {Object} NotificationObject
@@ -42,5 +43,14 @@ export default class NotificationsService extends FlashService {
     }
 
     return super.add(notificationObject);
+  }
+
+  /**
+   * Clears all notifications
+   * @returns {FlashService}
+   */
+  @action
+  clearAll() {
+    return super.clearMessages();
   }
 }

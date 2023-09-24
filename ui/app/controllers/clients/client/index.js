@@ -30,6 +30,7 @@ export default class ClientController extends Controller.extend(
   Searchable
 ) {
   @service notifications;
+  @service events;
 
   queryParams = [
     {

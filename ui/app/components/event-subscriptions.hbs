@@ -1,0 +1,209 @@
+{{#if this.events.sidebarIsActive}}
+  <Hds::Flyout id="basic-flyout"
+    @onClose={{action this.deactivateFlyout}} as |M|>
+    <M.Header @tagline="Event Stream Notifications" @icon="info">
+      Current Event Subscriptions
+    </M.Header>
+    <M.Description>
+      Add, remove or modify notifications for events in the <a href="https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream" target="_blank" rel="noopener noreferrer">event stream</a>.
+    </M.Description>
+    <M.Body>
+      {{#if this.events.subscriptionBeingEdited}}
+        <section class="subscription-editor">
+          <header>
+            <Hds::Button @text="Back" @color="tertiary" @icon="chevron-left" @isIconOnly={{true}} {{on "click" (action (mut this.events.subscriptionBeingEdited) null)}} />
+            <strong>
+              Edit Notification Subscription
+            </strong>
+          </header>
+
+          <form class="edit-notification">
+
+            <Hds::Form::Select::Field
+              {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "Topic")}}
+            as |F|>
+              <F.Label>Event Type ({{this.events.subscriptionBeingEdited.Topic}})</F.Label>
+              <F.Options>
+                <option value="Allocation" selected={{eq this.events.subscriptionBeingEdited.Topic "Allocation"}}>Task Event</option>
+                <option value="Node" selected={{eq this.events.subscriptionBeingEdited.Topic "Node"}}>Node Event</option>
+              </F.Options>
+            </Hds::Form::Select::Field>
+
+            <Hds::Form::Select::Field
+              {{on "change" (action this.events.setSubscriptionProperty this.events.subscriptionBeingEdited "notificationType")}}
+            as |F|>
+              <F.Label>Color</F.Label>
+              <F.Options>
+                {{#each this.events.notificationTypes as |type|}}
+                  <option value={{type}} selected={{eq this.events.subscriptionBeingEdited.notificationType type}}>{{capitalize type}}</option>
+                {{/each}}
+              </F.Options>
+            </Hds::Form::Select::Field>
+
+            <Hds::Form::Toggle::Field
+              checked={{this.events.subscriptionBeingEdited.playSound}}
+              {{on "change" (action
+                this.events.setSubscriptionPropertyWithValue
+                this.events.subscriptionBeingEdited
+                "playSound"
+                (if this.events.subscriptionBeingEdited.playSound false true)
+              )}}
+            as |F|>
+              <F.Label>Play a Sound</F.Label>
+            </Hds::Form::Toggle::Field>
+
+            {{#each this.events.subscriptionBeingEdited.conditions as |condition|}}
+            <p>
+              Triggers whenever
+              {{#if (eq this.events.subscriptionBeingEdited.Topic "Allocation")}}
+                <Hds::Form::Select::Base
+                {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
+                as |F|>
+                  <F.Options>
+                    {{#each this.events.allocationStringKeys as |key|}}
+                      <option value={{key}} selected={{eq condition.stringKey key}}>{{humanize (dasherize key)}}</option>
+                    {{/each}}
+                  </F.Options>
+                </Hds::Form::Select::Base>
+              {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
+                <Hds::Form::Select::Base
+                {{on "change" (action this.events.setConditionProperty condition "stringKey" )}}
+                {{on "blur" (action this.events.setConditionProperty condition "stringKey" )}}
+                {{!-- TODO: redundant blur --}}
+                as |F|>
+                  <F.Options>
+                    {{#each this.events.nodeStringKeys as |key|}}
+                      <option value={{key}} selected={{eq condition.stringKey key}}>{{humanize (dasherize key)}}</option>
+                    {{/each}}
+                  </F.Options>
+                </Hds::Form::Select::Base>
+              {{/if}}
+
+              <Hds::Form::Select::Base
+                {{on "change" (action this.events.setConditionProperty condition "matchType" )}}
+              as |F|>
+                <F.Options>
+                  {{#each this.events.matchTypes as |key|}}
+                    <option value={{key}} selected={{eq condition.matchType key}}>{{key}}</option>
+                  {{/each}}
+                </F.Options>
+              </Hds::Form::Select::Base>
+
+              <Hds::Form::TextInput::Base
+                @type="text"
+                @value={{condition.value}}
+                placeholder="eg. Node registered"
+                {{on "blur" (action this.events.setConditionProperty condition "value")}}
+              />
+
+              {{#if (eq this.events.subscriptionBeingEdited.Topic "Allocation")}}
+                in tasks named
+                <Hds::Form::TextInput::Base
+                  @type="text"
+                  @value={{condition.tasks}}
+                  @placeholder="comma separated, * for all"
+                  {{on "change" (action this.events.arrayifyAndSetConditionProperty condition "tasks" )}} />
+                and in jobs named
+                <Hds::Form::TextInput::Base
+                  @type="text"
+                  @value={{condition.jobs}}
+                  @placeholder="comma separated, * for all"
+                  {{on "change" (action this.events.arrayifyAndSetConditionProperty condition "jobs" )}} />
+              {{else if (eq this.events.subscriptionBeingEdited.Topic "Node")}}
+                in nodes named
+                <Hds::Form::TextInput::Base
+                  @type="text"
+                  @value={{condition.nodes}}
+                  @placeholder="comma separated, * for all"
+                  {{on "change" (action this.events.arrayifyAndSetConditionProperty condition "nodes" )}} />
+              {{/if}}
+
+              </p>
+
+              {{#if (gt this.events.subscriptionBeingEdited.conditions.length 1)}}
+                <Hds::Button @text="Remove Condition" @color="critical" {{on "click" (action this.events.removeSubscriptionCondition this.events.subscriptionBeingEdited condition)}} />
+              {{/if}}
+            {{/each}}
+          </form>
+          <footer>
+            <Hds::Button @text="Delete" @color="critical" @icon="x" {{on "click" (queue
+              (action this.events.removeSubscription this.events.subscriptionBeingEdited)
+              (action (mut this.events.subscriptionBeingEdited) null)
+            )}} />
+            <Hds::Button @text="Save" @color="primary" @icon="check" {{on "click" (queue (action this.events.ensureEditedIsSaved) (action (mut this.events.subscriptionBeingEdited) null) (action this.events.saveSubscriptions))}} />
+          </footer>
+        </section>
+      {{else}}
+        <Hds::Button @text="New Event Notification" @color="primary" @isFullWidth={{true}} @icon="plus" {{on "click" (action this.events.addSubscription)}} />
+        <hr />
+        <ul class="event-subscriptions-list">
+        {{#each this.events.subscriptions as |sub|}}
+        <li class="{{if sub.muted "muted"}}">
+          {{#if (eq sub.Topic "Allocation")}}
+            <Hds::Toast
+            @color={{sub.notificationType}}
+            as |T|
+            >
+
+            <T.Title>Task Event {{capitalize sub.notificationType}} Notification</T.Title>
+              <T.Description>
+                Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Task Event
+                {{#each sub.conditions as |cond index|}}
+                  <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+                  {{concat "for tasks [" cond.tasks "] in jobs [" cond.jobs "]"}}
+                  {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+                {{/each}}
+              </T.Description>
+              <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (queue (action (mut sub.muted) (not sub.muted)) (action this.events.saveSubscriptions))}} />
+              <T.Button @text="Remove Subscription" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
+              <T.Button @text="Edit Subscription" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
+            </Hds::Toast>
+          {{else if (eq sub.Topic "Node")}}
+            <Hds::Toast
+            @color={{sub.notificationType}}
+            as |T|
+            >
+
+            <T.Title>Node Event {{capitalize sub.notificationType}} Notification</T.Title>
+              <T.Description>
+                Notify me {{#if sub.playSound}}with a sound {{/if}}whenever a Node Event
+                {{#each sub.conditions as |cond index|}}
+                  <strong>{{humanize (dasherize cond.stringKey)}}</strong> {{cond.matchType}} <strong>{{cond.value}}</strong>
+                  {{#if (eq index (dec (sub.conditions.length)))}}.{{else}}, {{/if}}
+                {{/each}}
+              </T.Description>
+              <T.Button @text={{if sub.muted "Unmute" "Mute"}} @color="secondary" {{on "click" (action (mut sub.muted) (not sub.muted))}} />
+              <T.Button @text="Remove Subscription" @color="critical" {{on "click" (action this.events.removeSubscription sub)}} />
+              <T.Button @text="Edit Subscription" @color="secondary" {{on "click" (action this.events.editSubscription sub)}} />
+            </Hds::Toast>
+          {{else}}
+            (TODO: Subsciprion description)
+          {{/if}}
+        <hr />
+        </li>
+        {{/each}}
+        </ul>
+      {{/if}}
+
+      {{!-- TODO: TEMP
+      {{#each this.events.stream as |event|}}
+  <hr />
+    <dl class="realtime-event" onclick={{action this.logEvent event}}>
+      <dt>Index:</dt>
+      <dd>{{event.streamEventIndex}}</dd>
+      <dt>Topic:</dt>
+      <dd>{{event.streamEventTopic}}</dd>
+      <dt>Type:</dt>
+      <dd>{{event.streamEventType}}</dd>
+      <dt>Event Type:</dt>
+      <dd>{{event.Type}}</dd>
+      <dt>Event DisplayMessage:</dt>
+      <dd>{{event.DisplayMessage}}</dd>
+      <dt>Event Message:</dt>
+      <dd>{{event.Message}}</dd>
+    </dl>
+      {{/each}}
+         --}}
+    </M.Body>
+  </Hds::Flyout>
+{{/if}}
