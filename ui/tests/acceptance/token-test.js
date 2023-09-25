@@ -1029,5 +1029,87 @@ module('Acceptance | tokens', function (hooks) {
       assert.equal(rolesCellTags2.length, 1);
       assert.equal(policiesCellTags2.length, 0);
     });
+    test('Token page, general', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.type === 'client');
+      console.log('tokenAccessor', token, token.accessorId);
+      await visit(`/access-control/tokens/${token.id}`);
+      assert.dom('[data-test-token-name-input]').hasValue(token.name);
+      assert.dom('[data-test-token-accessor]').hasValue(token.accessorId);
+      assert.dom('[data-test-token-secret]').hasValue(token.secretId);
+      assert.dom('[data-test-token-type="client"]').isChecked();
+      assert.dom('[data-test-token-type="management"]').isNotChecked();
+
+      assert.dom('.expiration-time').hasText('Token never expires');
+
+      assert.dom('[data-test-token-roles]').exists();
+      assert.dom('[data-test-token-policies]').exists();
+
+      // All possible policies are shown
+      const allPolicies = server.db.policies;
+      const allPolicyRows = findAll('[data-test-token-policies] tbody tr');
+      assert.equal(
+        allPolicyRows.length,
+        allPolicies.length,
+        'All policies are shown'
+      );
+
+      // The policies/roles belonging to this token are checked
+      const tokenPolicies = server.db.tokens.findBy(
+        (t) => t.type === 'client'
+      ).policyIds;
+
+      const checkedPolicyRows = findAll(
+        '[data-test-token-policies] tbody tr input:checked'
+      );
+
+      assert.equal(
+        checkedPolicyRows.length,
+        tokenPolicies.length,
+        'All policies belonging to this token are checked'
+      );
+
+      const checkedPolicyNames = checkedPolicyRows.map((row) =>
+        row
+          .closest('tr')
+          .querySelector('[data-test-policy-name]')
+          .textContent.trim()
+      );
+      assert.deepEqual(
+        checkedPolicyNames.sort(),
+        tokenPolicies.sort(),
+        'All policies belonging to this token are checked'
+      );
+
+      const allRoles = server.db.roles;
+      const allRoleRows = findAll('[data-test-token-roles] tbody tr');
+      assert.equal(allRoleRows.length, allRoles.length, 'All roles are shown');
+
+      const tokenRoles = server.db.tokens.findBy(
+        (t) => t.type === 'client'
+      ).roleIds;
+
+      const checkedRoleRows = findAll(
+        '[data-test-token-roles] tbody tr input:checked'
+      );
+
+      assert.equal(
+        checkedRoleRows.length,
+        tokenRoles.length,
+        'All roles belonging to this token are checked'
+      );
+
+      const checkedRoleNames = checkedRoleRows.map((row) =>
+        row
+          .closest('tr')
+          .querySelector('[data-test-role-name]')
+          .textContent.trim()
+      );
+
+      assert.deepEqual(
+        checkedRoleNames.sort(),
+        tokenRoles.sort(),
+        'All roles belonging to this token are checked'
+      );
+    });
   });
 });

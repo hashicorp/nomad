@@ -16,8 +16,6 @@
 		/>
 	</label>
 
-{{!-- TODO: add expiration time here --}}
-
 <div class="expiration-time">
   {{#if @token.isNew}}
     <Hds::Form::Label>
@@ -83,13 +81,13 @@
 
   {{#unless @token.isNew}}
   <div>
-    <Hds::Form::MaskedInput::Field @isMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly as |F|>
+    <Hds::Form::MaskedInput::Field @isMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly data-test-token-accessor as |F|>
       <F.Label>Token Accessor</F.Label>
     </Hds::Form::MaskedInput::Field>
   </div>
 
   <div>
-    <Hds::Form::MaskedInput::Field @hasCopyButton={{true}} @value={{@token.secret}} readonly as |F|>
+    <Hds::Form::MaskedInput::Field @hasCopyButton={{true}} @value={{@token.secret}} readonly data-test-token-secret as |F|>
       <F.Label>Token Secret</F.Label>
     </Hds::Form::MaskedInput::Field>
   </div>
@@ -102,12 +100,14 @@
       <G.Radio::Field
         @id="client"
         checked={{eq @token.type "client"}}
+        data-test-token-type="client"
       as |F|>
         <F.Label>Client</F.Label>
       </G.Radio::Field>
       <G.Radio::Field
         @id="management"
         checked={{eq @token.type "management"}}
+        data-test-token-type="management"
       as |F|>
         <F.Label>Management</F.Label>
       </G.Radio::Field>
@@ -115,7 +115,7 @@
   </div>
 
   {{#if (eq @token.type "client")}}
-    <div>
+    <div data-test-token-policies>
       <label>
         Policies
       </label>
@@ -140,7 +140,7 @@
                   />
                 </label>
               </B.Td>
-              <B.Td>{{B.data.name}}</B.Td>
+              <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
                 <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
@@ -162,7 +162,7 @@
       {{/if}}
     </div>
 
-    <div>
+    <div data-test-token-roles>
       <label>
         Roles
       </label>
@@ -188,7 +188,7 @@
                   />
                 </label>
               </B.Td>
-              <B.Td>{{B.data.name}}</B.Td>
+              <B.Td data-test-role-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
                 <div class="tag-group">
