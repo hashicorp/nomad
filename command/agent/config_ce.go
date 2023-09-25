@@ -13,11 +13,4 @@ import (
 
 // DefaultEntConfig is an empty config in open source
 func DefaultEntConfig() *Config {
-	return &Config{
-		Reporting: &config.Reporting{
-			License: &config.LicenseConfig{
-				Enabled: pointer.Of(false),
-			},
-		},
-	}
 }
