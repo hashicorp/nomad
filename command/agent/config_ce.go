@@ -6,11 +6,6 @@
 
 package agent
 
-import (
-	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/nomad/structs/config"
-)
-
 // DefaultEntConfig is an empty config in open source
 func DefaultEntConfig() *Config {
 	return &Config{}
