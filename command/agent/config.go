@@ -199,6 +199,9 @@ type Config struct {
 	// Audit contains the configuration for audit logging.
 	Audit *config.AuditConfig `hcl:"audit"`
 
+	// Reporting is used to enable go census reporting
+	Reporting *config.Reporting `hcl:"reporting,block"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -1472,6 +1475,13 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Telemetry = result.Telemetry.Merge(b.Telemetry)
 	}
 
+	// Apply the Reporting Config
+	if result.Reporting == nil && b.Reporting != nil {
+		result.Reporting = b.Reporting.Copy()
+	} else if b.Reporting != nil {
+		result.Reporting = result.Reporting.Merge(b.Reporting)
+	}
+
 	// Apply the TLS Config
 	if result.TLSConfig == nil && b.TLSConfig != nil {
 		result.TLSConfig = b.TLSConfig.Copy()
@@ -1656,6 +1666,7 @@ func (c *Config) Copy() *Config {
 	nc.Plugins = helper.CopySlice(c.Plugins)
 	nc.Limits = c.Limits.Copy()
 	nc.Audit = c.Audit.Copy()
+	nc.Reporting = c.Reporting.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }

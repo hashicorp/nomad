@@ -335,3 +335,9 @@ plugin "exec" {
     foo = true
   }
 }
+
+reporting {
+  license {
+    enabled = true
+  }
+}

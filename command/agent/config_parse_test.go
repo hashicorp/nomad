@@ -404,6 +404,11 @@ var basicConfig = &Config{
 			},
 		},
 	},
+	Reporting: &config.Reporting{
+		License: &config.LicenseConfig{
+			Enabled: pointer.Of(true),
+		},
+	},
 }
 
 var pluginConfig = &Config{
@@ -471,6 +476,9 @@ var pluginConfig = &Config{
 				"enabled": true,
 			},
 		},
+	},
+	Reporting: &config.Reporting{
+		&config.LicenseConfig{},
 	},
 }
 
@@ -562,32 +570,26 @@ func TestConfig_Parse(t *testing.T) {
 	cases := []struct {
 		File   string
 		Result *Config
-		Err    bool
 	}{
 		{
 			"basic.hcl",
 			basicConfig,
-			false,
 		},
 		{
 			"basic.json",
 			basicConfig,
-			false,
 		},
 		{
 			"plugin.hcl",
 			pluginConfig,
-			false,
 		},
 		{
 			"plugin.json",
 			pluginConfig,
-			false,
 		},
 		{
 			"non-optional.hcl",
 			nonoptConfig,
-			false,
 		},
 	}
 
@@ -610,6 +612,9 @@ func TestConfig_Parse(t *testing.T) {
 				Vault:     config.DefaultVaultConfig(),
 				Vaults:    map[string]*config.VaultConfig{"default": config.DefaultVaultConfig()},
 				Autopilot: config.DefaultAutopilotConfig(),
+				Reporting: &config.Reporting{
+					&config.LicenseConfig{},
+				},
 			}
 			actual = oldDefault.Merge(actual)
 
@@ -663,6 +668,13 @@ func (c *Config) addDefaults() {
 	}
 	if c.Server.PlanRejectionTracker == nil {
 		c.Server.PlanRejectionTracker = &PlanRejectionTracker{}
+	}
+	if c.Reporting == nil {
+		c.Reporting = &config.Reporting{
+			&config.LicenseConfig{
+				Enabled: pointer.Of(false),
+			},
+		}
 	}
 }
 
@@ -827,6 +839,9 @@ var sample0 = &Config{
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: pointer.Of(true),
 	},
+	Reporting: &config.Reporting{
+		&config.LicenseConfig{},
+	},
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
@@ -941,6 +956,9 @@ var sample1 = &Config{
 	},
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: pointer.Of(true),
+	},
+	Reporting: &config.Reporting{
+		&config.LicenseConfig{},
 	},
 }
 

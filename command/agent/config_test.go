@@ -535,6 +535,11 @@ func TestConfig_Merge(t *testing.T) {
 				},
 			},
 		},
+		Reporting: &config.Reporting{
+			License: &config.LicenseConfig{
+				Enabled: pointer.Of(true),
+			},
+		},
 	}
 
 	result := c0.Merge(c1)

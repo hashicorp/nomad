@@ -327,10 +327,11 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
-	// The `vault` and `consul` blocks are parsed separately from the Decode method, so it
+	// The `reporting`, `vault` and `consul` blocks are parsed separately from the Decode method, so it
 	// will incorrectly report them as extra keys, of which there may be multiple
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "license" })
 	if len(c.ExtraKeysHCL) == 0 {
 		c.ExtraKeysHCL = nil
 	}

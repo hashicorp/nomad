@@ -403,5 +403,10 @@
       "token": "12345",
       "use_identity": true
     }
-  ]
+  ],
+  "reporting":{
+    "license":{
+      "enabled":"true"
+    }
+  }
 }
