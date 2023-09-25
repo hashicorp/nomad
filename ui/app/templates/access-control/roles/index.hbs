@@ -50,6 +50,7 @@
             enumerated=true
             action=(action "openRole" B.data)
           }}
+          data-test-role-row={{B.data.name}}
         >
           <B.Td>
             <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>{{B.data.name}}</LinkTo></B.Td>
@@ -60,7 +61,7 @@
               <span data-test-role-expired-tokens class="number-expired">({{get (filter-by "isExpired" B.data.tokens) "length"}} expired)</span>
             {{/if}}
           </B.Td>
-          <B.Td>
+          <B.Td data-test-role-policies>
             <div class="tag-group">
               {{#each B.data.policies as |policy|}}
                 {{#if policy.name}}
@@ -76,6 +77,7 @@
             <B.Td>
               <Hds::Button @text="Delete" @size="small" @color="critical"
                 {{on "click" (perform this.deleteRole B.data)}}
+                data-test-delete-role
               />
             </B.Td>
           {{/if}}
