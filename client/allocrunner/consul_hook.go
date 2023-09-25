@@ -23,7 +23,7 @@ const (
 	// consulTokenFilePrefix is the begging of the name of the file holding the
 	// Consul SI token inside the task's secret directory. Full name of the file is
 	// always consulTokenFilePrefix_identityName
-	consulTokenFilePrefix = "consul_token_"
+	consulTokenFilePrefix = "nomad_consul_"
 
 	// consulTokenFilePerms is the level of file permissions granted on the file in
 	// the secrets directory for the task
@@ -79,51 +79,19 @@ func (h *consulHook) Prerun() error {
 
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
-			req := map[string]consul.JWTLoginRequest{}
-
-			// handle default identity
-			if task.Identity != nil {
-				ti := widmgr.TaskIdentity{
-					TaskName:     task.Name,
-					IdentityName: task.Identity.Name,
-				}
-
-				jwt, err := h.widmgr.Get(ti)
-				if err != nil {
-					mErr.Errors = append(mErr.Errors, err)
-					h.logger.Error("error getting signed identity", "error", err)
-					continue
-				}
-
-				req[task.Identity.Name] = consul.JWTLoginRequest{
-					JWT:            jwt.JWT,
-					AuthMethodName: h.authMethod,
-				}
+			req, err := h.prepareConsulClientReq(task)
+			if err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+				continue
 			}
 
-			// handle alt identities
-			for _, t := range task.Identities {
-				ti := widmgr.TaskIdentity{
-					TaskName:     task.Name,
-					IdentityName: t.Name,
-				}
-
-				jwt, err := h.widmgr.Get(ti)
-				if err != nil {
-					mErr.Errors = append(mErr.Errors, err)
-					h.logger.Error("error getting signed identity", "error", err)
-					continue
-				}
-
-				req[t.Name] = consul.JWTLoginRequest{
-					JWT:            jwt.JWT,
-					AuthMethodName: h.authMethod,
-				}
+			// in case no service needs a consul token in this task
+			if req == nil {
+				continue
 			}
 
 			// Consul auth
-			var err error
-			tokens, err = h.client.DeriveSITokenWithJWT(req)
+			tokens, err := h.client.DeriveSITokenWithJWT(req)
 			if err != nil {
 				h.logger.Error("error authenticating with Consul", "error", err)
 				return err
@@ -144,6 +112,42 @@ func (h *consulHook) Prerun() error {
 	h.hookResources.SetConsulTokens(tokens)
 
 	return mErr.ErrorOrNil()
+}
+
+func (h *consulHook) prepareConsulClientReq(task *structs.Task) (map[string]consul.JWTLoginRequest, error) {
+	req := map[string]consul.JWTLoginRequest{}
+
+	// see if maybe we can quit early
+	for _, s := range task.Services {
+		if !s.IsConsul() {
+			return nil, nil
+		}
+
+		if s.Identity == nil {
+			return nil, nil
+		}
+	}
+
+	// handle default identity
+	if task.Identity != nil {
+		ti := widmgr.TaskIdentity{
+			TaskName:     task.Name,
+			IdentityName: task.Identity.Name,
+		}
+
+		jwt, err := h.widmgr.Get(ti)
+		if err != nil {
+			h.logger.Error("error getting signed identity", "error", err)
+			return req, err
+		}
+
+		req[task.Identity.Name] = consul.JWTLoginRequest{
+			JWT:            jwt.JWT,
+			AuthMethodName: h.authMethod,
+		}
+	}
+
+	return req, nil
 }
 
 // Stop implements interfaces.TaskStopHook
