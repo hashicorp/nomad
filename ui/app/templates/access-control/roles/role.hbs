@@ -12,6 +12,7 @@
 		{{#if (can "destroy role")}}
       <Hds::Button @text="Delete Role" @color="critical"
         {{on "click" (perform this.deleteRole)}}
+        data-test-delete-role
       />
 		{{/if}}
 	</h1>

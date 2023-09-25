@@ -671,6 +671,17 @@ export default function () {
 
   this.delete('/acl/role/:id', function (schema, request) {
     const { id } = request.params;
+
+    // Also update any tokens whose policyIDs include this policy
+    console.log('alltok', server.schema.tokens);
+    const tokens =
+      server.schema.tokens.where((token) => token.roleIds?.includes(id)) || [];
+    tokens.models.forEach((token) => {
+      token.update({
+        roleIds: token.roleIds.filter((roleId) => roleId !== id),
+      });
+    });
+
     server.db.roles.remove(id);
     return '';
   });
@@ -684,12 +695,23 @@ export default function () {
 
     // Also update any tokens whose policyIDs include this policy
     const tokens =
-      server.schema.tokens.where((token) => token.policyIds.includes(id)) || [];
+      server.schema.tokens.where((token) => token.policyIds?.includes(id)) ||
+      [];
     tokens.models.forEach((token) => {
       token.update({
         policyIds: token.policyIds.filter((policyId) => policyId !== id),
       });
     });
+
+    // Also update any roles whose policyIDs include this policy
+    const roles =
+      server.schema.roles.where((role) => role.policyIds?.includes(id)) || [];
+    roles.models.forEach((role) => {
+      role.update({
+        policyIds: role.policyIds.filter((policyId) => policyId !== id),
+      });
+    });
+
     server.db.policies.remove(id);
 
     return '';

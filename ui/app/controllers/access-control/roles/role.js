@@ -54,7 +54,7 @@ export default class AccessControlRolesRoleController extends Controller {
 
   @task(function* () {
     try {
-      const newToken = this.astore.createRecord('token', {
+      const newToken = this.store.createRecord('token', {
         name: `Example Token for ${this.role.name}`,
         roles: [this.role],
         // New date 10 minutes into the future

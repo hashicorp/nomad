@@ -123,9 +123,42 @@ module('Acceptance | roles', function (hooks) {
 
   test('Edit Role: Policies', async function (assert) {
     const role = server.db.roles.findBy((r) => r.name === 'reader');
-    console.log('role', role);
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+
+    // Policies table is sortable
+
+    const nameCells = findAll('[data-test-policy-name]');
+    const nameCellText = nameCells.map((cell) => cell.textContent.trim());
+    const sortedNameCellText = nameCellText.slice().sort();
+    assert.deepEqual(
+      nameCellText,
+      sortedNameCellText,
+      'Policy names are sorted alphabetically'
+    );
+
+    // Click on the second thead tr th to reverse
+    assert
+      .dom('table[data-test-role-policies] thead tr th:nth-child(2)')
+      .hasAttribute('aria-sort', 'ascending');
+    // await click('table[data-test-role-policies] thead tr th:nth-child(2)');
+    // above didnt work, another way?
+    await click('[data-test-role-policies] thead tr th:nth-child(2) button');
+    assert
+      .dom('table[data-test-role-policies] thead tr th:nth-child(2)')
+      .hasAttribute('aria-sort', 'descending');
+
+    const reversedNameCells = findAll('[data-test-policy-name]');
+    const reversedNameCellText = reversedNameCells.map((cell) =>
+      cell.textContent.trim()
+    );
+    const reversedSortedNameCellText = nameCellText.slice().sort().reverse();
+
+    assert.deepEqual(
+      reversedNameCellText,
+      reversedSortedNameCellText,
+      'Names are reversed alphabetically after click'
+    );
 
     // Make sure the correct policies are checked
     const rolePolicies = role.policyIds;
@@ -184,5 +217,83 @@ module('Acceptance | roles', function (hooks) {
       allPolicies.length,
       'all policies are attached to the role at index level'
     );
+  });
+
+  test('Edit Role: Tokens', async function (assert) {
+    const role = server.db.roles.findBy((r) => r.name === 'reader');
+
+    await click('[data-test-role-name="reader"] a');
+    assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+    assert.dom('table.tokens').exists();
+
+    // "Reader" role has a single token with it applied by default
+    assert.dom('[data-test-role-token-row]').exists({ count: 1 });
+
+    // Delete it; should get a nice No Tokens message
+    await click('[data-test-delete-token-button]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert.dom('[data-test-role-token-row]').doesNotExist();
+    assert.dom('[data-test-empty-role-list-headline]').exists();
+    // Create two test tokens
+    await click('[data-test-create-test-token]');
+    assert.dom('[data-test-empty-role-list-headline]').doesNotExist();
+    await click('[data-test-create-test-token]');
+    assert
+      .dom('[data-test-role-token-row]')
+      .exists({ count: 2 }, 'Test tokens are included on the page');
+    assert
+      .dom('[data-test-role-token-row]:last-child [data-test-token-name]')
+      .hasText(`Example Token for ${role.name}`);
+
+    await percySnapshot(assert);
+
+    await AccessControl.visitTokens();
+    assert
+      .dom('[data-test-token-name="Example Token for reader"]')
+      .exists(
+        { count: 2 },
+        'The two newly-created tokens are listed on the tokens index page'
+      );
+  });
+  test('Edit Role: Deletion', async function (assert) {
+    const role = server.db.roles.findBy((r) => r.name === 'reader');
+    await click('[data-test-role-name="reader"] a');
+    assert.equal(currentURL(), `/access-control/roles/${role.id}`);
+    await click('[data-test-delete-role]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert.equal(currentURL(), '/access-control/roles');
+    assert.dom('[data-test-role-row="reader"]').doesNotExist();
+  });
+  test('New Role', async function (assert) {
+    await click('[data-test-create-role]');
+    assert.equal(currentURL(), '/access-control/roles/new');
+    await fillIn('[data-test-role-name-input]', 'test-role');
+    await click('button[data-test-save-role]');
+    assert
+      .dom('.flash-message.alert-critical')
+      .exists('Cannnot save with no policies selected');
+
+    // Select a policy
+    await click('[data-test-role-policies] tbody tr input');
+    await click('button[data-test-save-role]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert.equal(currentURL(), '/access-control/roles/1'); // default id created via mirage
+    await AccessControl.visitRoles();
+    assert.dom('[data-test-role-row="test-role"]').exists();
+
+    // Now, try deleting all policies then doing this again. There'll be a warning on the roles/new page.
+    await AccessControl.visitPolicies();
+    const policyRows = findAll('[data-test-policy-row]');
+    for (const row of policyRows) {
+      const deleteButton = row.querySelector('[data-test-delete-policy]');
+      await click(deleteButton);
+    }
+    assert.dom('[data-test-empty-policies-list-headline]').exists();
+    await AccessControl.visitRoles();
+    await click('[data-test-create-role]');
+    assert.dom('.empty-message').exists();
+    assert
+      .dom('.empty-message-body')
+      .containsText('At least one Policy is required to create a Role');
   });
 });

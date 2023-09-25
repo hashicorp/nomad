@@ -66,6 +66,7 @@
             <B.Td>
               <Hds::Button @text="Delete" @size="small" @color="critical"
                 {{on "click" (perform this.deletePolicy B.data)}}
+                data-test-delete-policy
               />
             </B.Td>
           {{/if}}
