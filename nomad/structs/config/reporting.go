@@ -38,10 +38,6 @@ func (lc *LicenseConfig) Merge(b *LicenseConfig) *LicenseConfig {
 	return &result
 }
 
-//func (lc *LicenseConfig) IsEmpty() bool {
-//	return (LicenseConfig{}) == *lc
-//}
-
 type Reporting struct {
 	License *LicenseConfig `hcl:"license,block"`
 }

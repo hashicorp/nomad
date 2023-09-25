@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,7 +62,6 @@ func TestPluginConfig_Merge(t *testing.T) {
 
 func TestPluginConfigSet_Merge(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	a := &PluginConfig{
 		Name: "a",
@@ -101,5 +101,5 @@ func TestPluginConfigSet_Merge(t *testing.T) {
 	})
 
 	expected := []*PluginConfig{a, b2, c}
-	require.EqualValues(expected, out)
+	must.Eq(t, expected, out)
 }
