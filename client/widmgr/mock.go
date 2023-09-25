@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
-
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -91,3 +90,31 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 	}
 	return swids, nil
 }
+
+// MockWIDMgr mocks IdentityManager interface allowing to only get identities
+// signed by the mock signer.
+type MockWIDMgr struct {
+	swids map[TaskIdentity]*structs.SignedWorkloadIdentity
+}
+
+func NewMockWIDMgr(swids map[TaskIdentity]*structs.SignedWorkloadIdentity) *MockWIDMgr {
+	return &MockWIDMgr{swids: swids}
+}
+
+// Run does not run a renewal loop in this mock
+func (m MockWIDMgr) Run() error { return nil }
+
+func (m MockWIDMgr) Get(identity TaskIdentity) (*structs.SignedWorkloadIdentity, error) {
+	sid, ok := m.swids[identity]
+	if !ok {
+		return nil, fmt.Errorf("identity not found")
+	}
+	return sid, nil
+}
+
+// Watch does not do anything, this mock doesn't support watching.
+func (m MockWIDMgr) Watch(identity TaskIdentity) (<-chan *structs.SignedWorkloadIdentity, func()) {
+	return nil, nil
+}
+
+func (m MockWIDMgr) Shutdown() {}
