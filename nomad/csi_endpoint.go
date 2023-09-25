@@ -225,7 +225,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	return v.srv.blockingRPC(&opts)
 }
 
-func (v *CSIVolume) pluginValidateVolume(req *structs.CSIVolumeRegisterRequest, vol *structs.CSIVolume) (*structs.CSIPlugin, error) {
+func (v *CSIVolume) pluginValidateVolume(vol *structs.CSIVolume) (*structs.CSIPlugin, error) {
 	state := v.srv.fsm.State()
 
 	plugin, err := state.CSIPluginByID(nil, vol.PluginID)
@@ -234,6 +234,10 @@ func (v *CSIVolume) pluginValidateVolume(req *structs.CSIVolumeRegisterRequest, 
 	}
 	if plugin == nil {
 		return nil, fmt.Errorf("no CSI plugin named: %s could be found", vol.PluginID)
+	}
+
+	if plugin.ControllerRequired && plugin.ControllersHealthy < 1 {
+		return nil, fmt.Errorf("no healthy controllers for CSI plugin: %s", vol.PluginID)
 	}
 
 	vol.Provider = plugin.Provider
@@ -322,6 +326,11 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 			return err
 		}
 
+		plugin, err := v.pluginValidateVolume(vol)
+		if err != nil {
+			return err
+		}
+
 		// CSIVolume has many user-defined fields which are immutable
 		// once set, and many fields that are controlled by Nomad and
 		// are not user-settable. We merge onto a copy of the existing
@@ -346,10 +355,6 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 			}
 		}
 
-		plugin, err := v.pluginValidateVolume(args, vol)
-		if err != nil {
-			return err
-		}
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
 		}
@@ -1033,7 +1038,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		if err = vol.Validate(); err != nil {
 			return err
 		}
-		plugin, err := v.pluginValidateVolume(regArgs, vol)
+		plugin, err := v.pluginValidateVolume(vol)
 		if err != nil {
 			return err
 		}
