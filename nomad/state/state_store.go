@@ -2275,7 +2275,6 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 				old.Provider != v.Provider {
 				return fmt.Errorf("volume identity cannot be updated: %s", v.ID)
 			}
-			s.CSIVolumeDenormalize(nil, old.Copy())
 			if old.InUse() {
 				return fmt.Errorf("volume cannot be updated while in use")
 			}
