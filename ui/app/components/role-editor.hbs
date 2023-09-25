@@ -22,7 +22,7 @@
 				Description (optional)
 			</span>
 			<Input
-				data-test-role-description
+				data-test-role-description-input
 				@value={{@role.description}}
 				class="input"
 			/>
@@ -42,6 +42,7 @@
 				(hash key="definition" label="View Policy Definition")
       }}
       @sortBy="name"
+			data-test-role-policies
     >
       <:body as |B|>
         <B.Tr>
@@ -53,7 +54,7 @@
 							/>
 						</label>
 					</B.Td>
-          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
           <B.Td>{{B.data.description}}</B.Td>
 					<B.Td>
 						<LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
@@ -69,6 +70,7 @@
 		{{#if (can "update role")}}
       <Hds::Button @text="Save Role" @color="primary"
         {{on "click" this.save}}
+				data-test-save-role
       />
 		{{/if}}
 	</footer>

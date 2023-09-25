@@ -654,6 +654,21 @@ export default function () {
     });
   });
 
+  this.put('/acl/role/:id', function (schema, request) {
+    const { Policies } = JSON.parse(request.requestBody);
+    if (!Policies.length) {
+      return new Response(500, {}, 'Policies must be specified');
+    }
+    return new Response(
+      200,
+      {},
+      {
+        id: request.params.id,
+        Policies,
+      }
+    );
+  });
+
   this.delete('/acl/role/:id', function (schema, request) {
     const { id } = request.params;
     server.db.roles.remove(id);

@@ -52,9 +52,9 @@
           }}
           data-test-role-row={{B.data.name}}
         >
-          <B.Td>
+          <B.Td data-test-role-name={{B.data.name}}>
             <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>{{B.data.name}}</LinkTo></B.Td>
-          <B.Td>{{B.data.description}}</B.Td>
+          <B.Td data-test-role-description>{{B.data.description}}</B.Td>
           <B.Td>
             <span data-test-role-total-tokens>{{B.data.tokens.length}}</span>
             {{#if (filter-by "isExpired" B.data.tokens)}}
