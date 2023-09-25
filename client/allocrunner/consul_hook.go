@@ -86,7 +86,7 @@ func (h *consulHook) Prerun() error {
 			}
 
 			// in case no service needs a consul token in this task
-			if req == nil {
+			if len(req) == 0 {
 				continue
 			}
 
@@ -118,13 +118,16 @@ func (h *consulHook) prepareConsulClientReq(task *structs.Task) (map[string]cons
 	req := map[string]consul.JWTLoginRequest{}
 
 	// see if maybe we can quit early
+	if task.Services == nil {
+		return req, nil
+	}
 	for _, s := range task.Services {
 		if !s.IsConsul() {
-			return nil, nil
+			return req, nil
 		}
 
 		if s.Identity == nil {
-			return nil, nil
+			return req, nil
 		}
 	}
 
