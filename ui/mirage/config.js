@@ -484,12 +484,38 @@ export default function () {
   });
 
   this.post('/acl/token', function (schema, request) {
-    const { Name, Policies, Type } = JSON.parse(request.requestBody);
+    const { Name, Policies, Type, ExpirationTTL, ExpirationTime } = JSON.parse(
+      request.requestBody
+    );
+
+    function parseDuration(duration) {
+      const [_, value, unit] = duration.match(/(\d+)(\w)/);
+      const unitMap = {
+        s: 1000,
+        m: 1000 * 60,
+        h: 1000 * 60 * 60,
+        d: 1000 * 60 * 60 * 24,
+      };
+      return value * unitMap[unit];
+    }
+    // const expirationTime = ExpirationTTL
+    //   ? new Date(Date.now() + parseDuration(ExpirationTTL))
+    //   : null;
+
+    // If there's an expirationTime, use that. Otherwise, use the TTL.
+    const expirationTime = ExpirationTime
+      ? new Date(ExpirationTime)
+      : ExpirationTTL
+      ? new Date(Date.now() + parseDuration(ExpirationTTL))
+      : null;
+    console.log('finally', expirationTime, ExpirationTime, ExpirationTTL);
+
     return server.create('token', {
       name: Name,
       policyIds: Policies,
       type: Type,
       id: faker.random.uuid(),
+      expirationTime,
       createTime: new Date().toISOString(),
     });
   });

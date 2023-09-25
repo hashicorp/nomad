@@ -1207,5 +1207,73 @@ module('Acceptance | tokens', function (hooks) {
       await AccessControl.visitTokens();
       assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();
     });
+    test('New Token creation', async function (assert) {
+      await click('[data-test-create-token]');
+      assert.equal(currentURL(), '/access-control/tokens/new');
+      await fillIn('[data-test-token-name-input]', 'Timeless Token');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert
+        .dom('[data-test-token-name="Timeless Token"]')
+        .exists({ count: 1 });
+      const newTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
+        row.textContent.includes('Timeless Token')
+      );
+      const newTokenExpirationCell = newTokenRow.querySelector(
+        '[data-test-token-expiration-time]'
+      );
+      assert.dom(newTokenExpirationCell).hasText('Never');
+
+      // Now create one with a TTL
+      await click('[data-test-create-token]');
+      assert.equal(currentURL(), '/access-control/tokens/new');
+      await fillIn('[data-test-token-name-input]', 'TTL Token');
+      // Select the "8 hours" radio within the .expiration-time div
+      await click('.expiration-time input[value="8h"]');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert.dom('[data-test-token-name="TTL Token"]').exists({ count: 1 });
+      const ttlTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
+        row.textContent.includes('TTL Token')
+      );
+      const ttlTokenExpirationCell = ttlTokenRow.querySelector(
+        '[data-test-token-expiration-time]'
+      );
+      assert.dom(ttlTokenExpirationCell).hasText('in 8 hours');
+
+      // Now create one with an expiration time
+      await click('[data-test-create-token]');
+      assert.equal(currentURL(), '/access-control/tokens/new');
+      await fillIn('[data-test-token-name-input]', 'Expiring Token');
+      // select the Custom radio button
+      await click('.expiration-time input[value="custom"]');
+      assert
+        .dom('[data-test-token-expiration-time-input]')
+        .exists('HTML datetime-local picker exists');
+      await percySnapshot(assert);
+      // select a date/time for 100 minutes into the future in GMT
+      const soon = new Date();
+      soon.setMinutes(soon.getMinutes() + 100);
+      var tzoffset = new Date().getTimezoneOffset() * 60000; //offset in milliseconds
+      var soonString = new Date(soon - tzoffset).toISOString().slice(0, -1);
+      await fillIn('[data-test-token-expiration-time-input]', soonString);
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert
+        .dom('[data-test-token-name="Expiring Token"]')
+        .exists({ count: 1 });
+      const expiringTokenRow = [...findAll('[data-test-token-row]')].find(
+        (row) => row.textContent.includes('Expiring Token')
+      );
+      const expiringTokenExpirationCell = expiringTokenRow.querySelector(
+        '[data-test-token-expiration-time]'
+      );
+      assert
+        .dom(expiringTokenExpirationCell)
+        .hasText('in 2 hours', 'Expiration time is relativized and rounded');
+    });
   });
 });

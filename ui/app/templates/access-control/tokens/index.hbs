@@ -72,7 +72,7 @@
                 <span data-test-token-expiration-time class="{{if B.data.isExpired "has-text-danger"}}">{{moment-from-now B.data.expirationTime interval=1000}}</span>
               </Tooltip>
             {{else}}
-              <span class="has-text-grey">Never</span>
+              <span data-test-token-expiration-time>Never</span>
             {{/if}}
           </B.Td>
 

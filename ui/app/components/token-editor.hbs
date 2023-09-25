@@ -59,6 +59,7 @@
 
     {{#if @token.expirationTime}}
       <Hds::Form::TextInput::Field
+        data-test-token-expiration-time-input
         @type="datetime-local"
         @id="token-expiration-time"
         {{on "change" this.updateTokenExpirationTime}}>
