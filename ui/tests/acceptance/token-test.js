@@ -649,7 +649,15 @@ module('Acceptance | tokens', function (hooks) {
         { count: expectedFirstPolicyTokens.length },
         'Expected number of tokens are shown'
       );
-    assert.dom('[data-test-token-expiration-time]').hasText('10 minutes ago');
+
+    const expiredTokenRow = [...findAll('[data-test-policy-token-row]')].find(
+      (a) => a.textContent.includes('Expired Token')
+    );
+
+    assert.dom(expiredTokenRow).exists();
+    assert
+      .dom(expiredTokenRow.querySelector('[data-test-token-expiration-time]'))
+      .hasText('10 minutes ago');
 
     window.localStorage.nomadTokenSecret = null;
   });
