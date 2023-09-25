@@ -4,7 +4,14 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, find, findAll, visit, click } from '@ember/test-helpers';
+import {
+  currentURL,
+  find,
+  findAll,
+  visit,
+  click,
+  fillIn,
+} from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -1029,8 +1036,9 @@ module('Acceptance | tokens', function (hooks) {
       assert.equal(rolesCellTags2.length, 1);
       assert.equal(policiesCellTags2.length, 0);
     });
+
     test('Token page, general', async function (assert) {
-      const token = server.db.tokens.findBy((t) => t.type === 'client');
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
       console.log('tokenAccessor', token, token.accessorId);
       await visit(`/access-control/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
@@ -1039,7 +1047,7 @@ module('Acceptance | tokens', function (hooks) {
       assert.dom('[data-test-token-type="client"]').isChecked();
       assert.dom('[data-test-token-type="management"]').isNotChecked();
 
-      assert.dom('.expiration-time').hasText('Token never expires');
+      assert.dom('.expiration-time').hasText('Token expires in an hour');
 
       assert.dom('[data-test-token-roles]').exists();
       assert.dom('[data-test-token-policies]').exists();
@@ -1054,9 +1062,7 @@ module('Acceptance | tokens', function (hooks) {
       );
 
       // The policies/roles belonging to this token are checked
-      const tokenPolicies = server.db.tokens.findBy(
-        (t) => t.type === 'client'
-      ).policyIds;
+      const tokenPolicies = token.policyIds;
 
       const checkedPolicyRows = findAll(
         '[data-test-token-policies] tbody tr input:checked'
@@ -1084,9 +1090,7 @@ module('Acceptance | tokens', function (hooks) {
       const allRoleRows = findAll('[data-test-token-roles] tbody tr');
       assert.equal(allRoleRows.length, allRoles.length, 'All roles are shown');
 
-      const tokenRoles = server.db.tokens.findBy(
-        (t) => t.type === 'client'
-      ).roleIds;
+      const tokenRoles = token.roleIds;
 
       const checkedRoleRows = findAll(
         '[data-test-token-roles] tbody tr input:checked'
@@ -1110,6 +1114,98 @@ module('Acceptance | tokens', function (hooks) {
         tokenRoles.sort(),
         'All roles belonging to this token are checked'
       );
+    });
+    test('Token name can be edited', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+      assert.dom('[data-test-token-name-input]').hasValue(token.name);
+      await fillIn('[data-test-token-name-input]', 'Mud-Token');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
+    });
+
+    test('Token policies and roles can be edited', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+
+      // The policies/roles belonging to this token are checked
+      const tokenPolicies = token.policyIds;
+
+      const checkedPolicyRows = findAll(
+        '[data-test-token-policies] tbody tr input:checked'
+      );
+
+      assert.equal(
+        checkedPolicyRows.length,
+        tokenPolicies.length,
+        'All policies belonging to this token are checked'
+      );
+
+      const checkedPolicyNames = checkedPolicyRows.map((row) =>
+        row
+          .closest('tr')
+          .querySelector('[data-test-policy-name]')
+          .textContent.trim()
+      );
+      assert.deepEqual(
+        checkedPolicyNames.sort(),
+        tokenPolicies.sort(),
+        'All policies belonging to this token are checked'
+      );
+
+      // Try unchecking ALL checked roles and policies and saving
+      // First, find all checked ones
+      const checkedPolicies = findAll(
+        '[data-test-token-policies] tbody tr input:checked'
+      );
+      const checkedRoles = findAll(
+        '[data-test-token-roles] tbody tr input:checked'
+      );
+      // Then uncheck them
+      checkedPolicies.forEach((policy) => {
+        policy.click();
+      });
+      checkedRoles.forEach((role) => {
+        role.click();
+      });
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-critical').exists();
+
+      // Try selecting a single role
+      await click('[data-test-token-roles] tbody tr input');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+
+      await percySnapshot(assert);
+
+      await AccessControl.visitTokens();
+      // Policies cell for our clay token should read "No Policies"
+      const clayToken = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      const clayTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
+        row.textContent.includes(clayToken.name)
+      );
+      const policiesCell = clayTokenRow.querySelector(
+        '[data-test-token-policies]'
+      );
+      assert.dom(policiesCell).exists();
+      assert.dom(policiesCell).hasText('No Policies');
+
+      // Roles cell should have 1 tag
+      const rolesCell = clayTokenRow.querySelector('[data-test-token-roles]');
+      const rolesCellTags = rolesCell
+        .querySelector('.tag-group')
+        .querySelectorAll('span');
+      assert.equal(rolesCellTags.length, 1);
+    });
+    test('Token can be deleted', async function (assert) {
+      const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
+      await visit(`/access-control/tokens/${token.id}`);
+      await click('[data-test-delete-token]');
+      assert.dom('.flash-message.alert-success').exists();
+      await AccessControl.visitTokens();
+      assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();
     });
   });
 });

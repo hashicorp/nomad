@@ -12,6 +12,7 @@
 		{{#if (can "destroy token")}}
       <Hds::Button @text="Delete Token" @color="critical"
         {{on "click" (perform this.deleteToken)}}
+        data-test-delete-token
       />
 		{{/if}}
 	</h1>

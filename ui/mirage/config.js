@@ -495,7 +495,24 @@ export default function () {
   });
 
   this.post('/acl/token/:id', function (schema, request) {
-    return new Response(200, {}, {});
+    // If both Policies and Roles arrays are empty, return an error
+    const { Policies, Roles } = JSON.parse(request.requestBody);
+    if (!Policies.length && !Roles.length) {
+      return new Response(
+        500,
+        {},
+        'Either Policies or Roles must be specified'
+      );
+    }
+    return new Response(
+      200,
+      {},
+      {
+        id: request.params.id,
+        Policies,
+        Roles,
+      }
+    );
   });
 
   this.get('/acl/token/self', function ({ tokens }, req) {

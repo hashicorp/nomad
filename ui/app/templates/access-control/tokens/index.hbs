@@ -55,7 +55,7 @@
           }}
           data-test-token-row
         >
-          <B.Td data-test-token-name>
+          <B.Td data-test-token-name={{B.data.name}}>
             {{#if (eq B.data.id this.selfToken.id)}}
               <strong>{{B.data.name}}</strong>
             {{else}}

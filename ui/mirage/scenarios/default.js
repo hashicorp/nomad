@@ -731,6 +731,16 @@ function rolesTestCluster(server) {
     roleIds: [denierRole.id],
   });
 
+  // malleable test token
+  server.create('token', {
+    name: 'Clay-Token',
+    id: 'cl4y-t0k3n',
+    type: 'client',
+    policyIds: [clientReaderPolicy.id, operatorPolicy.id],
+    roleIds: [editorRole.id],
+    expirationTime: new Date(new Date().getTime() + 60 * 60 * 1000),
+  });
+
   logTokens(server);
 
   server.create('auth-method', { name: 'vault' });

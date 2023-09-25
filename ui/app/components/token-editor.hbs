@@ -229,6 +229,7 @@
 	<footer>
 		{{#if (can "update token")}}
       <Hds::Button @text="Save Token" @color="primary"
+        data-test-token-save
         {{on "click" this.save}}
       />
 		{{/if}}
