@@ -4,14 +4,7 @@
  */
 
 import { module, test } from 'qunit';
-import {
-  visit,
-  findAll,
-  fillIn,
-  find,
-  click,
-  currentURL,
-} from '@ember/test-helpers';
+import { findAll, fillIn, find, click, currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -19,7 +12,6 @@ import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import AccessControl from 'nomad-ui/tests/pages/access-control';
 import percySnapshot from '@percy/ember';
-import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | roles', function (hooks) {
   setupApplicationTest(hooks);
@@ -49,7 +41,9 @@ module('Acceptance | roles', function (hooks) {
 
     assert.equal(currentURL(), '/access-control/roles');
 
-    assert.dom('[data-test-role-row').exists({ count: server.db.roles.length });
+    assert
+      .dom('[data-test-role-row]')
+      .exists({ count: server.db.roles.length });
 
     await percySnapshot(assert);
   });
@@ -89,6 +83,7 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Edit Role: Name and Description', async function (assert) {
+    assert.expect(8);
     const role = server.db.roles.findBy((r) => r.name === 'reader');
     await click('[data-test-role-name="reader"] a');
     assert.equal(currentURL(), `/access-control/roles/${role.id}`);
@@ -220,6 +215,7 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Edit Role: Tokens', async function (assert) {
+    assert.expect(10);
     const role = server.db.roles.findBy((r) => r.name === 'reader');
 
     await click('[data-test-role-name="reader"] a');

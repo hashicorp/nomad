@@ -83,7 +83,7 @@
         </t.head>
         <t.body as |row|>
           <tr data-test-policy-token-row>
-            <td data-test-token-name>
+            <td data-test-token-name={{row.model.name}}>
               <Tooltip @text={{row.model.id}}>
                 {{row.model.name}}
               </Tooltip>

@@ -64,6 +64,31 @@ module('Acceptance | policies', function (hooks) {
     window.localStorage.nomadTokenSecret = null;
   });
 
+  test('Creating a test token', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/access-control/policies');
+    await click('[data-test-policy-name="Variable-Maker"]');
+    assert.equal(currentURL(), '/access-control/policies/Variable-Maker');
+    await click('[data-test-create-test-token]');
+    assert.dom('.flash-message.alert-success').exists();
+    assert
+      .dom('[data-test-token-name="Example Token for Variable-Maker"]')
+      .exists('Test token is created and visible');
+    const newTokenRow = [
+      ...findAll('[data-test-token-name="Example Token for Variable-Maker"]'),
+    ][0].parentElement;
+    const newTokenDeleteButton = newTokenRow.querySelector(
+      '[data-test-delete-token-button]'
+    );
+    await click(newTokenDeleteButton);
+    assert
+      .dom('[data-test-token-name="Example Token for Variable-Maker"]')
+      .doesNotExist('Token is deleted');
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
+  });
+
   test('Creating a new policy', async function (assert) {
     assert.expect(7);
     allScenarios.policiesTestCluster(server);
@@ -116,6 +141,28 @@ module('Acceptance | policies', function (hooks) {
     assert.dom('.flash-message.alert-success').exists();
     assert.equal(currentURL(), '/access-control/policies');
     assert.dom(`[data-test-policy-name="${firstPolicyName}"]`).doesNotExist();
+    // Reset Token
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('Policies Index', async function (assert) {
+    allScenarios.policiesTestCluster(server);
+    window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
+    await visit('/access-control/policies');
+    // Table contains every policy in db
+    assert
+      .dom('[data-test-policy-row]')
+      .exists({ count: server.db.policies.length });
+
+    assert.dom('[data-test-empty-policies-list-headline]').doesNotExist();
+
+    // Deleting all policies results in a message
+    const policyRows = findAll('[data-test-policy-row]');
+    for (const row of policyRows) {
+      const deleteButton = row.querySelector('[data-test-delete-policy]');
+      await click(deleteButton);
+    }
+    assert.dom('[data-test-empty-policies-list-headline]').exists();
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
