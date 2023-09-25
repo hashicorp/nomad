@@ -88,7 +88,11 @@
                     <Hds::Tag @color="primary" @text="{{role.name}}" @route="access-control.roles.role" @model="{{role.id}}" />
                   {{/if}}
                 {{else}}
-                  No Roles
+                  {{#if (eq B.data.type "management")}}
+                    Management Access
+                  {{else}}
+                    No Roles
+                  {{/if}}
                 {{/each}}
               </div>
             </B.Td>
@@ -107,7 +111,11 @@
                     {{/if}}
                   {{/let}}
                 {{else}}
-                  No Policies
+                  {{#if (eq B.data.type "management")}}
+                    Management Access
+                  {{else}}
+                    No Policies
+                  {{/if}}
                 {{/each}}
               </div>
             </B.Td>

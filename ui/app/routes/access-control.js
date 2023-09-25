@@ -18,17 +18,18 @@ export default class AccessControlRoute extends Route.extend(
   @service router;
 
   beforeModel() {
-    // TODO: policy listing is currently selfTokenIsManagement dependent.
-    // If this should ever change and become its own ACL permission, we should
-    // expand this to include roles and tokens checks as well. Otherwise, they're
-    // all the same permission.
-    if (this.can.cannot('list policies')) {
+    if (
+      this.can.cannot('list policies') ||
+      this.can.cannot('list roles') ||
+      this.can.cannot('list tokens')
+    ) {
       this.router.transitionTo('/jobs');
     }
   }
 
   // Load our tokens, roles, and policies
   model() {
+    console;
     return RSVP.hash({
       tokens: this.store.findAll('token'),
       roles: this.store.findAll('role'),
