@@ -278,8 +278,10 @@ $ curl \
 ## Register Volume
 
 This endpoint registers an external volume with Nomad. The volume must exist
-in the external storage provider (see [Create Volume] below). It is an error
-to register an already registered volume.
+in the external storage provider (see [Create Volume] below).
+
+Making the same request again with a higher `RequestedCapacityMin` value
+may trigger a [Volume Expansion][].
 
 | Method | Path                        | Produces           |
 | ------ | --------------------------- | ------------------ |
@@ -344,9 +346,12 @@ $ curl \
 ## Create Volume
 
 This endpoint creates a volume in an external storage provider and registers
-it with Nomad. It is an error to create an already-registered volume. Only CSI
-plugins that implement the [Controller][csi_plugins_internals] interface with
-the `CREATE_DELETE_VOLUME` capability support this endpoint.
+it with Nomad. Only CSI plugins that implement the
+[Controller][csi_plugins_internals] interface with the `CREATE_DELETE_VOLUME`
+capability support this endpoint.
+
+Making the same request again with a higher `RequestedCapacityMin` value
+may trigger a [Volume Expansion][].
 
 | Method | Path                               | Produces           |
 | ------ | ---------------------------------- | ------------------ |
@@ -781,3 +786,4 @@ $ curl \
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
 [csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
 [Create Volume]: #create-volume
+[Volume Expansion]: /nomad/docs/other-specifications/volume#volume-expansion

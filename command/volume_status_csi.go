@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 )
 
@@ -218,6 +219,7 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 		fmt.Sprintf("Plugin ID|%s", vol.PluginID),
 		fmt.Sprintf("Provider|%s", vol.Provider),
 		fmt.Sprintf("Version|%s", vol.ProviderVersion),
+		fmt.Sprintf("Capacity|%s", humanize.IBytes(uint64(vol.Capacity))),
 		fmt.Sprintf("Schedulable|%t", vol.Schedulable),
 		fmt.Sprintf("Controllers Healthy|%d", vol.ControllersHealthy),
 		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),
