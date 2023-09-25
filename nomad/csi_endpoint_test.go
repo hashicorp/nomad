@@ -122,6 +122,83 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 	require.Equal(t, vols[0].ID, resp.Volume.ID)
 }
 
+func TestCSIVolume_pluginValidateVolume(t *testing.T) {
+	// bare minimum server for this method
+	store := state.TestStateStore(t)
+	srv := &Server{
+		fsm: &nomadFSM{state: store},
+	}
+	// has our method under test
+	csiVolume := &CSIVolume{srv: srv}
+	// volume for which we will request a valid plugin
+	vol := &structs.CSIVolume{PluginID: "neat-plugin"}
+
+	// plugin not found
+	got, err := csiVolume.pluginValidateVolume(vol)
+	must.Nil(t, got, must.Sprint("nonexistent plugin should be nil"))
+	must.ErrorContains(t, err, "no CSI plugin named")
+
+	// we'll upsert this plugin after optionally modifying it
+	basePlug := &structs.CSIPlugin{
+		ID: vol.PluginID,
+		// these should be set on the volume after success
+		Provider: "neat-provider",
+		Version:  "v0",
+		// explicit zero values, because these modify behavior we care about
+		ControllerRequired: false,
+		ControllersHealthy: 0,
+	}
+
+	cases := []struct {
+		name         string
+		updatePlugin func(*structs.CSIPlugin)
+		expectErr    string
+	}{
+		{
+			name: "controller not required",
+		},
+		{
+			name: "controller unhealthy",
+			updatePlugin: func(p *structs.CSIPlugin) {
+				p.ControllerRequired = true
+			},
+			expectErr: "no healthy controllers",
+		},
+		{
+			name: "controller healthy",
+			updatePlugin: func(p *structs.CSIPlugin) {
+				p.ControllerRequired = true
+				p.ControllersHealthy = 1
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			vol := vol.Copy()
+			plug := basePlug.Copy()
+
+			if tc.updatePlugin != nil {
+				tc.updatePlugin(plug)
+			}
+			must.NoError(t, store.UpsertCSIPlugin(1000, plug))
+
+			got, err := csiVolume.pluginValidateVolume(vol)
+
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.NotNil(t, got, must.Sprint("plugin should not be nil"))
+				must.Eq(t, vol.Provider, plug.Provider)
+				must.Eq(t, vol.ProviderVersion, plug.Version)
+			} else {
+				must.Error(t, err, must.Sprint("expect error:", tc.expectErr))
+				must.ErrorContains(t, err, tc.expectErr)
+				must.Nil(t, got, must.Sprint("plugin should be nil"))
+			}
+		})
+	}
+}
+
 func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	ci.Parallel(t)
 	srv, shutdown := TestServer(t, func(c *Config) {

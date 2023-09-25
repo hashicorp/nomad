@@ -1,0 +1,3 @@
+```release-note:bug
+csi: check controller plugin health early during volume register/create
+```
