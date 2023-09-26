@@ -7,7 +7,7 @@ vault {
   token   = "abracadabra"
 }
 
-# this alternate config should be added as an extra vault config
+# these alternate configs should be added as an extra vault configs
 vault {
   name                  = "alternate"
   address               = "127.0.0.1:9501"
@@ -22,4 +22,14 @@ vault {
   tls_server_name       = "barbaz"
   tls_skip_verify       = true
   create_from_role      = "test_role2"
+}
+
+vault {
+  name    = "other"
+  address = "127.0.0.1:9502"
+
+  default_identity {
+    aud = ["vault-other.io"]
+    ttl = "4h"
+  }
 }

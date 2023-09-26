@@ -1081,13 +1081,18 @@ func TestConfig_MultipleVault(t *testing.T) {
 	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
 	must.Eq(t, "abracadabra", cfg.Vault.Token)
 
-	must.MapLen(t, 2, cfg.Vaults)
+	must.MapLen(t, 3, cfg.Vaults)
 	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
 
 	must.Eq(t, "alternate", cfg.Vaults["alternate"].Name)
 	must.True(t, *cfg.Vaults["alternate"].Enabled)
 	must.Eq(t, "127.0.0.1:9501", cfg.Vaults["alternate"].Addr)
 	must.Eq(t, "xyzzy", cfg.Vaults["alternate"].Token)
+
+	must.Eq(t, "other", cfg.Vaults["other"].Name)
+	must.Nil(t, cfg.Vaults["other"].Enabled)
+	must.Eq(t, "127.0.0.1:9502", cfg.Vaults["other"].Addr)
+	must.Eq(t, pointer.Of(4*time.Hour), cfg.Vaults["other"].DefaultIdentity.TTL)
 }
 
 func TestConfig_MultipleConsul(t *testing.T) {
@@ -1128,11 +1133,15 @@ func TestConfig_MultipleConsul(t *testing.T) {
 	must.Eq(t, "127.0.0.1:9501", cfg.Consul.Addr)
 	must.Eq(t, "abracadabra", cfg.Consul.Token)
 
-	must.MapLen(t, 2, cfg.Consuls)
+	must.MapLen(t, 3, cfg.Consuls)
 	must.Eq(t, cfg.Consul, cfg.Consuls["default"])
 
 	must.Eq(t, "alternate", cfg.Consuls["alternate"].Name)
 	must.True(t, *cfg.Consuls["alternate"].AllowUnauthenticated)
 	must.Eq(t, "127.0.0.2:8501", cfg.Consuls["alternate"].Addr)
 	must.Eq(t, "xyzzy", cfg.Consuls["alternate"].Token)
+
+	must.Eq(t, "other", cfg.Consuls["other"].Name)
+	must.Eq(t, pointer.Of(3*time.Hour), cfg.Consuls["other"].ServiceIdentity.TTL)
+	must.Eq(t, pointer.Of(5*time.Hour), cfg.Consuls["other"].TaskIdentity.TTL)
 }
