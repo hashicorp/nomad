@@ -11,6 +11,44 @@ import { task } from 'ember-concurrency';
 export default class AccessControlRolesIndexController extends Controller {
   @service router;
   @service notifications;
+  @service can;
+
+  get columns() {
+    const defaultColumns = [
+      {
+        key: 'name',
+        label: 'Name',
+        isSortable: true,
+      },
+      {
+        key: 'description',
+        label: 'Description',
+      },
+    ];
+
+    const policiesColumn = {
+      key: 'policies',
+      label: 'Policies',
+    };
+
+    const tokensColumn = {
+      key: 'tokens',
+      label: 'Tokens',
+      isSortable: true,
+    };
+
+    const deleteColumn = {
+      key: 'delete',
+      label: 'Delete',
+    };
+
+    return [
+      ...defaultColumns,
+      ...(this.can.can('list token') ? [tokensColumn] : []),
+      ...(this.can.can('list policy') ? [policiesColumn] : []),
+      ...(this.can.can('destroy role') ? [deleteColumn] : []),
+    ];
+  }
 
   get roles() {
     return this.model.roles.map((role) => {

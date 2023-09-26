@@ -36,4 +36,39 @@ export default class AccessControlRoute extends Route.extend(
       policies: this.store.findAll('policy'),
     });
   }
+
+  // After model: check for all tokens[].policies and roles[].policies to see if any of them are listed
+  // that aren't also in the policies list.
+  // If any of them are, unload them from the store — they are orphans.
+  afterModel(model) {
+    let policies = model.policies;
+    let roles = model.roles;
+    let tokens = model.tokens;
+
+    roles.forEach((role) => {
+      let orphanedPolicies = [];
+      role.policies.forEach((policy) => {
+        if (policy && !policies.includes(policy)) {
+          orphanedPolicies.push(policy);
+        }
+      });
+      orphanedPolicies.forEach((policy) => {
+        role.policies.removeObject(policy);
+        this.store.unloadRecord(policy);
+      });
+    });
+
+    tokens.forEach((token) => {
+      let orphanedPolicies = [];
+      token.policies.forEach((policy) => {
+        if (policy && !policies.includes(policy)) {
+          orphanedPolicies.push(policy);
+        }
+      });
+      orphanedPolicies.forEach((policy) => {
+        token.policies.removeObject(policy);
+        this.store.unloadRecord(policy);
+      });
+    });
+  }
 }

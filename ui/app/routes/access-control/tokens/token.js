@@ -15,6 +15,15 @@ export default class AccessControlTokensTokenRoute extends Route.extend(
   WithModelErrorHandling
 ) {
   @service store;
+  @service token;
+
+  // Route guard to prevent you from wrecking your current token
+  beforeModel() {
+    let id = this.paramsFor('access-control.tokens.token').id;
+    if (this.token.selfToken && this.token.selfToken.id === id) {
+      this.transitionTo('/access-control/tokens');
+    }
+  }
 
   async model(params) {
     let token = await this.store.findRecord(

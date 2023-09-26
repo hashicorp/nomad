@@ -40,7 +40,6 @@ export default class PolicyEditorComponent extends Component {
         );
       }
       this.policy.set('id', this.policy.name);
-      // TODO: WEIRD THING: I can't save a policy with the same name as a previously-created role that has since been deleted and now just exists as a .policy on a diff role.
       await this.policy.save();
 
       this.notifications.add({

@@ -49,7 +49,6 @@ export default class RoleEditorComponent extends Component {
 
       const shouldRedirectAfterSave = this.role.isNew;
 
-      // TODO: this check currently fires on unsuccessful save. Dont do that!
       if (this.role.isNew && this.store.peekRecord('role', this.role.name)) {
         throw new Error(`A role with name ${this.role.name} already exists.`);
       }

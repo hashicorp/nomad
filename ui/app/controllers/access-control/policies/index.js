@@ -11,6 +11,38 @@ import { task } from 'ember-concurrency';
 export default class AccessControlPoliciesIndexController extends Controller {
   @service router;
   @service notifications;
+  @service can;
+
+  get columns() {
+    const defaultColumns = [
+      {
+        key: 'name',
+        label: 'Name',
+        isSortable: true,
+      },
+      {
+        key: 'description',
+        label: 'Description',
+      },
+    ];
+
+    const tokensColumn = {
+      key: 'tokens',
+      label: 'Tokens',
+      isSortable: true,
+    };
+
+    const deleteColumn = {
+      key: 'delete',
+      label: 'Delete',
+    };
+
+    return [
+      ...defaultColumns,
+      ...(this.can.can('list token') ? [tokensColumn] : []),
+      ...(this.can.can('destroy policy') ? [deleteColumn] : []),
+    ];
+  }
 
   get policies() {
     return this.model.policies.map((policy) => {
