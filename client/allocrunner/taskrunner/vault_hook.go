@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -17,7 +18,9 @@ import (
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -34,6 +37,19 @@ const (
 	// vaultTokenFile is the name of the file holding the Vault token inside the
 	// task's secret directory
 	vaultTokenFile = "vault_token"
+)
+
+// vaultAuthMethod is the workflow to use to derive Vault tokens.
+type vaultAuthMethod uint8
+
+const (
+	// vaultAuthMethodToken is the legacy ACL token based workflow where Nomad
+	// clients request a Vault token from Nomad servers.
+	vaultAuthMethodToken vaultAuthMethod = iota
+
+	// vaultAuthMethodJWT is the workload identity workflow where Nomad clients
+	// derive a Vault ACL directly from the Vault cluster using a signed JWT.
+	vaultAuthMethodJWT
 )
 
 type vaultTokenUpdateHandler interface {
@@ -56,7 +72,8 @@ type vaultHookConfig struct {
 	updater    vaultTokenUpdateHandler
 	logger     log.Logger
 	alloc      *structs.Allocation
-	task       string
+	task       *structs.Task
+	widmgr     widmgr.IdentityManager
 }
 
 type vaultHook struct {
@@ -95,11 +112,17 @@ type vaultHook struct {
 	// alloc is the allocation
 	alloc *structs.Allocation
 
-	// taskName is the name of the task
-	taskName string
+	// task is the the task to run.
+	task *structs.Task
 
 	// firstRun stores whether it is the first run for the hook
 	firstRun bool
+
+	// authMethod defines the workflow to use for deriving Vault tokens.
+	authMethod vaultAuthMethod
+
+	// widmgr is used to access signed tokens for workload identites.
+	widmgr widmgr.IdentityManager
 
 	// future is used to wait on retrieving a Vault token
 	future *tokenFuture
@@ -108,18 +131,30 @@ type vaultHook struct {
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var authMethod vaultAuthMethod
+	wid := config.task.GetIdentity(config.task.Vault.IdentityName())
+
+	switch {
+	case wid != nil:
+		authMethod = vaultAuthMethodJWT
+	default:
+		authMethod = vaultAuthMethodToken
+	}
+
 	h := &vaultHook{
 		vaultBlock:   config.vaultBlock,
+		authMethod:   authMethod,
 		clientFunc:   config.clientFunc,
 		eventEmitter: config.events,
 		lifecycle:    config.lifecycle,
 		updater:      config.updater,
 		alloc:        config.alloc,
-		taskName:     config.task,
+		task:         config.task,
 		firstRun:     true,
 		ctx:          ctx,
 		cancel:       cancel,
 		future:       newTokenFuture(),
+		widmgr:       config.widmgr,
 	}
 	h.logger = config.logger.Named(h.Name())
 	return h
@@ -320,33 +355,26 @@ OUTER:
 
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
-func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
+func (h *vaultHook) deriveVaultToken() (string, bool) {
 	var attempts uint64
 	var backoff time.Duration
+	var err error
+	var exit bool
+	var token string
+
 	for {
-		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
+		switch h.authMethod {
+		case vaultAuthMethodToken:
+			token, exit, err = h.deriveVaultTokenLegacy()
+		case vaultAuthMethodJWT:
+			token, exit, err = h.deriveVaultTokenJWT()
+		}
 		if err == nil {
-			return tokens[h.taskName], false
+			return token, exit
 		}
-
-		// Check if this is a server side error
-		if structs.IsServerSide(err) {
-			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
-			h.lifecycle.Kill(h.ctx,
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
-			return "", true
-		}
-
-		// Check if we can't recover from the error
-		if !structs.IsRecoverable(err) {
+		if exit {
 			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
-			h.lifecycle.Kill(h.ctx,
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
-			return "", true
+			return "", exit
 		}
 
 		// Handle the retry case
@@ -362,6 +390,68 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		case <-time.After(backoff):
 		}
 	}
+}
+
+// deriveVaultTokenJWT returns a Vault ACL token using JWT auth login.
+func (h *vaultHook) deriveVaultTokenJWT() (string, bool, error) {
+	widName := h.vaultBlock.IdentityName()
+
+	// Retrieve signed identity.
+	signed, err := h.widmgr.Get(cstructs.TaskIdentity{
+		TaskName:     h.task.Name,
+		IdentityName: widName,
+	})
+	if err != nil {
+		return "", false, fmt.Errorf("failed to retrieve signed workload identity: %w", err)
+	}
+	if signed == nil {
+		return "", false, errors.New("no signed workload identity available")
+	}
+
+	// Derive Vault token with signed identity.
+	token, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
+		JWT:  signed.JWT,
+		Role: h.vaultBlock.Role,
+	})
+	if err != nil {
+		return "", false, fmt.Errorf("failed to derive Vault token for identity %s: %w", widName, err)
+	}
+
+	return token, false, nil
+}
+
+// deriveVaultTokenLegacy returns a Vault ACL token using the legacy flow where
+// Nomad clients request Vault tokens from Nomad servers.
+//
+// Deprecated: This authentication flow will be removed Nomad 1.9.
+func (h *vaultHook) deriveVaultTokenLegacy() (string, bool, error) {
+	tokens, err := h.client.DeriveToken(h.alloc, []string{h.task.Name})
+	if err != nil {
+		// Check if this is a server side error
+		if structs.IsServerSide(err) {
+			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
+			h.lifecycle.Kill(h.ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
+			return "", true, err
+		}
+
+		// Check if we can't recover from the error
+		if !structs.IsRecoverable(err) {
+			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
+			h.lifecycle.Kill(h.ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
+			return "", true, err
+		}
+
+		// Return error but retry.
+		return "", false, err
+	}
+
+	return tokens[h.task.Name], true, nil
 }
 
 // writeToken writes the given token to disk

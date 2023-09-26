@@ -5,6 +5,8 @@ package vaultclient
 
 import (
 	"container/heap"
+	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -29,6 +31,18 @@ type VaultClientFunc func(string) (VaultClient, error)
 // wrapped tokens will be unwrapped using the vault API client.
 type TokenDeriverFunc func(*structs.Allocation, []string, *vaultapi.Client) (map[string]string, error)
 
+// JWTLoginRequest is used to derive a Vault ACL token using a JWT login
+// request.
+type JWTLoginRequest struct {
+	// JWT is the signed JWT to be used for the login request.
+	JWT string
+
+	// Role is Vault ACL role to use for the login request. If empty, the
+	// Nomad client's create_from_role value is used, or the Vault cluster
+	// default role.
+	Role string
+}
+
 // VaultClient is the interface which nomad client uses to interact with vault and
 // periodically renews the tokens and secrets.
 type VaultClient interface {
@@ -42,6 +56,10 @@ type VaultClient interface {
 	// a set of tasks. The wrapped tokens will be unwrapped using vault and
 	// returned.
 	DeriveToken(*structs.Allocation, []string) (map[string]string, error)
+
+	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
+	// endpoint.
+	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, error)
 
 	// GetConsulACL fetches the Consul ACL token required for the task
 	GetConsulACL(string, string) (*vaultapi.Secret, error)
@@ -259,6 +277,44 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	}
 
 	return tokens, nil
+}
+
+// DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, error) {
+	if !c.config.IsEnabled() {
+		return "", fmt.Errorf("vault client not enabled")
+	}
+	if !c.isRunning() {
+		return "", fmt.Errorf("vault client is not running")
+	}
+
+	c.lock.Lock()
+	defer c.unlockAndUnset()
+
+	// Make sure the login request is not passing any token.
+	c.client.SetToken("")
+
+	// TODO(luiz): support custom JWT mount point.
+	s, err := c.client.Logical().WriteWithContext(ctx, "auth/jwt/login",
+		map[string]any{
+			"role": req.Role,
+			"jwt":  req.JWT,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to login with JWT: %v", err)
+	}
+	if s == nil {
+		return "", errors.New("JWT login returned an empty secret")
+	}
+	if s.Auth == nil {
+		return "", errors.New("JWT login did not return a token")
+	}
+	for _, w := range s.Warnings {
+		c.logger.Warn("JWT login warning", "warning", w)
+	}
+
+	return s.Auth.ClientToken, nil
 }
 
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
