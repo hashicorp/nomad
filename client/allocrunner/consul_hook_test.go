@@ -27,63 +27,56 @@ func Test_consulHook_prepareConsulClientReq(t *testing.T) {
 		TTL:         0,
 	}
 
-	alloc := mock.Alloc()
-	task := alloc.LookupTask("web")
-	task.Identity = exampleIdentity
-	task.Identities = []*structs.WorkloadIdentity{exampleIdentity}
+	exampleService := &structs.Service{
+		TaskName: "consul-test",
+		Identity: exampleIdentity,
+	}
 
-	mockClient := &consul.MockConsulClient{}
+	alloc := mock.Alloc()
 	mockSigner := widmgr.NewMockWIDSigner([]*structs.WorkloadIdentity{exampleIdentity})
 
-	// sign the mock identity
+	// sign the example identity
 	sids, err := mockSigner.SignIdentities(1, []*structs.WorkloadIdentityRequest{
 		{
 			AllocID:      alloc.ID,
-			TaskName:     task.Name,
-			IdentityName: task.Identities[0].Name,
+			TaskName:     exampleService.TaskName,
+			IdentityName: exampleIdentity.Name,
 		},
 	})
 	must.NoError(t, err)
 
 	swids := map[widmgr.TaskIdentity]*structs.SignedWorkloadIdentity{
-		{TaskName: task.Name, IdentityName: task.Identities[0].Name}: sids[0],
+		{TaskName: exampleService.TaskName, IdentityName: exampleIdentity.Name}: sids[0],
 	}
 	mockWIDManager := widmgr.NewMockWIDMgr(swids)
-	authMethod := "nomad-workloads"
 
 	// modify the expiry time so that widmgr renewal loop won't try to renew it
 	sids[0].Expiration = time.Now().Add(time.Hour)
 
-	consulHook := newConsulHook(logger, alloc, nil, mockWIDManager, mockClient, nil, authMethod)
+	consulHook := newConsulHook(logger, alloc, nil, mockWIDManager, nil, nil)
 
 	tests := []struct {
 		name    string
-		task    *structs.Task
+		task    *structs.Service
 		want    map[string]consul.JWTLoginRequest
 		wantErr bool
 	}{
 		{
-			"empty task",
-			&structs.Task{},
+			"empty service",
+			&structs.Service{},
 			map[string]consul.JWTLoginRequest{},
 			false,
 		},
 		{
-			"task that does not use consul",
-			&structs.Task{Services: []*structs.Service{{Provider: "nomad"}}},
+			"service that does not use consul",
+			&structs.Service{Provider: "nomad"},
 			map[string]consul.JWTLoginRequest{},
 			false,
 		},
 		{
-			"task with consul identity",
-			&structs.Task{
-				Name: "web",
-				Services: []*structs.Service{
-					{
-						Provider: structs.ServiceProviderConsul,
-						Identity: exampleIdentity,
-					},
-				},
+			"service with consul identity",
+			&structs.Service{
+				Provider: structs.ServiceProviderConsul,
 				Identity: exampleIdentity,
 			},
 			map[string]consul.JWTLoginRequest{"consul-test": {JWT: sids[0].JWT, AuthMethodName: "nomad-workloads"}},

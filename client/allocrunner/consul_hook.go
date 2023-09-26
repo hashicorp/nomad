@@ -4,7 +4,6 @@
 package allocrunner
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/widmgr"
@@ -29,6 +27,14 @@ const (
 	// consulTokenFilePerms is the level of file permissions granted on the file in
 	// the secrets directory for the task
 	consulTokenFilePerms = 0440
+
+	// consulServicesAuthMethodName is the JWT auth method name that has to be
+	// configured in Consul in order to authenticate Nomad services.
+	consulServicesAuthMethodName = "nomad-workloads"
+
+	// consulTemplatesAuthMethodName the JWT auth method name that has to be
+	// configured in Consul in order to authenticate Nomad templates.
+	consulTemplatesAuthMethodName = "nomad-templates"
 )
 
 type consulHook struct {
@@ -37,7 +43,6 @@ type consulHook struct {
 	widmgr        widmgr.IdentityManager
 	consulConfigs map[string]*structsc.ConsulConfig
 	hookResources *cstructs.AllocHookResources
-	authMethod    string
 
 	logger log.Logger
 }
@@ -47,7 +52,6 @@ func newConsulHook(logger log.Logger, alloc *structs.Allocation,
 	widmgr widmgr.IdentityManager,
 	consulConfigs map[string]*structsc.ConsulConfig,
 	hookResources *cstructs.AllocHookResources,
-	authMethod string,
 ) *consulHook {
 	h := &consulHook{
 		alloc:         alloc,
@@ -55,7 +59,6 @@ func newConsulHook(logger log.Logger, alloc *structs.Allocation,
 		widmgr:        widmgr,
 		consulConfigs: consulConfigs,
 		hookResources: hookResources,
-		authMethod:    authMethod,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -85,34 +88,17 @@ func (h *consulHook) Prerun() error {
 	}
 
 	for _, tg := range job.TaskGroups {
-		for _, task := range tg.Tasks {
-			req, err := h.prepareConsulClientReq(task)
-			if err != nil {
+		for _, service := range tg.Services {
+			if err := h.prepareConsulTokens(service, clients); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}
-
-			// in case no service needs a consul token in this task
-			if len(req) == 0 {
-				continue
-			}
-
-			// Consul auth
-			for consulName, client := range clients {
-				tokens, err := client.DeriveSITokenWithJWT(req)
-				if err != nil {
-					h.logger.Error("error authenticating with Consul", "error", err)
-					return err
-				}
-
-				// Write tokens to tasks' secret dirs
-				secretsDir := h.allocdir.TaskDirs[task.Name].SecretsDir
-				for identity, token := range tokens {
-					filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, consulName, identity)
-					tokenPath := filepath.Join(secretsDir, filename)
-					if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
-						mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
-					}
+		}
+		for _, task := range tg.Tasks {
+			for _, service := range task.Services {
+				if err := h.prepareConsulTokens(service, clients); err != nil {
+					mErr.Errors = append(mErr.Errors, err)
+					continue
 				}
 			}
 		}
@@ -124,52 +110,68 @@ func (h *consulHook) Prerun() error {
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulClientReq(task *structs.Task) (map[string]consul.JWTLoginRequest, error) {
+func (h *consulHook) prepareConsulTokens(service *structs.Service, clients map[string]consul.Client) error {
+	req, err := h.prepareConsulClientReq(service)
+	if err != nil {
+		return err
+	}
+
+	// in case no service needs a consul token
+	if len(req) == 0 {
+		return nil
+	}
+
+	mErr := multierror.Error{}
+
+	// Consul auth
+	for consulName, client := range clients {
+		tokens, err := client.DeriveSITokenWithJWT(req)
+		if err != nil {
+			h.logger.Error("error authenticating with Consul", "error", err)
+			return err
+		}
+
+		// Write tokens to tasks' secret dirs
+		secretsDir := h.allocdir.TaskDirs[service.TaskName].SecretsDir
+		for identity, token := range tokens {
+			filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, consulName, identity)
+			tokenPath := filepath.Join(secretsDir, filename)
+			if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
+			}
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (h *consulHook) prepareConsulClientReq(service *structs.Service) (map[string]consul.JWTLoginRequest, error) {
 	req := map[string]consul.JWTLoginRequest{}
 
 	// see if maybe we can quit early
-	if task.Services == nil {
+	if service == nil || !service.IsConsul() {
 		return req, nil
 	}
-	for _, s := range task.Services {
-		if !s.IsConsul() {
-			return req, nil
-		}
 
-		if s.Identity == nil {
-			return req, nil
-		}
+	if service.Identity == nil {
+		return req, nil
 	}
 
-	// handle default identity
-	if task.Identity != nil {
-		ti := widmgr.TaskIdentity{
-			TaskName:     task.Name,
-			IdentityName: task.Identity.Name,
-		}
+	ti := widmgr.TaskIdentity{
+		TaskName:     service.TaskName,
+		IdentityName: service.Identity.Name,
+	}
 
-		jwt, err := h.widmgr.Get(ti)
-		if err != nil {
-			h.logger.Error("error getting signed identity", "error", err)
-			return req, err
-		}
+	jwt, err := h.widmgr.Get(ti)
+	if err != nil {
+		h.logger.Error("error getting signed identity", "error", err)
+		return req, err
+	}
 
-		req[task.Identity.Name] = consul.JWTLoginRequest{
-			JWT:            jwt.JWT,
-			AuthMethodName: h.authMethod,
-		}
+	req[service.Identity.Name] = consul.JWTLoginRequest{
+		JWT:            jwt.JWT,
+		AuthMethodName: consulServicesAuthMethodName,
 	}
 
 	return req, nil
-}
-
-// Stop implements interfaces.TaskStopHook
-func (h *consulHook) Stop(context.Context, *interfaces.TaskStopRequest, *interfaces.TaskStopResponse) error {
-	h.widmgr.Shutdown()
-	return nil
-}
-
-// Shutdown implements interfaces.ShutdownHook
-func (h *consulHook) Shutdown() {
-	h.widmgr.Shutdown()
 }
