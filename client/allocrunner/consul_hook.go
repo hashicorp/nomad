@@ -17,13 +17,14 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
 	// consulTokenFilePrefix is the begging of the name of the file holding the
 	// Consul SI token inside the task's secret directory. Full name of the file is
 	// always consulTokenFilePrefix_identityName
-	consulTokenFilePrefix = "nomad_consul_"
+	consulTokenFilePrefix = "nomad_consul"
 
 	// consulTokenFilePerms is the level of file permissions granted on the file in
 	// the secrets directory for the task
@@ -34,7 +35,7 @@ type consulHook struct {
 	alloc         *structs.Allocation
 	allocdir      *allocdir.AllocDir
 	widmgr        widmgr.IdentityManager
-	client        consul.Client
+	consulConfigs map[string]*structsc.ConsulConfig
 	hookResources *cstructs.AllocHookResources
 	authMethod    string
 
@@ -44,7 +45,7 @@ type consulHook struct {
 func newConsulHook(logger log.Logger, alloc *structs.Allocation,
 	allocdir *allocdir.AllocDir,
 	widmgr widmgr.IdentityManager,
-	client consul.Client,
+	consulConfigs map[string]*structsc.ConsulConfig,
 	hookResources *cstructs.AllocHookResources,
 	authMethod string,
 ) *consulHook {
@@ -52,7 +53,7 @@ func newConsulHook(logger log.Logger, alloc *structs.Allocation,
 		alloc:         alloc,
 		allocdir:      allocdir,
 		widmgr:        widmgr,
-		client:        client,
+		consulConfigs: consulConfigs,
 		hookResources: hookResources,
 		authMethod:    authMethod,
 	}
@@ -77,6 +78,12 @@ func (h *consulHook) Prerun() error {
 	mErr := multierror.Error{}
 	tokens := map[string]string{}
 
+	// get consul clients
+	clients, err := getConsulClients(h.consulConfigs, h.logger)
+	if err != nil {
+		return err
+	}
+
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
 			req, err := h.prepareConsulClientReq(task)
@@ -91,18 +98,21 @@ func (h *consulHook) Prerun() error {
 			}
 
 			// Consul auth
-			tokens, err := h.client.DeriveSITokenWithJWT(req)
-			if err != nil {
-				h.logger.Error("error authenticating with Consul", "error", err)
-				return err
-			}
+			for consulName, client := range clients {
+				tokens, err := client.DeriveSITokenWithJWT(req)
+				if err != nil {
+					h.logger.Error("error authenticating with Consul", "error", err)
+					return err
+				}
 
-			// Write tokens to tasks' secret dirs
-			secretsDir := h.allocdir.TaskDirs[task.Name].SecretsDir
-			for identity, token := range tokens {
-				tokenPath := filepath.Join(secretsDir, consulTokenFilePrefix+identity)
-				if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
-					mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
+				// Write tokens to tasks' secret dirs
+				secretsDir := h.allocdir.TaskDirs[task.Name].SecretsDir
+				for identity, token := range tokens {
+					filename := fmt.Sprintf("%s_%s_%s", consulTokenFilePrefix, consulName, identity)
+					tokenPath := filepath.Join(secretsDir, filename)
+					if err := os.WriteFile(tokenPath, []byte(token), consulTokenFilePerms); err != nil {
+						mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
+					}
 				}
 			}
 		}

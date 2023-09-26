@@ -10,7 +10,6 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -114,20 +113,13 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// newNetworkHook.
 	builtTaskEnv := newEnvBuilder().Build()
 
-	// Create a new consul client that works with workload identity based
-	// authentication (Nomad 1.7+)
-	newConsulClient, err := consul.NewConsulClient(ar.clientConfig.ConsulConfig, hookLogger)
-	if err != nil {
-		return fmt.Errorf("failed to initialize consul client: %v", err)
-	}
-
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
-		newConsulHook(hookLogger, ar.alloc, ar.allocDir, ar.widmgr, newConsulClient, ar.hookResources, "nomad-workloads"), // FIXME: this should not be hard-coded
+		newConsulHook(hookLogger, ar.alloc, ar.allocDir, ar.widmgr, ar.clientConfig.GetConsulConfigs(), ar.hookResources, "nomad-workloads"), // FIXME: this should not be hard-coded
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),
