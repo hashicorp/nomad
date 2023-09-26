@@ -53,7 +53,9 @@ export default class AccessControlRoute extends Route.extend(
       });
       orphanedPolicies.forEach((policy) => {
         role.policies.removeObject(policy);
-        this.store.unloadRecord(policy);
+        if (this.store.peekRecord('policy', policy.id)) {
+          this.store.unloadRecord(policy);
+        }
       });
     });
 
@@ -66,7 +68,9 @@ export default class AccessControlRoute extends Route.extend(
       });
       orphanedPolicies.forEach((policy) => {
         token.policies.removeObject(policy);
-        this.store.unloadRecord(policy);
+        if (this.store.peekRecord('policy', policy.id)) {
+          this.store.unloadRecord(policy);
+        }
       });
     });
   }

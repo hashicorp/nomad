@@ -32,7 +32,9 @@ export default class AccessControlPoliciesPolicyController extends Controller {
       this.store.peekAll('token').forEach((token) => {
         token.policies.removeObject(this.policy);
       });
-      this.store.unloadRecord(this.policy);
+      if (this.store.peekRecord('policy', this.policy.id)) {
+        this.store.unloadRecord(this.policy);
+      }
 
       this.notifications.add({
         title: 'Policy Deleted',
