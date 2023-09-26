@@ -53,6 +53,9 @@ func (wi *WorkloadIdentityConfig) Copy() *WorkloadIdentityConfig {
 	if wi.File != nil {
 		nwi.File = pointer.Of(*wi.File)
 	}
+	if wi.TTL != nil {
+		nwi.TTL = pointer.Of(*wi.TTL)
+	}
 
 	return nwi
 }
