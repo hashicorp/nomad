@@ -111,7 +111,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	}
 
 	// Create a taskenv.TaskEnv which is used for read only purposes by the
-	// newNetworkHook.
+	// newNetworkHook and newChecksHook.
 	builtTaskEnv := newEnvBuilder().Build()
 
 	// Create the alloc directory hook. This is run first to ensure the
@@ -138,7 +138,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig, config.Node.Attributes),
 		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
-		newChecksHook(hookLogger, alloc, ar.checkStore, ar),
+		newChecksHook(hookLogger, alloc, ar.checkStore, ar, builtTaskEnv),
 	}
 	if config.ExtraAllocHooks != nil {
 		ar.runnerHooks = append(ar.runnerHooks, config.ExtraAllocHooks...)
