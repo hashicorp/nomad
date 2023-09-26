@@ -147,6 +147,7 @@ func (tr *TaskRunner) initHooks() {
 				sidsClient: tr.siClient,
 				lifecycle:  tr,
 				logger:     hookLogger,
+				runner:     tr,
 			}))
 		}
 

@@ -51,6 +51,7 @@ type sidsHookConfig struct {
 	sidsClient consul.ServiceIdentityAPI
 	lifecycle  ti.TaskLifecycle
 	logger     hclog.Logger
+	runner     *TaskRunner
 }
 
 // Service Identities hook for managing SI tokens of connect enabled tasks.
@@ -80,6 +81,9 @@ type sidsHook struct {
 	// firstRun keeps track of whether the hook is being called for the first
 	// time (for this task) during the lifespan of the Nomad Client process.
 	firstRun bool
+
+	// runner is a pointer back to the task runner so we can get hook resources
+	runner *TaskRunner
 }
 
 func newSIDSHook(c sidsHookConfig) *sidsHook {
@@ -91,6 +95,7 @@ func newSIDSHook(c sidsHookConfig) *sidsHook {
 		derivationTimeout: sidsDerivationTimeout,
 		logger:            c.logger.Named(sidsHookName),
 		firstRun:          true,
+		runner:            c.runner,
 	}
 }
 
@@ -116,6 +121,32 @@ func (h *sidsHook) Prestart(
 	token, err := h.recoverToken(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
+	}
+
+	// if we're using Workload Identities then this Connect task should already
+	// have a token stored under the cluster + service ID.
+	tokens := h.runner.allocHookResources.GetConsulTokens()
+
+	// Find the group-level service that this task belongs to
+	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+	serviceName := h.task.Kind.Value()
+	var serviceIdentityName string
+	var cluster string
+	for _, service := range tg.Services {
+		if service.Name == serviceName {
+			serviceIdentityName = service.MakeUniqueIdentityName()
+			cluster = service.Cluster
+			break
+		}
+	}
+	if cluster != "" && serviceIdentityName != "" {
+		if token, ok := tokens[cluster][serviceIdentityName]; ok {
+			if err := h.writeToken(req.TaskDir.SecretsDir, token); err != nil {
+				return err
+			}
+			resp.Done = true
+			return nil
+		}
 	}
 
 	// need to ask for a new SI token & persist it to disk
