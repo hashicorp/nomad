@@ -215,13 +215,13 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 
 	u, err := url.Parse(address)
 	if err != nil && u.Scheme != "" {
-		addressWithScheme := address
+		addressWithScheme = address
 	} else {
 		scheme := "http"
 		if tlsEnabled {
 			scheme = "https"
 		}
-		addressWithScheme := fmt.Sprintf("%s://%s", scheme, address)
+		addressWithScheme = fmt.Sprintf("%s://%s", scheme, address)
 	}
 
 	config := &Config{
