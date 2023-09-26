@@ -813,9 +813,15 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 		}
 	}
 
-	// MountOptions can be updated so long as the volume isn't in use,
-	// but the caller will reject updating an in-use volume
-	v.MountOptions = other.MountOptions
+	// MountOptions can be updated so long as the volume isn't in use
+	if v.InUse() {
+		if !v.MountOptions.Equal(other.MountOptions) {
+			errs = multierror.Append(errs, errors.New(
+				"can not update mount options while volume is in use"))
+		}
+	} else {
+		v.MountOptions = other.MountOptions
+	}
 
 	// Secrets can be updated freely
 	v.Secrets = other.Secrets
@@ -831,20 +837,6 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 	// validation
 	v.Context = other.Context
 	return errs.ErrorOrNil()
-}
-
-// UpdateSafeFields updates fields that may be mutated while the volume is in use.
-func (v *CSIVolume) UpdateSafeFields(other *CSIVolume) error {
-	if v == nil || other == nil {
-		return errors.New("unexpected nil volume (this is a bug)")
-	}
-
-	// Expand operation can sometimes happen while in-use.
-	v.Capacity = other.Capacity
-	v.RequestedCapacityMin = other.RequestedCapacityMin
-	v.RequestedCapacityMax = other.RequestedCapacityMax
-
-	return nil
 }
 
 // Request and response wrappers
