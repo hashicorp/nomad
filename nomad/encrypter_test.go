@@ -6,6 +6,9 @@ package nomad
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -374,4 +377,54 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	require.Equal(t, alloc.ID, got.AllocationID)
 	require.Equal(t, alloc.JobID, got.JobID)
 	require.Equal(t, "web", got.TaskName)
+}
+
+func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
+
+	ci.Parallel(t)
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	alloc := mock.Alloc()
+	claims := structs.NewIdentityClaims(alloc.Job, alloc, "web", alloc.LookupTask("web").Identity, time.Now())
+	e := srv.encrypter
+
+	keyset, err := e.activeKeySet()
+	must.NoError(t, err)
+	keyID := keyset.rootKey.Meta.KeyID
+
+	// the go-jose library rightfully doesn't acccept alg=none, so we'll forge a
+	// JWT with alg=none and some attempted claims
+
+	bodyData, err := json.Marshal(claims)
+	must.NoError(t, err)
+	body := make([]byte, base64.StdEncoding.EncodedLen(len(bodyData)))
+	base64.StdEncoding.Encode(body, bodyData)
+
+	// Try without a key ID
+	headerData := []byte(`{"alg":"none","typ":"JWT"}`)
+	header := make([]byte, base64.StdEncoding.EncodedLen(len(headerData)))
+	base64.StdEncoding.Encode(header, headerData)
+
+	badJWT := fmt.Sprintf("%s.%s.", string(header), string(body))
+
+	got, err := e.VerifyClaim(badJWT)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "missing key ID header")
+	must.Nil(t, got)
+
+	// Try with a valid key ID
+	headerData = []byte(fmt.Sprintf(`{"alg":"none","kid":"%s","typ":"JWT"}`, keyID))
+	header = make([]byte, base64.StdEncoding.EncodedLen(len(headerData)))
+	base64.StdEncoding.Encode(header, headerData)
+
+	badJWT = fmt.Sprintf("%s.%s.", string(header), string(body))
+
+	got, err = e.VerifyClaim(badJWT)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "invalid signature")
+	must.Nil(t, got)
 }
