@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 var basicConfig = &Config{
@@ -532,21 +531,24 @@ var nonoptConfig = &Config{
 	TLSConfig:                 nil,
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
+	Reporting: &config.Reporting{
+		&config.LicenseConfig{},
+	},
 }
 
 func TestConfig_ParseMerge(t *testing.T) {
 	ci.Parallel(t)
 
 	path, err := filepath.Abs(filepath.Join(".", "testdata", "basic.hcl"))
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	actual, err := ParseConfigFile(path)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// The Vault connection retry interval is an internal only configuration
 	// option, and therefore needs to be added here to ensure the test passes.
 	actual.Vault.ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
-	require.Equal(t, basicConfig, actual)
+	must.Eq(t, basicConfig, actual)
 
 	oldDefault := &Config{
 		Consul:    config.DefaultConsulConfig(),
@@ -557,7 +559,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 		Audit:     &config.AuditConfig{},
 	}
 	merged := oldDefault.Merge(actual)
-	require.Equal(t, basicConfig, merged)
+	must.Eq(t, basicConfig, merged)
 }
 
 func TestConfig_Parse(t *testing.T) {
@@ -595,12 +597,12 @@ func TestConfig_Parse(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.File, func(t *testing.T) {
-			require := require.New(t)
+
 			path, err := filepath.Abs(filepath.Join("./testdata", tc.File))
-			require.NoError(err)
+			must.NoError(t, err)
 
 			actual, err := ParseConfigFile(path)
-			require.NoError(err)
+			must.NoError(t, err)
 
 			// ParseConfig used to re-merge defaults for these three objects,
 			// despite them already being merged in LoadConfig. The test structs
@@ -612,13 +614,11 @@ func TestConfig_Parse(t *testing.T) {
 				Vault:     config.DefaultVaultConfig(),
 				Vaults:    map[string]*config.VaultConfig{"default": config.DefaultVaultConfig()},
 				Autopilot: config.DefaultAutopilotConfig(),
-				Reporting: &config.Reporting{
-					&config.LicenseConfig{},
-				},
+				Reporting: config.DefaultReporting(),
 			}
 			actual = oldDefault.Merge(actual)
 
-			require.EqualValues(tc.Result, removeHelperAttributes(actual))
+			must.Eq(t, tc.Result, removeHelperAttributes(actual))
 		})
 	}
 }
@@ -694,7 +694,7 @@ func TestConfig_ParsePanic(t *testing.T) {
 		t.Fatalf("parse error: %s\n", err)
 	}
 
-	require.EqualValues(t, c, d)
+	must.Eq(t, c, d)
 }
 
 // Top level keys left by hcl when parsing slices in the config
@@ -703,36 +703,36 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 	ci.Parallel(t)
 
 	c, err := ParseConfigFile("./testdata/config-slices.json")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	opt := map[string]string{"o0": "foo", "o1": "bar"}
 	meta := map[string]string{"m0": "foo", "m1": "bar", "m2": "true", "m3": "1.2"}
 	env := map[string]string{"e0": "baz"}
 	srv := []string{"foo", "bar"}
 
-	require.EqualValues(t, opt, c.Client.Options)
-	require.EqualValues(t, meta, c.Client.Meta)
-	require.EqualValues(t, env, c.Client.ChrootEnv)
-	require.EqualValues(t, srv, c.Client.Servers)
-	require.EqualValues(t, srv, c.Server.EnabledSchedulers)
-	require.EqualValues(t, srv, c.Server.StartJoin)
-	require.EqualValues(t, srv, c.Server.RetryJoin)
+	must.Eq(t, opt, c.Client.Options)
+	must.Eq(t, meta, c.Client.Meta)
+	must.Eq(t, env, c.Client.ChrootEnv)
+	must.Eq(t, srv, c.Client.Servers)
+	must.Eq(t, srv, c.Server.EnabledSchedulers)
+	must.Eq(t, srv, c.Server.StartJoin)
+	must.Eq(t, srv, c.Server.RetryJoin)
 
 	// the alt format is also accepted by hcl as valid config data
 	c, err = ParseConfigFile("./testdata/config-slices-alt.json")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.EqualValues(t, opt, c.Client.Options)
-	require.EqualValues(t, meta, c.Client.Meta)
-	require.EqualValues(t, env, c.Client.ChrootEnv)
-	require.EqualValues(t, srv, c.Client.Servers)
-	require.EqualValues(t, srv, c.Server.EnabledSchedulers)
-	require.EqualValues(t, srv, c.Server.StartJoin)
-	require.EqualValues(t, srv, c.Server.RetryJoin)
+	must.Eq(t, opt, c.Client.Options)
+	must.Eq(t, meta, c.Client.Meta)
+	must.Eq(t, env, c.Client.ChrootEnv)
+	must.Eq(t, srv, c.Client.Servers)
+	must.Eq(t, srv, c.Server.EnabledSchedulers)
+	must.Eq(t, srv, c.Server.StartJoin)
+	must.Eq(t, srv, c.Server.RetryJoin)
 
 	// small files keep more extra keys than large ones
 	_, err = ParseConfigFile("./testdata/obj-len-one-server.json")
-	require.NoError(t, err)
+	must.NoError(t, err)
 }
 
 var sample0 = &Config{
@@ -827,7 +827,6 @@ var sample0 = &Config{
 			Addr:    "http://host.example.com:8200",
 		},
 	},
-
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
 		EnableRPC:            true,
@@ -839,17 +838,15 @@ var sample0 = &Config{
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: pointer.Of(true),
 	},
-	Reporting: &config.Reporting{
-		&config.LicenseConfig{},
-	},
+	Reporting: config.DefaultReporting(),
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
 	ci.Parallel(t)
 
 	c, err := ParseConfigFile("./testdata/sample0.json")
-	require.NoError(t, err)
-	require.EqualValues(t, sample0, c)
+	must.NoError(t, err)
+	must.Eq(t, sample0, c)
 }
 
 var sample1 = &Config{
@@ -966,19 +963,19 @@ func TestConfig_ParseDir(t *testing.T) {
 	ci.Parallel(t)
 
 	c, err := LoadConfig("./testdata/sample1")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// LoadConfig Merges all the config files in testdata/sample1, which makes empty
 	// maps & slices rather than nil, so set those
-	require.Empty(t, c.Client.Options)
+	must.Zero(t, len(c.Client.Options))
 	c.Client.Options = nil
-	require.Empty(t, c.Client.Meta)
+	must.Zero(t, len(c.Client.Meta))
 	c.Client.Meta = nil
-	require.Empty(t, c.Client.ChrootEnv)
+	must.Zero(t, len(c.Client.ChrootEnv))
 	c.Client.ChrootEnv = nil
-	require.Empty(t, c.Server.StartJoin)
+	must.Zero(t, len(c.Server.StartJoin))
 	c.Server.StartJoin = nil
-	require.Empty(t, c.HTTPAPIResponseHeaders)
+	must.Zero(t, len(c.HTTPAPIResponseHeaders))
 	c.HTTPAPIResponseHeaders = nil
 
 	// LoadDir lists the config files
@@ -987,10 +984,10 @@ func TestConfig_ParseDir(t *testing.T) {
 		"testdata/sample1/sample1.json",
 		"testdata/sample1/sample2.hcl",
 	}
-	require.Equal(t, expectedFiles, c.Files)
+	must.Eq(t, expectedFiles, c.Files)
 	c.Files = nil
 
-	require.EqualValues(t, sample1, c)
+	must.Eq(t, sample1, c)
 }
 
 // TestConfig_ParseDir_Matches_IndividualParsing asserts
@@ -1000,7 +997,7 @@ func TestConfig_ParseDir_Matches_IndividualParsing(t *testing.T) {
 	ci.Parallel(t)
 
 	dirConfig, err := LoadConfig("./testdata/sample1")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	dirConfig = DefaultConfig().Merge(dirConfig)
 
@@ -1016,7 +1013,7 @@ func TestConfig_ParseDir_Matches_IndividualParsing(t *testing.T) {
 
 			for _, f := range perm {
 				fc, err := LoadConfig(f)
-				require.NoError(t, err)
+				must.NoError(t, err)
 
 				config = config.Merge(fc)
 			}
@@ -1025,7 +1022,7 @@ func TestConfig_ParseDir_Matches_IndividualParsing(t *testing.T) {
 			sort.Strings(config.Files)
 			sort.Strings(dirConfig.Files)
 
-			require.EqualValues(t, dirConfig, config)
+			must.Eq(t, dirConfig, config)
 		})
 	}
 

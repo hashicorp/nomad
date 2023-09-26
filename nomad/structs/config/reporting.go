@@ -5,6 +5,12 @@ package config
 
 import "github.com/hashicorp/nomad/helper/pointer"
 
+func DefaultReporting() *Reporting {
+	return &Reporting{
+		&LicenseConfig{},
+	}
+}
+
 type LicenseConfig struct {
 	Enabled *bool `hcl:"enabled"`
 }

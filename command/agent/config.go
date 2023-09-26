@@ -1373,6 +1373,7 @@ func DefaultConfig() *Config {
 		Audit:              &config.AuditConfig{},
 		DisableUpdateCheck: pointer.Of(false),
 		Limits:             config.DefaultLimits(),
+		Reporting:          config.DefaultReporting(),
 	}
 
 	cfg.Consuls = map[string]*config.ConsulConfig{"default": cfg.Consul}
