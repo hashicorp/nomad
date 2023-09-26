@@ -2428,18 +2428,10 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 				old.Provider != v.Provider {
 				return fmt.Errorf("volume identity cannot be updated: %s", v.ID)
 			}
-
-			// Update fields that are safe to change while volume is being used.
-			if err := old.UpdateSafeFields(v); err != nil {
-				return fmt.Errorf("unable to update in-use volume: %w", err)
-			}
-			v = old
-			v.ModifyIndex = index
-
 		} else {
 			v.CreateIndex = index
-			v.ModifyIndex = index
 		}
+		v.ModifyIndex = index
 
 		// Allocations are copy on write, so we want to keep the Allocation ID
 		// but we need to clear the pointer so that we don't store it when we
