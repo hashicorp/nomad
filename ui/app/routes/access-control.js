@@ -28,11 +28,11 @@ export default class AccessControlRoute extends Route.extend(
   }
 
   // Load our tokens, roles, and policies
-  model() {
+  async model() {
     return RSVP.hash({
-      tokens: this.store.findAll('token'),
-      roles: this.store.findAll('role'),
-      policies: this.store.findAll('policy'),
+      policies: await this.store.findAll('policy'),
+      tokens: await this.store.findAll('token'),
+      roles: await this.store.findAll('role'),
     });
   }
 
