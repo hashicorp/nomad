@@ -65,7 +65,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		Telemetry: &Telemetry{},
 		Vault:     &config.VaultConfig{},
 		Vaults:    map[string]*config.VaultConfig{},
-		Reporting: config.DefaultReporting(),
+		Reporting: &config.Reporting{},
 	}
 
 	err = hcl.Decode(c, buf.String())
