@@ -13,6 +13,7 @@
 			@type="text"
 			@value={{@role.name}}
 			class="input"
+			{{autofocus ignore=(not @role.isNew)}}
 		/>
 	</label>
 

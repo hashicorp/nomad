@@ -13,6 +13,7 @@
 			@type="text"
 			@value={{@token.name}}
 			class="input"
+      {{autofocus ignore=(not @token.isNew)}}
 		/>
 	</label>
 

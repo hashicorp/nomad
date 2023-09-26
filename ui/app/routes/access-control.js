@@ -29,7 +29,6 @@ export default class AccessControlRoute extends Route.extend(
 
   // Load our tokens, roles, and policies
   model() {
-    console;
     return RSVP.hash({
       tokens: this.store.findAll('token'),
       roles: this.store.findAll('role'),

@@ -31,9 +31,15 @@ export default class PolicyEditorComponent extends Component {
         );
       }
       const shouldRedirectAfterSave = this.policy.isNew;
+      // Because we set the ID for adapter/serialization reasons just before save here,
+      // that becomes a barrier to our Unique Name validation. So we explicltly exclude
+      // the current policy when checking for uniqueness.
       if (
         this.policy.isNew &&
-        this.store.peekRecord('policy', this.policy.name)
+        this.store
+          .peekAll('policy')
+          .filter((policy) => policy !== this.policy)
+          .findBy('name', this.policy.name)
       ) {
         throw new Error(
           `A policy with name ${this.policy.name} already exists.`

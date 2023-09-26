@@ -24,6 +24,16 @@ export default class AccessControlPoliciesPolicyController extends Controller {
     try {
       yield this.policy.deleteRecord();
       yield this.policy.save();
+
+      // Cleanup: Remove references from roles and tokens
+      this.store.peekAll('role').forEach((role) => {
+        role.policies.removeObject(this.policy);
+      });
+      this.store.peekAll('token').forEach((token) => {
+        token.policies.removeObject(this.policy);
+      });
+      this.store.unloadRecord(this.policy);
+
       this.notifications.add({
         title: 'Policy Deleted',
         color: 'success',

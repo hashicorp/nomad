@@ -34,7 +34,6 @@ export default class TokenSerializer extends ApplicationSerializer {
       hash.ExpirationTime = hash.ExpirationTimeVerbatim || hash.ExpirationTime;
     }
 
-    // delete hash.ExpirationTime;
     delete hash.CreateTime;
     delete hash.SecretID;
 

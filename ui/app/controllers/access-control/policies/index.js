@@ -65,6 +65,16 @@ export default class AccessControlPoliciesIndexController extends Controller {
     try {
       yield policy.deleteRecord();
       yield policy.save();
+
+      // Cleanup: Remove references from roles and tokens
+      this.store.peekAll('role').forEach((role) => {
+        role.policies.removeObject(policy);
+      });
+      this.store.peekAll('token').forEach((token) => {
+        token.policies.removeObject(policy);
+      });
+      this.store.unloadRecord(policy);
+
       this.notifications.add({
         title: `Policy ${policy.name} successfully deleted`,
         color: 'success',
