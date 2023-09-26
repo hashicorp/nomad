@@ -291,6 +291,14 @@ func (t *TLSConfig) Copy() *TLSConfig {
 func defaultHttpClient() *http.Client {
 	httpClient := cleanhttp.DefaultPooledClient()
 	transport := httpClient.Transport.(*http.Transport)
+
+	unixTransport := httpClient.Transport.(*http.Transport)
+	unixTransport.DialContext = func(_ context.Context, network, address string) (net.Conn, error) {
+		return net.Dial("unix", address)
+	}
+
+	transport.RegisterProtocol("unix", unixTransport)
+
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
