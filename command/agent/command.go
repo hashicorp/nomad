@@ -73,9 +73,10 @@ func (c *Command) readConfig() *Config {
 		Server: &ServerConfig{
 			ServerJoin: &ServerJoin{},
 		},
-		Vault: &config.VaultConfig{},
-		ACL:   &ACLConfig{},
-		Audit: &config.AuditConfig{},
+		Vault:     &config.VaultConfig{},
+		ACL:       &ACLConfig{},
+		Audit:     &config.AuditConfig{},
+		Reporting: &config.ReportingConfig{},
 	}
 	cmdConfig.Vaults = map[string]*config.VaultConfig{"default": cmdConfig.Vault}
 	cmdConfig.Consuls = map[string]*config.ConsulConfig{"default": cmdConfig.Consul}
