@@ -210,12 +210,22 @@ type Config struct {
 // ClientConfig copies the configuration with a new client address, region, and
 // whether the client has TLS enabled.
 func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
-	scheme := "http"
-	if tlsEnabled {
-		scheme = "https"
+	// Check if the address already contains a scheme.
+	var addressWithScheme string
+
+	u, err := url.Parse(address)
+	if err != nil && u.Scheme != "" {
+		addressWithScheme := address
+	} else {
+		scheme := "http"
+		if tlsEnabled {
+			scheme = "https"
+		}
+		addressWithScheme := fmt.Sprintf("%s://%s", scheme, address)
 	}
+
 	config := &Config{
-		Address:    fmt.Sprintf("%s://%s", scheme, address),
+		Address:    addressWithScheme,
 		Region:     region,
 		Namespace:  c.Namespace,
 		HttpClient: c.HttpClient,
