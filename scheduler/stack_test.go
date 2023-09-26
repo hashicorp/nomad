@@ -325,6 +325,52 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	}
 }
 
+func TestServiceStack_SelectHostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"unique-volume[0]": {
+			Name:     "unique-volume[0]",
+			Path:     "/path/to/data",
+			ReadOnly: false,
+		},
+	}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"unique-volume[1]": {
+			Name:     "unique-volume[1]",
+			Path:     "/path/to/data",
+			ReadOnly: false,
+		},
+	}
+
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"data": {
+		Name:     "data",
+		Type:     structs.VolumeTypeHost,
+		Source:   "unique-volume",
+		PerAlloc: true,
+	}}
+
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+}
+
 func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	ci.Parallel(t)
 
