@@ -200,7 +200,7 @@ type Config struct {
 	Audit *config.AuditConfig `hcl:"audit"`
 
 	// Reporting is used to enable go census reporting
-	Reporting *config.Reporting `hcl:"reporting,block"`
+	Reporting *config.ReportingConfig `hcl:"reporting,block"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`

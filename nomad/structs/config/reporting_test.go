@@ -14,14 +14,14 @@ import (
 func TestReporting_Merge(t *testing.T) {
 	ci.Parallel(t)
 
-	a := &Reporting{
-		License: &LicenseConfig{
+	a := &ReportingConfig{
+		License: &LicenseReportingConfig{
 			Enabled: pointer.Of(false),
 		},
 	}
 
-	b := &Reporting{
-		License: &LicenseConfig{
+	b := &ReportingConfig{
+		License: &LicenseReportingConfig{
 			Enabled: pointer.Of(true),
 		},
 	}

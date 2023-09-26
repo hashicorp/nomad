@@ -76,7 +76,7 @@ func (c *Command) readConfig() *Config {
 		Vault:     &config.VaultConfig{},
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
-		Reporting: &config.Reporting{},
+		Reporting: &config.ReportingConfig{},
 	}
 	cmdConfig.Vaults = map[string]*config.VaultConfig{"default": cmdConfig.Vault}
 	cmdConfig.Consuls = map[string]*config.ConsulConfig{"default": cmdConfig.Consul}

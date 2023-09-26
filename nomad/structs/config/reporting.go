@@ -5,17 +5,11 @@ package config
 
 import "github.com/hashicorp/nomad/helper/pointer"
 
-func DefaultReporting() *Reporting {
-	return &Reporting{
-		&LicenseConfig{},
-	}
-}
-
 type LicenseReportingConfig struct {
 	Enabled *bool `hcl:"enabled"`
 }
 
-func (lc *LicenseConfig) Copy() *LicenseConfig {
+func (lc *LicenseReportingConfig) Copy() *LicenseReportingConfig {
 	if lc == nil {
 		return nil
 	}
@@ -26,7 +20,7 @@ func (lc *LicenseConfig) Copy() *LicenseConfig {
 	return &nlc
 }
 
-func (lc *LicenseConfig) Merge(b *LicenseConfig) *LicenseConfig {
+func (lc *LicenseReportingConfig) Merge(b *LicenseReportingConfig) *LicenseReportingConfig {
 	if lc == nil {
 		return b
 	}
@@ -45,10 +39,10 @@ func (lc *LicenseConfig) Merge(b *LicenseConfig) *LicenseConfig {
 }
 
 type ReportingConfig struct {
-	License *LicenseConfig `hcl:"license,block"`
+	License *LicenseReportingConfig `hcl:"license,block"`
 }
 
-func (r *Reporting) Copy() *Reporting {
+func (r *ReportingConfig) Copy() *ReportingConfig {
 	if r == nil {
 		return nil
 	}
@@ -59,7 +53,7 @@ func (r *Reporting) Copy() *Reporting {
 	return &nr
 }
 
-func (r *Reporting) Merge(b *Reporting) *Reporting {
+func (r *ReportingConfig) Merge(b *ReportingConfig) *ReportingConfig {
 	if r == nil {
 		return b
 	}
@@ -77,4 +71,10 @@ func (r *Reporting) Merge(b *Reporting) *Reporting {
 	}
 
 	return &result
+}
+
+func DefaultReporting() *ReportingConfig {
+	return &ReportingConfig{
+		&LicenseReportingConfig{},
+	}
 }

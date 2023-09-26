@@ -403,8 +403,8 @@ var basicConfig = &Config{
 			},
 		},
 	},
-	Reporting: &config.Reporting{
-		License: &config.LicenseConfig{
+	Reporting: &config.ReportingConfig{
+		License: &config.LicenseReportingConfig{
 			Enabled: pointer.Of(true),
 		},
 	},
@@ -476,8 +476,8 @@ var pluginConfig = &Config{
 			},
 		},
 	},
-	Reporting: &config.Reporting{
-		&config.LicenseConfig{},
+	Reporting: &config.ReportingConfig{
+		&config.LicenseReportingConfig{},
 	},
 }
 
@@ -531,8 +531,8 @@ var nonoptConfig = &Config{
 	TLSConfig:                 nil,
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
-	Reporting: &config.Reporting{
-		&config.LicenseConfig{},
+	Reporting: &config.ReportingConfig{
+		&config.LicenseReportingConfig{},
 	},
 }
 
@@ -670,8 +670,8 @@ func (c *Config) addDefaults() {
 		c.Server.PlanRejectionTracker = &PlanRejectionTracker{}
 	}
 	if c.Reporting == nil {
-		c.Reporting = &config.Reporting{
-			&config.LicenseConfig{
+		c.Reporting = &config.ReportingConfig{
+			&config.LicenseReportingConfig{
 				Enabled: pointer.Of(false),
 			},
 		}
@@ -954,8 +954,8 @@ var sample1 = &Config{
 	Autopilot: &config.AutopilotConfig{
 		CleanupDeadServers: pointer.Of(true),
 	},
-	Reporting: &config.Reporting{
-		&config.LicenseConfig{},
+	Reporting: &config.ReportingConfig{
+		&config.LicenseReportingConfig{},
 	},
 }
 
