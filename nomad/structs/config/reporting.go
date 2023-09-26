@@ -44,7 +44,7 @@ func (lc *LicenseConfig) Merge(b *LicenseConfig) *LicenseConfig {
 	return &result
 }
 
-type Reporting struct {
+type ReportingConfig struct {
 	License *LicenseConfig `hcl:"license,block"`
 }
 
