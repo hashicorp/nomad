@@ -11,7 +11,7 @@ func DefaultReporting() *Reporting {
 	}
 }
 
-type LicenseConfig struct {
+type LicenseReportingConfig struct {
 	Enabled *bool `hcl:"enabled"`
 }
 
