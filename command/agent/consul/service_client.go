@@ -116,12 +116,12 @@ type NamespaceAPI interface {
 // - agent:read
 // - service:write
 type AgentAPI interface {
-	CheckRegister(check *api.AgentCheckRegistration) error
+	CheckRegisterOpts(check *api.AgentCheckRegistration, q *api.QueryOptions) error
 	CheckDeregisterOpts(checkID string, q *api.QueryOptions) error
 	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
 	UpdateTTLOpts(id, output, status string, q *api.QueryOptions) error
 
-	ServiceRegister(service *api.AgentServiceRegistration) error
+	ServiceRegisterOpts(service *api.AgentServiceRegistration, opts api.ServiceRegisterOpts) error
 	ServiceDeregisterOpts(serviceID string, q *api.QueryOptions) error
 	ServicesWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentService, error)
 
@@ -456,6 +456,12 @@ type ServiceClient struct {
 	allocRegistrations     map[string]*serviceregistration.AllocRegistration
 	allocRegistrationsLock sync.RWMutex
 
+	// serviceTokens is a map of service ID -> Consul tokens,
+	// where the token is set in the Workload by the client hooks when using
+	// Workload Identity. Access should be protected by allocRegistrationsLock
+	serviceTokens     map[string]string
+	serviceTokensLock sync.RWMutex
+
 	// Nomad agent services and checks that are recorded so they can be removed
 	// on shutdown. Defers to consul namespace specified in client consul config.
 	agentServices *set.Set[string]
@@ -485,6 +491,8 @@ type checkStatusGetter struct {
 	namespacesClient *NamespacesClient
 }
 
+// Get returns the status of checks.
+// Note: this query has to use the Nomad agent's own Consul token
 func (csg *checkStatusGetter) Get() (map[string]string, error) {
 	// Get the list of all namespaces so we can iterate them.
 	namespaces, err := csg.namespacesClient.List()
@@ -528,6 +536,7 @@ func NewServiceClient(agentAPI AgentAPI, namespacesClient *NamespacesClient, log
 		explicitlyDeregisteredServices: set.New[string](0),
 		explicitlyDeregisteredChecks:   set.New[string](0),
 		allocRegistrations:             make(map[string]*serviceregistration.AllocRegistration),
+		serviceTokens:                  make(map[string]string),
 		agentServices:                  set.New[string](4),
 		agentChecks:                    set.New[string](0),
 		isClientAgent:                  isNomadClient,
@@ -720,6 +729,7 @@ func (c *ServiceClient) commit(ops *operations) {
 }
 
 func (c *ServiceClient) clearExplicitlyDeregistered() {
+	c.gcDeregisteredServiceTokens()
 	c.explicitlyDeregisteredServices = set.New[string](0)
 	c.explicitlyDeregisteredChecks = set.New[string](0)
 }
@@ -759,6 +769,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	}
 
 	// Accumulate all services in Consul across all namespaces.
+	// Note: this query has to use the Nomad agent's own Consul token
 	servicesInConsul := make(map[string]*api.AgentService)
 	for _, namespace := range namespaces {
 		if nsServices, err := c.agentAPI.ServicesWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)}); err != nil {
@@ -804,6 +815,8 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// Get the Consul namespace this service is in.
 		ns := servicesInConsul[id].Namespace
 
+		token := c.getServiceToken(id)
+
 		// If this service has a sidecar, we need to remove the sidecar first,
 		// otherwise Consul will produce a warning and an error when removing
 		// the parent service.
@@ -811,14 +824,18 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// The sidecar is not tracked on the Nomad side; it was registered
 		// implicitly through the parent service.
 		if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
-			if err := c.agentAPI.ServiceDeregisterOpts(sidecar.ID, &api.QueryOptions{Namespace: ns}); err != nil {
+			if err := c.agentAPI.ServiceDeregisterOpts(sidecar.ID,
+				&api.QueryOptions{Namespace: ns, Token: token},
+			); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 				return err
 			}
 		}
 
 		// Remove the unwanted service.
-		if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
+		if err := c.agentAPI.ServiceDeregisterOpts(id,
+			&api.QueryOptions{Namespace: ns, Token: token},
+		); err != nil {
 			if isOldNomadService(id) {
 				// Don't hard-fail on old entries. See #3620
 				continue
@@ -838,7 +855,13 @@ func (c *ServiceClient) sync(reason syncReason) error {
 
 		if !exists || c.agentServiceUpdateRequired(reason, serviceInNomad, serviceInConsul, sidecarInConsul) {
 			c.logger.Trace("must register service", "id", id, "exists", exists, "reason", reason)
-			if err = c.agentAPI.ServiceRegister(serviceInNomad); err != nil {
+			token := c.getServiceToken(id)
+
+			if err = c.agentAPI.ServiceRegisterOpts(
+				serviceInNomad, api.ServiceRegisterOpts{
+					ReplaceExistingChecks: exists,
+					Token:                 token,
+				}); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 				return err
 			}
@@ -848,6 +871,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 
 	}
 
+	// Note: this query has to use the Nomad agent's own Consul token
 	checksInConsul := make(map[string]*api.AgentCheck)
 	for _, namespace := range namespaces {
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
@@ -886,7 +910,9 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Unknown Nomad managed check; remove
+		// Unknown Nomad managed check; remove. Note: this query has to use the
+		// Nomad agent's own Consul token, because by definition we don't have
+		// an associated workload for it
 		if err := c.agentAPI.CheckDeregisterOpts(id, &api.QueryOptions{Namespace: check.Namespace}); err != nil {
 			if isOldNomadService(check.ServiceID) {
 				// Don't hard-fail on old entries.
@@ -906,7 +932,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			// Already in Consul; skipping
 			continue
 		}
-		if err := c.agentAPI.CheckRegister(check); err != nil {
+		opts := &api.QueryOptions{
+			Token: c.getServiceToken(check.ServiceID),
+		}
+		if err := c.agentAPI.CheckRegisterOpts(check, opts); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
@@ -1248,6 +1277,8 @@ func (c *ServiceClient) RegisterWorkload(workload *serviceregistration.WorkloadS
 	t := new(serviceregistration.ServiceRegistrations)
 	t.Services = make(map[string]*serviceregistration.ServiceRegistration, numServices)
 
+	tokens := map[string]string{} // service ID -> token
+
 	ops := &operations{}
 	for _, service := range workload.Services {
 		sreg, err := c.serviceRegs(ops, service, workload)
@@ -1255,7 +1286,15 @@ func (c *ServiceClient) RegisterWorkload(workload *serviceregistration.WorkloadS
 			return err
 		}
 		t.Services[sreg.ServiceID] = sreg
+
+		if token, ok := workload.Tokens[service.Name]; ok {
+			tokens[sreg.ServiceID] = token
+		}
 	}
+
+	// Save the workloads tokens in the token store; must be done before we
+	// commit or start watches
+	c.setServiceTokens(tokens)
 
 	// Add the workload to the allocation's registration
 	c.addRegistrations(workload.AllocInfo.AllocID, workload.Name(), t)
@@ -1289,6 +1328,8 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 	for _, s := range newWorkload.Services {
 		newIDs[serviceregistration.MakeAllocServiceID(newWorkload.AllocInfo.AllocID, newWorkload.Name(), s)] = s
 	}
+
+	tokens := map[string]string{} // service ID -> token
 
 	// Loop over existing Services to see if they have been removed
 	for _, existingSvc := range old.Services {
@@ -1324,6 +1365,11 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 			CheckOnUpdate: make(map[string]string, len(newSvc.Checks)),
 		}
 		regs.Services[existingID] = sreg
+
+		// The token might have been updated
+		if token, ok := newWorkload.Tokens[newSvc.Name]; ok {
+			tokens[existingID] = token
+		}
 
 		// See if any checks were updated
 		existingChecks := make(map[string]*structs.ServiceCheck, len(existingSvc.Checks))
@@ -1379,7 +1425,14 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *serviceregistration.Wor
 		}
 
 		regs.Services[sreg.ServiceID] = sreg
+		if token, ok := newWorkload.Tokens[newSvc.Name]; ok {
+			tokens[sreg.ServiceID] = token
+		}
 	}
+
+	// Save the workloads tokens in the token store; must be done before we
+	// commit or start watches
+	c.setServiceTokens(tokens)
 
 	// Add the task to the allocation's registration
 	c.addRegistrations(newWorkload.AllocInfo.AllocID, newWorkload.Name(), regs)
@@ -1462,8 +1515,13 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 	checks := make(map[string]*api.AgentCheck)
 
 	// Query the services and checks to populate the allocation registrations.
+	// Note: these queries have to use the Nomad agent's own Consul token
 	for _, namespace := range namespaces {
-		nsServices, err := c.agentAPI.ServicesWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
+		qo := &api.QueryOptions{
+			Namespace: normalizeNamespace(namespace),
+		}
+
+		nsServices, err := c.agentAPI.ServicesWithFilterOpts("", qo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve services from consul: %w", err)
 		}
@@ -1471,7 +1529,7 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 			services[k] = v
 		}
 
-		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
+		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", qo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve checks from consul: %w", err)
 		}
@@ -1498,8 +1556,15 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 // UpdateTTL is used to update the TTL of a check. Typically this will only be
 // called to heartbeat script checks.
 func (c *ServiceClient) UpdateTTL(id, namespace, output, status string) error {
+	var token string
+	check := c.checks[id]
+	if check != nil {
+		token = c.getServiceToken(check.ServiceID)
+	}
+
 	ns := normalizeNamespace(namespace)
-	return c.agentAPI.UpdateTTLOpts(id, output, status, &api.QueryOptions{Namespace: ns})
+	return c.agentAPI.UpdateTTLOpts(id, output, status,
+		&api.QueryOptions{Namespace: ns, Token: token})
 }
 
 // Shutdown the Consul client. Update running task registrations and deregister
@@ -1534,8 +1599,12 @@ func (c *ServiceClient) Shutdown() error {
 
 	// Always attempt to deregister Nomad agent Consul entries, even if
 	// deadline was reached
-	for _, id := range c.agentServices.List() {
-		if err := c.agentAPI.ServiceDeregisterOpts(id, nil); err != nil {
+	for _, id := range c.agentServices.Slice() {
+
+		opts := &api.QueryOptions{
+			Token: c.getServiceToken(id),
+		}
+		if err := c.agentAPI.ServiceDeregisterOpts(id, opts); err != nil {
 			c.logger.Error("failed deregistering agent service", "service_id", id, "error", err)
 		}
 	}
@@ -1545,6 +1614,7 @@ func (c *ServiceClient) Shutdown() error {
 		c.logger.Error("failed to retrieve namespaces from consul", "error", err)
 	}
 
+	// Note: these queries have to use the Nomad agent's own Consul token
 	remainingChecks := make(map[string]*api.AgentCheck)
 	for _, namespace := range namespaces {
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
@@ -1565,12 +1635,16 @@ func (c *ServiceClient) Shutdown() error {
 		return false
 	}
 
-	for _, id := range c.agentChecks.List() {
+	for _, id := range c.agentChecks.Slice() {
 		// if we couldn't populate remainingChecks it is unlikely that CheckDeregister will work, but try anyway
 		// if we could list the remaining checks, verify that the check we store still exists before removing it.
 		if remainingChecks == nil || checkRemains(id) {
-			ns := remainingChecks[id].Namespace
-			if err := c.agentAPI.CheckDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
+			check := remainingChecks[id]
+			ns := check.Namespace
+			token := c.getServiceToken(check.ServiceID)
+
+			if err := c.agentAPI.CheckDeregisterOpts(id,
+				&api.QueryOptions{Namespace: ns, Token: token}); err != nil {
 				c.logger.Error("failed deregistering agent check", "check_id", id, "error", err)
 			}
 		}
@@ -1609,6 +1683,32 @@ func (c *ServiceClient) removeRegistration(allocID, taskName string) {
 	delete(alloc.Tasks, taskName)
 	if len(alloc.Tasks) == 0 {
 		delete(c.allocRegistrations, allocID)
+	}
+}
+
+// getServiceToken returns the Consul token for a specific service ID
+func (c *ServiceClient) getServiceToken(serviceID string) string {
+	c.serviceTokensLock.RLock()
+	defer c.serviceTokensLock.RUnlock()
+	return c.serviceTokens[serviceID]
+}
+
+// setServiceTokens writes a batch of service tokens to the store
+func (c *ServiceClient) setServiceTokens(tokens map[string]string) {
+	c.serviceTokensLock.Lock()
+	defer c.serviceTokensLock.Unlock()
+	for serviceID, token := range tokens {
+		c.serviceTokens[serviceID] = token
+	}
+}
+
+// gcDeregisteredServiceTokens cleans up the tokens for all explicitly
+// deregistered services in a single batch
+func (c *ServiceClient) gcDeregisteredServiceTokens() {
+	c.serviceTokensLock.Lock()
+	defer c.serviceTokensLock.Unlock()
+	for _, serviceID := range c.explicitlyDeregisteredServices.Slice() {
+		delete(c.serviceTokens, serviceID)
 	}
 }
 
