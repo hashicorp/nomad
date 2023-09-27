@@ -69,66 +69,68 @@ func (h *consulHook) Prerun() error {
 
 	mErr := multierror.Error{}
 
-	// tokens are a map of Consul cluster to service/identity name to Consul
+	// tokens are a map of Consul cluster to service identity name to Consul
 	// ACL token
 	tokens := map[string]map[string]string{}
 
-	// get consul clients
-	clients, err := getConsulClients(h.consulConfigs, h.logger)
-	if err != nil {
-		return err
-	}
-
 	for _, tg := range job.TaskGroups {
-		for _, service := range tg.Services {
-			t, err := h.prepareConsulTokens(service, clients)
-			if err != nil {
-				mErr.Errors = append(mErr.Errors, err)
-				continue
-			}
-			tokens[service.Cluster] = t
+		if err := h.prepareConsulTokens(tg.Services, tokens); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
 		}
 		for _, task := range tg.Tasks {
-			for _, service := range task.Services {
-				t, err := h.prepareConsulTokens(service, clients)
-				if err != nil {
-					mErr.Errors = append(mErr.Errors, err)
-					continue
-				}
-				tokens[service.Cluster] = t
+			if err := h.prepareConsulTokens(task.Services, tokens); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
 	}
 
-	// store the tokens in hookResources
+	// write the tokens to hookResources
 	h.hookResources.SetConsulTokens(tokens)
 
 	return mErr.ErrorOrNil()
 }
 
-func (h *consulHook) prepareConsulTokens(service *structs.Service, clients map[string]consul.Client) (map[string]string, error) {
-	req, err := h.prepareConsulClientReq(service)
-	if err != nil {
-		return nil, err
+func (h *consulHook) prepareConsulTokens(services []*structs.Service, tokens map[string]map[string]string) error {
+	if len(services) == 0 {
+		return nil
 	}
 
-	// in case no service needs a consul token
-	if len(req) == 0 {
-		return nil, nil
+	mErr := multierror.Error{}
+	for _, service := range services {
+		req, err := h.prepareConsulClientReq(service)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+
+		// in case no service needs a consul token
+		if len(req) == 0 {
+			continue
+		}
+
+		// Consul auth
+		consulConf, ok := h.consulConfigs[service.Cluster]
+		if !ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("unable to find configuration for consul cluster %v", service.Cluster))
+			continue
+		}
+
+		client, err := consul.NewConsulClient(consulConf, h.logger)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+
+		// get consul acl tokens
+		t, err := client.DeriveSITokenWithJWT(req)
+		if err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+			continue
+		}
+		tokens[service.Cluster][service.Identity.Name] = t[service.Identity.Name]
 	}
 
-	if len(clients) == 0 {
-		return nil, fmt.Errorf("no consul clients available")
-	}
-
-	// Consul auth
-	var client consul.Client
-	var ok bool
-	if client, ok = clients[service.Cluster]; !ok {
-		return nil, fmt.Errorf("unable to find client for consul cluster %v", service.Cluster)
-	}
-
-	return client.DeriveSITokenWithJWT(req)
+	return mErr.ErrorOrNil()
 }
 
 func (h *consulHook) prepareConsulClientReq(service *structs.Service) (map[string]consul.JWTLoginRequest, error) {

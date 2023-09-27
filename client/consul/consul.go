@@ -101,7 +101,7 @@ func NewConsulClient(config *config.ConsulConfig, logger hclog.Logger) (*consulC
 }
 
 // DeriveSITokenWithJWT takes a JWT from request and returns a consul token for
-// each workload in the request
+// each identity in the request
 func (c *consulClient) DeriveSITokenWithJWT(reqs map[string]JWTLoginRequest) (map[string]string, error) {
 	tokens := make(map[string]string, len(reqs))
 	var mErr *multierror.Error
