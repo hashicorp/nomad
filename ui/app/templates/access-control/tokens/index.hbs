@@ -47,7 +47,6 @@
       @sortBy="name"
     >
       <:body as |B|>
-      {{!-- TODO: dont allow openToken if self token. Route guard in token.hbs. --}}
         <B.Tr
           {{keyboard-shortcut 
             enumerated=true

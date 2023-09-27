@@ -12,7 +12,6 @@ export default ApplicationSerializer.extend({
     if (relationship === 'policies') {
       return 'Policies';
     }
-    // // TODO: might not need this?
     if (relationship === 'roles') {
       return 'Roles';
     }
