@@ -13,6 +13,7 @@ import (
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -42,6 +43,8 @@ type serviceHookConfig struct {
 
 	// Restarter is a subset of the TaskLifecycle interface
 	restarter serviceregistration.WorkloadRestarter
+
+	hookResources *cstructs.AllocHookResources
 
 	logger log.Logger
 }
@@ -80,6 +83,8 @@ type serviceHook struct {
 	// we do not call this multiple times for a single task when not needed.
 	deregistered bool
 
+	hookResources *cstructs.AllocHookResources
+
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
 	mu sync.Mutex
@@ -96,6 +101,7 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		serviceRegWrapper: c.serviceRegWrapper,
 		services:          c.task.Services,
 		restarter:         c.restarter,
+		hookResources:     c.hookResources,
 		ports:             c.alloc.AllocatedResources.Shared.Ports,
 	}
 
@@ -224,6 +230,15 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
+	allocTokens := h.hookResources.GetConsulTokens()
+
+	tokens := map[string]string{}
+	for _, service := range h.services {
+		if token, ok := allocTokens[service.Cluster][service.MakeUniqueIdentityName()]; ok {
+			tokens[service.Name] = token
+		}
+	}
+
 	info := structs.AllocInfo{
 		AllocID:   h.allocID,
 		JobID:     h.jobID,
@@ -243,5 +258,6 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 		Networks:          h.networks,
 		Canary:            h.canary,
 		Ports:             h.ports,
+		Tokens:            tokens,
 	}
 }

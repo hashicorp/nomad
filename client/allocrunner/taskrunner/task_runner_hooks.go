@@ -132,6 +132,7 @@ func (tr *TaskRunner) initHooks() {
 		providerNamespace: serviceProviderNamespace,
 		serviceRegWrapper: tr.serviceRegWrapper,
 		restarter:         tr,
+		hookResources:     tr.allocHookResources,
 		logger:            hookLogger,
 	}))
 
