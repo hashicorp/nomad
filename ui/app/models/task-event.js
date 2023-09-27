@@ -37,6 +37,6 @@ function simplifyTimeMessage(message) {
       m %= 60;
 
       return `${h ? h + 'h' : ''}${h || m ? m + 'm' : ''}${s}s`;
-    }) || ''
+    }) || message
   );
 }

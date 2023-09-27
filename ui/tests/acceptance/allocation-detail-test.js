@@ -209,7 +209,7 @@ module('Acceptance | allocation detail', function (hooks) {
 
       assert.equal(taskRow.name, task.name, 'Name');
       assert.equal(taskRow.state, task.state, 'State');
-      assert.equal(taskRow.message, event.message, 'Event Message');
+      assert.equal(taskRow.message, event.displayMessage, 'Event Message');
       assert.equal(
         taskRow.time,
         moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
