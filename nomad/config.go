@@ -493,6 +493,17 @@ func (c *Config) VaultDefaultIdentity() *structs.WorkloadIdentity {
 	return workloadIdentityFromConfig(c.VaultConfig.DefaultIdentity)
 }
 
+// VaultIdentityConfig returns the workload identity to be used for accessing
+// the API for a given Vault cluster.
+func (c *Config) VaultIdentityConfig(cluster string) *structs.WorkloadIdentity {
+	conf := c.VaultConfigs[cluster]
+	if conf == nil {
+		return nil
+	}
+
+	return workloadIdentityFromConfig(conf.DefaultIdentity)
+}
+
 // UseConsulIdentity returns true when Consul workload identity is enabled.
 func (c *Config) UseConsulIdentity() bool {
 	return c.ConsulConfig != nil &&

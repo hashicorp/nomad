@@ -128,7 +128,7 @@ func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 
 	// If the task doesn't specify an identity for Vault, fallback to the
 	// default identity defined in the server configuration.
-	vaultWID := h.srv.config.VaultDefaultIdentity()
+	vaultWID := h.srv.config.VaultIdentityConfig(t.Vault.Cluster)
 	if vaultWID == nil {
 		// If no identity is found skip inject the implicit identity and
 		// fallback to the legacy flow.

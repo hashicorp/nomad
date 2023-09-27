@@ -405,7 +405,7 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 
 	hasVault := t.Vault != nil
 	hasTaskWID := t.GetIdentity(vaultIdentityName) != nil
-	hasDefaultWID := v.srv.config.VaultDefaultIdentity() != nil
+	hasDefaultWID := hasVault && v.srv.config.VaultIdentityConfig(t.Vault.Cluster) != nil
 
 	useIdentity := hasVault && v.srv.config.UseVaultIdentity()
 	hasWID := hasTaskWID || hasDefaultWID
