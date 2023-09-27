@@ -7,6 +7,7 @@ package config
 
 import (
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -22,7 +23,7 @@ func (c *Config) GetVaultConfigs(logger hclog.Logger) map[string]*structsc.Vault
 		logger.Warn("multiple Vault configurations are only supported in Nomad Enterprise")
 	}
 
-	return map[string]*structsc.VaultConfig{"default": c.VaultConfig}
+	return map[string]*structsc.VaultConfig{structs.VaultDefaultCluster: c.VaultConfig}
 }
 
 // GetConsulConfigs returns the set of Consul configurations the fingerprint needs

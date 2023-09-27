@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/useragent"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 )
@@ -92,7 +93,7 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 		return nil
 	}
 
-	if cfg.Name == "default" {
+	if cfg.Name == structs.VaultDefaultCluster {
 		resp.AddAttribute("vault.accessible", strconv.FormatBool(true))
 		resp.AddAttribute("vault.version", strings.TrimPrefix(status.Version, "Vault "))
 		resp.AddAttribute("vault.cluster_id", status.ClusterID)

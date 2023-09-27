@@ -5,6 +5,7 @@ package structs
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"time"
 
@@ -18,6 +19,10 @@ const (
 
 	// WorkloadIdentityDefaultAud is the audience of the default identity.
 	WorkloadIdentityDefaultAud = "nomadproject.io"
+
+	// WorkloadIdentityVaultPrefix is the name prefix of workload identities
+	// used to derive Vault tokens.
+	WorkloadIdentityVaultPrefix = "vault_"
 
 	// WIRejectionReasonMissingAlloc is the WorkloadIdentityRejection.Reason
 	// returned when an allocation longer exists. This may be due to the alloc
@@ -36,9 +41,7 @@ const (
 var (
 	// validIdentityName is used to validate workload identity Name fields. Must
 	// be safe to use in filenames.
-	//
-	// Reuse validNamespaceName to save a bit of memory.
-	validIdentityName = validNamespaceName
+	validIdentityName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
 )
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload

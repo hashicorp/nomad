@@ -29,14 +29,14 @@ func TestJobEndpointHook_VaultCE(t *testing.T) {
 
 	// create two different Vault blocks and assign to clusters
 	job.TaskGroups[0].Tasks = append(job.TaskGroups[0].Tasks, job.TaskGroups[0].Tasks[0].Copy())
-	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Cluster: "default"}
+	job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Cluster: structs.VaultDefaultCluster}
 	job.TaskGroups[0].Tasks[1].Name = "web2"
 	job.TaskGroups[0].Tasks[1].Vault = &structs.Vault{Cluster: "infra"}
 
 	hook := jobVaultHook{srv}
 	_, _, err := hook.Mutate(job)
 	must.NoError(t, err)
-	must.Eq(t, "default", job.TaskGroups[0].Tasks[0].Vault.Cluster)
+	must.Eq(t, structs.VaultDefaultCluster, job.TaskGroups[0].Tasks[0].Vault.Cluster)
 	must.Eq(t, "infra", job.TaskGroups[0].Tasks[1].Vault.Cluster)
 
 	// skipping over the rest of Validate b/c it requires an actual

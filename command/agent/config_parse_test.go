@@ -292,7 +292,7 @@ var basicConfig = &Config{
 		},
 	},
 	Vault: &config.VaultConfig{
-		Name:                 "default",
+		Name:                 structs.VaultDefaultCluster,
 		Addr:                 "127.0.0.1:9500",
 		AllowUnauthenticated: &trueValue,
 		ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
@@ -316,8 +316,8 @@ var basicConfig = &Config{
 		},
 	},
 	Vaults: map[string]*config.VaultConfig{
-		"default": {
-			Name:                 "default",
+		structs.VaultDefaultCluster: {
+			Name:                 structs.VaultDefaultCluster,
 			Addr:                 "127.0.0.1:9500",
 			AllowUnauthenticated: &trueValue,
 			ConnectionRetryIntv:  config.DefaultVaultConnectRetryIntv,
@@ -612,7 +612,7 @@ func TestConfig_Parse(t *testing.T) {
 				Consul:    config.DefaultConsulConfig(),
 				Consuls:   map[string]*config.ConsulConfig{"default": config.DefaultConsulConfig()},
 				Vault:     config.DefaultVaultConfig(),
-				Vaults:    map[string]*config.VaultConfig{"default": config.DefaultVaultConfig()},
+				Vaults:    map[string]*config.VaultConfig{structs.VaultDefaultCluster: config.DefaultVaultConfig()},
 				Autopilot: config.DefaultAutopilotConfig(),
 				Reporting: config.DefaultReporting(),
 			}
@@ -655,7 +655,7 @@ func (c *Config) addDefaults() {
 	}
 	if c.Vault == nil {
 		c.Vault = config.DefaultVaultConfig()
-		c.Vaults = map[string]*config.VaultConfig{"default": c.Vault}
+		c.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: c.Vault}
 	}
 	if c.Telemetry == nil {
 		c.Telemetry = &Telemetry{}
@@ -814,14 +814,14 @@ var sample0 = &Config{
 		},
 	},
 	Vault: &config.VaultConfig{
-		Name:    "default",
+		Name:    structs.VaultDefaultCluster,
 		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
 	Vaults: map[string]*config.VaultConfig{
-		"default": {
-			Name:    "default",
+		structs.VaultDefaultCluster: {
+			Name:    structs.VaultDefaultCluster,
 			Enabled: pointer.Of(true),
 			Role:    "nomad-cluster",
 			Addr:    "http://host.example.com:8200",
@@ -930,14 +930,14 @@ var sample1 = &Config{
 		},
 	},
 	Vault: &config.VaultConfig{
-		Name:    "default",
+		Name:    structs.VaultDefaultCluster,
 		Enabled: pointer.Of(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	},
 	Vaults: map[string]*config.VaultConfig{
-		"default": {
-			Name:    "default",
+		structs.VaultDefaultCluster: {
+			Name:    structs.VaultDefaultCluster,
 			Enabled: pointer.Of(true),
 			Role:    "nomad-cluster",
 			Addr:    "http://host.example.com:8200",
@@ -1061,29 +1061,29 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 	// verify the default Vault config is set from the list
 	cfg := DefaultConfig()
-	must.Eq(t, "default", cfg.Vault.Name)
+	must.Eq(t, structs.VaultDefaultCluster, cfg.Vault.Name)
 	must.Equal(t, config.DefaultVaultConfig(), cfg.Vault)
 	must.Nil(t, cfg.Vault.Enabled) // unset
 	must.Eq(t, "https://vault.service.consul:8200", cfg.Vault.Addr)
 	must.Eq(t, "", cfg.Vault.Token)
 
 	must.MapLen(t, 1, cfg.Vaults)
-	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
-	must.True(t, cfg.Vault == cfg.Vaults["default"]) // must be same pointer
+	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
+	must.True(t, cfg.Vault == cfg.Vaults[structs.VaultDefaultCluster]) // must be same pointer
 
 	// merge in the user's configuration
 	fc, err := LoadConfig("testdata/basic.hcl")
 	must.NoError(t, err)
 	cfg = cfg.Merge(fc)
 
-	must.Eq(t, "default", cfg.Vault.Name)
+	must.Eq(t, structs.VaultDefaultCluster, cfg.Vault.Name)
 	must.NotNil(t, cfg.Vault.Enabled, must.Sprint("override should set to non-nil"))
 	must.False(t, *cfg.Vault.Enabled)
 	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
 	must.Eq(t, "12345", cfg.Vault.Token)
 
 	must.MapLen(t, 1, cfg.Vaults)
-	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
+	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
 
 	// add an extra Vault config and override fields in the default
 	fc, err = LoadConfig("testdata/extra-vault.hcl")
@@ -1091,13 +1091,14 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 	cfg = cfg.Merge(fc)
 
-	must.Eq(t, "default", cfg.Vault.Name)
+	must.Eq(t, structs.VaultDefaultCluster, cfg.Vault.Name)
 	must.True(t, *cfg.Vault.Enabled)
 	must.Eq(t, "127.0.0.1:9500", cfg.Vault.Addr)
 	must.Eq(t, "abracadabra", cfg.Vault.Token)
 
 	must.MapLen(t, 3, cfg.Vaults)
 	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
+	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
 
 	must.Eq(t, "alternate", cfg.Vaults["alternate"].Name)
 	must.True(t, *cfg.Vaults["alternate"].Enabled)

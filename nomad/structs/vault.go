@@ -11,6 +11,12 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+const (
+	// VaultDefaultCluster is the name used for the Vault cluster that doesn't
+	// have a name.
+	VaultDefaultCluster = "default"
+)
+
 // VaultTokenData represents some of the fields returned in the Data map of the
 // sercret returned by the Vault API when doing a token lookup request.
 type VaultTokenData struct {

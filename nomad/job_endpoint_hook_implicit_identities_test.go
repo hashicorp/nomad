@@ -404,10 +404,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
 						Identities: []*structs.WorkloadIdentity{{
-							Name:     "vault",
+							Name:     "vault_default",
 							Audience: []string{"vault.io"},
 						}},
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -423,10 +425,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
 						Identities: []*structs.WorkloadIdentity{{
-							Name:     "vault",
+							Name:     "vault_default",
 							Audience: []string{"vault.io"},
 						}},
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -436,7 +440,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -452,10 +458,12 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
 						Identities: []*structs.WorkloadIdentity{{
-							Name:     "vault",
+							Name:     "vault_default",
 							Audience: []string{"vault.io"},
 						}},
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -468,6 +476,7 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 				config: tc.inputConfig,
 			}}
 			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
+
 			must.Eq(t, tc.expectedOutputJob, actualJob)
 			must.NoError(t, actualError)
 			must.Nil(t, actualWarnings)

@@ -78,7 +78,7 @@ func (c *Command) readConfig() *Config {
 		Audit:     &config.AuditConfig{},
 		Reporting: &config.ReportingConfig{},
 	}
-	cmdConfig.Vaults = map[string]*config.VaultConfig{"default": cmdConfig.Vault}
+	cmdConfig.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: cmdConfig.Vault}
 	cmdConfig.Consuls = map[string]*config.ConsulConfig{"default": cmdConfig.Consul}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)

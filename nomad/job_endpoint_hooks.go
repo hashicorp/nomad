@@ -6,6 +6,7 @@ package nomad
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
@@ -237,7 +238,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 // fingerprint or non-default cluster are allowed well before we get here, so no
 // need to split out the behavior to ENT-specific code.
 func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
-	if vault.Cluster != "default" && vault.Cluster != "" {
+	if vault.Cluster != structs.VaultDefaultCluster && vault.Cluster != "" {
 		return &structs.Constraint{
 			LTarget: fmt.Sprintf("${attr.vault.%s.version}", vault.Cluster),
 			RTarget: ">= 0.6.1",
@@ -404,17 +405,24 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 	var warnings []error
 
 	hasVault := t.Vault != nil
-	hasTaskWID := t.GetIdentity(vaultIdentityName) != nil
 	hasDefaultWID := v.srv.config.VaultDefaultIdentity() != nil
 
+	vaultWIDs := []string{}
+	for _, wid := range t.Identities {
+		if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
+			vaultWIDs = append(vaultWIDs, wid.Name)
+		}
+	}
+	hasVaultWID := len(vaultWIDs) > 0
+
 	useIdentity := hasVault && v.srv.config.UseVaultIdentity()
-	hasWID := hasTaskWID || hasDefaultWID
+	hasWID := hasVaultWID || hasDefaultWID
 
 	if useIdentity {
 		if !hasWID {
 			mErr = multierror.Append(mErr, fmt.Errorf(
 				"Task %s expected to have a Vault identity, add an identity block called %s or provide a default using the default_identity block in the server Vault configuration",
-				t.Name, vaultIdentityName,
+				t.Name, t.Vault.IdentityName(),
 			))
 		}
 
@@ -428,15 +436,15 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
 		mErr = multierror.Append(mErr, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name))
 	}
 
-	if hasTaskWID {
+	for _, wid := range vaultWIDs {
 		if !v.srv.config.UseVaultIdentity() {
 			warnings = append(warnings, fmt.Errorf(
 				"Task %s has an identity called %s but server is not configured to use Vault identities, set use_identity to true in the Vault server configuration",
-				t.Name, vaultIdentityName,
+				t.Name, wid,
 			))
 		}
 		if !hasVault {
-			warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, vaultIdentityName))
+			warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, wid))
 		}
 	}
 

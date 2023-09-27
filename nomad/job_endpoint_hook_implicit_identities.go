@@ -12,7 +12,6 @@ import (
 const (
 	consulServiceIdentityNamePrefix = "consul-service"
 	consulTaskIdentityNamePrefix    = "consul"
-	vaultIdentityName               = "vault"
 )
 
 // jobImplicitIdentitiesHook adds implicit `identity` blocks for external
@@ -111,24 +110,21 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, consul *st
 //  1. The task has a Vault block.
 //  2. The server is configured with `vault.use_identity = true` and a
 //     `vault.default_identity` is provided.
-//
-// If the task already has an identity named `vault` it sets the identity name
-// to the expected value.
 func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 	if !h.srv.config.UseVaultIdentity() || t.Vault == nil {
 		return
 	}
 
 	// Use the Vault identity specified in the task.
-	for _, wid := range t.Identities {
-		if wid.Name == vaultIdentityName {
-			return
-		}
+	vaultWIDName := t.Vault.IdentityName()
+	vaultWID := t.GetIdentity(vaultWIDName)
+	if vaultWID != nil {
+		return
 	}
 
 	// If the task doesn't specify an identity for Vault, fallback to the
 	// default identity defined in the server configuration.
-	vaultWID := h.srv.config.VaultDefaultIdentity()
+	vaultWID = h.srv.config.VaultDefaultIdentity()
 	if vaultWID == nil {
 		// If no identity is found skip inject the implicit identity and
 		// fallback to the legacy flow.
@@ -136,6 +132,6 @@ func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 	}
 
 	// Set the expected identity name and inject it into the task.
-	vaultWID.Name = vaultIdentityName
+	vaultWID.Name = vaultWIDName
 	t.Identities = append(t.Identities, vaultWID)
 }
