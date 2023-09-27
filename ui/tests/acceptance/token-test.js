@@ -692,7 +692,6 @@ module('Acceptance | tokens', function (hooks) {
     const doomedTokenRow = [...findAll('[data-test-policy-token-row]')].find(
       (a) => a.textContent.includes('Doomed Token')
     );
-    console.log('doomed', doomedTokenRow);
     assert.dom(doomedTokenRow).exists();
 
     await click(doomedTokenRow.querySelector('button'));
@@ -1047,7 +1046,6 @@ module('Acceptance | tokens', function (hooks) {
 
     test('Token page, general', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      console.log('tokenAccessor', token, token.accessorId);
       await visit(`/access-control/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       assert.dom('[data-test-token-accessor]').hasValue(token.accessorId);

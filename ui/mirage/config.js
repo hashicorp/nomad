@@ -498,9 +498,6 @@ export default function () {
       };
       return value * unitMap[unit];
     }
-    // const expirationTime = ExpirationTTL
-    //   ? new Date(Date.now() + parseDuration(ExpirationTTL))
-    //   : null;
 
     // If there's an expirationTime, use that. Otherwise, use the TTL.
     const expirationTime = ExpirationTime
@@ -508,7 +505,6 @@ export default function () {
       : ExpirationTTL
       ? new Date(Date.now() + parseDuration(ExpirationTTL))
       : null;
-    console.log('finally', expirationTime, ExpirationTime, ExpirationTTL);
 
     return server.create('token', {
       name: Name,
@@ -673,7 +669,6 @@ export default function () {
     const { id } = request.params;
 
     // Also update any tokens whose policyIDs include this policy
-    console.log('alltok', server.schema.tokens);
     const tokens =
       server.schema.tokens.where((token) => token.roleIds?.includes(id)) || [];
     tokens.models.forEach((token) => {
