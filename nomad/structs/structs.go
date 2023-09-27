@@ -9976,6 +9976,12 @@ type Vault struct {
 	ChangeSignal string
 }
 
+// IdentityName returns the name of the workload identity to be used to access
+// this Vault cluster.
+func (v *Vault) IdentityName() string {
+	return fmt.Sprintf("%s%s", WorkloadIdentityVaultPrefix, v.Cluster)
+}
+
 func (v *Vault) Equal(o *Vault) bool {
 	if v == nil || o == nil {
 		return v == o
@@ -10013,6 +10019,10 @@ func (v *Vault) Copy() *Vault {
 }
 
 func (v *Vault) Canonicalize() {
+	if v.Cluster == "" {
+		v.Cluster = VaultDefaultCluster
+	}
+
 	if v.ChangeSignal != "" {
 		v.ChangeSignal = strings.ToUpper(v.ChangeSignal)
 	}
