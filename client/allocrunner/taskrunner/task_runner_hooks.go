@@ -103,7 +103,7 @@ func (tr *TaskRunner) initHooks() {
 	}
 
 	// Get the consul namespace for the TG of the allocation.
-	consulNamespace := tr.alloc.ConsulNamespace()
+	consulNamespace := tr.alloc.ConsulNamespaceForTask(tr.taskName)
 
 	// Identify the service registration provider, which can differ from the
 	// Consul namespace depending on which provider is used.

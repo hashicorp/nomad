@@ -548,6 +548,12 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, vDiff)
 	}
 
+	// Consul diff
+	consulDiff := primitiveObjectDiff(t.Consul, other.Consul, nil, "Consul", contextual)
+	if consulDiff != nil {
+		diff.Objects = append(diff.Objects, consulDiff)
+	}
+
 	// Template diff
 	tmplDiffs := templateDiffs(t.Templates, other.Templates, contextual)
 	if tmplDiffs != nil {

@@ -1302,6 +1302,10 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
+	if apiTask.Consul != nil {
+		structsTask.Consul = apiConsulToStructs(apiTask.Consul)
+	}
+
 	if len(apiTask.Templates) > 0 {
 		structsTask.Templates = []*structs.Template{}
 		for _, template := range apiTask.Templates {
