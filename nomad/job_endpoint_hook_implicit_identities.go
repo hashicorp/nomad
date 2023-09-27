@@ -116,7 +116,8 @@ func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 	}
 
 	// Use the Vault identity specified in the task.
-	vaultWID := t.GetIdentity(t.Vault.IdentityName())
+	vaultWIDName := t.Vault.IdentityName()
+	vaultWID := t.GetIdentity(vaultWIDName)
 	if vaultWID != nil {
 		return
 	}
@@ -131,6 +132,6 @@ func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 	}
 
 	// Set the expected identity name and inject it into the task.
-	vaultWID.Name = t.Vault.IdentityName()
+	vaultWID.Name = vaultWIDName
 	t.Identities = append(t.Identities, vaultWID)
 }
