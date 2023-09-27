@@ -25,16 +25,18 @@ export default class TaskEvent extends Fragment {
 }
 
 function simplifyTimeMessage(message) {
-  return message.replace(/(\d+h)?(\d+m)?(\d+\.\d+)s/g, (_, h, m, s) => {
-    h = h ? parseInt(h) : 0;
-    m = m ? parseInt(m) : 0;
-    s = Math.round(parseFloat(s));
+  return (
+    message?.replace(/(\d+h)?(\d+m)?(\d+\.\d+)s/g, (_, h, m, s) => {
+      h = h ? parseInt(h) : 0;
+      m = m ? parseInt(m) : 0;
+      s = Math.round(parseFloat(s));
 
-    m += Math.floor(s / 60);
-    s %= 60;
-    h += Math.floor(m / 60);
-    m %= 60;
+      m += Math.floor(s / 60);
+      s %= 60;
+      h += Math.floor(m / 60);
+      m %= 60;
 
-    return `${h ? h + 'h' : ''}${h || m ? m + 'm' : ''}${s}s`;
-  });
+      return `${h ? h + 'h' : ''}${h || m ? m + 'm' : ''}${s}s`;
+    }) || ''
+  );
 }
