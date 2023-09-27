@@ -790,7 +790,7 @@ module('Acceptance | job status panel', function (hooks) {
 
       await fillIn(
         '[data-test-history-search] input',
-        serverEvents.models[0].message
+        serverEvents.models[0].displayMessage
       );
       assert.equal(
         findAll('.timeline-object').length,
