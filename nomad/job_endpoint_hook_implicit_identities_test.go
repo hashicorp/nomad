@@ -407,7 +407,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 							Name:     "vault_default",
 							Audience: []string{"vault.io"},
 						}},
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -426,7 +428,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 							Name:     "vault_default",
 							Audience: []string{"vault.io"},
 						}},
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -436,7 +440,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -455,7 +461,9 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 							Name:     "vault_default",
 							Audience: []string{"vault.io"},
 						}},
-						Vault: &structs.Vault{},
+						Vault: &structs.Vault{
+							Cluster: structs.VaultDefaultCluster,
+						},
 					}},
 				}},
 			},
@@ -464,9 +472,6 @@ func Test_jobImplicitIndentitiesHook_Mutate_vault(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.inputJob.Canonicalize()
-			tc.expectedOutputJob.Canonicalize()
-
 			impl := jobImplicitIdentitiesHook{srv: &Server{
 				config: tc.inputConfig,
 			}}
