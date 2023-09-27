@@ -7,9 +7,9 @@
 {{#if (can "write variable")}}
   {{#with (editable-variable-link @path existingPaths=@existingPaths namespace=@namespace) as |link|}}
     {{#if link.model}}
-      <LinkTo @route={{link.route}} @model={{link.model}} @query={{link.query}}>{{@path}}</LinkTo>
+      <Hds::Link::Inline @route={{link.route}} @model={{link.model}} @query={{link.query}}>{{@path}}</Hds::Link::Inline>
     {{else}}
-      <LinkTo @route={{link.route}} @query={{link.query}}>{{@path}}</LinkTo>
+      <Hds::Link::Inline @route={{link.route}} @query={{link.query}}>{{@path}}</Hds::Link::Inline>
     {{/if}}
   {{/with}}
 {{else}}

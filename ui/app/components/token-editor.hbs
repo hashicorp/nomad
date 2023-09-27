@@ -1,0 +1,239 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+	<label>
+    <Hds::Form::Label>
+      Token Name
+    </Hds::Form::Label>
+		<Input
+			data-test-token-name-input
+			@type="text"
+			@value={{@token.name}}
+			class="input"
+      {{autofocus ignore=(not @token.isNew)}}
+		/>
+	</label>
+
+<div class="expiration-time">
+  {{#if @token.isNew}}
+    <Hds::Form::Label>
+      Expiration time
+    </Hds::Form::Label>
+
+    {{!-- Radio to select between 1, 4, 8, 24, or never --}}
+    <Hds::Form::Radio::Group @layout="horizontal" @name="expiration-time" {{on "change" this.updateTokenExpirationTTL}} as |G|>
+      <G.Radio::Field
+        @id="10m"
+        @value="10m"
+      as |F|>
+        <F.Label>10 minutes</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="8h"
+        @value="8h"
+      as |F|>
+        <F.Label>8 hours</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="24h"
+        @value="24h"
+      as |F|>
+        <F.Label>24 hours</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="never"
+        @value="never"
+        checked={{eq @token.expirationTTL "never"}}
+      as |F|>
+        <F.Label>Never</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="custom"
+        @value="custom"
+      as |F|>
+        <F.Label>Custom</F.Label>
+      </G.Radio::Field>
+    </Hds::Form::Radio::Group>
+
+    {{#if @token.expirationTime}}
+      <Hds::Form::TextInput::Field
+        data-test-token-expiration-time-input
+        @type="datetime-local"
+        @id="token-expiration-time"
+        {{on "change" this.updateTokenExpirationTime}}>
+      </Hds::Form::TextInput::Field>
+    {{/if}}
+    
+  {{else}}
+    <Hds::Form::Label>
+      {{#if @token.expirationTime}}
+      Token {{#if @token.isExpired}}expired{{else}}expires{{/if}}
+      <Tooltip @text={{@token.expirationTime}}  @isFullText={{true}}>
+        <span data-test-token-expiration-time class="{{if @token.isExpired "has-text-danger"}}">{{moment-from-now @token.expirationTime interval=1000}}</span>
+      </Tooltip>
+      {{else}}
+      Token never expires
+      {{/if}}
+    </Hds::Form::Label>
+  {{/if}}
+</div>
+
+  {{#unless @token.isNew}}
+  <div>
+    <Hds::Form::MaskedInput::Field @isMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly data-test-token-accessor as |F|>
+      <F.Label>Token Accessor</F.Label>
+    </Hds::Form::MaskedInput::Field>
+  </div>
+
+  <div>
+    <Hds::Form::MaskedInput::Field @hasCopyButton={{true}} @value={{@token.secret}} readonly data-test-token-secret as |F|>
+      <F.Label>Token Secret</F.Label>
+    </Hds::Form::MaskedInput::Field>
+  </div>
+  {{/unless}}
+
+  <div>
+    <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
+      <G.Legend>Client or Management token?</G.Legend>
+      <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText>
+      <G.Radio::Field
+        @id="client"
+        checked={{eq @token.type "client"}}
+        data-test-token-type="client"
+      as |F|>
+        <F.Label>Client</F.Label>
+      </G.Radio::Field>
+      <G.Radio::Field
+        @id="management"
+        checked={{eq @token.type "management"}}
+        data-test-token-type="management"
+      as |F|>
+        <F.Label>Management</F.Label>
+      </G.Radio::Field>
+    </Hds::Form::Radio::Group>
+  </div>
+
+  {{#if (eq @token.type "client")}}
+    <div data-test-token-policies>
+      <label>
+        Policies
+      </label>
+      {{#if @policies.length}}
+        <Hds::Table @caption="A list of policies available to this token" class="acl-table"
+          @model={{@policies}}
+          @columns={{array
+            (hash key="selected" width="80px")
+            (hash key="name" label="Name" isSortable=true)
+            (hash key="description" label="Description")
+            (hash key="definition" label="View Policy Definition")
+          }}
+          @sortBy="name"
+        >
+          <:body as |B|>
+            <B.Tr>
+              <B.Td class="selection-checkbox">
+                <label>
+                  <input type="checkbox"
+                    checked={{find-by "name" B.data.name @token.policies}}
+                    {{on "change" (action this.updateTokenPolicies B.data)}}
+                  />
+                </label>
+              </B.Td>
+              <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
+              <B.Td>{{B.data.description}}</B.Td>
+              <B.Td>
+                <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
+                  View Policy Definition
+                </LinkTo>
+              </B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{else}}
+        <div class="empty-message">
+          <h3 data-test-empty-role-list-headline class="empty-message-headline">
+            No Policies
+          </h3>
+          <p class="empty-message-body">
+            Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+          </p>
+        </div>
+      {{/if}}
+    </div>
+
+    <div data-test-token-roles>
+      <label>
+        Roles
+      </label>
+      {{#if @roles.length}}
+        <Hds::Table @caption="A list of roles available to this token" class="acl-table"
+          @model={{@roles}}
+          @columns={{array
+            (hash key="selected" width="80px")
+            (hash key="name" label="Name" isSortable=true)
+            (hash key="description" label="Description")
+            (hash key="policies" label="Policies")
+            (hash key="definition" label="View Role Info")
+          }}
+          @sortBy="name"
+        >
+          <:body as |B|>
+            <B.Tr>
+              <B.Td class="selection-checkbox">
+                <label>
+                  <input type="checkbox"
+                    checked={{find-by "name" B.data.name @token.roles}}
+                    {{on "change" (action this.updateTokenRoles B.data)}}
+                  />
+                </label>
+              </B.Td>
+              <B.Td data-test-role-name>{{B.data.name}}</B.Td>
+              <B.Td>{{B.data.description}}</B.Td>
+              <B.Td>
+                <div class="tag-group">
+                  {{#each B.data.policies as |policy|}}
+                    {{#if policy.name}}
+                      <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
+                    {{/if}}
+                  {{else}}
+                    Role contains no policies
+                  {{/each}}
+                </div>
+              </B.Td>
+              <B.Td>
+                <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>
+                  View Role Info
+                </LinkTo>
+              </B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{else}}
+        <div class="empty-message">
+          <h3 data-test-empty-role-list-headline class="empty-message-headline">
+            No Roles
+          </h3>
+          <p class="empty-message-body">
+            Get started by <LinkTo @route="access-control.roles.new">creating a new role</LinkTo>
+          </p>
+        </div>
+      {{/if}}
+    </div>
+
+
+  {{else}}
+  <p>Management-type tokens have access to all permissions.</p>
+  {{/if}}
+
+	<footer>
+		{{#if (can "update token")}}
+      <Hds::Button @text="Save Token" @color="primary"
+        data-test-token-save
+        {{on "click" this.save}}
+      />
+		{{/if}}
+	</footer>
+</form>

@@ -1,0 +1,82 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="section">
+  <header class="acl-explainer">
+    <p>
+      ACL Policies are sets of rules defining the capabilities granted to adhering tokens. You can create, modify, and delete them here.
+    </p>
+    <div>
+      {{#if (can "write policy")}}
+        <Hds::Button
+          @text="Create Policy"
+          @icon="plus"
+          @route="access-control.policies.new"
+          {{keyboard-shortcut
+            pattern=(array "n" "p")
+            action=(action this.goToNewPolicy)
+            label="Create Policy"
+          }}
+          data-test-create-policy
+        />
+      {{else}}
+        <Hds::Button
+          @text="Create Policy"
+          @icon="plus"
+          disabled
+          data-test-disabled-create-policy
+        />
+      {{/if}}
+    </div>
+  </header>
+
+  {{#if this.policies.length}}
+
+    <Hds::Table @caption="A list of policies for this cluster" class="acl-table"
+      @model={{this.policies}}
+      @columns={{this.columns}}
+      @sortBy="name"
+    >
+      <:body as |B|>
+        <B.Tr 
+          {{keyboard-shortcut 
+            enumerated=true
+            action=(action "openPolicy" B.data)
+          }}
+          data-test-policy-row
+        >
+          <B.Td>
+            <LinkTo data-test-policy-name={{B.data.name}} @route="access-control.policies.policy" @model={{B.data.name}}>{{B.data.name}}</LinkTo></B.Td>
+          <B.Td>{{B.data.description}}</B.Td>
+          {{#if (can "list token")}}
+            <B.Td>
+              <span data-test-policy-total-tokens>{{B.data.tokens.length}}</span>
+              {{#if (filter-by "isExpired" B.data.tokens)}}
+                <span data-test-policy-expired-tokens class="number-expired">({{get (filter-by "isExpired" B.data.tokens) "length"}} expired)</span>
+              {{/if}}
+            </B.Td>
+          {{/if}}
+          {{#if (can "destroy policy")}}
+            <B.Td>
+              <Hds::Button @text="Delete" @size="small" @color="critical"
+                {{on "click" (perform this.deletePolicy B.data)}}
+                data-test-delete-policy
+              />
+            </B.Td>
+          {{/if}}
+        </B.Tr>
+      </:body>
+    </Hds::Table>
+  {{else}}
+    <div class="empty-message">
+      <h3 data-test-empty-policies-list-headline class="empty-message-headline">
+        No Policies
+      </h3>
+      <p class="empty-message-body">
+        Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+      </p>
+    </div>
+  {{/if}}
+</section>

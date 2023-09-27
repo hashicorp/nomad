@@ -84,13 +84,13 @@ operator {
 #  * write
 `;
 
-export default class PoliciesNewRoute extends Route {
+export default class AccessControlPoliciesNewRoute extends Route {
   @service can;
   @service router;
 
   beforeModel() {
     if (this.can.cannot('write policy')) {
-      this.router.transitionTo('/policies');
+      this.router.transitionTo('/access-control/policies');
     }
   }
 
@@ -102,8 +102,6 @@ export default class PoliciesNewRoute extends Route {
   }
 
   resetController(controller, isExiting) {
-    // If the user navigates away from /new, clear the path
-    controller.set('path', null);
     if (isExiting) {
       // If user didn't save, delete the freshly created model
       if (controller.model.isNew) {

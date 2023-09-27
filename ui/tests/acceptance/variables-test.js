@@ -71,7 +71,7 @@ module('Acceptance | variables', function (hooks) {
     const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
     server.db.variables.update({ namespace: 'default' });
-    const policy = server.db.policies.find('Variable Maker');
+    const policy = server.db.policies.find('Variable-Maker');
     policy.rulesJSON.Namespaces[0].Variables.Paths.find(
       (path) => path.PathSpec === '*'
     ).Capabilities = ['list', 'read', 'destroy'];
@@ -452,7 +452,7 @@ module('Acceptance | variables', function (hooks) {
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
-      const policy = server.db.policies.find('Variable Maker');
+      const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list'];
@@ -580,7 +580,7 @@ module('Acceptance | variables', function (hooks) {
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
-      const policy = server.db.policies.find('Variable Maker');
+      const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list', 'read', 'write'];
@@ -634,7 +634,7 @@ module('Acceptance | variables', function (hooks) {
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
-      const policy = server.db.policies.find('Variable Maker');
+      const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list', 'read'];
@@ -763,7 +763,7 @@ module('Acceptance | variables', function (hooks) {
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
-      const policy = server.db.policies.find('Variable Maker');
+      const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list', 'read', 'destroy'];
@@ -799,7 +799,7 @@ module('Acceptance | variables', function (hooks) {
       server.createList('variable', 3);
       const variablesToken = server.db.tokens.find(VARIABLE_TOKEN_ID);
       window.localStorage.nomadTokenSecret = variablesToken.secretId;
-      const policy = server.db.policies.find('Variable Maker');
+      const policy = server.db.policies.find('Variable-Maker');
       policy.rulesJSON.Namespaces[0].Variables.Paths.find(
         (path) => path.PathSpec === '*'
       ).Capabilities = ['list', 'read'];

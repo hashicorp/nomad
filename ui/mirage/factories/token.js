@@ -26,7 +26,7 @@ export default Factory.extend({
     ) {
       const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
         .fill(0)
-        .map(() => faker.hacker.verb())
+        .map(() => faker.hacker.verb().replace(/\s/g, '-'))
         .uniq();
 
       policyIds.forEach((policy) => {
@@ -41,7 +41,7 @@ export default Factory.extend({
       // Create a special policy with variables rules in place
       if (token.id === '53cur3-v4r14bl35') {
         const variableMakerPolicy = {
-          id: 'Variable Maker',
+          id: 'Variable-Maker',
           rules: `
   # Allow read only access to the default namespace
   namespace "*" {
@@ -82,7 +82,7 @@ export default Factory.extend({
       }
       if (token.id === 'f3w3r-53cur3-v4r14bl35') {
         const variableViewerPolicy = {
-          id: 'Variable Viewer',
+          id: 'Variable-Viewer',
           rules: `
   # Allow read only access to the default namespace
   namespace "*" {

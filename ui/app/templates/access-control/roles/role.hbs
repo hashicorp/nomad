@@ -1,0 +1,123 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+<Breadcrumb @crumb={{hash label=this.role.name args=(array "access-control.roles.role" this.role.id)}} />
+{{page-title "Role"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		<div>
+			Edit Role
+		</div>
+		{{#if (can "destroy role")}}
+      <Hds::Button @text="Delete Role" @color="critical"
+        {{on "click" (perform this.deleteRole)}}
+        data-test-delete-role
+      />
+		{{/if}}
+	</h1>
+	<RoleEditor
+		@role={{this.role}}
+    @policies={{this.policies}}
+	/>
+
+  {{#if (can "list token")}}
+    <hr />
+
+    <h2 class="title">
+      Tokens
+    </h2>
+
+    {{#if (can "write token")}}
+      <div class="token-operations">
+        <div class="boxed-section">
+          <div class="boxed-section-head">
+            <h3>Create a Test Token</h3>
+          </div>
+          <div class="boxed-section-body">
+            <p class="is-info">Create a test token that expires in 10 minutes for testing purposes.</p>
+            <label>
+              <Hds::Button @text="Create Test Token" @color="secondary"
+                data-test-create-test-token
+                class="create-test-token"
+                {{on "click" (perform this.createTestToken)}}
+              />
+            </label>
+          </div>
+        </div>
+        <div class="boxed-section">
+          <div class="boxed-section-head">
+            <h3>Create Tokens from the Nomad CLI</h3>
+          </div>
+          <div class="boxed-section-body">
+            <p>When you're ready to create more tokens, you can do so via the <a class="external-link" href="https://developer.hashicorp.com/nomad/docs/commands" target="_blank" rel="noopener noreferrer">Nomad CLI <FlightIcon @name="external-link" /></a> with the following:
+              <pre>
+                <code>{{this.newTokenString}}</code>
+                <CopyButton
+                  data-test-copy-button
+                  @clipboardText={{this.newTokenString}}
+                  @compact={{true}}
+                >
+                </CopyButton>
+              </pre>
+            </p>
+          </div>
+        </div>
+      </div>
+    {{/if}}
+
+    {{#if this.tokens.length}}
+      <ListTable
+        @source={{this.tokens}}
+        @class="tokens no-mobile-condense" as |t|>
+        <t.head>
+          <th>Name</th>
+          <th>Created</th>
+          <th>Expires</th>
+          {{#if (can "destroy token")}}
+            <th>Delete</th>
+          {{/if}}
+        </t.head>
+        <t.body as |row|>
+          <tr data-test-role-token-row>
+            <td data-test-token-name>
+              <Tooltip @text={{row.model.id}}>
+                {{row.model.name}}
+              </Tooltip>
+            </td>
+            <td>
+              {{moment-from-now row.model.createTime interval=1000}}
+            </td>
+            <td>
+              {{#if row.model.expirationTime}}
+                <Tooltip @text={{row.model.expirationTime}}>
+                  <span data-test-token-expiration-time class="{{if row.model.isExpired "has-text-danger"}}">{{moment-from-now row.model.expirationTime interval=1000}}</span>
+                </Tooltip>
+              {{else}}
+                <span>Never</span>
+              {{/if}}
+            </td>
+            {{#if (can "destroy token")}}
+              <td class="is-200px">
+                <Hds::Button @text="Delete Token" @color="critical"
+                  data-test-delete-token-button
+                  {{on "click" (perform this.deleteToken row.model)}}
+                />
+              </td>
+            {{/if}}
+          </tr>
+        </t.body>
+      </ListTable>
+    {{else}}
+      <div class="empty-message">
+        <h3 data-test-empty-role-list-headline class="empty-message-headline">
+          No Tokens
+        </h3>
+        <p class="empty-message-body">
+          No tokens are using this role.
+        </p>
+      </div>
+    {{/if}}
+  {{/if}}
+
+</section>
