@@ -71,7 +71,24 @@ export default class TokenService extends Service {
   @task(function* () {
     try {
       if (this.selfToken) {
-        return yield this.selfToken.get('policies');
+        // return yield this.selfToken.get('policies');
+        let tokenPolicies = yield this.selfToken.get('policies');
+        let rolePolicies = [];
+        const roles = yield this.selfToken.get('roles');
+        if (roles.length) {
+          yield Promise.all(
+            roles.map((role) => {
+              return role.policies;
+            })
+          );
+          rolePolicies = roles
+            .map((role) => {
+              return role.policies;
+            })
+            .map((policies) => policies.toArray())
+            .flat();
+        }
+        return [...tokenPolicies.toArray(), ...rolePolicies];
       } else {
         let policy = yield this.store.findRecord('policy', 'anonymous');
         return [policy];

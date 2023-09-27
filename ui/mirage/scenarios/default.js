@@ -26,6 +26,7 @@ export const allScenarios = {
   variableTestCluster,
   servicesTestCluster,
   policiesTestCluster,
+  rolesTestCluster,
   ...topoScenarios,
   ...sysbatchScenarios,
 };
@@ -94,6 +95,102 @@ function smallCluster(server) {
     namespaceId: 'default',
     type: 'service',
     activeDeployment: true,
+  });
+
+  server.create('policy', {
+    id: 'client-reader',
+    name: 'client-reader',
+    description: "Can read nodes and that's about it",
+    rulesJSON: {
+      Node: {
+        Policy: 'read',
+      },
+    },
+    rules: `# Allow node read access`,
+  });
+
+  server.create('policy', {
+    id: 'client-writer',
+    name: 'client-writer',
+    description: 'Can write to nodes',
+    rulesJSON: {
+      Node: {
+        Policy: 'write',
+      },
+    },
+    rules: `# Allow node write access`,
+  });
+
+  server.create('policy', {
+    id: 'job-reader',
+    name: 'job-reader',
+    description: "Can read jobs and that's about it",
+    rulesJSON: {
+      namespace: {
+        '*': {
+          policy: 'read',
+        },
+      },
+    },
+    rules: `# Job read access`,
+  });
+
+  server.create('policy', {
+    id: 'job-writer',
+    name: 'job-writer',
+    description: 'Can write jobs',
+    rulesJSON: {
+      Namespaces: [
+        {
+          Name: '*',
+          Policy: '',
+          Capabilities: ['submit-job'],
+          Variables: null,
+        },
+      ],
+    },
+    rules: `# Job write access`,
+  });
+
+  server.create('policy', {
+    id: 'variable-lister',
+    name: 'variable-lister',
+    description: 'Can list variables',
+    rulesJSON: {
+      namespace: {
+        '*': {
+          variables: {
+            path: {
+              capabilities: ['list'],
+              pathspec: '*',
+            },
+          },
+        },
+      },
+    },
+    rules: `# Variable list access`,
+  });
+
+  server.create('role', {
+    id: 'operator',
+    name: 'operator',
+    description: 'Can operate',
+    policyIds: ['client-reader', 'client-writer', 'job-reader', 'job-writer'],
+  });
+
+  server.create('role', {
+    id: 'sysadmin',
+    name: 'sysadmin',
+    description: 'Can modify nodes',
+    policyIds: ['client-reader', 'client-writer'],
+  });
+
+  server.create('token', {
+    type: 'client',
+    name: 'Tiarna Riarthóir',
+    id: 'administrator-token',
+    roleIds: ['operator', 'sysadmin'],
+    policyIds: ['variable-lister'],
   });
 
   //#region Active Deployment
@@ -436,6 +533,218 @@ function variableTestCluster(server) {
 function policiesTestCluster(server) {
   faker.seed(1);
   createTokens(server);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+}
+
+function rolesTestCluster(server) {
+  faker.seed(1);
+
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  server.createList('node-pool', 2);
+  server.createList('node', 5);
+  server.createList('job', 5);
+
+  // createTokens(server);
+
+  // Create policies
+  const clientReaderPolicy = server.create('policy', {
+    id: 'client-reader',
+    name: 'client-reader',
+    description: "Can read nodes and that's about it",
+    rulesJSON: {
+      Node: {
+        Policy: 'read',
+      },
+    },
+  });
+
+  const clientWriterPolicy = server.create('policy', {
+    id: 'client-writer',
+    name: 'client-writer',
+    description: 'Can write to nodes',
+    rulesJSON: {
+      Node: {
+        Policy: 'write',
+      },
+    },
+  });
+
+  const clientDenierPolicy = server.create('policy', {
+    id: 'client-denier',
+    name: 'client-denier',
+    description: "Can't do anything with Clients",
+    rulesJSON: {
+      Node: {
+        Policy: 'deny',
+      },
+    },
+  });
+
+  const jobDenierPolicy = server.create('policy', {
+    id: 'job-denier',
+    name: 'job-denier',
+    description: "Can't do anything with Jobs",
+    rulesJSON: {
+      namespace: {
+        '*': {
+          policy: 'deny',
+        },
+      },
+    },
+  });
+
+  const operatorPolicy = server.create('policy', {
+    id: 'operator',
+    name: 'operator',
+    description: 'Can operate',
+    rulesJSON: {
+      operator: {
+        policy: 'write',
+      },
+    },
+  });
+
+  const jobReaderPolicy = server.create('policy', {
+    id: 'job-reader',
+    name: 'job-reader',
+    description: 'Can learn about jobs',
+    rulesJSON: {
+      namespace: {
+        '*': {
+          policy: 'read',
+        },
+      },
+    },
+  });
+
+  const highLevelJobPolicy = server.create('policy', {
+    id: 'job-writer',
+    name: 'job-writer',
+    description: 'Can do lots with jobs',
+    rulesJSON: {
+      Namespaces: [
+        {
+          Name: '*',
+          Policy: '',
+          Capabilities: ['submit-job'],
+          Variables: null,
+        },
+      ],
+    },
+  });
+
+  // Create roles
+  const editorRole = server.create('role', {
+    id: 'editor',
+    name: 'editor',
+    description: 'Can edit things',
+    policyIds: [clientWriterPolicy.id],
+  });
+
+  const highLevelRole = server.create('role', {
+    id: 'high-level',
+    name: 'high-level',
+    description: 'Can do lots of things',
+    policyIds: [highLevelJobPolicy.id],
+  });
+
+  const readerRole = server.create('role', {
+    id: 'reader',
+    name: 'reader',
+    description: 'Can read things',
+    policyIds: [clientReaderPolicy.id, jobReaderPolicy.id],
+  });
+
+  const denierRole = server.create('role', {
+    id: 'denier',
+    name: 'denier',
+    description: "Can't do anything",
+    policyIds: [clientDenierPolicy.id, jobDenierPolicy.id],
+  });
+
+  // Create tokens
+
+  let managementToken = server.create('token', {
+    type: 'management',
+    name: 'Management Token',
+  });
+
+  let clientReaderToken = server.create('token', {
+    type: 'client',
+    name: "N. O'DeReader",
+    policyIds: [clientReaderPolicy.id],
+  });
+
+  let clientWriterToken = server.create('token', {
+    type: 'client',
+    name: "N. O'DeWriter",
+    policyIds: [clientWriterPolicy.id],
+  });
+
+  let dualPolicyToken = server.create('token', {
+    type: 'client',
+    name: 'Multi-policy Token',
+    policyIds: [clientReaderPolicy.id, clientWriterPolicy.id],
+  });
+
+  let highLevelViaPolicyToken = server.create('token', {
+    type: 'client',
+    name: 'High Level Policy Token',
+    policyIds: [highLevelJobPolicy.id],
+  });
+
+  let highLevelViaRoleToken = server.create('token', {
+    type: 'client',
+    name: 'High Level Role Token',
+    roleIds: [highLevelRole.id],
+  });
+
+  let policyAndRoleToken = server.create('token', {
+    type: 'client',
+    name: 'Policy And Role Token',
+    policyIds: [operatorPolicy.id],
+    roleIds: [readerRole.id],
+  });
+
+  let multiRoleToken = server.create('token', {
+    type: 'client',
+    name: 'Multi Role Token',
+    roleIds: [editorRole.id, highLevelRole.id],
+  });
+
+  let multiRoleAndPolicyToken = server.create('token', {
+    type: 'client',
+    name: 'Multi Role And Policy Token',
+    roleIds: [editorRole.id, highLevelRole.id],
+    policyIds: [clientWriterPolicy.id], // also included within editorRole, so redundant here.
+  });
+
+  let noClientsViaPolicyToken = server.create('token', {
+    type: 'client',
+    name: 'Clientless Policy Token',
+    policyIds: [clientDenierPolicy.id],
+  });
+
+  let noClientsViaRoleToken = server.create('token', {
+    type: 'client',
+    name: 'Clientless Role Token',
+    roleIds: [denierRole.id],
+  });
+
+  // malleable test token
+  server.create('token', {
+    name: 'Clay-Token',
+    id: 'cl4y-t0k3n',
+    type: 'client',
+    policyIds: [clientReaderPolicy.id, operatorPolicy.id],
+    roleIds: [editorRole.id],
+    expirationTime: new Date(new Date().getTime() + 60 * 60 * 1000),
+  });
+
+  logTokens(server);
+
+  server.create('auth-method', { name: 'vault' });
+
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
 }
 

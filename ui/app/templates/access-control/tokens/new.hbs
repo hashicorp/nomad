@@ -1,0 +1,17 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb @crumb={{hash label="New" args=(array "access-control.tokens.new")}} />
+{{page-title "Create Token"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		Create Token
+	</h1>
+  <TokenEditor
+    @token={{this.model.token}}
+    @roles={{this.model.roles}}
+    @policies={{this.model.policies}}
+  />
+</section>
