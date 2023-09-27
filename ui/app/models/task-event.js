@@ -16,6 +16,25 @@ export default class TaskEvent extends Fragment {
 
   @attr('date') time;
   @attr('number') timeNanos;
+  @attr('string') displayMessage;
 
-  @attr('string') message;
+  get message() {
+    let message = simplifyTimeMessage(this.displayMessage);
+    return message;
+  }
+}
+
+function simplifyTimeMessage(message) {
+  const match = message.match(/(\d+h)?(\d+m)?(\d+\.\d+)s/);
+  if (!match) return message;
+
+  let [_, h, m, s] = match.map((x) => (x ? parseFloat(x) : 0));
+  s = Math.round(s);
+
+  m += Math.floor(s / 60);
+  s %= 60;
+  h += Math.floor(m / 60);
+  m %= 60;
+
+  return `Task restarting in ${h ? h + 'h' : ''}${h || m ? m + 'm' : ''}${s}s`;
 }
