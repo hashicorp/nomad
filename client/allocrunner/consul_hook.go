@@ -72,7 +72,7 @@ func (h *consulHook) Prerun() error {
 	job := h.alloc.Job
 
 	if job == nil {
-		// something crazy happened
+		// this is always a programming error
 		err := fmt.Errorf("alloc %v does not have a job", h.alloc.Name)
 		h.logger.Error(err.Error())
 		return err
