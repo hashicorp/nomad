@@ -1,0 +1,44 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="section access-control-overview">
+  <section class="intro">
+    <p>Your Nomad cluster has Access Control enabled, which you can use to control access to data and APIs. Here, you can manage the Tokens, Policies, and Roles for your system.</p>
+    <footer>
+      <Hds::Link::Standalone @icon="docs-link" @text="ACL System Fundamentals" @iconPosition="trailing" @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control" />
+      <Hds::Link::Standalone @icon="docs-link" @text="ACL Policy Concepts" @iconPosition="trailing" @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies" />
+    </footer>
+  </section>
+  <div class="section-cards">
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-tokens-card>
+        <LinkTo
+          @route="access-control.tokens"
+        >
+          {{this.model.tokens.length}} {{pluralize "Token" this.model.tokens.length}}
+        </LinkTo>
+        <p>User access tokens are associated with one or more policies or roles to grant specific capabilities.</p>
+        <Hds::Button @text="Create Token" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.tokens.new" />
+    </Hds::Card::Container>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-roles-card>
+      <LinkTo
+        @route="access-control.roles"
+      >
+        {{this.model.roles.length}} {{pluralize "Role" this.model.roles.length}}
+      </LinkTo>
+      <p>Roles group one or more Policies into higher-level sets of permissions.</p>
+      <Hds::Button @text="Create Role" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.roles.new" />
+    </Hds::Card::Container>
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} data-test-policies-card>
+      <LinkTo
+        @route="access-control.policies"
+      >
+        {{this.model.policies.length}} {{pluralize "Policy" this.model.policies.length}}
+      </LinkTo>
+      <p>Sets of rules defining the capabilities granted to adhering tokens.</p>
+      <Hds::Button @text="Create Policy" @color="secondary" @iconPosition="leading" @icon="plus" @route="access-control.policies.new" />
+    </Hds::Card::Container>
+  </div>
+</section>
+{{outlet}}

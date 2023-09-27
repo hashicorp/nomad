@@ -14,7 +14,7 @@
 				@type="text"
 				@value={{@policy.name}}
 				class="input"
-        {{autofocus}}
+				{{autofocus}}
 			/>
 		</label>
 	{{/if}}
@@ -34,7 +34,7 @@
           mode="ruby"
           content=@policy.rules
           onUpdate=this.updatePolicyRules
-          autofocus=(not @policy.isNew)
+          autofocus=false
 					extraKeys=(hash Cmd-Enter=this.save)
 				}} />
 		</div>
@@ -55,12 +55,12 @@
 
 	<footer>
 		{{#if (can "update policy")}}
-			<button
-				class="button is-primary"
-				type="submit"
-			>
-				Save Policy
-			</button>
+		<Hds::Button
+			@text="Save Policy"
+			@type="submit"
+			data-test-save-policy
+			{{on "click" this.save}}
+		/>
 		{{/if}}
 	</footer>
 </form>
