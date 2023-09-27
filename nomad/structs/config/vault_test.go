@@ -29,6 +29,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		JWTBackendPath:       "jwt",
 		DefaultIdentity:      nil,
 	}
 
@@ -45,6 +46,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        nil,
 		TLSServerName:        "2",
+		JWTBackendPath:       "jwt2",
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -65,6 +67,7 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "2",
+		JWTBackendPath:       "jwt2",
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -96,6 +99,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		JWTBackendPath:       "jwt",
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -118,6 +122,7 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
+		JWTBackendPath:       "jwt",
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),

@@ -306,6 +306,7 @@ var basicConfig = &Config{
 		TLSSkipVerify:        &trueValue,
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
+		JWTBackendPath:       "nomad_jwt",
 		DefaultIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"vault.io", "nomad.io"},
 			Env:      pointer.Of(false),
@@ -330,6 +331,7 @@ var basicConfig = &Config{
 			TLSSkipVerify:        &trueValue,
 			TaskTokenTTL:         "1s",
 			Token:                "12345",
+			JWTBackendPath:       "nomad_jwt",
 			DefaultIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"vault.io", "nomad.io"},
 				Env:      pointer.Of(false),

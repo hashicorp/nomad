@@ -85,6 +85,9 @@ type VaultConfig struct {
 	// TLSServerName, if set, is used to set the SNI host when connecting via TLS.
 	TLSServerName string `mapstructure:"tls_server_name"`
 
+	// JWTBackendPath is the path used to access the JWT auth method.
+	JWTBackendPath string `mapstructure:"jwt_backend_path"`
+
 	// Servers-only fields.
 
 	// DefaultIdentity is the default workload identity configuration used when
@@ -126,6 +129,7 @@ func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Name:                 "default",
 		Addr:                 "https://vault.service.consul:8200",
+		JWTBackendPath:       "jwt",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
 	}
@@ -182,6 +186,9 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
+	}
+	if b.JWTBackendPath != "" {
+		result.JWTBackendPath = b.JWTBackendPath
 	}
 
 	if result.DefaultIdentity == nil && b.DefaultIdentity != nil {
@@ -285,6 +292,9 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 		return false
 	}
 	if c.TLSServerName != b.TLSServerName {
+		return false
+	}
+	if c.JWTBackendPath != b.JWTBackendPath {
 		return false
 	}
 
