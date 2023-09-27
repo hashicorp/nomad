@@ -87,13 +87,6 @@ type VaultConfig struct {
 
 	// Servers-only fields.
 
-	// UseIdentity defines if workload identities should be used to derive
-	// Vault tokens.
-	//
-	// It is a transitional field used only during the adoption period of
-	// workload identities and will be ignored and removed in future versions.
-	UseIdentity *bool `mapstructure:"use_identity"`
-
 	// DefaultIdentity is the default workload identity configuration used when
 	// a job has a `vault` block but no `identity` named "vault_<name>", where
 	// <name> matches this block `name` parameter.
@@ -135,7 +128,6 @@ func DefaultVaultConfig() *VaultConfig {
 		Addr:                 "https://vault.service.consul:8200",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
-		UseIdentity:          pointer.Of(false),
 	}
 }
 
@@ -191,8 +183,6 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
 	}
-
-	result.UseIdentity = pointer.Merge(result.UseIdentity, b.UseIdentity)
 
 	if result.DefaultIdentity == nil && b.DefaultIdentity != nil {
 		sID := *b.DefaultIdentity
@@ -298,9 +288,6 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 		return false
 	}
 
-	if !pointer.Eq(b.UseIdentity, c.UseIdentity) {
-		return false
-	}
 	if !c.DefaultIdentity.Equal(b.DefaultIdentity) {
 		return false
 	}

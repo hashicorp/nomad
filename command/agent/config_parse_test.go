@@ -306,7 +306,6 @@ var basicConfig = &Config{
 		TLSSkipVerify:        &trueValue,
 		TaskTokenTTL:         "1s",
 		Token:                "12345",
-		UseIdentity:          pointer.Of(true),
 		DefaultIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"vault.io", "nomad.io"},
 			Env:      pointer.Of(false),
@@ -331,7 +330,6 @@ var basicConfig = &Config{
 			TLSSkipVerify:        &trueValue,
 			TaskTokenTTL:         "1s",
 			Token:                "12345",
-			UseIdentity:          pointer.Of(true),
 			DefaultIdentity: &config.WorkloadIdentityConfig{
 				Audience: []string{"vault.io", "nomad.io"},
 				Env:      pointer.Of(false),
@@ -1097,7 +1095,6 @@ func TestConfig_MultipleVault(t *testing.T) {
 	must.Eq(t, "abracadabra", cfg.Vault.Token)
 
 	must.MapLen(t, 3, cfg.Vaults)
-	must.Equal(t, cfg.Vault, cfg.Vaults["default"])
 	must.Equal(t, cfg.Vault, cfg.Vaults[structs.VaultDefaultCluster])
 
 	must.Eq(t, "alternate", cfg.Vaults["alternate"].Name)
