@@ -27,16 +27,22 @@ func TestWorkloadIdentityConfig_Copy(t *testing.T) {
 	clone := original.Copy()
 	must.Eq(t, original, clone)
 	must.NotEqOp(t, original, clone)
+	must.NotEqOp(t, original.Env, clone.Env)
+	must.NotEqOp(t, original.File, clone.File)
+	must.NotEqOp(t, original.TTL, clone.TTL)
 
 	// Verify returned struct does not mutate original.
 	clone.Name = "clone"
-	clone.Audience = []string{"aud", "clone"}
-	clone.Env = pointer.Of(false)
-	clone.File = pointer.Of(true)
-	clone.TTL = pointer.Of(time.Second)
+	clone.Audience[0] = "changed"
+	*clone.Env = false
+	*clone.File = true
+	*clone.TTL = time.Second
 
 	must.NotEq(t, original, clone)
 	must.NotEqOp(t, original, clone)
+	must.NotEqOp(t, original.Env, clone.Env)
+	must.NotEqOp(t, original.File, clone.File)
+	must.NotEqOp(t, original.TTL, clone.TTL)
 }
 
 func TestWorkloadIdentityConfig_Equal(t *testing.T) {

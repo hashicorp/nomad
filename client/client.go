@@ -2783,7 +2783,7 @@ func (c *Client) setupVaultClients() error {
 	c.vaultClients = map[string]vaultclient.VaultClient{}
 	vaultConfigs := c.GetConfig().GetVaultConfigs(c.logger)
 	for _, vaultConfig := range vaultConfigs {
-		vaultClient, err := vaultclient.NewVaultClient(c.GetConfig().VaultConfig, c.logger, c.deriveToken)
+		vaultClient, err := vaultclient.NewVaultClient(vaultConfig, c.logger, c.deriveToken)
 		if err != nil {
 			return err
 		}
@@ -2792,7 +2792,6 @@ func (c *Client) setupVaultClients() error {
 			return fmt.Errorf("failed to create vault client for cluster %q", vaultConfig.Name)
 		}
 		c.vaultClients[vaultConfig.Name] = vaultClient
-
 	}
 
 	// Start renewing tokens and secrets only once we've ensured we have created

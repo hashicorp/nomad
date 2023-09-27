@@ -181,6 +181,10 @@ func ParseConfigFile(path string) (*Config, error) {
 	// Since the map of multiple cluster configuration contains a pointer to
 	// the default block we don't need to parse it directly.
 	for name, consulConfig := range c.Consuls {
+		// Capture consulConfig inside the loop so the parse duration function
+		// modifies the right configuration.
+		consulConfig := consulConfig
+
 		if consulConfig.ServiceIdentity != nil {
 			tds = append(tds, durationConversionMap{
 				fmt.Sprintf("consuls.%s.service_identity.ttl", name), nil, &consulConfig.ServiceIdentity.TTLHCL,
@@ -201,6 +205,10 @@ func ParseConfigFile(path string) (*Config, error) {
 	}
 
 	for name, vaultConfig := range c.Vaults {
+		// Capture vaultConfig inside the loop so the parse duration function
+		// modifies the right configuration.
+		vaultConfig := vaultConfig
+
 		if vaultConfig.DefaultIdentity != nil {
 			tds = append(tds, durationConversionMap{
 				fmt.Sprintf("vaults.%s.default_identity.ttl", name), nil, &vaultConfig.DefaultIdentity.TTLHCL,
