@@ -41,7 +41,7 @@ const (
 var (
 	// validIdentityName is used to validate workload identity Name fields. Must
 	// be safe to use in filenames.
-	validIdentityName = regexp.MustCompile("^[a-zA-Z0-9_]{1,128}$")
+	validIdentityName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
 )
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
