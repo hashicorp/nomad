@@ -67,7 +67,7 @@ func TestVaultFingerprint(t *testing.T) {
 	// Reset the nextCheck time for testing purposes, or we won't pick up the
 	// change until the next period, up to 2min from now
 	vfp := fp.(*VaultFingerprint)
-	vfp.states["default"].nextCheck = time.Now()
+	vfp.states[structs.VaultDefaultCluster].nextCheck = time.Now()
 
 	err = fp.Fingerprint(request, &response)
 	if err != nil {

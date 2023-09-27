@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
 	testing "github.com/mitchellh/go-testing-interface"
@@ -72,7 +73,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		RootToken: token,
 		Client:    client,
 		Config: &config.VaultConfig{
-			Name:    "default",
+			Name:    structs.VaultDefaultCluster,
 			Enabled: &enable,
 			Token:   token,
 			Addr:    http,

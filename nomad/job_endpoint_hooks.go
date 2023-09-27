@@ -238,7 +238,7 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 // fingerprint or non-default cluster are allowed well before we get here, so no
 // need to split out the behavior to ENT-specific code.
 func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
-	if vault.Cluster != "default" && vault.Cluster != "" {
+	if vault.Cluster != structs.VaultDefaultCluster && vault.Cluster != "" {
 		return &structs.Constraint{
 			LTarget: fmt.Sprintf("${attr.vault.%s.version}", vault.Cluster),
 			RTarget: ">= 0.6.1",

@@ -37,7 +37,7 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 	handler := func(*structs.Allocation, []string) (map[string]string, error) {
 		return map[string]string{task.Name: token}, nil
 	}
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler

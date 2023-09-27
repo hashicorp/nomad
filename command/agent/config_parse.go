@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -403,7 +404,7 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			return err
 		}
 		if v.Name == "" {
-			v.Name = "default"
+			v.Name = structs.VaultDefaultCluster
 		}
 		if exist, ok := c.Vaults[v.Name]; ok {
 			c.Vaults[v.Name] = exist.Merge(v)
@@ -434,7 +435,7 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 		}
 	}
 
-	c.Vault = c.Vaults["default"]
+	c.Vault = c.Vaults[structs.VaultDefaultCluster]
 	return nil
 }
 

@@ -1606,7 +1606,7 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 		return map[string]string{task.Name: token}, nil
 	}
 
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
@@ -1695,7 +1695,7 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 	handler := func(*structs.Allocation, []string) (map[string]string, error) {
 		return map[string]string{task.Name: token}, nil
 	}
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
@@ -1748,7 +1748,7 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 		count++
 		return nil, structs.NewRecoverableError(fmt.Errorf("Want a retry"), true)
 	}
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
@@ -1818,7 +1818,7 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
 	// Error the token derivation
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.SetDeriveTokenError(
@@ -2138,7 +2138,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 		<-waitCh
 		return map[string]string{task.Name: "1234"}, nil
 	}
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	vaultClient.DeriveTokenFn = handler
@@ -2354,7 +2354,7 @@ func TestTaskRunner_Template_NewVaultToken(t *testing.T) {
 	}
 	task.Vault = &structs.Vault{Policies: []string{"default"}}
 
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 
@@ -2435,7 +2435,7 @@ func TestTaskRunner_VaultManager_Restart(t *testing.T) {
 		ChangeMode: structs.VaultChangeModeRestart,
 	}
 
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 	must.NoError(t, err)
 
@@ -2511,7 +2511,7 @@ func TestTaskRunner_VaultManager_Signal(t *testing.T) {
 		ChangeMode:   structs.VaultChangeModeSignal,
 		ChangeSignal: "SIGUSR1",
 	}
-	vc, err := vaultclient.NewMockVaultClient("default")
+	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
 

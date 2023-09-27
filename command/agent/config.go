@@ -1377,7 +1377,7 @@ func DefaultConfig() *Config {
 	}
 
 	cfg.Consuls = map[string]*config.ConsulConfig{"default": cfg.Consul}
-	cfg.Vaults = map[string]*config.VaultConfig{"default": cfg.Vault}
+	cfg.Vaults = map[string]*config.VaultConfig{structs.VaultDefaultCluster: cfg.Vault}
 	return cfg
 }
 
@@ -1552,7 +1552,7 @@ func (c *Config) Merge(b *Config) *Config {
 
 	// Apply the Vault Configurations and overwrite the default Vault config
 	result.Vaults = mergeVaultConfigs(result.Vaults, b.Vaults)
-	result.Vault = result.Vaults["default"]
+	result.Vault = result.Vaults[structs.VaultDefaultCluster]
 
 	// Apply the UI Configuration
 	if result.UI == nil && b.UI != nil {

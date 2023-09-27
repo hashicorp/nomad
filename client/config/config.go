@@ -816,7 +816,7 @@ func DefaultConfig() *Config {
 	cfg.ConsulConfigs = map[string]*structsc.ConsulConfig{
 		"default": cfg.ConsulConfig}
 	cfg.VaultConfigs = map[string]*structsc.VaultConfig{
-		"default": cfg.VaultConfig}
+		structs.VaultDefaultCluster: cfg.VaultConfig}
 
 	return cfg
 }

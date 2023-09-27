@@ -623,7 +623,7 @@ func DefaultConfig() *Config {
 	}
 
 	c.ConsulConfigs = map[string]*config.ConsulConfig{"default": c.ConsulConfig}
-	c.VaultConfigs = map[string]*config.VaultConfig{"default": c.VaultConfig}
+	c.VaultConfigs = map[string]*config.VaultConfig{structs.VaultDefaultCluster: c.VaultConfig}
 
 	// Enable all known schedulers by default
 	c.EnabledSchedulers = make([]string, 0, len(scheduler.BuiltinSchedulers))
