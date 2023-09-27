@@ -140,7 +140,8 @@ agents with [`server.enabled`] set to `true`.
 - `default_identity` <code>([Identity](#default_identity-parameters): nil)</code> -
   Specifies the default workload identity configuration to use when a task with
   a `vault` block does not specify an [`identity`][jobspec_identity] block
-  named `vault`.
+  named `vault_<name>`, where `<name>` matches the value of this `vault` block
+  [`name`](#name) parameter.
 
 ### Deprecated Parameters
 

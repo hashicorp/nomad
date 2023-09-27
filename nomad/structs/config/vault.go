@@ -95,7 +95,8 @@ type VaultConfig struct {
 	UseIdentity *bool `mapstructure:"use_identity"`
 
 	// DefaultIdentity is the default workload identity configuration used when
-	// a job has a `vault` block but no `identity` named "vault".
+	// a job has a `vault` block but no `identity` named "vault_<name>", where
+	// <name> matches this block `name` parameter.
 	DefaultIdentity *WorkloadIdentityConfig `mapstructure:"default_identity"`
 
 	// Deprecated fields.

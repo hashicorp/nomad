@@ -110,9 +110,6 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, consul *st
 //  1. The task has a Vault block.
 //  2. The server is configured with `vault.use_identity = true` and a
 //     `vault.default_identity` is provided.
-//
-// If the task already has an identity named `vault` it sets the identity name
-// to the expected value.
 func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
 	if !h.srv.config.UseVaultIdentity() || t.Vault == nil {
 		return
