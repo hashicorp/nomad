@@ -1,0 +1,24 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+<Breadcrumb @crumb={{hash label=this.activeToken.name args=(array "access-control.tokens.token" this.activeToken.id)}} />
+{{page-title "Token"}}
+<section class="section">
+	<h1 class="title with-flex" data-test-title>
+		<div>
+			Edit Token
+		</div>
+		{{#if (can "destroy token")}}
+      <Hds::Button @text="Delete Token" @color="critical"
+        {{on "click" (perform this.deleteToken)}}
+        data-test-delete-token
+      />
+		{{/if}}
+	</h1>
+  <TokenEditor
+    @token={{this.activeToken}}
+    @policies={{this.policies}}
+    @roles={{this.roles}}
+  />
+</section>

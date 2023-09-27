@@ -3,12 +3,18 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{page-title "Authorization"}}
+{{page-title (if this.tokenRecord "Profile" "Sign In")}}
 <section class="section authorization-page">
   {{#if this.isValidatingToken}}
     <LoadingSpinner />
   {{else}}
-    <h1 class="title">Authorization and access control</h1>
+    <h1 class="title">
+      {{#if this.tokenRecord}}
+        Profile
+      {{else}}
+        Sign In
+      {{/if}}
+    </h1>
 
     <div class="status-notifications {{if this.canSignIn "is-half"}}">
 
@@ -159,6 +165,31 @@
                 <button data-test-token-clear class="button is-primary" {{action "clearTokenProperties"}} type="button">Sign Out</button>
               </div>
             </div>
+
+            {{#if this.tokenRecord.roles.length}}
+              <h3 class="title is-4">Roles</h3>
+                {{#each this.tokenRecord.roles as |role|}}
+                <div data-test-token-role class="boxed-section">
+                  <div data-test-role-name class="boxed-section-head">
+                    {{role.name}}
+                  </div>
+                  <div class="boxed-section-body">
+                      {{#if role.description}}
+                        <p class="content">
+                          {{role.description}}
+                        </p>
+                      {{/if}}
+                    <div data-test-role-policies>
+                      <h4 class="title is-5">Policies</h4>
+                      {{#each role.policies as |policy|}}
+                        <li><a href="#{{policy.name}}">{{policy.name}}</a></li>
+                      {{/each}}
+                    </div>
+                  </div>
+                </div>
+                {{/each}}
+            {{/if}}
+
             <h3 class="title is-4">Policies</h3>
             {{#if (eq this.tokenRecord.type "management")}}
               <div data-test-token-management-message class="boxed-section">
@@ -167,8 +198,8 @@
                 </div>
               </div>
             {{else}}
-              {{#each this.tokenRecord.policies as |policy|}}
-                <div data-test-token-policy class="boxed-section">
+              {{#each this.tokenRecord.combinedPolicies as |policy|}}
+                <div id="{{policy.name}}" data-test-token-policy class="boxed-section">
                   <div data-test-policy-name class="boxed-section-head">
                     {{policy.name}}
                   </div>

@@ -194,29 +194,34 @@ module('Acceptance | regions (many)', function (hooks) {
     await JobsList.jobs.objectAt(0).clickRow();
     await Layout.gutter.visitClients();
     await Layout.gutter.visitServers();
-    const [
-      ,
-      ,
-      ,
-      // License request
-      // Token/policies request
-      // Search feature detection
-      regionsRequest,
-      defaultRegionRequest,
-      ...appRequests
-    ] = server.pretender.handledRequests;
+
+    const regionsRequest = server.pretender.handledRequests.find((req) =>
+      req.responseURL.includes('/v1/regions')
+    );
+    const licenseRequest = server.pretender.handledRequests.find((req) =>
+      req.responseURL.includes('/v1/operator/license')
+    );
+    const appRequests = server.pretender.handledRequests.filter(
+      (req) =>
+        !req.responseURL.includes('/v1/regions') &&
+        !req.responseURL.includes('/v1/operator/license')
+    );
 
     assert.notOk(
       regionsRequest.url.includes('region='),
       'The regions request is made without a region qp'
     );
     assert.notOk(
-      defaultRegionRequest.url.includes('region='),
+      licenseRequest.url.includes('region='),
       'The default region request is made without a region qp'
     );
 
     appRequests.forEach((req) => {
-      if (req.url === '/v1/agent/self') {
+      if (
+        req.url === '/v1/agent/self' ||
+        req.url === '/v1/acl/token/self' ||
+        req.url === '/v1/agent/members'
+      ) {
         assert.notOk(req.url.includes('region='), `(no region) ${req.url}`);
       } else {
         assert.ok(req.url.includes(`region=${region}`), req.url);
