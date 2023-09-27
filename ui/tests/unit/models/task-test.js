@@ -128,13 +128,13 @@ module('Unit | Model | task', function (hooks) {
 
     const roundedTaskEvent = run(() =>
       this.owner.lookup('service:store').createRecord('task-event', {
-        displayMessage: 'Task restarting in 1.999s',
+        displayMessage: 'I bet I can knock this out in about 1.999s',
       })
     );
 
     assert.equal(
       roundedTaskEvent.get('message'),
-      'Task restarting in 2s',
+      'I bet I can knock this out in about 2s',
       'displayMessage is rounded'
     );
 
