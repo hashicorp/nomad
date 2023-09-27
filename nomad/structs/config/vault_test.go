@@ -29,7 +29,6 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
-		UseIdentity:          pointer.Of(false),
 		DefaultIdentity:      nil,
 	}
 
@@ -46,7 +45,6 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        nil,
 		TLSServerName:        "2",
-		UseIdentity:          pointer.Of(true),
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -67,7 +65,6 @@ func TestVaultConfig_Merge(t *testing.T) {
 		TLSKeyFile:           "2",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "2",
-		UseIdentity:          pointer.Of(true),
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -99,7 +96,6 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
-		UseIdentity:          pointer.Of(true),
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -122,7 +118,6 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
-		UseIdentity:          pointer.Of(true),
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -147,7 +142,6 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
-		UseIdentity:          pointer.Of(true),
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.dev"},
 			Env:      pointer.Of(true),
@@ -170,7 +164,6 @@ func TestVaultConfig_Equals(t *testing.T) {
 		TLSKeyFile:           "1",
 		TLSSkipVerify:        pointer.Of(true),
 		TLSServerName:        "1",
-		UseIdentity:          pointer.Of(false),
 		DefaultIdentity: &WorkloadIdentityConfig{
 			Audience: []string{"vault.io"},
 			Env:      pointer.Of(false),

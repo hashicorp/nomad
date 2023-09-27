@@ -28,7 +28,6 @@ information about the Vault integration.
 ```hcl
 vault {
   enabled      = true
-  use_identity = true
 
   default_identity {
     aud = ["vault.io"]
@@ -133,10 +132,6 @@ agents with [`client.enabled`] set to `true`.
 These parameters should only be defined in the configuration file of Nomad
 agents with [`server.enabled`] set to `true`.
 
-- `use_identity` `(bool: false)` - If set to `true`, Nomad uses workload
-  identities to generate Vault ACL tokens. If `false` the deprecated
-  token-based flow is used.
-
 - `default_identity` <code>([Identity](#default_identity-parameters): nil)</code> -
   Specifies the default workload identity configuration to use when a task with
   a `vault` block does not specify an [`identity`][jobspec_identity] block
@@ -237,9 +232,6 @@ vault {
   # Only needed in servers when transioning from the token-based flow to
   # workload identities.
   create_from_role = "nomad-cluster"
-
-  # Generate Vault tokens using workload identities.
-  use_identity = true
 
   # Provide a default workload identity configuration so jobs don't need to
   # specify one.

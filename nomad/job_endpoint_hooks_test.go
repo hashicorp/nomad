@@ -179,21 +179,10 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 		expectedErr         string
 	}{
 		{
-			name: "no error when vault identity is not enabled and task does not have a vault identity",
-			inputTaskVault: &structs.Vault{
-				Policies: []string{"nomad-workload"},
-			},
-			inputTaskIdentities: nil,
-			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(false),
-			},
-		},
-		{
-			name:                "no error when vault identity is enabled and identity is provided via config",
+			name:                "no error when vault identity is provided via config",
 			inputTaskVault:      &structs.Vault{},
 			inputTaskIdentities: nil,
 			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(true),
 				DefaultIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"vault.io"},
 					TTL:      pointer.Of(time.Hour),
@@ -201,43 +190,29 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			},
 		},
 		{
-			name:           "no error when vault identity is enabled and identity is provided via task",
+			name:           "no error when vault identity is provided via task",
 			inputTaskVault: &structs.Vault{},
 			inputTaskIdentities: []*structs.WorkloadIdentity{{
 				Name:     "vault_default",
 				Audience: []string{"vault.io"},
 				TTL:      time.Hour,
 			}},
-			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(true),
-			},
+			inputConfig: &config.VaultConfig{},
 		},
 		{
 			name:                "error when not using vault identity and vault block is missing policies",
 			inputTaskVault:      &structs.Vault{},
 			inputTaskIdentities: nil,
-			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(false),
-			},
-			expectedErr: "Vault block with an empty list of policies",
+			inputConfig:         &config.VaultConfig{},
+			expectedErr:         "Vault block with an empty list of policies",
 		},
 		{
-			name:                "error when vault identity is enabled but no identity is provided",
-			inputTaskVault:      &structs.Vault{},
-			inputTaskIdentities: nil,
-			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(true),
-			},
-			expectedErr: "expected to have a Vault identity",
-		},
-		{
-			name: "warn when vault identity is enabled but task has vault policies",
+			name: "warn when using default vault identity but task has vault policies",
 			inputTaskVault: &structs.Vault{
 				Policies: []string{"nomad-workload"},
 			},
 			inputTaskIdentities: nil,
 			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(true),
 				DefaultIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"vault.io"},
 					TTL:      pointer.Of(time.Hour),
@@ -246,7 +221,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 			expectedWarns: []string{"policies will be ignored"},
 		},
 		{
-			name: "warn when vault identity is disabled but task has vault identity",
+			name: "warn when using task vault identity but task has vault policies",
 			inputTaskVault: &structs.Vault{
 				Policies: []string{"nomad-workload"},
 			},
@@ -255,12 +230,8 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				Audience: []string{"vault.io"},
 				TTL:      time.Hour,
 			}},
-			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(false),
-			},
-			expectedWarns: []string{
-				"has an identity called vault_default but server is not configured to use Vault identities",
-			},
+			inputConfig:   &config.VaultConfig{},
+			expectedWarns: []string{"policies will be ignored"},
 		},
 		{
 			name:           "warn when vault identity is provided but task does not have vault block",
@@ -270,9 +241,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				Audience: []string{"vault.io"},
 				TTL:      time.Hour,
 			}},
-			inputConfig: &config.VaultConfig{
-				UseIdentity: pointer.Of(true),
-			},
+			inputConfig: &config.VaultConfig{},
 			expectedWarns: []string{
 				"has an identity called vault_default but no vault block",
 			},

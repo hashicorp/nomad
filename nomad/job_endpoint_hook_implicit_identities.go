@@ -108,10 +108,10 @@ func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, consul *st
 
 // handleVault injects a workload identity to the task if:
 //  1. The task has a Vault block.
-//  2. The server is configured with `vault.use_identity = true` and a
-//     `vault.default_identity` is provided.
+//  2. The task does not have an identity for the Vault cluster.
+//  3. The server is configured with a `vault.default_identity`.
 func (h jobImplicitIdentitiesHook) handleVault(t *structs.Task) {
-	if !h.srv.config.UseVaultIdentity() || t.Vault == nil {
+	if t.Vault == nil {
 		return
 	}
 
