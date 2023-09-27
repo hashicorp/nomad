@@ -7,6 +7,7 @@ import Route from '@ember/routing/route';
 import withForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import WithModelErrorHandling from 'nomad-ui/mixins/with-model-error-handling';
 import { inject as service } from '@ember/service';
+import RSVP from 'rsvp';
 
 export default class AccessControlRoute extends Route.extend(
   withForbiddenState,
@@ -27,15 +28,12 @@ export default class AccessControlRoute extends Route.extend(
   }
 
   // Load our tokens, roles, and policies
-  async model() {
-    const policies = await this.store.findAll('policy');
-    const roles = await this.store.findAll('role');
-    const tokens = await this.store.findAll('token');
-    return {
-      policies,
-      roles,
-      tokens,
-    };
+  model() {
+    return RSVP.hash({
+      policies: this.store.findAll('policy', { reload: true }),
+      roles: this.store.findAll('role', { reload: true }),
+      tokens: this.store.findAll('token', { reload: true }),
+    });
   }
 
   // After model: check for all tokens[].policies and roles[].policies to see if any of them are listed
