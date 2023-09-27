@@ -2419,6 +2419,24 @@ OUTER:
 				}
 			}
 
+			// It is possible that Alloc.GetAllocs hits a different server than
+			// Node.GetClientAllocs which returns older results.
+			if allocsResp.Index <= allocsReq.MinQueryIndex {
+				retry := c.retryIntv(getAllocRetryIntv)
+				c.logger.Warn("failed to retrieve updated allocs; retrying",
+					"req_index", allocsReq.MinQueryIndex,
+					"resp_index", allocsResp.Index,
+					"num_allocs", len(pull),
+					"wait", retry,
+				)
+				select {
+				case <-time.After(retry):
+					continue
+				case <-c.shutdownCh:
+					return
+				}
+			}
+
 			// Ensure that we received all the allocations we wanted
 			pulledAllocs = make(map[string]*structs.Allocation, len(allocsResp.Allocs))
 			for _, alloc := range allocsResp.Allocs {
